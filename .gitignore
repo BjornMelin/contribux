@@ -308,3 +308,25 @@ config/development.json
 # Backup files
 *.backup
 *.bak
+
+# Added by Task Master AI
+# Logs
+logs
+dev-debug.log
+# Dependency directories
+# Environment variables
+# Editor directories and files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+# OS specific
+
+# Taskmaster
+.roo
+# .cursor
+.taskmaster/reports
+.roomodes
