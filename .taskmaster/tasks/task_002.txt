@@ -1,0 +1,61 @@
+# Task ID: 2
+# Title: Configure Database Schema with Neon PostgreSQL
+# Status: pending
+# Dependencies: 1
+# Priority: high
+# Description: Set up Neon PostgreSQL 16 database with complete schema including pgvector extension for AI embeddings, optimized for performance with halfvec data types and hybrid search capabilities
+# Details:
+Create Neon PostgreSQL 16 database instance with branching strategy for testing. Implement the complete database schema from the PRD including users, repositories, opportunities, user_preferences, notifications, and contribution_outcomes tables. Enable pgvector 0.7, pg_cron 1.6, pg_trgm, uuid-ossp, and pgcrypto extensions. Use halfvec(1536) for 50% memory savings on embeddings. Create HNSW indexes with optimal configuration (m=16, ef_construction=64). Set up database migrations using Neon branching for safe testing. Configure PgBouncer connection pooling with transaction pooling mode. Implement hybrid search combining vector similarity and text fuzzy matching. Create all enum types, proper constraints, and triggers for updated_at columns.
+
+# Test Strategy:
+Run all migrations successfully on Neon branch, verify all tables and indexes are created with proper configurations, test database connection using pooled connection strings, validate foreign key constraints and enum types, test pgvector extension with halfvec data type, verify HNSW index performance, test hybrid search functionality combining vector and text search, validate triggers and constraints, and ensure backup and monitoring strategies are working
+
+# Subtasks:
+## 1. Neon Database Instance and Branching Setup [pending]
+### Dependencies: None
+### Description: Set up Neon PostgreSQL 16 database instance with proper branching strategy for development and testing
+### Details:
+Create Neon PostgreSQL 16 database instance, configure main branch for production, create development and testing branches, set up proper access controls, configure Neon's pooled connection strings with transaction pooling mode, and verify connectivity across branches
+
+## 2. Core Schema Implementation with Enums and Constraints [pending]
+### Dependencies: 2.1
+### Description: Design and implement the complete database schema including all tables, enum types, relationships, and constraints from PRD
+### Details:
+Create all enum types (user_role, repository_status, opportunity_status, skill_level, etc.), implement all tables with proper data types including halfvec(1536) for embeddings, establish foreign key relationships, implement check constraints, create unique constraints, and set up proper column defaults
+
+## 3. PostgreSQL Extensions Configuration [pending]
+### Dependencies: 2.1
+### Description: Install and configure all required PostgreSQL extensions for enhanced functionality
+### Details:
+Enable pgvector 0.7 extension for vector operations, install pg_cron 1.6 for scheduled tasks, enable pg_trgm for fuzzy text matching, install uuid-ossp for UUID generation, enable pgcrypto for encryption functions, verify extension compatibility with PostgreSQL 16, and test extension functionality
+
+## 4. Optimized Index Creation with HNSW Configuration [pending]
+### Dependencies: 2.2, 2.3
+### Description: Create and optimize database indexes including specialized HNSW indexes for vector similarity search
+### Details:
+Create HNSW indexes on halfvec columns with optimal parameters (m=16, ef_construction=64), implement B-tree indexes for standard queries, create GIN indexes for pg_trgm text search, set up composite indexes for complex queries, create partial indexes where appropriate, and monitor index performance and usage
+
+## 5. Migration Framework and PgBouncer Configuration [pending]
+### Dependencies: 2.2, 2.3
+### Description: Set up database migration tools with Neon branching integration and configure PgBouncer connection pooling
+### Details:
+Configure migration framework compatible with Neon (Drizzle ORM or similar), implement migration testing strategy using Neon branches, set up PgBouncer with transaction pooling mode, configure pool size limits and timeout settings, implement connection monitoring, and establish migration rollback procedures
+
+## 6. Triggers and Automated Functions Setup [pending]
+### Dependencies: 2.2, 2.3
+### Description: Implement database triggers for updated_at columns and other automated database functions
+### Details:
+Create updated_at trigger function, apply triggers to all relevant tables, implement any custom trigger logic from PRD requirements, set up pg_cron scheduled tasks if needed, test trigger functionality, and ensure proper error handling in triggers
+
+## 7. Hybrid Search Implementation [pending]
+### Dependencies: 2.4, 2.6
+### Description: Implement hybrid search capability combining vector similarity search with text fuzzy matching
+### Details:
+Create hybrid search functions combining pgvector similarity search with pg_trgm fuzzy matching, implement search ranking algorithms, create search result aggregation logic, optimize search performance with proper indexing strategy, test search accuracy and performance, and document search API patterns
+
+## 8. Backup and Monitoring Strategy [pending]
+### Dependencies: 2.1, 2.5
+### Description: Configure backup strategies and monitoring for the Neon PostgreSQL database
+### Details:
+Configure Neon's built-in backup features, set up monitoring for database performance metrics, implement alerting for connection pool issues, monitor vector search performance, set up logging for migration activities, configure backup retention policies, and establish disaster recovery procedures
+
