@@ -1,0 +1,1843 @@
+# contribux - Product Requirements Document (PRD)
+### Version 2.0 | Last Updated: June 18, 2025
+
+---
+
+## Table of Contents
+1. [Product Overview](#1-product-overview)
+2. [Problem Statement](#2-problem-statement)
+3. [Solution Framework](#3-solution-framework)
+4. [User Research & Personas](#4-user-research--personas)
+5. [Product Goals & Success Metrics](#5-product-goals--success-metrics)
+6. [User Journey & Workflows](#6-user-journey--workflows)
+7. [Functional Requirements](#7-functional-requirements)
+8. [Technical Specifications](#8-technical-specifications)
+9. [Information Architecture](#9-information-architecture)
+10. [API Design & Integration](#10-api-design--integration)
+11. [UI/UX Requirements](#11-uiux-requirements)
+12. [Implementation Roadmap](#12-implementation-roadmap)
+13. [Testing & Quality Assurance](#13-testing--quality-assurance)
+14. [Security & Compliance](#14-security--compliance)
+15. [Performance Requirements](#15-performance-requirements)
+16. [Launch Strategy](#16-launch-strategy)
+17. [Risk Analysis & Mitigation](#17-risk-analysis--mitigation)
+18. [Budget & Resources](#18-budget--resources)
+19. [Post-Launch Considerations](#19-post-launch-considerations)
+20. [Appendices](#20-appendices)
+
+---
+
+## 0. Development Task Reminders
+
+- Always use pnpm for for TypeScript commands and package management over npm.
+- Use Zod best practices
+- Always use Biome for all TypeScript linting and formatting of files and always fix linting and formatting errors before finishing each task.
+- Use Vitest for all testing.
+
+## 1. Product Overview
+
+### 1.1 Product Definition
+**Name:** contribux  
+**Type:** AI-Powered GitHub Contribution Discovery Platform  
+**Platform:** Web Application (PWA-enabled)  
+**Target Release:** Q3 2025 (8-week development cycle)
+
+### 1.2 Product Vision
+> "Transform how experienced developers strategically build their open source reputation by intelligently surfacing high-impact contribution opportunities that align with their expertise and career goals."
+
+### 1.3 Product Mission
+Enable busy senior developers to efficiently discover, evaluate, and act on meaningful open source contribution opportunities through AI-powered analysis and intelligent notification systems.
+
+### 1.4 Key Differentiators
+- **AI-First Approach:** Leverages OpenAI Agents SDK for intelligent opportunity analysis
+- **Strategic Focus:** Prioritizes impact-to-effort ratio for busy professionals
+- **Serverless Architecture:** Zero maintenance overhead with automatic scaling
+- **Career Alignment:** Specifically targets AI/ML repositories for career growth
+- **Respect for Time:** Smart notification system that prevents overwhelm
+
+---
+
+## 2. Problem Statement
+
+### 2.1 The Problem
+Senior developers transitioning to AI Engineering roles face significant challenges in building their open source reputation:
+
+1. **Information Overload:** Thousands of repositories and issues to sift through manually
+2. **Time Constraints:** Full-time work leaves limited time for open source contributions
+3. **Quality Uncertainty:** Difficulty identifying which issues are worth implementing
+4. **Missed Opportunities:** High-value contribution opportunities are quickly claimed
+5. **Strategic Blindness:** Lack of data on which contributions build reputation effectively
+
+### 2.2 Current Solutions & Their Limitations
+
+| Current Approach | Limitations |
+|-----------------|-------------|
+| Manual GitHub browsing | Time-consuming, miss opportunities |
+| GitHub notifications | Too noisy, not strategic |
+| Generic issue finders | No quality filtering or AI analysis |
+| Social media discovery | Unreliable, requires constant monitoring |
+
+### 2.3 Market Opportunity
+- **Target Market Size:** 750,000+ senior developers interested in AI/ML (June 2025)
+- **Growth Rate:** 35% YoY growth in AI engineering roles  
+- **Underserved Need:** No existing solution for strategic contribution discovery
+- **GitHub Stats:** 150M+ developers on platform, 420M+ repositories
+
+---
+
+## 3. Solution Framework
+
+### 3.1 Core Value Proposition
+contribux provides an intelligent, automated system that:
+1. **Discovers** high-value contribution opportunities across GitHub
+2. **Analyzes** each opportunity using AI to assess validity and impact
+3. **Prioritizes** based on your expertise and career goals
+4. **Notifies** intelligently without overwhelming your schedule
+5. **Tracks** outcomes to continuously improve recommendations
+
+### 3.2 Solution Architecture
+
+```mermaid
+graph TB
+    subgraph "Data Collection Layer"
+        A[GitHub API Scanner] --> B[Repository Health Analyzer]
+        C[Issue/PR Monitor] --> B
+    end
+    
+    subgraph "Intelligence Layer"
+        B --> D[AI Opportunity Analyzer]
+        D --> E[Scoring Engine]
+        E --> F[Personalization Engine]
+    end
+    
+    subgraph "Action Layer"
+        F --> G[Smart Notification System]
+        F --> H[Web Dashboard]
+        F --> I[API Endpoints]
+    end
+    
+    subgraph "Learning Layer"
+        J[Outcome Tracker] --> F
+        K[User Feedback] --> F
+    end
+```
+
+#### 2025 Architecture Best Practices Applied:
+- **Edge-First Computing:** Leveraging Vercel Edge Functions for low latency
+- **AI-Native Design:** LLM-first architecture with fallback mechanisms
+- **Serverless by Default:** Zero-maintenance infrastructure
+- **Event-Driven:** Using webhooks and real-time updates
+- **Privacy-Preserving:** Local-first with selective cloud sync
+
+### 3.3 Key Innovation: AI-Powered Triage
+Using OpenAI's mature Agents SDK (v1.0), contribux employs specialized agents with:
+- **Enhanced Capabilities:** Human-in-the-loop approvals, advanced guardrails
+- **Provider Flexibility:** Support for multiple LLM providers  
+- **TypeScript Support:** Full type safety across agent definitions
+- **Tracing & Debugging:** Built-in observability for agent workflows
+
+---
+
+## 4. User Research & Personas
+
+### 4.1 Primary Persona: The Strategic Contributor
+
+**Demographics:**
+- Age: 28-45
+- Role: Senior Data Scientist / Software Engineer
+- Experience: 5-15 years in tech
+- Location: Global (remote-first)
+
+**Psychographics:**
+- Career-focused and ambitious
+- Values efficiency and impact
+- Interested in AI/ML technologies
+- Time-constrained but motivated
+
+**Goals:**
+- Build reputation as an AI Engineer
+- Make meaningful technical contributions
+- Network with AI/ML community
+- Demonstrate expertise publicly
+
+**Pain Points:**
+- Limited time for open source
+- Overwhelmed by options
+- Uncertain ROI on contributions
+- Fear of wasting time on rejected PRs
+
+### 4.2 User Interview Insights
+
+> "I want to contribute more, but I spend hours just finding the right issues. Half the time, they're already being worked on or the maintainer is unresponsive." - Senior Developer
+
+> "I need something that respects my time. I can't have my phone buzzing all day with GitHub notifications." - Data Scientist
+
+### 4.3 User Needs Hierarchy
+
+```
+Level 3: Self-Actualization
+└── Build lasting impact in AI/ML community
+
+Level 2: Esteem Needs  
+├── Recognition from peers
+└── Growing GitHub reputation
+
+Level 1: Basic Needs
+├── Find valid, implementable issues
+├── Avoid wasted effort
+└── Manage time effectively
+```
+
+---
+
+## 5. Product Goals & Success Metrics
+
+### 5.1 Business Goals
+
+| Goal | Metric | Target | Timeline |
+|------|--------|--------|----------|
+| User Activation | First contribution made | 80% within 7 days | Q3 2025 |
+| User Retention | Weekly active usage | 70% after 30 days | Q4 2025 |
+| Contribution Success | PR acceptance rate | >40% | Q3 2025 |
+| Platform Growth | Open source forks | 50+ | Q4 2025 |
+
+### 5.2 User Success Metrics
+
+| Metric | Definition | Target | Measurement |
+|--------|------------|--------|-------------|
+| Time to First PR | Days from signup to first PR | <7 days | GitHub API |
+| Contribution Quality | Stars/engagement on PRs | Top 20% | GitHub metrics |
+| Career Impact | New opportunities generated | 2+ per quarter | User survey |
+| Time Saved | Hours saved vs manual search | 10+ hours/month | User feedback |
+
+### 5.3 Technical Success Metrics
+
+| Metric | Target | Rationale |
+|--------|--------|-----------|
+| API Response Time | <500ms p95 | User experience |
+| AI Analysis Accuracy | >85% | Trust and reliability |
+| Notification Relevance | >80% useful | Prevent fatigue |
+| System Uptime | 99.9% | Reliability |
+| Cost per User | <$0.50/month | Sustainability |
+
+---
+
+## 6. User Journey & Workflows
+
+### 6.1 Onboarding Journey
+
+```mermaid
+journey
+    title New User Onboarding Journey
+    section Discovery
+      Visit Landing Page: 5: User
+      Read Value Prop: 4: User
+      Click "Get Started": 5: User
+    section Setup
+      Connect GitHub: 3: User
+      Configure Preferences: 4: User
+      Select Expertise Areas: 5: User
+    section First Value
+      Receive First Opportunities: 5: User
+      Review AI Analysis: 4: User
+      Make First Contribution: 5: User
+```
+
+### 6.2 Daily Workflow
+
+**Morning (9 AM)**
+1. Receive daily digest email
+2. Review top 5 opportunities
+3. Click through to most interesting issue
+4. Read AI-generated analysis
+5. Decide to contribute or skip
+
+**Real-time**
+1. High-value opportunity detected
+2. Immediate notification sent (if above threshold)
+3. User reviews on mobile
+4. Quick decision to claim issue
+
+**Evening**
+1. Check dashboard for updates
+2. Review contribution progress
+3. Adjust preferences if needed
+
+### 6.3 Contribution Workflow
+
+```mermaid
+flowchart LR
+    A[Opportunity Identified] --> B{Review Analysis}
+    B -->|Proceed| C[Fork Repository]
+    B -->|Skip| D[Mark Not Interested]
+    C --> E[Implement Solution]
+    E --> F[Submit PR]
+    F --> G[Track Outcome]
+    G --> H[System Learns]
+    D --> H
+```
+
+---
+
+## 7. Functional Requirements
+
+### 7.1 Core Features
+
+#### F1: Intelligent Repository Discovery
+**Priority:** P0 (Must Have)
+
+| Requirement | Description | Acceptance Criteria |
+|-------------|-------------|-------------------|
+| F1.1 | Scan GitHub trending daily | - Runs every 24 hours<br>- Covers AI/ML topics<br>- Stores results in database |
+| F1.2 | Custom repository monitoring | - User can add repos/orgs<br>- Real-time webhook support<br>- Maximum 50 per user |
+| F1.3 | Repository health scoring | - Calculate metrics<br>- Score 0-100<br>- Update weekly |
+
+#### F2: AI-Powered Opportunity Analysis
+**Priority:** P0 (Must Have)
+
+| Requirement | Description | Acceptance Criteria |
+|-------------|-------------|-------------------|
+| F2.1 | Issue complexity analysis | - Estimate hours required<br>- Identify required skills<br>- Confidence score >80% |
+| F2.2 | Validity assessment | - Detect stale issues<br>- Check maintainer activity<br>- Flag duplicates |
+| F2.3 | Implementation hints | - Generate approach suggestions<br>- Identify potential challenges<br>- Code examples when relevant |
+
+#### F3: Smart Notification System
+**Priority:** P0 (Must Have)
+
+| Requirement | Description | Acceptance Criteria |
+|-------------|-------------|-------------------|
+| F3.1 | Multi-channel delivery | - Email via Resend<br>- SMS via Telnyx (optional)<br>- In-app notifications |
+| F3.2 | Intelligent scheduling | - Respect timezone<br>- Batch similar items<br>- Cooldown periods |
+| F3.3 | Relevance filtering | - Score-based triggers<br>- User preference learning<br>- Feedback incorporation |
+
+#### F4: Dashboard & Analytics
+**Priority:** P1 (Should Have)
+
+| Requirement | Description | Acceptance Criteria |
+|-------------|-------------|-------------------|
+| F4.1 | Real-time feed | - Live opportunity updates<br>- Filtering/sorting<br>- Bookmark capability |
+| F4.2 | Contribution tracking | - PR status monitoring<br>- Success metrics<br>- Time tracking |
+| F4.3 | Performance analytics | - Contribution trends<br>- Reputation growth<br>- Skill development |
+
+### 7.2 Non-Functional Requirements
+
+#### Performance Requirements
+- Page load time: <2 seconds
+- API response time: <500ms (p95)
+- Background job processing: <5 minutes
+- Real-time updates: <30 second delay
+
+#### Scalability Requirements
+- Support 1,000 concurrent users
+- Process 10,000 repositories daily
+- Handle 100,000 issues analysis/day
+- Store 1TB of historical data
+
+#### Reliability Requirements
+- 99.9% uptime SLA
+- Automatic error recovery
+- Graceful degradation
+- Data backup every 24 hours
+
+---
+
+## 8. Technical Specifications
+
+### 8.1 System Architecture
+
+```mermaid
+graph TB
+    subgraph "Client Layer"
+        A[Next.js PWA] --> B[React Server Components]
+        B --> C[SWR v3 Cache]
+    end
+    
+    subgraph "API Layer"
+        D[Next.js API Routes] --> E[tRPC v11 Router]
+        E --> F[Auth Middleware]
+    end
+    
+    subgraph "Business Logic"
+        G[Repository Scanner] --> H[AI Analyzer]
+        I[Notification Engine] --> J[User Preferences]
+    end
+    
+    subgraph "Data Layer"
+        K[Neon PostgreSQL 16] --> L[pgvector 0.7]
+        M[Upstash Redis] --> N[QStash v3]
+    end
+    
+    subgraph "External Services"
+        O[GitHub API v4] --> P[OpenAI API v2]
+        Q[Resend v4] --> R[Vercel KV]
+    end
+    
+    A --> D
+    D --> G
+    G --> K
+    H --> P
+    I --> Q
+```
+
+#### Modern Architecture Patterns (June 2025):
+- **React Server Components:** For optimal performance
+- **Streaming Responses:** Real-time AI responses
+- **Edge Rendering:** Using Vercel's edge runtime
+- **Incremental Static Regeneration:** For dashboard pages
+- **Parallel Routes:** For complex UI states
+
+### 8.2 Technology Stack Details
+
+#### Frontend Stack
+```typescript
+// Core Dependencies - Latest as of June 2025
+{
+  "next": "^15.0.0",          // Latest stable with enhanced App Router
+  "react": "^19.0.0",         // Stable with Server Components
+  "typescript": "^5.7.0",     // Latest with improved performance
+  "tailwindcss": "^4.0.0",    // v4 with new architecture
+  "shadcn/ui": "^2.0.0",      // Latest component library
+  "swr": "^3.0.0",            // Enhanced data fetching
+  "react-hook-form": "^8.0.0", // Latest form handling
+  "zod": "^4.0.0"             // Enhanced validation
+}
+```
+
+#### Backend Stack
+```typescript
+// Core Dependencies - Latest as of June 2025
+{
+  "@vercel/postgres": "^1.0.0",      // Stable release
+  "@neondatabase/serverless": "^1.0.0", // Production ready
+  "openai": "^5.0.0",                // Latest SDK with Agents support
+  "@openai/agents-sdk": "^1.0.0",    // Stable Agents framework
+  "@upstash/qstash": "^3.0.0",       // Enhanced queuing
+  "resend": "^4.0.0",                // Latest email SDK
+  "@octokit/graphql": "^8.0.0",      // GitHub API v4
+  "trpc": "^11.0.0"                  // Latest tRPC
+}
+```
+
+### 8.3 Database Schema (Enhanced)
+
+```sql
+-- Core domain model with advanced features (PostgreSQL 16+ with latest extensions)
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+CREATE EXTENSION IF NOT EXISTS "vector" VERSION '0.7.0';  -- Latest pgvector
+CREATE EXTENSION IF NOT EXISTS "pg_cron" VERSION '1.6';   -- For scheduled jobs
+CREATE EXTENSION IF NOT EXISTS "pg_trgm";                 -- For fuzzy text search
+
+-- Enum types for consistency
+CREATE TYPE contribution_type AS ENUM ('documentation', 'bug', 'feature', 'review', 'other');
+CREATE TYPE opportunity_status AS ENUM ('active', 'claimed', 'completed', 'expired');
+CREATE TYPE notification_channel AS ENUM ('email', 'sms', 'push', 'in_app');
+
+-- Users table (minimal, auth handled by Clerk/Auth.js)
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    github_username TEXT UNIQUE NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enhanced repositories table
+CREATE TABLE repositories (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    github_id BIGINT UNIQUE NOT NULL,
+    full_name TEXT NOT NULL,
+    owner TEXT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    topics TEXT[],
+    primary_language TEXT,
+    languages JSONB,
+    stars_count INTEGER DEFAULT 0,
+    forks_count INTEGER DEFAULT 0,
+    open_issues_count INTEGER DEFAULT 0,
+    
+    -- Health metrics
+    health_score FLOAT CHECK (health_score >= 0 AND health_score <= 100),
+    maintainer_response_time INTERVAL,
+    pr_merge_rate FLOAT,
+    issue_close_rate FLOAT,
+    last_commit_at TIMESTAMPTZ,
+    
+    -- AI features
+    description_embedding vector(384),
+    topics_embedding vector(384),
+    
+    -- Metadata
+    is_archived BOOLEAN DEFAULT FALSE,
+    is_fork BOOLEAN DEFAULT FALSE,
+    has_contributing_guide BOOLEAN DEFAULT FALSE,
+    license TEXT,
+    
+    -- Tracking
+    last_scanned_at TIMESTAMPTZ,
+    scan_frequency INTERVAL DEFAULT '24 hours',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    
+    -- Indexes included below
+    CONSTRAINT valid_health_score CHECK (health_score IS NULL OR (health_score >= 0 AND health_score <= 100))
+);
+
+-- Comprehensive opportunities table
+CREATE TABLE opportunities (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    repository_id UUID REFERENCES repositories(id) ON DELETE CASCADE,
+    github_issue_id BIGINT NOT NULL,
+    github_issue_number INTEGER NOT NULL,
+    
+    -- Basic info
+    type contribution_type NOT NULL,
+    status opportunity_status DEFAULT 'active',
+    title TEXT NOT NULL,
+    body TEXT,
+    labels TEXT[],
+    
+    -- Scoring
+    complexity_score FLOAT CHECK (complexity_score >= 0 AND complexity_score <= 10),
+    impact_score FLOAT CHECK (impact_score >= 0 AND impact_score <= 10),
+    confidence_score FLOAT CHECK (confidence_score >= 0 AND confidence_score <= 1),
+    urgency_score FLOAT CHECK (urgency_score >= 0 AND urgency_score <= 10),
+    overall_score FLOAT GENERATED ALWAYS AS (
+        (impact_score * 0.3) + 
+        ((10 - complexity_score) * 0.2) + 
+        (confidence_score * 10 * 0.25) + 
+        (urgency_score * 0.25)
+    ) STORED,
+    
+    -- AI Analysis
+    ai_analysis JSONB DEFAULT '{}',
+    required_skills TEXT[],
+    estimated_hours FLOAT,
+    implementation_hints TEXT[],
+    potential_challenges TEXT[],
+    
+    -- Tracking
+    first_seen_at TIMESTAMPTZ DEFAULT NOW(),
+    last_updated_at TIMESTAMPTZ DEFAULT NOW(),
+    expires_at TIMESTAMPTZ,
+    claimed_at TIMESTAMPTZ,
+    
+    -- Unique constraint
+    UNIQUE(repository_id, github_issue_number)
+);
+
+-- User preferences with advanced features
+CREATE TABLE user_preferences (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    
+    -- Expertise and interests
+    expertise_areas TEXT[],
+    languages TEXT[],
+    topics_of_interest TEXT[],
+    excluded_topics TEXT[],
+    
+    -- Contribution preferences
+    preferred_contribution_types contribution_type[],
+    min_repo_stars INTEGER DEFAULT 0,
+    max_complexity_score FLOAT DEFAULT 7.0,
+    min_impact_score FLOAT DEFAULT 5.0,
+    
+    -- Notification settings
+    notification_channels notification_channel[] DEFAULT '{email}',
+    timezone TEXT DEFAULT 'UTC',
+    daily_digest_time TIME DEFAULT '09:00',
+    weekly_digest_day INTEGER DEFAULT 0, -- 0 = Sunday
+    immediate_notify_threshold FLOAT DEFAULT 0.9,
+    max_daily_notifications INTEGER DEFAULT 10,
+    
+    -- Advanced preferences
+    include_first_time_contributions BOOLEAN DEFAULT TRUE,
+    include_documentation_improvements BOOLEAN DEFAULT TRUE,
+    prefer_ai_ml_repos BOOLEAN DEFAULT TRUE,
+    
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Notification tracking
+CREATE TABLE notifications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    opportunity_id UUID REFERENCES opportunities(id) ON DELETE CASCADE,
+    channel notification_channel NOT NULL,
+    
+    -- Status tracking
+    sent_at TIMESTAMPTZ DEFAULT NOW(),
+    delivered_at TIMESTAMPTZ,
+    opened_at TIMESTAMPTZ,
+    clicked_at TIMESTAMPTZ,
+    
+    -- Content
+    subject TEXT,
+    preview TEXT,
+    
+    -- Metadata
+    metadata JSONB DEFAULT '{}'
+);
+
+-- Contribution outcomes for learning
+CREATE TABLE contribution_outcomes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    opportunity_id UUID REFERENCES opportunities(id) ON DELETE CASCADE,
+    
+    -- PR details
+    pr_url TEXT,
+    pr_number INTEGER,
+    pr_state TEXT CHECK (pr_state IN ('open', 'closed', 'merged')),
+    
+    -- Timing
+    started_at TIMESTAMPTZ,
+    submitted_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    time_to_merge INTERVAL,
+    
+    -- Outcomes
+    was_merged BOOLEAN,
+    commits_count INTEGER,
+    additions INTEGER,
+    deletions INTEGER,
+    changed_files INTEGER,
+    
+    -- Feedback
+    user_satisfaction INTEGER CHECK (user_satisfaction >= 1 AND user_satisfaction <= 5),
+    user_notes TEXT,
+    lessons_learned TEXT[],
+    
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Performance indexes
+CREATE INDEX idx_repositories_health ON repositories(health_score DESC) WHERE NOT is_archived;
+CREATE INDEX idx_repositories_language ON repositories(primary_language) WHERE primary_language IS NOT NULL;
+CREATE INDEX idx_repositories_topics ON repositories USING GIN(topics);
+CREATE INDEX idx_repositories_last_scanned ON repositories(last_scanned_at);
+
+CREATE INDEX idx_opportunities_scoring ON opportunities(overall_score DESC) WHERE status = 'active';
+CREATE INDEX idx_opportunities_repository ON opportunities(repository_id);
+CREATE INDEX idx_opportunities_type ON opportunities(type) WHERE status = 'active';
+CREATE INDEX idx_opportunities_created ON opportunities(first_seen_at DESC);
+
+CREATE INDEX idx_notifications_user ON notifications(user_id, sent_at DESC);
+CREATE INDEX idx_outcomes_user ON contribution_outcomes(user_id, created_at DESC);
+
+-- Vector similarity indexes
+CREATE INDEX idx_repositories_desc_embedding ON repositories 
+USING ivfflat (description_embedding vector_cosine_ops)
+WITH (lists = 100);
+
+-- Triggers for updated_at
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_repositories_updated_at BEFORE UPDATE ON repositories
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    
+CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+```
+
+### 8.4 AI Agent Specifications
+
+```typescript
+// Agent System Architecture
+interface ContribuxAgentSystem {
+  agents: {
+    orchestrator: {
+      name: "ContribuxOrchestrator",
+      role: "Coordinates all discovery and analysis workflows",
+      capabilities: [
+        "Route tasks to specialized agents",
+        "Manage workflow state",
+        "Handle errors and retries"
+      ]
+    },
+    
+    scanner: {
+      name: "ContribuxScanner",
+      role: "Discovers and evaluates repositories",
+      tools: [
+        "github_trending_search",
+        "repository_health_check",
+        "issue_discovery"
+      ],
+      outputs: [
+        "repository_scores",
+        "issue_candidates"
+      ]
+    },
+    
+    analyzer: {
+      name: "ContribuxAnalyzer", 
+      role: "Deep analysis of contribution opportunities",
+      tools: [
+        "issue_complexity_estimator",
+        "skill_requirement_detector",
+        "acceptance_probability_calculator"
+      ],
+      capabilities: [
+        "Natural language understanding",
+        "Code complexity analysis",
+        "Pattern recognition"
+      ]
+    },
+    
+    strategist: {
+      name: "ContribuxStrategist",
+      role: "Generates contribution strategies",
+      capabilities: [
+        "Implementation approach suggestions",
+        "Risk assessment",
+        "Success probability estimation"
+      ]
+    }
+  }
+}
+
+// Example Agent Implementation - OpenAI Agents SDK v1.0 (June 2025)
+const analyzerAgent = new Agent({
+  name: "ContribuxAnalyzer",
+  model: "gpt-4o-mini-2025-06",  // Latest mini model
+  temperature: 0.3,
+  instructions: `You are an expert at analyzing GitHub issues for contribution viability.
+
+Your analysis should consider:
+1. Issue clarity and completeness
+2. Presence of reproduction steps
+3. Maintainer engagement level
+4. Technical complexity
+5. Required expertise
+6. Time investment needed
+7. Likelihood of acceptance
+
+Provide structured JSON output with confidence scores.`,
+  
+  tools: [
+    {
+      type: "function",
+      function: {
+        name: "analyze_issue_complexity",
+        description: "Estimate the complexity and effort required for an issue",
+        parameters: {
+          type: "object",
+          properties: {
+            issue_body: { type: "string" },
+            repository_context: { type: "object" },
+            user_expertise: { type: "array" }
+          }
+        }
+      }
+    }
+  ],
+  
+  handoffs: ["ContribuxStrategist"],
+  
+  // New v1.0 features
+  guardrails: {
+    maxTokens: 4000,
+    timeout: 30000,
+    retries: 3
+  },
+  
+  humanInTheLoop: {
+    enabled: false,  // Can enable for critical decisions
+    approvalRequired: ["high_complexity_analysis"]
+  }
+});
+```
+
+---
+
+## 9. Information Architecture
+
+### 9.1 Site Map
+
+```
+contribux/
+├── Landing Page (/)
+├── Dashboard (/dashboard)
+│   ├── Opportunities Feed
+│   ├── Active Contributions
+│   └── Analytics
+├── Settings (/settings)
+│   ├── Profile
+│   ├── Preferences
+│   ├── Notifications
+│   └── API Keys
+├── Contribution (/contribution/:id)
+│   ├── Issue Details
+│   ├── AI Analysis
+│   └── Action Items
+├── Repositories (/repositories)
+│   ├── Trending
+│   ├── Watched
+│   └── Repository Details (/repositories/:owner/:name)
+└── API Documentation (/docs/api)
+```
+
+### 9.2 Data Flow Diagram
+
+```mermaid
+flowchart TB
+    subgraph "Data Sources"
+        A[GitHub API] --> B[Raw Data]
+        C[User Input] --> B
+    end
+    
+    subgraph "Processing"
+        B --> D[Data Validation]
+        D --> E[AI Analysis]
+        E --> F[Scoring Engine]
+    end
+    
+    subgraph "Storage"
+        F --> G[(PostgreSQL)]
+        F --> H[(Redis Cache)]
+        F --> I[Vector Store]
+    end
+    
+    subgraph "Delivery"
+        G --> J[API Layer]
+        J --> K[Web App]
+        J --> L[Notifications]
+        J --> M[Analytics]
+    end
+```
+
+---
+
+## 10. API Design & Integration
+
+### 10.1 RESTful API Endpoints
+
+```typescript
+// API Route Structure
+interface ContribuxAPI {
+  // Authentication
+  "POST /api/auth/login": {
+    body: { githubToken: string }
+    response: { user: User, token: string }
+  }
+  
+  // Opportunities
+  "GET /api/opportunities": {
+    query: { 
+      type?: ContributionType
+      minScore?: number
+      limit?: number
+      offset?: number 
+    }
+    response: { 
+      opportunities: Opportunity[]
+      total: number
+      hasMore: boolean 
+    }
+  }
+  
+  "GET /api/opportunities/:id": {
+    response: { 
+      opportunity: Opportunity
+      analysis: AIAnalysis
+      similarOpportunities: Opportunity[] 
+    }
+  }
+  
+  "POST /api/opportunities/:id/claim": {
+    response: { success: boolean }
+  }
+  
+  // Repositories
+  "GET /api/repositories/trending": {
+    query: { language?: string, topic?: string }
+    response: { repositories: Repository[] }
+  }
+  
+  "POST /api/repositories/watch": {
+    body: { owner: string, name: string }
+    response: { repository: Repository }
+  }
+  
+  // User Preferences
+  "GET /api/preferences": {
+    response: { preferences: UserPreferences }
+  }
+  
+  "PUT /api/preferences": {
+    body: Partial<UserPreferences>
+    response: { preferences: UserPreferences }
+  }
+  
+  // Analytics
+  "GET /api/analytics/contributions": {
+    query: { startDate?: string, endDate?: string }
+    response: { 
+      stats: ContributionStats
+      timeline: TimelineData
+      topRepositories: Repository[] 
+    }
+  }
+}
+```
+
+### 10.2 GraphQL Schema (Alternative)
+
+```graphql
+type Query {
+  # Opportunities
+  opportunities(
+    filter: OpportunityFilter
+    sort: OpportunitySort
+    pagination: PaginationInput
+  ): OpportunityConnection!
+  
+  opportunity(id: ID!): Opportunity
+  
+  # Repositories  
+  repositories(
+    filter: RepositoryFilter
+    sort: RepositorySort
+  ): [Repository!]!
+  
+  # User data
+  me: User!
+  myPreferences: UserPreferences!
+  myAnalytics(timeRange: TimeRange!): Analytics!
+}
+
+type Mutation {
+  # Opportunities
+  claimOpportunity(id: ID!): Opportunity!
+  skipOpportunity(id: ID!, reason: String): Boolean!
+  
+  # Preferences
+  updatePreferences(input: PreferencesInput!): UserPreferences!
+  
+  # Repositories
+  watchRepository(owner: String!, name: String!): Repository!
+  unwatchRepository(id: ID!): Boolean!
+}
+
+type Subscription {
+  # Real-time updates
+  newOpportunity(filter: OpportunityFilter): Opportunity!
+  opportunityUpdated(id: ID!): Opportunity!
+}
+```
+
+### 10.3 Webhook Endpoints
+
+```typescript
+// GitHub Webhook Handler
+interface GitHubWebhooks {
+  "POST /api/webhooks/github": {
+    headers: {
+      "X-GitHub-Event": string
+      "X-Hub-Signature-256": string
+    }
+    events: {
+      "issues.opened": IssueEvent
+      "issues.closed": IssueEvent
+      "pull_request.opened": PREvent
+      "pull_request.merged": PREvent
+    }
+  }
+}
+```
+
+---
+
+## 11. UI/UX Requirements
+
+### 11.1 Design System
+
+#### Brand Identity
+- **Primary Color:** #7C3AED (Purple - AI/Innovation)
+- **Secondary Color:** #10B981 (Green - Success)
+- **Accent Color:** #F59E0B (Amber - Notifications)
+- **Typography:** Inter (Headers), Source Code Pro (Code)
+
+#### Component Library
+Using shadcn/ui v2 with Tailwind CSS v4:
+```typescript
+// Theme configuration - Tailwind CSS v4 (June 2025)
+// Using new CSS-first configuration
+export const theme = {
+  // CSS custom properties approach
+  '--color-primary': '263 100% 50%',     // HSL values
+  '--color-success': '158 64% 42%',
+  '--color-accent': '38 92% 50%',
+  
+  // New v4 spacing system
+  '--spacing-unit': '0.25rem',
+  
+  // Component tokens
+  '--radius-default': '0.5rem',
+  '--shadow-default': '0 1px 3px 0 rgb(0 0 0 / 0.1)',
+}
+
+// tailwind.config.ts simplified in v4
+export default {
+  content: ['./src/**/*.{ts,tsx}'],
+  theme: {
+    extend: {
+      colors: {
+        primary: 'hsl(var(--color-primary) / <alpha-value>)',
+        success: 'hsl(var(--color-success) / <alpha-value>)',
+      }
+    }
+  }
+}
+```
+
+### 11.2 Key UI Components
+
+#### Opportunity Card
+```typescript
+interface OpportunityCardProps {
+  repository: string
+  title: string
+  type: ContributionType
+  scores: {
+    impact: number
+    complexity: number
+    confidence: number
+  }
+  labels: string[]
+  aiInsight: string
+  estimatedTime: string
+}
+```
+
+#### Dashboard Layout
+```
+┌─────────────────────────────────────────────┐
+│ Header: Logo | Search | Notifications | User│
+├─────────────────────────────────────────────┤
+│ ┌───────────┬─────────────────────────────┐ │
+│ │ Sidebar   │ Main Content Area           │ │
+│ │           │                             │ │
+│ │ □ Feed    │ ┌─────────────────────────┐ │
+│ │ □ Active  │ │ Opportunity Cards       │ │
+│ │ □ Analytics│ │ ┌───────┐ ┌───────┐   │ │
+│ │ □ Repos   │ │ │       │ │       │   │ │
+│ │ □ Settings│ │ └───────┘ └───────┘   │ │
+│ │           │ └─────────────────────────┘ │
+│ └───────────┴─────────────────────────────┘ │
+└─────────────────────────────────────────────┘
+```
+
+### 11.3 Mobile Experience (PWA)
+
+#### Requirements
+- Responsive design (mobile-first)
+- Offline capability for reading
+- Push notifications support
+- Touch-optimized interactions
+- App-like navigation
+
+#### Key Mobile Views
+1. **Opportunity List:** Swipeable cards
+2. **Quick Actions:** Claim/Skip buttons
+3. **Minimal Details:** Expandable sections
+4. **Native Share:** Share opportunities
+
+---
+
+## 12. Implementation Roadmap
+
+### 12.1 Development Phases
+
+#### Phase 1: Foundation (Week 1-2)
+**Goal:** Core infrastructure and basic functionality
+
+```mermaid
+gantt
+    title Phase 1: Foundation Development
+    dateFormat  YYYY-MM-DD
+    section Setup
+    Project Setup           :a1, 2025-07-01, 2d
+    Database Schema         :a2, after a1, 2d
+    Auth Implementation     :a3, after a2, 2d
+    section Core Features
+    GitHub Integration      :b1, after a1, 3d
+    Basic Scanner          :b2, after b1, 3d
+    Email Notifications    :b3, after b2, 2d
+    section Deployment
+    Vercel Setup           :c1, after b3, 1d
+    Environment Config     :c2, after c1, 1d
+```
+
+**Deliverables:**
+- [ ] Next.js project with TypeScript
+- [ ] Neon PostgreSQL with migrations
+- [ ] GitHub API client (rate-limited)
+- [ ] Basic opportunity discovery
+- [ ] Email notification system
+- [ ] Deployed MVP on Vercel
+
+#### Phase 2: Intelligence Layer (Week 3-4)
+**Goal:** Add AI-powered analysis
+
+**Deliverables:**
+- [ ] OpenAI Agents SDK integration
+- [ ] Issue complexity analyzer
+- [ ] Repository health scoring
+- [ ] Smart notification triggers
+- [ ] Contribution type classifier
+- [ ] Basic recommendation engine
+
+#### Phase 3: User Experience (Week 5-6)
+**Goal:** Polish UI/UX and add advanced features
+
+**Deliverables:**
+- [ ] Responsive dashboard
+- [ ] Real-time updates (SWR)
+- [ ] User preference management
+- [ ] Analytics dashboard
+- [ ] Mobile PWA
+- [ ] Advanced filtering/sorting
+
+#### Phase 4: Optimization & Learning (Week 7-8)
+**Goal:** Performance, learning, and growth features
+
+**Deliverables:**
+- [ ] Contribution outcome tracking
+- [ ] Success pattern learning
+- [ ] Performance optimizations
+- [ ] A/B testing framework
+- [ ] Documentation
+- [ ] Open source preparation
+
+### 12.2 Task Breakdown (Task-Master Format)
+
+```yaml
+# Phase 1 Tasks
+tasks:
+  - id: project-setup
+    title: Initialize Next.js project with TypeScript
+    priority: P0
+    effort: 2h
+    dependencies: []
+    acceptance_criteria:
+      - Next.js 15 with App Router
+      - TypeScript configured
+      - ESLint and Prettier setup
+      - Git repository initialized
+    
+  - id: database-setup
+    title: Set up Neon PostgreSQL with schema
+    priority: P0
+    effort: 4h
+    dependencies: [project-setup]
+    acceptance_criteria:
+      - Neon account created
+      - Database provisioned
+      - Schema migrations applied
+      - Connection tested
+    
+  - id: github-client
+    title: Implement GitHub API client
+    priority: P0
+    effort: 6h
+    dependencies: [project-setup]
+    acceptance_criteria:
+      - REST and GraphQL clients
+      - Rate limiting logic
+      - Error handling
+      - Token management
+    
+  - id: basic-scanner
+    title: Build repository scanner module
+    priority: P0
+    effort: 8h
+    dependencies: [github-client, database-setup]
+    acceptance_criteria:
+      - Trending repos discovery
+      - Issue extraction
+      - Database storage
+      - Scheduled execution
+    
+  - id: email-system
+    title: Implement email notifications
+    priority: P0
+    effort: 4h
+    dependencies: [project-setup]
+    acceptance_criteria:
+      - Resend integration
+      - Email templates
+      - Send functionality
+      - Delivery tracking
+
+# Phase 2 Tasks  
+tasks:
+  - id: openai-setup
+    title: Integrate OpenAI Agents SDK
+    priority: P0
+    effort: 4h
+    dependencies: [basic-scanner]
+    acceptance_criteria:
+      - SDK configured
+      - API key management
+      - Error handling
+      - Cost tracking
+    
+  - id: analyzer-agent
+    title: Build issue analyzer agent
+    priority: P0
+    effort: 8h
+    dependencies: [openai-setup]
+    acceptance_criteria:
+      - Complexity analysis
+      - Skill detection
+      - Validity assessment
+      - JSON output format
+    
+  - id: scoring-engine
+    title: Implement scoring algorithms
+    priority: P0
+    effort: 6h
+    dependencies: [analyzer-agent]
+    acceptance_criteria:
+      - Multi-factor scoring
+      - Configurable weights
+      - Score persistence
+      - Ranking logic
+```
+
+### 12.3 Sprint Planning
+
+**Sprint 1 (July 1-14, 2025): Foundation**
+- Set up development environment
+- Core infrastructure
+- Basic functionality
+- Initial deployment
+
+**Sprint 2 (July 15-28, 2025): Intelligence**
+- AI integration
+- Smart analysis
+- Improved notifications
+- Quality improvements
+
+**Sprint 3 (July 29 - August 11, 2025): Experience**
+- UI/UX polish
+- Advanced features
+- Mobile optimization
+- User feedback incorporation
+
+**Sprint 4 (August 12-25, 2025): Growth**
+- Performance optimization
+- Learning systems
+- Documentation
+- Launch preparation
+
+---
+
+## 13. Testing & Quality Assurance
+
+### 13.1 Testing Strategy
+
+#### Unit Testing
+```typescript
+// Example test structure
+describe('OpportunityAnalyzer', () => {
+  it('should correctly identify documentation opportunities', async () => {
+    const analyzer = new OpportunityAnalyzer();
+    const issue = mockDocumentationIssue();
+    
+    const result = await analyzer.analyze(issue);
+    
+    expect(result.type).toBe('documentation');
+    expect(result.complexity).toBeLessThan(3);
+    expect(result.confidence).toBeGreaterThan(0.8);
+  });
+  
+  it('should handle API failures gracefully', async () => {
+    const analyzer = new OpportunityAnalyzer();
+    mockAPIFailure();
+    
+    const result = await analyzer.analyze(mockIssue());
+    
+    expect(result.fallbackAnalysis).toBeDefined();
+    expect(result.confidence).toBeLessThan(0.5);
+  });
+});
+```
+
+#### Integration Testing
+- GitHub API integration
+- Database operations
+- Email delivery
+- AI agent workflows
+
+#### E2E Testing
+```typescript
+// Using Playwright v2 with component testing (June 2025)
+import { test, expect } from '@playwright/experimental-ct-react';
+import { OpportunityCard } from '@/components/OpportunityCard';
+
+test('opportunity card interaction', async ({ mount, page }) => {
+  // Component testing in isolation
+  const component = await mount(
+    <OpportunityCard 
+      opportunity={mockOpportunity}
+      onClaim={mockClaimHandler}
+    />
+  );
+  
+  await expect(component).toContainText('High Impact');
+  await component.getByRole('button', { name: 'Claim' }).click();
+  await expect(mockClaimHandler).toHaveBeenCalled();
+});
+
+// Full E2E test
+test('complete contribution workflow', async ({ page }) => {
+  await page.goto('/dashboard');
+  
+  // Modern testing with AI-powered selectors
+  await page.getByRole('article', { name: /opportunity/i }).first().click();
+  await expect(page.getByTestId('ai-analysis')).toBeVisible();
+  
+  // Verify real-time updates
+  await page.getByRole('button', { name: 'Claim Opportunity' }).click();
+  await expect(page.getByText('Successfully claimed')).toBeVisible();
+});
+```
+
+### 13.2 Quality Metrics
+
+| Metric | Target | Measurement |
+|--------|--------|-------------|
+| Code Coverage | >80% | Jest coverage reports |
+| Performance | <500ms API response | Lighthouse CI |
+| Accessibility | WCAG 2.1 AA | axe-core testing |
+| Bundle Size | <200KB initial | Webpack analysis |
+| Error Rate | <0.1% | Sentry monitoring |
+
+---
+
+## 14. Security & Compliance
+
+### 14.1 Security Requirements
+
+#### Authentication & Authorization (2025 Standards)
+- **Passkeys Support:** WebAuthn for passwordless authentication
+- **GitHub token encryption:** Using Vercel's encrypted environment variables
+- **JWT with refresh tokens:** Short-lived access tokens (15 min)
+- **Rate limiting:** Using Vercel's Edge Middleware
+- **CORS configuration:** Strict origin validation
+
+#### Data Protection
+```typescript
+// Example security implementation with 2025 best practices
+class SecurityManager {
+  // Use Web Crypto API for encryption
+  async encryptToken(token: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(token);
+    
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(process.env.ENCRYPTION_KEY!),
+      { name: 'AES-GCM' },
+      false,
+      ['encrypt']
+    );
+    
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encrypted = await crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv },
+      key,
+      data
+    );
+    
+    return btoa(String.fromCharCode(...new Uint8Array(encrypted)));
+  }
+  
+  // Validate GitHub webhook signatures (SHA256)
+  async verifyWebhookSignature(
+    payload: string, 
+    signature: string
+  ): Promise<boolean> {
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(process.env.WEBHOOK_SECRET!),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+    
+    const expectedSig = await crypto.subtle.sign(
+      'HMAC',
+      key,
+      encoder.encode(payload)
+    );
+    
+    const expected = `sha256=${btoa(String.fromCharCode(...new Uint8Array(expectedSig)))}`;
+    return crypto.subtle.timingSafeEqual(
+      encoder.encode(signature),
+      encoder.encode(expected)
+    );
+  }
+}
+```
+
+#### API Security
+- Input validation (Zod schemas)
+- SQL injection prevention (Parameterized queries)
+- XSS protection (Content Security Policy)
+- Rate limiting (100 req/min per user)
+
+### 14.2 Privacy Considerations
+
+#### Data Collection
+- Minimal personal data (GitHub username, email)
+- Explicit consent for notifications
+- Right to deletion (GDPR compliant)
+- Data retention policy (90 days for analytics)
+
+#### Third-Party Services
+- GitHub: Read-only access
+- OpenAI: No PII in prompts
+- Resend: Email delivery only
+- Analytics: Anonymized data
+
+---
+
+## 15. Performance Requirements
+
+### 15.1 Performance Targets
+
+| Metric | Target | Critical Threshold |
+|--------|--------|-------------------|
+| Initial Page Load | <2s | <3s |
+| API Response Time (p95) | <500ms | <1s |
+| Time to Interactive | <3s | <5s |
+| Background Job Processing | <5min | <10min |
+| Database Query Time | <100ms | <500ms |
+
+### 15.2 Optimization Strategies
+
+#### Frontend Optimization
+```typescript
+// Example: Lazy loading with dynamic imports
+const OpportunityAnalysis = dynamic(
+  () => import('@/components/OpportunityAnalysis'),
+  { 
+    loading: () => <AnalysisSkeleton />,
+    ssr: false 
+  }
+);
+
+// SWR configuration for optimal caching
+const swrConfig = {
+  revalidateOnFocus: false,
+  revalidateOnReconnect: true,
+  dedupingInterval: 10000,
+  focusThrottleInterval: 5000
+};
+```
+
+#### Backend Optimization
+- Database query optimization (indexes, materialized views)
+- Redis caching for hot data
+- CDN for static assets
+- Edge functions for low latency
+
+---
+
+## 16. Launch Strategy
+
+### 16.1 Pre-Launch Checklist
+
+#### Technical Readiness
+- [ ] All P0 features implemented
+- [ ] Test coverage >80%
+- [ ] Performance targets met
+- [ ] Security audit completed
+- [ ] Documentation complete
+
+#### Operational Readiness
+- [ ] Monitoring configured (Vercel Analytics)
+- [ ] Error tracking active (Sentry)
+- [ ] Backup strategy tested
+- [ ] Support process defined
+
+### 16.2 Soft Launch Plan
+
+**Week 1: Internal Testing**
+- Team dogfooding
+- Bug fixes and polish
+- Performance optimization
+
+**Week 2: Beta Users**
+- Invite 10-20 friendly users
+- Gather feedback
+- Iterate on UX
+
+**Week 3: Open Source Release**
+- Clean up codebase
+- Write comprehensive README
+- Create contribution guidelines
+- Launch on GitHub
+
+### 16.3 Marketing Strategy
+
+#### Launch Channels
+1. **GitHub:** Open source the project
+2. **Twitter/X:** Technical audience
+3. **Dev.to:** Technical blog post
+4. **Hacker News:** Show HN post
+5. **Reddit:** r/programming, r/opensource
+
+#### Key Messages
+- "Build your AI Engineering reputation strategically"
+- "Never miss a high-impact contribution opportunity"
+- "AI-powered open source contribution discovery"
+
+---
+
+## 17. Risk Analysis & Mitigation
+
+### 17.1 Technical Risks
+
+| Risk | Probability | Impact | Mitigation Strategy |
+|------|------------|--------|-------------------|
+| GitHub API rate limits | High | High | Implement caching, token rotation, GraphQL optimization |
+| AI analysis inaccuracy | Medium | Medium | Conservative thresholds, user feedback loop, manual override |
+| Database scaling issues | Low | High | Use Neon autoscaling, implement sharding strategy |
+| OpenAI API costs | Medium | Medium | Use GPT-4o-mini, implement token limits, cost alerts |
+
+### 17.2 Operational Risks
+
+| Risk | Probability | Impact | Mitigation Strategy |
+|------|------------|--------|-------------------|
+| User notification fatigue | High | High | Smart filtering, user preferences, feedback incorporation |
+| Maintenance overhead | Medium | Medium | Automated testing, self-healing systems, monitoring |
+| Competition from GitHub | Low | High | Focus on AI differentiation, move fast |
+
+### 17.3 Contingency Plans
+
+**Scenario: GitHub API Changes**
+- Plan A: Adapt to new API quickly
+- Plan B: Use web scraping (carefully)
+- Plan C: Partner with GitHub
+
+**Scenario: Rapid User Growth**
+- Plan A: Vercel auto-scaling
+- Plan B: Implement rate limiting
+- Plan C: Upgrade infrastructure
+
+---
+
+## 18. Budget & Resources
+
+### 18.1 Development Costs
+
+| Item | Cost | Notes |
+|------|------|-------|
+| Developer Time | 320 hours | 8 weeks × 40 hours |
+| Domain Name | $15/year | contribux.dev |
+| SSL Certificate | Free | Vercel included |
+| Total Development | ~$15 | Mostly time investment |
+
+### 18.2 Monthly Operating Costs
+
+| Service | Free Tier | Estimated Usage | Cost |
+|---------|-----------|-----------------|------|
+| Vercel Hosting | 100GB bandwidth | 50GB | $0 |
+| Neon PostgreSQL | 0.5GB storage | 0.3GB | $0 |
+| OpenAI API | Pay-per-use | 500K tokens | $3-8 |
+| Upstash QStash | 100K messages | 50K messages | $0 |
+| Resend Email | 3K emails/month | 2K emails | $0 |
+| **Total Monthly** | | | **$3-8** |
+
+### 18.3 Scaling Costs (1000 users) - June 2025 Pricing
+
+| Service | Usage | Cost |
+|---------|-------|------|
+| Vercel Pro | Higher limits | $20/month |
+| Neon Scale | 10GB storage | $35/month |
+| OpenAI API | 10M tokens | $30/month |
+| Upstash | 1M messages | $10/month |
+| Resend | 20K emails | $20/month |
+| **Total at Scale** | | **$115/month** |
+
+---
+
+## 19. Post-Launch Considerations
+
+### 19.1 Success Monitoring
+
+#### Week 1-4 Metrics
+- User signups and activation rate
+- First contribution timing
+- Feature usage patterns
+- Error rates and performance
+
+#### Month 2-3 Focus
+- Contribution success rates
+- User retention
+- Feature requests
+- Community growth
+
+### 19.2 Iteration Plan
+
+**Quick Wins (Month 1)**
+- UI/UX improvements based on feedback
+- Additional notification options
+- More contribution types
+
+**Medium Term (Month 2-3)**
+- Advanced AI features
+- Team/organization features
+- API for developers
+
+**Long Term (Month 4+)**
+- Mobile native apps
+- Browser extension
+- Enterprise features
+
+### 19.3 Community Building
+
+#### Open Source Strategy
+- Clear contribution guidelines
+- Good first issues
+- Regular releases
+- Community calls
+
+#### User Engagement
+- Discord/Slack community
+- Monthly newsletters
+- Success story highlights
+- Feature request voting
+
+---
+
+## 20. Appendices
+
+### Appendix A: Detailed API Specifications
+
+```typescript
+// Complete TypeScript interfaces for all entities
+interface Repository {
+  id: string;
+  githubId: number;
+  fullName: string;
+  owner: string;
+  name: string;
+  description: string | null;
+  topics: string[];
+  primaryLanguage: string | null;
+  languages: Record<string, number>;
+  starsCount: number;
+  forksCount: number;
+  openIssuesCount: number;
+  healthScore: number;
+  maintainerResponseTime: string | null; // ISO 8601 duration
+  prMergeRate: number;
+  issueCloseRate: number;
+  lastCommitAt: string; // ISO 8601
+  isArchived: boolean;
+  isFork: boolean;
+  hasContributingGuide: boolean;
+  license: string | null;
+  lastScannedAt: string; // ISO 8601
+  createdAt: string; // ISO 8601
+  updatedAt: string; // ISO 8601
+}
+
+interface Opportunity {
+  id: string;
+  repository: Repository;
+  githubIssueId: number;
+  githubIssueNumber: number;
+  type: 'documentation' | 'bug' | 'feature' | 'review' | 'other';
+  status: 'active' | 'claimed' | 'completed' | 'expired';
+  title: string;
+  body: string | null;
+  labels: string[];
+  scores: {
+    complexity: number; // 0-10
+    impact: number; // 0-10
+    confidence: number; // 0-1
+    urgency: number; // 0-10
+    overall: number; // Calculated
+  };
+  aiAnalysis: {
+    isValid: boolean;
+    summary: string;
+    requiredSkills: string[];
+    estimatedHours: number;
+    implementationHints: string[];
+    potentialChallenges: string[];
+    suggestedApproach: string;
+    confidenceExplanation: string;
+  };
+  firstSeenAt: string; // ISO 8601
+  lastUpdatedAt: string; // ISO 8601
+  expiresAt: string | null; // ISO 8601
+  claimedAt: string | null; // ISO 8601
+}
+```
+
+### Appendix B: Email Templates
+
+```html
+<!-- Daily Digest Template -->
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Inter, sans-serif; line-height: 1.6; color: #1f2937; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: #7c3aed; color: white; padding: 30px; text-align: center; }
+    .opportunity { border: 1px solid #e5e7eb; padding: 20px; margin: 15px 0; border-radius: 8px; }
+    .scores { display: flex; gap: 15px; margin: 10px 0; }
+    .score { padding: 5px 10px; border-radius: 4px; font-size: 14px; }
+    .impact { background: #fef3c7; color: #92400e; }
+    .complexity { background: #dbeafe; color: #1e40af; }
+    .confidence { background: #d1fae5; color: #065f46; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Your Daily contribux Digest</h1>
+      <p>{{date}} - {{opportunityCount}} new opportunities</p>
+    </div>
+    
+    {{#each opportunities}}
+    <div class="opportunity">
+      <h3>{{repository}} - {{title}}</h3>
+      <div class="scores">
+        <span class="score impact">Impact: {{scores.impact}}/10</span>
+        <span class="score complexity">Complexity: {{scores.complexity}}/10</span>
+        <span class="score confidence">Confidence: {{scores.confidence}}%</span>
+      </div>
+      <p>{{aiAnalysis.summary}}</p>
+      <p><strong>Estimated time:</strong> {{aiAnalysis.estimatedHours}} hours</p>
+      <a href="{{link}}" style="color: #7c3aed;">View Opportunity →</a>
+    </div>
+    {{/each}}
+    
+    <div style="text-align: center; margin-top: 40px; color: #6b7280;">
+      <p>You're receiving this because you're subscribed to daily digests.</p>
+      <a href="{{unsubscribeLink}}" style="color: #6b7280;">Update preferences</a>
+    </div>
+  </div>
+</body>
+</html>
+```
+
+### Appendix C: Database Migration Scripts
+
+```sql
+-- Migration: 001_initial_schema.sql
+BEGIN;
+
+-- Enable extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+CREATE EXTENSION IF NOT EXISTS "vector";
+
+-- Create all tables (as defined in section 8.3)
+-- ... (tables creation here)
+
+COMMIT;
+
+-- Migration: 002_add_analytics_tables.sql
+BEGIN;
+
+CREATE TABLE daily_stats (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    date DATE UNIQUE NOT NULL,
+    total_opportunities INTEGER DEFAULT 0,
+    total_contributions INTEGER DEFAULT 0,
+    success_rate FLOAT,
+    avg_time_to_merge INTERVAL,
+    top_repositories JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_daily_stats_date ON daily_stats(date DESC);
+
+COMMIT;
+```
+
+### Appendix D: Monitoring & Alerting
+
+```typescript
+// Monitoring configuration
+export const monitoring = {
+  // Vercel Analytics events
+  events: {
+    OPPORTUNITY_VIEWED: 'opportunity_viewed',
+    OPPORTUNITY_CLAIMED: 'opportunity_claimed',
+    CONTRIBUTION_COMPLETED: 'contribution_completed',
+    NOTIFICATION_SENT: 'notification_sent'
+  },
+  
+  // Sentry configuration
+  sentry: {
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.VERCEL_ENV,
+    tracesSampleRate: 0.1,
+    profilesSampleRate: 0.1
+  },
+  
+  // Custom alerts
+  alerts: {
+    highAPIUsage: {
+      threshold: 0.8, // 80% of rate limit
+      channel: 'email'
+    },
+    lowSuccessRate: {
+      threshold: 0.3, // 30% success rate
+      channel: 'slack'
+    },
+    highErrorRate: {
+      threshold: 0.01, // 1% error rate
+      channel: 'pagerduty'
+    }
+  }
+};
+```
+
+---
+
+## Document Control
+
+**Version:** 2.0  
+**Last Updated:** June 18, 2025  
+**Author:** AI PRD Architect  
+**Status:** Ready for Implementation  
+**Review Cycle:** Bi-weekly during development
+
+### Revision History
+| Version | Date | Changes | Author |
+|---------|------|---------|--------|
+| 1.0 | June 2025 | Initial PRD | AI PRD Architect |
+| 2.0 | June 18, 2025 | Enhanced with comprehensive sections | AI PRD Architect |
+
+### Approval Sign-offs
+- [ ] Product Owner
+- [ ] Technical Lead
+- [ ] UX Designer
+- [ ] QA Lead
+
+---
+
+*This PRD is a living document and will be updated as the product evolves. For questions or clarifications, please refer to the contribux project repository.*

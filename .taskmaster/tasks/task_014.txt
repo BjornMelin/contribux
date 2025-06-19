@@ -1,0 +1,43 @@
+# Task ID: 14
+# Title: Create tRPC v11 API Layer
+# Status: pending
+# Dependencies: 13
+# Priority: medium
+# Description: Implement type-safe API layer using tRPC v11 for all client-server communication
+# Details:
+Set up tRPC v11 with Next.js App Router integration. Create routers for opportunities, repositories, users, and preferences. Implement input validation using Zod schemas. Add authentication middleware for protected routes. Create error handling and logging. Implement rate limiting and request validation. Generate TypeScript types for frontend consumption.
+
+# Test Strategy:
+Verify all API endpoints work correctly, type safety is maintained, authentication middleware protects routes, error handling works, and rate limiting functions properly
+
+# Subtasks:
+## 1. Router Setup and Configuration [pending]
+### Dependencies: None
+### Description: Set up tRPC router with proper TypeScript configuration, define API routes structure, and establish the foundation for type-safe API endpoints
+### Details:
+Initialize tRPC router, configure TypeScript types, set up procedure definitions, establish router hierarchy, and create the main API structure with proper type inference
+
+## 2. Input Validation with Zod [pending]
+### Dependencies: 14.1
+### Description: Implement comprehensive input validation using Zod schemas for all API endpoints to ensure type safety and data integrity
+### Details:
+Create Zod validation schemas for all input types, integrate schemas with tRPC procedures, implement custom validation rules, and set up proper error messages for validation failures
+
+## 3. Authentication Middleware [pending]
+### Dependencies: 14.1
+### Description: Develop authentication middleware to secure API endpoints and manage user sessions with proper authorization checks
+### Details:
+Create authentication middleware functions, implement JWT token validation, set up user context handling, establish protected procedure types, and integrate with session management
+
+## 4. Error Handling and Logging [pending]
+### Dependencies: 14.2, 14.3
+### Description: Implement comprehensive error handling system with structured logging for debugging and monitoring API operations
+### Details:
+Set up custom error classes, implement error transformation middleware, create structured logging system, establish error reporting mechanisms, and ensure proper error responses with appropriate HTTP status codes
+
+## 5. Rate Limiting Implementation [pending]
+### Dependencies: 14.3, 14.4
+### Description: Implement rate limiting middleware to protect API endpoints from abuse and ensure fair usage across different user tiers
+### Details:
+Create rate limiting middleware with configurable limits, implement different rate limit tiers for authenticated vs anonymous users, set up Redis or in-memory storage for rate limit tracking, and integrate with error handling for rate limit exceeded responses
+

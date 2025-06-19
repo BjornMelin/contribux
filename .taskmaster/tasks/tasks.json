@@ -1,0 +1,1655 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Initialize Next.js 15 Project with TypeScript",
+        "description": "Set up the foundational Next.js project with TypeScript, ESLint, Prettier, and Biome configuration",
+        "details": "Create a new Next.js 15 project using the App Router with TypeScript. Configure package.json to use pnpm exclusively. Set up Biome for linting and formatting with strict TypeScript rules. Initialize git repository and create basic folder structure: src/app, src/components, src/lib, src/types. Configure next.config.js for PWA support and edge runtime. Set up environment variables structure.",
+        "testStrategy": "Verify project builds successfully with `pnpm build`, all linting passes with Biome, TypeScript compilation succeeds, and basic Next.js app loads on localhost:3000",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Next.js 15 Project",
+            "description": "Initialize a new Next.js 15 project using the create-next-app command with TypeScript and App Router configuration",
+            "dependencies": [],
+            "details": "Run 'npx create-next-app@latest project-name --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\"' to create the project with modern defaults including TypeScript, Tailwind CSS, ESLint, App Router, src directory, and import aliases",
+            "status": "pending"
+          },
+          {
+            "id": 2,
+            "title": "Configure Package Manager",
+            "description": "Set up and configure the preferred package manager (npm, yarn, or pnpm) with proper configuration files",
+            "dependencies": [
+              1
+            ],
+            "details": "Choose and configure package manager by creating .npmrc, .yarnrc.yml, or .pnpmrc files. Set up package-lock settings, registry configurations, and workspace settings if needed. Configure scripts in package.json for development workflow",
+            "status": "pending"
+          },
+          {
+            "id": 3,
+            "title": "Setup Linting and Formatting Configuration",
+            "description": "Configure ESLint, Prettier, and additional code quality tools with custom rules and integrations",
+            "dependencies": [
+              2
+            ],
+            "details": "Extend ESLint configuration with additional rules, configure Prettier with .prettierrc and .prettierignore files, set up Husky for pre-commit hooks, configure lint-staged for staged file linting, and integrate with VS Code settings",
+            "status": "pending"
+          },
+          {
+            "id": 4,
+            "title": "Create Organized Folder Structure",
+            "description": "Establish a scalable folder structure for components, pages, utilities, and other project assets",
+            "dependencies": [
+              1
+            ],
+            "details": "Create folders: src/components (ui, layout, forms), src/lib (utils, constants, types), src/hooks, src/styles, src/app (pages and layouts), public/assets, and docs. Set up index.ts files for clean imports and create initial placeholder files",
+            "status": "pending"
+          },
+          {
+            "id": 5,
+            "title": "Configure Development Environment",
+            "description": "Set up environment variables, development tools, and local development configuration",
+            "dependencies": [
+              3,
+              4
+            ],
+            "details": "Create .env.local and .env.example files, configure next.config.js with custom settings, set up TypeScript configuration in tsconfig.json, configure Tailwind CSS settings, and create VS Code workspace settings with recommended extensions",
+            "status": "pending"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Configure Database Schema with Neon PostgreSQL",
+        "description": "Set up Neon PostgreSQL database with complete schema including pgvector extension for AI embeddings",
+        "details": "Create Neon PostgreSQL 16 database instance. Implement the complete database schema from the PRD including users, repositories, opportunities, user_preferences, notifications, and contribution_outcomes tables. Enable pgvector 0.7, pg_cron 1.6, and pg_trgm extensions. Create all indexes for performance optimization. Set up database migrations using a migration tool compatible with Neon. Configure connection pooling and environment variables for database access.",
+        "testStrategy": "Run all migrations successfully, verify all tables and indexes are created, test database connection from Next.js app, validate foreign key constraints, and ensure pgvector extension works for similarity searches",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Database Instance Creation",
+            "description": "Set up the database server instance with proper configuration, security settings, and initial administrative access",
+            "dependencies": [],
+            "details": "Install and configure database server, set up authentication, configure network access, establish backup locations, and verify connectivity",
+            "status": "pending"
+          },
+          {
+            "id": 2,
+            "title": "Schema Implementation",
+            "description": "Design and implement the database schema including tables, relationships, constraints, and data types",
+            "dependencies": [
+              1
+            ],
+            "details": "Create database schemas, define tables with appropriate columns and data types, establish foreign key relationships, implement check constraints, and set up triggers if needed",
+            "status": "pending"
+          },
+          {
+            "id": 3,
+            "title": "Extension Enablement",
+            "description": "Install and configure necessary database extensions and plugins to enhance functionality",
+            "dependencies": [
+              1
+            ],
+            "details": "Identify required extensions, install database-specific extensions, configure extension settings, verify compatibility, and test extension functionality",
+            "status": "pending"
+          },
+          {
+            "id": 4,
+            "title": "Index Optimization",
+            "description": "Create and optimize database indexes for improved query performance and data retrieval efficiency",
+            "dependencies": [
+              2
+            ],
+            "details": "Analyze query patterns, create primary and secondary indexes, implement composite indexes where needed, optimize index strategies, and monitor index performance",
+            "status": "pending"
+          },
+          {
+            "id": 5,
+            "title": "Migration and Pooling Configuration",
+            "description": "Set up database migration tools and configure connection pooling for scalable database access",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "Configure migration framework, set up connection pooling parameters, establish pool size limits, configure timeout settings, and implement connection monitoring",
+            "status": "pending"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Implement GitHub API Client with Rate Limiting",
+        "description": "Create a robust GitHub API client supporting both REST and GraphQL with intelligent rate limiting",
+        "details": "Build GitHub API client using @octokit/graphql v8.0.0 and @octokit/rest. Implement rate limiting logic that respects GitHub's 5000 requests/hour limit. Create token rotation system for multiple GitHub tokens. Add retry logic with exponential backoff. Implement caching layer using Redis for frequently accessed data. Create TypeScript interfaces for all GitHub API responses. Add comprehensive error handling for API failures.",
+        "testStrategy": "Test rate limiting behavior under load, verify token rotation works correctly, validate API responses match TypeScript interfaces, test error handling for various failure scenarios, and ensure caching reduces API calls",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Basic Client Setup",
+            "description": "Implement foundational API client architecture with HTTP client configuration, base URL management, request/response handling, and error handling framework",
+            "dependencies": [],
+            "details": "Set up HTTP client library, configure base URLs and endpoints, implement request/response serialization, establish basic error handling patterns, and create client initialization with configuration options",
+            "status": "pending"
+          },
+          {
+            "id": 2,
+            "title": "Rate Limiting Implementation",
+            "description": "Develop comprehensive rate limiting system with multiple strategies including token bucket, sliding window, and API-specific rate limit handling",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement rate limiting algorithms, create rate limit tracking mechanisms, handle rate limit headers from APIs, implement backoff strategies, and provide rate limit status monitoring",
+            "status": "pending"
+          },
+          {
+            "id": 3,
+            "title": "Token Rotation System",
+            "description": "Build secure token management system with automatic rotation, refresh logic, and multi-token support for different API endpoints",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement token storage and retrieval, create automatic token refresh mechanisms, handle token expiration detection, support multiple authentication methods, and ensure thread-safe token operations",
+            "status": "pending"
+          },
+          {
+            "id": 4,
+            "title": "Retry Logic",
+            "description": "Implement intelligent retry mechanisms with exponential backoff, circuit breaker patterns, and failure classification for different error types",
+            "dependencies": [
+              1,
+              2,
+              3
+            ],
+            "details": "Create retry strategies for different error types, implement exponential backoff with jitter, add circuit breaker functionality, handle transient vs permanent failures, and provide retry configuration options",
+            "status": "pending"
+          },
+          {
+            "id": 5,
+            "title": "Caching Integration",
+            "description": "Integrate multi-level caching system with TTL management, cache invalidation strategies, and performance optimization for API responses",
+            "dependencies": [
+              1,
+              4
+            ],
+            "details": "Implement in-memory and persistent caching layers, create cache key generation strategies, handle cache TTL and invalidation, implement cache warming mechanisms, and add cache performance metrics",
+            "status": "pending"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Set up Authentication with GitHub OAuth",
+        "description": "Implement secure authentication system using GitHub OAuth for user login and token management",
+        "details": "Implement GitHub OAuth authentication using NextAuth.js or similar. Store encrypted GitHub tokens in database using Web Crypto API for encryption. Create user session management with JWT tokens (15-minute expiry with refresh). Implement middleware for protecting API routes. Add user profile creation and management. Ensure GDPR compliance for user data handling.",
+        "testStrategy": "Test complete OAuth flow, verify token encryption/decryption, validate session management, test protected route access, and ensure user data is properly stored and retrieved",
+        "priority": "high",
+        "dependencies": [
+          2
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "OAuth App Configuration",
+            "description": "Set up OAuth applications with third-party providers (Google, GitHub, etc.) and configure client credentials, redirect URIs, and scopes",
+            "dependencies": [],
+            "details": "Register applications with OAuth providers, obtain client IDs and secrets, configure authorized redirect URIs, set appropriate scopes for user data access, and store credentials securely in environment variables",
+            "status": "pending"
+          },
+          {
+            "id": 2,
+            "title": "NextAuth.js Integration",
+            "description": "Install and configure NextAuth.js with OAuth providers, database adapters, and authentication callbacks",
+            "dependencies": [
+              1
+            ],
+            "details": "Install NextAuth.js package, create API route handlers, configure OAuth providers with credentials from subtask 1, set up database adapter for session persistence, and implement custom callbacks for user data handling",
+            "status": "pending"
+          },
+          {
+            "id": 3,
+            "title": "Token Encryption",
+            "description": "Implement secure token encryption and decryption mechanisms for JWT tokens and refresh tokens",
+            "dependencies": [
+              2
+            ],
+            "details": "Configure JWT encryption settings, implement custom JWT encode/decode functions, set up secure token storage, handle token rotation for refresh tokens, and ensure proper encryption key management",
+            "status": "pending"
+          },
+          {
+            "id": 4,
+            "title": "Session Management",
+            "description": "Configure session storage, expiration policies, and user session state management across the application",
+            "dependencies": [
+              3
+            ],
+            "details": "Set up session storage strategy (database vs JWT), configure session expiration and renewal policies, implement session invalidation mechanisms, handle concurrent sessions, and manage user state persistence",
+            "status": "pending"
+          },
+          {
+            "id": 5,
+            "title": "Route Protection Middleware",
+            "description": "Create middleware to protect authenticated routes and implement role-based access control",
+            "dependencies": [
+              4
+            ],
+            "details": "Develop Next.js middleware for route protection, implement authentication checks, create role-based access control logic, handle unauthorized access redirects, and protect API endpoints with proper authentication validation",
+            "status": "pending"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Build Repository Discovery Scanner",
+        "description": "Create automated system to discover and analyze GitHub repositories for contribution opportunities",
+        "details": "Implement repository scanner that fetches GitHub trending repositories daily focusing on AI/ML topics. Create repository health scoring algorithm considering stars, forks, recent activity, maintainer responsiveness, and PR merge rates. Store repository data with metadata in PostgreSQL. Implement incremental updates to avoid re-processing unchanged repositories. Add support for user-specified repositories to monitor.",
+        "testStrategy": "Verify scanner discovers trending AI/ML repositories, health scores are calculated correctly, data is stored properly in database, incremental updates work, and user-specified repositories are monitored",
+        "priority": "high",
+        "dependencies": [
+          3,
+          4
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Trending Repository Fetching",
+            "description": "Implement API integration to fetch trending repositories from GitHub, GitLab, and other platforms with rate limiting and error handling",
+            "dependencies": [],
+            "details": "Set up API clients for multiple Git platforms, implement pagination handling, configure rate limiting mechanisms, add retry logic for failed requests, and create data normalization layer for different API responses",
+            "status": "pending"
+          },
+          {
+            "id": 2,
+            "title": "Health Scoring Algorithm Implementation",
+            "description": "Develop comprehensive repository health scoring system based on multiple metrics and weighted factors",
+            "dependencies": [
+              1
+            ],
+            "details": "Design scoring algorithm considering factors like commit frequency, issue resolution time, documentation quality, test coverage, community engagement, and maintenance activity. Implement configurable weights and thresholds for different scoring criteria",
+            "status": "pending"
+          },
+          {
+            "id": 3,
+            "title": "Data Storage Optimization",
+            "description": "Design and implement efficient database schema and caching strategies for repository data storage",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Create optimized database schema for repository metadata and health scores, implement Redis caching layer, design data partitioning strategies, set up database indexing for fast queries, and implement data compression techniques",
+            "status": "pending"
+          },
+          {
+            "id": 4,
+            "title": "Incremental Update Logic",
+            "description": "Implement smart update mechanism to efficiently refresh repository data without full rescans",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "Design delta update system to track changes since last scan, implement timestamp-based incremental updates, create change detection algorithms, set up background job scheduling, and optimize update frequency based on repository activity",
+            "status": "pending"
+          },
+          {
+            "id": 5,
+            "title": "User-Specified Repository Support",
+            "description": "Add functionality for users to manually add and track custom repositories beyond trending lists",
+            "dependencies": [
+              3,
+              4
+            ],
+            "details": "Create user interface for repository URL input, implement repository validation and metadata extraction, add user-specific repository lists, create custom scanning schedules, and implement access control for private repositories",
+            "status": "pending"
+          },
+          {
+            "id": 6,
+            "title": "Performance Monitoring",
+            "description": "Implement comprehensive monitoring and alerting system for scanner performance and health metrics",
+            "dependencies": [
+              4,
+              5
+            ],
+            "details": "Set up application performance monitoring, implement API rate limit tracking, create database performance metrics, add scan duration monitoring, implement alerting for failures and bottlenecks, and create performance dashboards with key metrics visualization",
+            "status": "pending"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Implement Issue Discovery and Filtering",
+        "description": "Build system to discover and filter GitHub issues suitable for contributions",
+        "details": "Create issue discovery system that scans repositories for open issues. Filter issues based on labels (good first issue, help wanted, documentation, bug), age, and activity. Exclude issues that are already assigned or have recent activity indicating work in progress. Implement deduplication logic to avoid processing the same issue multiple times. Store issue data with metadata for AI analysis.",
+        "testStrategy": "Verify issues are discovered from monitored repositories, filtering logic works correctly, duplicates are avoided, issue data is stored properly, and only suitable issues are selected for analysis",
+        "priority": "high",
+        "dependencies": [
+          5
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Repository Scanning Implementation",
+            "description": "Implement core repository scanning functionality to discover and collect issues from target repositories",
+            "dependencies": [],
+            "details": "Develop API integration modules for repository platforms (GitHub, GitLab, etc.), implement pagination handling, rate limiting, and error recovery mechanisms. Create configurable scanning parameters for repository selection and issue retrieval scope.",
+            "status": "pending"
+          },
+          {
+            "id": 2,
+            "title": "Label-based Filtering Logic",
+            "description": "Create intelligent filtering system based on issue labels and metadata to identify relevant issues",
+            "dependencies": [
+              1
+            ],
+            "details": "Design label taxonomy and matching algorithms, implement configurable filter rules, create whitelist/blacklist functionality for labels, and develop pattern matching for label combinations and hierarchies.",
+            "status": "pending"
+          },
+          {
+            "id": 3,
+            "title": "Activity Analysis and Exclusion Rules",
+            "description": "Develop activity-based filtering to exclude stale, inactive, or irrelevant issues based on engagement metrics",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement algorithms to analyze issue activity patterns, comment frequency, last update timestamps, contributor engagement levels, and create configurable thresholds for exclusion based on activity metrics.",
+            "status": "pending"
+          },
+          {
+            "id": 4,
+            "title": "Deduplication System",
+            "description": "Build intelligent deduplication engine to identify and merge duplicate or similar issues across repositories",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "Develop similarity detection algorithms using title/description analysis, implement fuzzy matching for cross-repository duplicates, create merge strategies for duplicate issues, and maintain reference tracking for deduplicated items.",
+            "status": "pending"
+          },
+          {
+            "id": 5,
+            "title": "Metadata Storage Optimization",
+            "description": "Design and implement optimized storage system for issue metadata with efficient querying and retrieval capabilities",
+            "dependencies": [
+              4
+            ],
+            "details": "Create database schema for issue metadata storage, implement indexing strategies for fast searches, develop data compression techniques for large datasets, and create backup/archival systems for historical issue data.",
+            "status": "pending"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Integrate OpenAI Agents SDK for Issue Analysis",
+        "description": "Set up OpenAI Agents SDK v1.0 for intelligent analysis of contribution opportunities",
+        "details": "Install and configure OpenAI Agents SDK v1.0 with GPT-4o-mini-2025-06 model. Create specialized agents: ContribuxAnalyzer for issue complexity analysis, ContribuxStrategist for implementation suggestions. Implement cost tracking and token limits. Add error handling and fallback mechanisms. Configure guardrails and timeout settings. Create structured JSON output schemas using Zod validation.",
+        "testStrategy": "Verify OpenAI API integration works, agents produce structured JSON output, cost tracking functions correctly, error handling works for API failures, and token limits are respected",
+        "priority": "high",
+        "dependencies": [
+          6
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "SDK Setup and Configuration",
+            "description": "Install and configure the OpenAI SDK with proper authentication, environment variables, and connection settings",
+            "dependencies": [],
+            "details": "Set up OpenAI Python SDK, configure API keys securely using environment variables, establish connection parameters, set up proper timeout and retry configurations, and create base client initialization with proper error handling for authentication failures",
+            "status": "pending"
+          },
+          {
+            "id": 2,
+            "title": "Specialized Agent Creation",
+            "description": "Design and implement specialized AI agents with custom prompts, model selection, and parameter tuning for specific use cases",
+            "dependencies": [
+              1
+            ],
+            "details": "Create agent classes with role-specific system prompts, implement model selection logic (GPT-4, GPT-3.5-turbo), configure temperature and token limits, design conversation context management, and implement agent specialization for different domains or tasks",
+            "status": "pending"
+          },
+          {
+            "id": 3,
+            "title": "Cost Tracking Implementation",
+            "description": "Implement comprehensive cost monitoring and tracking system for OpenAI API usage",
+            "dependencies": [
+              1
+            ],
+            "details": "Create token counting mechanisms, implement cost calculation based on model pricing, set up usage logging and monitoring, create budget alerts and limits, implement cost reporting dashboards, and add per-user or per-session cost tracking",
+            "status": "pending"
+          },
+          {
+            "id": 4,
+            "title": "Error Handling and Fallbacks",
+            "description": "Implement robust error handling, retry mechanisms, and fallback strategies for OpenAI API failures",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Create comprehensive exception handling for API errors, implement exponential backoff retry logic, design fallback mechanisms for rate limits and service outages, add circuit breaker patterns, implement graceful degradation strategies, and create error logging and alerting systems",
+            "status": "pending"
+          },
+          {
+            "id": 5,
+            "title": "Output Schema Validation",
+            "description": "Implement structured output validation and parsing to ensure consistent and reliable AI responses",
+            "dependencies": [
+              2,
+              4
+            ],
+            "details": "Design JSON schema definitions for expected outputs, implement response validation and parsing logic, create output sanitization and formatting functions, add schema enforcement mechanisms, implement fallback parsing strategies for malformed responses, and create output quality assurance checks",
+            "status": "pending"
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Build AI-Powered Opportunity Analyzer",
+        "description": "Create intelligent system to analyze issues and generate contribution recommendations",
+        "details": "Implement AI analyzer that evaluates issues for complexity (0-10), impact (0-10), confidence (0-1), and urgency (0-10). Generate implementation hints, identify required skills, estimate time investment, and assess acceptance probability. Create fallback analysis for when AI is unavailable. Store analysis results in database with confidence scores. Implement learning from user feedback to improve accuracy.",
+        "testStrategy": "Verify AI analysis produces consistent scores, implementation hints are relevant, skill identification is accurate, time estimates are reasonable, and fallback analysis works when AI is unavailable",
+        "priority": "high",
+        "dependencies": [
+          7
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Scoring Algorithm Implementation",
+            "description": "Develop the core scoring algorithm that evaluates code quality, efficiency, and correctness with weighted metrics and configurable parameters",
+            "dependencies": [],
+            "details": "Implement multi-dimensional scoring system with metrics for code complexity, performance, readability, and best practices. Include configurable weights and thresholds for different evaluation criteria.",
+            "status": "pending"
+          },
+          {
+            "id": 2,
+            "title": "Implementation Hint Generation",
+            "description": "Create intelligent hint generation system that provides contextual suggestions and guidance based on code analysis results",
+            "dependencies": [
+              1
+            ],
+            "details": "Build natural language processing component to generate helpful hints, tips, and improvement suggestions based on scoring results and identified patterns in the code.",
+            "status": "pending"
+          },
+          {
+            "id": 3,
+            "title": "Skill Identification System",
+            "description": "Implement machine learning-based system to identify and categorize programming skills demonstrated in submitted code",
+            "dependencies": [
+              1
+            ],
+            "details": "Develop classification algorithms to detect programming concepts, design patterns, data structures usage, and algorithmic approaches. Map identified skills to competency levels.",
+            "status": "pending"
+          },
+          {
+            "id": 4,
+            "title": "Time Estimation Logic",
+            "description": "Build predictive model for estimating completion time and effort required for programming tasks based on complexity analysis",
+            "dependencies": [
+              1,
+              3
+            ],
+            "details": "Create regression models using historical data, code complexity metrics, and skill levels to predict realistic time estimates for similar tasks and improvements.",
+            "status": "pending"
+          },
+          {
+            "id": 5,
+            "title": "Fallback Analysis Mechanism",
+            "description": "Implement robust fallback system to handle edge cases, parsing errors, and unsupported code patterns with graceful degradation",
+            "dependencies": [
+              1,
+              2,
+              3
+            ],
+            "details": "Design error handling and recovery mechanisms for when primary analysis fails. Include basic static analysis, syntax checking, and simplified scoring as fallback options.",
+            "status": "pending"
+          },
+          {
+            "id": 6,
+            "title": "Learning Feedback Integration",
+            "description": "Develop feedback loop system that learns from user interactions and improves analysis accuracy over time through machine learning",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "details": "Implement reinforcement learning components to collect user feedback, track prediction accuracy, and continuously improve scoring algorithms and hint generation quality.",
+            "status": "pending"
+          }
+        ]
+      },
+      {
+        "id": 9,
+        "title": "Implement Smart Scoring Engine",
+        "description": "Create comprehensive scoring system that ranks opportunities based on multiple factors",
+        "details": "Build scoring engine that combines AI analysis scores with repository health metrics and user preferences. Implement weighted scoring algorithm: impact (30%), complexity inverse (20%), confidence (25%), urgency (25%). Add personalization based on user expertise and contribution history. Create score normalization and ranking logic. Store calculated scores in database with audit trail.",
+        "testStrategy": "Verify scoring algorithm produces consistent rankings, personalization affects scores appropriately, score normalization works correctly, and rankings match expected priority order",
+        "priority": "medium",
+        "dependencies": [
+          8
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Weighted Algorithm Implementation",
+            "description": "Develop the core weighted scoring algorithm that applies configurable weights to different scoring criteria and calculates composite scores",
+            "dependencies": [],
+            "details": "Implement mathematical algorithms for weighted scoring including weight validation, score calculation formulas, and handling of missing or invalid data points. Support multiple weighting schemes and dynamic weight adjustments.",
+            "status": "pending"
+          },
+          {
+            "id": 2,
+            "title": "Personalization Logic",
+            "description": "Build personalization engine that adapts scoring based on user preferences, historical behavior, and contextual factors",
+            "dependencies": [
+              1
+            ],
+            "details": "Create user profiling system, preference learning algorithms, behavioral pattern analysis, and contextual scoring adjustments. Implement machine learning models for personalized weight optimization.",
+            "status": "pending"
+          },
+          {
+            "id": 3,
+            "title": "Score Normalization System",
+            "description": "Implement score normalization and standardization mechanisms to ensure consistent scoring across different scales and contexts",
+            "dependencies": [
+              1
+            ],
+            "details": "Develop normalization algorithms including min-max scaling, z-score standardization, and percentile ranking. Handle outliers and ensure score consistency across different data distributions.",
+            "status": "pending"
+          },
+          {
+            "id": 4,
+            "title": "Ranking Mechanism",
+            "description": "Create ranking system that orders items based on calculated scores with support for tie-breaking and custom ranking rules",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "Implement ranking algorithms, tie-breaking strategies, pagination for large result sets, and custom ranking criteria. Support multiple ranking views and real-time rank updates.",
+            "status": "pending"
+          },
+          {
+            "id": 5,
+            "title": "Audit Trail Storage",
+            "description": "Build comprehensive audit trail system to track scoring decisions, algorithm changes, and score history for transparency and debugging",
+            "dependencies": [
+              4
+            ],
+            "details": "Design audit database schema, implement logging mechanisms for all scoring operations, create score history tracking, and build reporting tools for audit analysis and compliance.",
+            "status": "pending"
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Set up Email Notification System with Resend",
+        "description": "Implement intelligent email notification system using Resend v4 for opportunity alerts",
+        "details": "Integrate Resend v4 for email delivery. Create email templates for daily digests, immediate alerts, and weekly summaries using HTML/CSS. Implement smart notification logic that respects user preferences, timezone, and notification frequency limits. Add unsubscribe functionality and preference management. Track email delivery, opens, and clicks for analytics.",
+        "testStrategy": "Verify emails are sent successfully, templates render correctly across email clients, unsubscribe links work, delivery tracking functions, and notification frequency limits are respected",
+        "priority": "high",
+        "dependencies": [
+          9
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Resend Integration Setup",
+            "description": "Configure and integrate Resend email service with the application, including API key setup, authentication, and basic connection testing.",
+            "dependencies": [],
+            "details": "Set up Resend SDK, configure environment variables for API keys, implement connection testing, and establish error handling for API communication.",
+            "status": "pending"
+          },
+          {
+            "id": 2,
+            "title": "Template Creation and Styling",
+            "description": "Design and implement email templates with responsive styling for various notification types and user communications.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create HTML email templates, implement CSS styling for responsive design, develop template variables system, and ensure cross-client compatibility.",
+            "status": "pending"
+          },
+          {
+            "id": 3,
+            "title": "Notification Logic Implementation",
+            "description": "Build the core notification system logic to handle different types of email triggers and content generation.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Implement notification triggers, create email content generation logic, handle dynamic data insertion, and establish notification queuing system.",
+            "status": "pending"
+          },
+          {
+            "id": 4,
+            "title": "Preference Management",
+            "description": "Develop user preference system for email notifications including subscription management and frequency controls.",
+            "dependencies": [
+              3
+            ],
+            "details": "Create user preference database schema, implement preference UI components, build subscription/unsubscription logic, and handle notification frequency settings.",
+            "status": "pending"
+          },
+          {
+            "id": 5,
+            "title": "Delivery Tracking System",
+            "description": "Implement email delivery tracking and analytics to monitor send status, delivery rates, and user engagement metrics.",
+            "dependencies": [
+              3
+            ],
+            "details": "Set up delivery status webhooks, implement tracking database, create analytics dashboard, and build reporting system for email metrics.",
+            "status": "pending"
+          }
+        ]
+      },
+      {
+        "id": 11,
+        "title": "Create User Preferences Management System",
+        "description": "Build comprehensive user preference system for customizing opportunity discovery and notifications",
+        "details": "Implement user preferences management including expertise areas, programming languages, topics of interest, contribution types, notification settings, and scoring thresholds. Create preference validation using Zod schemas. Add preference learning from user behavior and feedback. Implement preference export/import functionality. Store preferences with versioning for analytics.",
+        "testStrategy": "Verify preferences are saved and retrieved correctly, validation prevents invalid data, preference learning improves recommendations, and export/import functionality works",
+        "priority": "medium",
+        "dependencies": [
+          4
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Preference Schema Design",
+            "description": "Design comprehensive schema for storing user preferences including data types, categories, hierarchical structures, and metadata fields",
+            "dependencies": [],
+            "details": "Create database schema and data models for preference storage, define preference categories (UI, behavior, content, etc.), establish hierarchical preference structures, design metadata fields for tracking preference sources and timestamps, and define validation rules at schema level",
+            "status": "pending"
+          },
+          {
+            "id": 2,
+            "title": "Validation Implementation",
+            "description": "Implement robust validation system for preference data integrity, type checking, and constraint enforcement",
+            "dependencies": [
+              1
+            ],
+            "details": "Build validation engine for preference data types and formats, implement constraint checking for valid preference values, create validation rules for preference combinations and conflicts, develop error handling and user feedback mechanisms, and establish data sanitization processes",
+            "status": "pending"
+          },
+          {
+            "id": 3,
+            "title": "Behavior Learning System",
+            "description": "Develop machine learning system to automatically learn and adapt user preferences based on behavior patterns",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Implement behavior tracking and data collection mechanisms, develop ML algorithms for preference inference from user actions, create adaptive preference adjustment system, build confidence scoring for learned preferences, and establish feedback loops for continuous learning improvement",
+            "status": "pending"
+          },
+          {
+            "id": 4,
+            "title": "Export/Import Functionality",
+            "description": "Create comprehensive system for exporting and importing user preferences across different formats and platforms",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Develop export functionality for multiple formats (JSON, XML, CSV), implement import system with format detection and conversion, create data mapping and transformation utilities, build validation for imported preference data, and establish backup and restore capabilities",
+            "status": "pending"
+          },
+          {
+            "id": 5,
+            "title": "Versioning Storage",
+            "description": "Implement versioning system for preference history tracking, rollback capabilities, and change management",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Design version control schema for preference changes, implement change tracking and audit logging, create rollback and restore functionality, develop preference diff and comparison tools, and establish archival and cleanup policies for version history",
+            "status": "pending"
+          }
+        ]
+      },
+      {
+        "id": 12,
+        "title": "Build Real-time Dashboard with SWR v3",
+        "description": "Create responsive dashboard showing opportunities feed with real-time updates",
+        "details": "Build dashboard using Next.js App Router with React Server Components. Implement SWR v3 for data fetching with optimistic updates and real-time synchronization. Create opportunity cards showing repository info, AI analysis, scores, and action buttons. Add filtering, sorting, and search functionality. Implement infinite scrolling for large datasets. Use Tailwind CSS v4 for styling.",
+        "testStrategy": "Verify dashboard loads quickly, real-time updates work, filtering and sorting function correctly, infinite scrolling performs well, and UI is responsive across devices",
+        "priority": "medium",
+        "dependencies": [
+          10,
+          11
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "React Server Components Setup",
+            "description": "Set up React Server Components architecture for the dashboard, including server-side rendering configuration, component structure, and data fetching patterns.",
+            "dependencies": [],
+            "details": "Configure Next.js app router with RSC, create server component layouts, establish data fetching patterns, and set up component boundaries between server and client components.",
+            "status": "pending"
+          },
+          {
+            "id": 2,
+            "title": "SWR Integration and Real-time Updates",
+            "description": "Implement SWR for data fetching and caching, configure real-time updates using WebSocket or Server-Sent Events for live dashboard data.",
+            "dependencies": [
+              1
+            ],
+            "details": "Set up SWR configuration, implement real-time data synchronization, configure cache invalidation strategies, and establish WebSocket connections for live updates.",
+            "status": "pending"
+          },
+          {
+            "id": 3,
+            "title": "Opportunity Card Components",
+            "description": "Develop reusable opportunity card components with proper data display, actions, and interactive elements for the dashboard.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create card component variants, implement data binding, add interactive elements like buttons and status indicators, and ensure proper accessibility.",
+            "status": "pending"
+          },
+          {
+            "id": 4,
+            "title": "Filtering and Search Functionality",
+            "description": "Implement comprehensive filtering and search capabilities for opportunities, including multiple filter criteria and real-time search results.",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "Build filter components, implement search algorithms, create filter state management, and integrate with SWR for optimized data fetching.",
+            "status": "pending"
+          },
+          {
+            "id": 5,
+            "title": "Infinite Scrolling Implementation",
+            "description": "Implement infinite scrolling for opportunity lists with proper performance optimization and loading states.",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "Set up intersection observer, implement pagination logic, optimize rendering performance with virtualization, and handle loading and error states.",
+            "status": "pending"
+          },
+          {
+            "id": 6,
+            "title": "Responsive Design Optimization",
+            "description": "Optimize the dashboard for responsive design across all device sizes with proper layout adjustments and touch interactions.",
+            "dependencies": [
+              3,
+              4,
+              5
+            ],
+            "details": "Implement responsive grid layouts, optimize touch interactions for mobile, adjust component sizing for different breakpoints, and ensure consistent user experience across devices.",
+            "status": "pending"
+          }
+        ]
+      },
+      {
+        "id": 13,
+        "title": "Implement Opportunity Claiming and Tracking",
+        "description": "Create system for users to claim opportunities and track contribution progress",
+        "details": "Build opportunity claiming system that marks opportunities as claimed and tracks user progress. Implement GitHub webhook integration to monitor PR submissions and outcomes. Create contribution timeline tracking from claim to completion. Add automatic unclaiming for abandoned opportunities. Store contribution outcomes for learning and analytics.",
+        "testStrategy": "Verify opportunities can be claimed and unclaimed, GitHub webhooks track PR progress correctly, contribution timelines are accurate, and abandoned opportunities are handled properly",
+        "priority": "medium",
+        "dependencies": [
+          12
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Claiming Mechanism Implementation",
+            "description": "Implement the core claiming system that allows users to claim tasks and manage claim ownership with proper validation and conflict resolution",
+            "dependencies": [],
+            "details": "Create claim data structures, implement claim creation/validation logic, handle concurrent claim attempts, add claim ownership verification, and implement claim release functionality",
+            "status": "pending"
+          },
+          {
+            "id": 2,
+            "title": "GitHub Webhook Integration",
+            "description": "Set up GitHub webhook endpoints to automatically detect and process repository events related to claimed tasks",
+            "dependencies": [
+              1
+            ],
+            "details": "Configure webhook endpoints, implement event parsing for push/PR/issue events, validate webhook signatures, map GitHub events to claimed tasks, and handle webhook delivery failures",
+            "status": "pending"
+          },
+          {
+            "id": 3,
+            "title": "Progress Tracking System",
+            "description": "Build a comprehensive system to monitor and track progress on claimed tasks through various indicators and milestones",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Design progress metrics and indicators, implement progress calculation algorithms, create progress update mechanisms, build progress visualization components, and add progress notification system",
+            "status": "pending"
+          },
+          {
+            "id": 4,
+            "title": "Abandonment Handling",
+            "description": "Implement automated and manual abandonment detection and handling to reclaim stale or inactive tasks",
+            "dependencies": [
+              1,
+              3
+            ],
+            "details": "Define abandonment criteria and timeouts, implement abandonment detection algorithms, create automatic reclaim processes, add manual abandonment reporting, and handle abandonment notifications",
+            "status": "pending"
+          },
+          {
+            "id": 5,
+            "title": "Outcome Storage",
+            "description": "Create a robust storage system to persist claim outcomes, completion status, and historical data for analytics and reporting",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "details": "Design outcome data schema, implement outcome persistence layer, create completion tracking mechanisms, build historical data storage, and add outcome querying and reporting capabilities",
+            "status": "pending"
+          }
+        ]
+      },
+      {
+        "id": 14,
+        "title": "Create tRPC v11 API Layer",
+        "description": "Implement type-safe API layer using tRPC v11 for all client-server communication",
+        "details": "Set up tRPC v11 with Next.js App Router integration. Create routers for opportunities, repositories, users, and preferences. Implement input validation using Zod schemas. Add authentication middleware for protected routes. Create error handling and logging. Implement rate limiting and request validation. Generate TypeScript types for frontend consumption.",
+        "testStrategy": "Verify all API endpoints work correctly, type safety is maintained, authentication middleware protects routes, error handling works, and rate limiting functions properly",
+        "priority": "medium",
+        "dependencies": [
+          13
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Router Setup and Configuration",
+            "description": "Set up tRPC router with proper TypeScript configuration, define API routes structure, and establish the foundation for type-safe API endpoints",
+            "dependencies": [],
+            "details": "Initialize tRPC router, configure TypeScript types, set up procedure definitions, establish router hierarchy, and create the main API structure with proper type inference",
+            "status": "pending"
+          },
+          {
+            "id": 2,
+            "title": "Input Validation with Zod",
+            "description": "Implement comprehensive input validation using Zod schemas for all API endpoints to ensure type safety and data integrity",
+            "dependencies": [
+              1
+            ],
+            "details": "Create Zod validation schemas for all input types, integrate schemas with tRPC procedures, implement custom validation rules, and set up proper error messages for validation failures",
+            "status": "pending"
+          },
+          {
+            "id": 3,
+            "title": "Authentication Middleware",
+            "description": "Develop authentication middleware to secure API endpoints and manage user sessions with proper authorization checks",
+            "dependencies": [
+              1
+            ],
+            "details": "Create authentication middleware functions, implement JWT token validation, set up user context handling, establish protected procedure types, and integrate with session management",
+            "status": "pending"
+          },
+          {
+            "id": 4,
+            "title": "Error Handling and Logging",
+            "description": "Implement comprehensive error handling system with structured logging for debugging and monitoring API operations",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "Set up custom error classes, implement error transformation middleware, create structured logging system, establish error reporting mechanisms, and ensure proper error responses with appropriate HTTP status codes",
+            "status": "pending"
+          },
+          {
+            "id": 5,
+            "title": "Rate Limiting Implementation",
+            "description": "Implement rate limiting middleware to protect API endpoints from abuse and ensure fair usage across different user tiers",
+            "dependencies": [
+              3,
+              4
+            ],
+            "details": "Create rate limiting middleware with configurable limits, implement different rate limit tiers for authenticated vs anonymous users, set up Redis or in-memory storage for rate limit tracking, and integrate with error handling for rate limit exceeded responses",
+            "status": "pending"
+          }
+        ]
+      },
+      {
+        "id": 15,
+        "title": "Implement Background Job Processing with QStash",
+        "description": "Set up reliable background job processing for repository scanning and AI analysis",
+        "details": "Integrate Upstash QStash v3 for background job processing. Create jobs for repository scanning, issue discovery, AI analysis, and notification sending. Implement job scheduling with cron-like syntax. Add job retry logic with exponential backoff. Create job monitoring and failure alerting. Ensure jobs are idempotent and can handle failures gracefully.",
+        "testStrategy": "Verify jobs execute on schedule, retry logic works for failures, job monitoring provides visibility, and system handles high job volumes without issues",
+        "priority": "medium",
+        "dependencies": [
+          8
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "QStash Integration Setup",
+            "description": "Set up QStash service integration including authentication, connection configuration, and basic client initialization for job queue management.",
+            "dependencies": [],
+            "details": "Configure QStash API credentials, establish secure connection, implement client wrapper with proper error handling, and create configuration management for QStash endpoints and settings.",
+            "status": "pending"
+          },
+          {
+            "id": 2,
+            "title": "Job Creation and Scheduling",
+            "description": "Implement job creation mechanisms and scheduling functionality to queue and manage job execution timing.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create job definition structures, implement job serialization/deserialization, build scheduling interface for immediate and delayed execution, and establish job priority and categorization systems.",
+            "status": "pending"
+          },
+          {
+            "id": 3,
+            "title": "Retry Logic Implementation",
+            "description": "Develop comprehensive retry mechanisms for failed jobs including exponential backoff, maximum retry limits, and dead letter queue handling.",
+            "dependencies": [
+              2
+            ],
+            "details": "Implement configurable retry policies, exponential backoff algorithms, failure classification logic, dead letter queue management, and retry attempt tracking with detailed logging.",
+            "status": "pending"
+          },
+          {
+            "id": 4,
+            "title": "Idempotency Handling",
+            "description": "Implement idempotency mechanisms to ensure jobs can be safely retried without causing duplicate operations or side effects.",
+            "dependencies": [
+              2
+            ],
+            "details": "Design idempotency key generation, implement duplicate detection logic, create idempotency storage layer, and establish cleanup mechanisms for expired idempotency records.",
+            "status": "pending"
+          },
+          {
+            "id": 5,
+            "title": "Monitoring and Alerting",
+            "description": "Set up comprehensive monitoring, metrics collection, and alerting systems for job processing health and performance tracking.",
+            "dependencies": [
+              3,
+              4
+            ],
+            "details": "Implement job execution metrics, queue depth monitoring, failure rate tracking, performance dashboards, alert configuration for critical failures, and integration with monitoring platforms.",
+            "status": "pending"
+          }
+        ]
+      },
+      {
+        "id": 16,
+        "title": "Build Analytics and Reporting Dashboard",
+        "description": "Create comprehensive analytics system for tracking user engagement and contribution success",
+        "details": "Implement analytics dashboard showing contribution trends, success rates, repository popularity, and user engagement metrics. Create data aggregation jobs for daily/weekly/monthly statistics. Add charts and visualizations using a modern charting library. Implement user-specific analytics showing personal contribution history and growth. Store analytics data efficiently for fast querying.",
+        "testStrategy": "Verify analytics data is accurate, charts render correctly, data aggregation performs well, user-specific analytics work, and dashboard loads quickly",
+        "priority": "medium",
+        "dependencies": [
+          13
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Dashboard UI Development",
+            "description": "Design and implement the main dashboard user interface with responsive layout, navigation components, and interactive elements for displaying analytics data.",
+            "dependencies": [],
+            "details": "Create wireframes, implement React/Vue components, establish routing, add responsive design, integrate with authentication, and ensure accessibility standards.",
+            "status": "pending"
+          },
+          {
+            "id": 2,
+            "title": "Data Aggregation Jobs",
+            "description": "Develop backend services and scheduled jobs to collect, process, and aggregate raw data from various sources into structured analytics datasets.",
+            "dependencies": [],
+            "details": "Set up ETL pipelines, implement data validation, create aggregation algorithms, establish data storage schemas, and configure automated scheduling.",
+            "status": "pending"
+          },
+          {
+            "id": 3,
+            "title": "Visualization Implementation",
+            "description": "Build interactive charts, graphs, and visual components using visualization libraries to display analytics data in meaningful and engaging formats.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Integrate Chart.js/D3.js libraries, create reusable chart components, implement interactive features, add export functionality, and ensure cross-browser compatibility.",
+            "status": "pending"
+          },
+          {
+            "id": 4,
+            "title": "User-Specific Analytics",
+            "description": "Implement personalized analytics features including user segmentation, custom filters, saved views, and role-based access to different analytics modules.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Create user preference systems, implement filtering mechanisms, add bookmark functionality, establish permission controls, and develop custom dashboard layouts.",
+            "status": "pending"
+          },
+          {
+            "id": 5,
+            "title": "Performance Optimization",
+            "description": "Optimize system performance through caching strategies, query optimization, lazy loading, and efficient data rendering to handle large datasets smoothly.",
+            "dependencies": [
+              2,
+              3,
+              4
+            ],
+            "details": "Implement Redis caching, optimize database queries, add pagination and virtualization, configure CDN, and establish performance monitoring and alerting.",
+            "status": "pending"
+          }
+        ]
+      },
+      {
+        "id": 17,
+        "title": "Implement Progressive Web App (PWA) Features",
+        "description": "Add PWA capabilities including offline support, push notifications, and app-like experience",
+        "details": "Configure Next.js for PWA with service worker for offline caching. Implement push notifications for high-priority opportunities. Add app manifest for installable experience. Create offline fallbacks for key functionality. Implement background sync for actions taken while offline. Add app-like navigation and touch optimizations for mobile.",
+        "testStrategy": "Verify PWA installs correctly, offline functionality works, push notifications are delivered, background sync functions, and mobile experience is app-like",
+        "priority": "medium",
+        "dependencies": [
+          12
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Service Worker Configuration",
+            "description": "Set up and configure the service worker for caching strategies, background sync, and lifecycle management",
+            "dependencies": [],
+            "details": "Create service worker file, implement caching strategies (cache-first, network-first, stale-while-revalidate), handle install and activate events, manage cache versioning and cleanup, and set up background sync for offline actions",
+            "status": "pending"
+          },
+          {
+            "id": 2,
+            "title": "App Manifest Creation",
+            "description": "Create and configure the web app manifest file for PWA installation and app-like behavior",
+            "dependencies": [],
+            "details": "Define manifest.json with app name, icons, theme colors, display mode, start URL, orientation settings, and scope. Ensure proper icon sizes for different devices and platforms",
+            "status": "pending"
+          },
+          {
+            "id": 3,
+            "title": "Offline Functionality Implementation",
+            "description": "Implement comprehensive offline capabilities using service worker caching and local storage",
+            "dependencies": [
+              1
+            ],
+            "details": "Create offline fallback pages, implement data synchronization when back online, cache critical resources and API responses, handle offline form submissions, and provide offline indicators to users",
+            "status": "pending"
+          },
+          {
+            "id": 4,
+            "title": "Push Notification Setup",
+            "description": "Configure push notification system with subscription management and message handling",
+            "dependencies": [
+              1
+            ],
+            "details": "Set up push notification subscription, implement notification permission requests, create notification click handlers, integrate with push service (FCM/Web Push), and handle notification display and interaction",
+            "status": "pending"
+          },
+          {
+            "id": 5,
+            "title": "Mobile Optimization",
+            "description": "Optimize the PWA for mobile devices with responsive design and touch interactions",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "Implement responsive design patterns, optimize touch targets and gestures, add splash screens, configure viewport settings, optimize performance for mobile networks, and ensure proper app shell architecture",
+            "status": "pending"
+          }
+        ]
+      },
+      {
+        "id": 18,
+        "title": "Set up Monitoring and Error Tracking",
+        "description": "Implement comprehensive monitoring, logging, and error tracking for production readiness",
+        "details": "Integrate Sentry for error tracking and performance monitoring. Set up Vercel Analytics for user behavior tracking. Implement custom logging with structured data. Create health check endpoints for uptime monitoring. Add alerting for critical errors and performance degradation. Implement cost monitoring for external API usage.",
+        "testStrategy": "Verify errors are captured and reported, performance metrics are tracked, health checks respond correctly, alerts trigger appropriately, and cost monitoring provides accurate data",
+        "priority": "medium",
+        "dependencies": [
+          14
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Sentry Integration Setup",
+            "description": "Configure Sentry for error tracking and performance monitoring across the application",
+            "dependencies": [],
+            "details": "Install Sentry SDK, configure error boundaries, set up performance monitoring, configure release tracking, and establish alert rules for critical errors",
+            "status": "pending"
+          },
+          {
+            "id": 2,
+            "title": "Analytics Configuration",
+            "description": "Implement comprehensive analytics tracking for user behavior and application metrics",
+            "dependencies": [],
+            "details": "Set up analytics platform (Google Analytics, Mixpanel, etc.), implement event tracking, configure conversion funnels, and establish custom metrics dashboard",
+            "status": "pending"
+          },
+          {
+            "id": 3,
+            "title": "Health Check Implementation",
+            "description": "Create application health monitoring endpoints and automated health verification",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement health check endpoints, configure uptime monitoring, set up database connectivity checks, API response time monitoring, and automated alerting for service degradation",
+            "status": "pending"
+          },
+          {
+            "id": 4,
+            "title": "Cost Monitoring Setup",
+            "description": "Establish infrastructure cost tracking and budget alert systems",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "Configure cloud cost monitoring dashboards, set up budget alerts, implement resource usage tracking, establish cost optimization recommendations, and create monthly cost reporting",
+            "status": "pending"
+          }
+        ]
+      },
+      {
+        "id": 19,
+        "title": "Implement Security Measures and Compliance",
+        "description": "Add comprehensive security measures including encryption, rate limiting, and GDPR compliance",
+        "details": "Implement Web Crypto API for token encryption. Add CORS configuration and CSP headers. Create rate limiting middleware using Vercel Edge Functions. Implement webhook signature verification for GitHub webhooks. Add GDPR compliance features including data export and deletion. Create security audit logging and monitoring.",
+        "testStrategy": "Verify encryption/decryption works correctly, rate limiting prevents abuse, webhook signatures are validated, GDPR features function properly, and security audit logs are generated",
+        "priority": "high",
+        "dependencies": [
+          4
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Encryption Setup",
+            "description": "Implement comprehensive encryption for data at rest and in transit, including SSL/TLS configuration, database encryption, and secure key management",
+            "dependencies": [],
+            "details": "Set up SSL/TLS certificates, configure database encryption, implement secure key storage and rotation, encrypt sensitive data fields, and establish secure communication protocols",
+            "status": "pending"
+          },
+          {
+            "id": 2,
+            "title": "CORS and CSP Configuration",
+            "description": "Configure Cross-Origin Resource Sharing (CORS) policies and Content Security Policy (CSP) headers to prevent cross-site attacks",
+            "dependencies": [
+              1
+            ],
+            "details": "Define allowed origins for CORS, set up CSP headers to prevent XSS attacks, configure trusted domains, implement nonce-based CSP for dynamic content, and test cross-origin requests",
+            "status": "pending"
+          },
+          {
+            "id": 3,
+            "title": "Rate Limiting Middleware",
+            "description": "Implement rate limiting middleware to prevent abuse and DDoS attacks with configurable limits per endpoint and user",
+            "dependencies": [
+              1
+            ],
+            "details": "Set up rate limiting rules per API endpoint, implement user-based rate limiting, configure sliding window algorithms, add rate limit headers, and create bypass mechanisms for trusted sources",
+            "status": "pending"
+          },
+          {
+            "id": 4,
+            "title": "Webhook Verification",
+            "description": "Implement secure webhook verification system with signature validation and replay attack prevention",
+            "dependencies": [
+              1
+            ],
+            "details": "Set up webhook signature verification using HMAC, implement timestamp validation to prevent replay attacks, create webhook endpoint authentication, and add webhook payload validation",
+            "status": "pending"
+          },
+          {
+            "id": 5,
+            "title": "GDPR Compliance Features",
+            "description": "Implement GDPR compliance features including data consent management, right to be forgotten, and data portability",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Create consent management system, implement data deletion workflows, add data export functionality, set up privacy policy management, and create audit trails for data processing activities",
+            "status": "pending"
+          },
+          {
+            "id": 6,
+            "title": "Security Audit Logging",
+            "description": "Implement comprehensive security audit logging system to track all security-related events and compliance activities",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "details": "Set up centralized logging for security events, implement log integrity protection, create audit log retention policies, add real-time security monitoring, and establish log analysis and alerting mechanisms",
+            "status": "pending"
+          }
+        ]
+      },
+      {
+        "id": 20,
+        "title": "Build Repository Health Monitoring System",
+        "description": "Create system to continuously monitor and score repository health metrics",
+        "details": "Implement repository health monitoring that tracks maintainer response times, PR merge rates, issue close rates, and community activity. Create health score calculation algorithm with weighted factors. Add trending analysis to identify repositories gaining or losing momentum. Implement alerts for significant health changes. Store historical health data for trend analysis.",
+        "testStrategy": "Verify health metrics are calculated accurately, health scores reflect repository quality, trending analysis identifies changes correctly, and historical data is preserved",
+        "priority": "medium",
+        "dependencies": [
+          5
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Metrics Tracking Implementation",
+            "description": "Implement comprehensive system to collect, validate, and process various health metrics including vital signs, activity data, and custom health indicators with real-time data ingestion capabilities.",
+            "dependencies": [],
+            "details": "Design and develop metric collection framework with support for multiple data sources (wearables, manual input, medical devices). Include data validation, normalization, and real-time processing pipelines. Implement metric categorization and metadata management.",
+            "status": "pending"
+          },
+          {
+            "id": 2,
+            "title": "Health Score Algorithm",
+            "description": "Develop intelligent algorithm to calculate comprehensive health scores based on collected metrics, user profiles, and medical guidelines with weighted scoring and personalization features.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create multi-factor scoring algorithm incorporating various health metrics with appropriate weightings. Implement personalization based on age, gender, medical history, and goals. Include baseline establishment and score normalization across different user profiles.",
+            "status": "pending"
+          },
+          {
+            "id": 3,
+            "title": "Trending Analysis",
+            "description": "Build advanced analytics engine to identify patterns, trends, and anomalies in health data over time using statistical analysis and machine learning techniques.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Implement time-series analysis, pattern recognition, and trend detection algorithms. Include short-term and long-term trend analysis, seasonal pattern identification, and anomaly detection. Provide predictive insights and health trajectory forecasting.",
+            "status": "pending"
+          },
+          {
+            "id": 4,
+            "title": "Alert System",
+            "description": "Design and implement intelligent alerting system with configurable thresholds, escalation rules, and multi-channel notification delivery for critical health events and trend deviations.",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "Create rule-based and AI-driven alert engine with customizable thresholds and conditions. Implement multi-level alerting (info, warning, critical) with appropriate escalation paths. Include notification delivery via multiple channels (email, SMS, push notifications, in-app alerts).",
+            "status": "pending"
+          },
+          {
+            "id": 5,
+            "title": "Historical Data Storage",
+            "description": "Implement robust data storage solution for long-term health data retention with efficient querying, data archiving, and compliance with healthcare data regulations.",
+            "dependencies": [
+              1
+            ],
+            "details": "Design scalable database architecture for time-series health data with optimized storage and retrieval. Implement data lifecycle management, archiving strategies, and backup procedures. Ensure HIPAA compliance and data security measures for sensitive health information.",
+            "status": "pending"
+          }
+        ]
+      },
+      {
+        "id": 21,
+        "title": "Create Advanced Filtering and Search",
+        "description": "Implement sophisticated filtering and search capabilities for opportunity discovery",
+        "details": "Build advanced filtering system supporting multiple criteria: programming languages, contribution types, complexity ranges, repository characteristics, and time constraints. Implement full-text search using PostgreSQL's pg_trgm extension. Add saved search functionality and search history. Create smart suggestions based on user behavior and preferences.",
+        "testStrategy": "Verify filtering produces accurate results, full-text search works correctly, saved searches function properly, and search suggestions are relevant",
+        "priority": "medium",
+        "dependencies": [
+          12
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Filtering Logic Implementation",
+            "description": "Develop comprehensive filtering system with multiple criteria, dynamic filter combinations, and efficient query optimization for search results refinement.",
+            "dependencies": [],
+            "details": "Implement multi-level filtering with support for categories, date ranges, price ranges, tags, and custom attributes. Create filter validation, combination logic, and database query optimization. Include filter state management and URL parameter handling for shareable filtered results.",
+            "status": "pending"
+          },
+          {
+            "id": 2,
+            "title": "Full-Text Search Setup",
+            "description": "Configure and implement full-text search engine with indexing, relevance scoring, and advanced search capabilities across multiple content types.",
+            "dependencies": [],
+            "details": "Set up search engine (Elasticsearch/Solr), create content indexing pipeline, implement search algorithms with relevance scoring, fuzzy matching, and stemming. Include search result ranking, highlighting, and performance optimization for large datasets.",
+            "status": "pending"
+          },
+          {
+            "id": 3,
+            "title": "Saved Search Functionality",
+            "description": "Build user capability to save, manage, and execute custom search queries with notification system for new matching results.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Create saved search storage system, user interface for managing saved searches, automated execution scheduling, and notification system for new results. Include search sharing capabilities, categorization, and export functionality.",
+            "status": "pending"
+          },
+          {
+            "id": 4,
+            "title": "Search History Management",
+            "description": "Implement comprehensive search history tracking, analytics, and user interface for managing past searches with privacy controls.",
+            "dependencies": [
+              2
+            ],
+            "details": "Build search history storage, user interface for browsing and managing history, search analytics and insights, privacy controls for history retention. Include search pattern analysis, frequently searched terms, and history-based suggestions.",
+            "status": "pending"
+          },
+          {
+            "id": 5,
+            "title": "Smart Suggestion System",
+            "description": "Develop intelligent search suggestions using autocomplete, query prediction, and machine learning-based recommendations for enhanced user experience.",
+            "dependencies": [
+              2,
+              4
+            ],
+            "details": "Implement autocomplete functionality, query suggestion algorithms, trending searches, personalized recommendations based on history and behavior. Include typo correction, synonym suggestions, and real-time suggestion updates with caching optimization.",
+            "status": "pending"
+          }
+        ]
+      },
+      {
+        "id": 22,
+        "title": "Implement Contribution Outcome Learning System",
+        "description": "Build machine learning system to improve recommendations based on contribution outcomes",
+        "details": "Create learning system that analyzes contribution outcomes to improve future recommendations. Track success patterns including user skills, repository characteristics, and issue types. Implement feedback loops that adjust scoring algorithms based on actual outcomes. Add A/B testing framework for recommendation improvements. Store learning data for continuous improvement.",
+        "testStrategy": "Verify learning system improves recommendation accuracy over time, feedback loops adjust scores appropriately, A/B testing framework works correctly, and learning data is captured accurately",
+        "priority": "medium",
+        "dependencies": [
+          16
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Learning Data Storage",
+            "description": "Design and implement a robust data storage system to capture, organize, and manage all learning-related data including user interactions, performance metrics, and historical patterns.",
+            "dependencies": [],
+            "details": "Create database schemas for storing user behavior data, learning outcomes, interaction logs, and performance metrics. Implement data validation, indexing, and backup mechanisms. Ensure scalability and data integrity for machine learning operations.",
+            "status": "pending"
+          },
+          {
+            "id": 2,
+            "title": "Pattern Recognition System",
+            "description": "Develop machine learning algorithms to identify patterns in user behavior, learning preferences, and performance trends from the stored data.",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement clustering algorithms, classification models, and statistical analysis tools to detect learning patterns. Create feature extraction mechanisms and pattern matching algorithms to identify user learning styles and preferences.",
+            "status": "pending"
+          },
+          {
+            "id": 3,
+            "title": "Outcome Analysis Implementation",
+            "description": "Build comprehensive analytics system to evaluate learning outcomes, measure effectiveness, and generate insights from user performance data.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Develop metrics calculation engines, performance tracking algorithms, and outcome prediction models. Create visualization tools and reporting mechanisms to analyze learning effectiveness and success rates.",
+            "status": "pending"
+          },
+          {
+            "id": 4,
+            "title": "A/B Testing Framework",
+            "description": "Implement a systematic A/B testing infrastructure to compare different learning approaches and validate algorithm improvements.",
+            "dependencies": [
+              1,
+              3
+            ],
+            "details": "Create experiment design tools, user segmentation mechanisms, and statistical significance testing. Implement control group management, variant distribution systems, and automated result analysis for learning algorithm optimization.",
+            "status": "pending"
+          },
+          {
+            "id": 5,
+            "title": "Feedback Loop Integration",
+            "description": "Establish continuous feedback mechanisms to collect real-time user responses and integrate them into the learning optimization process.",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "Implement feedback collection interfaces, real-time data processing pipelines, and automated response integration systems. Create mechanisms to incorporate user feedback into pattern recognition and outcome analysis processes.",
+            "status": "pending"
+          },
+          {
+            "id": 6,
+            "title": "Algorithm Adjustment Mechanism",
+            "description": "Develop automated systems to adjust and optimize learning algorithms based on collected data, patterns, and feedback results.",
+            "dependencies": [
+              2,
+              3,
+              4,
+              5
+            ],
+            "details": "Create adaptive algorithm frameworks, parameter optimization engines, and automated model retraining systems. Implement decision-making logic to automatically adjust learning strategies based on performance metrics and user feedback.",
+            "status": "pending"
+          }
+        ]
+      },
+      {
+        "id": 23,
+        "title": "Build Mobile-Optimized Interface",
+        "description": "Create responsive mobile interface optimized for contribution discovery on mobile devices",
+        "details": "Optimize dashboard and opportunity views for mobile devices using responsive design. Implement touch-friendly interactions including swipe gestures for opportunity cards. Create mobile-specific navigation patterns. Add quick action buttons for claiming opportunities. Implement mobile-optimized notification handling and deep linking.",
+        "testStrategy": "Verify mobile interface is fully functional, touch interactions work smoothly, navigation is intuitive, quick actions function correctly, and notifications link properly",
+        "priority": "medium",
+        "dependencies": [
+          17
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Responsive Design Implementation",
+            "description": "Implement responsive design patterns to ensure the application adapts seamlessly across different screen sizes and orientations",
+            "dependencies": [],
+            "details": "Create flexible layouts using CSS Grid and Flexbox, implement breakpoints for mobile, tablet, and desktop views, optimize images and media for different screen densities, and ensure proper scaling of UI elements",
+            "status": "pending"
+          },
+          {
+            "id": 2,
+            "title": "Touch Interaction Setup",
+            "description": "Configure touch-based interactions and gestures for mobile devices to provide intuitive user experience",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement touch event handlers for tap, swipe, pinch, and long-press gestures, optimize touch targets for finger navigation, add haptic feedback where appropriate, and ensure smooth scrolling and momentum",
+            "status": "pending"
+          },
+          {
+            "id": 3,
+            "title": "Mobile Navigation",
+            "description": "Design and implement mobile-optimized navigation patterns that work efficiently on small screens",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Create collapsible hamburger menus, implement bottom navigation tabs, design slide-out drawers, optimize menu hierarchy for mobile browsing, and ensure easy one-handed navigation",
+            "status": "pending"
+          },
+          {
+            "id": 4,
+            "title": "Notification Handling",
+            "description": "Set up mobile notification system for push notifications, in-app alerts, and permission management",
+            "dependencies": [
+              2
+            ],
+            "details": "Implement push notification service integration, create in-app notification components, handle notification permissions and user preferences, design notification UI for mobile screens, and ensure proper notification timing and frequency",
+            "status": "pending"
+          }
+        ]
+      },
+      {
+        "id": 24,
+        "title": "Implement Comprehensive Testing Suite",
+        "description": "Create complete testing suite including unit, integration, and end-to-end tests using Vitest",
+        "details": "Set up Vitest for unit testing with >80% code coverage. Create integration tests for API endpoints and database operations. Implement E2E tests using Playwright for critical user workflows. Add component testing for React components. Create performance tests for API response times. Set up automated testing in CI/CD pipeline.",
+        "testStrategy": "Verify all tests pass consistently, code coverage meets targets, E2E tests cover critical workflows, component tests validate UI behavior, and performance tests ensure response time targets",
+        "priority": "high",
+        "dependencies": [
+          22
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Unit Test Setup with Vitest",
+            "description": "Configure Vitest testing framework for unit testing including setup files, test utilities, and basic test structure",
+            "dependencies": [],
+            "details": "Install and configure Vitest, create test setup files, configure test environment, establish testing utilities and helpers, create sample unit tests for core functions",
+            "status": "pending"
+          },
+          {
+            "id": 2,
+            "title": "Integration Test Implementation",
+            "description": "Develop integration tests to verify component interactions and API integrations work correctly together",
+            "dependencies": [
+              1
+            ],
+            "details": "Create integration test suites for API endpoints, database interactions, service layer integration, mock external dependencies, test data flow between components",
+            "status": "pending"
+          },
+          {
+            "id": 3,
+            "title": "E2E Test Creation with Playwright",
+            "description": "Set up Playwright for end-to-end testing and create comprehensive user journey tests",
+            "dependencies": [
+              1
+            ],
+            "details": "Install and configure Playwright, create page object models, implement user flow tests, set up test data management, configure browser testing environments",
+            "status": "pending"
+          },
+          {
+            "id": 4,
+            "title": "Component Testing",
+            "description": "Implement component-level tests to verify UI components render and behave correctly in isolation",
+            "dependencies": [
+              1
+            ],
+            "details": "Set up component testing environment, create tests for individual UI components, test component props and state changes, verify component accessibility and interactions",
+            "status": "pending"
+          },
+          {
+            "id": 5,
+            "title": "Performance Testing",
+            "description": "Implement performance testing to measure and validate application speed, load handling, and resource usage",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "Set up performance testing tools, create load testing scenarios, implement performance benchmarks, test API response times, monitor memory usage and optimization",
+            "status": "pending"
+          },
+          {
+            "id": 6,
+            "title": "CI/CD Pipeline Integration",
+            "description": "Integrate all testing suites into CI/CD pipeline for automated testing on code changes and deployments",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "details": "Configure GitHub Actions or similar CI/CD tool, set up automated test execution, implement test reporting, configure test coverage requirements, set up deployment gates based on test results",
+            "status": "pending"
+          }
+        ]
+      },
+      {
+        "id": 25,
+        "title": "Prepare Production Deployment and Documentation",
+        "description": "Finalize production deployment configuration and create comprehensive documentation",
+        "details": "Configure production environment on Vercel with proper environment variables and secrets. Set up database backups and disaster recovery procedures. Create comprehensive README with setup instructions, API documentation, and contribution guidelines. Implement deployment pipeline with automated testing and rollback capabilities. Prepare open source release with proper licensing and security review.",
+        "testStrategy": "Verify production deployment works correctly, environment variables are secure, backups function properly, documentation is complete and accurate, and deployment pipeline operates smoothly",
+        "priority": "high",
+        "dependencies": [
+          18,
+          24
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Production Environment Configuration",
+            "description": "Set up and configure the production environment including server provisioning, security settings, environment variables, and infrastructure components required for deployment.",
+            "dependencies": [],
+            "details": "Configure production servers, set up load balancers, configure SSL certificates, establish security groups and firewall rules, set environment variables, and ensure all infrastructure components are properly configured for production workloads.",
+            "status": "pending"
+          },
+          {
+            "id": 2,
+            "title": "Backup and Recovery Setup",
+            "description": "Implement comprehensive backup and disaster recovery systems to ensure data protection and business continuity in the production environment.",
+            "dependencies": [
+              1
+            ],
+            "details": "Set up automated database backups, configure file system backups, implement disaster recovery procedures, test backup restoration processes, and establish monitoring for backup systems.",
+            "status": "pending"
+          },
+          {
+            "id": 3,
+            "title": "Documentation Creation",
+            "description": "Create comprehensive deployment and operational documentation including user guides, API documentation, troubleshooting guides, and maintenance procedures.",
+            "dependencies": [],
+            "details": "Write deployment guides, create user manuals, document API endpoints, prepare troubleshooting documentation, create operational runbooks, and establish change management procedures.",
+            "status": "pending"
+          },
+          {
+            "id": 4,
+            "title": "Deployment Pipeline Implementation",
+            "description": "Build and configure automated deployment pipelines for continuous integration and deployment, including testing, staging, and production deployment workflows.",
+            "dependencies": [
+              1
+            ],
+            "details": "Set up CI/CD pipelines, configure automated testing stages, implement deployment automation, establish rollback procedures, and create monitoring and alerting for deployment processes.",
+            "status": "pending"
+          },
+          {
+            "id": 5,
+            "title": "Open Source Preparation",
+            "description": "Prepare the project for open source release including license selection, code cleanup, contribution guidelines, and community setup.",
+            "dependencies": [
+              3
+            ],
+            "details": "Select appropriate open source license, clean up proprietary code and sensitive information, create contribution guidelines, set up issue templates, prepare README and getting started documentation, and establish community governance structure.",
+            "status": "pending"
+          }
+        ]
+      }
+    ],
+    "metadata": {
+      "created": "2025-06-19T21:07:56.850Z",
+      "updated": "2025-06-19T21:07:56.850Z",
+      "description": "Tasks for master context"
+    }
+  }
+}

@@ -1,0 +1,49 @@
+# Task ID: 12
+# Title: Build Real-time Dashboard with SWR v3
+# Status: pending
+# Dependencies: 10, 11
+# Priority: medium
+# Description: Create responsive dashboard showing opportunities feed with real-time updates
+# Details:
+Build dashboard using Next.js App Router with React Server Components. Implement SWR v3 for data fetching with optimistic updates and real-time synchronization. Create opportunity cards showing repository info, AI analysis, scores, and action buttons. Add filtering, sorting, and search functionality. Implement infinite scrolling for large datasets. Use Tailwind CSS v4 for styling.
+
+# Test Strategy:
+Verify dashboard loads quickly, real-time updates work, filtering and sorting function correctly, infinite scrolling performs well, and UI is responsive across devices
+
+# Subtasks:
+## 1. React Server Components Setup [pending]
+### Dependencies: None
+### Description: Set up React Server Components architecture for the dashboard, including server-side rendering configuration, component structure, and data fetching patterns.
+### Details:
+Configure Next.js app router with RSC, create server component layouts, establish data fetching patterns, and set up component boundaries between server and client components.
+
+## 2. SWR Integration and Real-time Updates [pending]
+### Dependencies: 12.1
+### Description: Implement SWR for data fetching and caching, configure real-time updates using WebSocket or Server-Sent Events for live dashboard data.
+### Details:
+Set up SWR configuration, implement real-time data synchronization, configure cache invalidation strategies, and establish WebSocket connections for live updates.
+
+## 3. Opportunity Card Components [pending]
+### Dependencies: 12.1
+### Description: Develop reusable opportunity card components with proper data display, actions, and interactive elements for the dashboard.
+### Details:
+Create card component variants, implement data binding, add interactive elements like buttons and status indicators, and ensure proper accessibility.
+
+## 4. Filtering and Search Functionality [pending]
+### Dependencies: 12.2, 12.3
+### Description: Implement comprehensive filtering and search capabilities for opportunities, including multiple filter criteria and real-time search results.
+### Details:
+Build filter components, implement search algorithms, create filter state management, and integrate with SWR for optimized data fetching.
+
+## 5. Infinite Scrolling Implementation [pending]
+### Dependencies: 12.2, 12.3
+### Description: Implement infinite scrolling for opportunity lists with proper performance optimization and loading states.
+### Details:
+Set up intersection observer, implement pagination logic, optimize rendering performance with virtualization, and handle loading and error states.
+
+## 6. Responsive Design Optimization [pending]
+### Dependencies: 12.3, 12.4, 12.5
+### Description: Optimize the dashboard for responsive design across all device sizes with proper layout adjustments and touch interactions.
+### Details:
+Implement responsive grid layouts, optimize touch interactions for mobile, adjust component sizing for different breakpoints, and ensure consistent user experience across devices.
+

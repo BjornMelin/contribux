@@ -1,0 +1,43 @@
+# Task ID: 2
+# Title: Configure Database Schema with Neon PostgreSQL
+# Status: pending
+# Dependencies: 1
+# Priority: high
+# Description: Set up Neon PostgreSQL database with complete schema including pgvector extension for AI embeddings
+# Details:
+Create Neon PostgreSQL 16 database instance. Implement the complete database schema from the PRD including users, repositories, opportunities, user_preferences, notifications, and contribution_outcomes tables. Enable pgvector 0.7, pg_cron 1.6, and pg_trgm extensions. Create all indexes for performance optimization. Set up database migrations using a migration tool compatible with Neon. Configure connection pooling and environment variables for database access.
+
+# Test Strategy:
+Run all migrations successfully, verify all tables and indexes are created, test database connection from Next.js app, validate foreign key constraints, and ensure pgvector extension works for similarity searches
+
+# Subtasks:
+## 1. Database Instance Creation [pending]
+### Dependencies: None
+### Description: Set up the database server instance with proper configuration, security settings, and initial administrative access
+### Details:
+Install and configure database server, set up authentication, configure network access, establish backup locations, and verify connectivity
+
+## 2. Schema Implementation [pending]
+### Dependencies: 2.1
+### Description: Design and implement the database schema including tables, relationships, constraints, and data types
+### Details:
+Create database schemas, define tables with appropriate columns and data types, establish foreign key relationships, implement check constraints, and set up triggers if needed
+
+## 3. Extension Enablement [pending]
+### Dependencies: 2.1
+### Description: Install and configure necessary database extensions and plugins to enhance functionality
+### Details:
+Identify required extensions, install database-specific extensions, configure extension settings, verify compatibility, and test extension functionality
+
+## 4. Index Optimization [pending]
+### Dependencies: 2.2
+### Description: Create and optimize database indexes for improved query performance and data retrieval efficiency
+### Details:
+Analyze query patterns, create primary and secondary indexes, implement composite indexes where needed, optimize index strategies, and monitor index performance
+
+## 5. Migration and Pooling Configuration [pending]
+### Dependencies: 2.2, 2.3
+### Description: Set up database migration tools and configure connection pooling for scalable database access
+### Details:
+Configure migration framework, set up connection pooling parameters, establish pool size limits, configure timeout settings, and implement connection monitoring
+

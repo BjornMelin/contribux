@@ -1,0 +1,43 @@
+# Task ID: 21
+# Title: Create Advanced Filtering and Search
+# Status: pending
+# Dependencies: 12
+# Priority: medium
+# Description: Implement sophisticated filtering and search capabilities for opportunity discovery
+# Details:
+Build advanced filtering system supporting multiple criteria: programming languages, contribution types, complexity ranges, repository characteristics, and time constraints. Implement full-text search using PostgreSQL's pg_trgm extension. Add saved search functionality and search history. Create smart suggestions based on user behavior and preferences.
+
+# Test Strategy:
+Verify filtering produces accurate results, full-text search works correctly, saved searches function properly, and search suggestions are relevant
+
+# Subtasks:
+## 1. Filtering Logic Implementation [pending]
+### Dependencies: None
+### Description: Develop comprehensive filtering system with multiple criteria, dynamic filter combinations, and efficient query optimization for search results refinement.
+### Details:
+Implement multi-level filtering with support for categories, date ranges, price ranges, tags, and custom attributes. Create filter validation, combination logic, and database query optimization. Include filter state management and URL parameter handling for shareable filtered results.
+
+## 2. Full-Text Search Setup [pending]
+### Dependencies: None
+### Description: Configure and implement full-text search engine with indexing, relevance scoring, and advanced search capabilities across multiple content types.
+### Details:
+Set up search engine (Elasticsearch/Solr), create content indexing pipeline, implement search algorithms with relevance scoring, fuzzy matching, and stemming. Include search result ranking, highlighting, and performance optimization for large datasets.
+
+## 3. Saved Search Functionality [pending]
+### Dependencies: 21.1, 21.2
+### Description: Build user capability to save, manage, and execute custom search queries with notification system for new matching results.
+### Details:
+Create saved search storage system, user interface for managing saved searches, automated execution scheduling, and notification system for new results. Include search sharing capabilities, categorization, and export functionality.
+
+## 4. Search History Management [pending]
+### Dependencies: 21.2
+### Description: Implement comprehensive search history tracking, analytics, and user interface for managing past searches with privacy controls.
+### Details:
+Build search history storage, user interface for browsing and managing history, search analytics and insights, privacy controls for history retention. Include search pattern analysis, frequently searched terms, and history-based suggestions.
+
+## 5. Smart Suggestion System [pending]
+### Dependencies: 21.2, 21.4
+### Description: Develop intelligent search suggestions using autocomplete, query prediction, and machine learning-based recommendations for enhanced user experience.
+### Details:
+Implement autocomplete functionality, query suggestion algorithms, trending searches, personalized recommendations based on history and behavior. Include typo correction, synonym suggestions, and real-time suggestion updates with caching optimization.
+
