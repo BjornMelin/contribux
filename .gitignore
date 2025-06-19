@@ -308,3 +308,39 @@ config/development.json
 # Backup files
 *.backup
 *.bak
+
+# Added by Task Master AI
+# Logs
+logs
+dev-debug.log
+# Dependency directories
+# Environment variables
+# Editor directories and files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+# OS specific
+
+# ================================
+# Task Master AI
+# ================================
+# Exclude temporary and generated files
+.taskmaster/reports/
+.taskmaster/logs/
+.taskmaster/cache/
+.taskmaster/.env
+.taskmaster/*.log
+
+# Roo integration files
+.roo/
+.roomodes
+
+# Cursor IDE configuration
+# Track rules but exclude sensitive files
+.cursor/mcp.json
+.cursor/*.log
+.cursor/cache/
