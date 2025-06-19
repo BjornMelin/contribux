@@ -3,47 +3,59 @@
 # Status: pending
 # Dependencies: 7
 # Priority: high
-# Description: Create intelligent system to analyze issues and generate contribution recommendations
+# Description: Create intelligent system using OpenAI Agents SDK v1.0 with GPT-4o-mini-2025-06 to analyze GitHub issues and generate comprehensive contribution recommendations with structured validation and cost tracking
 # Details:
-Implement AI analyzer that evaluates issues for complexity (0-10), impact (0-10), confidence (0-1), and urgency (0-10). Generate implementation hints, identify required skills, estimate time investment, and assess acceptance probability. Create fallback analysis for when AI is unavailable. Store analysis results in database with confidence scores. Implement learning from user feedback to improve accuracy.
+Implement advanced AI analyzer using OpenAI Agents SDK v1.0 with GPT-4o-mini-2025-06 that evaluates issues across multiple dimensions: technical complexity (0-10), business impact (0-10), learning potential (0-10), and contribution likelihood (0-1). Generate structured JSON output with comprehensive Zod validation schemas, implementation hints, required skills identification, time investment estimates, and acceptance probability assessments. Include token management and cost tracking for all AI operations. Implement sophisticated guardrails with human-in-the-loop validation, machine learning feedback loops for continuous improvement, and comprehensive fallback mechanisms for AI service failures. Store all analysis results in database with confidence scores and validation metadata.
 
 # Test Strategy:
-Verify AI analysis produces consistent scores, implementation hints are relevant, skill identification is accurate, time estimates are reasonable, and fallback analysis works when AI is unavailable
+Verify OpenAI Agents SDK integration works correctly, structured JSON output validates against Zod schemas, multi-dimensional scoring produces consistent and accurate results, token usage and costs are properly tracked, guardrails prevent invalid outputs, human validation workflows function properly, machine learning feedback improves accuracy over time, fallback mechanisms activate during AI failures, and comprehensive integration testing covers both mock responses and live AI analysis quality validation
 
 # Subtasks:
-## 1. Scoring Algorithm Implementation [pending]
+## 1. OpenAI Agents SDK Integration [pending]
 ### Dependencies: None
-### Description: Develop the core scoring algorithm that evaluates code quality, efficiency, and correctness with weighted metrics and configurable parameters
+### Description: Integrate OpenAI Agents SDK v1.0 with GPT-4o-mini-2025-06 for sophisticated issue analysis and recommendation generation
 ### Details:
-Implement multi-dimensional scoring system with metrics for code complexity, performance, readability, and best practices. Include configurable weights and thresholds for different evaluation criteria.
+Set up OpenAI Agents SDK v1.0 with proper authentication, configure GPT-4o-mini-2025-06 model for issue analysis, implement structured prompting for consistent analysis output, and establish connection management with retry logic.
 
-## 2. Implementation Hint Generation [pending]
+## 2. Structured JSON Output with Zod Validation [pending]
 ### Dependencies: 8.1
-### Description: Create intelligent hint generation system that provides contextual suggestions and guidance based on code analysis results
+### Description: Implement comprehensive Zod validation schemas for all AI analysis results with type-safe structured output
 ### Details:
-Build natural language processing component to generate helpful hints, tips, and improvement suggestions based on scoring results and identified patterns in the code.
+Create detailed Zod schemas for analysis results including scoring metrics, implementation hints, skill requirements, time estimates, and confidence levels. Ensure all AI outputs are validated and type-safe before processing.
 
-## 3. Skill Identification System [pending]
+## 3. Multi-Dimensional Scoring System [pending]
+### Dependencies: 8.1, 8.2
+### Description: Develop advanced scoring algorithm that evaluates technical complexity, business impact, learning potential, and contribution likelihood
+### Details:
+Implement sophisticated scoring system with four key dimensions: technical complexity (0-10), business impact (0-10), learning potential (0-10), and contribution likelihood (0-1). Include weighted aggregation and confidence scoring for each dimension.
+
+## 4. Token Management and Cost Tracking [pending]
 ### Dependencies: 8.1
-### Description: Implement machine learning-based system to identify and categorize programming skills demonstrated in submitted code
+### Description: Implement comprehensive token usage monitoring and cost tracking for all OpenAI API operations
 ### Details:
-Develop classification algorithms to detect programming concepts, design patterns, data structures usage, and algorithmic approaches. Map identified skills to competency levels.
+Build token counting mechanisms, cost calculation based on current OpenAI pricing, usage analytics dashboard, and budget alerts. Include optimization strategies to minimize token usage while maintaining analysis quality.
 
-## 4. Time Estimation Logic [pending]
-### Dependencies: 8.1, 8.3
-### Description: Build predictive model for estimating completion time and effort required for programming tasks based on complexity analysis
+## 5. Guardrails and Human-in-the-Loop Validation [pending]
+### Dependencies: 8.2, 8.3
+### Description: Create sophisticated guardrails system with human validation workflows for AI analysis results
 ### Details:
-Create regression models using historical data, code complexity metrics, and skill levels to predict realistic time estimates for similar tasks and improvements.
+Implement content filtering, output validation checks, confidence threshold enforcement, and human review workflows for low-confidence or edge-case analyses. Include escalation mechanisms and approval processes.
 
-## 5. Fallback Analysis Mechanism [pending]
-### Dependencies: 8.1, 8.2, 8.3
-### Description: Implement robust fallback system to handle edge cases, parsing errors, and unsupported code patterns with graceful degradation
+## 6. Machine Learning Feedback Loops [pending]
+### Dependencies: 8.3, 8.5
+### Description: Develop continuous learning system that improves analysis accuracy through user feedback and outcome tracking
 ### Details:
-Design error handling and recovery mechanisms for when primary analysis fails. Include basic static analysis, syntax checking, and simplified scoring as fallback options.
+Implement feedback collection mechanisms, accuracy tracking metrics, model performance monitoring, and automated retraining pipelines. Include A/B testing framework for prompt optimization and analysis improvement.
 
-## 6. Learning Feedback Integration [pending]
-### Dependencies: 8.1, 8.2, 8.3, 8.4, 8.5
-### Description: Develop feedback loop system that learns from user interactions and improves analysis accuracy over time through machine learning
+## 7. Comprehensive Fallback Mechanisms [pending]
+### Dependencies: 8.2, 8.3
+### Description: Build robust fallback system for AI service failures with graceful degradation and alternative analysis methods
 ### Details:
-Implement reinforcement learning components to collect user feedback, track prediction accuracy, and continuously improve scoring algorithms and hint generation quality.
+Create multi-tier fallback system including cached analysis results, rule-based scoring algorithms, simplified heuristic analysis, and manual override capabilities. Ensure system remains functional during AI service outages.
+
+## 8. AI Integration Testing Framework [pending]
+### Dependencies: 8.1, 8.2, 8.4, 8.7
+### Description: Develop comprehensive testing suite for AI integration including mock responses and analysis quality validation
+### Details:
+Build testing framework with mock OpenAI responses, analysis quality metrics validation, performance benchmarking, cost tracking verification, and end-to-end integration tests. Include automated quality assurance for AI outputs.
 

@@ -3,41 +3,47 @@
 # Status: pending
 # Dependencies: 9
 # Priority: high
-# Description: Implement intelligent email notification system using Resend v4 for opportunity alerts
+# Description: Implement intelligent email notification system using Resend v4 with React Email templates, AI-powered personalization, and comprehensive delivery tracking
 # Details:
-Integrate Resend v4 for email delivery. Create email templates for daily digests, immediate alerts, and weekly summaries using HTML/CSS. Implement smart notification logic that respects user preferences, timezone, and notification frequency limits. Add unsubscribe functionality and preference management. Track email delivery, opens, and clicks for analytics.
+Integrate Resend v4 with idempotency keys for reliable email delivery. Create modern email templates using React Email for maintainable design. Implement AI-powered personalization using insights from the scoring engine. Add comprehensive rate limiting, email scheduling, and batching for optimal delivery timing. Include GDPR-compliant preference management with sophisticated delivery tracking via webhooks and analytics.
 
 # Test Strategy:
-Verify emails are sent successfully, templates render correctly across email clients, unsubscribe links work, delivery tracking functions, and notification frequency limits are respected
+Verify emails are sent successfully with idempotency, React Email templates render correctly across email clients, AI personalization works accurately, rate limiting prevents spam, scheduling and batching function properly, GDPR compliance is maintained, delivery tracking and analytics are accurate, and all webhook integrations work correctly
 
 # Subtasks:
-## 1. Resend Integration Setup [pending]
+## 1. Resend v4 Integration with Idempotency [pending]
 ### Dependencies: None
-### Description: Configure and integrate Resend email service with the application, including API key setup, authentication, and basic connection testing.
+### Description: Configure and integrate Resend v4 email service with idempotency keys for reliable email delivery, including API key setup, authentication, and connection testing.
 ### Details:
-Set up Resend SDK, configure environment variables for API keys, implement connection testing, and establish error handling for API communication.
+Set up Resend v4 SDK, configure environment variables for API keys, implement idempotency key generation and management, establish connection testing with retry logic, and implement comprehensive error handling for API communication.
 
-## 2. Template Creation and Styling [pending]
+## 2. React Email Template System [pending]
 ### Dependencies: 10.1
-### Description: Design and implement email templates with responsive styling for various notification types and user communications.
+### Description: Design and implement modern email templates using React Email for maintainable, responsive design across various notification types.
 ### Details:
-Create HTML email templates, implement CSS styling for responsive design, develop template variables system, and ensure cross-client compatibility.
+Set up React Email framework, create component-based email templates, implement responsive design patterns, develop template variables system, ensure cross-client compatibility, and establish template testing infrastructure.
 
-## 3. Notification Logic Implementation [pending]
+## 3. AI-Powered Notification Logic [pending]
 ### Dependencies: 10.1, 10.2
-### Description: Build the core notification system logic to handle different types of email triggers and content generation.
+### Description: Build intelligent notification system with AI-powered personalization using insights from the scoring engine and comprehensive rate limiting.
 ### Details:
-Implement notification triggers, create email content generation logic, handle dynamic data insertion, and establish notification queuing system.
+Implement notification triggers with AI personalization, integrate with scoring engine for user insights, create dynamic content generation logic, establish comprehensive rate limiting system, implement notification queuing with priority handling, and add spam prevention mechanisms.
 
-## 4. Preference Management [pending]
+## 4. Email Scheduling and Batching System [pending]
 ### Dependencies: 10.3
-### Description: Develop user preference system for email notifications including subscription management and frequency controls.
+### Description: Implement advanced email scheduling and batching capabilities for optimal delivery timing and performance.
 ### Details:
-Create user preference database schema, implement preference UI components, build subscription/unsubscription logic, and handle notification frequency settings.
+Create email scheduling engine with timezone awareness, implement batching logic for bulk sends, develop optimal timing algorithms, add queue management for scheduled emails, and establish monitoring for batch processing performance.
 
-## 5. Delivery Tracking System [pending]
+## 5. GDPR-Compliant Preference Management [pending]
 ### Dependencies: 10.3
-### Description: Implement email delivery tracking and analytics to monitor send status, delivery rates, and user engagement metrics.
+### Description: Develop comprehensive user preference system with GDPR compliance for email notifications including subscription management and privacy controls.
 ### Details:
-Set up delivery status webhooks, implement tracking database, create analytics dashboard, and build reporting system for email metrics.
+Create GDPR-compliant preference database schema, implement privacy-focused UI components, build subscription/unsubscription logic with audit trails, handle data retention policies, implement consent management, and add preference export functionality.
+
+## 6. Advanced Delivery Tracking and Analytics [pending]
+### Dependencies: 10.3, 10.4
+### Description: Implement sophisticated email delivery tracking with webhooks, real-time analytics, and comprehensive reporting capabilities.
+### Details:
+Set up webhook endpoints for delivery status, implement real-time tracking database, create comprehensive analytics dashboard, build advanced reporting system for email metrics, add engagement tracking (opens, clicks, bounces), and establish alerting for delivery issues.
 

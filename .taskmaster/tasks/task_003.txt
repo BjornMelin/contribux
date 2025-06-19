@@ -3,41 +3,53 @@
 # Status: pending
 # Dependencies: 1
 # Priority: high
-# Description: Create a robust GitHub API client supporting both REST and GraphQL with intelligent rate limiting
+# Description: Create a robust GitHub API client supporting both REST and GraphQL with intelligent rate limiting, following GitHub API v4 GraphQL best practices
 # Details:
-Build GitHub API client using @octokit/graphql v8.0.0 and @octokit/rest. Implement rate limiting logic that respects GitHub's 5000 requests/hour limit. Create token rotation system for multiple GitHub tokens. Add retry logic with exponential backoff. Implement caching layer using Redis for frequently accessed data. Create TypeScript interfaces for all GitHub API responses. Add comprehensive error handling for API failures.
+Build GitHub API client using @octokit/graphql v8.0.0 and @octokit/rest with advanced GraphQL optimization. Implement cursor-based pagination with pageInfo handling and point-aware querying (max 500,000 nodes per query). Create token rotation system supporting GitHub Apps authentication with JWT generation. Add retry logic with exponential backoff and jitter. Implement multi-level caching with ETag-based conditional requests and DataLoader pattern to prevent N+1 queries. Use query aliases for efficient batch operations. Add webhook signature validation and comprehensive rate limit monitoring.
 
 # Test Strategy:
-Test rate limiting behavior under load, verify token rotation works correctly, validate API responses match TypeScript interfaces, test error handling for various failure scenarios, and ensure caching reduces API calls
+Test cursor-based pagination edge cases, verify point-aware query optimization stays under limits, validate ETag caching reduces API calls, test DataLoader prevents N+1 queries, verify JWT generation for GitHub Apps auth, test webhook signature validation, validate rate limit monitoring accuracy, and ensure exponential backoff with jitter works under load
 
 # Subtasks:
 ## 1. Basic Client Setup [pending]
 ### Dependencies: None
-### Description: Implement foundational API client architecture with HTTP client configuration, base URL management, request/response handling, and error handling framework
+### Description: Implement foundational API client architecture with both REST and GraphQL clients, proper configuration, and GitHub Apps authentication support
 ### Details:
-Set up HTTP client library, configure base URLs and endpoints, implement request/response serialization, establish basic error handling patterns, and create client initialization with configuration options
+Set up @octokit/rest and @octokit/graphql v8.0.0 clients, configure base URLs and endpoints, implement request/response serialization, establish error handling patterns, create client initialization with configuration options, and add GitHub Apps authentication with JWT generation
 
 ## 2. Rate Limiting Implementation [pending]
 ### Dependencies: 3.1
-### Description: Develop comprehensive rate limiting system with multiple strategies including token bucket, sliding window, and API-specific rate limit handling
+### Description: Develop comprehensive rate limiting system with GitHub-specific rate limit monitoring and point-aware query optimization
 ### Details:
-Implement rate limiting algorithms, create rate limit tracking mechanisms, handle rate limit headers from APIs, implement backoff strategies, and provide rate limit status monitoring
+Implement rate limiting algorithms respecting GitHub's 5000 requests/hour limit, monitor rate limit headers (x-ratelimit-limit, x-ratelimit-remaining, x-ratelimit-reset), create point-aware querying for GraphQL (max 500,000 nodes per query), implement exponential backoff with jitter, and provide rate limit status monitoring
 
 ## 3. Token Rotation System [pending]
 ### Dependencies: 3.1
-### Description: Build secure token management system with automatic rotation, refresh logic, and multi-token support for different API endpoints
+### Description: Build secure token management system with GitHub Apps support, automatic rotation, and multi-token support for different API endpoints
 ### Details:
-Implement token storage and retrieval, create automatic token refresh mechanisms, handle token expiration detection, support multiple authentication methods, and ensure thread-safe token operations
+Implement token storage and retrieval, create automatic token refresh mechanisms, handle GitHub Apps JWT generation and token exchange, support multiple authentication methods (personal access tokens, GitHub Apps), handle token expiration detection, and ensure thread-safe token operations
 
 ## 4. Retry Logic [pending]
 ### Dependencies: 3.1, 3.2, 3.3
-### Description: Implement intelligent retry mechanisms with exponential backoff, circuit breaker patterns, and failure classification for different error types
+### Description: Implement intelligent retry mechanisms with exponential backoff and jitter, circuit breaker patterns, and GitHub-specific failure classification
 ### Details:
-Create retry strategies for different error types, implement exponential backoff with jitter, add circuit breaker functionality, handle transient vs permanent failures, and provide retry configuration options
+Create retry strategies for different GitHub API error types, implement exponential backoff with jitter for rate limit handling, add circuit breaker functionality, handle transient vs permanent failures, distinguish between REST and GraphQL error patterns, and provide retry configuration options
 
-## 5. Caching Integration [pending]
+## 5. Advanced Caching Integration [pending]
 ### Dependencies: 3.1, 3.4
-### Description: Integrate multi-level caching system with TTL management, cache invalidation strategies, and performance optimization for API responses
+### Description: Integrate multi-level caching system with ETag-based conditional requests, DataLoader pattern, and performance optimization
 ### Details:
-Implement in-memory and persistent caching layers, create cache key generation strategies, handle cache TTL and invalidation, implement cache warming mechanisms, and add cache performance metrics
+Implement ETag-based caching for conditional requests, create DataLoader pattern to prevent N+1 queries, add in-memory and Redis caching layers, create cache key generation strategies, handle cache TTL and invalidation, implement cache warming mechanisms, and add cache performance metrics
+
+## 6. GraphQL Query Optimization [pending]
+### Dependencies: 3.1, 3.2
+### Description: Implement cursor-based pagination, query aliases for batch operations, and point-aware query construction
+### Details:
+Implement cursor-based pagination with proper pageInfo handling (hasNextPage, hasPreviousPage, startCursor, endCursor), create query aliases for efficient batch queries, build point-aware query construction to stay under 500,000 node limit, implement query complexity analysis, and add GraphQL query optimization utilities
+
+## 7. Webhook Integration [pending]
+### Dependencies: 3.1
+### Description: Add webhook signature validation and event handling capabilities
+### Details:
+Implement webhook signature validation using crypto.timingSafeEqual for security, create webhook event parsing and routing, add support for different webhook event types, implement webhook retry handling, and provide webhook configuration management
 

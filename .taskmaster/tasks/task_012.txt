@@ -3,47 +3,59 @@
 # Status: pending
 # Dependencies: 10, 11
 # Priority: medium
-# Description: Create responsive dashboard showing opportunities feed with real-time updates
+# Description: Create a modern Progressive Web App dashboard with real-time opportunities feed, advanced AI-powered filtering, and comprehensive accessibility features using Next.js 15 and React Server Components
 # Details:
-Build dashboard using Next.js App Router with React Server Components. Implement SWR v3 for data fetching with optimistic updates and real-time synchronization. Create opportunity cards showing repository info, AI analysis, scores, and action buttons. Add filtering, sorting, and search functionality. Implement infinite scrolling for large datasets. Use Tailwind CSS v4 for styling.
+Build a cutting-edge dashboard using Next.js 15 App Router with React Server Components for optimized server-side rendering. Implement SWR v3 with native TanStack Query integration for enhanced data fetching and caching. Add Progressive Web App features with service workers for offline support. Use Server-Sent Events for real-time updates. Create sophisticated opportunity cards with AI analysis, scores, and interactive elements. Implement AI-powered semantic search and advanced filtering. Add virtual scrolling and lazy loading for performance optimization. Use modern CSS Grid and Flexbox for responsive design. Ensure comprehensive accessibility following WCAG 2.2 guidelines.
 
 # Test Strategy:
-Verify dashboard loads quickly, real-time updates work, filtering and sorting function correctly, infinite scrolling performs well, and UI is responsive across devices
+Verify PWA installation works, offline functionality operates correctly, real-time updates via SSE function properly, AI-powered search returns relevant results, virtual scrolling performs efficiently with large datasets, accessibility features meet WCAG 2.2 standards, and responsive design works across all modern devices and browsers
 
 # Subtasks:
-## 1. React Server Components Setup [pending]
+## 1. Next.js 15 and React Server Components Setup [pending]
 ### Dependencies: None
-### Description: Set up React Server Components architecture for the dashboard, including server-side rendering configuration, component structure, and data fetching patterns.
+### Description: Set up Next.js 15 with React Server Components architecture for optimized server-side rendering, including modern app router configuration and component boundaries.
 ### Details:
-Configure Next.js app router with RSC, create server component layouts, establish data fetching patterns, and set up component boundaries between server and client components.
+Configure Next.js 15 app router with latest RSC features, create optimized server component layouts, establish efficient data fetching patterns with streaming, and set up proper component boundaries between server and client components for maximum performance.
 
-## 2. SWR Integration and Real-time Updates [pending]
+## 2. SWR v3 with TanStack Query Integration [pending]
 ### Dependencies: 12.1
-### Description: Implement SWR for data fetching and caching, configure real-time updates using WebSocket or Server-Sent Events for live dashboard data.
+### Description: Implement SWR v3 with native TanStack Query integration for enhanced data fetching, caching, and real-time synchronization using Server-Sent Events.
 ### Details:
-Set up SWR configuration, implement real-time data synchronization, configure cache invalidation strategies, and establish WebSocket connections for live updates.
+Set up SWR v3 with TanStack Query for advanced caching strategies, implement Server-Sent Events for real-time data synchronization, configure intelligent cache invalidation, and establish optimistic updates for improved user experience.
 
-## 3. Opportunity Card Components [pending]
+## 3. Progressive Web App Implementation [pending]
 ### Dependencies: 12.1
-### Description: Develop reusable opportunity card components with proper data display, actions, and interactive elements for the dashboard.
+### Description: Add comprehensive PWA features including service workers, offline support, app installation, and background sync capabilities.
 ### Details:
-Create card component variants, implement data binding, add interactive elements like buttons and status indicators, and ensure proper accessibility.
+Implement service workers for caching strategies, add offline functionality with data persistence, enable app installation with proper manifest configuration, implement background sync for data updates, and add push notification support.
 
-## 4. Filtering and Search Functionality [pending]
-### Dependencies: 12.2, 12.3
-### Description: Implement comprehensive filtering and search capabilities for opportunities, including multiple filter criteria and real-time search results.
+## 4. Advanced Opportunity Card Components [pending]
+### Dependencies: 12.1
+### Description: Develop sophisticated opportunity card components with enhanced data visualization, interactive elements, and accessibility features.
 ### Details:
-Build filter components, implement search algorithms, create filter state management, and integrate with SWR for optimized data fetching.
+Create modern card component variants with rich data visualization, implement interactive elements with proper focus management, add comprehensive ARIA labels and keyboard navigation, and ensure semantic HTML structure for screen readers.
 
-## 5. Infinite Scrolling Implementation [pending]
-### Dependencies: 12.2, 12.3
-### Description: Implement infinite scrolling for opportunity lists with proper performance optimization and loading states.
+## 5. AI-Powered Search and Semantic Filtering [pending]
+### Dependencies: 12.2, 12.4
+### Description: Implement advanced filtering with AI-powered semantic search, intelligent categorization, and context-aware filtering capabilities.
 ### Details:
-Set up intersection observer, implement pagination logic, optimize rendering performance with virtualization, and handle loading and error states.
+Build AI-powered search with semantic understanding, implement intelligent auto-complete and suggestions, create context-aware filtering with machine learning, add saved search functionality, and integrate with SWR for optimized query performance.
 
-## 6. Responsive Design Optimization [pending]
-### Dependencies: 12.3, 12.4, 12.5
-### Description: Optimize the dashboard for responsive design across all device sizes with proper layout adjustments and touch interactions.
+## 6. Virtual Scrolling and Performance Optimization [pending]
+### Dependencies: 12.2, 12.4
+### Description: Implement virtual scrolling with advanced performance optimization including lazy loading, code splitting, and memory management.
 ### Details:
-Implement responsive grid layouts, optimize touch interactions for mobile, adjust component sizing for different breakpoints, and ensure consistent user experience across devices.
+Set up virtual scrolling with intersection observer optimization, implement lazy loading for images and components, add code splitting for route-based optimization, optimize memory usage with proper cleanup, and implement performance monitoring.
+
+## 7. Modern Responsive Design with CSS Grid [pending]
+### Dependencies: 12.4, 12.5, 12.6
+### Description: Implement cutting-edge responsive design using modern CSS Grid, Flexbox, and container queries for optimal layout across all devices.
+### Details:
+Build responsive layouts with CSS Grid and Flexbox, implement container queries for component-based responsiveness, optimize touch interactions for mobile devices, add proper spacing and typography scales, and ensure consistent visual hierarchy across breakpoints.
+
+## 8. Comprehensive Accessibility Implementation [pending]
+### Dependencies: 12.4, 12.5, 12.7
+### Description: Add comprehensive accessibility features following WCAG 2.2 guidelines including keyboard navigation, screen reader support, and assistive technology compatibility.
+### Details:
+Implement WCAG 2.2 AA compliance with proper ARIA attributes, add comprehensive keyboard navigation patterns, ensure screen reader compatibility with semantic markup, implement focus management for dynamic content, add high contrast mode support, and include accessibility testing automation.
 

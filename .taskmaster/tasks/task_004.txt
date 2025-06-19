@@ -3,41 +3,53 @@
 # Status: pending
 # Dependencies: 2
 # Priority: high
-# Description: Implement secure authentication system using GitHub OAuth for user login and token management
+# Description: Implement modern passwordless authentication system using WebAuthn/passkeys as primary method with GitHub OAuth fallback, featuring secure token management and GDPR compliance
 # Details:
-Implement GitHub OAuth authentication using NextAuth.js or similar. Store encrypted GitHub tokens in database using Web Crypto API for encryption. Create user session management with JWT tokens (15-minute expiry with refresh). Implement middleware for protecting API routes. Add user profile creation and management. Ensure GDPR compliance for user data handling.
+Implement WebAuthn/passkeys for passwordless authentication as the primary method, with GitHub OAuth as fallback. Use Web Crypto API for secure token encryption and implement 15-minute JWT access tokens with refresh token rotation. Include biometric authentication support, comprehensive security audit logging, and GDPR compliance features including consent management and data portability. Ensure modern authentication security best practices throughout.
 
 # Test Strategy:
-Test complete OAuth flow, verify token encryption/decryption, validate session management, test protected route access, and ensure user data is properly stored and retrieved
+Test WebAuthn flow with mock authenticators, verify passkey registration and authentication, validate Web Crypto API encryption/decryption, test JWT token rotation strategy, verify GDPR compliance features, validate security audit logging, and ensure fallback OAuth flow works correctly
 
 # Subtasks:
-## 1. OAuth App Configuration [pending]
+## 1. WebAuthn/Passkeys Implementation [pending]
 ### Dependencies: None
-### Description: Set up OAuth applications with third-party providers (Google, GitHub, etc.) and configure client credentials, redirect URIs, and scopes
+### Description: Implement WebAuthn API for passwordless authentication with passkey support and biometric authentication
 ### Details:
-Register applications with OAuth providers, obtain client IDs and secrets, configure authorized redirect URIs, set appropriate scopes for user data access, and store credentials securely in environment variables
+Set up WebAuthn API integration, implement passkey registration and authentication flows, add biometric authentication support where available, handle authenticator selection and management, and create fallback mechanisms for unsupported devices
 
-## 2. NextAuth.js Integration [pending]
-### Dependencies: 4.1
-### Description: Install and configure NextAuth.js with OAuth providers, database adapters, and authentication callbacks
+## 2. OAuth Fallback Configuration [pending]
+### Dependencies: None
+### Description: Configure GitHub OAuth as fallback authentication method for devices that don't support WebAuthn
 ### Details:
-Install NextAuth.js package, create API route handlers, configure OAuth providers with credentials from subtask 1, set up database adapter for session persistence, and implement custom callbacks for user data handling
+Register GitHub OAuth application, obtain client credentials, configure redirect URIs and scopes, implement OAuth flow as secondary authentication method, and ensure seamless transition between WebAuthn and OAuth methods
 
-## 3. Token Encryption [pending]
-### Dependencies: 4.2
-### Description: Implement secure token encryption and decryption mechanisms for JWT tokens and refresh tokens
+## 3. Web Crypto API Token Encryption [pending]
+### Dependencies: 4.1, 4.2
+### Description: Implement secure token encryption and decryption using Web Crypto API with proper key management
 ### Details:
-Configure JWT encryption settings, implement custom JWT encode/decode functions, set up secure token storage, handle token rotation for refresh tokens, and ensure proper encryption key management
+Implement Web Crypto API for token encryption, set up secure key generation and storage, create encryption/decryption functions for JWT tokens, implement proper key rotation mechanisms, and ensure cryptographic security best practices
 
-## 4. Session Management [pending]
+## 4. JWT Token Strategy with Refresh Rotation [pending]
 ### Dependencies: 4.3
-### Description: Configure session storage, expiration policies, and user session state management across the application
+### Description: Implement 15-minute JWT access tokens with secure refresh token rotation strategy
 ### Details:
-Set up session storage strategy (database vs JWT), configure session expiration and renewal policies, implement session invalidation mechanisms, handle concurrent sessions, and manage user state persistence
+Configure 15-minute JWT access token expiration, implement refresh token rotation strategy, set up automatic token renewal mechanisms, handle token revocation and blacklisting, and ensure secure token storage and transmission
 
-## 5. Route Protection Middleware [pending]
+## 5. GDPR Compliance Features [pending]
 ### Dependencies: 4.4
-### Description: Create middleware to protect authenticated routes and implement role-based access control
+### Description: Implement GDPR compliance including consent management, data portability, and user rights management
 ### Details:
-Develop Next.js middleware for route protection, implement authentication checks, create role-based access control logic, handle unauthorized access redirects, and protect API endpoints with proper authentication validation
+Create consent management system, implement data portability features, add user data export/deletion capabilities, set up privacy policy acceptance tracking, implement right to be forgotten functionality, and ensure GDPR-compliant data handling practices
+
+## 6. Security Audit Logging [pending]
+### Dependencies: 4.4
+### Description: Implement comprehensive security audit logging for authentication events and security-related activities
+### Details:
+Set up security event logging system, implement audit trails for authentication attempts, log security-related activities and changes, create log retention and analysis capabilities, ensure log integrity and tamper-proofing, and implement alerting for suspicious activities
+
+## 7. Route Protection Middleware [pending]
+### Dependencies: 4.5, 4.6
+### Description: Create advanced middleware to protect authenticated routes with support for both WebAuthn and OAuth sessions
+### Details:
+Develop Next.js middleware supporting both WebAuthn and OAuth authentication, implement role-based access control, create session validation for multiple auth methods, handle unauthorized access with appropriate redirects, and protect API endpoints with comprehensive authentication validation
 
