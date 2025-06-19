@@ -37,21 +37,25 @@ Transform how you strategically build your open source reputation by intelligent
 ## ✨ Features
 
 ### 🎯 **Intelligent Discovery**
+
 - **Smart Repository Scanning**: Automatically discovers trending AI/ML repositories with health scoring
 - **Real-time Monitoring**: Live tracking of new issues and opportunities across 420M+ repositories
 - **Quality Filtering**: AI-powered validation to surface only meaningful contribution opportunities
 
 ### 🧠 **AI-Powered Analysis**
+
 - **Complexity Assessment**: Automated difficulty scoring (0-10) with confidence intervals
 - **Skill Matching**: NLP-based skill requirement detection and user expertise alignment
 - **Implementation Guidance**: AI-generated approaches, hints, and potential challenge identification
 
 ### 📱 **Smart Notifications**
+
 - **Intelligent Scheduling**: Timezone-aware delivery with user preference learning
 - **Multi-channel Support**: Email (Resend) + SMS (Telnyx) with fallback mechanisms
 - **Spam Prevention**: Score-based triggers with cooldown periods and relevance filtering
 
 ### 📊 **Analytics & Tracking**
+
 - **Contribution Outcomes**: Success rate monitoring and pattern recognition
 - **Career Impact**: Reputation growth tracking and skill development insights
 - **Performance Metrics**: Time-to-merge analysis and contribution quality scoring
@@ -188,6 +192,7 @@ Visit [http://localhost:3000](http://localhost:3000) 🎉
 ## ⚙️ Technology Stack
 
 ### **Frontend Stack**
+
 | Technology | Version | Purpose |
 |------------|---------|---------|
 | [Next.js](https://nextjs.org/) | 15.0+ | React framework with App Router |
@@ -197,6 +202,7 @@ Visit [http://localhost:3000](http://localhost:3000) 🎉
 | [SWR](https://swr.vercel.app/) | 3.0+ | Data fetching with caching |
 
 ### **Backend Stack**
+
 | Technology | Version | Purpose |
 |------------|---------|---------|
 | [Neon PostgreSQL](https://neon.tech/) | 16+ | Serverless database with auto-scaling |
@@ -205,6 +211,7 @@ Visit [http://localhost:3000](http://localhost:3000) 🎉
 | [Upstash QStash](https://upstash.com/qstash) | 3.0+ | Serverless message queuing |
 
 ### **AI & Analysis**
+
 | Technology | Version | Purpose |
 |------------|---------|---------|
 | [OpenAI Agents SDK](https://platform.openai.com/) | 1.0+ | AI agent orchestration |
@@ -212,6 +219,7 @@ Visit [http://localhost:3000](http://localhost:3000) 🎉
 | GPT-4o-mini-2025-06 | Latest | Cost-effective AI analysis |
 
 ### **Infrastructure**
+
 | Service | Tier | Purpose |
 |---------|------|---------|
 | [Vercel](https://vercel.com/) | Pro | Serverless hosting and edge functions |
@@ -330,7 +338,7 @@ erDiagram
 
 ### **Project Structure**
 
-```
+```text
 contribux/
 ├── 📱 src/
 │   ├── app/                 # Next.js App Router
@@ -432,16 +440,17 @@ npm run agents:deploy       # Deploy agent definitions
 ### **Testing Strategy**
 
 ```mermaid
-pyramid
-    title Testing Pyramid
-    section Unit Tests
-        A[80% Coverage]
-    section Integration Tests  
-        B[API Endpoints]
-    section E2E Tests
-        C[Critical Workflows]
-    section Performance Tests
-        D[Load & Stress]
+graph TD
+    subgraph "Testing Pyramid"
+        A[Unit Tests<br/>80% Coverage<br/>Jest + Testing Library] --> B[Integration Tests<br/>API Endpoints<br/>Supertest + Test DB]
+        B --> C[E2E Tests<br/>Critical Workflows<br/>Playwright v2]
+        C --> D[Performance Tests<br/>Load & Stress<br/>Lighthouse CI]
+    end
+    
+    style A fill:#10B981,color:#fff
+    style B fill:#F59E0B,color:#fff
+    style C fill:#EF4444,color:#fff
+    style D fill:#8B5CF6,color:#fff
 ```
 
 ### **Test Coverage Goals**
@@ -566,11 +575,11 @@ If you use contribux in your research or reference it in academic work, please c
 
 ## 👤 Author
 
-**Björn Melin**
+### **Bjorn Melin**
+
 - 🐙 GitHub: [@BjornMelin](https://github.com/BjornMelin)
-- 🐦 Twitter: [@BjornMelin](https://twitter.com/BjornMelin)
-- 📧 Email: bjorn@melin.dev
-- 🌐 Website: [melin.dev](https://melin.dev)
+- 🌐 Website: [bjornmelin.io](https://bjornmelin.io)
+- 🐦 LinkedIn: [@BjornMelin](https://www.linkedin.com/in/bjorn-melin/)
 
 ---
 
