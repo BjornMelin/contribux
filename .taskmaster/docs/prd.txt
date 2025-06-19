@@ -29,7 +29,7 @@
 
 ## 0. Development Task Reminders
 
-- Always use pnpm for for TypeScript commands and package management over npm.
+- Always use pnpm for TypeScript commands and package management over npm.
 - Use Zod best practices
 - Always use Biome for all TypeScript linting and formatting of files and always fix linting and formatting errors before finishing each task.
 - Use Vitest for all testing.
