@@ -339,5 +339,8 @@ dev-debug.log
 .roo/
 .roomodes
 
-# Cursor IDE configuration (optional - some teams track this)
-# .cursor/
+# Cursor IDE configuration
+# Track rules but exclude sensitive files
+.cursor/mcp.json
+.cursor/*.log
+.cursor/cache/
