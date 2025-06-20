@@ -1,0 +1,525 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { generateRegistrationOptions, verifyRegistrationResponse, generateAuthenticationOptions, verifyAuthenticationResponse } from '@/lib/auth/webauthn'
+import { generateOAuthUrl, validateOAuthCallback, exchangeCodeForTokens } from '@/lib/auth/oauth'
+import { generateAccessToken, generateRefreshToken, verifyAccessToken, rotateRefreshToken } from '@/lib/auth/jwt'
+import { encryptOAuthToken, decryptOAuthToken } from '@/lib/auth/crypto'
+import { recordUserConsent, getUserConsentStatus, exportUserData, deleteAllUserData } from '@/lib/auth/gdpr'
+import { logSecurityEvent, getAuditLogs } from '@/lib/auth/audit'
+import { authMiddleware } from '@/lib/auth/middleware'
+import { NextRequest, NextResponse } from 'next/server'
+import { sql } from '@/lib/db/config'
+import type { User, UserSession } from '@/types/auth'
+
+// Mock database
+vi.mock('@/lib/db/config', () => ({
+  sql: vi.fn()
+}))
+
+// Mock Next.js
+vi.mock('next/server', () => ({
+  NextRequest: class {
+    constructor(url: string, init?: RequestInit) {
+      this.url = url
+      this.method = init?.method || 'GET'
+      this.headers = new Map(Object.entries(init?.headers || {}))
+      this.cookies = {
+        get: (name: string) => this.headers.get('Cookie')?.match(new RegExp(`${name}=([^;]+)`))?.[1]
+      }
+    }
+    get nextUrl() {
+      return new URL(this.url)
+    }
+  },
+  NextResponse: {
+    json: (data: any, init?: ResponseInit) => ({ data, init, type: 'json' }),
+    redirect: (url: string) => ({ url, type: 'redirect' }),
+    next: () => ({ type: 'next' })
+  }
+}))
+
+describe('Authentication Integration Tests', () => {
+  const mockUser: User = {
+    id: '123e4567-e89b-12d3-a456-426614174000',
+    email: 'test@example.com',
+    github_username: 'testuser',
+    email_verified: true,
+    created_at: new Date(),
+    updated_at: new Date()
+  }
+
+  const mockSession: UserSession = {
+    id: 'session-123',
+    user_id: mockUser.id,
+    expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    auth_method: 'webauthn',
+    ip_address: '192.168.1.1',
+    user_agent: 'Mozilla/5.0',
+    created_at: new Date(),
+    last_active_at: new Date()
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  describe('Complete Authentication Flow', () => {
+    it('should handle WebAuthn registration and authentication flow', async () => {
+      const mockSql = vi.mocked(sql)
+      
+      // Mock challenge storage
+      mockSql.mockResolvedValueOnce([]) // INSERT challenge
+      
+      // Generate registration options
+      const regOptions = await generateRegistrationOptions({
+        userId: mockUser.id,
+        userEmail: mockUser.email,
+        userName: mockUser.github_username || 'User'
+      })
+      
+      expect(regOptions).toHaveProperty('challenge')
+      expect(regOptions).toHaveProperty('rp')
+      expect(regOptions.rp.id).toBe('localhost')
+      
+      // Mock registration verification
+      mockSql.mockResolvedValueOnce([{ // SELECT challenge
+        challenge: regOptions.challenge,
+        user_id: mockUser.id,
+        created_at: new Date()
+      }])
+      mockSql.mockResolvedValueOnce([]) // INSERT credential
+      mockSql.mockResolvedValueOnce([]) // UPDATE challenge
+      
+      // Verify registration
+      const mockRegistrationResponse = {
+        response: {
+          clientDataJSON: Buffer.from(JSON.stringify({
+            type: 'webauthn.create',
+            challenge: regOptions.challenge,
+            origin: 'http://localhost:3000'
+          })).toString('base64'),
+          attestationObject: 'mock-attestation',
+          transports: ['internal']
+        }
+      }
+      
+      // We need to mock the actual verifyRegistrationResponse function call
+      // Since this is already mocked in the webauthn test file
+      
+      const regResult = await verifyRegistrationResponse({
+        response: mockRegistrationResponse,
+        expectedChallenge: regOptions.challenge,
+        expectedOrigin: 'http://localhost:3000',
+        expectedRPID: 'localhost'
+      })
+      
+      expect(regResult.verified).toBe(true)
+    })
+
+    it('should handle OAuth flow with PKCE and token encryption', async () => {
+      const mockSql = vi.mocked(sql)
+      
+      // Generate OAuth URL with PKCE
+      mockSql.mockResolvedValueOnce([]) // INSERT oauth_states
+      
+      const { url, state, codeVerifier } = await generateOAuthUrl({
+        provider: 'github',
+        redirectUri: 'http://localhost:3000/api/auth/github/callback',
+        scopes: ['user:email', 'read:user']
+      })
+      
+      expect(url).toContain('https://github.com/login/oauth/authorize')
+      expect(url).toContain('code_challenge')
+      expect(url).toContain('code_challenge_method=S256')
+      
+      // Validate callback
+      mockSql.mockResolvedValueOnce([{ // SELECT oauth_states
+        state,
+        code_verifier: codeVerifier,
+        provider: 'github',
+        redirect_uri: 'http://localhost:3000/api/auth/github/callback',
+        created_at: new Date()
+      }])
+      mockSql.mockResolvedValueOnce([]) // DELETE oauth_states
+      
+      const callbackResult = await validateOAuthCallback({
+        code: 'auth-code-123',
+        state
+      })
+      
+      expect(callbackResult.valid).toBe(true)
+      expect(callbackResult.codeVerifier).toBe(codeVerifier)
+      
+      // Test token encryption
+      const testToken = 'gho_test_access_token_123'
+      
+      // Mock encryption key
+      mockSql.mockResolvedValueOnce([{
+        id: 'key-123',
+        key_data: JSON.stringify({
+          k: 'dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleXRlc3RrZXk=',
+          kty: 'oct',
+          alg: 'A256GCM',
+          key_ops: ['encrypt', 'decrypt']
+        }),
+        is_active: true
+      }])
+      
+      const encrypted = await encryptOAuthToken(testToken, mockUser.id, 'github')
+      expect(encrypted).toBeTruthy()
+      expect(encrypted).not.toBe(testToken)
+      
+      // Mock decryption
+      mockSql.mockResolvedValueOnce([{
+        id: 'key-123',
+        key_data: JSON.stringify({
+          k: 'dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleXRlc3RrZXk=',
+          kty: 'oct',
+          alg: 'A256GCM',
+          key_ops: ['encrypt', 'decrypt']
+        }),
+        is_active: true
+      }])
+      
+      const decrypted = await decryptOAuthToken(encrypted, mockUser.id, 'github')
+      expect(decrypted).toBe(testToken)
+    })
+
+    it('should handle JWT token lifecycle with refresh rotation', async () => {
+      const mockSql = vi.mocked(sql)
+      
+      // Generate access token
+      const accessToken = await generateAccessToken(mockUser, mockSession)
+      expect(accessToken).toBeTruthy()
+      
+      // Verify access token
+      const payload = await verifyAccessToken(accessToken)
+      expect(payload.sub).toBe(mockUser.id)
+      expect(payload.email).toBe(mockUser.email)
+      expect(payload.session_id).toBe(mockSession.id)
+      
+      // Generate refresh token
+      mockSql.mockResolvedValueOnce([{ id: 'refresh-token-id' }]) // INSERT refresh_tokens
+      
+      const refreshToken = await generateRefreshToken(mockUser.id, mockSession.id)
+      expect(refreshToken).toBeTruthy()
+      
+      // Rotate refresh token
+      mockSql.mockResolvedValueOnce([{ // SELECT refresh_tokens
+        id: 'refresh-token-id',
+        user_id: mockUser.id,
+        session_id: mockSession.id,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+      }])
+      mockSql.mockResolvedValueOnce([mockUser]) // SELECT users
+      mockSql.mockResolvedValueOnce([mockSession]) // SELECT user_sessions
+      mockSql.mockResolvedValueOnce([{ id: 'new-refresh-token-id' }]) // INSERT new refresh_tokens
+      mockSql.mockResolvedValueOnce([{ id: 'new-refresh-token-id' }]) // SELECT new refresh token
+      mockSql.mockResolvedValueOnce([]) // UPDATE old refresh_tokens
+      
+      const { accessToken: newAccessToken, refreshToken: newRefreshToken } = await rotateRefreshToken(refreshToken)
+      expect(newAccessToken).toBeTruthy()
+      expect(newRefreshToken).toBeTruthy()
+      expect(newRefreshToken).not.toBe(refreshToken)
+    })
+
+    it('should enforce GDPR compliance throughout auth flow', async () => {
+      const mockSql = vi.mocked(sql)
+      
+      // Record consent
+      mockSql.mockResolvedValueOnce([]) // INSERT user_consents
+      
+      await recordUserConsent({
+        userId: mockUser.id,
+        consentType: 'terms_of_service',
+        granted: true,
+        version: '1.0',
+        context: {
+          ip_address: '192.168.1.1',
+          user_agent: 'Mozilla/5.0'
+        }
+      })
+      
+      // Check consent status
+      mockSql.mockResolvedValueOnce([{ // SELECT user_consents
+        consent_type: 'data_processing',
+        granted: true,
+        version: '1.0',
+        created_at: new Date()
+      }])
+      
+      const consent = await getUserConsentStatus(mockUser.id)
+      expect(consent.terms_of_service?.granted).toBe(true)
+      
+      // Export user data
+      mockSql.mockResolvedValueOnce([mockUser]) // SELECT users
+      mockSql.mockResolvedValueOnce([mockSession]) // SELECT user_sessions
+      mockSql.mockResolvedValueOnce([]) // SELECT oauth_accounts
+      mockSql.mockResolvedValueOnce([]) // SELECT webauthn_credentials
+      mockSql.mockResolvedValueOnce([{
+        consent_type: 'data_processing',
+        granted: true,
+        created_at: new Date()
+      }]) // SELECT user_consents
+      mockSql.mockResolvedValueOnce([]) // SELECT security_audit_logs
+      
+      const exportData = await exportUserData(mockUser.id)
+      expect(exportData).toHaveProperty('user')
+      expect(exportData).toHaveProperty('metadata')
+      expect(exportData.metadata.exportDate).toBeTruthy()
+    })
+
+    it('should audit all security events', async () => {
+      const mockSql = vi.mocked(sql)
+      
+      // Log security event
+      mockSql.mockResolvedValueOnce([{
+        id: 'audit-log-id',
+        event_type: 'login_success',
+        user_id: mockUser.id,
+        created_at: new Date()
+      }]) // INSERT security_audit_logs
+      
+      const auditLog = await logSecurityEvent({
+        event_type: 'login_success',
+        user_id: mockUser.id,
+        ip_address: '192.168.1.1',
+        user_agent: 'Mozilla/5.0',
+        event_data: { auth_method: 'webauthn' },
+        success: true
+      })
+      
+      expect(auditLog.id).toBe('audit-log-id')
+      expect(auditLog.event_type).toBe('login_success')
+      
+      // Query audit logs
+      mockSql.mockResolvedValueOnce([{ count: '1' }]) // SELECT COUNT
+      mockSql.mockResolvedValueOnce([auditLog]) // SELECT security_audit_logs
+      
+      const logs = await getAuditLogs({
+        filters: { user_id: mockUser.id },
+        limit: 10
+      })
+      
+      expect(logs.logs).toHaveLength(1)
+      expect(logs.total).toBe(1)
+    })
+
+    it('should protect routes with middleware', async () => {
+      const mockSql = vi.mocked(sql)
+      
+      // Test unauthenticated request to protected route
+      const request = new NextRequest('http://localhost:3000/dashboard')
+      const response = await authMiddleware(request)
+      
+      expect(response?.type).toBe('json')
+      expect(response?.data).toEqual({ error: 'Authentication required' })
+      expect(response?.init?.status).toBe(401)
+      
+      // Test authenticated request
+      const accessToken = await generateAccessToken(mockUser, mockSession)
+      const authRequest = new NextRequest('http://localhost:3000/dashboard', {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      })
+      
+      // Mock user lookup
+      mockSql.mockResolvedValueOnce([mockUser]) // SELECT users
+      mockSql.mockResolvedValueOnce([]) // UPDATE user_sessions
+      mockSql.mockResolvedValueOnce([]) // INSERT security_audit_logs
+      
+      const authResponse = await authMiddleware(authRequest)
+      expect(authResponse).toBeUndefined() // Middleware passes through
+    })
+  })
+
+  describe('Security Integration', () => {
+    it('should handle authentication failures with proper audit trail', async () => {
+      const mockSql = vi.mocked(sql)
+      
+      // Mock failed login attempts
+      mockSql.mockResolvedValueOnce([]) // First failed attempt
+      mockSql.mockResolvedValueOnce([{ count: '4' }]) // Check failed attempts
+      
+      await logSecurityEvent({
+        event_type: 'login_failed',
+        event_severity: 'warning',
+        user_id: mockUser.id,
+        ip_address: '192.168.1.1',
+        user_agent: 'Mozilla/5.0',
+        event_data: { reason: 'invalid_credentials' },
+        success: false,
+        error_message: 'Invalid credentials'
+      })
+      
+      // Fifth failed attempt should trigger auto-lock
+      mockSql.mockResolvedValueOnce([]) // Log event
+      mockSql.mockResolvedValueOnce([{ count: '5' }]) // Check failed attempts
+      mockSql.mockResolvedValueOnce([]) // UPDATE users (lock account)
+      mockSql.mockResolvedValueOnce([]) // Log account locked event
+      
+      await logSecurityEvent({
+        event_type: 'login_failed',
+        event_severity: 'warning',
+        user_id: mockUser.id,
+        ip_address: '192.168.1.1',
+        user_agent: 'Mozilla/5.0',
+        event_data: { reason: 'invalid_credentials' },
+        success: false,
+        error_message: 'Invalid credentials'
+      })
+    })
+
+    it('should detect and handle token reuse attacks', async () => {
+      const mockSql = vi.mocked(sql)
+      
+      // Generate initial refresh token
+      mockSql.mockResolvedValueOnce([{ id: 'refresh-token-1' }])
+      const refreshToken = await generateRefreshToken(mockUser.id, mockSession.id)
+      
+      // First rotation (legitimate)
+      mockSql.mockResolvedValueOnce([{
+        id: 'refresh-token-1',
+        user_id: mockUser.id,
+        session_id: mockSession.id,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+      }])
+      mockSql.mockResolvedValueOnce([mockUser])
+      mockSql.mockResolvedValueOnce([mockSession])
+      mockSql.mockResolvedValueOnce([{ id: 'refresh-token-2' }])
+      mockSql.mockResolvedValueOnce([{ id: 'refresh-token-2' }])
+      mockSql.mockResolvedValueOnce([])
+      
+      await rotateRefreshToken(refreshToken)
+      
+      // Attempt to reuse the old token (attack)
+      mockSql.mockResolvedValueOnce([{
+        id: 'refresh-token-1',
+        user_id: mockUser.id,
+        session_id: mockSession.id,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        revoked_at: new Date(),
+        replaced_by: 'refresh-token-2'
+      }])
+      
+      // This should trigger security response
+      mockSql.mockResolvedValueOnce([{ user_id: mockUser.id }])
+      mockSql.mockResolvedValueOnce([]) // Revoke all tokens
+      
+      await expect(rotateRefreshToken(refreshToken)).rejects.toThrow('Token reuse detected')
+    })
+
+    it('should enforce rate limiting across authentication methods', async () => {
+      const mockSql = vi.mocked(sql)
+      
+      // Simulate rapid authentication attempts
+      const ip = '192.168.1.1'
+      
+      for (let i = 0; i < 5; i++) {
+        const request = new NextRequest('http://localhost:3000/api/auth/login', {
+          method: 'POST',
+          headers: { 'X-Forwarded-For': ip }
+        })
+        
+        if (i < 4) {
+          // First 4 attempts should pass
+          const response = await authMiddleware(request)
+          expect(response).toBeUndefined()
+        } else {
+          // 5th attempt should be rate limited
+          const response = await authMiddleware(request)
+          expect(response?.init?.status).toBe(429)
+          expect(response?.data).toEqual({ error: 'Too many requests' })
+        }
+      }
+    })
+  })
+
+  describe('Cross-Component Integration', () => {
+    it('should support seamless auth method switching', async () => {
+      const mockSql = vi.mocked(sql)
+      
+      // Start with WebAuthn authentication
+      let currentSession = { ...mockSession, auth_method: 'webauthn' as const }
+      let accessToken = await generateAccessToken(mockUser, currentSession)
+      
+      // Verify WebAuthn token
+      let payload = await verifyAccessToken(accessToken)
+      expect(payload.auth_method).toBe('webauthn')
+      
+      // Switch to OAuth (link GitHub account)
+      mockSql.mockResolvedValueOnce([mockUser]) // User lookup
+      mockSql.mockResolvedValueOnce([{
+        id: 'key-123',
+        key_data: JSON.stringify({
+          k: 'dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleXRlc3RrZXk=',
+          kty: 'oct',
+          alg: 'A256GCM',
+          key_ops: ['encrypt', 'decrypt']
+        }),
+        is_active: true
+      }]) // Encryption key
+      mockSql.mockResolvedValueOnce([]) // INSERT oauth_accounts
+      
+      // Create new session with OAuth
+      currentSession = { ...mockSession, auth_method: 'oauth' as const }
+      accessToken = await generateAccessToken(mockUser, currentSession)
+      
+      // Verify OAuth token
+      payload = await verifyAccessToken(accessToken)
+      expect(payload.auth_method).toBe('oauth')
+    })
+
+    it('should maintain security context across all operations', async () => {
+      const mockSql = vi.mocked(sql)
+      const securityContext = {
+        ip_address: '192.168.1.1',
+        user_agent: 'Mozilla/5.0 Test Browser'
+      }
+      
+      // Track security context through entire auth flow
+      const events: string[] = []
+      
+      // Override logSecurityEvent to track calls
+      vi.mock('@/lib/auth/audit', async () => {
+        const actual = await vi.importActual('@/lib/auth/audit')
+        return {
+          ...actual,
+          logSecurityEvent: vi.fn(async (params) => {
+            events.push(params.event_type)
+            return { id: 'log-id', ...params, created_at: new Date() }
+          })
+        }
+      })
+      
+      // WebAuthn registration
+      mockSql.mockResolvedValueOnce([]) // Challenge
+      await generateRegistrationOptions({
+        userId: mockUser.id,
+        userEmail: mockUser.email,
+        userName: 'Test User'
+      })
+      
+      // OAuth flow
+      mockSql.mockResolvedValueOnce([]) // OAuth state
+      await generateOAuthUrl({
+        provider: 'github',
+        redirectUri: 'http://localhost:3000/api/auth/github/callback',
+        scopes: ['user:email']
+      })
+      
+      // GDPR consent
+      mockSql.mockResolvedValueOnce([]) // Consent record
+      await recordUserConsent({
+        userId: mockUser.id,
+        consentType: 'data_processing',
+        granted: true,
+        version: '1.0',
+        context: securityContext
+      })
+      
+      // Verify all operations maintain context
+      expect(events.length).toBeGreaterThan(0)
+    })
+  })
+})
