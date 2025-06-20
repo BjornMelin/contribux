@@ -5,7 +5,7 @@
         "id": 1,
         "title": "Initialize Next.js 15 Project with TypeScript",
         "description": "Set up the foundational Next.js project with TypeScript, Biome for linting/formatting, and modern Next.js 15 configurations including PWA support and experimental features",
-        "status": "pending",
+        "status": "done",
         "dependencies": [],
         "priority": "high",
         "details": "Create a new Next.js 15 project named 'contribux' using pnpm with TypeScript and App Router. Configure Biome for linting and formatting with strict TypeScript rules. Initialize git repository and create organized folder structure: src/app, src/components (ui, features), src/lib, src/hooks, src/types, src/context. Configure next.config.js for PWA support using next-pwa, edge runtime, and experimental PPR. Set up VS Code workspace with recommended extensions and environment variables structure.",
@@ -17,7 +17,7 @@
             "description": "Initialize a new Next.js 15 project named 'contribux' using pnpm with TypeScript, Tailwind, App Router, and Turbo",
             "dependencies": [],
             "details": "Run 'pnpm create next-app@latest contribux --typescript --tailwind --app --turbo --src-dir --import-alias \"@/*\"' to create the project with modern defaults including TypeScript, Tailwind CSS, App Router, Turbo for faster builds, src directory, and import aliases",
-            "status": "pending"
+            "status": "done"
           },
           {
             "id": 2,
@@ -27,7 +27,7 @@
               1
             ],
             "details": "Create .pnpmrc file with package manager settings, configure package.json scripts for pnpm workflow, set up workspace configuration if needed, and ensure all commands use pnpm exclusively",
-            "status": "pending"
+            "status": "done"
           },
           {
             "id": 3,
@@ -37,7 +37,7 @@
               2
             ],
             "details": "Install @biomejs/biome, create biome.json configuration with strict TypeScript rules, configure formatting and linting rules, set up import sorting, and integrate with package.json scripts. Remove default ESLint configuration in favor of Biome",
-            "status": "pending"
+            "status": "done"
           },
           {
             "id": 4,
@@ -47,7 +47,7 @@
               1
             ],
             "details": "Update tsconfig.json with strict mode enabled, noUncheckedIndexedAccess, exactOptionalPropertyTypes, noImplicitReturns, noFallthroughCasesInSwitch, and other strict TypeScript compiler options for enhanced type checking",
-            "status": "pending"
+            "status": "done"
           },
           {
             "id": 5,
@@ -57,7 +57,7 @@
               1
             ],
             "details": "Create folders: src/components/ui (reusable UI components), src/components/features (feature-specific components), src/lib (utilities, constants), src/hooks (custom React hooks), src/types (TypeScript type definitions), src/context (React context providers), and src/app (pages and layouts). Set up index.ts files for clean imports",
-            "status": "pending"
+            "status": "done"
           },
           {
             "id": 6,
@@ -68,7 +68,7 @@
               5
             ],
             "details": "Install next-pwa and configure next.config.js with PWA settings, enable edge runtime where appropriate, configure experimental PPR (Partial Prerendering), set up proper TypeScript configuration, and configure Tailwind CSS integration",
-            "status": "pending"
+            "status": "done"
           },
           {
             "id": 7,
@@ -78,7 +78,7 @@
               3
             ],
             "details": "Create .vscode/settings.json with Biome integration, recommended extensions list including Biome VS Code extension, TypeScript settings, auto-formatting on save, and workspace-specific configurations for optimal development experience",
-            "status": "pending"
+            "status": "done"
           },
           {
             "id": 8,
@@ -88,7 +88,7 @@
               6
             ],
             "details": "Create .env.local and .env.example files with Next.js environment variable conventions, update .gitignore for Next.js and pnpm, initialize git repository, and create initial commit with project setup",
-            "status": "pending"
+            "status": "done"
           }
         ]
       },
@@ -2491,7 +2491,7 @@
     ],
     "metadata": {
       "created": "2025-06-19T21:07:56.850Z",
-      "updated": "2025-06-19T21:07:56.850Z",
+      "updated": "2025-06-19T23:33:39.449Z",
       "description": "Tasks for master context"
     }
   }
