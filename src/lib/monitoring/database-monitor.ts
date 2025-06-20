@@ -1,5 +1,6 @@
 // Database monitoring utilities for Neon PostgreSQL
 import { neon } from '@neondatabase/serverless'
+import { databaseConfig } from '@/lib/config'
 import {
   type ConnectionMetrics,
   connectionMetricsSchema,
@@ -62,7 +63,7 @@ export class DatabaseMonitor {
           mean_exec_time,
           rows
         FROM pg_stat_statements
-        WHERE total_exec_time > 1000  -- queries taking more than 1 second total
+        WHERE total_exec_time > ${databaseConfig.slowQueryThreshold}  -- queries above configured threshold
         ORDER BY total_exec_time DESC
         LIMIT ${limit}
       `
@@ -245,7 +246,7 @@ export class DatabaseMonitor {
       const [connectionMetrics, slowQueries, indexStats, vectorMetrics, tableSizes, healthCheck] =
         await Promise.all([
           this.getConnectionMetrics(),
-          this.getSlowQueries(5),
+          this.getSlowQueries(databaseConfig.maxSlowQueries),
           this.getIndexUsageStats(),
           this.getVectorIndexMetrics(),
           this.getTableSizes(),

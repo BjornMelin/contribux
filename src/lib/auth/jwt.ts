@@ -1,9 +1,11 @@
 /**
  * JWT Token Strategy with Refresh Token Rotation
  * Implements secure token management with 15-minute access tokens
+ * Using jose library for standards-compliant JWT handling
  */
 
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
+import { errors as joseErrors, jwtVerify, SignJWT } from 'jose'
 import { sql } from '@/lib/db/config'
 import type { AccessTokenPayload, RefreshTokenPayload, User, UserSession } from '@/types/auth'
 
@@ -19,49 +21,66 @@ const getJwtSecret = () => {
   if (!secret) {
     throw new Error('JWT_SECRET environment variable is not set')
   }
-  return secret
+  // Convert string secret to Uint8Array for jose
+  return new TextEncoder().encode(secret)
 }
 
-// Simple JWT implementation functions (in production, consider using jose library)
-async function signJWT(payload: Record<string, unknown>, secret: string): Promise<string> {
-  const header = {
-    alg: 'HS256',
-    typ: 'JWT',
+// JWT implementation using jose library for standards compliance and security
+async function signJWT(payload: Record<string, unknown>, secret: Uint8Array): Promise<string> {
+  const jwt = new SignJWT(payload)
+    .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
+    .setIssuer((payload.iss as string) || TOKEN_ISSUER)
+    .setIssuedAt()
+
+  // Set audience if provided
+  if (payload.aud) {
+    if (Array.isArray(payload.aud)) {
+      jwt.setAudience(payload.aud as string[])
+    } else {
+      jwt.setAudience(payload.aud as string)
+    }
   }
 
-  const encodedHeader = base64urlEncode(JSON.stringify(header))
-  const encodedPayload = base64urlEncode(JSON.stringify(payload))
+  // Set expiration if provided
+  if (payload.exp) {
+    jwt.setExpirationTime(payload.exp as number)
+  }
 
-  const signatureInput = `${encodedHeader}.${encodedPayload}`
-  const signature = createHmacSignature(signatureInput, secret)
+  // Set subject if provided
+  if (payload.sub) {
+    jwt.setSubject(payload.sub as string)
+  }
 
-  return `${signatureInput}.${signature}`
+  return await jwt.sign(secret)
 }
 
-async function verifyJWT(token: string, secret: string): Promise<Record<string, unknown>> {
-  const parts = token.split('.')
-  if (parts.length !== 3) {
-    throw new Error('Invalid token format')
+async function verifyJWT(token: string, secret: Uint8Array): Promise<Record<string, unknown>> {
+  try {
+    const { payload } = await jwtVerify(token, secret, {
+      algorithms: ['HS256'], // Only allow HS256 for security
+      issuer: TOKEN_ISSUER,
+      audience: TOKEN_AUDIENCE,
+    })
+
+    return payload as Record<string, unknown>
+  } catch (error) {
+    // Map jose errors to our expected error messages for backward compatibility
+    if (error instanceof joseErrors.JWTExpired) {
+      throw new Error('Token expired')
+    }
+    if (error instanceof joseErrors.JWTInvalid) {
+      throw new Error('Invalid token')
+    }
+    if (error instanceof joseErrors.JWSInvalid) {
+      throw new Error('Invalid token signature')
+    }
+    if (error instanceof joseErrors.JWTClaimValidationFailed) {
+      throw new Error('Invalid token')
+    }
+
+    // For any other jose errors, throw a generic invalid token error
+    throw new Error('Invalid token')
   }
-
-  const [encodedHeader, encodedPayload, signature] = parts
-  const signatureInput = `${encodedHeader}.${encodedPayload}`
-
-  // Verify signature
-  const expectedSignature = createHmacSignature(signatureInput, secret)
-  if (!timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature))) {
-    throw new Error('Invalid token signature')
-  }
-
-  // Decode payload
-  const payload = JSON.parse(base64urlDecode(encodedPayload))
-
-  // Check expiration
-  if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
-    throw new Error('Token expired')
-  }
-
-  return payload
 }
 
 // Generate access token
@@ -85,7 +104,7 @@ export async function generateAccessToken(user: User, session: UserSession): Pro
   } catch (error) {
     // In test environment, use a fallback secret
     if (process.env.NODE_ENV === 'test') {
-      return await signJWT(payload, 'test-secret')
+      return await signJWT(payload, new TextEncoder().encode('test-secret'))
     }
     throw error
   }
@@ -148,7 +167,7 @@ export async function verifyAccessToken(token: string): Promise<AccessTokenPaylo
   } catch (error) {
     if (process.env.NODE_ENV === 'test') {
       try {
-        const payload = await verifyJWT(token, 'test-secret')
+        const payload = await verifyJWT(token, new TextEncoder().encode('test-secret'))
         return payload as AccessTokenPayload
       } catch (testError) {
         if (testError instanceof Error && testError.message === 'Token expired') {
@@ -415,12 +434,6 @@ function base64urlDecode(str: string): string {
   const base64 = padded.replace(/-/g, '+').replace(/_/g, '/')
 
   return Buffer.from(base64, 'base64').toString()
-}
-
-function createHmacSignature(data: string, secret: string): string {
-  const hmac = createHash('sha256')
-  hmac.update(data + secret)
-  return base64urlEncode(hmac.digest())
 }
 
 // Session management helpers

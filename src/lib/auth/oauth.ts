@@ -1,5 +1,7 @@
 import { z } from 'zod'
 import { sql } from '@/lib/db/config'
+import { env } from '@/lib/validation/env'
+import { oauthConfig } from '@/lib/config'
 import type { OAuthCallbackParams, OAuthTokens, User } from '@/types/auth'
 import { decryptOAuthToken, encryptOAuthToken } from './crypto'
 import { generatePKCEChallenge } from './pkce'
@@ -9,12 +11,10 @@ const GITHUB_AUTH_URL = 'https://github.com/login/oauth/authorize'
 const GITHUB_TOKEN_URL = 'https://github.com/login/oauth/access_token'
 const GITHUB_API_URL = 'https://api.github.com'
 
-// Environment configuration
-const getGithubClientId = () => process.env.GITHUB_CLIENT_ID || 'test-client-id'
-const getGithubClientSecret = () => process.env.GITHUB_CLIENT_SECRET || 'test-client-secret'
-const ALLOWED_REDIRECT_URIS = (
-  process.env.ALLOWED_REDIRECT_URIS || 'http://localhost:3000/api/auth/github/callback'
-).split(',')
+// Environment configuration with validation
+const getGithubClientId = () => env.GITHUB_CLIENT_ID || 'test-client-id'
+const getGithubClientSecret = () => env.GITHUB_CLIENT_SECRET || 'test-client-secret'
+const ALLOWED_REDIRECT_URIS = env.ALLOWED_REDIRECT_URIS.split(',')
 
 // Validation schemas
 const GenerateOAuthUrlSchema = z.object({
@@ -75,7 +75,7 @@ export async function generateOAuthUrl(
       ${validated.redirectUri},
       ${validated.userId || null},
       CURRENT_TIMESTAMP,
-      CURRENT_TIMESTAMP + INTERVAL '10 minutes'
+      CURRENT_TIMESTAMP + INTERVAL '${oauthConfig.stateExpiry / 1000} seconds'
     )
   `
 
@@ -131,9 +131,9 @@ export async function validateOAuthCallback(params: OAuthCallbackParams): Promis
 
   const stateData = stateResult[0]
 
-  // Check if state is expired (10 minutes)
+  // Check if state is expired
   const stateAge = Date.now() - new Date(stateData.created_at).getTime()
-  if (stateAge > 10 * 60 * 1000) {
+  if (stateAge > oauthConfig.stateExpiry) {
     throw new Error('OAuth state expired')
   }
 

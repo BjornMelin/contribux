@@ -4,12 +4,13 @@
  */
 
 import { sql } from '@/lib/db/config'
+import { cryptoConfig } from '@/lib/config'
 
-// Encryption configuration
-const ALGORITHM = 'AES-GCM'
-const KEY_LENGTH = 256
-const IV_LENGTH = 12 // 96 bits for GCM
-const TAG_LENGTH = 16 // 128 bits
+// Encryption configuration using centralized config
+const ALGORITHM = cryptoConfig.algorithm
+const KEY_LENGTH = cryptoConfig.keyLength
+const IV_LENGTH = cryptoConfig.ivLength
+const TAG_LENGTH = cryptoConfig.tagLength
 
 // Type definitions
 export interface EncryptedData {

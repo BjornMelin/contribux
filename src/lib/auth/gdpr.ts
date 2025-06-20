@@ -4,6 +4,7 @@
  */
 
 import { sql } from '@/lib/db/config'
+import { auditConfig } from '@/lib/config'
 import type { User, UserConsent, UserDataExport } from '@/types/auth'
 
 // Consent types
@@ -335,26 +336,25 @@ export async function getDataRetentionPolicy() {
 
 // Identify data for deletion based on retention policy
 export async function identifyDataForDeletion() {
-  const threeYearsAgo = new Date()
-  threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3)
+  const retentionCutoff = new Date(Date.now() - auditConfig.gdpr.inactiveUserRetention)
 
   const inactiveUsers = await sql`
     SELECT id, email, last_login_at
     FROM users
-    WHERE last_login_at < ${threeYearsAgo}
-    OR (last_login_at IS NULL AND created_at < ${threeYearsAgo})
+    WHERE last_login_at < ${retentionCutoff}
+    OR (last_login_at IS NULL AND created_at < ${retentionCutoff})
   `
 
   const oldSessions = await sql`
     SELECT COUNT(*) as count
     FROM user_sessions
-    WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '90 days'
+    WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '${auditConfig.retention.sessionData / 1000} seconds'
   `
 
   const oldAuditLogs = await sql`
     SELECT COUNT(*) as count
     FROM security_audit_logs
-    WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '2 years'
+    WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '${auditConfig.retention.standardLogs / 1000} seconds'
     AND event_severity != 'critical'
   `
 
@@ -454,7 +454,7 @@ export async function checkGDPRCompliance(userId: string) {
     FROM security_audit_logs
     WHERE user_id = ${userId}
     AND event_type = 'data_export_request'
-    AND created_at > CURRENT_TIMESTAMP - INTERVAL '30 days'
+    AND created_at > CURRENT_TIMESTAMP - INTERVAL '${auditConfig.gdpr.deletionGracePeriod / 1000} seconds'
   `
 
   return {

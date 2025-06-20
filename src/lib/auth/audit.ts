@@ -5,6 +5,7 @@
 
 import { createHash, timingSafeEqual } from 'node:crypto'
 import { sql } from '@/lib/db/config'
+import { authConfig, auditConfig } from '@/lib/config'
 import type {
   AnomalyDetection,
   AuditLogFilters,
@@ -52,12 +53,7 @@ const EVENT_SEVERITY_MAP: Record<string, EventSeverity> = {
   token_reuse_detected: 'critical',
 }
 
-// Configuration
-const FAILED_LOGIN_THRESHOLD = 5
-const FAILED_LOGIN_WINDOW = 10 * 60 * 1000 // 10 minutes
-const ANOMALY_TIME_WINDOW = 5 * 1000 // 5 seconds for rapid succession
-const TYPICAL_HOURS_START = 6 // 6 AM
-const TYPICAL_HOURS_END = 22 // 10 PM
+// Configuration is now centralized in config system
 
 // Get event severity
 export async function getEventSeverity(eventType: AuthEventType | string): Promise<EventSeverity> {
@@ -159,14 +155,14 @@ export async function logAuthenticationAttempt(params: {
       FROM security_audit_logs
       WHERE user_id = ${params.userId}
       AND event_type = 'login_failure'
-      AND created_at > ${new Date(Date.now() - FAILED_LOGIN_WINDOW)}
+      AND created_at > ${new Date(Date.now() - authConfig.security.failedLoginWindow)}
       ORDER BY created_at DESC
     `
 
     recentFailures = failedAttempts.length
 
     // Check if we need to lock the account
-    if (recentFailures >= FAILED_LOGIN_THRESHOLD - 1) {
+    if (recentFailures >= authConfig.security.failedLoginThreshold - 1) {
       accountLocked = true
 
       // Lock the account
@@ -512,7 +508,7 @@ export async function detectAnomalies(params: {
   const hour = timestamp.getHours()
   let unusualTime = false
 
-  if (hour < TYPICAL_HOURS_START || hour > TYPICAL_HOURS_END) {
+  if (hour < authConfig.security.typicalHoursStart || hour > authConfig.security.typicalHoursEnd) {
     // Check user's typical access pattern
     const typicalPattern = await sql`
       SELECT 
@@ -544,11 +540,11 @@ export async function detectAnomalies(params: {
     FROM security_audit_logs
     WHERE user_id = ${params.userId}
     AND event_type = ${params.eventType}
-    AND created_at > ${new Date(timestamp.getTime() - ANOMALY_TIME_WINDOW)}
+    AND created_at > ${new Date(timestamp.getTime() - authConfig.security.anomalyTimeWindow)}
     ORDER BY created_at DESC
   `
 
-  if (recentEvents.length >= 3) {
+  if (recentEvents.length >= authConfig.security.rapidSuccessionThreshold) {
     rapidSuccession = true
   }
 

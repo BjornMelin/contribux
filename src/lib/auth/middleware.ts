@@ -10,6 +10,9 @@ import type { AccessTokenPayload, User } from '@/types/auth'
 import { logSecurityEvent } from './audit'
 import { checkConsentRequired } from './gdpr'
 import { verifyAccessToken } from './jwt'
+import { RateLimiterRedis, RateLimiterMemory } from 'rate-limiter-flexible'
+import Redis from 'ioredis'
+import { env } from '@/lib/validation/env'
 
 // Public routes that don't require authentication
 const PUBLIC_ROUTES = ['/', '/about', '/pricing', '/legal']
@@ -17,8 +20,165 @@ const PUBLIC_ROUTES = ['/', '/about', '/pricing', '/legal']
 // API routes that require CSRF protection
 const CSRF_PROTECTED_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE']
 
-// Rate limiting storage (in production, use Redis)
+// Rate limiting storage (fallback for in-memory when Redis unavailable)
 const rateLimitStore = new Map<string, { count: number; reset: number }>()
+
+// Redis client and rate limiter instances
+let redisClient: Redis | null = null
+let redisRateLimiter: RateLimiterRedis | null = null
+let memoryRateLimiter: RateLimiterMemory | null = null
+let redisAvailable = false
+
+// Circuit breaker state for Redis failures
+const circuitBreakerState = {
+  failures: 0,
+  lastFailure: 0,
+  isOpen: false,
+  timeout: 30000, // 30 seconds
+  maxFailures: 5,
+}
+
+/**
+ * Initialize Redis client and rate limiters
+ */
+function initializeRedis(): void {
+  // Always initialize memory fallback first
+  initializeMemoryRateLimiter()
+
+  const redisUrl = env.REDIS_URL
+
+  if (!redisUrl) {
+    console.log('Redis URL not provided, using in-memory rate limiting fallback')
+    return
+  }
+
+  try {
+    redisClient = new Redis(redisUrl, {
+      connectTimeout: 5000,
+      lazyConnect: true,
+      maxRetriesPerRequest: 1,
+      enableReadyCheck: false,
+      keepAlive: 30000,
+      family: 0, // Use IPv4 and IPv6
+    })
+
+    // Configure Redis event handlers
+    redisClient.on('connect', () => {
+      console.log('Redis connected successfully')
+      redisAvailable = true
+      resetCircuitBreaker()
+    })
+
+    redisClient.on('error', error => {
+      console.error('Redis connection error:', error)
+      handleRedisFailure()
+    })
+
+    redisClient.on('close', () => {
+      console.log('Redis connection closed')
+      redisAvailable = false
+    })
+
+    // Initialize Redis rate limiter
+    redisRateLimiter = new RateLimiterRedis({
+      storeClient: redisClient,
+      keyPrefix: 'rl_middleware',
+      points: 60, // Number of requests
+      duration: 60, // Per 60 seconds
+      blockDuration: 60, // Block for 60 seconds if limit exceeded
+      execEvenly: true, // Execute requests evenly across duration
+    })
+
+    console.log('Redis rate limiter initialized')
+  } catch (error) {
+    console.error('Failed to initialize Redis:', error)
+    handleRedisFailure()
+  }
+}
+
+/**
+ * Initialize memory-based rate limiter as fallback
+ */
+function initializeMemoryRateLimiter(): void {
+  try {
+    memoryRateLimiter = new RateLimiterMemory({
+      keyPrefix: 'rl_memory',
+      points: 60, // Number of requests
+      duration: 60, // Per 60 seconds
+      blockDuration: 60, // Block for 60 seconds if limit exceeded
+      execEvenly: true,
+    })
+    console.log('Memory rate limiter initialized')
+  } catch (error) {
+    console.error('Failed to initialize memory rate limiter:', error)
+    // Don't throw - allow the system to fall back to legacy implementation
+  }
+}
+
+/**
+ * Handle Redis failure and update circuit breaker
+ */
+function handleRedisFailure(): void {
+  circuitBreakerState.failures++
+  circuitBreakerState.lastFailure = Date.now()
+  redisAvailable = false
+
+  if (circuitBreakerState.failures >= circuitBreakerState.maxFailures) {
+    circuitBreakerState.isOpen = true
+    console.log('Circuit breaker opened due to Redis failures')
+  }
+}
+
+/**
+ * Reset circuit breaker state
+ */
+function resetCircuitBreaker(): void {
+  circuitBreakerState.failures = 0
+  circuitBreakerState.lastFailure = 0
+  circuitBreakerState.isOpen = false
+}
+
+/**
+ * Check if circuit breaker allows Redis usage
+ */
+function isCircuitBreakerOpen(): boolean {
+  if (!circuitBreakerState.isOpen) {
+    return false
+  }
+
+  // Check if timeout has passed
+  if (Date.now() - circuitBreakerState.lastFailure > circuitBreakerState.timeout) {
+    console.log('Circuit breaker timeout expired, attempting Redis reconnection')
+    circuitBreakerState.isOpen = false
+    circuitBreakerState.failures = Math.max(0, circuitBreakerState.failures - 1)
+    return false
+  }
+
+  return true
+}
+
+/**
+ * Get appropriate rate limiter based on availability
+ */
+function getRateLimiter(): RateLimiterRedis | RateLimiterMemory | null {
+  if (redisRateLimiter && redisAvailable && !isCircuitBreakerOpen()) {
+    return redisRateLimiter
+  }
+
+  if (!memoryRateLimiter) {
+    try {
+      initializeMemoryRateLimiter()
+    } catch (error) {
+      console.error('Failed to initialize memory rate limiter:', error)
+      return null
+    }
+  }
+
+  return memoryRateLimiter
+}
+
+// Initialize rate limiters on module load
+initializeRedis()
 
 // Extend NextRequest to include auth context
 declare module 'next/server' {
@@ -242,9 +402,103 @@ export function requireTwoFactor<T = unknown>(
 }
 
 /**
- * Rate limiting implementation
+ * Enhanced rate limiting implementation with Redis and in-memory fallback
  */
 export async function rateLimit(
+  request: NextRequest,
+  options?: {
+    limit?: number
+    window?: number
+    keyGenerator?: (req: NextRequest) => string
+  }
+): Promise<{
+  allowed: boolean
+  limit: number
+  remaining: number
+  reset: number
+}> {
+  const limit = options?.limit || 60
+  const window = options?.window || 60 * 1000 // 1 minute default
+
+  // Generate rate limit key
+  const key = options?.keyGenerator
+    ? options.keyGenerator(request)
+    : getClientIp(request) || 'anonymous'
+
+  try {
+    // Get the appropriate rate limiter (Redis or memory)
+    const rateLimiter = getRateLimiter()
+
+    // If no rate limiter is available, fall back to legacy implementation
+    if (!rateLimiter) {
+      console.warn('No rate limiter available, using legacy fallback')
+      return await legacyRateLimit(request, options)
+    }
+
+    // Create custom rate limiter with specified options if different from defaults
+    let customRateLimiter = rateLimiter
+    if (limit !== 60 || window !== 60 * 1000) {
+      try {
+        if (redisRateLimiter && redisAvailable && !isCircuitBreakerOpen()) {
+          customRateLimiter = new RateLimiterRedis({
+            storeClient: redisClient!,
+            keyPrefix: 'rl_custom',
+            points: limit,
+            duration: Math.floor(window / 1000), // Convert to seconds
+            blockDuration: Math.floor(window / 1000),
+            execEvenly: true,
+          })
+        } else {
+          customRateLimiter = new RateLimiterMemory({
+            keyPrefix: 'rl_custom_memory',
+            points: limit,
+            duration: Math.floor(window / 1000), // Convert to seconds
+            blockDuration: Math.floor(window / 1000),
+            execEvenly: true,
+          })
+        }
+      } catch (error) {
+        console.warn('Failed to create custom rate limiter, using default:', error)
+        customRateLimiter = rateLimiter
+      }
+    }
+
+    // Attempt rate limiting
+    const result = await customRateLimiter.consume(key)
+
+    // Ensure result is defined and has the expected properties
+    if (!result) {
+      console.warn('Rate limiter returned undefined result, using fallback')
+      return await legacyRateLimit(request, options)
+    }
+
+    return {
+      allowed: true,
+      limit,
+      remaining: result.remainingPoints !== undefined ? result.remainingPoints : limit - 1,
+      reset: Date.now() + (result.msBeforeNext || window),
+    }
+  } catch (rejRes: any) {
+    // Rate limit exceeded
+    if (rejRes?.remainingPoints !== undefined) {
+      return {
+        allowed: false,
+        limit,
+        remaining: 0,
+        reset: Date.now() + (rejRes.msBeforeNext || window),
+      }
+    }
+
+    // Fallback to original implementation for any other errors
+    console.error('Rate limiter error, falling back to basic implementation:', rejRes)
+    return await legacyRateLimit(request, options)
+  }
+}
+
+/**
+ * Legacy rate limiting implementation (fallback)
+ */
+async function legacyRateLimit(
   request: NextRequest,
   options?: {
     limit?: number
@@ -307,14 +561,14 @@ export async function rateLimit(
  * Check if maintenance mode is active
  */
 export async function checkMaintenanceMode(request: NextRequest): Promise<boolean> {
-  if (process.env.MAINTENANCE_MODE !== 'true') {
+  if (!env.MAINTENANCE_MODE) {
     return false
   }
 
   // Check for bypass token
   const bypassToken = request.headers.get('X-Maintenance-Bypass')
-  if (bypassToken && process.env.MAINTENANCE_BYPASS_TOKEN) {
-    return bypassToken !== process.env.MAINTENANCE_BYPASS_TOKEN
+  if (bypassToken && env.MAINTENANCE_BYPASS_TOKEN) {
+    return bypassToken !== env.MAINTENANCE_BYPASS_TOKEN
   }
 
   return true
@@ -427,18 +681,65 @@ function getClientIp(request: NextRequest): string | null {
 }
 
 /**
- * Clean up expired rate limit records (run periodically)
+ * Get rate limiter status and configuration
+ */
+export function getRateLimiterStatus(): {
+  redisAvailable: boolean
+  memoryFallbackActive: boolean
+  circuitBreakerOpen: boolean
+  redisFailures: number
+  activeStore: 'redis' | 'memory' | 'legacy'
+} {
+  const isRedisActive = redisRateLimiter && redisAvailable && !isCircuitBreakerOpen()
+
+  return {
+    redisAvailable,
+    memoryFallbackActive: !!memoryRateLimiter,
+    circuitBreakerOpen: circuitBreakerState.isOpen,
+    redisFailures: circuitBreakerState.failures,
+    activeStore: isRedisActive ? 'redis' : memoryRateLimiter ? 'memory' : 'legacy',
+  }
+}
+
+/**
+ * Graceful shutdown for Redis connections
+ */
+export async function shutdownRateLimiter(): Promise<void> {
+  if (redisClient) {
+    try {
+      await redisClient.quit()
+      console.log('Redis connection closed gracefully')
+    } catch (error) {
+      console.error('Error closing Redis connection:', error)
+    }
+  }
+}
+
+/**
+ * Clean up expired rate limit records (run periodically for legacy fallback)
  */
 export function cleanupRateLimits() {
   const now = Date.now()
-  for (const [key, record] of rateLimitStore.entries()) {
+  const entries = Array.from(rateLimitStore.entries())
+  for (const [key, record] of entries) {
     if (record.reset < now) {
       rateLimitStore.delete(key)
     }
   }
 }
 
-// Run cleanup every minute
+// Run cleanup every minute for legacy store
 if (typeof setInterval !== 'undefined') {
   setInterval(cleanupRateLimits, 60 * 1000)
+}
+
+// Graceful shutdown on process termination
+if (typeof process !== 'undefined') {
+  process.on('SIGTERM', async () => {
+    await shutdownRateLimiter()
+  })
+
+  process.on('SIGINT', async () => {
+    await shutdownRateLimiter()
+  })
 }
