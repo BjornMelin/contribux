@@ -202,3 +202,7 @@ This project uses Task Master AI for enhanced development workflow:
 ## Confidentiality Guidelines
 
 - **NEVER MENTION CLAUDE CODE IN COMMIT OR PULL REQUEST MESSAGES OR DESCRIPTIONS**
+
+## TypeScript Validation
+
+- **Always use Zod for all TypeScript Schema validation and typing throughout the app.**

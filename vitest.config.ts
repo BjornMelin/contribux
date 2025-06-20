@@ -1,19 +1,18 @@
-import { defineConfig } from 'vitest/config'
-import { configDefaults } from 'vitest/config'
+import { configDefaults, defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
     // Global test configuration
     globals: true,
     environment: 'node',
-    
+
     // Test file patterns
     include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     exclude: [...configDefaults.exclude, 'packages/template/*'],
-    
+
     // Setup files
     setupFiles: ['./tests/setup.ts'],
-    
+
     // Coverage configuration with V8 provider (2025 best practice)
     coverage: {
       provider: 'v8',
@@ -48,7 +47,7 @@ export default defineConfig({
       // Ignore empty lines and comments (2025 feature)
       ignoreEmptyLines: true,
     },
-    
+
     // Performance optimizations
     pool: 'threads',
     poolOptions: {
@@ -58,39 +57,39 @@ export default defineConfig({
         maxThreads: 4,
       },
     },
-    
+
     // Reporter configuration
     reporters: ['verbose'],
-    
+
     // Timeout settings
     testTimeout: 30000,
     hookTimeout: 10000,
-    
+
     // Retry configuration for flaky tests
     retry: 0,
-    
+
     // Fail fast on first failure (useful for CI)
     bail: 0,
-    
+
     // Mock configuration
     clearMocks: true,
     restoreMocks: true,
-    
+
     // File watching
     watchExclude: ['**/node_modules/**', '**/dist/**'],
-    
+
     // Sequence configuration for consistent test ordering
     sequence: {
       shuffle: false,
       concurrent: false,
     },
-    
+
     // Environment variables and context
     env: {
       NODE_ENV: 'test',
     },
   },
-  
+
   // ESBuild configuration for optimal TypeScript transpilation
   esbuild: {
     target: 'node18',

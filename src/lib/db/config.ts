@@ -1,45 +1,40 @@
-import { neon } from '@neondatabase/serverless';
+import { neon } from '@neondatabase/serverless'
+import { env } from '../validation/env'
 
-// Database configuration with Neon built-in pooling
-const connectionString = process.env.DATABASE_URL;
+// Create Neon client with serverless pooling using validated environment
+export const sql = neon(env.DATABASE_URL)
 
-if (!connectionString) {
-  throw new Error('DATABASE_URL environment variable is not set');
-}
-
-// Create Neon client with serverless pooling
-export const sql = neon(connectionString);
-
-// Branch-specific connections for different environments
-export const getDatabaseUrl = (branch: 'main' | 'dev' | 'test' = 'main') => {
+// Branch-specific connections for different environments with type safety
+export const getDatabaseUrl = (branch: 'main' | 'dev' | 'test' = 'main'): string => {
   switch (branch) {
     case 'dev':
-      return process.env.DATABASE_URL_DEV || process.env.DATABASE_URL;
+      return env.DATABASE_URL_DEV || env.DATABASE_URL
     case 'test':
-      return process.env.DATABASE_URL_TEST || process.env.DATABASE_URL;
+      return env.DATABASE_URL_TEST || env.DATABASE_URL
     default:
-      return process.env.DATABASE_URL;
+      return env.DATABASE_URL
   }
-};
+}
 
-// Vector search configuration
+// Vector search configuration with validated values
 export const vectorConfig = {
-  efSearch: parseInt(process.env.HNSW_EF_SEARCH || '200'),
-  similarityThreshold: parseFloat(process.env.VECTOR_SIMILARITY_THRESHOLD || '0.7'),
-  textWeight: parseFloat(process.env.HYBRID_SEARCH_TEXT_WEIGHT || '0.3'),
-  vectorWeight: parseFloat(process.env.HYBRID_SEARCH_VECTOR_WEIGHT || '0.7'),
-};
+  efSearch: env.HNSW_EF_SEARCH,
+  similarityThreshold: env.VECTOR_SIMILARITY_THRESHOLD,
+  textWeight: env.HYBRID_SEARCH_TEXT_WEIGHT,
+  vectorWeight: env.HYBRID_SEARCH_VECTOR_WEIGHT,
+} as const
 
-// Database branches configuration
+// Database branches configuration with validated values
 export const dbBranches = {
-  main: process.env.DB_MAIN_BRANCH || 'br-summer-art-a864udht',
-  dev: process.env.DB_DEV_BRANCH || 'br-cold-scene-a86p5ixr', 
-  test: process.env.DB_TEST_BRANCH || 'br-fancy-pine-a8imumhr',
-};
+  main: env.DB_MAIN_BRANCH,
+  dev: env.DB_DEV_BRANCH,
+  test: env.DB_TEST_BRANCH,
+} as const
 
+// Database configuration with validated values
 export const dbConfig = {
-  projectId: process.env.DB_PROJECT_ID || 'soft-dew-27794389',
-  poolMin: parseInt(process.env.DB_POOL_MIN || '2'),
-  poolMax: parseInt(process.env.DB_POOL_MAX || '20'),
-  poolIdleTimeout: parseInt(process.env.DB_POOL_IDLE_TIMEOUT || '10000'),
-};
+  projectId: env.DB_PROJECT_ID,
+  poolMin: env.DB_POOL_MIN,
+  poolMax: env.DB_POOL_MAX,
+  poolIdleTimeout: env.DB_POOL_IDLE_TIMEOUT,
+} as const

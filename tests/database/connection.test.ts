@@ -1,6 +1,7 @@
 // Database connection tests
 import { neon } from "@neondatabase/serverless";
 import { getDatabaseUrl, vectorConfig, dbConfig } from "../../src/lib/db/config";
+import { env } from "../../src/lib/validation/env";
 import { vi } from "vitest";
 
 describe("Database Configuration", () => {
@@ -14,7 +15,7 @@ describe("Database Configuration", () => {
 
     it("should return main database URL by default", () => {
       const url = getDatabaseUrl();
-      expect(url).toBe(process.env.DATABASE_URL);
+      expect(url).toBe(env.DATABASE_URL);
     });
 
     it("should return dev database URL when specified", () => {
@@ -33,8 +34,8 @@ describe("Database Configuration", () => {
       const devUrl = getDatabaseUrl("dev");
       const testUrl = getDatabaseUrl("test");
       
-      expect(devUrl).toBe(process.env.DATABASE_URL);
-      expect(testUrl).toBe(process.env.DATABASE_URL);
+      expect(devUrl).toBe(env.DATABASE_URL);
+      expect(testUrl).toBe(env.DATABASE_URL);
     });
   });
 
