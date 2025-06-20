@@ -1,0 +1,667 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import nock from 'nock'
+import { GitHubClient } from '@/lib/github'
+import type { GitHubClientConfig } from '@/lib/github'
+import {
+  GitHubClientError,
+  GitHubRateLimitError,
+  GitHubTokenExpiredError,
+  isRateLimitError,
+  isSecondaryRateLimitError
+} from '@/lib/github/errors'
+
+describe('GitHub Client Retry Logic', () => {
+  beforeEach(() => {
+    nock.cleanAll()
+    vi.clearAllMocks()
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    nock.cleanAll()
+    vi.useRealTimers()
+  })
+
+  describe('Exponential backoff with jitter', () => {
+    it('should calculate retry delays with exponential backoff', () => {
+      const client = new GitHubClient()
+
+      const baseDelay = 1000
+      const retryDelays = []
+
+      for (let i = 0; i < 5; i++) {
+        const delay = client.calculateRetryDelay(i, baseDelay)
+        retryDelays.push(delay)
+      }
+
+      // Each delay should be roughly double the previous (with jitter)
+      expect(retryDelays[0]).toBeLessThanOrEqual(baseDelay * 1.1) // 0th retry: base delay + jitter
+      expect(retryDelays[1]).toBeGreaterThan(baseDelay * 1.8) // 1st retry: 2^1 * base with jitter
+      expect(retryDelays[1]).toBeLessThan(baseDelay * 2.2)
+      expect(retryDelays[2]).toBeGreaterThan(baseDelay * 3.6) // 2nd retry: 2^2 * base with jitter
+      expect(retryDelays[2]).toBeLessThan(baseDelay * 4.4)
+    })
+
+    it('should add random jitter to prevent thundering herd', () => {
+      const client = new GitHubClient()
+
+      // Generate multiple delays for the same retry count
+      const delays = Array(10).fill(null).map(() => 
+        client.calculateRetryDelay(2, 1000)
+      )
+
+      // All delays should be different due to jitter
+      const uniqueDelays = new Set(delays)
+      expect(uniqueDelays.size).toBeGreaterThan(1)
+
+      // All delays should be within expected range
+      delays.forEach(delay => {
+        expect(delay).toBeGreaterThan(3600) // 4000 * 0.9
+        expect(delay).toBeLessThan(4400)    // 4000 * 1.1
+      })
+    })
+
+    it('should cap maximum retry delay', () => {
+      const client = new GitHubClient()
+
+      const delay = client.calculateRetryDelay(10, 1000) // Very high retry count
+      expect(delay).toBeLessThanOrEqual(30000) // 30 second max
+    })
+  })
+
+  describe('Transient vs permanent error handling', () => {
+    it('should retry on transient 5xx server errors', async () => {
+      vi.useRealTimers() // Use real timers for this test
+      const client = new GitHubClient({
+        auth: { type: 'token', token: 'test_token' },
+        retry: {
+          retries: 2,
+          retryAfterBaseValue: 1, // Minimal delay
+          doNotRetry: [400, 401, 403, 404, 422],
+          calculateDelay: () => 1 // Fixed minimal delay for testing
+        }
+      })
+
+      let attemptCount = 0
+
+      nock('https://api.github.com')
+        .get('/user')
+        .times(3)
+        .reply(() => {
+          attemptCount++
+          if (attemptCount < 3) {
+            return [500, { message: 'Internal Server Error' }]
+          }
+          return [200, { login: 'testuser' }]
+        })
+
+      const result = await client.rest.users.getAuthenticated()
+      
+      expect(attemptCount).toBe(3)
+      expect(result.data.login).toBe('testuser')
+    }, 10000)
+
+    it('should retry on 502 Bad Gateway errors', async () => {
+      vi.useRealTimers() // Use real timers for this test
+      const client = new GitHubClient({
+        auth: { type: 'token', token: 'test_token' },
+        retry: { 
+          retries: 1,
+          calculateDelay: () => 1 // Fixed minimal delay for testing
+        }
+      })
+
+      let attemptCount = 0
+
+      nock('https://api.github.com')
+        .get('/repos/owner/repo')
+        .times(2)
+        .reply(() => {
+          attemptCount++
+          if (attemptCount === 1) {
+            return [502, { message: 'Bad Gateway' }]
+          }
+          return [200, { name: 'repo', full_name: 'owner/repo' }]
+        })
+
+      const result = await client.rest.repos.get({ owner: 'owner', repo: 'repo' })
+      
+      expect(attemptCount).toBe(2)
+      expect(result.data.name).toBe('repo')
+    })
+
+    it('should retry on 503 Service Unavailable errors', async () => {
+      const client = new GitHubClient({
+        auth: { type: 'token', token: 'test_token' },
+        retry: { retries: 2 }
+      })
+
+      let attemptCount = 0
+
+      nock('https://api.github.com')
+        .get('/repos/owner/repo/issues')
+        .times(2)
+        .reply(() => {
+          attemptCount++
+          if (attemptCount === 1) {
+            return [503, { message: 'Service Unavailable' }]
+          }
+          return [200, [{ title: 'Test Issue' }]]
+        })
+
+      const result = await client.rest.issues.listForRepo({ 
+        owner: 'owner', 
+        repo: 'repo' 
+      })
+      
+      expect(attemptCount).toBe(2)
+      expect(result.data[0].title).toBe('Test Issue')
+    })
+
+    it('should NOT retry on permanent 4xx client errors', async () => {
+      vi.useRealTimers() // Use real timers for this test
+      const client = new GitHubClient({
+        auth: { type: 'token', token: 'test_token' },
+        retry: {
+          retries: 3,
+          doNotRetry: [400, 401, 403, 404, 422]
+        }
+      })
+
+      let attemptCount = 0
+
+      nock('https://api.github.com')
+        .get('/user')
+        .reply(() => {
+          attemptCount++
+          return [401, { message: 'Bad credentials' }]
+        })
+
+      await expect(client.rest.users.getAuthenticated()).rejects.toThrow()
+      
+      expect(attemptCount).toBe(1) // Should not retry
+    }, 5000)
+
+    it('should NOT retry on 422 Unprocessable Entity errors', async () => {
+      const client = new GitHubClient({
+        auth: { type: 'token', token: 'test_token' },
+        retry: { retries: 3 }
+      })
+
+      let attemptCount = 0
+
+      nock('https://api.github.com')
+        .post('/repos/owner/repo/issues')
+        .reply(() => {
+          attemptCount++
+          return [422, { 
+            message: 'Validation Failed',
+            errors: [{ field: 'title', code: 'missing' }]
+          }]
+        })
+
+      await expect(client.rest.issues.create({
+        owner: 'owner',
+        repo: 'repo',
+        title: ''
+      })).rejects.toThrow()
+      
+      expect(attemptCount).toBe(1)
+    })
+  })
+
+  describe('Rate limit retry handling', () => {
+    it('should retry after primary rate limit with proper delay', async () => {
+      const client = new GitHubClient({
+        auth: { type: 'token', token: 'test_token' },
+        retry: { retries: 2 }
+      })
+
+      let attemptCount = 0
+
+      nock('https://api.github.com')
+        .get('/user')
+        .times(2)
+        .reply(() => {
+          attemptCount++
+          if (attemptCount === 1) {
+            return [403, 
+              { message: 'API rate limit exceeded' },
+              {
+                'x-ratelimit-limit': '5000',
+                'x-ratelimit-remaining': '0',
+                'x-ratelimit-reset': Math.floor((Date.now() + 60000) / 1000).toString(),
+                'retry-after': '60'
+              }
+            ]
+          }
+          return [200, { login: 'testuser' }]
+        })
+
+      const startTime = Date.now()
+      const resultPromise = client.rest.users.getAuthenticated()
+
+      // Fast-forward time to simulate waiting
+      vi.advanceTimersByTime(60000)
+
+      const result = await resultPromise
+      
+      expect(attemptCount).toBe(2)
+      expect(result.data.login).toBe('testuser')
+    })
+
+    it('should retry after secondary rate limit', async () => {
+      const client = new GitHubClient({
+        auth: { type: 'token', token: 'test_token' },
+        retry: { retries: 2 }
+      })
+
+      let attemptCount = 0
+
+      nock('https://api.github.com')
+        .get('/search/repositories')
+        .times(2)
+        .reply(() => {
+          attemptCount++
+          if (attemptCount === 1) {
+            return [403, 
+              { message: 'You have exceeded a secondary rate limit' },
+              { 'retry-after': '30' }
+            ]
+          }
+          return [200, { total_count: 0, items: [] }]
+        })
+
+      const resultPromise = client.rest.search.repos({ q: 'test' })
+
+      // Fast-forward time to simulate waiting
+      vi.advanceTimersByTime(30000)
+
+      const result = await resultPromise
+      
+      expect(attemptCount).toBe(2)
+      expect(result.data.total_count).toBe(0)
+    })
+
+    it('should extract retry delay from Retry-After header', async () => {
+      const client = new GitHubClient({
+        auth: { type: 'token', token: 'test_token' }
+      })
+
+      let capturedDelay: number | undefined
+
+      // Mock the internal retry logic to capture delay
+      const originalCalculateRetryDelay = client.calculateRetryDelay
+      client.calculateRetryDelay = vi.fn((retryCount, baseDelay, retryAfter) => {
+        capturedDelay = retryAfter
+        return originalCalculateRetryDelay.call(client, retryCount, baseDelay, retryAfter)
+      })
+
+      nock('https://api.github.com')
+        .get('/user')
+        .reply(429, 
+          { message: 'Too Many Requests' },
+          { 'retry-after': '120' }
+        )
+
+      try {
+        await client.rest.users.getAuthenticated()
+      } catch (error) {
+        // Expected to fail, we're testing delay extraction
+      }
+
+      expect(capturedDelay).toBe(120000) // 120 seconds in milliseconds
+    })
+  })
+
+  describe('Circuit breaker functionality', () => {
+    it('should implement circuit breaker to prevent cascading failures', async () => {
+      const client = new GitHubClient({
+        auth: { type: 'token', token: 'test_token' },
+        retry: {
+          retries: 2,
+          circuitBreaker: {
+            enabled: true,
+            failureThreshold: 3,
+            recoveryTimeout: 30000
+          }
+        }
+      })
+
+      let attemptCount = 0
+
+      // Mock multiple failures to trigger circuit breaker
+      nock('https://api.github.com')
+        .get('/user')
+        .times(10)
+        .reply(() => {
+          attemptCount++
+          return [500, { message: 'Internal Server Error' }]
+        })
+
+      // Make multiple requests that should fail
+      const promises = []
+      for (let i = 0; i < 5; i++) {
+        promises.push(
+          client.rest.users.getAuthenticated().catch(() => null)
+        )
+      }
+
+      await Promise.all(promises)
+
+      // Circuit breaker should prevent excessive attempts
+      expect(attemptCount).toBeLessThan(15) // Without circuit breaker: 5 * 3 = 15 attempts
+    })
+
+    it('should allow requests after circuit breaker recovery timeout', async () => {
+      const client = new GitHubClient({
+        auth: { type: 'token', token: 'test_token' },
+        retry: {
+          retries: 1,
+          circuitBreaker: {
+            enabled: true,
+            failureThreshold: 2,
+            recoveryTimeout: 5000
+          }
+        }
+      })
+
+      let attemptCount = 0
+
+      // First, trigger circuit breaker with failures
+      nock('https://api.github.com')
+        .get('/user')
+        .times(3)
+        .reply(() => {
+          attemptCount++
+          return [500, { message: 'Internal Server Error' }]
+        })
+
+      // Trigger circuit breaker
+      try {
+        await client.rest.users.getAuthenticated()
+      } catch (error) {
+        // Expected
+      }
+
+      try {
+        await client.rest.users.getAuthenticated()
+      } catch (error) {
+        // Expected - should trip circuit breaker
+      }
+
+      // Fast-forward past recovery timeout
+      vi.advanceTimersByTime(6000)
+
+      // Now mock successful response
+      nock('https://api.github.com')
+        .get('/user')
+        .reply(200, { login: 'testuser' })
+
+      // This should succeed after circuit breaker recovery
+      const result = await client.rest.users.getAuthenticated()
+      expect(result.data.login).toBe('testuser')
+    })
+  })
+
+  describe('GraphQL retry logic', () => {
+    it('should retry GraphQL queries on server errors', async () => {
+      const client = new GitHubClient({
+        auth: { type: 'token', token: 'test_token' },
+        retry: { retries: 2 }
+      })
+
+      let attemptCount = 0
+
+      nock('https://api.github.com')
+        .post('/graphql')
+        .times(2)
+        .reply(() => {
+          attemptCount++
+          if (attemptCount === 1) {
+            return [500, { message: 'Internal Server Error' }]
+          }
+          return [200, {
+            data: { viewer: { login: 'testuser' } }
+          }]
+        })
+
+      const result = await client.graphql(`query { viewer { login } }`)
+      
+      expect(attemptCount).toBe(2)
+      expect(result.viewer.login).toBe('testuser')
+    })
+
+    it('should NOT retry GraphQL queries on query errors', async () => {
+      const client = new GitHubClient({
+        auth: { type: 'token', token: 'test_token' },
+        retry: { retries: 3 }
+      })
+
+      let attemptCount = 0
+
+      nock('https://api.github.com')
+        .post('/graphql')
+        .reply(() => {
+          attemptCount++
+          return [200, {
+            errors: [
+              {
+                message: 'Field \'invalidField\' doesn\'t exist on type \'User\'',
+                locations: [{ line: 1, column: 25 }]
+              }
+            ]
+          }]
+        })
+
+      await expect(client.graphql(`query { viewer { invalidField } }`))
+        .rejects.toThrow()
+      
+      expect(attemptCount).toBe(1) // Should not retry on GraphQL errors
+    })
+
+    it('should handle GraphQL rate limiting in queries', async () => {
+      const client = new GitHubClient({
+        auth: { type: 'token', token: 'test_token' },
+        retry: { retries: 2 }
+      })
+
+      let attemptCount = 0
+
+      nock('https://api.github.com')
+        .post('/graphql')
+        .times(2)
+        .reply(() => {
+          attemptCount++
+          if (attemptCount === 1) {
+            return [200, {
+              errors: [
+                {
+                  type: 'RATE_LIMITED',
+                  message: 'API rate limit exceeded'
+                }
+              ]
+            }]
+          }
+          return [200, {
+            data: { viewer: { login: 'testuser' } }
+          }]
+        })
+
+      const result = await client.graphql(`query { viewer { login } }`)
+      
+      expect(attemptCount).toBe(2)
+      expect(result.viewer.login).toBe('testuser')
+    })
+  })
+
+  describe('Custom retry strategies', () => {
+    it('should support custom retry conditions', async () => {
+      const client = new GitHubClient({
+        auth: { type: 'token', token: 'test_token' },
+        retry: {
+          retries: 3,
+          shouldRetry: (error: any, retryCount: number) => {
+            // Custom logic: retry on 418 (I'm a teapot) for testing
+            return error.status === 418 && retryCount < 2
+          }
+        }
+      })
+
+      let attemptCount = 0
+
+      nock('https://api.github.com')
+        .get('/user')
+        .times(3)
+        .reply(() => {
+          attemptCount++
+          if (attemptCount < 3) {
+            return [418, { message: "I'm a teapot" }]
+          }
+          return [200, { login: 'testuser' }]
+        })
+
+      const result = await client.rest.users.getAuthenticated()
+      
+      expect(attemptCount).toBe(3)
+      expect(result.data.login).toBe('testuser')
+    })
+
+    it('should support custom retry delay calculation', async () => {
+      const customDelays = [500, 1500, 3000]
+      let delayIndex = 0
+
+      const client = new GitHubClient({
+        auth: { type: 'token', token: 'test_token' },
+        retry: {
+          retries: 3,
+          calculateDelay: (retryCount: number) => {
+            return customDelays[delayIndex++] || 1000
+          }
+        }
+      })
+
+      let attemptCount = 0
+      const attemptTimes: number[] = []
+
+      nock('https://api.github.com')
+        .get('/user')
+        .times(4)
+        .reply(() => {
+          attemptCount++
+          attemptTimes.push(Date.now())
+          if (attemptCount < 4) {
+            return [500, { message: 'Internal Server Error' }]
+          }
+          return [200, { login: 'testuser' }]
+        })
+
+      const resultPromise = client.rest.users.getAuthenticated()
+
+      // Advance timers to simulate delays
+      vi.advanceTimersByTime(500)
+      vi.advanceTimersByTime(1500)
+      vi.advanceTimersByTime(3000)
+
+      const result = await resultPromise
+      
+      expect(attemptCount).toBe(4)
+      expect(result.data.login).toBe('testuser')
+    })
+  })
+
+  describe('Error context and logging', () => {
+    it('should preserve original error context through retries', async () => {
+      const client = new GitHubClient({
+        auth: { type: 'token', token: 'test_token' },
+        retry: { retries: 2 }
+      })
+
+      let attemptCount = 0
+
+      nock('https://api.github.com')
+        .get('/repos/owner/nonexistent')
+        .times(1)
+        .reply(() => {
+          attemptCount++
+          return [404, { 
+            message: 'Not Found',
+            documentation_url: 'https://docs.github.com/rest'
+          }]
+        })
+
+      try {
+        await client.rest.repos.get({ owner: 'owner', repo: 'nonexistent' })
+      } catch (error: any) {
+        expect(error.status).toBe(404)
+        expect(error.response?.data?.message).toBe('Not Found')
+        expect(attemptCount).toBe(1) // Should not retry 404
+      }
+    })
+
+    it('should log retry attempts when configured', async () => {
+      const retryLogs: string[] = []
+
+      const client = new GitHubClient({
+        auth: { type: 'token', token: 'test_token' },
+        retry: {
+          retries: 2,
+          onRetry: (error: any, retryCount: number) => {
+            retryLogs.push(`Retry ${retryCount}: ${error.status}`)
+          }
+        }
+      })
+
+      let attemptCount = 0
+
+      nock('https://api.github.com')
+        .get('/user')
+        .times(3)
+        .reply(() => {
+          attemptCount++
+          if (attemptCount < 3) {
+            return [502, { message: 'Bad Gateway' }]
+          }
+          return [200, { login: 'testuser' }]
+        })
+
+      const result = await client.rest.users.getAuthenticated()
+      
+      expect(retryLogs).toEqual(['Retry 1: 502', 'Retry 2: 502'])
+      expect(result.data.login).toBe('testuser')
+    })
+  })
+
+  describe('Retry configuration validation', () => {
+    it('should validate retry configuration on client creation', () => {
+      expect(() => {
+        new GitHubClient({
+          retry: {
+            retries: -1 // Invalid
+          }
+        })
+      }).toThrow('Retry count cannot be negative')
+
+      expect(() => {
+        new GitHubClient({
+          retry: {
+            retries: 11 // Too high
+          }
+        })
+      }).toThrow('Maximum retry count is 10')
+    })
+
+    it('should use sensible defaults for retry configuration', () => {
+      const client = new GitHubClient()
+      const config = client.getRetryConfig()
+
+      expect(config.retries).toBe(3)
+      expect(config.retryAfterBaseValue).toBe(1000)
+      expect(config.doNotRetry).toContain(400)
+      expect(config.doNotRetry).toContain(401)
+      expect(config.doNotRetry).toContain(403)
+      expect(config.doNotRetry).toContain(404)
+      expect(config.doNotRetry).toContain(422)
+    })
+  })
+})
