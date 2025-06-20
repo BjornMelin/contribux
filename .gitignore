@@ -152,6 +152,8 @@ traces/
 # Development Tools
 # ================================
 # IDE and editor files
+# Track VS Code workspace configuration
+# but ignore local overrides and logs
 .vscode/settings.local.json
 .vscode/*.log
 .idea/

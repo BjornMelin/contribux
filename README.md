@@ -130,62 +130,59 @@ sequenceDiagram
 
 ### Prerequisites
 
-- **Node.js 18+** with npm/yarn/pnpm
-- **PostgreSQL 16+** (or Neon account)
-- **GitHub Personal Access Token**
-- **OpenAI API Key**
+- Node.js 20.x or higher
+- pnpm 9.x or higher
+- PostgreSQL 16 (or Neon account)
+- GitHub account for OAuth
 
-### 1️⃣ Clone & Install
+### Installation
 
 ```bash
+# Clone the repository
 git clone https://github.com/BjornMelin/contribux.git
 cd contribux
-npm install
-```
 
-### 2️⃣ Environment Setup
+# Install dependencies with pnpm
+pnpm install
 
-```bash
+# Copy environment variables
 cp .env.example .env.local
+
+# Configure your environment variables
+# Edit .env.local with your API keys and configuration
+
+# Run database migrations (when available)
+# pnpm db:migrate
+
+# Start the development server
+pnpm dev
 ```
 
-Configure your environment variables:
-
-```env
-# Database
-DATABASE_URL="postgresql://user:pass@host:5432/contribux"
-
-# Authentication
-NEXTAUTH_URL="http://localhost:3000"
-NEXTAUTH_SECRET="your-secret-key"
-GITHUB_TOKEN="ghp_your_github_token"
-
-# AI Services
-OPENAI_API_KEY="sk-your-openai-key"
-
-# Notifications
-RESEND_API_KEY="re_your_resend_key"
-TELNYX_API_KEY="your_telnyx_key"
-
-# Background Jobs
-UPSTASH_QSTASH_URL="your_qstash_url"
-UPSTASH_QSTASH_TOKEN="your_qstash_token"
-```
-
-### 3️⃣ Database Setup
+### Development Commands
 
 ```bash
-npm run db:migrate
-npm run db:seed
+# Development server with Turbo
+pnpm dev
+
+# Production build
+pnpm build
+
+# Start production server
+pnpm start
+
+# Linting and formatting
+pnpm lint          # Run Biome checks
+pnpm lint:fix      # Fix linting issues
+pnpm format        # Format code with Biome
+
+# Type checking
+pnpm type-check
+
+# Clean build artifacts
+pnpm clean
 ```
 
-### 4️⃣ Development Server
-
-```bash
-npm run dev
-```
-
-Visit [http://localhost:3000](http://localhost:3000) 🎉
+Visit [http://localhost:3000](http://localhost:3000) to see your application.
 
 ---
 

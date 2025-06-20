@@ -1,0 +1,8 @@
+# Placeholder PWA Maskable Icon 512x512
+# This is a placeholder file for the PWA maskable icon.
+# In production, replace this with an actual 512x512 PNG icon with 80% safe zone.
+# Maskable icons should have padding to work with different mask shapes.
+# You can test maskable icons at:
+# - https://maskable.app/
+# Generate icons using:
+# - https://progressier.com/maskable-icons-editor
