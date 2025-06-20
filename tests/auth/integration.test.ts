@@ -10,10 +10,23 @@ import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db/config'
 import type { User, UserSession } from '@/types/auth'
 
-// Mock database
-vi.mock('@/lib/db/config', () => ({
-  sql: vi.fn()
-}))
+// Mock env validation for this test file
+vi.mock("@/lib/validation/env", () => ({
+  env: {
+    NODE_ENV: 'test',
+    DATABASE_URL: 'postgresql://test:test@localhost:5432/testdb',
+    JWT_SECRET: 'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only',
+    GITHUB_CLIENT_ID: 'test1234567890123456',
+    GITHUB_CLIENT_SECRET: 'test-github-client-secret-with-sufficient-length-for-testing',
+  },
+  isProduction: () => false,
+  isDevelopment: () => false,
+  isTest: () => true,
+  getJwtSecret: () => 'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only',
+  getEncryptionKey: () => 'test-encryption-key-32-bytes-long',
+}));
+
+// Note: Database mock is handled in tests/setup.ts
 
 // Mock Next.js
 vi.mock('next/server', () => ({
@@ -480,16 +493,11 @@ describe('Authentication Integration Tests', () => {
       // Track security context through entire auth flow
       const events: string[] = []
       
-      // Override logSecurityEvent to track calls
-      vi.mock('@/lib/auth/audit', async () => {
-        const actual = await vi.importActual('@/lib/auth/audit')
-        return {
-          ...actual,
-          logSecurityEvent: vi.fn(async (params) => {
-            events.push(params.event_type)
-            return { id: 'log-id', ...params, created_at: new Date() }
-          })
-        }
+      // Use global mock from setup - track events via spy
+      const { logSecurityEvent } = await import('@/lib/auth/audit');
+      vi.mocked(logSecurityEvent).mockImplementation(async (params) => {
+        events.push(params.event_type)
+        return { id: 'log-id', ...params, created_at: new Date() }
       })
       
       // WebAuthn registration

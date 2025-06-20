@@ -1,5 +1,5 @@
+import path from 'node:path'
 import { configDefaults, defineConfig } from 'vitest/config'
-import path from 'path'
 
 export default defineConfig({
   resolve: {
@@ -18,6 +18,10 @@ export default defineConfig({
 
     // Setup files
     setupFiles: ['./tests/setup.ts'],
+
+    // Test isolation improvements
+    isolate: true,
+    pool: 'forks',
 
     // Coverage configuration with V8 provider (2025 best practice)
     coverage: {
@@ -54,13 +58,12 @@ export default defineConfig({
       ignoreEmptyLines: true,
     },
 
-    // Performance optimizations
-    pool: 'threads',
+    // Performance optimizations for better test isolation
     poolOptions: {
-      threads: {
-        singleThread: false,
-        minThreads: 2,
-        maxThreads: 4,
+      forks: {
+        singleFork: false,
+        minForks: 1,
+        maxForks: 3,
       },
     },
 
@@ -81,8 +84,7 @@ export default defineConfig({
     clearMocks: true,
     restoreMocks: true,
 
-    // File watching
-    watchExclude: ['**/node_modules/**', '**/dist/**'],
+    // File watching (watchExclude is deprecated, use exclude instead)
 
     // Sequence configuration for consistent test ordering
     sequence: {

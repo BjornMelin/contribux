@@ -53,7 +53,7 @@ export class DatabaseMonitor {
     }
   }
 
-  async getSlowQueries(limit: number = 10): Promise<SlowQuery[]> {
+  async getSlowQueries(limit = 10): Promise<SlowQuery[]> {
     try {
       const result = await this.sql`
         SELECT 

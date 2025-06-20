@@ -1,4 +1,5 @@
 // Database schema tests
+import { describe, it, expect, beforeAll } from 'vitest'
 import { neon } from "@neondatabase/serverless";
 
 describe("Database Schema", () => {

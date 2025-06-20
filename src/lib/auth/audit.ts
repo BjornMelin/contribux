@@ -4,8 +4,8 @@
  */
 
 import { createHash, timingSafeEqual } from 'node:crypto'
+import { authConfig } from '@/lib/config'
 import { sql } from '@/lib/db/config'
-import { authConfig, auditConfig } from '@/lib/config'
 import type {
   AnomalyDetection,
   AuditLogFilters,
@@ -54,6 +54,61 @@ const EVENT_SEVERITY_MAP: Record<string, EventSeverity> = {
 }
 
 // Configuration is now centralized in config system
+
+// Helper function to create log params with proper optional property handling for exactOptionalPropertyTypes
+function createLogParams(params: {
+  event_type: AuthEventType | string
+  event_severity?: EventSeverity
+  user_id?: string | undefined
+  ip_address?: string | undefined | null
+  user_agent?: string | undefined | null
+  event_data?: Record<string, unknown>
+  success: boolean
+  error_message?: string | undefined
+  request_id?: string | undefined
+  session_id?: string | undefined
+}): {
+  event_type: AuthEventType | string
+  event_severity?: EventSeverity
+  user_id?: string
+  ip_address?: string
+  user_agent?: string
+  event_data?: Record<string, unknown>
+  success: boolean
+  error_message?: string
+  request_id?: string
+  session_id?: string
+} {
+  const result: {
+    event_type: AuthEventType | string
+    event_severity?: EventSeverity
+    user_id?: string
+    ip_address?: string
+    user_agent?: string
+    event_data?: Record<string, unknown>
+    success: boolean
+    error_message?: string
+    request_id?: string
+    session_id?: string
+  } = {
+    event_type: params.event_type,
+    success: params.success,
+  }
+
+  // Only add properties if they are defined and not null
+  if (params.event_severity !== undefined) result.event_severity = params.event_severity
+  if (params.user_id !== undefined) result.user_id = params.user_id
+  if (params.ip_address !== undefined && params.ip_address !== null)
+    result.ip_address = params.ip_address
+  if (params.user_agent !== undefined && params.user_agent !== null)
+    result.user_agent = params.user_agent
+  if (params.event_data !== undefined) result.event_data = params.event_data
+  if (params.error_message !== undefined) result.error_message = params.error_message
+  if (params.request_id !== undefined) result.request_id = params.request_id
+  if (params.session_id !== undefined) result.session_id = params.session_id
+
+  return result
+}
 
 // Get event severity
 export async function getEventSeverity(eventType: AuthEventType | string): Promise<EventSeverity> {
@@ -173,37 +228,41 @@ export async function logAuthenticationAttempt(params: {
       `
 
       // Log account lock event
-      await logSecurityEvent({
-        event_type: 'account_locked',
-        event_severity: 'error',
-        user_id: params.userId,
-        ip_address: params.context.ip_address,
-        user_agent: params.context.user_agent,
-        event_data: {
-          reason: 'Too many failed login attempts',
-          failed_attempts: recentFailures + 1,
-        },
-        success: true,
-      })
+      await logSecurityEvent(
+        createLogParams({
+          event_type: 'account_locked',
+          event_severity: 'error',
+          user_id: params.userId,
+          ip_address: params.context.ip_address,
+          user_agent: params.context.user_agent,
+          event_data: {
+            reason: 'Too many failed login attempts',
+            failed_attempts: recentFailures + 1,
+          },
+          success: true,
+        })
+      )
     }
   }
 
   // Log the authentication attempt
-  await logSecurityEvent({
-    event_type: params.success ? 'login_success' : 'login_failure',
-    user_id: params.userId,
-    ip_address: params.context.ip_address,
-    user_agent: params.context.user_agent,
-    event_data: {
-      email: params.email,
-      auth_method: params.authMethod,
-      device_fingerprint: params.context.device_fingerprint,
-      geo_location: params.context.geo_location,
-      error: params.error,
-    },
-    success: params.success,
-    error_message: params.error,
-  })
+  await logSecurityEvent(
+    createLogParams({
+      event_type: params.success ? 'login_success' : 'login_failure',
+      user_id: params.userId,
+      ip_address: params.context.ip_address,
+      user_agent: params.context.user_agent,
+      event_data: {
+        email: params.email,
+        auth_method: params.authMethod,
+        device_fingerprint: params.context.device_fingerprint,
+        geo_location: params.context.geo_location,
+        error: params.error,
+      },
+      success: params.success,
+      error_message: params.error,
+    })
+  )
 
   return {
     recentFailures,
@@ -239,6 +298,7 @@ export async function logSessionActivity(params: {
 
     if (existingSession.length > 0) {
       const session = existingSession[0]
+      if (!session) return { anomalyDetected: false }
 
       // Check for IP change
       if (session.ip_address !== params.context.ip_address) {
@@ -246,20 +306,22 @@ export async function logSessionActivity(params: {
         anomalyType = 'ip_change'
 
         // Log anomaly
-        await logSecurityEvent({
-          event_type: 'unusual_activity',
-          event_severity: 'warning',
-          user_id: params.userId,
-          ip_address: params.context.ip_address,
-          user_agent: params.context.user_agent,
-          event_data: {
-            anomaly_type: 'ip_change',
-            old_ip: session.ip_address,
-            new_ip: params.context.ip_address,
-            session_id: params.sessionId,
-          },
-          success: true,
-        })
+        await logSecurityEvent(
+          createLogParams({
+            event_type: 'unusual_activity',
+            event_severity: 'warning',
+            user_id: params.userId,
+            ip_address: params.context.ip_address,
+            user_agent: params.context.user_agent,
+            event_data: {
+              anomaly_type: 'ip_change',
+              old_ip: session.ip_address,
+              new_ip: params.context.ip_address,
+              session_id: params.sessionId,
+            },
+            success: true,
+          })
+        )
       }
 
       // Check for user agent change
@@ -271,23 +333,30 @@ export async function logSessionActivity(params: {
   }
 
   // Log session activity
-  await logSecurityEvent({
-    event_type: params.activityType,
-    user_id: params.userId,
-    ip_address: params.context.ip_address,
-    user_agent: params.context.user_agent,
-    event_data: {
-      session_id: params.sessionId,
-      anomaly_detected: anomalyDetected,
-      anomaly_type: anomalyType,
-    },
-    success: true,
-  })
+  await logSecurityEvent(
+    createLogParams({
+      event_type: params.activityType,
+      user_id: params.userId,
+      ip_address: params.context.ip_address,
+      user_agent: params.context.user_agent,
+      event_data: {
+        session_id: params.sessionId,
+        anomaly_detected: anomalyDetected,
+        anomaly_type: anomalyType,
+      },
+      success: true,
+    })
+  )
 
-  return {
+  const result: { anomalyDetected: boolean; anomalyType?: string } = {
     anomalyDetected,
-    anomalyType,
   }
+
+  if (anomalyType !== undefined) {
+    result.anomalyType = anomalyType
+  }
+
+  return result
 }
 
 // Log data access
@@ -305,20 +374,22 @@ export async function logDataAccess(params: {
     session_id?: string
   }
 }): Promise<void> {
-  await logSecurityEvent({
-    event_type: 'data_access',
-    user_id: params.userId,
-    ip_address: params.context.ip_address,
-    user_agent: params.context.user_agent,
-    event_data: {
-      resource_type: params.resourceType,
-      resource_id: params.resourceId,
-      operation: params.operation,
-      fields: params.fields,
-      record_count: params.recordCount,
-    },
-    success: true,
-  })
+  await logSecurityEvent(
+    createLogParams({
+      event_type: 'data_access',
+      user_id: params.userId,
+      ip_address: params.context.ip_address,
+      user_agent: params.context.user_agent,
+      event_data: {
+        resource_type: params.resourceType,
+        resource_id: params.resourceId,
+        operation: params.operation,
+        fields: params.fields,
+        record_count: params.recordCount,
+      },
+      success: true,
+    })
+  )
 }
 
 // Log configuration change
@@ -343,19 +414,21 @@ export async function logConfigurationChange(params: {
     throw new Error('Insufficient privileges for critical configuration change')
   }
 
-  await logSecurityEvent({
-    event_type: 'config_change',
-    event_severity: criticalConfigs.includes(params.configType) ? 'warning' : 'info',
-    user_id: params.userId,
-    ip_address: params.context.ip_address,
-    user_agent: params.context.user_agent,
-    event_data: {
-      config_type: params.configType,
-      changes: params.changes,
-      privilege_level: params.privilegeLevel,
-    },
-    success: true,
-  })
+  await logSecurityEvent(
+    createLogParams({
+      event_type: 'config_change',
+      event_severity: criticalConfigs.includes(params.configType) ? 'warning' : 'info',
+      user_id: params.userId,
+      ip_address: params.context.ip_address,
+      user_agent: params.context.user_agent,
+      event_data: {
+        config_type: params.configType,
+        changes: params.changes,
+        privilege_level: params.privilegeLevel,
+      },
+      success: true,
+    })
+  )
 }
 
 // Get audit logs with filters
@@ -458,8 +531,8 @@ export async function getSecurityMetrics(params: {
     `,
   ])
 
-  const totalLoginCount = Number.parseInt(totalLogins[0].count)
-  const failedLoginCount = Number.parseInt(failedLogins[0].count)
+  const totalLoginCount = Number.parseInt(totalLogins[0]?.count || '0')
+  const failedLoginCount = Number.parseInt(failedLogins[0]?.count || '0')
 
   const metrics: SecurityMetrics = {
     loginSuccessRate:
@@ -467,8 +540,8 @@ export async function getSecurityMetrics(params: {
         ? Math.round(((totalLoginCount - failedLoginCount) / totalLoginCount) * 100)
         : 100,
     failedLoginCount,
-    lockedAccountCount: Number.parseInt(lockedAccounts[0].count),
-    anomalyCount: Number.parseInt(anomalies[0].count),
+    lockedAccountCount: Number.parseInt(lockedAccounts[0]?.count || '0'),
+    anomalyCount: Number.parseInt(anomalies[0]?.count || '0'),
   }
 
   // Get timeline data if groupBy is specified
@@ -485,7 +558,10 @@ export async function getSecurityMetrics(params: {
 
     return {
       ...metrics,
-      timeline: timelineData,
+      timeline: timelineData.map(row => ({
+        date: new Date(row.date),
+        count: Number.parseInt(row.count),
+      })),
     }
   }
 
@@ -553,30 +629,37 @@ export async function detectAnomalies(params: {
 
   // Log anomaly if detected
   if (detected) {
-    await logSecurityEvent({
-      event_type: 'unusual_activity',
-      event_severity: 'warning',
-      user_id: params.userId,
-      ip_address: params.context.ip_address,
-      user_agent: params.context.user_agent,
-      event_data: {
-        original_event: params.eventType,
-        anomaly_type: type,
-        timestamp: timestamp.toISOString(),
-      },
-      success: true,
-    })
+    await logSecurityEvent(
+      createLogParams({
+        event_type: 'unusual_activity',
+        event_severity: 'warning',
+        user_id: params.userId,
+        ip_address: params.context.ip_address,
+        user_agent: params.context.user_agent,
+        event_data: {
+          original_event: params.eventType,
+          anomaly_type: type,
+          timestamp: timestamp.toISOString(),
+        },
+        success: true,
+      })
+    )
   }
 
-  return {
+  const result: AnomalyDetection = {
     detected,
-    type,
     confidence: detected ? 0.8 : 0.0,
     details: {
       unusual_time: unusualTime,
       rapid_succession: rapidSuccession,
     },
   }
+
+  if (type !== undefined) {
+    result.type = type
+  }
+
+  return result
 }
 
 // Export audit report
@@ -611,11 +694,14 @@ export async function exportAuditReport(params: {
     }
 > {
   // Get audit logs
-  const logs = await getAuditLogs({
+  const auditFilters: AuditLogFilters = {
     startDate: params.startDate,
     endDate: params.endDate,
-    userId: params.userId,
-  })
+  }
+  if (params.userId !== undefined) {
+    auditFilters.userId = params.userId
+  }
+  const logs = await getAuditLogs(auditFilters)
 
   // Get summary statistics
   const [totalEvents, eventDistribution, topUsers] = await Promise.all([
@@ -679,11 +765,18 @@ export async function exportAuditReport(params: {
         start: params.startDate,
         end: params.endDate,
       },
-      total_events: Number.parseInt(totalEvents[0].count),
+      total_events: Number.parseInt(totalEvents[0]?.count || '0'),
     },
     summary: {
-      event_distribution: eventDistribution,
-      top_users: topUsers,
+      event_distribution: eventDistribution as Array<{
+        event_type: string
+        event_severity: string
+        count: string
+      }>,
+      top_users: topUsers as Array<{
+        user_id: string
+        event_count: string
+      }>,
     },
     events: logs,
   }
@@ -704,6 +797,9 @@ export async function deleteAuditLog(logId: string): Promise<void> {
   }
 
   const auditLog = log[0]
+  if (!auditLog) {
+    throw new Error('Audit log not found')
+  }
 
   // Critical logs have 7-year retention
   if (auditLog.event_severity === 'critical') {
@@ -730,11 +826,14 @@ export async function verifyAuditLogIntegrity(logId: string): Promise<boolean> {
     LIMIT 1
   `
 
-  if (log.length === 0 || !log[0].checksum) {
+  if (log.length === 0 || !log[0]?.checksum) {
     return true // No checksum to verify
   }
 
   const auditLog = log[0]
+  if (!auditLog) {
+    return true
+  }
 
   // Recalculate checksum
   const data = JSON.stringify({

@@ -183,6 +183,7 @@ export interface AccessTokenPayload {
   exp: number
   iss: string
   aud: string[]
+  jti: string // JWT ID for replay protection
 }
 
 export interface RefreshTokenPayload {

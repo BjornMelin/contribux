@@ -10,10 +10,21 @@ import { sql } from '@/lib/db/config'
 import { generatePKCEChallenge } from '@/lib/auth/pkce'
 import type { OAuthTokens, OAuthCallbackParams } from '@/types/auth'
 
-// Mock database
-vi.mock('@/lib/db/config', () => ({
-  sql: vi.fn()
-}))
+// Mock env validation for this test file
+vi.mock("@/lib/validation/env", () => ({
+  env: {
+    NODE_ENV: 'test',
+    DATABASE_URL: 'postgresql://test:test@localhost:5432/testdb',
+    JWT_SECRET: 'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only',
+    GITHUB_CLIENT_ID: 'test1234567890123456',
+    GITHUB_CLIENT_SECRET: 'test-github-client-secret-with-sufficient-length-for-testing',
+  },
+  isProduction: () => false,
+  isDevelopment: () => false,
+  isTest: () => true,
+  getJwtSecret: () => 'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only',
+  getEncryptionKey: () => 'test-encryption-key-32-bytes-long',
+}));
 
 // Mock PKCE generation
 vi.mock('@/lib/auth/pkce', () => ({
@@ -22,9 +33,6 @@ vi.mock('@/lib/auth/pkce', () => ({
     codeChallenge: 'test-challenge-123'
   }))
 }))
-
-// Mock fetch for GitHub API calls
-global.fetch = vi.fn()
 
 // Mock crypto functions
 vi.mock('@/lib/auth/crypto', async () => {
@@ -45,6 +53,8 @@ vi.mock('@/lib/auth/crypto', async () => {
     })
   }
 })
+
+// Note: Database and fetch mocks are defined in tests/setup.ts
 
 describe('OAuth Authentication', () => {
   const mockUser = {

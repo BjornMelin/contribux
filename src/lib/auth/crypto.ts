@@ -3,8 +3,8 @@
  * Uses AES-GCM for authenticated encryption with 256-bit keys
  */
 
-import { sql } from '@/lib/db/config'
 import { cryptoConfig } from '@/lib/config'
+import { sql } from '@/lib/db/config'
 
 // Encryption configuration using centralized config
 const ALGORITHM = cryptoConfig.algorithm
@@ -192,7 +192,7 @@ export async function rotateEncryptionKey(): Promise<EncryptionKeyMetadata> {
   let currentVersion = 0
   let currentKeyData = null
 
-  if (currentKeyResult.length > 0) {
+  if (currentKeyResult.length > 0 && currentKeyResult[0]) {
     currentVersion = currentKeyResult[0].version
     currentKeyData = JSON.parse(currentKeyResult[0].key_data)
   }
@@ -216,10 +216,13 @@ export async function rotateEncryptionKey(): Promise<EncryptionKeyMetadata> {
     RETURNING id, version
   `
 
-  const newKeyId = newKeyResult[0].id
+  const newKeyId = newKeyResult[0]?.id
+  if (!newKeyId) {
+    throw new Error('Failed to create new encryption key')
+  }
 
   // Mark old key as rotated
-  if (currentKeyResult.length > 0) {
+  if (currentKeyResult.length > 0 && currentKeyResult[0]) {
     await sql`
       UPDATE encryption_keys
       SET 
@@ -344,16 +347,16 @@ export async function getCurrentEncryptionKey(): Promise<{
 
     return {
       key: newKey,
-      keyId: insertResult[0].id,
+      keyId: insertResult[0]?.id,
     }
   }
 
-  const keyData = JSON.parse(result[0].key_data)
+  const keyData = JSON.parse(result[0]?.key_data || '{}')
   const key = await importKey(keyData)
 
   return {
     key,
-    keyId: result[0].id,
+    keyId: result[0]?.id,
   }
 }
 
@@ -370,7 +373,7 @@ export async function getEncryptionKeyById(keyId: string): Promise<CryptoKey> {
     throw new Error('Encryption key not found')
   }
 
-  const keyData = JSON.parse(result[0].key_data)
+  const keyData = JSON.parse(result[0]?.key_data || '{}')
   return await importKey(keyData)
 }
 

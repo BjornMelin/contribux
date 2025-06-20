@@ -1,13 +1,20 @@
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeAll, vi } from 'vitest'
 import { neon } from '@neondatabase/serverless'
 
-describe('Authentication Database Schema', () => {
+// Skip these tests if no real test database is configured
+const hasTestDatabase = process.env.DATABASE_URL_TEST && 
+  process.env.DATABASE_URL_TEST !== 'sqlite://localhost/:memory:' &&
+  !process.env.DATABASE_URL_TEST.includes('sqlite')
+
+const describeConditional = hasTestDatabase ? describe : describe.skip
+
+describeConditional('Authentication Database Schema', () => {
   let sql: ReturnType<typeof neon>
 
   beforeAll(() => {
-    const testUrl = process.env.DATABASE_URL_TEST || process.env.DATABASE_URL
-    if (!testUrl) {
-      throw new Error('No test database URL configured')
+    const testUrl = process.env.DATABASE_URL_TEST
+    if (!testUrl || testUrl.includes('sqlite')) {
+      throw new Error('These tests require a real PostgreSQL test database. Set DATABASE_URL_TEST in .env.local')
     }
     sql = neon(testUrl)
   })

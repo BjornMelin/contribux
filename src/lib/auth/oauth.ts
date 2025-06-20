@@ -1,7 +1,7 @@
 import { z } from 'zod'
+import { oauthConfig } from '@/lib/config'
 import { sql } from '@/lib/db/config'
 import { env } from '@/lib/validation/env'
-import { oauthConfig } from '@/lib/config'
 import type { OAuthCallbackParams, OAuthTokens, User } from '@/types/auth'
 import { decryptOAuthToken, encryptOAuthToken } from './crypto'
 import { generatePKCEChallenge } from './pkce'

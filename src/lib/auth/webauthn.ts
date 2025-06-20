@@ -14,8 +14,6 @@ import type {
 } from '@simplewebauthn/types'
 import { z } from 'zod'
 import { sql } from '@/lib/db/config'
-import { webauthnConfig } from '@/lib/config'
-import { env } from '@/lib/validation/env'
 import { getWebAuthnConfig, isOriginAllowed, type WebAuthnConfig } from './webauthn-config'
 
 // Validation schemas

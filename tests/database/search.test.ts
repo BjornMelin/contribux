@@ -1,4 +1,5 @@
 // Hybrid search function tests
+import { describe, it, expect, beforeAll } from 'vitest'
 import { neon } from "@neondatabase/serverless";
 
 describe("Hybrid Search Functions", () => {

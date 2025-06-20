@@ -227,10 +227,15 @@ export const envSchema = z
     }
 
     // OAuth configuration validation (only in production)
-    if (data.NODE_ENV === 'production' && data.ENABLE_OAUTH && (!data.GITHUB_CLIENT_ID || !data.GITHUB_CLIENT_SECRET)) {
+    if (
+      data.NODE_ENV === 'production' &&
+      data.ENABLE_OAUTH &&
+      (!data.GITHUB_CLIENT_ID || !data.GITHUB_CLIENT_SECRET)
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET are required when OAuth is enabled in production',
+        message:
+          'GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET are required when OAuth is enabled in production',
         path: ['GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET'],
       })
     }

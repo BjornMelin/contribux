@@ -3,9 +3,17 @@
  * Handles consent management, data portability, and user rights
  */
 
-import { sql } from '@/lib/db/config'
 import { auditConfig } from '@/lib/config'
-import type { User, UserConsent, UserDataExport } from '@/types/auth'
+import { sql } from '@/lib/db/config'
+import type {
+  OAuthAccount,
+  SecurityAuditLog,
+  User,
+  UserConsent,
+  UserDataExport,
+  UserSession,
+  WebAuthnCredential,
+} from '@/types/auth'
 
 // Consent types
 export const CONSENT_TYPES = {
@@ -81,13 +89,16 @@ export async function revokeUserConsent(params: {
     user_agent?: string
   }
 }): Promise<void> {
-  await recordUserConsent({
+  const consentParams: Parameters<typeof recordUserConsent>[0] = {
     userId: params.userId,
     consentType: params.consentType,
     granted: false,
     version: CURRENT_VERSIONS[params.consentType as ConsentType] || '1.0',
-    context: params.context,
-  })
+  }
+  if (params.context) {
+    consentParams.context = params.context
+  }
+  await recordUserConsent(consentParams)
 }
 
 // Get user consents
@@ -132,6 +143,9 @@ export async function checkConsentRequired(
   }
 
   const consent = result[0]
+  if (!consent) {
+    return true // No consent found
+  }
 
   // Check if version is outdated
   if (consent.version !== requiredVersion) {
@@ -189,16 +203,16 @@ export async function exportUserData(
     _metadata: { exported_at: Date; export_version: string; user_id: string }
   } = {
     user,
-    oauth_accounts: oauthAccounts,
-    webauthn_credentials: webauthnCredentials.map(cred => {
+    oauth_accounts: oauthAccounts as OAuthAccount[],
+    webauthn_credentials: (webauthnCredentials as WebAuthnCredential[]).map(cred => {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { public_key: _publicKey, ...credWithoutKey } = cred as WebAuthnCredential
+      const { public_key: _publicKey, ...credWithoutKey } = cred
       return credWithoutKey
     }),
-    sessions,
-    consents,
-    audit_logs: auditLogs,
-    preferences: preferences[0] || {},
+    sessions: sessions as UserSession[],
+    consents: consents as UserConsent[],
+    audit_logs: auditLogs as SecurityAuditLog[],
+    preferences: (preferences as Record<string, unknown>[])[0] || {},
     notifications,
     contributions,
     interactions,
@@ -360,8 +374,9 @@ export async function identifyDataForDeletion() {
 
   return {
     inactive_users: inactiveUsers,
-    old_sessions_count: oldSessions.length > 0 ? Number.parseInt(oldSessions[0].count) : 0,
-    old_audit_logs_count: oldAuditLogs.length > 0 ? Number.parseInt(oldAuditLogs[0].count) : 0,
+    old_sessions_count: oldSessions.length > 0 ? Number.parseInt(oldSessions[0]?.count || '0') : 0,
+    old_audit_logs_count:
+      oldAuditLogs.length > 0 ? Number.parseInt(oldAuditLogs[0]?.count || '0') : 0,
   }
 }
 
@@ -460,7 +475,7 @@ export async function checkGDPRCompliance(userId: string) {
   return {
     compliant: missingConsents.length === 0,
     missingConsents,
-    recentDataRequests: Number.parseInt(hasDataExportRequest[0].count),
+    recentDataRequests: Number.parseInt(hasDataExportRequest[0]?.count || '0'),
     dataRetentionCompliant: true, // Simplified for now
   }
 }

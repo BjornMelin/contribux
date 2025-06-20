@@ -4,23 +4,24 @@
  * Using jose library for standards-compliant JWT handling
  */
 
-import { createHash, randomBytes } from 'node:crypto'
+import { createHash, webcrypto as crypto, randomBytes } from 'node:crypto'
 import { errors as joseErrors, jwtVerify, SignJWT } from 'jose'
+import { authConfig } from '@/lib/config'
 import { sql } from '@/lib/db/config'
 import type { AccessTokenPayload, RefreshTokenPayload, User, UserSession } from '@/types/auth'
 
-// Token configuration
-const ACCESS_TOKEN_EXPIRY = 15 * 60 // 15 minutes in seconds
-const REFRESH_TOKEN_EXPIRY = 7 * 24 * 60 * 60 // 7 days in seconds
+// Token configuration from centralized config
+const ACCESS_TOKEN_EXPIRY = authConfig.jwt.accessTokenExpiry
+const REFRESH_TOKEN_EXPIRY = authConfig.jwt.refreshTokenExpiry
 const TOKEN_ISSUER = 'contribux'
 const TOKEN_AUDIENCE = ['contribux-api']
 
-// JWT signing secret (in production, use environment variable)
-const getJwtSecret = () => {
-  const secret = process.env.JWT_SECRET
-  if (!secret) {
-    throw new Error('JWT_SECRET environment variable is not set')
-  }
+import { getJwtSecret as getValidatedJwtSecret } from '@/lib/validation/env'
+
+// JWT signing secret from validated environment
+const getJwtSecret = (): Uint8Array => {
+  // Use the validated JWT secret from our environment validation system
+  const secret = getValidatedJwtSecret()
   // Convert string secret to Uint8Array for jose
   return new TextEncoder().encode(secret)
 }
@@ -49,6 +50,11 @@ async function signJWT(payload: Record<string, unknown>, secret: Uint8Array): Pr
   // Set subject if provided
   if (payload.sub) {
     jwt.setSubject(payload.sub as string)
+  }
+
+  // Set JTI (JWT ID) if provided for replay protection
+  if (payload.jti) {
+    jwt.setJti(payload.jti as string)
   }
 
   return await jwt.sign(secret)
@@ -84,30 +90,29 @@ async function verifyJWT(token: string, secret: Uint8Array): Promise<Record<stri
 }
 
 // Generate access token
-export async function generateAccessToken(user: User, session: UserSession): Promise<string> {
+export async function generateAccessToken(
+  user: User,
+  session: UserSession | { id: string },
+  authMethod?: string
+): Promise<string> {
   const now = Math.floor(Date.now() / 1000)
 
   const payload: AccessTokenPayload = {
     sub: user.id,
     email: user.email,
-    github_username: user.github_username,
-    auth_method: session.auth_method,
+    github_username: user.github_username || '',
+    auth_method: (authMethod || (session as UserSession).auth_method || 'oauth') as
+      | 'webauthn'
+      | 'oauth',
     session_id: session.id,
     iat: now,
     exp: now + ACCESS_TOKEN_EXPIRY,
     iss: TOKEN_ISSUER,
     aud: TOKEN_AUDIENCE,
+    jti: crypto.randomUUID(), // Add unique JWT ID for replay protection
   }
 
-  try {
-    return await signJWT(payload, getJwtSecret())
-  } catch (error) {
-    // In test environment, use a fallback secret
-    if (process.env.NODE_ENV === 'test') {
-      return await signJWT(payload, new TextEncoder().encode('test-secret'))
-    }
-    throw error
-  }
+  return await signJWT(payload as unknown as Record<string, unknown>, getJwtSecret())
 }
 
 // Generate refresh token
@@ -141,7 +146,7 @@ export async function generateRefreshToken(userId: string, sessionId: string): P
   // Create JWT-like structure for the token
   const now = Math.floor(Date.now() / 1000)
   const payload: RefreshTokenPayload = {
-    jti: result[0].id,
+    jti: result[0]?.id || '',
     sub: userId,
     session_id: sessionId,
     iat: now,
@@ -163,12 +168,12 @@ export async function verifyAccessToken(token: string): Promise<AccessTokenPaylo
 
   try {
     const payload = await verifyJWT(token, getJwtSecret())
-    return payload as AccessTokenPayload
+    return payload as unknown as AccessTokenPayload
   } catch (error) {
     if (process.env.NODE_ENV === 'test') {
       try {
         const payload = await verifyJWT(token, new TextEncoder().encode('test-secret'))
-        return payload as AccessTokenPayload
+        return payload as unknown as AccessTokenPayload
       } catch (testError) {
         if (testError instanceof Error && testError.message === 'Token expired') {
           throw new Error('Token expired')
@@ -200,6 +205,9 @@ export async function verifyRefreshToken(token: string): Promise<RefreshTokenPay
   const payloadPart = parts[1] || null
 
   // Create hash of token part
+  if (!tokenPart) {
+    throw new Error('Invalid token format')
+  }
   const tokenHash = createHash('sha256').update(tokenPart).digest('hex')
 
   // Verify token exists and is valid
@@ -221,6 +229,9 @@ export async function verifyRefreshToken(token: string): Promise<RefreshTokenPay
   }
 
   const tokenData = result[0]
+  if (!tokenData) {
+    throw new Error('Invalid refresh token')
+  }
 
   // Check if revoked
   if (tokenData.revoked_at) {
@@ -282,7 +293,9 @@ export async function rotateRefreshToken(oldToken: string): Promise<{
     if (error instanceof Error && error.message === 'Token reuse detected') {
       // Security: Revoke all user tokens on reuse detection
       const parts = oldToken.split('.')
-      const tokenHash = createHash('sha256').update(parts[0]).digest('hex')
+      const tokenHash = createHash('sha256')
+        .update(parts[0] || '')
+        .digest('hex')
 
       const tokenResult = await sql`
         SELECT user_id FROM refresh_tokens
@@ -290,7 +303,7 @@ export async function rotateRefreshToken(oldToken: string): Promise<{
         LIMIT 1
       `
 
-      if (tokenResult.length > 0) {
+      if (tokenResult.length > 0 && tokenResult[0]) {
         await sql`SELECT revoke_all_user_tokens(${tokenResult[0].user_id})`
       }
     }
@@ -332,22 +345,26 @@ export async function rotateRefreshToken(oldToken: string): Promise<{
   const newTokenParts = newRefreshToken.split('.')
   let newTokenId: string
   if (newTokenParts.length >= 2) {
-    const newPayload = JSON.parse(base64urlDecode(newTokenParts[1])) as RefreshTokenPayload
+    const newPayload = JSON.parse(base64urlDecode(newTokenParts[1] || '')) as RefreshTokenPayload
     newTokenId = newPayload.jti
   } else {
     // For test environment, extract ID from the database operation
-    const newTokenHash = createHash('sha256').update(newTokenParts[0]).digest('hex')
+    const newTokenHash = createHash('sha256')
+      .update(newTokenParts[0] || '')
+      .digest('hex')
     const newTokenResult = await sql`
       SELECT id FROM refresh_tokens
       WHERE token_hash = ${newTokenHash}
       LIMIT 1
     `
-    newTokenId = newTokenResult[0].id
+    newTokenId = newTokenResult[0]?.id || ''
   }
 
   // Revoke old token and link to new one
   const oldTokenParts = oldToken.split('.')
-  const oldTokenHash = createHash('sha256').update(oldTokenParts[0]).digest('hex')
+  const oldTokenHash = createHash('sha256')
+    .update(oldTokenParts[0] || '')
+    .digest('hex')
 
   await sql`
     UPDATE refresh_tokens
@@ -371,7 +388,9 @@ export async function revokeRefreshToken(token: string): Promise<void> {
     throw new Error('Invalid token format')
   }
 
-  const tokenHash = createHash('sha256').update(parts[0]).digest('hex')
+  const tokenHash = createHash('sha256')
+    .update(parts[0] || '')
+    .digest('hex')
 
   await sql`
     UPDATE refresh_tokens
@@ -419,7 +438,7 @@ export async function cleanupExpiredTokens(): Promise<number> {
     SELECT COUNT(*) as count FROM deleted
   `
 
-  return Number.parseInt(result[0].count)
+  return Number.parseInt(result[0]?.count || '0')
 }
 
 // Helper functions

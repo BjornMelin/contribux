@@ -4,15 +4,15 @@
  */
 
 import { timingSafeEqual } from 'node:crypto'
+import Redis from 'ioredis'
 import { type NextRequest, NextResponse } from 'next/server'
+import { RateLimiterMemory, RateLimiterRedis } from 'rate-limiter-flexible'
 import { sql } from '@/lib/db/config'
+import { env } from '@/lib/validation/env'
 import type { AccessTokenPayload, User } from '@/types/auth'
 import { logSecurityEvent } from './audit'
 import { checkConsentRequired } from './gdpr'
 import { verifyAccessToken } from './jwt'
-import { RateLimiterRedis, RateLimiterMemory } from 'rate-limiter-flexible'
-import Redis from 'ioredis'
-import { env } from '@/lib/validation/env'
 
 // Public routes that don't require authentication
 const PUBLIC_ROUTES = ['/', '/about', '/pricing', '/legal']
@@ -439,9 +439,9 @@ export async function rateLimit(
     let customRateLimiter = rateLimiter
     if (limit !== 60 || window !== 60 * 1000) {
       try {
-        if (redisRateLimiter && redisAvailable && !isCircuitBreakerOpen()) {
+        if (redisRateLimiter && redisAvailable && !isCircuitBreakerOpen() && redisClient) {
           customRateLimiter = new RateLimiterRedis({
-            storeClient: redisClient!,
+            storeClient: redisClient,
             keyPrefix: 'rl_custom',
             points: limit,
             duration: Math.floor(window / 1000), // Convert to seconds
@@ -478,14 +478,15 @@ export async function rateLimit(
       remaining: result.remainingPoints !== undefined ? result.remainingPoints : limit - 1,
       reset: Date.now() + (result.msBeforeNext || window),
     }
-  } catch (rejRes: any) {
+  } catch (rejRes: unknown) {
     // Rate limit exceeded
-    if (rejRes?.remainingPoints !== undefined) {
+    if (rejRes && typeof rejRes === 'object' && 'remainingPoints' in rejRes) {
+      const rateLimitError = rejRes as { remainingPoints: number; msBeforeNext?: number }
       return {
         allowed: false,
         limit,
         remaining: 0,
-        reset: Date.now() + (rejRes.msBeforeNext || window),
+        reset: Date.now() + (rateLimitError.msBeforeNext || window),
       }
     }
 
@@ -561,14 +562,17 @@ async function legacyRateLimit(
  * Check if maintenance mode is active
  */
 export async function checkMaintenanceMode(request: NextRequest): Promise<boolean> {
-  if (!env.MAINTENANCE_MODE) {
+  // Check process.env directly to allow for runtime changes (useful for testing)
+  const maintenanceMode = process.env.MAINTENANCE_MODE === 'true'
+  if (!maintenanceMode) {
     return false
   }
 
   // Check for bypass token
   const bypassToken = request.headers.get('X-Maintenance-Bypass')
-  if (bypassToken && env.MAINTENANCE_BYPASS_TOKEN) {
-    return bypassToken !== env.MAINTENANCE_BYPASS_TOKEN
+  const bypassSecret = process.env.MAINTENANCE_BYPASS_TOKEN
+  if (bypassToken && bypassSecret) {
+    return bypassToken !== bypassSecret
   }
 
   return true
