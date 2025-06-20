@@ -1,0 +1,21 @@
+# pnpm configuration
+shamefully-hoist=true
+strict-peer-dependencies=false
+auto-install-peers=true
+shared-workspace-lockfile=true
+prefer-workspace-packages=true
+save-workspace-protocol=rolling
+enable-pre-post-scripts=true
+
+# Security
+audit-level=moderate
+
+# Performance
+frozen-lockfile=false
+prefer-frozen-lockfile=true
+
+# Registry settings
+registry=https://registry.npmjs.org/
+
+# Node.js settings
+node-linker=isolated
