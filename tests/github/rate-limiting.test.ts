@@ -29,10 +29,16 @@ describe('GitHub Rate Limiting', () => {
         })
 
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' }
+        auth: { type: 'token', token: 'test_token' },
+        cache: undefined // Ensure no cache is used
       })
 
       await client.rest.users.getAuthenticated()
+      
+      // Allow time for hooks to process
+      await new Promise(resolve => setTimeout(resolve, 10))
+      
+      // The rate limit manager updates from response headers
       const rateLimitInfo = client.getRateLimitInfo()
 
       expect(rateLimitInfo.core.limit).toBe(5000)
@@ -394,7 +400,8 @@ describe('GitHub Rate Limiting', () => {
         throttle: {
           enabled: true,
           onRateLimitWarning
-        }
+        },
+        cache: { enabled: false } // Disable cache to ensure request is made
       })
 
       nock('https://api.github.com')
@@ -402,7 +409,8 @@ describe('GitHub Rate Limiting', () => {
         .reply(200, { login: 'testuser' }, {
           'x-ratelimit-limit': '5000',
           'x-ratelimit-remaining': '100',
-          'x-ratelimit-reset': (Math.floor(Date.now() / 1000) + 3600).toString()
+          'x-ratelimit-reset': (Math.floor(Date.now() / 1000) + 3600).toString(),
+          'x-ratelimit-resource': 'core'
         })
 
       await client.rest.users.getAuthenticated()
@@ -432,9 +440,13 @@ describe('GitHub Rate Limiting', () => {
       const uniqueDelays = new Set(delays)
       expect(uniqueDelays.size).toBeGreaterThan(1)
 
-      // Check exponential backoff pattern
-      expect(delays[0]).toBeLessThan(delays[5])
-      expect(delays[5]).toBeLessThan(delays[9])
+      // Check exponential backoff pattern (with consideration for max cap)
+      expect(delays[0]).toBeLessThan(delays[2])
+      expect(delays[2]).toBeLessThan(delays[4])
+      
+      // Check max cap is applied
+      const maxDelay = Math.max(...delays)
+      expect(maxDelay).toBeLessThanOrEqual(30000)
     })
   })
 })

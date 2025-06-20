@@ -1,44 +1,62 @@
-import type { RetryOptions, CircuitBreakerOptions } from '../types'
-import { 
-  GitHubClientError, 
-  GitHubRateLimitError,
+import {
+  GitHubClientError,
   isRateLimitError,
+  isRequestError,
   isSecondaryRateLimitError,
-  isRequestError
 } from '../errors'
+import type { CircuitBreakerOptions, RetryOptions } from '../types'
 
 export interface RetryState {
   attempt: number
   lastError?: Error
   startTime: number
+  totalDelay: number
+}
+
+export interface RetryContext {
+  method?: string
+  url?: string
+  requestId?: string
+}
+
+export interface CircuitBreakerState {
+  state: 'CLOSED' | 'OPEN' | 'HALF_OPEN'
+  failures: number
+  successes: number
+  lastFailureTime: number
+  lastSuccessTime: number
+  nextAttemptTime: number
 }
 
 export class CircuitBreaker {
-  private failures: number = 0
-  private lastFailureTime: number = 0
+  private failures = 0
+  private successes = 0
+  private lastFailureTime = 0
+  private lastSuccessTime = 0
   private state: 'CLOSED' | 'OPEN' | 'HALF_OPEN' = 'CLOSED'
-  
+
   constructor(private options: CircuitBreakerOptions) {}
 
   canExecute(): boolean {
     if (!this.options.enabled) return true
 
     const now = Date.now()
-    
+
     switch (this.state) {
       case 'CLOSED':
         return true
-      
+
       case 'OPEN':
         if (now - this.lastFailureTime >= this.options.recoveryTimeout) {
           this.state = 'HALF_OPEN'
+          this.successes = 0 // Reset success counter for half-open state
           return true
         }
         return false
-      
+
       case 'HALF_OPEN':
         return true
-      
+
       default:
         return true
     }
@@ -47,8 +65,20 @@ export class CircuitBreaker {
   recordSuccess(): void {
     if (!this.options.enabled) return
 
-    this.failures = 0
-    this.state = 'CLOSED'
+    this.successes++
+    this.lastSuccessTime = Date.now()
+
+    if (this.state === 'HALF_OPEN') {
+      // Require multiple successes to fully close from half-open
+      const requiredSuccesses = Math.min(this.options.failureThreshold, 3)
+      if (this.successes >= requiredSuccesses) {
+        this.state = 'CLOSED'
+        this.failures = 0
+      }
+    } else if (this.state === 'CLOSED') {
+      // Gradually reduce failure count on success
+      this.failures = Math.max(0, this.failures - 1)
+    }
   }
 
   recordFailure(): void {
@@ -57,67 +87,107 @@ export class CircuitBreaker {
     this.failures++
     this.lastFailureTime = Date.now()
 
-    if (this.failures >= this.options.failureThreshold) {
+    if (this.state === 'HALF_OPEN') {
+      // Any failure in half-open immediately opens the circuit
+      this.state = 'OPEN'
+    } else if (this.failures >= this.options.failureThreshold) {
       this.state = 'OPEN'
     }
   }
 
-  getState(): string {
-    return this.state
+  getState(): CircuitBreakerState {
+    return {
+      state: this.state,
+      failures: this.failures,
+      successes: this.successes,
+      lastFailureTime: this.lastFailureTime,
+      lastSuccessTime: this.lastSuccessTime,
+      nextAttemptTime:
+        this.state === 'OPEN' ? this.lastFailureTime + this.options.recoveryTimeout : 0,
+    }
+  }
+
+  reset(): void {
+    this.state = 'CLOSED'
+    this.failures = 0
+    this.successes = 0
+    this.lastFailureTime = 0
+    this.lastSuccessTime = 0
   }
 }
 
 export class RetryManager {
   private circuitBreaker?: CircuitBreaker
-  
+
   constructor(private options: RetryOptions) {
     if (this.options.circuitBreaker?.enabled) {
       this.circuitBreaker = new CircuitBreaker(this.options.circuitBreaker)
     }
   }
 
-  async executeWithRetry<T>(
-    operation: () => Promise<T>,
-    context?: { method?: string; url?: string }
-  ): Promise<T> {
+  async executeWithRetry<T>(operation: () => Promise<T>, context?: RetryContext): Promise<T> {
+    const retryState: RetryState = {
+      attempt: 0,
+      startTime: Date.now(),
+      totalDelay: 0,
+    }
+
     let lastError: Error | undefined
-    
-    for (let attempt = 0; attempt <= (this.options.retries || 3); attempt++) {
+
+    for (let attempt = 0; attempt <= (this.options.retries ?? 3); attempt++) {
+      retryState.attempt = attempt
+
       // Check circuit breaker
       if (this.circuitBreaker && !this.circuitBreaker.canExecute()) {
+        const cbState = this.circuitBreaker.getState()
+        const nextAttemptIn = Math.max(0, cbState.nextAttemptTime - Date.now())
         throw new GitHubClientError(
-          'Circuit breaker is open - operation temporarily unavailable'
+          `Circuit breaker is ${cbState.state.toLowerCase()} - operation temporarily unavailable. ` +
+            `Next attempt in ${Math.ceil(nextAttemptIn / 1000)}s`
         )
       }
 
       try {
         const result = await operation()
-        
+
         // Record success for circuit breaker
         this.circuitBreaker?.recordSuccess()
-        
+
+        // Log successful retry if this wasn't the first attempt
+        if (attempt > 0 && this.options.onRetry) {
+          this.options.onRetry(
+            lastError || new Error('Previous attempts failed'),
+            attempt,
+            retryState
+          )
+        }
+
         return result
-      } catch (error: any) {
-        lastError = error
-        
+      } catch (error: unknown) {
+        const errorObj = error instanceof Error ? error : new Error(String(error))
+        lastError = errorObj
+        retryState.lastError = errorObj
+
         // Record failure for circuit breaker
         this.circuitBreaker?.recordFailure()
 
         // Don't retry on last attempt
-        if (attempt === (this.options.retries || 3)) {
+        if (attempt === (this.options.retries ?? 3)) {
           break
         }
 
         // Check if we should retry this error
-        if (!this.shouldRetry(error, attempt)) {
+        if (!this.shouldRetry(errorObj, attempt)) {
           break
         }
 
-        // Call retry callback if provided
-        this.options.onRetry?.(error, attempt + 1)
-
         // Calculate delay and wait
-        const delay = this.calculateRetryDelay(error, attempt)
+        const delay = this.calculateRetryDelay(errorObj, attempt)
+        retryState.totalDelay += delay
+
+        // Call retry callback if provided
+        this.options.onRetry?.(errorObj, attempt + 1, retryState)
+
         if (delay > 0) {
           await this.sleep(delay)
         }
@@ -127,7 +197,7 @@ export class RetryManager {
     throw lastError || new GitHubClientError('Operation failed after retries')
   }
 
-  private shouldRetry(error: any, retryCount: number): boolean {
+  private shouldRetry(error: Error, retryCount: number): boolean {
     // Use custom retry logic if provided
     if (this.options.shouldRetry) {
       return this.options.shouldRetry(error, retryCount)
@@ -140,12 +210,12 @@ export class RetryManager {
 
     // Don't retry certain HTTP status codes
     if (isRequestError(error)) {
-      const doNotRetry = this.options.doNotRetry || [400, 401, 403, 404, 422]
+      const doNotRetry = this.options.doNotRetry ?? [400, 401, 403, 404, 422]
       if (doNotRetry.includes(error.status)) {
         return false
       }
 
-      // Always retry on rate limits
+      // Always retry on rate limits (403 with specific headers)
       if (isRateLimitError(error) || isSecondaryRateLimitError(error)) {
         return true
       }
@@ -156,7 +226,7 @@ export class RetryManager {
       }
 
       // Retry on specific client errors
-      if ([408, 409, 429].includes(error.status)) {
+      if ([408, 409, 429, 502, 503, 504].includes(error.status)) {
         return true
       }
 
@@ -173,27 +243,37 @@ export class RetryManager {
       return true
     }
 
+    // Retry on timeout errors
+    if (this.isTimeoutError(error)) {
+      return true
+    }
+
     return false
   }
 
   private shouldRetryGraphQLError(error: any): boolean {
     // Don't retry on query validation errors
-    if (error.errors) {
+    if (error.errors && Array.isArray(error.errors)) {
       for (const gqlError of error.errors) {
         // Retry on rate limiting
         if (gqlError.type === 'RATE_LIMITED') {
           return true
         }
-        
+
         // Don't retry on syntax or validation errors
         if (gqlError.type === 'VALIDATION' || gqlError.type === 'GRAPHQL_PARSE_FAILED') {
+          return false
+        }
+
+        // Don't retry on authentication errors
+        if (gqlError.type === 'FORBIDDEN' || gqlError.type === 'UNAUTHORIZED') {
           return false
         }
       }
     }
 
-    // Default: don't retry GraphQL errors unless specifically handled above
-    return false
+    // Default: retry GraphQL errors that might be transient
+    return true
   }
 
   private isGraphQLError(error: any): boolean {
@@ -207,12 +287,24 @@ export class RetryManager {
       error.code === 'ENOTFOUND' ||
       error.code === 'ECONNREFUSED' ||
       error.code === 'ETIMEDOUT' ||
+      error.code === 'ENOTFOUND' ||
+      error.code === 'EAI_AGAIN' ||
       error.message?.includes('network') ||
-      error.message?.includes('timeout')
+      error.message?.includes('socket') ||
+      error.message?.includes('connection')
     )
   }
 
-  private calculateRetryDelay(error: any, retryCount: number): number {
+  private isTimeoutError(error: any): boolean {
+    return (
+      error.code === 'ETIMEDOUT' ||
+      error.code === 'ESOCKETTIMEDOUT' ||
+      error.message?.includes('timeout') ||
+      error.message?.includes('timed out')
+    )
+  }
+
+  private calculateRetryDelay(error: Error, retryCount: number): number {
     // Use custom delay calculation if provided
     if (this.options.calculateDelay) {
       return this.options.calculateDelay(retryCount, this.options.retryAfterBaseValue)
@@ -222,9 +314,12 @@ export class RetryManager {
     let retryAfter: number | undefined
 
     if (isRequestError(error)) {
-      const retryAfterHeader = error.response?.headers?.['retry-after']
+      const retryAfterHeader = (error as any).response?.headers?.['retry-after']
       if (retryAfterHeader) {
-        retryAfter = parseInt(retryAfterHeader, 10) * 1000 // Convert to milliseconds
+        const seconds = Number.parseInt(retryAfterHeader, 10)
+        if (!Number.isNaN(seconds)) {
+          retryAfter = seconds * 1000 // Convert to milliseconds
+        }
       }
     }
 
@@ -238,34 +333,58 @@ export class RetryManager {
     }
     return new Promise(resolve => setTimeout(resolve, ms))
   }
+
+  getCircuitBreakerState(): CircuitBreakerState | null {
+    return this.circuitBreaker?.getState() ?? null
+  }
+
+  resetCircuitBreaker(): void {
+    this.circuitBreaker?.reset()
+  }
 }
 
+/**
+ * Calculate retry delay with exponential backoff and jitter
+ * Following 2025 best practices:
+ * - Uses full jitter (±25%) to prevent thundering herd
+ * - Caps at 30 seconds maximum
+ * - Respects retry-after headers for rate limits
+ */
 export function calculateRetryDelay(
-  retryCount: number, 
-  baseDelay: number = 1000,
+  retryCount: number,
+  baseDelay = 1000,
   retryAfter?: number
 ): number {
-  // Use retry-after header if provided
+  // Use retry-after header if provided (rate limit scenario)
   if (retryAfter !== undefined && retryAfter > 0) {
-    return retryAfter
+    // Add small jitter to retry-after to prevent thundering herd
+    const jitter = retryAfter * 0.1 * (Math.random() - 0.5)
+    return Math.max(100, Math.floor(retryAfter + jitter))
   }
 
   // Exponential backoff: 2^retryCount * baseDelay
-  const exponentialDelay = Math.pow(2, retryCount) * baseDelay
+  const exponentialDelay = 2 ** retryCount * baseDelay
 
-  // Add jitter (±10%) to prevent thundering herd
-  const jitter = exponentialDelay * 0.1 * (Math.random() * 2 - 1)
+  // Add jitter (±25%) to prevent thundering herd
+  const jitter = exponentialDelay * 0.25 * (Math.random() * 2 - 1)
   const delayWithJitter = exponentialDelay + jitter
 
   // Cap at 30 seconds maximum
-  return Math.min(delayWithJitter, 30000)
+  return Math.max(100, Math.min(Math.floor(delayWithJitter), 30000))
 }
 
+/**
+ * Helper function to determine if an error should be retried
+ * @deprecated Use RetryManager.shouldRetry instead
+ */
 export function shouldRetryError(error: any, retryCount: number, options: RetryOptions): boolean {
   const manager = new RetryManager(options)
   return (manager as any).shouldRetry(error, retryCount)
 }
 
+/**
+ * Create default retry options following 2025 best practices
+ */
 export function createDefaultRetryOptions(): RetryOptions {
   return {
     enabled: true,
@@ -273,13 +392,16 @@ export function createDefaultRetryOptions(): RetryOptions {
     retryAfterBaseValue: 1000,
     doNotRetry: [400, 401, 403, 404, 422],
     circuitBreaker: {
-      enabled: false,
+      enabled: true, // Enable by default in 2025
       failureThreshold: 5,
-      recoveryTimeout: 30000
-    }
+      recoveryTimeout: 30000, // 30 seconds
+    },
   }
 }
 
+/**
+ * Validate retry options and throw descriptive errors for invalid configurations
+ */
 export function validateRetryOptions(options: RetryOptions): void {
   if (options.retries !== undefined) {
     if (options.retries < 0) {
@@ -302,4 +424,25 @@ export function validateRetryOptions(options: RetryOptions): void {
       throw new GitHubClientError('Circuit breaker recovery timeout must be at least 1000ms')
     }
   }
+}
+
+/**
+ * Create a retry-enabled function wrapper
+ */
+export function withRetry<T extends (...args: any[]) => Promise<any>>(
+  fn: T,
+  options: RetryOptions = createDefaultRetryOptions()
+): T {
+  const manager = new RetryManager(options)
+
+  return ((...args: Parameters<T>) => {
+    return manager.executeWithRetry(() => fn(...args))
+  }) as T
+}
+
+/**
+ * Utility to create a delay promise (for testing and manual delays)
+ */
+export function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
 }

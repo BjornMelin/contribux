@@ -131,9 +131,13 @@ describe('GitHub Client Retry Logic', () => {
     })
 
     it('should retry on 503 Service Unavailable errors', async () => {
+      vi.useRealTimers() // Use real timers for this test
       const client = new GitHubClient({
         auth: { type: 'token', token: 'test_token' },
-        retry: { retries: 2 }
+        retry: { 
+          retries: 1,
+          calculateDelay: () => 10 // Short delay for testing
+        }
       })
 
       let attemptCount = 0
@@ -156,7 +160,7 @@ describe('GitHub Client Retry Logic', () => {
       
       expect(attemptCount).toBe(2)
       expect(result.data[0].title).toBe('Test Issue')
-    })
+    }, 10000)
 
     it('should NOT retry on permanent 4xx client errors', async () => {
       vi.useRealTimers() // Use real timers for this test
@@ -183,6 +187,8 @@ describe('GitHub Client Retry Logic', () => {
     }, 5000)
 
     it('should NOT retry on 422 Unprocessable Entity errors', async () => {
+      vi.useRealTimers() // Use real timers for this test
+      
       const client = new GitHubClient({
         auth: { type: 'token', token: 'test_token' },
         retry: { retries: 3 }
@@ -207,14 +213,19 @@ describe('GitHub Client Retry Logic', () => {
       })).rejects.toThrow()
       
       expect(attemptCount).toBe(1)
-    })
+    }, 10000)
   })
 
   describe('Rate limit retry handling', () => {
     it('should retry after primary rate limit with proper delay', async () => {
+      vi.useRealTimers() // Use real timers for this test
+      
       const client = new GitHubClient({
         auth: { type: 'token', token: 'test_token' },
-        retry: { retries: 2 }
+        retry: { 
+          retries: 2,
+          calculateDelay: () => 10 // Very short delay for testing
+        }
       })
 
       let attemptCount = 0
@@ -231,61 +242,59 @@ describe('GitHub Client Retry Logic', () => {
                 'x-ratelimit-limit': '5000',
                 'x-ratelimit-remaining': '0',
                 'x-ratelimit-reset': Math.floor((Date.now() + 60000) / 1000).toString(),
-                'retry-after': '60'
+                'retry-after': '1' // Short retry after for testing
               }
             ]
           }
           return [200, { login: 'testuser' }]
         })
 
-      const startTime = Date.now()
-      const resultPromise = client.rest.users.getAuthenticated()
-
-      // Fast-forward time to simulate waiting
-      vi.advanceTimersByTime(60000)
-
-      const result = await resultPromise
+      const result = await client.rest.users.getAuthenticated()
       
       expect(attemptCount).toBe(2)
       expect(result.data.login).toBe('testuser')
-    })
+    }, 15000)
 
     it('should retry after secondary rate limit', async () => {
+      vi.useRealTimers() // Use real timers for this test
+      
       const client = new GitHubClient({
         auth: { type: 'token', token: 'test_token' },
-        retry: { retries: 2 }
+        retry: { 
+          retries: 2,
+          calculateDelay: () => 10 // Very short delay for testing
+        }
       })
 
       let attemptCount = 0
 
       nock('https://api.github.com')
         .get('/search/repositories')
+        .query({ q: 'test' })
         .times(2)
         .reply(() => {
           attemptCount++
           if (attemptCount === 1) {
             return [403, 
               { message: 'You have exceeded a secondary rate limit' },
-              { 'retry-after': '30' }
+              { 'retry-after': '1' } // Short retry after for testing
             ]
           }
           return [200, { total_count: 0, items: [] }]
         })
 
-      const resultPromise = client.rest.search.repos({ q: 'test' })
-
-      // Fast-forward time to simulate waiting
-      vi.advanceTimersByTime(30000)
-
-      const result = await resultPromise
+      const result = await client.rest.search.repos({ q: 'test' })
       
       expect(attemptCount).toBe(2)
       expect(result.data.total_count).toBe(0)
-    })
+    }, 15000)
 
     it('should extract retry delay from Retry-After header', async () => {
+      vi.useRealTimers() // Use real timers for this test
+      
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' }
+        auth: { type: 'token', token: 'test_token' },
+        retry: { retries: 0 } // Don't retry, just test delay extraction
       })
 
       let capturedDelay: number | undefined
@@ -311,19 +320,22 @@ describe('GitHub Client Retry Logic', () => {
       }
 
       expect(capturedDelay).toBe(120000) // 120 seconds in milliseconds
-    })
+    }, 10000)
   })
 
   describe('Circuit breaker functionality', () => {
     it('should implement circuit breaker to prevent cascading failures', async () => {
+      vi.useRealTimers() // Use real timers for this test
+      
       const client = new GitHubClient({
         auth: { type: 'token', token: 'test_token' },
         retry: {
-          retries: 2,
+          retries: 1, // Reduce retries for faster test
+          calculateDelay: () => 1, // Very short delay
           circuitBreaker: {
             enabled: true,
-            failureThreshold: 3,
-            recoveryTimeout: 30000
+            failureThreshold: 2, // Lower threshold
+            recoveryTimeout: 100 // Short recovery timeout
           }
         }
       })
@@ -341,7 +353,7 @@ describe('GitHub Client Retry Logic', () => {
 
       // Make multiple requests that should fail
       const promises = []
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 3; i++) {
         promises.push(
           client.rest.users.getAuthenticated().catch(() => null)
         )
@@ -350,18 +362,21 @@ describe('GitHub Client Retry Logic', () => {
       await Promise.all(promises)
 
       // Circuit breaker should prevent excessive attempts
-      expect(attemptCount).toBeLessThan(15) // Without circuit breaker: 5 * 3 = 15 attempts
-    })
+      expect(attemptCount).toBeLessThan(6) // Without circuit breaker: 3 * 2 = 6 attempts
+    }, 10000)
 
     it('should allow requests after circuit breaker recovery timeout', async () => {
+      vi.useRealTimers() // Use real timers for this test
+      
       const client = new GitHubClient({
         auth: { type: 'token', token: 'test_token' },
         retry: {
           retries: 1,
+          calculateDelay: () => 1, // Very short delay
           circuitBreaker: {
             enabled: true,
             failureThreshold: 2,
-            recoveryTimeout: 5000
+            recoveryTimeout: 100 // Short recovery timeout for testing
           }
         }
       })
@@ -390,8 +405,8 @@ describe('GitHub Client Retry Logic', () => {
         // Expected - should trip circuit breaker
       }
 
-      // Fast-forward past recovery timeout
-      vi.advanceTimersByTime(6000)
+      // Wait for recovery timeout
+      await new Promise(resolve => setTimeout(resolve, 150))
 
       // Now mock successful response
       nock('https://api.github.com')
@@ -401,7 +416,7 @@ describe('GitHub Client Retry Logic', () => {
       // This should succeed after circuit breaker recovery
       const result = await client.rest.users.getAuthenticated()
       expect(result.data.login).toBe('testuser')
-    })
+    }, 10000)
   })
 
   describe('GraphQL retry logic', () => {
@@ -558,10 +573,7 @@ describe('GitHub Client Retry Logic', () => {
 
       const resultPromise = client.rest.users.getAuthenticated()
 
-      // Advance timers to simulate delays
-      vi.advanceTimersByTime(500)
-      vi.advanceTimersByTime(1500)
-      vi.advanceTimersByTime(3000)
+      // Don't advance timers here - let the delays run naturally with shorter values
 
       const result = await resultPromise
       

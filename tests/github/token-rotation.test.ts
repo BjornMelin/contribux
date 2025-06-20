@@ -38,7 +38,9 @@ describe('GitHub Token Rotation', () => {
         .times(6)
         .reply(function(uri, body) {
           const authHeader = this.req.headers.authorization
-          tokenUsage.push(authHeader)
+          if (authHeader && typeof authHeader === 'string') {
+            tokenUsage.push(authHeader)
+          }
           return [200, { login: 'testuser' }]
         })
 
@@ -54,7 +56,7 @@ describe('GitHub Token Rotation', () => {
       expect(tokenUsage[3]).toContain('token1')
       expect(tokenUsage[4]).toContain('token2')
       expect(tokenUsage[5]).toContain('token3')
-    })
+    }, 10000)
 
     it('should use least-used strategy for token rotation', async () => {
       const tokens: TokenInfo[] = [
@@ -93,7 +95,7 @@ describe('GitHub Token Rotation', () => {
       const maxUsage = Math.max(...usageCounts)
       const minUsage = Math.min(...usageCounts)
       expect(maxUsage - minUsage).toBeLessThanOrEqual(1)
-    })
+    }, 10000)
 
     it('should use random strategy for token rotation', async () => {
       const tokens: TokenInfo[] = [

@@ -1,0 +1,59 @@
+# Docker Compose for contribux test database
+# PostgreSQL 16 with pgvector extension for local testing
+
+version: '3.8'
+
+services:
+  test-db:
+    image: pgvector/pgvector:pg16
+    container_name: contribux-test-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: contribux_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      # Enable extensions on startup
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
+    ports:
+      - "5433:5432"
+    volumes:
+      # Mount initialization scripts
+      - ./database/init:/docker-entrypoint-initdb.d
+      # Persistent data for development (optional)
+      - postgres_test_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d contribux_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - contribux-test
+
+  # Optional: pgAdmin for database management during development
+  test-pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: contribux-test-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@contribux.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    ports:
+      - "5050:80"
+    depends_on:
+      test-db:
+        condition: service_healthy
+    networks:
+      - contribux-test
+    profiles:
+      - admin
+
+volumes:
+  postgres_test_data:
+    driver: local
+
+networks:
+  contribux-test:
+    driver: bridge

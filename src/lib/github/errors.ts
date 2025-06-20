@@ -1,5 +1,4 @@
 import type { RequestError } from '@octokit/types'
-import type { GitHubErrorResponse } from './types'
 
 export class GitHubClientError extends Error {
   constructor(message: string) {
@@ -70,22 +69,19 @@ export class GitHubCacheError extends GitHubClientError {
 }
 
 export function isRequestError(error: unknown): error is RequestError {
-  return (
-    error instanceof Error &&
-    'status' in error &&
-    'request' in error &&
-    'response' in error
-  )
+  return error instanceof Error && 'status' in error && 'request' in error && 'response' in error
 }
 
 export function isRateLimitError(error: unknown): boolean {
   if (!isRequestError(error)) return false
-  return error.status === 403 && error.response?.headers?.['x-ratelimit-remaining'] === '0'
+  const response = (error as any).response
+  return error.status === 403 && response?.headers?.['x-ratelimit-remaining'] === '0'
 }
 
 export function isSecondaryRateLimitError(error: unknown): boolean {
   if (!isRequestError(error)) return false
-  return error.status === 403 && 'retry-after' in (error.response?.headers || {})
+  const response = (error as any).response
+  return error.status === 403 && 'retry-after' in (response?.headers || {})
 }
 
 export function extractErrorMessage(error: unknown): string {

@@ -1,5 +1,5 @@
+import path from 'node:path'
 import { configDefaults, defineConfig } from 'vitest/config'
-import path from 'path'
 
 export default defineConfig({
   resolve: {
@@ -54,14 +54,33 @@ export default defineConfig({
       ignoreEmptyLines: true,
     },
 
-    // Performance optimizations
-    pool: 'threads',
+    // Performance optimizations - use single fork to prevent ESBuild service errors
+    pool: 'forks',
     poolOptions: {
-      threads: {
-        singleThread: false,
-        minThreads: 2,
-        maxThreads: 4,
+      forks: {
+        singleFork: true,
+        isolate: true,
       },
+    },
+
+    // Limit concurrency to prevent resource exhaustion
+    maxConcurrency: 1,
+    fileParallelism: false,
+
+    // Configure fake timers properly
+    fakeTimers: {
+      toFake: [
+        'setTimeout',
+        'clearTimeout',
+        'setInterval',
+        'clearInterval',
+        'setImmediate',
+        'clearImmediate',
+        'Date',
+      ],
+      loopLimit: 10_000,
+      shouldAdvanceTime: false,
+      advanceTimeDelta: 20,
     },
 
     // Reporter configuration
