@@ -582,16 +582,26 @@ export class GitHubClient {
    */
   getRateLimitInfo(): Record<string, unknown> {
     const state = this.rateLimitManager.getState()
-    
+
     // Enhance state with additional computed properties
     const enhancedState: Record<string, unknown> = {}
-    
+
     for (const [resource, info] of Object.entries(state)) {
-      if (info && typeof info === 'object' && 'limit' in info && 'remaining' in info && 'reset' in info && 'used' in info) {
+      if (
+        info &&
+        typeof info === 'object' &&
+        'limit' in info &&
+        'remaining' in info &&
+        'reset' in info &&
+        'used' in info
+      ) {
         const rateLimitInfo = info as RateLimitInfo | GraphQLRateLimitInfo
         enhancedState[resource] = {
           ...rateLimitInfo,
-          reset: rateLimitInfo.reset instanceof Date ? rateLimitInfo.reset.toISOString() : rateLimitInfo.reset,
+          reset:
+            rateLimitInfo.reset instanceof Date
+              ? rateLimitInfo.reset.toISOString()
+              : rateLimitInfo.reset,
           percentageUsed: this.rateLimitManager.getPercentageUsed(resource),
           timeUntilReset: this.rateLimitManager.getTimeUntilReset(resource),
         }
@@ -599,7 +609,7 @@ export class GitHubClient {
         enhancedState[resource] = info
       }
     }
-    
+
     return enhancedState
   }
 
