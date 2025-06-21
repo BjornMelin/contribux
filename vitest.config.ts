@@ -19,10 +19,6 @@ export default defineConfig({
     // Setup files
     setupFiles: ['./tests/setup.ts'],
 
-    // Test isolation improvements
-    isolate: true,
-    pool: 'forks',
-
     // Coverage configuration with V8 provider (2025 best practice)
     coverage: {
       provider: 'v8',
@@ -58,13 +54,33 @@ export default defineConfig({
       ignoreEmptyLines: true,
     },
 
-    // Performance optimizations for better test isolation
+    // Performance optimizations - use single fork to prevent ESBuild service errors
+    pool: 'forks',
     poolOptions: {
       forks: {
-        singleFork: false,
-        minForks: 1,
-        maxForks: 3,
+        singleFork: true,
+        isolate: true,
       },
+    },
+
+    // Limit concurrency to prevent resource exhaustion
+    maxConcurrency: 1,
+    fileParallelism: false,
+
+    // Configure fake timers properly
+    fakeTimers: {
+      toFake: [
+        'setTimeout',
+        'clearTimeout',
+        'setInterval',
+        'clearInterval',
+        'setImmediate',
+        'clearImmediate',
+        'Date',
+      ],
+      loopLimit: 10_000,
+      shouldAdvanceTime: false,
+      advanceTimeDelta: 20,
     },
 
     // Reporter configuration
@@ -83,8 +99,6 @@ export default defineConfig({
     // Mock configuration
     clearMocks: true,
     restoreMocks: true,
-
-    // File watching (watchExclude is deprecated, use exclude instead)
 
     // Sequence configuration for consistent test ordering
     sequence: {

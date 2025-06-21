@@ -19,12 +19,11 @@ if (!global.crypto?.subtle) {
   });
 }
 
-// Set test environment - use Object.defineProperty to work around readonly
-Object.defineProperty(process.env, 'NODE_ENV', {
-  value: 'test',
-  writable: true,
-  configurable: true
-});
+// Set test environment - commented out due to TypeScript readonly property issue
+// The environment is already set by vitest config
+// if (!process.env.NODE_ENV) {
+//   process.env.NODE_ENV = 'test';
+// }
 
 // Create mock database client for tests that don't need real database
 const createMockSqlClient = () => {
@@ -96,12 +95,19 @@ global.fetch = vi.fn(() =>
 
 // Mock WebAuthn SimpleWebAuthn server functions
 vi.mock('@simplewebauthn/server', () => ({
-  generateRegistrationOptions: vi.fn(() => ({
+  generateRegistrationOptions: vi.fn((options) => ({
     challenge: 'test-challenge',
-    rp: { name: 'Contribux', id: 'localhost' },
-    user: { id: 'test-user-id', name: 'testuser', displayName: 'testuser' },
+    rp: { 
+      name: options?.rpName || 'Contribux', 
+      id: options?.rpID || 'localhost' 
+    },
+    user: { 
+      id: options?.userID || 'test-user-id', 
+      name: options?.userName || 'testuser', 
+      displayName: options?.userDisplayName || 'testuser' 
+    },
     pubKeyCredParams: [{ alg: -7, type: 'public-key' }],
-    timeout: 60000,
+    timeout: options?.timeout || 60000,
     attestation: 'none',
     authenticatorSelection: {
       authenticatorAttachment: 'platform',
@@ -120,12 +126,12 @@ vi.mock('@simplewebauthn/server', () => ({
       credentialBackedUp: false
     }
   })),
-  generateAuthenticationOptions: vi.fn(() => ({
+  generateAuthenticationOptions: vi.fn((options) => ({
     challenge: 'test-challenge',
-    timeout: 60000,
+    timeout: options?.timeout || 60000,
     userVerification: 'required',
-    rpId: 'localhost',
-    allowCredentials: []
+    rpId: options?.rpID || 'localhost',
+    allowCredentials: options?.allowCredentials || []
   })),
   verifyAuthenticationResponse: vi.fn(async () => ({
     verified: true,
@@ -162,6 +168,25 @@ vi.mock('@/lib/auth/audit', () => ({
     id: 'mock-audit-log-id',
     ...params,
     created_at: new Date(),
+    checksum: params.event_severity === 'critical' ? 'abc123def456' : undefined,
+  })),
+  logAuthenticationAttempt: vi.fn(async (params) => ({
+    recentFailures: 0,
+    accountLocked: false,
+  })),
+  logSessionActivity: vi.fn(async (params) => ({
+    anomalyDetected: false,
+    anomalyType: undefined,
+  })),
+  logDataAccess: vi.fn(async (params) => ({
+    id: 'mock-data-log-id',
+    ...params,
+    created_at: new Date(),
+  })),
+  logConfigurationChange: vi.fn(async (params) => ({
+    id: 'mock-config-log-id',
+    ...params,
+    created_at: new Date(),
   })),
   getAuditLogs: vi.fn(async () => []),
   analyzeSecurityEvents: vi.fn(async () => ({
@@ -173,17 +198,40 @@ vi.mock('@/lib/auth/audit', () => ({
     summary: { total_events: 0 },
     events: []
   })),
+  exportAuditReport: vi.fn(async (params) => {
+    if (params.format === 'csv') {
+      return 'event_type,event_severity,user_id,ip_address,created_at,success\n'
+    }
+    return {
+      metadata: {
+        generated_at: new Date(),
+        period: { start: params.startDate, end: params.endDate },
+        total_events: 0
+      },
+      summary: { event_distribution: [], top_users: [] },
+      events: []
+    }
+  }),
+  deleteAuditLog: vi.fn(async () => ({ deleted: true })),
+  createLogParams: vi.fn((params) => params),
+  getEventSeverity: vi.fn(async (eventType) => 'warning'),
+  logAccessControl: vi.fn(async () => undefined),
+  validateAuditLog: vi.fn(async () => ({ valid: true })),
+  purgeOldLogs: vi.fn(async () => ({ deleted: 0 })),
+  detectAnomalies: vi.fn(async () => ({ detected: false, suspiciousActivity: false, anomalies: [] })),
+  getSecurityMetrics: vi.fn(async () => ({
+    loginSuccessRate: 95,
+    failedLoginCount: 0,
+    lockedAccountCount: 0,
+    anomalyCount: 0,
+    averageSessionDuration: 45,
+    activeUsersToday: 12,
+    securityIncidentsToday: 0
+  }))
 }));
 
-// Mock GDPR functions
-vi.mock('@/lib/auth/gdpr', () => ({
-  recordUserConsent: vi.fn(async () => ({ id: 'consent-id' })),
-  checkConsentRequired: vi.fn(async () => false),
-  getUserConsentStatus: vi.fn(async () => ({ required: false, consents: [] })),
-  exportUserData: vi.fn(async () => ({ data: {}, metadata: {} })),
-  deleteAllUserData: vi.fn(async () => ({ deleted: true })),
-  anonymizeUserData: vi.fn(async () => ({ anonymized: true })),
-}));
+// GDPR functions are NOT mocked globally - let individual tests handle GDPR mocking as needed
+// The GDPR test file tests the real implementation with mocked SQL calls
 
 // JWT functions are NOT mocked here - let individual tests mock as needed
 // This allows actual JWT functionality to be tested with real jose library

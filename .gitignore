@@ -41,6 +41,7 @@ public/precache.*.js
 .env
 .env.local
 .env.development.local
+.env.test
 .env.test.local
 .env.production.local
 
@@ -319,6 +320,11 @@ config/development.json
 # Logs
 logs
 dev-debug.log
+
+# Debug files containing potential secrets
+debug-*.js
+test-*.js
+*-debug.js
 # Dependency directories
 # Environment variables
 # Editor directories and files
