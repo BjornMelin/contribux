@@ -1,4 +1,5 @@
 // Database monitoring tests
+import { describe, it, expect, beforeAll } from 'vitest'
 import { DatabaseMonitor } from "../../src/lib/monitoring/database-monitor";
 
 describe("DatabaseMonitor", () => {
@@ -61,7 +62,7 @@ describe("DatabaseMonitor", () => {
         const metric = metrics[0];
         expect(metric).toHaveProperty("indexname");
         expect(metric).toHaveProperty("index_size");
-        expect(metric.indexname).toMatch(/hnsw/);
+        expect(metric?.indexname).toMatch(/hnsw/);
       }
     });
   });
@@ -92,7 +93,7 @@ describe("DatabaseMonitor", () => {
       expect(health.checks.length).toBeGreaterThan(0);
       
       // Check that each health check has required properties
-      health.checks.forEach(check => {
+      health.checks.forEach((check: { name: string; status: boolean; message: string }) => {
         expect(check).toHaveProperty("name");
         expect(check).toHaveProperty("status");
         expect(check).toHaveProperty("message");
@@ -103,7 +104,7 @@ describe("DatabaseMonitor", () => {
     it("should verify database connectivity", async () => {
       const health = await monitor.checkDatabaseHealth();
       
-      const connectivityCheck = health.checks.find(check => 
+      const connectivityCheck = health.checks.find((check: { name: string; status: boolean; message: string }) => 
         check.name === "Database Connectivity"
       );
       
@@ -114,7 +115,7 @@ describe("DatabaseMonitor", () => {
     it("should check required extensions", async () => {
       const health = await monitor.checkDatabaseHealth();
       
-      const extensionsCheck = health.checks.find(check => 
+      const extensionsCheck = health.checks.find((check: { name: string; status: boolean; message: string }) => 
         check.name === "Required Extensions"
       );
       
