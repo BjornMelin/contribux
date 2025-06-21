@@ -320,6 +320,11 @@ config/development.json
 # Logs
 logs
 dev-debug.log
+
+# Debug files containing potential secrets
+debug-*.js
+test-*.js
+*-debug.js
 # Dependency directories
 # Environment variables
 # Editor directories and files
