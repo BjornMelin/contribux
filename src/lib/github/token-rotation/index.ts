@@ -126,7 +126,8 @@ export class TokenRotationManager {
       const quarantineUntil = this.quarantinedTokens.get(token.token)
       if (quarantineUntil && now < quarantineUntil) {
         return false
-      } else if (quarantineUntil && now >= quarantineUntil) {
+      }
+      if (quarantineUntil && now >= quarantineUntil) {
         // Remove from quarantine
         this.quarantinedTokens.delete(token.token)
       }

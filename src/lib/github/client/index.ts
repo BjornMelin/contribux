@@ -439,7 +439,7 @@ export class GitHubClient {
     return analysis.suggestions
   }
 
-  calculateRetryDelay(retryCount: number, baseDelay: number = 1000, retryAfter?: number): number {
+  calculateRetryDelay(retryCount: number, baseDelay = 1000, retryAfter?: number): number {
     return calculateRetryDelayWithJitter(retryCount, baseDelay, retryAfter)
   }
 
@@ -464,7 +464,7 @@ export class GitHubClient {
   async paginateGraphQLQuery(
     query: string,
     variables: Record<string, unknown> = {},
-    pageSize: number = 100
+    pageSize = 100
   ): Promise<unknown[]> {
     const results: unknown[] = []
     let hasNextPage = true
@@ -575,11 +575,10 @@ export class GitHubClient {
         }
         return result
       })
-    } else {
-      // Execute single batched query
-      const result = (await this.graphql(batchedQuery)) as Record<string, unknown>
-      return result.data || result
     }
+    // Execute single batched query
+    const result = (await this.graphql(batchedQuery)) as Record<string, unknown>
+    return result.data || result
   }
 
   async batchGraphQLQueriesWithPointLimit(
@@ -595,20 +594,19 @@ export class GitHubClient {
       // Single batch query
       const result = (await this.graphql(batchedResult)) as Record<string, unknown>
       return result.data || result
-    } else {
-      // Multiple batch queries
-      let combinedResult: Record<string, unknown> = {}
-
-      for (const batchQuery of batchedResult) {
-        const result = (await this.graphql(batchQuery)) as Record<string, unknown>
-        const data = result.data || result
-        if (typeof data === 'object' && data !== null) {
-          combinedResult = { ...combinedResult, ...data }
-        }
-      }
-
-      return combinedResult
     }
+    // Multiple batch queries
+    let combinedResult: Record<string, unknown> = {}
+
+    for (const batchQuery of batchedResult) {
+      const result = (await this.graphql(batchQuery)) as Record<string, unknown>
+      const data = result.data || result
+      if (typeof data === 'object' && data !== null) {
+        combinedResult = { ...combinedResult, ...data }
+      }
+    }
+
+    return combinedResult
   }
 
   async graphqlWithRateLimit<T = unknown>(
@@ -838,7 +836,7 @@ export class GitHubClient {
     try {
       const validatedToken = validateTokenInfo(token)
       this.tokenRotationManager.addToken(validatedToken)
-    } catch (error) {
+    } catch (_error) {
       // If validation fails, add token directly
       this.tokenRotationManager.addToken(token)
     }

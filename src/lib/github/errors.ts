@@ -15,7 +15,7 @@ export class GitHubClientError extends Error {
 }
 
 export class GitHubAuthenticationError extends GitHubClientError {
-  constructor(message: string = 'Authentication failed') {
+  constructor(message = 'Authentication failed') {
     super(message)
     this.name = 'GitHubAuthenticationError'
   }
@@ -57,7 +57,7 @@ export class GitHubWebhookError extends GitHubClientError {
 
 export class GitHubTokenExpiredError extends GitHubAuthenticationError {
   constructor(
-    message: string = 'Token has expired',
+    message = 'Token has expired',
     public readonly expiredAt?: Date
   ) {
     super(message)

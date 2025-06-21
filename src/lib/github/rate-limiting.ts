@@ -13,7 +13,7 @@ export class RateLimitManager {
   private rateLimits = new Map<string, RateLimitInfo>()
   private graphqlRateLimit: GraphQLRateLimitInfo | null = null
 
-  updateFromHeaders(headers: Record<string, string>, resource: string = 'core'): void {
+  updateFromHeaders(headers: Record<string, string>, resource = 'core'): void {
     const limit = Number.parseInt(headers['x-ratelimit-limit'] || '0', 10)
     const remaining = Number.parseInt(headers['x-ratelimit-remaining'] || '0', 10)
     const reset = Number.parseInt(headers['x-ratelimit-reset'] || '0', 10)
@@ -57,7 +57,7 @@ export class RateLimitManager {
     }
   }
 
-  getRateLimit(resource: string = 'core'): RateLimitInfo | null {
+  getRateLimit(resource = 'core'): RateLimitInfo | null {
     return this.rateLimits.get(resource) || null
   }
 
@@ -65,7 +65,7 @@ export class RateLimitManager {
     return this.graphqlRateLimit
   }
 
-  getPercentageUsed(resource: string = 'core'): number {
+  getPercentageUsed(resource = 'core'): number {
     const rateLimit = this.rateLimits.get(resource)
     if (!rateLimit || rateLimit.limit === 0) {
       return 0
@@ -73,7 +73,7 @@ export class RateLimitManager {
     return (rateLimit.used / rateLimit.limit) * 100
   }
 
-  getTimeUntilReset(resource: string = 'core'): number {
+  getTimeUntilReset(resource = 'core'): number {
     const rateLimit = this.rateLimits.get(resource)
     if (!rateLimit) {
       return 0
@@ -81,7 +81,7 @@ export class RateLimitManager {
     return Math.max(0, rateLimit.reset.getTime() - Date.now())
   }
 
-  isRateLimited(resource: string = 'core'): boolean {
+  isRateLimited(resource = 'core'): boolean {
     const rateLimit = this.rateLimits.get(resource)
     return rateLimit ? rateLimit.remaining === 0 : false
   }
