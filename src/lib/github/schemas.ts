@@ -9,16 +9,16 @@ import { CACHE_DEFAULTS, CIRCUIT_BREAKER_DEFAULTS, RETRY_DEFAULTS } from './cons
 // Authentication schemas
 export const TokenAuthSchema = z.object({
   type: z.literal('token'),
-  token: z.string().min(1),
+  token: z.string().min(1, { message: 'Token cannot be empty' }),
 })
 
 export const AppAuthSchema = z.object({
   type: z.literal('app'),
-  appId: z.union([z.string(), z.number()]),
-  privateKey: z.string(),
-  installationId: z.union([z.string(), z.number()]).optional(),
-  clientId: z.string().optional(),
-  clientSecret: z.string().optional(),
+  appId: z.union([z.string().min(1), z.number().int().positive()]),
+  privateKey: z.string().min(1, { message: 'Private key is required' }),
+  installationId: z.union([z.string().min(1), z.number().int().positive()]).optional(),
+  clientId: z.string().min(1).optional(),
+  clientSecret: z.string().min(1).optional(),
 })
 
 export const AuthConfigSchema = z.union([TokenAuthSchema, AppAuthSchema])
@@ -26,16 +26,24 @@ export const AuthConfigSchema = z.union([TokenAuthSchema, AppAuthSchema])
 // Retry schemas
 export const RetryOptionsSchema = z.object({
   enabled: z.boolean().default(true),
-  retries: z.number().min(0).max(RETRY_DEFAULTS.MAX_RETRY_COUNT).optional(),
+  retries: z.number().int().min(0).max(RETRY_DEFAULTS.MAX_RETRY_COUNT).optional(),
   retryAfterBaseValue: z.number().min(0).optional(),
-  doNotRetry: z.array(z.number()).optional(),
-  shouldRetry: z.function().args(z.any(), z.number()).returns(z.boolean()).optional(),
+  doNotRetry: z.array(z.number().int().min(100).max(599)).optional(),
+  shouldRetry: z
+    .function()
+    .args(z.unknown(), z.number().int().min(0))
+    .returns(z.boolean())
+    .optional(),
   calculateDelay: z
     .function()
-    .args(z.number(), z.number().optional(), z.number().optional())
-    .returns(z.number())
+    .args(z.number().int().min(0), z.number().int().min(0).optional(), z.number().min(0).optional())
+    .returns(z.number().min(0))
     .optional(),
-  onRetry: z.function().args(z.any(), z.number(), z.any()).returns(z.void()).optional(),
+  onRetry: z
+    .function()
+    .args(z.unknown(), z.number().int().min(0), z.unknown())
+    .returns(z.void())
+    .optional(),
   circuitBreaker: z
     .object({
       enabled: z.boolean(),
@@ -67,24 +75,24 @@ export const CacheOptionsSchema = z.object({
 })
 
 export const CacheEntrySchema = z.object({
-  data: z.any(),
-  etag: z.string().optional(),
+  data: z.unknown(),
+  etag: z.string().min(1).optional(),
   createdAt: z.string().datetime(),
   expiresAt: z.string().datetime().optional(),
-  ttl: z.number().optional(),
+  ttl: z.number().int().min(0).optional(),
 })
 
 // Rate limit schemas
 export const RateLimitInfoSchema = z.object({
-  limit: z.number(),
-  remaining: z.number(),
+  limit: z.number().int().min(0),
+  remaining: z.number().int().min(0),
   reset: z.date(),
-  used: z.number(),
+  used: z.number().int().min(0),
 })
 
 export const GraphQLRateLimitInfoSchema = RateLimitInfoSchema.extend({
-  cost: z.number(),
-  nodeCount: z.number(),
+  cost: z.number().int().min(0),
+  nodeCount: z.number().int().min(0),
 })
 
 // Error schemas
@@ -126,7 +134,7 @@ export const GraphQLErrorSchema = z.object({
 })
 
 export const GraphQLResponseSchema = z.object({
-  data: z.any().nullable(),
+  data: z.unknown().nullable(),
   errors: z.array(GraphQLErrorSchema).optional(),
   extensions: z
     .object({
@@ -137,10 +145,12 @@ export const GraphQLResponseSchema = z.object({
 
 // Webhook schemas
 export const WebhookEventSchema = z.object({
-  type: z.string(),
-  action: z.string().optional(),
-  deliveryId: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i),
-  payload: z.record(z.any()),
+  type: z.string().min(1),
+  action: z.string().min(1).optional(),
+  deliveryId: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, {
+    message: 'Invalid UUID format for delivery ID',
+  }),
+  payload: z.record(z.string(), z.unknown()),
 })
 
 export const WebhookConfigSchema = z.object({
@@ -199,22 +209,22 @@ export const TokenRotationOptionsSchema = z.object({
 // DataLoader schemas
 export const DataLoaderOptionsSchema = z.object({
   batchingEnabled: z.boolean().default(true),
-  maxBatchSize: z.number().min(1).default(100),
+  maxBatchSize: z.number().int().min(1).max(1000).default(100),
   batchScheduleFn: z.function().args(z.function()).returns(z.void()).optional(),
   cacheEnabled: z.boolean().default(true),
 })
 
 // Query optimizer schemas
 export const QueryAnalysisSchema = z.object({
-  points: z.number(),
-  nodeCount: z.number(),
-  depth: z.number(),
-  suggestions: z.array(z.string()),
+  points: z.number().int().min(0),
+  nodeCount: z.number().int().min(0),
+  depth: z.number().int().min(0),
+  suggestions: z.array(z.string().min(1)),
 })
 
 export const OptimizedQuerySchema = z.object({
-  query: z.string(),
-  variables: z.record(z.any()).optional(),
+  query: z.string().min(1),
+  variables: z.record(z.string(), z.unknown()).optional(),
   analysis: QueryAnalysisSchema,
 })
 

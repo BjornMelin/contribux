@@ -19,8 +19,10 @@ if (!global.crypto?.subtle) {
   });
 }
 
-// Set test environment - set directly since Node.js allows it
-process.env.NODE_ENV = 'test';
+// Set test environment - using a simple assignment
+if (!process.env.NODE_ENV) {
+  process.env.NODE_ENV = 'test';
+}
 
 // Create mock database client for tests that don't need real database
 const createMockSqlClient = () => {

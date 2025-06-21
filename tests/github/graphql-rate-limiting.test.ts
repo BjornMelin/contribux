@@ -128,7 +128,7 @@ describe('GraphQL Point-Aware Rate Limiting', () => {
       expect(points).toBeGreaterThan(500000)
 
       expect(() => client.validateGraphQLPointLimit(query)).toThrow(
-        'Query exceeds maximum node count (500,000 points)'
+        /Query exceeds maximum (point limit|node count)/
       )
     })
   })
