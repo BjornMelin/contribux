@@ -1,7 +1,7 @@
 import { TIME, TOKEN_ROTATION_DEFAULTS } from '../constants'
 import { GitHubTokenExpiredError } from '../errors'
+import type { TokenInfo, TokenRotationConfig } from '../interfaces/token'
 import { validateTokenRotationOptions } from '../schemas'
-import type { TokenInfo, TokenRotationConfig } from '../types'
 
 export interface TokenUsageStats {
   token: string
@@ -32,6 +32,38 @@ export interface TokenRotationMetrics {
   rotationStrategy: TokenRotationConfig['rotationStrategy']
 }
 
+/**
+ * Advanced token rotation manager for high-volume GitHub API usage
+ *
+ * The TokenRotationManager provides intelligent token rotation to maximize API throughput
+ * while respecting rate limits and maintaining system reliability. Features include:
+ * - Multiple rotation strategies (round-robin, least-used, random)
+ * - Automatic health monitoring and token quarantine
+ * - Scope-based token selection
+ * - Proactive token refresh before expiration
+ * - Comprehensive usage statistics and metrics
+ * - Thread-safe operations with async locking
+ *
+ * @example
+ * ```typescript
+ * // Configure token rotation with multiple tokens
+ * const tokenManager = new TokenRotationManager({
+ *   tokens: [
+ *     { token: 'ghp_token1', type: 'token', scopes: ['repo', 'user'] },
+ *     { token: 'ghp_token2', type: 'token', scopes: ['repo'] },
+ *     { token: 'ghp_token3', type: 'token', scopes: ['repo', 'admin:org'] }
+ *   ],
+ *   rotationStrategy: 'least-used',
+ *   refreshBeforeExpiry: 5 // Refresh 5 minutes before expiry
+ * });
+ *
+ * // Get next available token
+ * const token = await tokenManager.getNextToken();
+ *
+ * // Get token with specific scopes
+ * const adminToken = await tokenManager.getTokenForScopes(['admin:org']);
+ * ```
+ */
 export class TokenRotationManager {
   private tokens: TokenInfo[]
   private currentIndex = 0
@@ -44,6 +76,26 @@ export class TokenRotationManager {
   private readonly ERROR_RATE_THRESHOLD = 0.5 // 50% error rate triggers quarantine
   private readonly MIN_REQUESTS_FOR_QUARANTINE = 5 // Minimum requests before quarantine consideration
 
+  /**
+   * Creates a new TokenRotationManager with the specified configuration
+   *
+   * @param config - Token rotation configuration
+   * @param config.tokens - Array of tokens to manage
+   * @param config.rotationStrategy - Strategy for selecting tokens ('round-robin', 'least-used', 'random')
+   * @param config.refreshBeforeExpiry - Minutes before expiry to refresh tokens (default: 5)
+   *
+   * @example
+   * ```typescript
+   * const manager = new TokenRotationManager({
+   *   tokens: [
+   *     { token: 'ghp_xxx', type: 'token' },
+   *     { token: 'ghp_yyy', type: 'token' }
+   *   ],
+   *   rotationStrategy: 'round-robin',
+   *   refreshBeforeExpiry: 10
+   * });
+   * ```
+   */
   constructor(config: TokenRotationConfig) {
     // Validate config using Zod schema
     const validatedConfig = validateTokenRotationOptions(config)
@@ -67,6 +119,26 @@ export class TokenRotationManager {
     })
   }
 
+  /**
+   * Get the next available token using the configured rotation strategy
+   *
+   * This method selects a token based on the rotation strategy while ensuring
+   * the token is not expired or quarantined. It automatically updates usage
+   * statistics and applies thread-safe locking.
+   *
+   * @returns Next available token or null if no tokens are available
+   *
+   * @example
+   * ```typescript
+   * const token = await tokenManager.getNextToken();
+   * if (token) {
+   *   console.log(`Using token: ${token.token.substring(0, 8)}...`);
+   *   // Use token for API request
+   * } else {
+   *   console.log('No tokens available');
+   * }
+   * ```
+   */
   async getNextToken(): Promise<TokenInfo | null> {
     return this.withLock(async () => {
       // Filter out expired and quarantined tokens
@@ -223,6 +295,27 @@ export class TokenRotationManager {
     return fallbackToken
   }
 
+  /**
+   * Get a token that has the required OAuth scopes
+   *
+   * This method filters tokens based on required scopes and then applies
+   * the rotation strategy to select the best available token.
+   *
+   * @param requiredScopes - Array of required OAuth scopes (e.g., ['repo', 'admin:org'])
+   * @returns Token with required scopes or null if none available
+   *
+   * @example
+   * ```typescript
+   * // Get token with admin access
+   * const adminToken = await tokenManager.getTokenForScopes(['admin:org']);
+   *
+   * // Get token for repository operations
+   * const repoToken = await tokenManager.getTokenForScopes(['repo']);
+   *
+   * // Get token for user operations
+   * const userToken = await tokenManager.getTokenForScopes(['user:read', 'user:email']);
+   * ```
+   */
   async getTokenForScopes(requiredScopes: string[]): Promise<TokenInfo | null> {
     return this.withLock(async () => {
       const validTokens = this.getValidTokens().filter(token => {
@@ -299,6 +392,24 @@ export class TokenRotationManager {
     return now >= expiresAt - this.refreshBeforeExpiry
   }
 
+  /**
+   * Add a new token to the rotation pool
+   *
+   * If a token with the same string already exists, it will be updated.
+   * Otherwise, it will be added as a new token with initialized statistics.
+   *
+   * @param token - Token information to add
+   *
+   * @example
+   * ```typescript
+   * tokenManager.addToken({
+   *   token: 'ghp_newtoken',
+   *   type: 'token',
+   *   scopes: ['repo', 'user'],
+   *   expiresAt: new Date('2024-12-31')
+   * });
+   * ```
+   */
   addToken(token: TokenInfo): void {
     // Prevent duplicates
     const existingIndex = this.tokens.findIndex(t => t.token === token.token)
@@ -321,12 +432,43 @@ export class TokenRotationManager {
     }
   }
 
+  /**
+   * Remove a token from the rotation pool
+   *
+   * This also clears all associated statistics and quarantine status.
+   *
+   * @param tokenString - Token string to remove
+   *
+   * @example
+   * ```typescript
+   * tokenManager.removeToken('ghp_oldtoken');
+   * ```
+   */
   removeToken(tokenString: string): void {
     this.tokens = this.tokens.filter(t => t.token !== tokenString)
     this.usageStats.delete(tokenString)
     this.quarantinedTokens.delete(tokenString)
   }
 
+  /**
+   * Update an existing token with new information
+   *
+   * This preserves usage statistics and quarantine status by transferring
+   * them from the old token to the new one.
+   *
+   * @param oldToken - Current token string to replace
+   * @param newToken - New token information
+   *
+   * @example
+   * ```typescript
+   * // Update token after refresh
+   * tokenManager.updateToken('ghp_oldtoken', {
+   *   token: 'ghp_newtoken',
+   *   type: 'token',
+   *   expiresAt: new Date('2024-12-31')
+   * });
+   * ```
+   */
   updateToken(oldToken: string, newToken: TokenInfo): void {
     const index = this.tokens.findIndex(t => t.token === oldToken)
     if (index !== -1) {
@@ -351,14 +493,46 @@ export class TokenRotationManager {
     }
   }
 
+  /**
+   * Get all tokens currently in the rotation pool
+   *
+   * @returns Array of all token information (defensive copy)
+   */
   getTokens(): TokenInfo[] {
     return [...this.tokens]
   }
 
+  /**
+   * Get usage statistics for all tokens
+   *
+   * @returns Array of usage statistics for monitoring and analysis
+   *
+   * @example
+   * ```typescript
+   * const stats = tokenManager.getStats();
+   * stats.forEach(stat => {
+   *   console.log(`Token ${stat.token.substring(0, 8)}: ${stat.usageCount} uses, ${(stat.errorRate * 100).toFixed(1)}% error rate`);
+   * });
+   * ```
+   */
   getStats(): TokenUsageStats[] {
     return Array.from(this.usageStats.values())
   }
 
+  /**
+   * Record an error for a specific token
+   *
+   * This updates error statistics and may trigger automatic quarantine
+   * if the error rate exceeds thresholds.
+   *
+   * @param token - Token string that encountered an error
+   *
+   * @example
+   * ```typescript
+   * // Record error after failed API call
+   * tokenManager.recordError('ghp_token123');
+   * ```
+   */
   recordError(token: string): void {
     const stats = this.usageStats.get(token)
     if (stats) {
@@ -368,6 +542,19 @@ export class TokenRotationManager {
     }
   }
 
+  /**
+   * Record a successful request for a specific token
+   *
+   * This updates success statistics and improves the token's health score.
+   *
+   * @param token - Token string that completed successfully
+   *
+   * @example
+   * ```typescript
+   * // Record success after successful API call
+   * tokenManager.recordSuccess('ghp_token123');
+   * ```
+   */
   recordSuccess(token: string): void {
     const stats = this.usageStats.get(token)
     if (stats) {

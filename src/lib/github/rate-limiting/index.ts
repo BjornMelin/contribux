@@ -1,4 +1,4 @@
-import type { GraphQLRateLimitInfo, RateLimitInfo } from '../types'
+import type { GraphQLRateLimitInfo, RateLimitInfo } from '../interfaces/rate-limiting'
 
 export interface RateLimitState {
   core: RateLimitInfo
@@ -19,10 +19,46 @@ export interface RateLimitManagerConfig {
   onWarning?: RateLimitWarningCallback
 }
 
+/**
+ * Intelligent rate limit manager for GitHub API requests
+ *
+ * The RateLimitManager tracks rate limit state across all GitHub API resources
+ * and provides intelligent throttling and warning capabilities. It monitors:
+ * - Core REST API rate limits
+ * - Search API rate limits
+ * - GraphQL API rate limits
+ * - Secondary rate limits
+ *
+ * Features include automatic warning thresholds, percentage calculations,
+ * and time-based reset tracking for optimal request timing.
+ *
+ * @example
+ * ```typescript
+ * const rateLimitManager = new RateLimitManager({
+ *   warningThreshold: 85, // Warn when 85% of rate limit is used
+ *   onWarning: (info) => {
+ *     console.warn(`Rate limit warning: ${info.resource} at ${info.percentageUsed}%`);
+ *   }
+ * });
+ *
+ * // Check if we can make requests
+ * if (!rateLimitManager.isRateLimited('core')) {
+ *   // Safe to make API call
+ *   await makeAPICall();
+ * }
+ * ```
+ */
 export class RateLimitManager {
   private state: RateLimitState
   private config: Required<RateLimitManagerConfig>
 
+  /**
+   * Creates a new RateLimitManager with configurable warning thresholds
+   *
+   * @param config - Rate limit manager configuration
+   * @param config.warningThreshold - Percentage threshold for warnings (default: 90)
+   * @param config.onWarning - Callback function for rate limit warnings
+   */
   constructor(config: RateLimitManagerConfig = {}) {
     this.config = {
       warningThreshold: config.warningThreshold ?? 90,
@@ -36,6 +72,30 @@ export class RateLimitManager {
     }
   }
 
+  /**
+   * Update rate limit state from GitHub REST API response headers
+   *
+   * GitHub REST API responses include rate limit information in standard headers:
+   * - x-ratelimit-limit: Total rate limit for the resource
+   * - x-ratelimit-remaining: Remaining requests in the current window
+   * - x-ratelimit-reset: Unix timestamp when the rate limit resets
+   * - x-ratelimit-used: Number of requests used in the current window
+   *
+   * @param headers - HTTP response headers from GitHub API
+   * @param resource - Rate limit resource ('core', 'search', 'code_search', etc.)
+   *
+   * @example
+   * ```typescript
+   * const manager = new RateLimitManager({
+   *   warningThreshold: 0.8,
+   *   onWarning: (warning) => console.warn(warning)
+   * });
+   *
+   * // After making a REST API request
+   * const response = await fetch('https://api.github.com/user');
+   * manager.updateFromHeaders(response.headers, 'core');
+   * ```
+   */
   updateFromHeaders(
     headers: Record<string, string | string[] | undefined>,
     resource = 'core'
@@ -70,6 +130,35 @@ export class RateLimitManager {
     }
   }
 
+  /**
+   * Update rate limit state from GitHub GraphQL API response data
+   *
+   * GraphQL responses include rate limit information in the response body:
+   * - limit: Total point limit for GraphQL API
+   * - remaining: Remaining points in the current window
+   * - resetAt: ISO timestamp when the rate limit resets
+   * - cost: Point cost of the current query
+   * - nodeCount: Number of nodes requested in the query
+   *
+   * @param rateLimitData - Rate limit data from GraphQL response
+   * @param rateLimitData.limit - Total point limit
+   * @param rateLimitData.remaining - Remaining points
+   * @param rateLimitData.resetAt - ISO timestamp of rate limit reset
+   * @param rateLimitData.cost - Point cost of the query
+   * @param rateLimitData.nodeCount - Number of nodes requested
+   *
+   * @example
+   * ```typescript
+   * const manager = new RateLimitManager({
+   *   warningThreshold: 0.9,
+   *   onWarning: (warning) => console.warn(warning)
+   * });
+   *
+   * // After making a GraphQL API request
+   * const response = await client.graphql(query);
+   * manager.updateFromGraphQLResponse(response.rateLimit);
+   * ```
+   */
   updateFromGraphQLResponse(rateLimitData: {
     limit: number
     remaining: number
@@ -108,26 +197,122 @@ export class RateLimitManager {
     return ((info.limit - info.remaining) / info.limit) * 100
   }
 
+  /**
+   * Get current rate limit state for all resources
+   *
+   * Returns a snapshot of the current rate limit state including all tracked
+   * resources (core, search, graphql, etc.) with their limits, remaining
+   * requests, and reset times.
+   *
+   * @returns Complete rate limit state object
+   *
+   * @example
+   * ```typescript
+   * const manager = new RateLimitManager();
+   * const state = manager.getState();
+   *
+   * console.log('Core API:', state.core);
+   * console.log('Search API:', state.search);
+   * console.log('GraphQL API:', state.graphql);
+   * ```
+   */
   getState(): RateLimitState {
     return { ...this.state }
   }
 
+  /**
+   * Check if a specific resource is currently rate limited
+   *
+   * @param resource - Rate limit resource to check (default: 'core')
+   * @returns True if the resource has no remaining requests
+   *
+   * @example
+   * ```typescript
+   * const manager = new RateLimitManager();
+   *
+   * if (manager.isRateLimited('core')) {
+   *   console.log('Core API is rate limited');
+   *   const resetTime = manager.getResetTime('core');
+   *   console.log('Resets at:', resetTime);
+   * }
+   *
+   * if (manager.isRateLimited('search')) {
+   *   console.log('Search API is rate limited');
+   * }
+   * ```
+   */
   isRateLimited(resource = 'core'): boolean {
     const info = this.state[resource]
     return info ? info.remaining === 0 : false
   }
 
+  /**
+   * Get the reset time for a specific rate limit resource
+   *
+   * @param resource - Rate limit resource to check (default: 'core')
+   * @returns Date when the rate limit resets, or null if no data available
+   *
+   * @example
+   * ```typescript
+   * const manager = new RateLimitManager();
+   * const resetTime = manager.getResetTime('core');
+   *
+   * if (resetTime) {
+   *   console.log('Rate limit resets at:', resetTime.toISOString());
+   *   const minutesUntilReset = (resetTime.getTime() - Date.now()) / (1000 * 60);
+   *   console.log('Minutes until reset:', Math.ceil(minutesUntilReset));
+   * }
+   * ```
+   */
   getResetTime(resource = 'core'): Date | null {
     const info = this.state[resource]
     return info?.reset ?? null
   }
 
+  /**
+   * Calculate the percentage of rate limit used for a specific resource
+   *
+   * @param resource - Rate limit resource to check (default: 'core')
+   * @returns Percentage used (0-100), or 0 if no data available
+   *
+   * @example
+   * ```typescript
+   * const manager = new RateLimitManager();
+   * const percentageUsed = manager.getPercentageUsed('core');
+   *
+   * console.log(`Core API usage: ${percentageUsed.toFixed(1)}%`);
+   *
+   * if (percentageUsed > 80) {
+   *   console.warn('Rate limit usage is high, consider throttling requests');
+   * }
+   * ```
+   */
   getPercentageUsed(resource = 'core'): number {
     const info = this.state[resource]
     if (!info) return 0
     return this.calculatePercentageUsed(info)
   }
 
+  /**
+   * Get the time remaining until rate limit reset for a specific resource
+   *
+   * @param resource - Rate limit resource to check (default: 'core')
+   * @returns Time in milliseconds until reset, or 0 if no data available
+   *
+   * @example
+   * ```typescript
+   * const manager = new RateLimitManager();
+   * const timeUntilReset = manager.getTimeUntilReset('core');
+   *
+   * if (timeUntilReset > 0) {
+   *   const minutes = Math.ceil(timeUntilReset / (1000 * 60));
+   *   console.log(`Rate limit resets in ${minutes} minutes`);
+   *
+   *   // Wait for reset before making more requests
+   *   await new Promise(resolve => setTimeout(resolve, timeUntilReset));
+   * }
+   * ```
+   */
   getTimeUntilReset(resource = 'core'): number {
     const resetTime = this.getResetTime(resource)
     if (!resetTime) return 0

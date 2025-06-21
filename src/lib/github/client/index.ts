@@ -22,14 +22,6 @@ import {
   validateGraphQLPointLimit,
 } from '../graphql/point-calculator'
 import { buildBatchedQuery, splitGraphQLQuery } from '../graphql/query-optimizer'
-import { RateLimitManager } from '../rate-limiting'
-import {
-  calculateRetryDelay as calculateRetryDelayWithJitter,
-  createDefaultRetryOptions,
-  RetryManager,
-  validateRetryOptions,
-} from '../retry-logic'
-import { TokenRotationManager } from '../token-rotation/index'
 import type {
   CacheMetrics,
   GitHubClientConfig,
@@ -42,10 +34,65 @@ import type {
   ThrottleOptions,
   TokenInfo,
   TokenRotationConfig,
-} from '../types'
+} from '../interfaces'
+import { RateLimitManager } from '../rate-limiting'
+import {
+  calculateRetryDelay as calculateRetryDelayWithJitter,
+  createDefaultRetryOptions,
+  RetryManager,
+  validateRetryOptions,
+} from '../retry-logic'
+import { TokenRotationManager } from '../token-rotation/index'
 
 const MyOctokit = Octokit.plugin(restEndpointMethods).plugin(throttling).plugin(retry)
 
+/**
+ * Main GitHub API client that provides REST and GraphQL access with advanced features
+ *
+ * The GitHubClient is a comprehensive wrapper around GitHub's APIs that includes:
+ * - Authentication management (Personal Access Tokens, GitHub App, OAuth)
+ * - Rate limiting with automatic throttling and warnings
+ * - Intelligent caching with Redis/memory support and ETag handling
+ * - Token rotation for high-volume applications
+ * - Retry logic with exponential backoff and circuit breaker
+ * - DataLoader integration for efficient GraphQL batching
+ * - GraphQL query optimization and point cost calculation
+ *
+ * @example
+ * ```typescript
+ * // Personal Access Token authentication
+ * const client = new GitHubClient({
+ *   auth: {
+ *     type: 'token',
+ *     token: 'ghp_xxxxxxxxxxxx'
+ *   },
+ *   cache: { enabled: true, storage: 'memory' },
+ *   includeRateLimit: true
+ * });
+ *
+ * // GitHub App authentication
+ * const appClient = new GitHubClient({
+ *   auth: {
+ *     type: 'app',
+ *     appId: 123456,
+ *     privateKey: '-----BEGIN PRIVATE KEY-----...',
+ *     installationId: 78910
+ *   }
+ * });
+ *
+ * // Use REST API
+ * const repo = await client.rest.repos.get({ owner: 'owner', repo: 'repo' });
+ *
+ * // Use GraphQL API with automatic rate limit tracking
+ * const result = await client.graphql(`
+ *   query {
+ *     repository(owner: "owner", name: "repo") {
+ *       stargazerCount
+ *     }
+ *   }
+ * `);
+ * ```
+ */
 export class GitHubClient {
   private octokit: GitHubRestClient
   public rest: GitHubRestClient['rest']
@@ -62,6 +109,47 @@ export class GitHubClient {
   public cache?: CacheManager
   private repositoryDataLoader?: DataLoader<RepositoryKey, RepositoryData>
 
+  /**
+   * Creates a new GitHubClient instance with comprehensive API access and advanced features
+   *
+   * @param config - Configuration options for the client
+   * @param config.auth - Authentication configuration (token, app, or oauth)
+   * @param config.baseUrl - Custom GitHub Enterprise URL (defaults to api.github.com)
+   * @param config.userAgent - Custom user agent string
+   * @param config.cache - Caching configuration with memory/Redis support
+   * @param config.throttle - Rate limiting configuration
+   * @param config.retry - Retry logic configuration with circuit breaker
+   * @param config.tokenRotation - Token rotation configuration for high-volume usage
+   * @param config.includeRateLimit - Automatically include rate limit info in GraphQL queries
+   *
+   * @throws {GitHubClientError} When configuration is invalid
+   * @throws {GitHubAuthenticationError} When authentication setup fails
+   *
+   * @example
+   * ```typescript
+   * // Minimal configuration
+   * const client = new GitHubClient({
+   *   auth: { type: 'token', token: 'ghp_xxxxxxxxxxxx' }
+   * });
+   *
+   * // Advanced configuration with caching and retry logic
+   * const client = new GitHubClient({
+   *   auth: { type: 'token', token: 'ghp_xxxxxxxxxxxx' },
+   *   cache: {
+   *     enabled: true,
+   *     storage: 'memory',
+   *     ttl: 300,
+   *     backgroundRefresh: true
+   *   },
+   *   retry: {
+   *     enabled: true,
+   *     retries: 3,
+   *     circuitBreaker: { enabled: true, failureThreshold: 5 }
+   *   },
+   *   includeRateLimit: true
+   * });
+   * ```
+   */
   constructor(config: GitHubClientConfig = {}) {
     // Validate config using Zod schema, or use the config directly
     this.config = config
@@ -248,6 +336,33 @@ export class GitHubClient {
     return { ...defaults, ...this.config.retry }
   }
 
+  /**
+   * Authenticate the client using the configured authentication method
+   *
+   * This method handles authentication setup for different auth types:
+   * - For GitHub Apps with installation ID: Generates JWT and exchanges for installation token
+   * - For GitHub Apps without installation ID: Generates JWT for app-level operations
+   * - For token auth: No additional setup required
+   *
+   * @throws {GitHubAuthenticationError} When no authentication is configured
+   * @throws {GitHubAuthenticationError} When JWT generation fails for GitHub Apps
+   * @throws {GitHubAuthenticationError} When installation token exchange fails
+   *
+   * @example
+   * ```typescript
+   * const client = new GitHubClient({
+   *   auth: {
+   *     type: 'app',
+   *     appId: 123456,
+   *     privateKey: '-----BEGIN PRIVATE KEY-----...',
+   *     installationId: 78910
+   *   }
+   * });
+   *
+   * await client.authenticate();
+   * // Client is now ready to make authenticated requests
+   * ```
+   */
   async authenticate(): Promise<void> {
     if (!this.config.auth) {
       throw new GitHubAuthenticationError(ErrorMessages.AUTH_TOKEN_REQUIRED)
@@ -260,6 +375,36 @@ export class GitHubClient {
     }
   }
 
+  /**
+   * Authenticate as a specific GitHub App installation
+   *
+   * This method exchanges a GitHub App JWT for an installation access token,
+   * which provides access to repositories and resources within that installation.
+   * The token is cached to avoid unnecessary API calls.
+   *
+   * @param installationId - The GitHub App installation ID to authenticate as
+   *
+   * @throws {GitHubAuthenticationError} When GitHub App configuration is missing
+   * @throws {GitHubAuthenticationError} When JWT generation fails
+   * @throws {GitHubAuthenticationError} When installation token exchange fails
+   *
+   * @example
+   * ```typescript
+   * const client = new GitHubClient({
+   *   auth: {
+   *     type: 'app',
+   *     appId: 123456,
+   *     privateKey: '-----BEGIN PRIVATE KEY-----...'
+   *   }
+   * });
+   *
+   * // Authenticate as installation 78910
+   * await client.authenticateAsInstallation(78910);
+   *
+   * // Now you can access resources within that installation
+   * const repos = await client.rest.apps.listReposAccessibleToInstallation();
+   * ```
+   */
   async authenticateAsInstallation(installationId: number): Promise<void> {
     if (!this.config.auth || this.config.auth.type !== 'app') {
       throw new GitHubAuthenticationError('GitHub App configuration required')
@@ -379,6 +524,23 @@ export class GitHubClient {
     }
   }
 
+  /**
+   * Refresh authentication tokens if they are nearing expiration
+   *
+   * This method proactively refreshes tokens before they expire to ensure
+   * uninterrupted API access. It handles both JWT tokens (GitHub Apps) and
+   * installation tokens, using configurable refresh thresholds.
+   *
+   * @throws {GitHubAuthenticationError} When JWT generation fails
+   * @throws {GitHubAuthenticationError} When installation token refresh fails
+   *
+   * @example
+   * ```typescript
+   * // Refresh tokens before making critical API calls
+   * await client.refreshTokenIfNeeded();
+   * const result = await client.rest.repos.get({ owner: 'owner', repo: 'repo' });
+   * ```
+   */
   async refreshTokenIfNeeded(): Promise<void> {
     if (!this.config.auth || this.config.auth.type !== 'app') {
       return
@@ -406,50 +568,200 @@ export class GitHubClient {
     }
   }
 
+  /**
+   * Get the current rate limit state for all GitHub API resources
+   *
+   * @returns Rate limit information including limits, remaining requests, and reset times
+   *
+   * @example
+   * ```typescript
+   * const rateLimits = client.getRateLimitInfo();
+   * console.log(`Core API: ${rateLimits.core.remaining}/${rateLimits.core.limit} remaining`);
+   * console.log(`GraphQL: ${rateLimits.graphql.remaining}/${rateLimits.graphql.limit} remaining`);
+   * ```
+   */
   getRateLimitInfo(): Record<string, unknown> {
     return this.rateLimitManager.getState()
   }
 
+  /**
+   * Get the current token rotation configuration
+   *
+   * @returns Token rotation configuration or undefined if not configured
+   */
   getTokenRotationConfig(): TokenRotationConfig | undefined {
     return this.config.tokenRotation
   }
 
+  /**
+   * Fetch the latest rate limit status from GitHub's API
+   *
+   * This method makes a live API call to get the most up-to-date rate limit
+   * information and updates the internal rate limit manager state.
+   *
+   * @returns Complete rate limit status from GitHub API
+   *
+   * @example
+   * ```typescript
+   * const status = await client.getRateLimitStatus();
+   * console.log('Rate limits:', status.resources);
+   * ```
+   */
   async getRateLimitStatus(): Promise<Record<string, unknown>> {
     const response = await this.rest.rateLimit.get()
     this.updateRateLimitsFromResponse(response.data)
     return response.data
   }
 
+  /**
+   * Calculate the point cost of a GraphQL query
+   *
+   * GitHub GraphQL API uses a point system to limit query complexity.
+   * This method analyzes the query structure to estimate point consumption.
+   *
+   * @param query - The GraphQL query string to analyze
+   * @returns Estimated point cost of the query
+   *
+   * @example
+   * ```typescript
+   * const query = `
+   *   query {
+   *     repository(owner: "owner", name: "repo") {
+   *       issues(first: 100) {
+   *         nodes { title body }
+   *       }
+   *     }
+   *   }
+   * `;
+   * const points = client.calculateGraphQLPoints(query);
+   * console.log(`Query will cost approximately ${points} points`);
+   * ```
+   */
   calculateGraphQLPoints(query: string): number {
     return calculateGraphQLPoints(query)
   }
 
+  /**
+   * Calculate the complexity score of a GraphQL query
+   *
+   * @param query - The GraphQL query string to analyze
+   * @returns Complexity score (currently uses same calculation as point cost)
+   */
   calculateGraphQLComplexity(query: string): number {
     // Simplified complexity calculation
     return calculateGraphQLPoints(query)
   }
 
+  /**
+   * Validate that a GraphQL query doesn't exceed point limits
+   *
+   * @param query - The GraphQL query string to validate
+   * @throws {GitHubClientError} When query exceeds the maximum allowed points
+   *
+   * @example
+   * ```typescript
+   * const query = 'query { repository(owner: "owner", name: "repo") { name } }';
+   * client.validateGraphQLPointLimit(query); // Will throw if query is too complex
+   * ```
+   */
   validateGraphQLPointLimit(query: string): void {
     validateGraphQLPointLimit(query)
   }
 
+  /**
+   * Analyze a GraphQL query and provide optimization suggestions
+   *
+   * @param query - The GraphQL query string to optimize
+   * @returns Array of optimization suggestions
+   *
+   * @example
+   * ```typescript
+   * const query = 'query { repository(owner: "owner", name: "repo") { issues(first: 100) { nodes { title } } } }';
+   * const suggestions = client.optimizeGraphQLQuery(query);
+   * suggestions.forEach(suggestion => console.log('Suggestion:', suggestion));
+   * ```
+   */
   optimizeGraphQLQuery(query: string): string[] {
     const analysis = analyzeGraphQLQuery(query)
     return analysis.suggestions
   }
 
+  /**
+   * Calculate delay for retry attempts with exponential backoff and jitter
+   *
+   * @param retryCount - Current retry attempt number (0-based)
+   * @param baseDelay - Base delay in milliseconds (default: 1000)
+   * @param retryAfter - Retry-after header value from response (optional)
+   * @returns Delay in milliseconds before next retry attempt
+   *
+   * @example
+   * ```typescript
+   * // Calculate delay for 3rd retry attempt
+   * const delay = client.calculateRetryDelay(2, 1000);
+   * await new Promise(resolve => setTimeout(resolve, delay));
+   * ```
+   */
   calculateRetryDelay(retryCount: number, baseDelay = 1000, retryAfter?: number): number {
     return calculateRetryDelayWithJitter(retryCount, baseDelay, retryAfter)
   }
 
+  /**
+   * Get the current retry configuration
+   *
+   * @returns Current retry options including circuit breaker settings
+   */
   getRetryConfig(): RetryOptions {
     return this.config.retry || createDefaultRetryOptions()
   }
 
+  /**
+   * Execute an operation with automatic retry logic
+   *
+   * This method wraps any async operation with intelligent retry logic,
+   * including exponential backoff, rate limit handling, and circuit breaker protection.
+   *
+   * @param operation - The async operation to execute with retries
+   * @returns Result of the operation
+   *
+   * @throws {GitHubClientError} When operation fails after all retry attempts
+   * @throws {GitHubClientError} When circuit breaker is open
+   *
+   * @example
+   * ```typescript
+   * const result = await client.executeWithRetry(async () => {
+   *   return await client.rest.repos.get({ owner: 'owner', repo: 'repo' });
+   * });
+   * ```
+   */
   async executeWithRetry<T>(operation: () => Promise<T>): Promise<T> {
     return this.retryManager.executeWithRetry(operation)
   }
 
+  /**
+   * Execute a GraphQL query with automatic point cost validation
+   *
+   * This method validates the query against GitHub's point limits before execution
+   * and wraps the request with retry logic for improved reliability.
+   *
+   * @param query - The GraphQL query string to execute
+   * @param variables - Variables to pass to the GraphQL query
+   * @returns Query result from GitHub's GraphQL API
+   *
+   * @throws {GitHubClientError} When query exceeds point limits
+   * @throws {GitHubClientError} When query execution fails after retries
+   *
+   * @example
+   * ```typescript
+   * const result = await client.executeGraphQLWithPointCheck(`
+   *   query($owner: String!, $repo: String!) {
+   *     repository(owner: $owner, name: $repo) {
+   *       stargazerCount
+   *       forkCount
+   *     }
+   *   }
+   * `, { owner: 'facebook', repo: 'react' });
+   * ```
+   */
   async executeGraphQLWithPointCheck(
     query: string,
     variables?: Record<string, unknown>
@@ -460,6 +772,40 @@ export class GitHubClient {
     })
   }
 
+  /**
+   * Execute a GraphQL query with automatic pagination
+   *
+   * This method automatically handles cursor-based pagination for GraphQL queries,
+   * collecting all results across multiple pages. It's particularly useful for
+   * queries that return large datasets like issues, pull requests, or commits.
+   *
+   * @param query - The GraphQL query string with pagination support
+   * @param variables - Variables to pass to the GraphQL query
+   * @param pageSize - Number of items to fetch per page (default: 100)
+   * @returns Array of all results from all pages
+   *
+   * @example
+   * ```typescript
+   * const allIssues = await client.paginateGraphQLQuery(`
+   *   query($owner: String!, $repo: String!, $cursor: String) {
+   *     repository(owner: $owner, name: $repo) {
+   *       issues(first: 50, after: $cursor) {
+   *         edges {
+   *           node {
+   *             title
+   *             number
+   *           }
+   *         }
+   *         pageInfo {
+   *           hasNextPage
+   *           endCursor
+   *         }
+   *       }
+   *     }
+   *   }
+   * `, { owner: 'facebook', repo: 'react' }, 50);
+   * ```
+   */
   async paginateGraphQLQuery(
     query: string,
     variables: Record<string, unknown> = {},
@@ -492,6 +838,46 @@ export class GitHubClient {
     return results
   }
 
+  /**
+   * Execute large GraphQL queries by automatically splitting them into smaller chunks
+   *
+   * This method handles complex GraphQL queries that might exceed GitHub's point limits
+   * by either using pagination or splitting the query into multiple smaller requests.
+   * It automatically detects pagination support and optimizes execution strategy.
+   *
+   * @param query - The GraphQL query string to execute
+   * @param options - Configuration options for query execution
+   * @param options.maxPointsPerRequest - Maximum points per individual request (default: 50000)
+   * @returns Combined results from all query chunks
+   *
+   * @example
+   * ```typescript
+   * // Execute a complex query that might exceed point limits
+   * const result = await client.executeLargeGraphQLQuery(`
+   *   query($cursor: String) {
+   *     repository(owner: "facebook", name: "react") {
+   *       issues(first: 100, after: $cursor) {
+   *         edges {
+   *           node {
+   *             title
+   *             body
+   *             comments(first: 10) {
+   *               edges {
+   *                 node { body }
+   *               }
+   *             }
+   *           }
+   *         }
+   *         pageInfo {
+   *           hasNextPage
+   *           endCursor
+   *         }
+   *       }
+   *     }
+   *   }
+   * `, { maxPointsPerRequest: 25000 });
+   * ```
+   */
   async executeLargeGraphQLQuery(
     query: string,
     options: { maxPointsPerRequest?: number } = {}
@@ -1254,6 +1640,21 @@ export class GitHubClient {
   }
 
   // Cache-related methods
+  /**
+   * Generate a cache key for a specific API request
+   *
+   * @param method - HTTP method (GET, POST, etc.)
+   * @param url - API endpoint URL
+   * @param params - Request parameters
+   * @returns Unique cache key for the request
+   *
+   * @throws {GitHubClientError} When cache is not configured
+   *
+   * @example
+   * ```typescript
+   * const key = client.generateCacheKey('GET', '/repos/owner/repo', { per_page: 100 });
+   * ```
+   */
   generateCacheKey(method: string, url: string, params: Record<string, unknown>): string {
     if (!this.cache) {
       throw new GitHubClientError('Cache not configured')
@@ -1263,6 +1664,18 @@ export class GitHubClient {
     return this.cache.generateCacheKey(method, url, params, authContext)
   }
 
+  /**
+   * Get cache performance metrics
+   *
+   * @returns Cache metrics including hit ratio, size, and memory usage
+   *
+   * @example
+   * ```typescript
+   * const metrics = client.getCacheMetrics();
+   * console.log(`Cache hit ratio: ${(metrics.hitRatio * 100).toFixed(1)}%`);
+   * console.log(`Cache size: ${metrics.size} entries`);
+   * ```
+   */
   getCacheMetrics(): CacheMetrics {
     if (!this.cache) {
       return { hits: 0, misses: 0, size: 0, memoryUsage: 0, hitRatio: 0 }
@@ -1270,6 +1683,25 @@ export class GitHubClient {
     return this.cache.getMetrics()
   }
 
+  /**
+   * Warm the cache by pre-fetching data for specific endpoints
+   *
+   * This method proactively fetches and caches data that is likely to be requested,
+   * improving performance for subsequent API calls.
+   *
+   * @param endpoint - API endpoint to warm (e.g., 'repos.get')
+   * @param params - Array of parameter sets to fetch
+   *
+   * @example
+   * ```typescript
+   * // Pre-fetch repository data for better performance
+   * await client.warmCache('repos.get', [
+   *   { owner: 'facebook', repo: 'react' },
+   *   { owner: 'microsoft', repo: 'typescript' },
+   *   { owner: 'vercel', repo: 'next.js' }
+   * ]);
+   * ```
+   */
   async warmCache(endpoint: string, params: Array<Record<string, unknown>>): Promise<void> {
     // Cache warming by pre-fetching data
     if (!this.cache) return
@@ -1292,6 +1724,25 @@ export class GitHubClient {
   }
 
   // DataLoader methods
+  /**
+   * Get or create a DataLoader instance for repository data
+   *
+   * DataLoader provides efficient batching and caching for GraphQL requests,
+   * automatically combining multiple repository requests into a single query.
+   *
+   * @returns DataLoader instance for repository data
+   *
+   * @example
+   * ```typescript
+   * const loader = client.getRepositoryLoader();
+   * // These requests will be automatically batched
+   * const [react, vue, angular] = await Promise.all([
+   *   loader.load({ owner: 'facebook', repo: 'react' }),
+   *   loader.load({ owner: 'vuejs', repo: 'vue' }),
+   *   loader.load({ owner: 'angular', repo: 'angular' })
+   * ]);
+   * ```
+   */
   getRepositoryLoader(): DataLoader<RepositoryKey, RepositoryData> {
     if (!this.repositoryDataLoader) {
       // Initialize DataLoader if not already done
@@ -1300,11 +1751,43 @@ export class GitHubClient {
     return this.repositoryDataLoader
   }
 
+  /**
+   * Fetch repository data using DataLoader for efficient batching
+   *
+   * This method uses DataLoader to automatically batch multiple repository
+   * requests and cache results, significantly improving performance when
+   * fetching multiple repositories.
+   *
+   * @param owner - Repository owner/organization name
+   * @param repo - Repository name
+   * @returns Repository data from GitHub's GraphQL API
+   *
+   * @example
+   * ```typescript
+   * // These calls will be automatically batched
+   * const reactData = await client.getRepositoryWithDataLoader('facebook', 'react');
+   * const vueData = await client.getRepositoryWithDataLoader('vuejs', 'vue');
+   * console.log(`React has ${reactData.stargazerCount} stars`);
+   * ```
+   */
   async getRepositoryWithDataLoader(owner: string, repo: string): Promise<RepositoryData> {
     const loader = this.getRepositoryLoader()
     return loader.load({ owner, repo })
   }
 
+  /**
+   * Clear all cached data in the DataLoader
+   *
+   * This method clears the DataLoader's internal cache, forcing fresh
+   * requests for subsequently loaded data.
+   *
+   * @example
+   * ```typescript
+   * // Clear cache to ensure fresh data
+   * client.clearDataLoaderCache();
+   * const freshData = await client.getRepositoryWithDataLoader('owner', 'repo');
+   * ```
+   */
   clearDataLoaderCache(): void {
     if (this.repositoryDataLoader) {
       this.repositoryDataLoader.clearAll()

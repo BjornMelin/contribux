@@ -1,30 +1,25 @@
 import { CACHE_DEFAULTS, TIME } from '../constants'
+import type {
+  CacheableData,
+  CacheEntry,
+  CacheHeaders,
+  CacheMetrics,
+  CacheOptions,
+  CacheStorage,
+  RedisLike,
+} from '../interfaces/cache'
 import { validateCacheEntry, validateCacheOptions } from '../schemas'
-import type { CacheEntry, CacheMetrics, CacheOptions } from '../types'
 
-export interface CacheStorage {
-  get(key: string): Promise<string | null>
-  set(key: string, value: string, ttl?: number): Promise<void>
-  del(key: string): Promise<void>
-  clear?(): Promise<void>
-  keys?(pattern?: string): Promise<string[]>
-}
-
-export interface RedisLike {
-  get(key: string): Promise<string | null>
-  set(key: string, value: string, ttlMs: number): Promise<string>
-  del(key: string): Promise<number>
-  quit(): Promise<void>
-}
-
-export interface CacheHeaders {
-  'cache-control'?: string
-  etag?: string
-  expires?: string
-  'last-modified'?: string
-}
-
-export type CacheableData = string | number | boolean | Record<string, unknown> | null
+// Re-export interfaces for backward compatibility
+export type {
+  CacheableData,
+  CacheEntry,
+  CacheHeaders,
+  CacheMetrics,
+  CacheOptions,
+  CacheStorage,
+  RedisLike,
+} from '../interfaces/cache'
 
 export class MemoryCache implements CacheStorage {
   private cache = new Map<string, { value: string; expiresAt: number; accessedAt: number }>()
@@ -197,6 +192,38 @@ export class RedisCache implements CacheStorage {
   }
 }
 
+/**
+ * Advanced cache manager with multi-tier storage and intelligent refresh strategies
+ *
+ * The CacheManager provides a sophisticated caching layer for GitHub API responses with:
+ * - Multi-tier storage (memory + optional Redis)
+ * - ETag-based conditional requests
+ * - Background refresh capabilities
+ * - Automatic cache invalidation
+ * - Pattern-based cache clearing
+ * - Comprehensive metrics tracking
+ *
+ * @example
+ * ```typescript
+ * // Basic memory cache
+ * const cache = new CacheManager({
+ *   enabled: true,
+ *   storage: 'memory',
+ *   ttl: 300, // 5 minutes
+ *   maxSize: 1000
+ * });
+ *
+ * // Redis-backed cache with background refresh
+ * const redisCache = new CacheManager({
+ *   enabled: true,
+ *   storage: 'redis',
+ *   redis: redisClient,
+ *   ttl: 600,
+ *   backgroundRefresh: true,
+ *   refreshThreshold: 0.75
+ * });
+ * ```
+ */
 export class CacheManager {
   private memoryCache: MemoryCache
   private redisCache?: RedisCache
@@ -204,6 +231,30 @@ export class CacheManager {
   private etagCache = new Map<string, string>()
   private backgroundRefreshActive = new Set<string>()
 
+  /**
+   * Creates a new CacheManager instance with configurable storage backends
+   *
+   * @param options - Cache configuration options
+   * @param options.enabled - Enable/disable caching (default: true)
+   * @param options.storage - Storage backend: 'memory' or 'redis' (default: 'memory')
+   * @param options.ttl - Time-to-live in seconds (default: 300)
+   * @param options.maxSize - Maximum number of cache entries for memory storage
+   * @param options.redis - Redis client instance (required when storage='redis')
+   * @param options.backgroundRefresh - Enable background cache refresh
+   * @param options.refreshThreshold - Threshold for background refresh (0.0-1.0)
+   *
+   * @example
+   * ```typescript
+   * const cache = new CacheManager({
+   *   enabled: true,
+   *   storage: 'memory',
+   *   ttl: 300,
+   *   maxSize: 500,
+   *   backgroundRefresh: true,
+   *   refreshThreshold: 0.8
+   * });
+   * ```
+   */
   constructor(options: CacheOptions & { maxSize?: number }) {
     // Validate options using Zod schema
     const validatedOptions = validateCacheOptions(options)
@@ -234,6 +285,23 @@ export class CacheManager {
     }
   }
 
+  /**
+   * Retrieve a cache entry by key from multi-tier storage
+   *
+   * This method first checks the memory cache for fast access, then falls back
+   * to Redis if available. Found Redis entries are promoted to memory cache.
+   *
+   * @param key - Cache key to retrieve
+   * @returns Cache entry or null if not found
+   *
+   * @example
+   * ```typescript
+   * const entry = await cache.get('api-key-123');
+   * if (entry) {
+   *   console.log('Cache hit:', entry.data);
+   * }
+   * ```
+   */
   async get(key: string): Promise<CacheEntry | null> {
     // Try memory cache first
     const memoryResult = await this.memoryCache.get(key)
@@ -255,6 +323,21 @@ export class CacheManager {
     return null
   }
 
+  /**
+   * Store a cache entry in all configured storage backends
+   *
+   * @param key - Cache key for the entry
+   * @param entry - Cache entry data with metadata
+   *
+   * @example
+   * ```typescript
+   * await cache.set('api-key-123', {
+   *   data: { name: 'example' },
+   *   createdAt: new Date().toISOString(),
+   *   ttl: 300
+   * });
+   * ```
+   */
   async set(key: string, entry: CacheEntry): Promise<void> {
     // Validate entry before caching
     const validatedEntry = validateCacheEntry(entry)
@@ -270,6 +353,16 @@ export class CacheManager {
     }
   }
 
+  /**
+   * Delete a cache entry from all storage backends
+   *
+   * @param key - Cache key to delete
+   *
+   * @example
+   * ```typescript
+   * await cache.del('api-key-123');
+   * ```
+   */
   async del(key: string): Promise<void> {
     await this.memoryCache.del(key)
     if (this.redisCache) {
@@ -277,17 +370,50 @@ export class CacheManager {
     }
   }
 
+  /**
+   * Clear all cache entries and associated metadata
+   *
+   * @example
+   * ```typescript
+   * await cache.clear(); // All cache data is now cleared
+   * ```
+   */
   async clear(): Promise<void> {
     await this.memoryCache.clear()
     this.etagCache.clear()
   }
 
+  /**
+   * Cleanup resources and clear all caches
+   *
+   * This method should be called when shutting down to properly cleanup
+   * timers and release memory.
+   *
+   * @example
+   * ```typescript
+   * cache.destroy(); // Cleanup on application shutdown
+   * ```
+   */
   destroy(): void {
     this.memoryCache.destroy()
     this.etagCache.clear()
     this.backgroundRefreshActive.clear()
   }
 
+  /**
+   * Invalidate cache entries matching a pattern
+   *
+   * @param pattern - Glob pattern to match against cache keys (supports wildcards)
+   *
+   * @example
+   * ```typescript
+   * // Invalidate all repository-related cache entries
+   * await cache.invalidatePattern('*repos*');
+   *
+   * // Invalidate specific organization's data
+   * await cache.invalidatePattern('*facebook/*');
+   * ```
+   */
   async invalidatePattern(pattern: string): Promise<void> {
     const keys = await this.memoryCache.keys(pattern)
     for (const key of keys) {
@@ -295,6 +421,21 @@ export class CacheManager {
     }
   }
 
+  /**
+   * Generate a unique cache key for API requests
+   *
+   * @param method - HTTP method
+   * @param url - API endpoint URL
+   * @param params - Request parameters
+   * @param authContext - Authentication context for key uniqueness
+   * @returns Unique cache key
+   *
+   * @example
+   * ```typescript
+   * const key = cache.generateCacheKey('GET', '/repos/owner/repo', { per_page: 100 }, 'user123');
+   * // Result: "gh:GET:/repos/owner/repo:hash:user123"
+   * ```
+   */
   generateCacheKey(
     method: string,
     url: string,
@@ -306,10 +447,22 @@ export class CacheManager {
     return `gh:${method}:${url}:${this.hashString(paramString)}${authPart}`
   }
 
+  /**
+   * Get ETag value for a cache key
+   *
+   * @param key - Cache key
+   * @returns ETag value or undefined if not found
+   */
   getETag(key: string): string | undefined {
     return this.etagCache.get(key)
   }
 
+  /**
+   * Store ETag value for a cache key
+   *
+   * @param key - Cache key
+   * @param etag - ETag value from HTTP response
+   */
   setETag(key: string, etag: string): void {
     this.etagCache.set(key, etag)
   }

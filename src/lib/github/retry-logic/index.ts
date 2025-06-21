@@ -6,7 +6,7 @@ import {
   isRequestError,
   isSecondaryRateLimitError,
 } from '../errors'
-import type { CircuitBreakerOptions, GitHubError, RetryOptions } from '../types'
+import type { CircuitBreakerOptions, GitHubError, RetryOptions } from '../interfaces'
 
 export interface RetryState {
   attempt: number
