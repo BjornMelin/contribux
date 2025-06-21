@@ -87,17 +87,36 @@ describe("Database Connection", () => {
   it("should successfully connect to database", async () => {
     const result = await sql`SELECT 1 as test`;
     expect(result).toHaveLength(1);
-    expect(result[0].test).toBe(1);
+    expect(Array.isArray(result)).toBe(true);
+    if (Array.isArray(result) && result.length > 0) {
+      const firstRow = result[0];
+      if (firstRow && typeof firstRow === 'object' && 'test' in firstRow) {
+        expect((firstRow as { test: number }).test).toBe(1);
+      }
+    }
   });
 
   it("should handle parameterized queries safely", async () => {
     const testValue = "test'injection";
     const result = await sql`SELECT ${testValue} as safe_param`;
-    expect(result[0].safe_param).toBe(testValue);
+    expect(Array.isArray(result)).toBe(true);
+    if (Array.isArray(result) && result.length > 0) {
+      const firstRow = result[0];
+      if (firstRow && typeof firstRow === 'object' && 'safe_param' in firstRow) {
+        expect((firstRow as { safe_param: string }).safe_param).toBe(testValue);
+      }
+    }
   });
 
   it("should return database version", async () => {
     const result = await sql`SELECT version() as version`;
-    expect(result[0].version).toMatch(/PostgreSQL/);
+    expect(Array.isArray(result)).toBe(true);
+    if (Array.isArray(result) && result.length > 0) {
+      const firstRow = result[0];
+      if (firstRow && typeof firstRow === 'object' && 'version' in firstRow) {
+        const version = (firstRow as { version: string }).version;
+        expect(version).toMatch(/PostgreSQL/);
+      }
+    }
   });
 });

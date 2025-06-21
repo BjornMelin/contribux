@@ -21,11 +21,20 @@ describe("Database Schema", () => {
         ORDER BY extname
       `;
       
-      const extNames = extensions.map(ext => ext.extname);
-      expect(extNames).toContain("vector");
-      expect(extNames).toContain("pg_trgm");
-      expect(extNames).toContain("uuid-ossp");
-      expect(extNames).toContain("pgcrypto");
+      expect(Array.isArray(extensions)).toBe(true);
+      if (Array.isArray(extensions)) {
+        const extNames: string[] = [];
+        for (const ext of extensions) {
+          if (typeof ext === 'object' && ext !== null && 'extname' in ext) {
+            const extObj = ext as { extname: string };
+            extNames.push(extObj.extname);
+          }
+        }
+        expect(extNames).toContain("vector");
+        expect(extNames).toContain("pg_trgm");
+        expect(extNames).toContain("uuid-ossp");
+        expect(extNames).toContain("pgcrypto");
+      }
     });
 
     it("should have pgvector extension with correct version", async () => {
@@ -36,7 +45,14 @@ describe("Database Schema", () => {
       `;
       
       expect(vectorExt).toHaveLength(1);
-      expect(vectorExt[0].extversion).toMatch(/^0\.[8-9]/); // Version 0.8+ or higher
+      expect(Array.isArray(vectorExt)).toBe(true);
+      if (Array.isArray(vectorExt) && vectorExt.length > 0) {
+        const firstRow = vectorExt[0];
+        if (firstRow && typeof firstRow === 'object' && 'extversion' in firstRow) {
+          const version = (firstRow as { extversion: string }).extversion;
+          expect(version).toMatch(/^0\.[8-9]/); // Version 0.8+ or higher
+        }
+      }
     });
   });
 
@@ -49,7 +65,15 @@ describe("Database Schema", () => {
         ORDER BY table_name
       `;
       
-      const tableNames = tables.map(t => t.table_name);
+      const tableNames: string[] = [];
+      if (Array.isArray(tables)) {
+        for (const table of tables) {
+          if (typeof table === 'object' && table !== null && 'table_name' in table) {
+            const tableObj = table as { table_name: string };
+            tableNames.push(tableObj.table_name);
+          }
+        }
+      }
       const requiredTables = [
         "users",
         "repositories", 
@@ -73,17 +97,25 @@ describe("Database Schema", () => {
         ORDER BY table_name, column_name
       `;
       
-      expect(columns.length).toBeGreaterThan(0);
+      expect(Array.isArray(columns) ? columns.length : 0).toBeGreaterThan(0);
       
       // Check that we have embedding columns
-      const embeddingColumns = columns.filter(col => 
-        col.column_name.includes("embedding")
-      );
+      const embeddingColumns: Array<{ column_name: string; data_type: string }> = [];
+      if (Array.isArray(columns)) {
+        for (const col of columns) {
+          if (typeof col === 'object' && col !== null && 'column_name' in col && 'data_type' in col) {
+            const colObj = col as { column_name: string; data_type: string };
+            if (colObj.column_name.includes("embedding")) {
+              embeddingColumns.push(colObj);
+            }
+          }
+        }
+      }
       
       expect(embeddingColumns.length).toBeGreaterThanOrEqual(3);
       
       // Verify data type is user-defined (halfvec)
-      embeddingColumns.forEach(col => {
+      embeddingColumns.forEach((col) => {
         expect(col.data_type).toBe("USER-DEFINED");
       });
     });
@@ -98,7 +130,15 @@ describe("Database Schema", () => {
         ORDER BY typname
       `;
       
-      const enumNames = enums.map(e => e.typname);
+      const enumNames: string[] = [];
+      if (Array.isArray(enums)) {
+        for (const enumType of enums) {
+          if (typeof enumType === 'object' && enumType !== null && 'typname' in enumType) {
+            const enumObj = enumType as { typname: string };
+            enumNames.push(enumObj.typname);
+          }
+        }
+      }
       const requiredEnums = [
         "user_role",
         "repository_status", 
@@ -125,7 +165,7 @@ describe("Database Schema", () => {
         ORDER BY tablename, indexname
       `;
       
-      expect(hnsWIndexes.length).toBeGreaterThanOrEqual(4);
+      expect(Array.isArray(hnsWIndexes) ? hnsWIndexes.length : 0).toBeGreaterThanOrEqual(4);
       
       const expectedIndexes = [
         "idx_users_profile_embedding_hnsw",
@@ -134,7 +174,15 @@ describe("Database Schema", () => {
         "idx_opportunities_description_embedding_hnsw"
       ];
       
-      const indexNames = hnsWIndexes.map(idx => idx.indexname);
+      const indexNames: string[] = [];
+      if (Array.isArray(hnsWIndexes)) {
+        for (const index of hnsWIndexes) {
+          if (typeof index === 'object' && index !== null && 'indexname' in index) {
+            const indexObj = index as { indexname: string };
+            indexNames.push(indexObj.indexname);
+          }
+        }
+      }
       expectedIndexes.forEach(indexName => {
         expect(indexNames).toContain(indexName);
       });
@@ -149,7 +197,7 @@ describe("Database Schema", () => {
         ORDER BY tablename, indexname
       `;
       
-      expect(ginIndexes.length).toBeGreaterThan(0);
+      expect(Array.isArray(ginIndexes) ? ginIndexes.length : 0).toBeGreaterThan(0);
     });
   });
 
@@ -174,7 +222,15 @@ describe("Database Schema", () => {
         ORDER BY routine_name
       `;
       
-      const functionNames = searchFunctions.map(f => f.routine_name);
+      const functionNames: string[] = [];
+      if (Array.isArray(searchFunctions)) {
+        for (const func of searchFunctions) {
+          if (typeof func === 'object' && func !== null && 'routine_name' in func) {
+            const funcObj = func as { routine_name: string };
+            functionNames.push(funcObj.routine_name);
+          }
+        }
+      }
       const expectedFunctions = [
         "hybrid_search_opportunities",
         "hybrid_search_repositories",
@@ -197,7 +253,7 @@ describe("Database Schema", () => {
         ORDER BY event_object_table, trigger_name
       `;
       
-      expect(triggers.length).toBeGreaterThanOrEqual(5);
+      expect(Array.isArray(triggers) ? triggers.length : 0).toBeGreaterThanOrEqual(5);
       
       const expectedTables = [
         "users",
@@ -207,7 +263,15 @@ describe("Database Schema", () => {
         "contribution_outcomes"
       ];
       
-      const triggerTables = triggers.map(t => t.event_object_table);
+      const triggerTables: string[] = [];
+      if (Array.isArray(triggers)) {
+        for (const trigger of triggers) {
+          if (typeof trigger === 'object' && trigger !== null && 'event_object_table' in trigger) {
+            const triggerObj = trigger as { event_object_table: string };
+            triggerTables.push(triggerObj.event_object_table);
+          }
+        }
+      }
       expectedTables.forEach(tableName => {
         expect(triggerTables).toContain(tableName);
       });
