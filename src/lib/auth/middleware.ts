@@ -10,7 +10,7 @@ import { RateLimiterMemory, RateLimiterRedis } from 'rate-limiter-flexible'
 import { sql } from '@/lib/db/config'
 import { env } from '@/lib/validation/env'
 import type { AccessTokenPayload, User } from '@/types/auth'
-import { logSecurityEvent } from './audit'
+import { createLogParams, logSecurityEvent } from './audit'
 import { checkConsentRequired } from './gdpr'
 import { verifyAccessToken } from './jwt'
 
@@ -628,12 +628,13 @@ export async function auditRequest(
   const ip = getClientIp(request)
   const userAgent = request.headers.get('user-agent')
 
-  await logSecurityEvent({
+  // Create parameters object with only defined values
+  const logParams = createLogParams({
     event_type: options.event_type,
     event_severity: options.success ? 'info' : 'warning',
     user_id: auth?.user?.id,
-    ip_address: ip,
-    user_agent: userAgent,
+    ip_address: ip || undefined,
+    user_agent: userAgent || undefined,
     event_data: {
       resource: options.resource,
       method: request.method,
@@ -644,6 +645,8 @@ export async function auditRequest(
     success: options.success,
     error_message: options.error,
   })
+
+  await logSecurityEvent(logParams)
 }
 
 /**
@@ -672,7 +675,8 @@ function getClientIp(request: NextRequest): string | null {
   // Check various headers for IP
   const forwarded = request.headers.get('x-forwarded-for')
   if (forwarded) {
-    return forwarded.split(',')[0].trim()
+    const firstIp = forwarded.split(',')[0]
+    return firstIp ? firstIp.trim() : null
   }
 
   const realIp = request.headers.get('x-real-ip')

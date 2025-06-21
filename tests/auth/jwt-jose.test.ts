@@ -87,6 +87,9 @@ describe('JWT Jose Library Integration', () => {
       
       // Decode header without verification
       const headerB64 = token.split('.')[0]
+      if (!headerB64) {
+        throw new Error('Invalid token format')
+      }
       const header = JSON.parse(
         Buffer.from(headerB64, 'base64url').toString()
       )

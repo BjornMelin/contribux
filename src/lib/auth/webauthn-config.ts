@@ -8,6 +8,9 @@ const WebAuthnConfigSchema = z.object({
   origins: z.array(z.string().url()),
   isDevelopment: z.boolean(),
   isProduction: z.boolean(),
+  challengeExpiry: z.number().min(30000).default(300000), // 5 minutes default
+  supportedAlgorithms: z.array(z.number()).default([-7, -257]), // ES256, RS256
+  timeout: z.number().min(10000).default(60000), // 60 seconds default
 })
 
 export type WebAuthnConfig = z.infer<typeof WebAuthnConfigSchema>
@@ -117,7 +120,7 @@ export function getWebAuthnConfig(): WebAuthnConfig {
     if (isDevelopment) {
       // Development defaults
       origins.push('http://localhost:3000')
-      if (env.PORT && env.PORT !== '3000') {
+      if (env.PORT && env.PORT !== 3000) {
         origins.push(`http://localhost:${env.PORT}`)
       }
     }
@@ -157,6 +160,13 @@ export function getWebAuthnConfig(): WebAuthnConfig {
     origins,
     isDevelopment,
     isProduction,
+    challengeExpiry: env.WEBAUTHN_CHALLENGE_EXPIRY ?? 300000, // 5 minutes default
+    supportedAlgorithms: env.WEBAUTHN_SUPPORTED_ALGORITHMS
+      ? env.WEBAUTHN_SUPPORTED_ALGORITHMS.split(',').map((id: string) =>
+          Number.parseInt(id.trim(), 10)
+        )
+      : [-7, -257], // ES256, RS256 default
+    timeout: env.WEBAUTHN_TIMEOUT ?? 60000, // 60 seconds default
   }
 
   return WebAuthnConfigSchema.parse(config)
@@ -175,7 +185,15 @@ export function isOriginAllowed(origin: string, config?: WebAuthnConfig): boolea
  */
 export function getPrimaryOrigin(config?: WebAuthnConfig): string {
   const webauthnConfig = config || getWebAuthnConfig()
-  return webauthnConfig.origins[0]
+  if (webauthnConfig.origins.length === 0) {
+    throw new Error('No WebAuthn origins configured')
+  }
+  // We already checked length > 0, so this is safe
+  const firstOrigin = webauthnConfig.origins[0]
+  if (!firstOrigin) {
+    throw new Error('No WebAuthn origins configured')
+  }
+  return firstOrigin
 }
 
 /**

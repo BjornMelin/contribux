@@ -130,6 +130,9 @@ export async function validateOAuthCallback(params: OAuthCallbackParams): Promis
   }
 
   const stateData = stateResult[0]
+  if (!stateData) {
+    throw new Error('Invalid OAuth state data')
+  }
 
   // Check if state is expired
   const stateAge = Date.now() - new Date(stateData.created_at).getTime()
@@ -143,13 +146,22 @@ export async function validateOAuthCallback(params: OAuthCallbackParams): Promis
     WHERE state = ${validated.state}
   `
 
-  return {
+  const result: {
+    valid: boolean
+    code?: string
+    codeVerifier?: string
+    provider?: string
+    userId?: string
+  } = {
     valid: true,
-    code: validated.code,
-    codeVerifier: stateData.code_verifier,
-    provider: stateData.provider,
-    userId: stateData.user_id,
   }
+
+  if (validated.code !== undefined) result.code = validated.code
+  if (stateData.code_verifier !== undefined) result.codeVerifier = stateData.code_verifier
+  if (stateData.provider !== undefined) result.provider = stateData.provider
+  if (stateData.user_id !== undefined) result.userId = stateData.user_id
+
+  return result
 }
 
 // Exchange authorization code for tokens
@@ -184,11 +196,16 @@ export async function exchangeCodeForTokens(
   const tokens: OAuthTokens = {
     accessToken: tokenData.access_token,
     tokenType: tokenData.token_type,
-    scope: tokenData.scope,
-    refreshToken: tokenData.refresh_token,
-    expiresAt: tokenData.expires_in
-      ? new Date(Date.now() + tokenData.expires_in * 1000)
-      : undefined,
+  }
+
+  if (tokenData.scope !== undefined) {
+    tokens.scope = tokenData.scope
+  }
+  if (tokenData.refresh_token !== undefined) {
+    tokens.refreshToken = tokenData.refresh_token
+  }
+  if (tokenData.expires_in) {
+    tokens.expiresAt = new Date(Date.now() + tokenData.expires_in * 1000)
   }
 
   // Fetch user profile if requested
@@ -231,9 +248,17 @@ export async function exchangeCodeForTokens(
         )
         RETURNING *
       `
-      user = newUserResult[0]
+      const newUser = newUserResult[0]
+      if (!newUser) {
+        throw new Error('Failed to create user')
+      }
+      user = newUser as User
     } else {
-      user = userResult[0]
+      const existingUser = userResult[0]
+      if (!existingUser) {
+        throw new Error('User data not found')
+      }
+      user = existingUser as User
     }
 
     // Store OAuth account (tokens encrypted in real implementation)
@@ -305,6 +330,9 @@ export async function refreshOAuthTokens(params: {
   }
 
   const account = accountResult[0]
+  if (!account) {
+    throw new Error('OAuth account not found')
+  }
   const refreshToken = await decryptOAuthToken(
     account.refresh_token,
     params.userId,
@@ -344,15 +372,22 @@ export async function refreshOAuthTokens(params: {
     WHERE id = ${account.id}
   `
 
-  return {
+  const result: OAuthTokens = {
     accessToken: tokenData.access_token,
-    refreshToken: tokenData.refresh_token,
     tokenType: tokenData.token_type || 'bearer',
-    scope: tokenData.scope,
-    expiresAt: tokenData.expires_in
-      ? new Date(Date.now() + tokenData.expires_in * 1000)
-      : undefined,
   }
+
+  if (tokenData.refresh_token !== undefined) {
+    result.refreshToken = tokenData.refresh_token
+  }
+  if (tokenData.scope !== undefined) {
+    result.scope = tokenData.scope
+  }
+  if (tokenData.expires_in) {
+    result.expiresAt = new Date(Date.now() + tokenData.expires_in * 1000)
+  }
+
+  return result
 }
 
 // Unlink OAuth account

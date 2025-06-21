@@ -1,4 +1,5 @@
 // Database connection tests
+import { describe, it, expect, beforeAll, beforeEach } from 'vitest'
 import { neon } from "@neondatabase/serverless";
 import { getDatabaseUrl, vectorConfig, dbConfig } from "../../src/lib/db/config";
 import { env } from "../../src/lib/validation/env";
@@ -53,7 +54,8 @@ describe("Database Configuration", () => {
       
       // Re-import to get updated config
       vi.resetModules();
-      const { vectorConfig: updatedConfig } = await vi.importActual("../../src/lib/db/config");
+      const module = await vi.importActual("../../src/lib/db/config") as { vectorConfig: typeof vectorConfig };
+      const updatedConfig = module.vectorConfig;
       
       expect(updatedConfig.efSearch).toBe(300);
       expect(updatedConfig.similarityThreshold).toBe(0.8);
@@ -84,17 +86,17 @@ describe("Database Connection", () => {
   it("should successfully connect to database", async () => {
     const result = await sql`SELECT 1 as test`;
     expect(result).toHaveLength(1);
-    expect(result[0].test).toBe(1);
+    expect((result as Array<{ test: number }>)[0]?.test).toBe(1);
   });
 
   it("should handle parameterized queries safely", async () => {
     const testValue = "test'injection";
     const result = await sql`SELECT ${testValue} as safe_param`;
-    expect(result[0].safe_param).toBe(testValue);
+    expect((result as Array<{ safe_param: string }>)[0]?.safe_param).toBe(testValue);
   });
 
   it("should return database version", async () => {
     const result = await sql`SELECT version() as version`;
-    expect(result[0].version).toMatch(/PostgreSQL/);
+    expect((result as Array<{ version: string }>)[0]?.version).toMatch(/PostgreSQL/);
   });
 });

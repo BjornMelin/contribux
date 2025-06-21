@@ -1,28 +1,60 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
+// Mock environment values storage
+const mockEnvValues: Record<string, any> = {}
+
 // Create a mock environment that will be used in the factory
 vi.mock('@/lib/validation/env', () => {
-  const mockEnv = {
-    NODE_ENV: 'development',
-    WEBAUTHN_RP_ID: undefined as string | undefined,
-    WEBAUTHN_RP_NAME: 'Contribux',
-    WEBAUTHN_ORIGINS: undefined as string | undefined,
-    NEXT_PUBLIC_APP_URL: undefined as string | undefined,
-    NEXT_PUBLIC_VERCEL_URL: undefined as string | undefined,
-    VERCEL_URL: undefined as string | undefined,
-    PORT: '3000',
-  }
-  
   return {
-    env: new Proxy(mockEnv, {
-      get(target, prop) {
-        return target[prop as keyof typeof mockEnv]
+    env: {
+      get NODE_ENV() { return mockEnvValues.NODE_ENV || 'development' },
+      set NODE_ENV(v) { mockEnvValues.NODE_ENV = v },
+      
+      get WEBAUTHN_RP_ID() { return mockEnvValues.WEBAUTHN_RP_ID },
+      set WEBAUTHN_RP_ID(v) { mockEnvValues.WEBAUTHN_RP_ID = v },
+      
+      get WEBAUTHN_RP_NAME() { 
+        return mockEnvValues.WEBAUTHN_RP_NAME === undefined ? 'Contribux' : mockEnvValues.WEBAUTHN_RP_NAME 
       },
-      set(target, prop, value) {
-        target[prop as keyof typeof mockEnv] = value
-        return true
-      }
-    })
+      set WEBAUTHN_RP_NAME(v) { mockEnvValues.WEBAUTHN_RP_NAME = v },
+      
+      get WEBAUTHN_ORIGINS() { return mockEnvValues.WEBAUTHN_ORIGINS },
+      set WEBAUTHN_ORIGINS(v) { mockEnvValues.WEBAUTHN_ORIGINS = v },
+      
+      get WEBAUTHN_TIMEOUT() { 
+        const val = mockEnvValues.WEBAUTHN_TIMEOUT
+        if (val === undefined) return undefined
+        return typeof val === 'string' ? parseInt(val, 10) : val
+      },
+      set WEBAUTHN_TIMEOUT(v) { mockEnvValues.WEBAUTHN_TIMEOUT = v },
+      
+      get WEBAUTHN_CHALLENGE_EXPIRY() { 
+        const val = mockEnvValues.WEBAUTHN_CHALLENGE_EXPIRY
+        if (val === undefined) return undefined
+        return typeof val === 'string' ? parseInt(val, 10) : val
+      },
+      set WEBAUTHN_CHALLENGE_EXPIRY(v) { mockEnvValues.WEBAUTHN_CHALLENGE_EXPIRY = v },
+      
+      get WEBAUTHN_SUPPORTED_ALGORITHMS() { return mockEnvValues.WEBAUTHN_SUPPORTED_ALGORITHMS },
+      set WEBAUTHN_SUPPORTED_ALGORITHMS(v) { mockEnvValues.WEBAUTHN_SUPPORTED_ALGORITHMS = v },
+      
+      get NEXT_PUBLIC_APP_URL() { 
+        return mockEnvValues.NEXT_PUBLIC_APP_URL === undefined ? 'http://localhost:3000' : mockEnvValues.NEXT_PUBLIC_APP_URL 
+      },
+      set NEXT_PUBLIC_APP_URL(v) { mockEnvValues.NEXT_PUBLIC_APP_URL = v },
+      
+      get NEXT_PUBLIC_VERCEL_URL() { return mockEnvValues.NEXT_PUBLIC_VERCEL_URL },
+      set NEXT_PUBLIC_VERCEL_URL(v) { mockEnvValues.NEXT_PUBLIC_VERCEL_URL = v },
+      
+      get VERCEL_URL() { return mockEnvValues.VERCEL_URL },
+      set VERCEL_URL(v) { mockEnvValues.VERCEL_URL = v },
+      
+      get PORT() { 
+        const val = mockEnvValues.PORT || '3000'
+        return typeof val === 'string' ? parseInt(val, 10) : val
+      },
+      set PORT(v) { mockEnvValues.PORT = v },
+    }
   }
 })
 
@@ -38,14 +70,10 @@ import { env } from '@/lib/validation/env'
 describe('WebAuthn Configuration', () => {
   beforeEach(() => {
     // Reset mock environment
-    env.NODE_ENV = 'development'
-    env.WEBAUTHN_RP_ID = undefined
-    env.WEBAUTHN_RP_NAME = 'Contribux'
-    env.WEBAUTHN_ORIGINS = undefined
-    env.NEXT_PUBLIC_APP_URL = undefined
-    env.NEXT_PUBLIC_VERCEL_URL = undefined
-    env.VERCEL_URL = undefined
-    env.PORT = '3000'
+    Object.keys(mockEnvValues).forEach(key => delete mockEnvValues[key])
+    mockEnvValues.NODE_ENV = 'development'
+    mockEnvValues.WEBAUTHN_RP_NAME = 'Contribux'
+    mockEnvValues.PORT = 3000
   })
 
   describe('Development Environment', () => {
@@ -69,7 +97,7 @@ describe('WebAuthn Configuration', () => {
     })
 
     it('should include custom port when PORT is different', () => {
-      env.PORT = '8080'
+      env.PORT = 8080
       
       const config = getWebAuthnConfig()
       
@@ -96,7 +124,7 @@ describe('WebAuthn Configuration', () => {
 
   describe('Production Environment', () => {
     beforeEach(() => {
-      env.NODE_ENV = 'production'
+      (env as any).NODE_ENV = 'production'
     })
 
     it('should reject localhost RP ID in production', () => {
@@ -204,7 +232,7 @@ describe('WebAuthn Configuration', () => {
     })
 
     it('should require at least one origin', () => {
-      env.NODE_ENV = 'production'
+      (env as any).NODE_ENV = 'production'
       env.WEBAUTHN_RP_ID = 'example.com'
       env.WEBAUTHN_ORIGINS = ''
       
@@ -228,6 +256,9 @@ describe('WebAuthn Configuration', () => {
         origins: ['https://example.com', 'https://staging.example.com'],
         isDevelopment: false,
         isProduction: true,
+        challengeExpiry: 300000,
+        supportedAlgorithms: [-7, -257],
+        timeout: 60000,
       }
       
       expect(isOriginAllowed('https://example.com', config)).toBe(true)
@@ -242,6 +273,9 @@ describe('WebAuthn Configuration', () => {
         origins: ['https://primary.com', 'https://secondary.com'],
         isDevelopment: false,
         isProduction: true,
+        challengeExpiry: 300000,
+        supportedAlgorithms: [-7, -257],
+        timeout: 60000,
       }
       
       expect(getPrimaryOrigin(config)).toBe('https://primary.com')
@@ -279,7 +313,7 @@ describe('WebAuthn Configuration', () => {
     })
 
     it('should log error and rethrow on invalid config', () => {
-      env.NODE_ENV = 'production'
+      (env as any).NODE_ENV = 'production'
       // No configuration provided
       
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -294,13 +328,66 @@ describe('WebAuthn Configuration', () => {
     })
   })
 
+  describe('New Configuration Properties', () => {
+    it('should handle WebAuthn timeout configuration', () => {
+      env.WEBAUTHN_TIMEOUT = 120000 // 2 minutes
+      
+      const config = getWebAuthnConfig()
+      
+      expect(config.timeout).toBe(120000)
+    })
+    
+    it('should use default timeout when not specified', () => {
+      const config = getWebAuthnConfig()
+      
+      expect(config.timeout).toBe(60000) // 60 seconds default
+    })
+    
+    it('should handle challenge expiry configuration', () => {
+      env.WEBAUTHN_CHALLENGE_EXPIRY = 600000 // 10 minutes
+      
+      const config = getWebAuthnConfig()
+      
+      expect(config.challengeExpiry).toBe(600000)
+    })
+    
+    it('should use default challenge expiry when not specified', () => {
+      const config = getWebAuthnConfig()
+      
+      expect(config.challengeExpiry).toBe(300000) // 5 minutes default
+    })
+    
+    it('should handle supported algorithms configuration', () => {
+      env.WEBAUTHN_SUPPORTED_ALGORITHMS = '-7,-257,-8' // ES256, RS256, EdDSA
+      
+      const config = getWebAuthnConfig()
+      
+      expect(config.supportedAlgorithms).toEqual([-7, -257, -8])
+    })
+    
+    it('should use default algorithms when not specified', () => {
+      const config = getWebAuthnConfig()
+      
+      expect(config.supportedAlgorithms).toEqual([-7, -257]) // ES256, RS256 default
+    })
+    
+    it('should handle algorithm configuration with spaces', () => {
+      env.WEBAUTHN_SUPPORTED_ALGORITHMS = ' -7 , -257 , -8 '
+      
+      const config = getWebAuthnConfig()
+      
+      expect(config.supportedAlgorithms).toEqual([-7, -257, -8])
+    })
+  })
+
   describe('Edge Cases', () => {
     it('should handle missing environment variables gracefully', () => {
+      // Clear all WebAuthn env vars
       // Clear all WebAuthn env vars
       env.WEBAUTHN_RP_ID = undefined
       env.WEBAUTHN_RP_NAME = 'Contribux'
       env.WEBAUTHN_ORIGINS = undefined
-      env.NEXT_PUBLIC_APP_URL = undefined
+      // NEXT_PUBLIC_APP_URL has default value, so leave it
       env.NEXT_PUBLIC_VERCEL_URL = undefined
       env.VERCEL_URL = undefined
       env.NODE_ENV = 'development'

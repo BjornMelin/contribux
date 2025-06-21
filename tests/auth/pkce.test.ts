@@ -69,7 +69,7 @@ describe('PKCE (Proof Key for Code Exchange)', () => {
       const view = new Uint8Array(data)
       const mockHash = new Uint8Array(32)
       for (let i = 0; i < 32; i++) {
-        mockHash[i] = (view[0] + i * 2) % 256
+        mockHash[i] = ((view[0] ?? 0) + i * 2) % 256
       }
       return mockHash.buffer
     })
@@ -88,8 +88,8 @@ describe('PKCE (Proof Key for Code Exchange)', () => {
     expect(mockGetRandomValues).toHaveBeenCalledTimes(2)
     
     // Values should be different
-    expect(result1.codeVerifier).not.toBe(result2.codeVerifier)
-    expect(result1.codeChallenge).not.toBe(result2.codeChallenge)
+    expect(result1?.codeVerifier).not.toBe(result2?.codeVerifier)
+    expect(result1?.codeChallenge).not.toBe(result2?.codeChallenge)
   })
 
   it('should use crypto.subtle.digest for challenge generation', async () => {

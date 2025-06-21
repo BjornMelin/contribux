@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   logSecurityEvent,
   logAuthenticationAttempt,
@@ -72,8 +72,8 @@ describe('Security Audit Logging', () => {
       })
 
       const calls = mockSql.mock.calls
-      expect(calls[0][0][0]).toContain('INSERT INTO security_audit_logs')
-      expect(calls[0][0][0]).toContain('event_data')
+      expect(calls[0]?.[0]?.[0]).toContain('INSERT INTO security_audit_logs')
+      expect(calls[0]?.[0]?.[0]).toContain('event_data')
     })
 
     it('should handle events without user context', async () => {
@@ -94,7 +94,7 @@ describe('Security Audit Logging', () => {
       })
 
       const calls = mockSql.mock.calls
-      expect(calls[0][0][0]).toContain('INSERT INTO security_audit_logs')
+      expect(calls[0]?.[0]?.[0]).toContain('INSERT INTO security_audit_logs')
     })
 
     it('should assign appropriate severity levels', async () => {
@@ -143,11 +143,11 @@ describe('Security Audit Logging', () => {
       })
 
       const calls = mockSql.mock.calls
-      expect(calls[0][0][0]).toContain('event_type')
-      expect(calls[0][0][0]).toContain('event_data')
+      expect(calls[0]?.[0]?.[0]).toContain('event_type')
+      expect(calls[0]?.[0]?.[0]).toContain('event_data')
       // The SQL template should have parameters passed
       // Find the JSON stringified event_data in the parameters
-      const allParams = calls[0].slice(1).flat()
+      const allParams = calls[0]?.slice(1).flat() || []
       const eventDataParam = allParams.find(param => 
         typeof param === 'string' && param.includes('device_fingerprint')
       )
@@ -252,8 +252,8 @@ describe('Security Audit Logging', () => {
       })
 
       const calls = mockSql.mock.calls
-      expect(calls[0][0][0]).toContain('event_type')
-      expect(calls[0][1]).toBe('session_created')
+      expect(calls[0]?.[0]?.[0]).toContain('event_type')
+      expect(calls[0]?.[1]).toBe('session_created')
     })
 
     it('should detect session anomalies', async () => {
@@ -314,10 +314,10 @@ describe('Security Audit Logging', () => {
       })
 
       const calls = mockSql.mock.calls
-      expect(calls[0][0][0]).toContain('event_type')
-      expect(calls[0][1]).toBe('data_access')
+      expect(calls[0]?.[0]?.[0]).toContain('event_type')
+      expect(calls[0]?.[1]).toBe('data_access')
       // Find the JSON stringified event_data in the parameters
-      const allParams = calls[0].slice(1).flat()
+      const allParams = calls[0]?.slice(1).flat() || []
       const eventDataParam = allParams.find(param => 
         typeof param === 'string' && param.includes('resource_type')
       )
@@ -343,9 +343,9 @@ describe('Security Audit Logging', () => {
       })
 
       const calls = mockSql.mock.calls
-      expect(calls[0][0][0]).toContain('event_data')
+      expect(calls[0]?.[0]?.[0]).toContain('event_data')
       // Find the JSON stringified event_data in the parameters
-      const allParams = calls[0].slice(1).flat()
+      const allParams = calls[0]?.slice(1).flat() || []
       const eventDataParam = allParams.find(param => 
         typeof param === 'string' && param.includes('record_count')
       )
@@ -376,8 +376,8 @@ describe('Security Audit Logging', () => {
       })
 
       const calls = mockSql.mock.calls
-      expect(calls[0][0][0]).toContain('event_type')
-      expect(calls[0][1]).toBe('config_change')
+      expect(calls[0]?.[0]?.[0]).toContain('event_type')
+      expect(calls[0]?.[1]).toBe('config_change')
     })
 
     it('should require elevated privileges for critical changes', async () => {
@@ -421,7 +421,7 @@ describe('Security Audit Logging', () => {
       
       const calls = mockSql.mock.calls
       // The SQL template combines all parts into a single string
-      const sqlQuery = calls[0][0].join ? calls[0][0].join(' ') : calls[0][0][0]
+      const sqlQuery = calls[0]?.[0]?.join ? calls[0][0].join(' ') : calls[0]?.[0]?.[0]
       expect(sqlQuery).toContain('SELECT')
       expect(sqlQuery).toContain('WHERE')
       expect(sqlQuery).toContain('ORDER BY')
@@ -440,7 +440,7 @@ describe('Security Audit Logging', () => {
       
       const calls = mockSql.mock.calls
       // The SQL template combines all parts into a single string
-      const sqlQuery = calls[0][0].join ? calls[0][0].join(' ') : calls[0][0][0]
+      const sqlQuery = calls[0]?.[0]?.join ? calls[0][0].join(' ') : calls[0]?.[0]?.[0]
       expect(sqlQuery).toContain('LIMIT')
       expect(sqlQuery).toContain('OFFSET')
     })

@@ -22,7 +22,7 @@ describe("Database Schema", () => {
         ORDER BY extname
       `;
       
-      const extNames = extensions.map(ext => ext.extname);
+      const extNames = (extensions as Array<{ extname: string }>).map(ext => ext.extname);
       expect(extNames).toContain("vector");
       expect(extNames).toContain("pg_trgm");
       expect(extNames).toContain("uuid-ossp");
@@ -37,7 +37,7 @@ describe("Database Schema", () => {
       `;
       
       expect(vectorExt).toHaveLength(1);
-      expect(vectorExt[0].extversion).toMatch(/^0\.[8-9]/); // Version 0.8+ or higher
+      expect((vectorExt as Array<{ extversion: string }>)[0]?.extversion).toMatch(/^0\.[8-9]/); // Version 0.8+ or higher
     });
   });
 
@@ -50,7 +50,7 @@ describe("Database Schema", () => {
         ORDER BY table_name
       `;
       
-      const tableNames = tables.map(t => t.table_name);
+      const tableNames = (tables as Array<{ table_name: string }>).map(t => t.table_name);
       const requiredTables = [
         "users",
         "repositories", 
@@ -74,17 +74,17 @@ describe("Database Schema", () => {
         ORDER BY table_name, column_name
       `;
       
-      expect(columns.length).toBeGreaterThan(0);
+      expect((columns as Array<any>).length).toBeGreaterThan(0);
       
       // Check that we have embedding columns
-      const embeddingColumns = columns.filter(col => 
+      const embeddingColumns = (columns as Array<{ table_name: string; column_name: string; data_type: string; udt_name: string }>).filter(col => 
         col.column_name.includes("embedding")
       );
       
       expect(embeddingColumns.length).toBeGreaterThanOrEqual(3);
       
       // Verify data type is user-defined (halfvec)
-      embeddingColumns.forEach(col => {
+      embeddingColumns.forEach((col: { data_type: string }) => {
         expect(col.data_type).toBe("USER-DEFINED");
       });
     });
@@ -99,7 +99,7 @@ describe("Database Schema", () => {
         ORDER BY typname
       `;
       
-      const enumNames = enums.map(e => e.typname);
+      const enumNames = (enums as Array<{ typname: string }>).map(e => e.typname);
       const requiredEnums = [
         "user_role",
         "repository_status", 
@@ -126,7 +126,7 @@ describe("Database Schema", () => {
         ORDER BY tablename, indexname
       `;
       
-      expect(hnsWIndexes.length).toBeGreaterThanOrEqual(3);
+      expect((hnsWIndexes as Array<any>).length).toBeGreaterThanOrEqual(3);
       
       const expectedIndexes = [
         "idx_users_profile_embedding_hnsw",
@@ -134,7 +134,7 @@ describe("Database Schema", () => {
         "idx_opportunities_embedding_hnsw"
       ];
       
-      const indexNames = hnsWIndexes.map(idx => idx.indexname);
+      const indexNames = (hnsWIndexes as Array<{ indexname: string; tablename: string }>).map(idx => idx.indexname);
       expectedIndexes.forEach(indexName => {
         expect(indexNames).toContain(indexName);
       });
@@ -149,7 +149,7 @@ describe("Database Schema", () => {
         ORDER BY tablename, indexname
       `;
       
-      expect(ginIndexes.length).toBeGreaterThan(0);
+      expect((ginIndexes as Array<any>).length).toBeGreaterThan(0);
     });
   });
 
@@ -174,7 +174,7 @@ describe("Database Schema", () => {
         ORDER BY routine_name
       `;
       
-      const functionNames = searchFunctions.map(f => f.routine_name);
+      const functionNames = (searchFunctions as Array<{ routine_name: string }>).map(f => f.routine_name);
       const expectedFunctions = [
         "hybrid_search_opportunities",
         "hybrid_search_repositories",
@@ -197,7 +197,7 @@ describe("Database Schema", () => {
         ORDER BY event_object_table, trigger_name
       `;
       
-      expect(triggers.length).toBeGreaterThanOrEqual(5);
+      expect((triggers as Array<any>).length).toBeGreaterThanOrEqual(5);
       
       const expectedTables = [
         "users",
@@ -207,7 +207,7 @@ describe("Database Schema", () => {
         "contribution_outcomes"
       ];
       
-      const triggerTables = triggers.map(t => t.event_object_table);
+      const triggerTables = (triggers as Array<{ trigger_name: string; event_object_table: string }>).map(t => t.event_object_table);
       expectedTables.forEach(tableName => {
         expect(triggerTables).toContain(tableName);
       });

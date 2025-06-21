@@ -43,6 +43,9 @@ const mockWebAuthnConfig = {
   origins: ['http://localhost:3000'],
   isDevelopment: true,
   isProduction: false,
+  challengeExpiry: 300000, // 5 minutes
+  supportedAlgorithms: [-7, -257], // ES256, RS256
+  timeout: 60000, // 60 seconds
 }
 
 // Mock WebAuthn configuration
@@ -488,6 +491,9 @@ describe('WebAuthn Authentication', () => {
         origins: ['https://custom.example.com'],
         isDevelopment: false,
         isProduction: true,
+        challengeExpiry: 300000,
+        supportedAlgorithms: [-7, -257],
+        timeout: 60000,
       }
 
       const options = await generateRegistrationOptions({
@@ -511,6 +517,9 @@ describe('WebAuthn Authentication', () => {
         origins: ['https://custom.example.com'],
         isDevelopment: false,
         isProduction: true,
+        challengeExpiry: 300000,
+        supportedAlgorithms: [-7, -257],
+        timeout: 60000,
       }
 
       const mockSql = vi.mocked(sql)
@@ -534,6 +543,9 @@ describe('WebAuthn Authentication', () => {
         origins: ['https://example.com'],
         isDevelopment: false,
         isProduction: true,
+        challengeExpiry: 300000,
+        supportedAlgorithms: [-7, -257],
+        timeout: 60000,
       }
 
       const mockSql = vi.mocked(sql)
@@ -579,6 +591,9 @@ describe('WebAuthn Authentication', () => {
         origins: ['https://example.com'],
         isDevelopment: false,
         isProduction: true,
+        challengeExpiry: 300000,
+        supportedAlgorithms: [-7, -257],
+        timeout: 60000,
       }
 
       await expect(

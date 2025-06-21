@@ -15,7 +15,7 @@ import {
 import { verifyAccessToken } from '@/lib/auth/jwt'
 import { checkConsentRequired } from '@/lib/auth/gdpr'
 import { logSecurityEvent } from '@/lib/auth/audit'
-import type { User } from '@/types/auth'
+import type { AccessTokenPayload, User } from '@/types/auth'
 
 // Note: JWT, GDPR, audit and database mocks are handled in tests/setup.ts
 
@@ -88,14 +88,37 @@ vi.mock('ioredis', () => {
   }
 })
 
-vi.mock('rate-limiter-flexible', () => ({
-  RateLimiterRedis: vi.fn(() => ({
-    consume: vi.fn().mockResolvedValue({ remainingPoints: 59, msBeforeNext: 60000 })
-  })),
-  RateLimiterMemory: vi.fn(() => ({
-    consume: vi.fn().mockResolvedValue({ remainingPoints: 59, msBeforeNext: 60000 })
-  }))
-}))
+vi.mock('rate-limiter-flexible', () => {
+  const mockConsume = vi.fn().mockResolvedValue({ remainingPoints: 59, msBeforeNext: 60000 })
+  
+  const createMockRateLimiter = () => ({
+    consume: mockConsume,
+    deleteInMemoryBlockedAll: vi.fn(),
+    points: 60,
+    duration: 60,
+    msDuration: 60000,
+    blockDuration: 60,
+    msBlockDuration: 60000,
+    keyPrefix: 'test',
+    execEvenly: true,
+    execEvenlyMinDelayMs: 0,
+    insuranceLimiter: null,
+    storeClient: null,
+    get: vi.fn(),
+    set: vi.fn(),
+    block: vi.fn(),
+    penalty: vi.fn(),
+    reward: vi.fn(),
+    delete: vi.fn(),
+    getKey: vi.fn((key: string) => `test_${key}`),
+    parseKey: vi.fn((key: string) => key.replace('test_', ''))
+  })
+  
+  return {
+    RateLimiterRedis: vi.fn().mockImplementation(createMockRateLimiter),
+    RateLimiterMemory: vi.fn().mockImplementation(createMockRateLimiter)
+  }
+})
 
 // Mock JWT functions for middleware tests
 vi.mock('@/lib/auth/jwt', () => ({
@@ -106,6 +129,31 @@ vi.mock('@/lib/auth/jwt', () => ({
 
 // Import sql mock
 import { sql } from '@/lib/db/config'
+
+// Helper to create a complete mock rate limiter
+const createMockRateLimiterInstance = (overrides?: Partial<any>) => ({
+  consume: vi.fn().mockResolvedValue({ remainingPoints: 59, msBeforeNext: 60000 }),
+  deleteInMemoryBlockedAll: vi.fn(),
+  points: 60,
+  duration: 60,
+  msDuration: 60000,
+  blockDuration: 60,
+  msBlockDuration: 60000,
+  keyPrefix: 'test',
+  execEvenly: true,
+  execEvenlyMinDelayMs: 0,
+  insuranceLimiter: null,
+  storeClient: null,
+  get: vi.fn(),
+  set: vi.fn(),
+  block: vi.fn(),
+  penalty: vi.fn(),
+  reward: vi.fn(),
+  delete: vi.fn(),
+  getKey: vi.fn((key: string) => `test_${key}`),
+  parseKey: vi.fn((key: string) => key.replace('test_', '')),
+  ...overrides
+})
 
 describe('Route Protection Middleware', () => {
   const mockUser: User = {
@@ -159,17 +207,21 @@ describe('Route Protection Middleware', () => {
 
     it('should validate access token from Authorization header', async () => {
       const mockVerifyToken = vi.mocked(verifyAccessToken)
-      mockVerifyToken.mockResolvedValueOnce({
+      const tokenPayload: AccessTokenPayload = {
         sub: mockUser.id,
         email: mockUser.email,
-        github_username: mockUser.github_username,
         auth_method: 'oauth',
         session_id: 'session-123',
         iat: Date.now() / 1000,
         exp: Date.now() / 1000 + 900,
         iss: 'contribux',
-        aud: ['contribux-api']
-      })
+        aud: ['contribux-api'],
+        jti: 'jwt-id-123'
+      }
+      if (mockUser.github_username) {
+        tokenPayload.github_username = mockUser.github_username
+      }
+      mockVerifyToken.mockResolvedValueOnce(tokenPayload)
       
       const mockSql = vi.mocked(sql)
       mockSql.mockResolvedValueOnce([mockUser]) // User exists
@@ -188,17 +240,21 @@ describe('Route Protection Middleware', () => {
 
     it('should validate access token from cookies', async () => {
       const mockVerifyToken = vi.mocked(verifyAccessToken)
-      mockVerifyToken.mockResolvedValueOnce({
+      const tokenPayload: AccessTokenPayload = {
         sub: mockUser.id,
         email: mockUser.email,
-        github_username: mockUser.github_username,
         auth_method: 'oauth',
         session_id: 'session-123',
         iat: Date.now() / 1000,
         exp: Date.now() / 1000 + 900,
         iss: 'contribux',
-        aud: ['contribux-api']
-      })
+        aud: ['contribux-api'],
+        jti: 'jwt-id-123'
+      }
+      if (mockUser.github_username) {
+        tokenPayload.github_username = mockUser.github_username
+      }
+      mockVerifyToken.mockResolvedValueOnce(tokenPayload)
       
       const mockSql = vi.mocked(sql)
       mockSql.mockResolvedValueOnce([mockUser]) // User exists
@@ -232,17 +288,21 @@ describe('Route Protection Middleware', () => {
 
     it('should handle rate limiting', async () => {
       const mockVerifyToken = vi.mocked(verifyAccessToken)
-      mockVerifyToken.mockResolvedValueOnce({
+      const tokenPayload: AccessTokenPayload = {
         sub: mockUser.id,
         email: mockUser.email,
-        github_username: mockUser.github_username,
         auth_method: 'oauth',
         session_id: 'session-123',
         iat: Date.now() / 1000,
         exp: Date.now() / 1000 + 900,
         iss: 'contribux',
-        aud: ['contribux-api']
-      })
+        aud: ['contribux-api'],
+        jti: 'jwt-id-123'
+      }
+      if (mockUser.github_username) {
+        tokenPayload.github_username = mockUser.github_username
+      }
+      mockVerifyToken.mockResolvedValueOnce(tokenPayload)
       
       const mockSql = vi.mocked(sql)
       mockSql.mockResolvedValueOnce([mockUser]) // User exists
@@ -286,17 +346,21 @@ describe('Route Protection Middleware', () => {
 
     it('should validate CSRF tokens for mutations', async () => {
       const mockVerifyToken = vi.mocked(verifyAccessToken)
-      mockVerifyToken.mockResolvedValueOnce({
+      const tokenPayload: AccessTokenPayload = {
         sub: mockUser.id,
         email: mockUser.email,
-        github_username: mockUser.github_username,
         auth_method: 'oauth',
         session_id: 'session-123',
         iat: Date.now() / 1000,
         exp: Date.now() / 1000 + 900,
         iss: 'contribux',
-        aud: ['contribux-api']
-      })
+        aud: ['contribux-api'],
+        jti: 'jwt-id-123'
+      }
+      if (mockUser.github_username) {
+        tokenPayload.github_username = mockUser.github_username
+      }
+      mockVerifyToken.mockResolvedValueOnce(tokenPayload)
       
       const mockSql = vi.mocked(sql)
       mockSql.mockResolvedValueOnce([mockUser]) // User exists
@@ -323,17 +387,21 @@ describe('Route Protection Middleware', () => {
 
     it('should allow mutations with valid CSRF token', async () => {
       const mockVerifyToken = vi.mocked(verifyAccessToken)
-      mockVerifyToken.mockResolvedValueOnce({
+      const tokenPayload: AccessTokenPayload = {
         sub: mockUser.id,
         email: mockUser.email,
-        github_username: mockUser.github_username,
         auth_method: 'oauth',
         session_id: 'session-123',
         iat: Date.now() / 1000,
         exp: Date.now() / 1000 + 900,
         iss: 'contribux',
-        aud: ['contribux-api']
-      })
+        aud: ['contribux-api'],
+        jti: 'jwt-id-123'
+      }
+      if (mockUser.github_username) {
+        tokenPayload.github_username = mockUser.github_username
+      }
+      mockVerifyToken.mockResolvedValueOnce(tokenPayload)
       
       const mockSql = vi.mocked(sql)
       mockSql.mockResolvedValueOnce([mockUser]) // User exists
@@ -513,13 +581,15 @@ describe('Route Protection Middleware', () => {
 
     it('should enforce rate limits', async () => {
       // Mock rate limit exceeded response for this test
-      const { RateLimiterMemory } = vi.mocked(await import('rate-limiter-flexible'))
-      RateLimiterMemory.mockImplementation(() => ({
-        consume: vi.fn().mockRejectedValue({
-          remainingPoints: 0,
-          msBeforeNext: 60000
+      const rateLimiterModule = await import('rate-limiter-flexible')
+      vi.mocked(rateLimiterModule.RateLimiterMemory).mockImplementation(() => 
+        createMockRateLimiterInstance({
+          consume: vi.fn().mockRejectedValue({
+            remainingPoints: 0,
+            msBeforeNext: 60000
+          })
         })
-      }))
+      )
 
       const request = new NextRequest('http://localhost:3000/api/user', {
         headers: {
@@ -533,9 +603,7 @@ describe('Route Protection Middleware', () => {
       expect(result.remaining).toBe(0)
       
       // Reset mock for other tests
-      RateLimiterMemory.mockImplementation(() => ({
-        consume: vi.fn().mockResolvedValue({ remainingPoints: 59, msBeforeNext: 60000 })
-      }))
+      vi.mocked(rateLimiterModule.RateLimiterMemory).mockImplementation(() => createMockRateLimiterInstance())
     })
 
     it('should support custom keys for rate limiting', async () => {
@@ -591,15 +659,20 @@ describe('Route Protection Middleware', () => {
 
     it('should handle Redis failures gracefully', async () => {
       // Mock failing rate limiters
-      const { RateLimiterRedis, RateLimiterMemory } = vi.mocked(await import('rate-limiter-flexible'))
+      const rateLimiterModule = await import('rate-limiter-flexible')
+      const { RateLimiterRedis, RateLimiterMemory } = rateLimiterModule
       
-      RateLimiterRedis.mockImplementation(() => ({
-        consume: vi.fn().mockRejectedValue(new Error('Redis connection failed'))
-      }))
+      vi.mocked(RateLimiterRedis).mockImplementation(() => 
+        createMockRateLimiterInstance({
+          consume: vi.fn().mockRejectedValue(new Error('Redis connection failed'))
+        })
+      )
       
-      RateLimiterMemory.mockImplementation(() => ({
-        consume: vi.fn().mockRejectedValue(new Error('Memory limiter also fails'))
-      }))
+      vi.mocked(RateLimiterMemory).mockImplementation(() => 
+        createMockRateLimiterInstance({
+          consume: vi.fn().mockRejectedValue(new Error('Memory limiter also fails'))
+        })
+      )
 
       const request = new NextRequest('http://localhost:3000/api/user', {
         headers: {
@@ -617,13 +690,8 @@ describe('Route Protection Middleware', () => {
       expect(result.limit).toBe(10)
       
       // Reset mocks for other tests
-      RateLimiterRedis.mockImplementation(() => ({
-        consume: vi.fn().mockResolvedValue({ remainingPoints: 59, msBeforeNext: 60000 })
-      }))
-      
-      RateLimiterMemory.mockImplementation(() => ({
-        consume: vi.fn().mockResolvedValue({ remainingPoints: 59, msBeforeNext: 60000 })
-      }))
+      vi.mocked(RateLimiterRedis).mockImplementation(() => createMockRateLimiterInstance())
+      vi.mocked(RateLimiterMemory).mockImplementation(() => createMockRateLimiterInstance())
     })
 
     it('should properly handle rate limit exceeded from Redis', async () => {
@@ -633,15 +701,20 @@ describe('Route Protection Middleware', () => {
         msBeforeNext: 30000
       }
       
-      const { RateLimiterRedis, RateLimiterMemory } = vi.mocked(await import('rate-limiter-flexible'))
+      const rateLimiterModule = await import('rate-limiter-flexible')
+      const { RateLimiterRedis, RateLimiterMemory } = rateLimiterModule
       
-      RateLimiterRedis.mockImplementation(() => ({
-        consume: vi.fn().mockRejectedValue(rateLimitError)
-      }))
+      vi.mocked(RateLimiterRedis).mockImplementation(() => 
+        createMockRateLimiterInstance({
+          consume: vi.fn().mockRejectedValue(rateLimitError)
+        })
+      )
       
-      RateLimiterMemory.mockImplementation(() => ({
-        consume: vi.fn().mockRejectedValue(rateLimitError)
-      }))
+      vi.mocked(RateLimiterMemory).mockImplementation(() => 
+        createMockRateLimiterInstance({
+          consume: vi.fn().mockRejectedValue(rateLimitError)
+        })
+      )
 
       const request = new NextRequest('http://localhost:3000/api/user', {
         headers: {
@@ -659,13 +732,8 @@ describe('Route Protection Middleware', () => {
       expect(result.reset).toBeGreaterThan(Date.now())
       
       // Reset mocks for other tests
-      RateLimiterRedis.mockImplementation(() => ({
-        consume: vi.fn().mockResolvedValue({ remainingPoints: 59, msBeforeNext: 60000 })
-      }))
-      
-      RateLimiterMemory.mockImplementation(() => ({
-        consume: vi.fn().mockResolvedValue({ remainingPoints: 59, msBeforeNext: 60000 })
-      }))
+      vi.mocked(RateLimiterRedis).mockImplementation(() => createMockRateLimiterInstance())
+      vi.mocked(RateLimiterMemory).mockImplementation(() => createMockRateLimiterInstance())
     })
 
     it('should handle custom rate limit options', async () => {
@@ -841,17 +909,21 @@ describe('Route Protection Middleware', () => {
   describe('Middleware Composition', () => {
     it('should compose multiple middleware functions', async () => {
       const mockVerifyToken = vi.mocked(verifyAccessToken)
-      mockVerifyToken.mockResolvedValueOnce({
+      const tokenPayload: AccessTokenPayload = {
         sub: mockUser.id,
         email: mockUser.email,
-        github_username: mockUser.github_username,
         auth_method: 'oauth',
         session_id: 'session-123',
         iat: Date.now() / 1000,
         exp: Date.now() / 1000 + 900,
         iss: 'contribux',
-        aud: ['contribux-api']
-      })
+        aud: ['contribux-api'],
+        jti: 'jwt-id-123'
+      }
+      if (mockUser.github_username) {
+        tokenPayload.github_username = mockUser.github_username
+      }
+      mockVerifyToken.mockResolvedValueOnce(tokenPayload)
       
       const mockSql = vi.mocked(sql)
       mockSql.mockResolvedValueOnce([mockUser]) // User exists

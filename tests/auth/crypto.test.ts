@@ -25,7 +25,7 @@ describe('Web Crypto API Token Encryption', () => {
       expect(key).toBeDefined()
       expect(key.type).toBe('secret')
       expect(key.algorithm.name).toBe('AES-GCM')
-      expect(key.algorithm.length).toBe(256)
+      expect((key.algorithm as any).length).toBe(256)
       expect(key.usages).toContain('encrypt')
       expect(key.usages).toContain('decrypt')
     })
@@ -48,7 +48,7 @@ describe('Web Crypto API Token Encryption', () => {
       expect(imported).toBeDefined()
       expect(imported.type).toBe('secret')
       expect(imported.algorithm.name).toBe('AES-GCM')
-      expect(imported.algorithm.length).toBe(256)
+      expect((imported.algorithm as any).length).toBe(256)
     })
   })
 
@@ -182,8 +182,8 @@ describe('Web Crypto API Token Encryption', () => {
       
       // Verify old key was marked as rotated
       const calls = mockSql.mock.calls
-      expect(calls[2][0][0]).toContain('UPDATE encryption_keys')
-      expect(calls[2][0][0]).toContain('rotated_at')
+      expect(calls[2]?.[0]?.[0]).toContain('UPDATE encryption_keys')
+      expect(calls[2]?.[0]?.[0]).toContain('rotated_at')
     })
 
     it('should re-encrypt tokens with new key', async () => {
@@ -232,7 +232,7 @@ describe('Web Crypto API Token Encryption', () => {
       // Verify tokens were re-encrypted
       const calls = mockSql.mock.calls
       const updateCalls = calls.filter(call => 
-        call[0] && call[0][0] && call[0][0].includes('UPDATE oauth_accounts')
+        call?.[0] && call[0]?.[0] && call[0][0].includes('UPDATE oauth_accounts')
       )
       expect(updateCalls.length).toBeGreaterThan(0)
     })

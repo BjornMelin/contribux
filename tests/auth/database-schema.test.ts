@@ -28,7 +28,7 @@ describeConditional('Authentication Database Schema', () => {
         AND table_name = 'webauthn_credentials'
       `
       
-      expect(tables).toHaveLength(1)
+      expect(Array.isArray(tables) ? tables : []).toHaveLength(1)
     })
 
     it('should have correct webauthn_credentials columns', async () => {
@@ -54,10 +54,12 @@ describeConditional('Authentication Database Schema', () => {
       ]
       
       expectedColumns.forEach(expected => {
-        const column = columns.find(c => c.column_name === expected.column_name)
+        const column = Array.isArray(columns) ? columns.find((c: any) => c.column_name === expected.column_name) : undefined
         expect(column).toBeDefined()
-        expect(column?.data_type).toContain(expected.data_type)
-        expect(column?.is_nullable).toBe(expected.is_nullable)
+        if (column && typeof column === 'object' && 'data_type' in column) {
+          expect(column.data_type).toContain(expected.data_type)
+          expect(column.is_nullable).toBe(expected.is_nullable)
+        }
       })
     })
 
@@ -69,7 +71,7 @@ describeConditional('Authentication Database Schema', () => {
         AND constraint_type = 'UNIQUE'
       `
       
-      expect(constraints.some(c => 
+      expect(Array.isArray(constraints) && constraints.some(c => 
         c.constraint_name.includes('credential_id')
       )).toBe(true)
     })
@@ -84,7 +86,7 @@ describeConditional('Authentication Database Schema', () => {
         AND table_name = 'auth_challenges'
       `
       
-      expect(tables).toHaveLength(1)
+      expect(Array.isArray(tables) ? tables : []).toHaveLength(1)
     })
 
     it('should have correct auth_challenges columns', async () => {
@@ -106,10 +108,12 @@ describeConditional('Authentication Database Schema', () => {
       ]
       
       expectedColumns.forEach(expected => {
-        const column = columns.find(c => c.column_name === expected.column_name)
+        const column = Array.isArray(columns) ? columns.find((c: any) => c.column_name === expected.column_name) : undefined
         expect(column).toBeDefined()
-        expect(column?.data_type).toContain(expected.data_type)
-        expect(column?.is_nullable).toBe(expected.is_nullable)
+        if (column && typeof column === 'object' && 'data_type' in column) {
+          expect(column.data_type).toContain(expected.data_type)
+          expect(column.is_nullable).toBe(expected.is_nullable)
+        }
       })
     })
   })
@@ -123,7 +127,7 @@ describeConditional('Authentication Database Schema', () => {
         AND table_name = 'user_sessions'
       `
       
-      expect(tables).toHaveLength(1)
+      expect(Array.isArray(tables) ? tables : []).toHaveLength(1)
     })
 
     it('should have correct user_sessions columns', async () => {
@@ -146,10 +150,12 @@ describeConditional('Authentication Database Schema', () => {
       ]
       
       expectedColumns.forEach(expected => {
-        const column = columns.find(c => c.column_name === expected.column_name)
+        const column = Array.isArray(columns) ? columns.find((c: any) => c.column_name === expected.column_name) : undefined
         expect(column).toBeDefined()
-        expect(column?.data_type).toContain(expected.data_type)
-        expect(column?.is_nullable).toBe(expected.is_nullable)
+        if (column && typeof column === 'object' && 'data_type' in column) {
+          expect(column.data_type).toContain(expected.data_type)
+          expect(column.is_nullable).toBe(expected.is_nullable)
+        }
       })
     })
   })
@@ -163,7 +169,7 @@ describeConditional('Authentication Database Schema', () => {
         AND table_name = 'oauth_accounts'
       `
       
-      expect(tables).toHaveLength(1)
+      expect(Array.isArray(tables) ? tables : []).toHaveLength(1)
     })
 
     it('should have correct oauth_accounts columns', async () => {
@@ -189,10 +195,12 @@ describeConditional('Authentication Database Schema', () => {
       ]
       
       expectedColumns.forEach(expected => {
-        const column = columns.find(c => c.column_name === expected.column_name)
+        const column = Array.isArray(columns) ? columns.find((c: any) => c.column_name === expected.column_name) : undefined
         expect(column).toBeDefined()
-        expect(column?.data_type).toContain(expected.data_type)
-        expect(column?.is_nullable).toBe(expected.is_nullable)
+        if (column && typeof column === 'object' && 'data_type' in column) {
+          expect(column.data_type).toContain(expected.data_type)
+          expect(column.is_nullable).toBe(expected.is_nullable)
+        }
       })
     })
 
@@ -204,7 +212,7 @@ describeConditional('Authentication Database Schema', () => {
         AND constraint_type = 'UNIQUE'
       `
       
-      expect(constraints.length).toBeGreaterThan(0)
+      expect(Array.isArray(constraints) ? constraints.length : 0).toBeGreaterThan(0)
     })
   })
 
@@ -217,7 +225,7 @@ describeConditional('Authentication Database Schema', () => {
         AND table_name = 'security_audit_logs'
       `
       
-      expect(tables).toHaveLength(1)
+      expect(Array.isArray(tables) ? tables : []).toHaveLength(1)
     })
 
     it('should have correct security_audit_logs columns', async () => {
@@ -242,10 +250,12 @@ describeConditional('Authentication Database Schema', () => {
       ]
       
       expectedColumns.forEach(expected => {
-        const column = columns.find(c => c.column_name === expected.column_name)
+        const column = Array.isArray(columns) ? columns.find((c: any) => c.column_name === expected.column_name) : undefined
         expect(column).toBeDefined()
-        expect(column?.data_type).toContain(expected.data_type)
-        expect(column?.is_nullable).toBe(expected.is_nullable)
+        if (column && typeof column === 'object' && 'data_type' in column) {
+          expect(column.data_type).toContain(expected.data_type)
+          expect(column.is_nullable).toBe(expected.is_nullable)
+        }
       })
     })
 
@@ -257,7 +267,7 @@ describeConditional('Authentication Database Schema', () => {
         AND schemaname = 'public'
       `
       
-      expect(indexes.length).toBeGreaterThan(1) // Primary key + custom indexes
+      expect(Array.isArray(indexes) ? indexes.length : 0).toBeGreaterThan(1) // Primary key + custom indexes
     })
   })
 
@@ -270,7 +280,7 @@ describeConditional('Authentication Database Schema', () => {
         AND table_name = 'user_consents'
       `
       
-      expect(tables).toHaveLength(1)
+      expect(Array.isArray(tables) ? tables : []).toHaveLength(1)
     })
 
     it('should have correct user_consents columns', async () => {
@@ -293,10 +303,12 @@ describeConditional('Authentication Database Schema', () => {
       ]
       
       expectedColumns.forEach(expected => {
-        const column = columns.find(c => c.column_name === expected.column_name)
+        const column = Array.isArray(columns) ? columns.find((c: any) => c.column_name === expected.column_name) : undefined
         expect(column).toBeDefined()
-        expect(column?.data_type).toContain(expected.data_type)
-        expect(column?.is_nullable).toBe(expected.is_nullable)
+        if (column && typeof column === 'object' && 'data_type' in column) {
+          expect(column.data_type).toContain(expected.data_type)
+          expect(column.is_nullable).toBe(expected.is_nullable)
+        }
       })
     })
   })
@@ -310,7 +322,7 @@ describeConditional('Authentication Database Schema', () => {
         AND table_name = 'refresh_tokens'
       `
       
-      expect(tables).toHaveLength(1)
+      expect(Array.isArray(tables) ? tables : []).toHaveLength(1)
     })
 
     it('should have correct refresh_tokens columns', async () => {
@@ -333,10 +345,12 @@ describeConditional('Authentication Database Schema', () => {
       ]
       
       expectedColumns.forEach(expected => {
-        const column = columns.find(c => c.column_name === expected.column_name)
+        const column = Array.isArray(columns) ? columns.find((c: any) => c.column_name === expected.column_name) : undefined
         expect(column).toBeDefined()
-        expect(column?.data_type).toContain(expected.data_type)
-        expect(column?.is_nullable).toBe(expected.is_nullable)
+        if (column && typeof column === 'object' && 'data_type' in column) {
+          expect(column.data_type).toContain(expected.data_type)
+          expect(column.is_nullable).toBe(expected.is_nullable)
+        }
       })
     })
 
@@ -348,7 +362,7 @@ describeConditional('Authentication Database Schema', () => {
         AND constraint_type = 'UNIQUE'
       `
       
-      expect(constraints.some(c => 
+      expect(Array.isArray(constraints) && constraints.some(c => 
         c.constraint_name.includes('token_hash')
       )).toBe(true)
     })
@@ -363,7 +377,7 @@ describeConditional('Authentication Database Schema', () => {
         AND constraint_type = 'FOREIGN KEY'
       `
       
-      expect(fks.length).toBeGreaterThan(0)
+      expect(Array.isArray(fks) ? fks.length : 0).toBeGreaterThan(0)
     })
 
     it('should have foreign key from oauth_accounts to users', async () => {
@@ -374,7 +388,7 @@ describeConditional('Authentication Database Schema', () => {
         AND constraint_type = 'FOREIGN KEY'
       `
       
-      expect(fks.length).toBeGreaterThan(0)
+      expect(Array.isArray(fks) ? fks.length : 0).toBeGreaterThan(0)
     })
 
     it('should have cascade delete on auth-related tables', async () => {
@@ -387,9 +401,11 @@ describeConditional('Authentication Database Schema', () => {
         AND tc.table_name IN ('webauthn_credentials', 'oauth_accounts', 'user_sessions', 'refresh_tokens')
       `
       
-      cascades.forEach(cascade => {
-        expect(cascade.delete_rule).toBe('CASCADE')
-      })
+      if (Array.isArray(cascades)) {
+        cascades.forEach(cascade => {
+          expect(cascade.delete_rule).toBe('CASCADE')
+        })
+      }
     })
   })
 })

@@ -29,7 +29,10 @@ export function validateApplicationOnStartup(): void {
   try {
     // 1. Core environment variable validation
     console.log('  Validating environment variables...')
-    const env = validateEnvironmentOnStartup()
+    validateEnvironmentOnStartup()
+
+    // Import env after validation
+    const { env } = require('./validation/env')
 
     // 2. WebAuthn specific validation
     if (env.ENABLE_WEBAUTHN) {
@@ -53,7 +56,7 @@ export function validateApplicationOnStartup(): void {
 /**
  * Validate authentication service configurations
  */
-function validateAuthenticationServices(env: unknown): void {
+function validateAuthenticationServices(env: Record<string, unknown>): void {
   const enabledServices: string[] = []
 
   // Check OAuth services

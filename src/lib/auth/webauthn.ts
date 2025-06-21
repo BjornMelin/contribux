@@ -9,6 +9,7 @@ import {
   verifyRegistrationResponse as verifyRegistration,
 } from '@simplewebauthn/server'
 import type {
+  AuthenticatorTransport,
   PublicKeyCredentialCreationOptionsJSON,
   PublicKeyCredentialRequestOptionsJSON,
 } from '@simplewebauthn/types'
@@ -99,6 +100,9 @@ export async function verifyRegistrationResponse(
   }
 
   const challengeData = challengeResult[0]
+  if (!challengeData) {
+    throw new Error('Challenge data not found')
+  }
 
   // Check if challenge is expired
   const challengeAge = Date.now() - new Date(challengeData.created_at).getTime()
@@ -140,7 +144,7 @@ export async function verifyRegistrationResponse(
       credential_device_type, credential_backed_up, transports
     )
     VALUES (
-      ${challengeData.user_id},
+      ${challengeData?.user_id},
       ${Buffer.from(credentialID).toString('base64')},
       ${Buffer.from(credentialPublicKey).toString('base64')},
       ${counter},
@@ -169,7 +173,11 @@ export async function generateAuthenticationOptions(
   config?: WebAuthnConfig
 ): Promise<PublicKeyCredentialRequestOptionsJSON> {
   const webauthnConfig = config || getWebAuthnConfig()
-  let allowCredentials = []
+  let allowCredentials: Array<{
+    id: BufferSource
+    type: 'public-key'
+    transports?: AuthenticatorTransport[]
+  }> = []
 
   if (options.userId) {
     // Get user's registered credentials
@@ -181,9 +189,9 @@ export async function generateAuthenticationOptions(
     `
 
     allowCredentials = credentials.map(cred => ({
-      id: cred.credential_id,
+      id: Buffer.from(cred.credential_id, 'base64'),
       type: 'public-key' as const,
-      transports: cred.transports || ['internal', 'hybrid'],
+      transports: (cred.transports || ['internal', 'hybrid']) as AuthenticatorTransport[],
     }))
   }
 
@@ -259,6 +267,9 @@ export async function verifyAuthenticationResponse(
   }
 
   const credential = credentialResult[0]
+  if (!credential) {
+    throw new Error('Credential data not found')
+  }
 
   // Prepare authenticator for verification
   const authenticator = {
@@ -275,7 +286,6 @@ export async function verifyAuthenticationResponse(
     expectedOrigin,
     expectedRPID: [expectedRPID],
     authenticator,
-    supportedAlgorithmIDs: webauthnConfig.supportedAlgorithms,
   })
 
   if (!verification.verified) {
@@ -283,7 +293,7 @@ export async function verifyAuthenticationResponse(
   }
 
   // Check counter to prevent replay attacks
-  if (verification.authenticationInfo.newCounter <= credential.counter) {
+  if (verification.authenticationInfo.newCounter <= credential?.counter) {
     throw new Error('Counter verification failed')
   }
 
@@ -306,7 +316,7 @@ export async function verifyAuthenticationResponse(
     verified: true,
     authenticationInfo: {
       ...verification.authenticationInfo,
-      userId: credential.user_id,
+      userId: credential?.user_id,
     },
   }
 }

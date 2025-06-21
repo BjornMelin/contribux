@@ -3,7 +3,7 @@ import { generateRegistrationOptions, verifyRegistrationResponse, generateAuthen
 import { generateOAuthUrl, validateOAuthCallback, exchangeCodeForTokens } from '@/lib/auth/oauth'
 import { generateAccessToken, generateRefreshToken, verifyAccessToken, rotateRefreshToken } from '@/lib/auth/jwt'
 import { encryptOAuthToken, decryptOAuthToken } from '@/lib/auth/crypto'
-import { recordUserConsent, getUserConsentStatus, exportUserData, deleteAllUserData } from '@/lib/auth/gdpr'
+import { recordUserConsent, getUserConsents, exportUserData, deleteUserData } from '@/lib/auth/gdpr'
 import { logSecurityEvent, getAuditLogs } from '@/lib/auth/audit'
 import { authMiddleware } from '@/lib/auth/middleware'
 import { NextRequest, NextResponse } from 'next/server'
@@ -29,26 +29,43 @@ vi.mock("@/lib/validation/env", () => ({
 // Note: Database mock is handled in tests/setup.ts
 
 // Mock Next.js
-vi.mock('next/server', () => ({
-  NextRequest: class {
+vi.mock('next/server', () => {
+  class MockNextRequest {
+    url: string
+    method: string
+    headers: Map<string, string>
+    cookies: {
+      get: (name: string) => string | undefined
+    }
+    
     constructor(url: string, init?: RequestInit) {
       this.url = url
       this.method = init?.method || 'GET'
       this.headers = new Map(Object.entries(init?.headers || {}))
       this.cookies = {
-        get: (name: string) => this.headers.get('Cookie')?.match(new RegExp(`${name}=([^;]+)`))?.[1]
+        get: (name: string) => {
+          const cookieHeader = this.headers.get('Cookie')
+          if (!cookieHeader) return undefined
+          const match = cookieHeader.match(new RegExp(`${name}=([^;]+)`))
+          return match?.[1]
+        }
       }
     }
+    
     get nextUrl() {
       return new URL(this.url)
     }
-  },
-  NextResponse: {
-    json: (data: any, init?: ResponseInit) => ({ data, init, type: 'json' }),
-    redirect: (url: string) => ({ url, type: 'redirect' }),
-    next: () => ({ type: 'next' })
   }
-}))
+  
+  return {
+    NextRequest: MockNextRequest,
+    NextResponse: {
+      json: (data: any, init?: ResponseInit) => ({ data, init, type: 'json' }),
+      redirect: (url: string) => ({ url, type: 'redirect' }),
+      next: () => ({ type: 'next' })
+    }
+  }
+})
 
 describe('Authentication Integration Tests', () => {
   const mockUser: User = {
@@ -56,6 +73,11 @@ describe('Authentication Integration Tests', () => {
     email: 'test@example.com',
     github_username: 'testuser',
     email_verified: true,
+    two_factor_enabled: false,
+    recovery_email: null,
+    locked_at: null,
+    failed_login_attempts: 0,
+    last_login_at: null,
     created_at: new Date(),
     updated_at: new Date()
   }
@@ -260,8 +282,9 @@ describe('Authentication Integration Tests', () => {
         created_at: new Date()
       }])
       
-      const consent = await getUserConsentStatus(mockUser.id)
-      expect(consent.terms_of_service?.granted).toBe(true)
+      const consents = await getUserConsents(mockUser.id)
+      const termsConsent = Array.isArray(consents) ? consents.find(c => c.consent_type === 'terms_of_service') : undefined
+      expect(termsConsent?.granted).toBe(true)
       
       // Export user data
       mockSql.mockResolvedValueOnce([mockUser]) // SELECT users
@@ -277,8 +300,8 @@ describe('Authentication Integration Tests', () => {
       
       const exportData = await exportUserData(mockUser.id)
       expect(exportData).toHaveProperty('user')
-      expect(exportData).toHaveProperty('metadata')
-      expect(exportData.metadata.exportDate).toBeTruthy()
+      expect(exportData).toHaveProperty('_metadata')
+      expect(exportData._metadata?.exported_at).toBeTruthy()
     })
 
     it('should audit all security events', async () => {
@@ -308,13 +331,12 @@ describe('Authentication Integration Tests', () => {
       mockSql.mockResolvedValueOnce([{ count: '1' }]) // SELECT COUNT
       mockSql.mockResolvedValueOnce([auditLog]) // SELECT security_audit_logs
       
-      const logs = await getAuditLogs({
-        filters: { user_id: mockUser.id },
+      const logs = await getAuditLogs({ 
+        userId: mockUser.id,
         limit: 10
       })
       
-      expect(logs.logs).toHaveLength(1)
-      expect(logs.total).toBe(1)
+      expect(Array.isArray(logs) ? logs : []).toHaveLength(1)
     })
 
     it('should protect routes with middleware', async () => {
@@ -324,9 +346,11 @@ describe('Authentication Integration Tests', () => {
       const request = new NextRequest('http://localhost:3000/dashboard')
       const response = await authMiddleware(request)
       
-      expect(response?.type).toBe('json')
-      expect(response?.data).toEqual({ error: 'Authentication required' })
-      expect(response?.init?.status).toBe(401)
+      // Type assertion for NextResponse-like object
+      const typedResponse = response as { type?: string; data?: any; init?: ResponseInit } | undefined
+      expect(typedResponse?.type).toBe('json')
+      expect(typedResponse?.data).toEqual({ error: 'Authentication required' })
+      expect(typedResponse?.init?.status).toBe(401)
       
       // Test authenticated request
       const accessToken = await generateAccessToken(mockUser, mockSession)
@@ -441,8 +465,10 @@ describe('Authentication Integration Tests', () => {
         } else {
           // 5th attempt should be rate limited
           const response = await authMiddleware(request)
-          expect(response?.init?.status).toBe(429)
-          expect(response?.data).toEqual({ error: 'Too many requests' })
+          // Type assertion for NextResponse-like object
+          const typedResponse = response as { type?: string; data?: any; init?: ResponseInit } | undefined
+          expect(typedResponse?.init?.status).toBe(429)
+          expect(typedResponse?.data).toEqual({ error: 'Too many requests' })
         }
       }
     })
@@ -475,8 +501,8 @@ describe('Authentication Integration Tests', () => {
       mockSql.mockResolvedValueOnce([]) // INSERT oauth_accounts
       
       // Create new session with OAuth
-      currentSession = { ...mockSession, auth_method: 'oauth' as const }
-      accessToken = await generateAccessToken(mockUser, currentSession)
+      const oauthSession: UserSession = { ...mockSession, auth_method: 'oauth' }
+      accessToken = await generateAccessToken(mockUser, oauthSession)
       
       // Verify OAuth token
       payload = await verifyAccessToken(accessToken)
@@ -497,7 +523,18 @@ describe('Authentication Integration Tests', () => {
       const { logSecurityEvent } = await import('@/lib/auth/audit');
       vi.mocked(logSecurityEvent).mockImplementation(async (params) => {
         events.push(params.event_type)
-        return { id: 'log-id', ...params, created_at: new Date() }
+        return { 
+          id: 'log-id', 
+          event_type: params.event_type,
+          event_severity: params.event_severity || 'info',
+          user_id: params.user_id || null,
+          ip_address: params.ip_address || null,
+          user_agent: params.user_agent || null,
+          event_data: params.event_data || null,
+          success: params.success,
+          error_message: params.error_message || null,
+          created_at: new Date() 
+        }
       })
       
       // WebAuthn registration

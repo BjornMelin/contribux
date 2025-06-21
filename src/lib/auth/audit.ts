@@ -56,7 +56,7 @@ const EVENT_SEVERITY_MAP: Record<string, EventSeverity> = {
 // Configuration is now centralized in config system
 
 // Helper function to create log params with proper optional property handling for exactOptionalPropertyTypes
-function createLogParams(params: {
+export function createLogParams(params: {
   event_type: AuthEventType | string
   event_severity?: EventSeverity
   user_id?: string | undefined

@@ -76,12 +76,6 @@ async function verifyAuthIntegration() {
   console.log('\n✨ All auth components are working correctly!')
 }
 
-// Type helpers for JWT integration
-function base64urlEncode(buffer: Uint8Array): string {
-  const base64 = btoa(String.fromCharCode.apply(null, Array.from(buffer)))
-  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
-}
-
 // Run verification if called directly
 if (require.main === module) {
   verifyAuthIntegration().catch(console.error)

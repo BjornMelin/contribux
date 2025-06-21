@@ -46,6 +46,9 @@ export async function generateEncryptionKey(): Promise<CryptoKey> {
   )
 }
 
+// Generate AES key (alias for consistency with test imports)
+export const generateAESKey = generateEncryptionKey
+
 // Export key to storable format
 export async function exportKey(key: CryptoKey): Promise<ExportedKey> {
   const exported = await crypto.subtle.exportKey('raw', key)

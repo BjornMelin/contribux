@@ -443,7 +443,7 @@ export async function cleanupExpiredTokens(): Promise<number> {
 
 // Helper functions
 
-function base64urlEncode(data: string | Buffer): string {
+export function base64urlEncode(data: string | Buffer | Uint8Array): string {
   const base64 = Buffer.from(data).toString('base64')
   return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
 }

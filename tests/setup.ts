@@ -19,11 +19,11 @@ if (!global.crypto?.subtle) {
   });
 }
 
-// Set test environment using Object.defineProperty to override readonly property
+// Set test environment - use Object.defineProperty to work around readonly
 Object.defineProperty(process.env, 'NODE_ENV', {
   value: 'test',
   writable: true,
-  configurable: true,
+  configurable: true
 });
 
 // Create mock database client for tests that don't need real database

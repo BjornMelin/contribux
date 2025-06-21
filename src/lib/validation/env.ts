@@ -15,8 +15,10 @@ function calculateShannonEntropy(str: string): number {
   const length = str.length
 
   for (const char in frequency) {
-    const p = frequency[char] / length
-    entropy -= p * Math.log2(p)
+    if (frequency[char] !== undefined) {
+      const p = frequency[char] / length
+      entropy -= p * Math.log2(p)
+    }
   }
 
   return entropy
@@ -149,6 +151,17 @@ export const envSchema = z
     WEBAUTHN_RP_ID: rpIdSchema.optional(),
     WEBAUTHN_RP_NAME: z.string().default('Contribux'),
     WEBAUTHN_ORIGINS: z.string().optional(),
+    WEBAUTHN_TIMEOUT: z
+      .string()
+      .pipe(z.coerce.number().int().min(10000))
+      .default('60000')
+      .optional(),
+    WEBAUTHN_CHALLENGE_EXPIRY: z
+      .string()
+      .pipe(z.coerce.number().int().min(30000))
+      .default('300000')
+      .optional(),
+    WEBAUTHN_SUPPORTED_ALGORITHMS: z.string().default('-7,-257').optional(),
 
     // Redis configuration (optional for session storage)
     REDIS_URL: redisUrlSchema,

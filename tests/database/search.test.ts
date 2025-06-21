@@ -166,8 +166,9 @@ describe("Hybrid Search Functions", () => {
       `;
       
       expect(result).toHaveLength(1);
-      expect(typeof result[0].distance).toBe("number");
-      expect(result[0].distance).toBeGreaterThan(0);
+      const typedResult = result as Array<{ distance: number }>;
+      expect(typeof typedResult[0]?.distance).toBe("number");
+      expect(typedResult[0]?.distance).toBeGreaterThan(0);
     });
 
     it("should support vector similarity operations", async () => {
@@ -181,7 +182,7 @@ describe("Hybrid Search Functions", () => {
       `;
       
       expect(result).toHaveLength(1);
-      expect(result[0].cosine_similarity).toBe(0); // Same vector should have 0 cosine distance
+      expect((result as Array<{ cosine_similarity: number }>)[0]?.cosine_similarity).toBe(0); // Same vector should have 0 cosine distance
     });
   });
 
@@ -192,9 +193,10 @@ describe("Hybrid Search Functions", () => {
       `;
       
       expect(result).toHaveLength(1);
-      expect(typeof result[0].sim).toBe("number");
-      expect(result[0].sim).toBeGreaterThan(0);
-      expect(result[0].sim).toBeLessThanOrEqual(1);
+      const simResult = result as Array<{ sim: number }>;
+      expect(typeof simResult[0]?.sim).toBe("number");
+      expect(simResult[0]?.sim).toBeGreaterThan(0);
+      expect(simResult[0]?.sim).toBeLessThanOrEqual(1);
     });
 
     it("should support full-text search", async () => {
@@ -205,7 +207,7 @@ describe("Hybrid Search Functions", () => {
       `;
       
       expect(result).toHaveLength(1);
-      expect(result[0].matches).toBe(true);
+      expect((result as Array<{ matches: boolean }>)[0]?.matches).toBe(true);
     });
   });
 });
