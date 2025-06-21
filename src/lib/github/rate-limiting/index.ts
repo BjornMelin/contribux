@@ -319,6 +319,31 @@ export class RateLimitManager {
     return Math.max(0, resetTime.getTime() - Date.now())
   }
 
+  /**
+   * Determine if requests should wait for rate limit reset
+   *
+   * This method helps decide whether to wait for rate limit reset or proceed
+   * with making requests based on remaining quota and desired minimum threshold.
+   *
+   * @param resource - Rate limit resource to check (default: 'core')
+   * @param minimumRemaining - Minimum remaining requests before waiting (default: 1)
+   * @returns True if should wait for reset, false if safe to proceed
+   *
+   * @example
+   * ```typescript
+   * const manager = new RateLimitManager();
+   *
+   * // Conservative approach: wait when less than 10 requests remaining
+   * if (manager.shouldWaitForReset('core', 10)) {
+   *   const waitTime = manager.getTimeUntilReset('core');
+   *   console.log('Waiting for rate limit reset...');
+   *   await new Promise(resolve => setTimeout(resolve, waitTime));
+   * }
+   *
+   * // Proceed with API request
+   * await makeGitHubAPIRequest();
+   * ```
+   */
   shouldWaitForReset(resource = 'core', minimumRemaining = 1): boolean {
     const info = this.state[resource]
     if (!info) return false
@@ -328,10 +353,36 @@ export class RateLimitManager {
 
 /**
  * Calculate retry delay with exponential backoff and jitter
- * Following 2025 best practices:
+ *
+ * Following 2025 best practices for retry logic:
  * - Uses full jitter (±50%) to prevent thundering herd
  * - Caps at 30 seconds maximum
  * - Uses proper exponential base of 2
+ * - Ensures minimum delay of 100ms
+ *
+ * @param retryCount - Current retry attempt (0-based)
+ * @param baseDelay - Base delay in milliseconds (default: 1000ms)
+ * @returns Calculated delay in milliseconds with jitter applied
+ *
+ * @example
+ * ```typescript
+ * // Calculate delay for retry attempts
+ * const delay1 = calculateRetryDelay(0); // ~1000ms ± 500ms
+ * const delay2 = calculateRetryDelay(1); // ~2000ms ± 1000ms
+ * const delay3 = calculateRetryDelay(2); // ~4000ms ± 2000ms
+ *
+ * // Use in retry logic
+ * for (let attempt = 0; attempt < maxRetries; attempt++) {
+ *   try {
+ *     return await makeAPIRequest();
+ *   } catch (error) {
+ *     if (attempt < maxRetries - 1) {
+ *       const delay = calculateRetryDelay(attempt);
+ *       await new Promise(resolve => setTimeout(resolve, delay));
+ *     }
+ *   }
+ * }
+ * ```
  */
 export function calculateRetryDelay(retryCount: number, baseDelay = 1000): number {
   // Exponential backoff: 2^retryCount * baseDelay
@@ -346,8 +397,35 @@ export function calculateRetryDelay(retryCount: number, baseDelay = 1000): numbe
 }
 
 /**
- * Parse retry-after header value (seconds or HTTP date)
- * Returns delay in milliseconds
+ * Parse retry-after header value from GitHub API responses
+ *
+ * GitHub's secondary rate limiting responses include a retry-after header
+ * that can contain either:
+ * - A number of seconds to wait
+ * - An HTTP date when to retry
+ *
+ * @param retryAfterHeader - Value from 'retry-after' HTTP header
+ * @returns Delay in milliseconds (capped at 5 minutes, minimum 60 seconds)
+ *
+ * @example
+ * ```typescript
+ * // Parse numeric seconds
+ * const delay1 = parseRetryAfter('120'); // Returns 120000 (120 seconds in ms)
+ *
+ * // Parse HTTP date
+ * const delay2 = parseRetryAfter('Wed, 21 Oct 2025 07:28:00 GMT');
+ *
+ * // Use in error handling
+ * try {
+ *   await makeAPIRequest();
+ * } catch (error) {
+ *   if (error.status === 403 && error.headers['retry-after']) {
+ *     const retryDelay = parseRetryAfter(error.headers['retry-after']);
+ *     console.log(`Secondary rate limit hit, waiting ${retryDelay / 1000}s`);
+ *     await new Promise(resolve => setTimeout(resolve, retryDelay));
+ *   }
+ * }
+ * ```
  */
 export function parseRetryAfter(retryAfterHeader?: string): number {
   if (!retryAfterHeader) return 60000 // Default to 60 seconds in milliseconds
@@ -369,7 +447,32 @@ export function parseRetryAfter(retryAfterHeader?: string): number {
 }
 
 /**
- * Check if we're approaching a rate limit threshold
+ * Check if rate limit usage is approaching a specified threshold
+ *
+ * This utility helps implement proactive rate limit management by detecting
+ * when usage approaches dangerous levels before hitting the limit.
+ *
+ * @param info - Rate limit information object
+ * @param threshold - Usage threshold as decimal (0.0-1.0, default: 0.9 for 90%)
+ * @returns True if usage percentage >= threshold
+ *
+ * @example
+ * ```typescript
+ * const manager = new RateLimitManager();
+ * const coreInfo = manager.getState().core;
+ *
+ * // Check if approaching 80% usage
+ * if (isApproachingRateLimit(coreInfo, 0.8)) {
+ *   console.warn('Rate limit usage high, implementing throttling');
+ *   // Implement request throttling or queueing
+ * }
+ *
+ * // Check if approaching 95% usage
+ * if (isApproachingRateLimit(coreInfo, 0.95)) {
+ *   console.error('Rate limit usage critical, pausing requests');
+ *   // Stop making requests until reset
+ * }
+ * ```
  */
 export function isApproachingRateLimit(
   info: RateLimitInfo | GraphQLRateLimitInfo,
@@ -381,7 +484,36 @@ export function isApproachingRateLimit(
 }
 
 /**
- * Calculate optimal request spacing to avoid hitting rate limits
+ * Calculate optimal delay between requests to avoid hitting rate limits
+ *
+ * This function calculates the ideal spacing between API requests to evenly
+ * distribute the remaining quota over the time until reset, with a safety buffer.
+ *
+ * @param info - Rate limit information object
+ * @returns Optimal delay in milliseconds between requests
+ *
+ * @example
+ * ```typescript
+ * const manager = new RateLimitManager();
+ * const coreInfo = manager.getState().core;
+ *
+ * // Calculate optimal spacing for remaining requests
+ * const optimalDelay = calculateOptimalDelay(coreInfo);
+ * console.log(`Wait ${optimalDelay}ms between requests`);
+ *
+ * // Use in request queue or throttling
+ * async function makeThrottledRequest() {
+ *   const delay = calculateOptimalDelay(manager.getState().core);
+ *   await new Promise(resolve => setTimeout(resolve, delay));
+ *   return await makeAPIRequest();
+ * }
+ *
+ * // Handle rate limit exceeded scenario
+ * if (coreInfo.remaining === 0) {
+ *   const waitTime = calculateOptimalDelay(coreInfo);
+ *   console.log(`Rate limited, waiting ${waitTime / 1000} seconds`);
+ * }
+ * ```
  */
 export function calculateOptimalDelay(info: RateLimitInfo | GraphQLRateLimitInfo): number {
   if (info.remaining === 0) {

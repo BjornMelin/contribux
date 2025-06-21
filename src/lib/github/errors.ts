@@ -48,10 +48,38 @@ export class GitHubGraphQLError extends GitHubClientError {
 export class GitHubWebhookError extends GitHubClientError {
   constructor(
     message: string,
-    public readonly reason: 'invalid-signature' | 'missing-signature' | 'parse-error'
+    public readonly reason:
+      | 'invalid-signature'
+      | 'missing-signature'
+      | 'parse-error'
+      | 'invalid-payload'
+      | 'duplicate-delivery'
+      | 'handler-error'
   ) {
     super(message)
     this.name = 'GitHubWebhookError'
+  }
+}
+
+export class GitHubWebhookSignatureError extends GitHubWebhookError {
+  constructor(
+    message: string,
+    public readonly algorithm?: string,
+    public readonly providedSignature?: string
+  ) {
+    super(message, 'invalid-signature')
+    this.name = 'GitHubWebhookSignatureError'
+  }
+}
+
+export class GitHubWebhookPayloadError extends GitHubWebhookError {
+  constructor(
+    message: string,
+    public readonly payloadSize?: number,
+    public readonly parseError?: Error
+  ) {
+    super(message, 'parse-error')
+    this.name = 'GitHubWebhookPayloadError'
   }
 }
 
@@ -148,6 +176,19 @@ export const ErrorMessages = {
   WEBHOOK_SIGNATURE_MISSING: 'Missing webhook signature header',
   WEBHOOK_PAYLOAD_INVALID: 'Invalid webhook payload',
   WEBHOOK_DELIVERY_ID_INVALID: 'Invalid delivery ID format',
+  WEBHOOK_HEADERS_INVALID: 'Invalid webhook headers',
+  WEBHOOK_EVENT_TYPE_MISSING: 'Missing x-github-event header',
+  WEBHOOK_DELIVERY_ID_MISSING: 'Missing x-github-delivery header',
+  WEBHOOK_PAYLOAD_TOO_LARGE: (size: number, max: number) =>
+    `Payload too large: ${size.toLocaleString()} bytes (max: ${max.toLocaleString()})`,
+  WEBHOOK_PAYLOAD_EMPTY: 'Webhook payload cannot be empty',
+  WEBHOOK_SECRET_TOO_SHORT: 'Webhook secret must be at least 10 characters long',
+  WEBHOOK_ALGORITHM_UNSUPPORTED: (algorithm: string) =>
+    `Unsupported signature algorithm: ${algorithm}`,
+  WEBHOOK_SIGNATURE_FORMAT_INVALID: 'Signature format is invalid (must be algorithm=signature)',
+  WEBHOOK_DUPLICATE_DELIVERY: (deliveryId: string) => `Duplicate delivery ID: ${deliveryId}`,
+  WEBHOOK_HANDLER_EXECUTION_FAILED: (eventType: string, error: string) =>
+    `Handler for ${eventType} event failed: ${error}`,
 
   // DataLoader errors
   DATALOADER_BATCH_LENGTH_MISMATCH: (expected: number, received: number | string) =>

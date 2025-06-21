@@ -39,6 +39,37 @@ function findMatchingBrace(str: string, startIndex: number): number {
   return -1
 }
 
+/**
+ * Estimate the complexity of a GraphQL query
+ *
+ * Analyzes a GraphQL query to estimate its complexity in terms of GitHub's
+ * point cost system, node count, depth, and field count. This helps with
+ * rate limit planning and query optimization.
+ *
+ * @param query - GraphQL query string to analyze
+ * @returns Complexity metrics including points, nodes, depth, and fields
+ *
+ * @example
+ * ```typescript
+ * const query = `
+ *   query {
+ *     repository(owner: "facebook", name: "react") {
+ *       issues(first: 10) {
+ *         nodes {
+ *           title
+ *           author { login }
+ *         }
+ *       }
+ *     }
+ *   }
+ * `;
+ *
+ * const complexity = estimateQueryComplexity(query);
+ * console.log('Estimated points:', complexity.totalPoints);
+ * console.log('Node count:', complexity.nodeCount);
+ * console.log('Query depth:', complexity.depth);
+ * ```
+ */
 export function estimateQueryComplexity(query: string): QueryComplexity {
   let totalPoints = 1 // Base cost
 
@@ -124,6 +155,43 @@ export function estimateQueryComplexity(query: string): QueryComplexity {
   }
 }
 
+/**
+ * Split a large GraphQL query into smaller queries to avoid rate limits
+ *
+ * Takes a complex GraphQL query that may exceed GitHub's rate limit and
+ * intelligently splits it into multiple smaller queries that can be executed
+ * separately. Preserves query structure and relationships where possible.
+ *
+ * @param query - GraphQL query string to split
+ * @param options - Configuration options for splitting behavior
+ * @param options.maxPointsPerQuery - Maximum points per split query (default: GitHub limit)
+ * @param options.preserveStructure - Whether to maintain original query structure
+ * @returns Array of smaller GraphQL query strings
+ *
+ * @example
+ * ```typescript
+ * const largeQuery = `
+ *   query {
+ *     repository(owner: "facebook", name: "react") {
+ *       issues(first: 100) { nodes { title } }
+ *       pullRequests(first: 100) { nodes { title } }
+ *       discussions(first: 100) { nodes { title } }
+ *     }
+ *   }
+ * `;
+ *
+ * const splitQueries = splitGraphQLQuery(largeQuery, {
+ *   maxPointsPerQuery: 1000,
+ *   preserveStructure: true
+ * });
+ *
+ * console.log(`Split into ${splitQueries.length} queries`);
+ * // Execute each query separately
+ * for (const query of splitQueries) {
+ *   const result = await client.graphql(query);
+ * }
+ * ```
+ */
 export function splitGraphQLQuery(query: string, options: SplitQueryOptions = {}): string[] {
   const { maxPointsPerQuery = GRAPHQL_DEFAULTS.MAX_QUERY_COST } = options
 

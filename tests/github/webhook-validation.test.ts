@@ -10,6 +10,11 @@ import {
   type PullRequestPayload,
   type PushPayload,
 } from '@/lib/github/webhooks'
+import { 
+  GitHubWebhookError, 
+  GitHubWebhookSignatureError, 
+  GitHubWebhookPayloadError 
+} from '@/lib/github/errors'
 
 describe('GitHub Webhook Integration', () => {
   const secret = 'test-webhook-secret'
@@ -282,7 +287,7 @@ describe('GitHub Webhook Integration', () => {
       }
 
       // Should not throw the handler error, but wrap it
-      await expect(handler.handle(payload, headers)).rejects.toThrow('Webhook handler error')
+      await expect(handler.handle(payload, headers)).rejects.toThrow('Handler for issues event failed')
     })
 
     it('should validate input parameters thoroughly', async () => {
@@ -358,6 +363,273 @@ describe('GitHub Webhook Integration', () => {
       }
 
       expect(issueEvent.type).toBe('issues')
+    })
+  })
+
+  describe('Error Handling Consistency', () => {
+    describe('Event Parser Errors', () => {
+      it('should throw GitHubWebhookPayloadError for invalid payload types', () => {
+        const headers = {
+          'x-github-event': 'issues',
+          'x-github-delivery': 'f47ac10b-58cc-4372-a567-0e02b2c3d479'
+        }
+
+        expect(() => {
+          parseWebhookEvent(null as any, headers)
+        }).toThrow(GitHubWebhookPayloadError)
+
+        expect(() => {
+          parseWebhookEvent(123 as any, headers)
+        }).toThrow(GitHubWebhookPayloadError)
+      })
+
+      it('should throw GitHubWebhookError for invalid headers', () => {
+        expect(() => {
+          parseWebhookEvent(payload, null as any)
+        }).toThrow(GitHubWebhookError)
+
+        expect(() => {
+          parseWebhookEvent(payload, 'invalid' as any)
+        }).toThrow(GitHubWebhookError)
+      })
+
+      it('should throw GitHubWebhookPayloadError for empty payload', () => {
+        const headers = {
+          'x-github-event': 'issues',
+          'x-github-delivery': 'f47ac10b-58cc-4372-a567-0e02b2c3d479'
+        }
+
+        expect(() => {
+          parseWebhookEvent('', headers)
+        }).toThrow(GitHubWebhookPayloadError)
+      })
+
+      it('should throw GitHubWebhookPayloadError for invalid JSON', () => {
+        const headers = {
+          'x-github-event': 'issues',
+          'x-github-delivery': 'f47ac10b-58cc-4372-a567-0e02b2c3d479'
+        }
+
+        expect(() => {
+          parseWebhookEvent('invalid-json{', headers)
+        }).toThrow(GitHubWebhookPayloadError)
+      })
+
+      it('should throw GitHubWebhookError for missing headers', () => {
+        expect(() => {
+          parseWebhookEvent(payload, {})
+        }).toThrow(GitHubWebhookError)
+
+        expect(() => {
+          parseWebhookEvent(payload, { 'x-github-event': 'issues' })
+        }).toThrow(GitHubWebhookError)
+
+        expect(() => {
+          parseWebhookEvent(payload, { 'x-github-delivery': 'test-id' })
+        }).toThrow(GitHubWebhookError)
+      })
+    })
+
+    describe('Webhook Handler Initialization Errors', () => {
+      it('should throw GitHubWebhookSignatureError for invalid secrets', () => {
+        expect(() => {
+          new WebhookHandler('')
+        }).toThrow(GitHubWebhookSignatureError)
+
+        expect(() => {
+          new WebhookHandler('short')
+        }).toThrow(GitHubWebhookSignatureError)
+
+        expect(() => {
+          new WebhookHandler(null as any)
+        }).toThrow(GitHubWebhookError)
+      })
+
+      it('should throw GitHubWebhookError for invalid handlers', () => {
+        expect(() => {
+          new WebhookHandler(secret, 'invalid' as any)
+        }).toThrow(GitHubWebhookError)
+      })
+
+      it('should throw GitHubWebhookError for invalid options', () => {
+        expect(() => {
+          new WebhookHandler(secret, {}, { maxCacheSize: 50 })
+        }).toThrow(GitHubWebhookError)
+
+        expect(() => {
+          new WebhookHandler(secret, {}, { maxCacheSize: 200000 })
+        }).toThrow(GitHubWebhookError)
+
+        expect(() => {
+          new WebhookHandler(secret, {}, { maxCacheSize: -1 })
+        }).toThrow(GitHubWebhookError)
+      })
+    })
+
+    describe('Webhook Handler Processing Errors', () => {
+      let handler: WebhookHandler
+
+      beforeEach(() => {
+        handler = new WebhookHandler(secret, {
+          onIssue: vi.fn()
+        })
+      })
+
+      it('should throw GitHubWebhookPayloadError for invalid payload', async () => {
+        const headers = {
+          'x-hub-signature-256': 'sha256=test',
+          'x-github-event': 'issues',
+          'x-github-delivery': 'f47ac10b-58cc-4372-a567-0e02b2c3d479'
+        }
+
+        await expect(handler.handle('', headers)).rejects.toThrow(GitHubWebhookPayloadError)
+        await expect(handler.handle(null as any, headers)).rejects.toThrow(GitHubWebhookPayloadError)
+      })
+
+      it('should throw GitHubWebhookError for invalid headers', async () => {
+        await expect(handler.handle(payload, null as any)).rejects.toThrow(GitHubWebhookError)
+        await expect(handler.handle(payload, 'invalid' as any)).rejects.toThrow(GitHubWebhookError)
+      })
+
+      it('should throw GitHubWebhookSignatureError for missing signature', async () => {
+        const headers = {
+          'x-github-event': 'issues',
+          'x-github-delivery': 'f47ac10b-58cc-4372-a567-0e02b2c3d479'
+        }
+
+        await expect(handler.handle(payload, headers)).rejects.toThrow(GitHubWebhookSignatureError)
+      })
+
+      it('should throw GitHubWebhookSignatureError for invalid signature', async () => {
+        const headers = {
+          'x-hub-signature-256': 'sha256=invalid-signature',
+          'x-github-event': 'issues',
+          'x-github-delivery': 'f47ac10b-58cc-4372-a567-0e02b2c3d479'
+        }
+
+        await expect(handler.handle(payload, headers)).rejects.toThrow(GitHubWebhookSignatureError)
+      })
+
+      it('should handle payload size limits', async () => {
+        const largePayload = 'x'.repeat(26 * 1024 * 1024) // 26MB, exceeds limit
+        const signature = createHmac('sha256', secret)
+          .update(largePayload)
+          .digest('hex')
+        
+        const headers = {
+          'x-hub-signature-256': `sha256=${signature}`,
+          'x-github-event': 'issues',
+          'x-github-delivery': 'f47ac10b-58cc-4372-a567-0e02b2c3d479'
+        }
+
+        await expect(handler.handle(largePayload, headers)).rejects.toThrow(GitHubWebhookPayloadError)
+      })
+
+      it('should throw GitHubWebhookError for handler execution failures', async () => {
+        const failingHandler = new WebhookHandler(secret, {
+          onIssue: vi.fn().mockRejectedValue(new Error('Handler failed'))
+        })
+
+        const signature = createHmac('sha256', secret)
+          .update(payload)
+          .digest('hex')
+        
+        const headers = {
+          'x-hub-signature-256': `sha256=${signature}`,
+          'x-github-event': 'issues',
+          'x-github-delivery': 'f47ac10b-58cc-4372-a567-0e02b2c3d479'
+        }
+
+        await expect(failingHandler.handle(payload, headers)).rejects.toThrow(GitHubWebhookError)
+      })
+    })
+
+    describe('Signature Validation Error Handling', () => {
+      it('should handle invalid signature formats gracefully', () => {
+        expect(validateWebhookSignature(payload, 'invalid-format', secret)).toBe(false)
+        expect(validateWebhookSignature(payload, 'sha256', secret)).toBe(false)
+        expect(validateWebhookSignature(payload, '=signature', secret)).toBe(false)
+        expect(validateWebhookSignature(payload, 'sha256=', secret)).toBe(false)
+      })
+
+      it('should handle unsupported algorithms', () => {
+        expect(validateWebhookSignature(payload, 'md5=abc123', secret)).toBe(false)
+        expect(validateWebhookSignature(payload, 'sha512=abc123', secret)).toBe(false)
+      })
+
+      it('should handle invalid hex characters', () => {
+        expect(validateWebhookSignature(payload, 'sha256=xyz123', secret)).toBe(false)
+        expect(validateWebhookSignature(payload, 'sha256=123!@#', secret)).toBe(false)
+      })
+
+      it('should handle edge cases in strict validation', () => {
+        expect(validateWebhookSignatureStrict('', '', '', true)).toBe(false)
+        expect(validateWebhookSignatureStrict(payload, null as any, secret, true)).toBe(false)
+        expect(validateWebhookSignatureStrict(payload, 'sha256=test', null as any, true)).toBe(false)
+      })
+    })
+
+    describe('Error Message Consistency', () => {
+      it('should use consistent error types across modules', async () => {
+        const handler = new WebhookHandler(secret)
+
+        // Test that all webhook-related errors use GitHubWebhookError or its subclasses
+        const headers = {
+          'x-github-event': 'issues',
+          'x-github-delivery': 'f47ac10b-58cc-4372-a567-0e02b2c3d479'
+        }
+
+        try {
+          await handler.handle(payload, headers)
+        } catch (error) {
+          expect(error).toBeInstanceOf(GitHubWebhookError)
+        }
+
+        try {
+          parseWebhookEvent('', headers)
+        } catch (error) {
+          expect(error).toBeInstanceOf(GitHubWebhookError)
+        }
+      })
+
+      it('should provide detailed error information', () => {
+        try {
+          parseWebhookEvent('invalid-json{', {
+            'x-github-event': 'issues',
+            'x-github-delivery': 'f47ac10b-58cc-4372-a567-0e02b2c3d479'
+          })
+        } catch (error) {
+          expect(error).toBeInstanceOf(GitHubWebhookPayloadError)
+          const payloadError = error as GitHubWebhookPayloadError
+          expect(payloadError.payloadSize).toBe(13)
+          expect(payloadError.parseError).toBeInstanceOf(Error)
+        }
+      })
+    })
+
+    describe('Cache Error Handling', () => {
+      it('should handle cache cleanup failures gracefully', () => {
+        const handler = new WebhookHandler(secret, {}, { maxCacheSize: 100 })
+        
+        // Force a cache cleanup scenario
+        for (let i = 0; i < 150; i++) {
+          (handler as any).processedDeliveries.add(`delivery-${i}`)
+        }
+
+        // Should not throw when cleaning cache
+        expect(() => {
+          (handler as any).cleanupCache()
+        }).not.toThrow()
+      })
+
+      it('should handle cache clear failures gracefully', () => {
+        const handler = new WebhookHandler(secret)
+        
+        // Should not throw when clearing cache
+        expect(() => {
+          handler.clearCache()
+        }).not.toThrow()
+      })
     })
   })
 })
