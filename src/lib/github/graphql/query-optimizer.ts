@@ -573,6 +573,49 @@ function extractTopLevelFields(queryBody: string): string[] {
   return fields.filter(f => f.length > 0 && f !== ',')
 }
 
+/**
+ * Combine multiple GraphQL queries into a single batched query for efficiency
+ *
+ * Takes multiple individual GraphQL queries and combines them into a single
+ * query using field aliases. This reduces the number of network requests
+ * while staying within GitHub's rate limits.
+ *
+ * @param queries - Array of query objects to batch together
+ * @param queries[].id - Optional identifier for the query
+ * @param queries[].alias - Optional alias for the query field
+ * @param queries[].query - GraphQL query string
+ * @param queries[].variables - Optional variables for the query
+ * @param options - Configuration options for batching
+ * @param options.maxComplexity - Maximum complexity before splitting (default: GitHub limit)
+ * @param options.includeRateLimit - Whether to include rate limit info (default: true)
+ * @returns Single batched query string or array of strings if splitting required
+ *
+ * @example
+ * ```typescript
+ * const queries = [
+ *   {
+ *     id: 'reactRepo',
+ *     query: 'repository(owner: "facebook", name: "react") { stargazerCount }',
+ *   },
+ *   {
+ *     id: 'vueRepo',
+ *     query: 'repository(owner: "vuejs", name: "vue") { stargazerCount }',
+ *   }
+ * ];
+ *
+ * const batchedQuery = buildBatchedQuery(queries, {
+ *   maxComplexity: 1000,
+ *   includeRateLimit: true
+ * });
+ *
+ * // Results in a single query with aliases:
+ * // query {
+ * //   reactRepo: repository(owner: "facebook", name: "react") { stargazerCount }
+ * //   vueRepo: repository(owner: "vuejs", name: "vue") { stargazerCount }
+ * //   rateLimit { remaining resetAt }
+ * // }
+ * ```
+ */
 export function buildBatchedQuery(
   queries: Array<{
     id?: string
@@ -678,6 +721,50 @@ ${aliasedQueries.join('\n')}
   return batchedQuery
 }
 
+/**
+ * Optimize a GraphQL query for better performance and reduced complexity
+ *
+ * Applies various optimization techniques to reduce query complexity,
+ * eliminate redundancy, and improve execution efficiency while maintaining
+ * the same result structure.
+ *
+ * @param query - GraphQL query string to optimize
+ * @param options - Optimization configuration options
+ * @param options.removeCursors - Remove cursor fields for simpler pagination (default: false)
+ * @param options.preferNodes - Prefer 'nodes' over 'edges.node' pattern (default: false)
+ * @param options.includeRateLimit - Add rate limit information to query (default: false)
+ * @param options.removeDuplicates - Remove duplicate fields (default: true)
+ * @returns Optimized GraphQL query string
+ *
+ * @example
+ * ```typescript
+ * const complexQuery = `
+ *   query {
+ *     repository(owner: "facebook", name: "react") {
+ *       issues(first: 10) {
+ *         edges {
+ *           node { title }
+ *           cursor
+ *         }
+ *         nodes { title }
+ *         totalCount
+ *         totalCount
+ *       }
+ *     }
+ *   }
+ * `;
+ *
+ * const optimized = optimizeGraphQLQuery(complexQuery, {
+ *   removeCursors: true,
+ *   preferNodes: true,
+ *   removeDuplicates: true,
+ *   includeRateLimit: true
+ * });
+ *
+ * // Results in cleaner, more efficient query
+ * console.log('Optimized query:', optimized);
+ * ```
+ */
 export function optimizeGraphQLQuery(query: string, options: OptimizeOptions = {}): string {
   const {
     removeCursors = false,

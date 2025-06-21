@@ -121,15 +121,84 @@ export class CircuitBreaker {
   }
 }
 
+/**
+ * Advanced retry manager with circuit breaker pattern for GitHub API operations
+ *
+ * The RetryManager provides intelligent retry logic with exponential backoff,
+ * circuit breaker protection, and comprehensive error handling. It automatically
+ * handles different types of GitHub API errors and implements best practices
+ * for resilient API interactions.
+ *
+ * Features:
+ * - Exponential backoff with jitter to prevent thundering herd
+ * - Circuit breaker pattern to fail fast during outages
+ * - Automatic detection of rate limiting and authentication errors
+ * - Comprehensive retry state tracking and metrics
+ * - Configurable retry policies per operation type
+ *
+ * @example
+ * ```typescript
+ * const retryManager = new RetryManager({
+ *   retries: 3,
+ *   baseDelay: 1000,
+ *   exponentialBase: 2,
+ *   maxDelay: 30000,
+ *   circuitBreaker: {
+ *     enabled: true,
+ *     failureThreshold: 5,
+ *     recoveryTimeout: 60000
+ *   }
+ * });
+ *
+ * // Execute an operation with retry logic
+ * const result = await retryManager.executeWithRetry(async () => {
+ *   return await client.rest.repos.get({ owner, repo });
+ * });
+ * ```
+ */
 export class RetryManager {
   private circuitBreaker?: CircuitBreaker
 
+  /**
+   * Create a new RetryManager with the specified retry configuration
+   *
+   * @param options - Retry configuration options including backoff, circuit breaker, etc.
+   */
   constructor(private options: RetryOptions) {
     if (this.options.circuitBreaker?.enabled) {
       this.circuitBreaker = new CircuitBreaker(this.options.circuitBreaker)
     }
   }
 
+  /**
+   * Execute an async operation with intelligent retry logic and circuit breaker protection
+   *
+   * This method wraps any async operation with comprehensive retry logic,
+   * handling rate limits, network errors, and service outages gracefully.
+   * It tracks retry state and applies exponential backoff with jitter.
+   *
+   * @param operation - Async function to execute with retry logic
+   * @param _context - Optional context for logging and debugging (currently unused)
+   * @returns Promise that resolves to the operation result
+   * @throws {GitHubClientError} When all retry attempts are exhausted
+   * @throws {Error} When circuit breaker is open or operation fails permanently
+   *
+   * @example
+   * ```typescript
+   * const retryManager = new RetryManager({ retries: 3, baseDelay: 1000 });
+   *
+   * // Retry a GitHub API call
+   * const repo = await retryManager.executeWithRetry(async () => {
+   *   return await octokit.rest.repos.get({ owner: 'facebook', repo: 'react' });
+   * });
+   *
+   * // Retry with custom context for debugging
+   * const issues = await retryManager.executeWithRetry(
+   *   async () => await octokit.rest.issues.list({ owner, repo }),
+   *   { method: 'GET', url: '/repos/owner/repo/issues', requestId: 'req-123' }
+   * );
+   * ```
+   */
   async executeWithRetry<T>(operation: () => Promise<T>, _context?: RetryContext): Promise<T> {
     const retryState: RetryState = {
       attempt: 0,
