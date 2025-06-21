@@ -119,7 +119,7 @@ export function estimateQueryComplexity(query: string): QueryComplexity {
     const connDepth = depths[conn.index] || 1
     nodeCount += conn.size
 
-    // Find all parent connections (at shallower depths)
+    // Find all parent connections (at shallower depths) that contain this connection
     let multiplier = 1
     for (let i = 0; i < index; i++) {
       const parentConn = connections[i]
@@ -130,21 +130,30 @@ export function estimateQueryComplexity(query: string): QueryComplexity {
       // Check if this connection is nested inside the parent
       // by verifying it appears after the parent and at a deeper level
       if (parentDepth < connDepth && conn.index > parentConn.index) {
-        // Also verify it's actually nested by checking the closing brace
-        const parentEnd = query.indexOf('}', parentConn.index)
-        if (parentEnd > conn.index) {
+        // Find the matching closing brace for the parent connection
+        const parentOpenBrace = query.indexOf('{', parentConn.index)
+        const parentCloseBrace = findMatchingBrace(query, parentOpenBrace)
+        
+        // Verify the current connection is within the parent's scope
+        if (parentCloseBrace > conn.index) {
           multiplier *= parentConn.size
         }
       }
     }
 
     const connectionPoints = conn.size * multiplier
-    totalPoints += connectionPoints
-
-    // If this single connection exceeds the limit, we need to split
-    if (connectionPoints > GRAPHQL_DEFAULTS.MAX_QUERY_COST) {
-      totalPoints = GRAPHQL_DEFAULTS.MAX_QUERY_COST + 1 // Force split
+    
+    // For extremely deep nesting (6+ levels), apply exponential growth penalty
+    let finalConnectionPoints = connectionPoints
+    if (connDepth >= 6) {
+      const depthPenalty = Math.pow(2, connDepth - 5)
+      finalConnectionPoints = connectionPoints * depthPenalty
     }
+    
+    totalPoints += finalConnectionPoints
+
+    // Note: Don't artificially cap the total - let it reflect the true complexity
+    // The splitting logic will handle queries that exceed limits
   })
 
   return {
@@ -797,9 +806,9 @@ export function optimizeGraphQLQuery(query: string, options: OptimizeOptions = {
 
   // Remove cursors if not needed for pagination
   if (removeCursors && !query.includes('after:') && !query.includes('before:')) {
-    // Remove cursor fields more carefully
-    const cursorRegex = /^\s*cursor\s*(?:#.*)?$/gm
-    optimized = optimized.replace(cursorRegex, '')
+    // Remove cursor fields more carefully, but preserve pageInfo cursors
+    // Only remove cursors that are direct fields, not within pageInfo
+    optimized = removeCursorFields(optimized)
   }
 
   // Add rate limit info if requested
@@ -871,6 +880,53 @@ function removeEdgesBlocks(query: string): string {
   }
 
   return result
+}
+
+function removeCursorFields(query: string): string {
+  const lines = query.split('\n')
+  const resultLines: string[] = []
+  let insidePageInfo = false
+  let braceDepth = 0
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    if (line == null) continue
+
+    const trimmedLine = line.trim()
+
+    // Track if we're inside a pageInfo block
+    if (trimmedLine.includes('pageInfo')) {
+      insidePageInfo = true
+      braceDepth = 0
+    }
+
+    // Track brace depth within pageInfo
+    if (insidePageInfo) {
+      for (const char of line) {
+        if (char === '{') braceDepth++
+        else if (char === '}') {
+          braceDepth--
+          if (braceDepth <= 0) {
+            insidePageInfo = false
+            break
+          }
+        }
+      }
+    }
+
+    // Check if this is a cursor field
+    const isCursorField = /^\s*cursor\s*(?:#.*)?$/.test(trimmedLine)
+
+    // Only remove cursor if it's not inside pageInfo
+    if (isCursorField && !insidePageInfo) {
+      // Skip this line - don't add to result
+      continue
+    }
+
+    resultLines.push(line)
+  }
+
+  return resultLines.join('\n')
 }
 
 function removeDuplicateFields(query: string): string {
