@@ -3,9 +3,8 @@ import { neon } from '@neondatabase/serverless'
 
 // Get the test database URL from environment
 const getTestDatabaseUrl = () => {
-  // Try different environment variable sources
-  const testUrl = process.env.DATABASE_URL_TEST || 
-    'postgresql://neondb_owner:npg_G8poqg2YQRAz@ep-hidden-union-a8b34lc5-pooler.eastus2.azure.neon.tech/neondb?sslmode=require'
+  // Only use environment variable, no hardcoded fallback
+  const testUrl = process.env.DATABASE_URL_TEST
   
   return testUrl
 }

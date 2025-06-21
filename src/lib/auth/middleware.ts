@@ -431,8 +431,8 @@ export async function rateLimit(
 
     // If no rate limiter is available, fall back to legacy implementation
     if (!rateLimiter) {
-      // Suppress warning in test environment to avoid noise in test output
-      if (process.env.NODE_ENV !== 'test') {
+      // Only warn if we expect Redis to be available and it's not a CI environment
+      if (!process.env.CI && process.env.REDIS_URL && process.env.NODE_ENV !== 'test') {
         console.warn('No rate limiter available, using legacy fallback')
       }
       return await legacyRateLimit(request, options)
@@ -461,8 +461,8 @@ export async function rateLimit(
           })
         }
       } catch (error) {
-        // Suppress warning in test environment to avoid noise in test output
-        if (process.env.NODE_ENV !== 'test') {
+        // Only warn if this is a genuine configuration issue, not expected test behavior
+        if (!process.env.CI && process.env.NODE_ENV !== 'test') {
           console.warn('Failed to create custom rate limiter, using default:', error)
         }
         customRateLimiter = rateLimiter
@@ -483,8 +483,8 @@ export async function rateLimit(
 
     // Ensure result is defined and has the expected properties
     if (!result) {
-      // Suppress warning in test environment to avoid noise in test output
-      if (process.env.NODE_ENV !== 'test') {
+      // Only warn about unexpected undefined results in development/production
+      if (!process.env.CI && process.env.NODE_ENV !== 'test') {
         console.warn('Rate limiter returned undefined result, using fallback')
       }
       return await legacyRateLimit(request, options)
@@ -509,8 +509,8 @@ export async function rateLimit(
     }
 
     // Fallback to original implementation for any other errors
-    // Suppress error logging in test environment to avoid noise in test output
-    if (process.env.NODE_ENV !== 'test') {
+    // Only log errors that indicate real issues, not expected test failures
+    if (!process.env.CI && process.env.NODE_ENV !== 'test') {
       console.error('Rate limiter error, falling back to basic implementation:', rejRes)
     }
     return await legacyRateLimit(request, options)

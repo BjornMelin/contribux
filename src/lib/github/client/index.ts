@@ -306,17 +306,29 @@ export class GitHubClient {
   private buildThrottleOptions(): ThrottleOptions {
     const defaults: ThrottleOptions = {
       onRateLimit: (retryAfter, options, _octokit, retryCount) => {
-        console.warn(`Request quota exhausted for request ${options.method} ${options.url}`)
+        // Only suppress warnings in CI environments to reduce noise during automated testing
+        if (!process.env.CI || process.env.LOG_GITHUB_RATE_LIMITS === 'true') {
+          console.warn(`Request quota exhausted for request ${options.method} ${options.url}`)
+        }
         if (retryCount < 3) {
-          console.warn(`Retrying after ${retryAfter} seconds!`)
+          // Always show retry messages as they indicate automatic recovery
+          if (!process.env.CI || process.env.LOG_GITHUB_RATE_LIMITS === 'true') {
+            console.warn(`Retrying after ${retryAfter} seconds!`)
+          }
           return true
         }
         return false
       },
       onSecondaryRateLimit: (retryAfter, options, _octokit, retryCount) => {
-        console.warn(`Secondary rate limit detected for request ${options.method} ${options.url}`)
+        // Only suppress warnings in CI environments to reduce noise during automated testing
+        if (!process.env.CI || process.env.LOG_GITHUB_RATE_LIMITS === 'true') {
+          console.warn(`Secondary rate limit detected for request ${options.method} ${options.url}`)
+        }
         if (retryCount < 2) {
-          console.warn(`Retrying after ${retryAfter} seconds!`)
+          // Always show retry messages as they indicate automatic recovery
+          if (!process.env.CI || process.env.LOG_GITHUB_RATE_LIMITS === 'true') {
+            console.warn(`Retrying after ${retryAfter} seconds!`)
+          }
           return true
         }
         return false

@@ -1,12 +1,17 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 
 // This test is isolated from global setup to avoid any mocking interference
-const DATABASE_URL_TEST = 'postgresql://neondb_owner:npg_G8poqg2YQRAz@ep-hidden-union-a8b34lc5-pooler.eastus2.azure.neon.tech/neondb?sslmode=require'
+// Database URL should be set in environment variables
+const DATABASE_URL_TEST = process.env.DATABASE_URL_TEST
 
 describe('Authentication Database Schema (Isolated)', () => {
   let sql: any
 
   beforeAll(async () => {
+    if (!DATABASE_URL_TEST) {
+      throw new Error('DATABASE_URL_TEST must be set in environment for this test')
+    }
+    
     // Dynamic import to avoid setup file interference
     const { neon } = await import('@neondatabase/serverless')
     sql = neon(DATABASE_URL_TEST)
