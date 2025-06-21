@@ -2,19 +2,17 @@ import { z } from 'zod'
 
 /**
  * Type-safe helpers for Neon SQL result handling
- * 
+ *
  * These utilities provide safe access to SQL query results with proper TypeScript typing
  * and respect for the strict noUncheckedIndexedAccess configuration.
  */
 
 // Common SQL result schemas
-export const singleTextResultSchema = z.object({
-  [z.string().min(1)]: z.union([z.string(), z.number(), z.boolean(), z.null()]),
-})
+export const singleTextResultSchema = z.record(
+  z.union([z.string(), z.number(), z.boolean(), z.null()])
+)
 
-export const singleNumberResultSchema = z.object({
-  [z.string().min(1)]: z.number(),
-})
+export const singleNumberResultSchema = z.record(z.number())
 
 export const singleVersionResultSchema = z.object({
   version: z.string(),
@@ -51,14 +49,11 @@ export const matchesResultSchema = z.object({
 /**
  * Safely get the first row from a SQL result array
  */
-export function getFirstRow<T>(
-  result: T[] | unknown,
-  schema: z.ZodSchema<T>
-): T | null {
+export function getFirstRow<T>(result: T[] | unknown, schema: z.ZodSchema<T>): T | null {
   if (!Array.isArray(result) || result.length === 0) {
     return null
   }
-  
+
   const firstRow = result[0]
   if (!firstRow) {
     return null
@@ -133,8 +128,7 @@ export function safeArrayAccess<T>(
  * Type-safe SQL result array validator
  */
 export function isSqlResultArray(value: unknown): value is Record<string, unknown>[] {
-  return Array.isArray(value) && 
-         value.every(item => typeof item === 'object' && item !== null)
+  return Array.isArray(value) && value.every(item => typeof item === 'object' && item !== null)
 }
 
 /**

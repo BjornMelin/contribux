@@ -43,7 +43,13 @@ export interface GitHubClientConfig {
 
 export type GitHubAuthConfig =
   | { type: 'token'; token: string }
-  | { type: 'app'; appId: number; privateKey: string; installationId?: number; webhookSecret?: string }
+  | {
+      type: 'app'
+      appId: number
+      privateKey: string
+      installationId?: number
+      webhookSecret?: string
+    }
   | { type: 'oauth'; clientId: string; clientSecret: string }
 
 export interface ThrottleOptions {

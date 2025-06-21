@@ -257,7 +257,7 @@ export class GitHubClient {
 
     // Check token cache first
     const cachedToken = this.tokenCache.get(installationId)
-    if (cachedToken && cachedToken.expiresAt && new Date(cachedToken.expiresAt) > new Date()) {
+    if (cachedToken?.expiresAt && new Date(cachedToken.expiresAt) > new Date()) {
       this.currentInstallationId = installationId
       this.updateOctokitAuth(cachedToken.token)
       return
@@ -869,15 +869,15 @@ export class GitHubClient {
       if (options.method !== 'GET') return
 
       const cacheKey = this.generateCacheKeyFromRequest(options)
-      const cachedEntry = await this.cache!.get(cacheKey)
+      const cachedEntry = await this.cache?.get(cacheKey)
 
       if (cachedEntry) {
         // Check if cache entry is still valid (not expired)
         const age = Date.now() - new Date(cachedEntry.createdAt).getTime()
-        const ttl = (cachedEntry.ttl || this.cache!.options.ttl || 300) * 1000
+        const ttl = (cachedEntry.ttl || this.cache?.options.ttl || 300) * 1000
 
         if (age < ttl) {
-          const existingETag = this.cache!.getETag(cacheKey)
+          const existingETag = this.cache?.getETag(cacheKey)
 
           if (existingETag) {
             // Add conditional request header if we have an ETag
@@ -896,16 +896,16 @@ export class GitHubClient {
       // Check if we have a valid cached response without ETag
       if (options.method === 'GET') {
         const cacheKey = this.generateCacheKeyFromRequest(options)
-        const cachedEntry = await this.cache!.get(cacheKey)
+        const cachedEntry = await this.cache?.get(cacheKey)
 
         if (cachedEntry) {
           const age = Date.now() - new Date(cachedEntry.createdAt).getTime()
-          const ttl = (cachedEntry.ttl || this.cache!.options.ttl || 300) * 1000
+          const ttl = (cachedEntry.ttl || this.cache?.options.ttl || 300) * 1000
 
-          if (age < ttl && !this.cache!.getETag(cacheKey)) {
+          if (age < ttl && !this.cache?.getETag(cacheKey)) {
             // Check if we should refresh in background
-            const refreshThreshold = this.cache!.options.backgroundRefreshThreshold || 0.75
-            if (this.cache!.options.backgroundRefresh && age > ttl * refreshThreshold) {
+            const refreshThreshold = this.cache?.options.backgroundRefreshThreshold || 0.75
+            if (this.cache?.options.backgroundRefresh && age > ttl * refreshThreshold) {
               // Trigger background refresh without blocking
               process.nextTick(async () => {
                 try {
@@ -922,7 +922,7 @@ export class GitHubClient {
             }
 
             // Update cache metrics
-            const metrics = this.cache!.getMetrics()
+            const metrics = this.cache?.getMetrics()
             metrics.hits++
 
             // Return cached response directly
@@ -972,7 +972,7 @@ export class GitHubClient {
     this.octokit.hook.error('request', async (error: any, options: any) => {
       if (error.status === 304 && options.method === 'GET') {
         const cacheKey = this.generateCacheKeyFromRequest(options)
-        const cachedEntry = await this.cache!.get(cacheKey)
+        const cachedEntry = await this.cache?.get(cacheKey)
 
         if (cachedEntry) {
           // Return cached data as if it was a successful response
@@ -1010,7 +1010,7 @@ export class GitHubClient {
           const [owner, repo] = repoMatch[1].split('/')
           // Invalidate all cache entries related to this repository
           const pattern = `*${owner}/${repo}*`
-          await this.cache!.invalidatePattern(pattern)
+          await this.cache?.invalidatePattern(pattern)
         }
       }
     })

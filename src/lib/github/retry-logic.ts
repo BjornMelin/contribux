@@ -1,4 +1,4 @@
-import type { GitHubError, RetryOptions, RetryState, CircuitBreakerOptions } from './types'
+import type { CircuitBreakerOptions, GitHubError, RetryOptions, RetryState } from './types'
 
 export interface RetryManager {
   executeWithRetry<T>(operation: () => Promise<T>): Promise<T>
@@ -24,12 +24,12 @@ export class RetryManager {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         const result = await operation()
-        
+
         // Reset circuit breaker on success
         if (this.circuitBreaker) {
           this.circuitBreaker.recordSuccess()
         }
-        
+
         return result
       } catch (error: any) {
         lastError = error as GitHubError
@@ -60,7 +60,7 @@ export class RetryManager {
           const retryState: RetryState = {
             retryCount: attempt + 1,
             error: lastError,
-            lastAttempt: new Date()
+            lastAttempt: new Date(),
           }
           this.options.onRetry(lastError, attempt + 1, retryState)
         }
@@ -106,7 +106,7 @@ export class RetryManager {
     // Default exponential backoff with jitter
     const baseDelay = this.options.retryAfterBaseValue || 1000
     const retryAfter = this.extractRetryAfter(error)
-    
+
     return calculateRetryDelay(retryCount, baseDelay, retryAfter)
   }
 
@@ -114,7 +114,7 @@ export class RetryManager {
     const retryAfter = error.response?.headers?.['retry-after']
     if (retryAfter) {
       const seconds = Number.parseInt(retryAfter, 10)
-      return isNaN(seconds) ? undefined : seconds * 1000 // Convert to milliseconds
+      return Number.isNaN(seconds) ? undefined : seconds * 1000 // Convert to milliseconds
     }
     return undefined
   }
@@ -155,8 +155,8 @@ class CircuitBreaker {
 }
 
 export function calculateRetryDelay(
-  retryCount: number, 
-  baseDelay: number = 1000, 
+  retryCount: number,
+  baseDelay: number = 1000,
   retryAfter?: number
 ): number {
   // If retry-after header is present, use it (with small jitter)
@@ -166,15 +166,15 @@ export function calculateRetryDelay(
   }
 
   // Exponential backoff: 2^retryCount * baseDelay
-  const exponentialDelay = Math.pow(2, retryCount) * baseDelay
-  
+  const exponentialDelay = 2 ** retryCount * baseDelay
+
   // Add random jitter (±10%)
   const jitter = Math.random() * 0.2 - 0.1 // -10% to +10%
   const delayWithJitter = exponentialDelay * (1 + jitter)
-  
+
   // Cap at 30 seconds
   const maxDelay = 30000
-  
+
   return Math.min(Math.floor(delayWithJitter), maxDelay)
 }
 
@@ -187,8 +187,8 @@ export function createDefaultRetryOptions(): RetryOptions {
     circuitBreaker: {
       enabled: false,
       failureThreshold: 5,
-      recoveryTimeout: 60000 // 1 minute
-    }
+      recoveryTimeout: 60000, // 1 minute
+    },
   }
 }
 

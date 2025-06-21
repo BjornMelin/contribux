@@ -1,4 +1,4 @@
-import type { RateLimitInfo, GraphQLRateLimitInfo } from './types'
+import type { GraphQLRateLimitInfo, RateLimitInfo } from './types'
 
 export interface RateLimitState {
   core?: RateLimitInfo
@@ -21,7 +21,7 @@ export class RateLimitManager {
       limit,
       remaining,
       reset: new Date(reset * 1000),
-      used
+      used,
     })
   }
 
@@ -33,7 +33,7 @@ export class RateLimitManager {
         reset: new Date(rateLimit.resetAt || Date.now()),
         used: rateLimit.used || 0,
         cost: rateLimit.cost || 0,
-        nodeCount: rateLimit.nodeCount || 0
+        nodeCount: rateLimit.nodeCount || 0,
       }
     }
   }
@@ -69,7 +69,7 @@ export class RateLimitManager {
 
   getState(): Record<string, unknown> {
     const state: Record<string, unknown> = {}
-    
+
     // Add REST rate limits
     for (const [resource, rateLimit] of this.rateLimits.entries()) {
       state[resource] = {
@@ -78,7 +78,7 @@ export class RateLimitManager {
         reset: rateLimit.reset.toISOString(),
         used: rateLimit.used,
         percentageUsed: this.getPercentageUsed(resource),
-        timeUntilReset: this.getTimeUntilReset(resource)
+        timeUntilReset: this.getTimeUntilReset(resource),
       }
     }
 
@@ -91,9 +91,10 @@ export class RateLimitManager {
         used: this.graphqlRateLimit.used,
         cost: this.graphqlRateLimit.cost,
         nodeCount: this.graphqlRateLimit.nodeCount,
-        percentageUsed: this.graphqlRateLimit.limit > 0 
-          ? (this.graphqlRateLimit.used / this.graphqlRateLimit.limit) * 100 
-          : 0
+        percentageUsed:
+          this.graphqlRateLimit.limit > 0
+            ? (this.graphqlRateLimit.used / this.graphqlRateLimit.limit) * 100
+            : 0,
       }
     }
 
