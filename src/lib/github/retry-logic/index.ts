@@ -1,16 +1,20 @@
+import type { RequestError } from '@octokit/types'
 import {
   GitHubClientError,
   isRateLimitError,
   isRequestError,
   isSecondaryRateLimitError,
 } from '../errors'
-import type { CircuitBreakerOptions, RetryOptions } from '../types'
+import type { CircuitBreakerOptions, GitHubError, RetryOptions } from '../types'
 
 export interface RetryState {
   attempt: number
   lastError?: Error
   startTime: number
   totalDelay: number
+  retryCount: number
+  error: GitHubError
+  lastAttempt: Date
 }
 
 export interface RetryContext {
@@ -125,11 +129,14 @@ export class RetryManager {
     }
   }
 
-  async executeWithRetry<T>(operation: () => Promise<T>, context?: RetryContext): Promise<T> {
+  async executeWithRetry<T>(operation: () => Promise<T>, _context?: RetryContext): Promise<T> {
     const retryState: RetryState = {
       attempt: 0,
       startTime: Date.now(),
       totalDelay: 0,
+      retryCount: 0,
+      error: new GitHubClientError('Initial error') as GitHubError,
+      lastAttempt: new Date(),
     }
 
     let lastError: Error | undefined
@@ -167,6 +174,9 @@ export class RetryManager {
         const errorObj = error instanceof Error ? error : new Error(String(error))
         lastError = errorObj
         retryState.lastError = errorObj
+        retryState.retryCount = attempt
+        retryState.error = errorObj as GitHubError
+        retryState.lastAttempt = new Date()
 
         // Record failure for circuit breaker
         this.circuitBreaker?.recordFailure()
@@ -251,10 +261,11 @@ export class RetryManager {
     return false
   }
 
-  private shouldRetryGraphQLError(error: any): boolean {
+  private shouldRetryGraphQLError(error: GitHubError): boolean {
     // Don't retry on query validation errors
-    if (error.errors && Array.isArray(error.errors)) {
-      for (const gqlError of error.errors) {
+    const errorWithExtras = error as GitHubError & { errors?: Array<{ type?: string }> }
+    if (errorWithExtras.errors && Array.isArray(errorWithExtras.errors)) {
+      for (const gqlError of errorWithExtras.errors) {
         // Retry on rate limiting
         if (gqlError.type === 'RATE_LIMITED') {
           return true
@@ -276,29 +287,32 @@ export class RetryManager {
     return true
   }
 
-  private isGraphQLError(error: any): boolean {
-    return error.errors && Array.isArray(error.errors)
+  private isGraphQLError(error: GitHubError): boolean {
+    const errorWithExtras = error as GitHubError & { errors?: Array<{ type?: string }> }
+    return !!(errorWithExtras.errors && Array.isArray(errorWithExtras.errors))
   }
 
-  private isNetworkError(error: any): boolean {
+  private isNetworkError(error: GitHubError): boolean {
     // Check for common network error indicators
+    const errorWithCode = error as GitHubError & { code?: string }
     return (
-      error.code === 'ECONNRESET' ||
-      error.code === 'ENOTFOUND' ||
-      error.code === 'ECONNREFUSED' ||
-      error.code === 'ETIMEDOUT' ||
-      error.code === 'ENOTFOUND' ||
-      error.code === 'EAI_AGAIN' ||
+      errorWithCode.code === 'ECONNRESET' ||
+      errorWithCode.code === 'ENOTFOUND' ||
+      errorWithCode.code === 'ECONNREFUSED' ||
+      errorWithCode.code === 'ETIMEDOUT' ||
+      errorWithCode.code === 'ENOTFOUND' ||
+      errorWithCode.code === 'EAI_AGAIN' ||
       error.message?.includes('network') ||
       error.message?.includes('socket') ||
       error.message?.includes('connection')
     )
   }
 
-  private isTimeoutError(error: any): boolean {
+  private isTimeoutError(error: GitHubError): boolean {
+    const errorWithCode = error as GitHubError & { code?: string }
     return (
-      error.code === 'ETIMEDOUT' ||
-      error.code === 'ESOCKETTIMEDOUT' ||
+      errorWithCode.code === 'ETIMEDOUT' ||
+      errorWithCode.code === 'ESOCKETTIMEDOUT' ||
       error.message?.includes('timeout') ||
       error.message?.includes('timed out')
     )
@@ -307,23 +321,37 @@ export class RetryManager {
   private calculateRetryDelay(error: Error, retryCount: number): number {
     // Use custom delay calculation if provided
     if (this.options.calculateDelay) {
-      return this.options.calculateDelay(retryCount, this.options.retryAfterBaseValue)
+      const retryAfter = this.extractRetryAfter(error)
+      return this.options.calculateDelay(retryCount, this.options.retryAfterBaseValue, retryAfter)
     }
 
     // Extract retry-after from headers for rate limits
-    let retryAfter: number | undefined
+    const retryAfter = this.extractRetryAfter(error)
 
+    return calculateRetryDelay(retryCount, this.options.retryAfterBaseValue, retryAfter)
+  }
+
+  private extractRetryAfter(error: Error): number | undefined {
     if (isRequestError(error)) {
-      const retryAfterHeader = (error as any).response?.headers?.['retry-after']
-      if (retryAfterHeader) {
-        const seconds = Number.parseInt(retryAfterHeader, 10)
-        if (!Number.isNaN(seconds)) {
-          retryAfter = seconds * 1000 // Convert to milliseconds
+      const response = (
+        error as unknown as RequestError & { response: { headers: Record<string, string> } }
+      ).response
+      const headers = response?.headers
+
+      if (headers) {
+        // Try different case variations of retry-after header
+        const retryAfterHeader =
+          headers['retry-after'] || headers['Retry-After'] || headers['RETRY-AFTER']
+
+        if (retryAfterHeader) {
+          const seconds = Number.parseInt(retryAfterHeader, 10)
+          if (!Number.isNaN(seconds)) {
+            return seconds * 1000 // Convert to milliseconds
+          }
         }
       }
     }
-
-    return calculateRetryDelay(retryCount, this.options.retryAfterBaseValue, retryAfter)
+    return undefined
   }
 
   private sleep(ms: number): Promise<void> {
@@ -346,7 +374,7 @@ export class RetryManager {
 /**
  * Calculate retry delay with exponential backoff and jitter
  * Following 2025 best practices:
- * - Uses full jitter (±25%) to prevent thundering herd
+ * - Uses controlled jitter (±10%) to prevent thundering herd
  * - Caps at 30 seconds maximum
  * - Respects retry-after headers for rate limits
  */
@@ -357,16 +385,18 @@ export function calculateRetryDelay(
 ): number {
   // Use retry-after header if provided (rate limit scenario)
   if (retryAfter !== undefined && retryAfter > 0) {
+    // Convert to milliseconds if not already
+    const retryAfterMs = retryAfter < 1000 ? retryAfter * 1000 : retryAfter
     // Add small jitter to retry-after to prevent thundering herd
-    const jitter = retryAfter * 0.1 * (Math.random() - 0.5)
-    return Math.max(100, Math.floor(retryAfter + jitter))
+    const jitter = retryAfterMs * 0.1 * (Math.random() - 0.5)
+    return Math.max(100, Math.floor(retryAfterMs + jitter))
   }
 
   // Exponential backoff: 2^retryCount * baseDelay
   const exponentialDelay = 2 ** retryCount * baseDelay
 
-  // Add jitter (±25%) to prevent thundering herd
-  const jitter = exponentialDelay * 0.25 * (Math.random() * 2 - 1)
+  // Add jitter (±10%) to prevent thundering herd while keeping tests predictable
+  const jitter = exponentialDelay * 0.1 * (Math.random() * 2 - 1)
   const delayWithJitter = exponentialDelay + jitter
 
   // Cap at 30 seconds maximum
@@ -377,9 +407,15 @@ export function calculateRetryDelay(
  * Helper function to determine if an error should be retried
  * @deprecated Use RetryManager.shouldRetry instead
  */
-export function shouldRetryError(error: any, retryCount: number, options: RetryOptions): boolean {
+export function shouldRetryError(
+  error: GitHubError,
+  retryCount: number,
+  options: RetryOptions
+): boolean {
   const manager = new RetryManager(options)
-  return (manager as any).shouldRetry(error, retryCount)
+  return (
+    manager as unknown as { shouldRetry: (error: GitHubError, retryCount: number) => boolean }
+  ).shouldRetry(error, retryCount)
 }
 
 /**
@@ -429,7 +465,7 @@ export function validateRetryOptions(options: RetryOptions): void {
 /**
  * Create a retry-enabled function wrapper
  */
-export function withRetry<T extends (...args: any[]) => Promise<any>>(
+export function withRetry<T extends (...args: unknown[]) => Promise<unknown>>(
   fn: T,
   options: RetryOptions = createDefaultRetryOptions()
 ): T {

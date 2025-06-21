@@ -5,6 +5,30 @@ import type { Api } from '@octokit/plugin-rest-endpoint-methods'
 export type GitHubRestClient = Octokit & Api
 export type GitHubGraphQLClient = typeof graphql
 
+// Request options type for throttling callbacks
+export interface RequestOptions {
+  method: string
+  url: string
+  headers?: Record<string, string>
+  [key: string]: unknown
+}
+
+// Error type for callback functions
+export interface GitHubError extends Error {
+  status?: number
+  response?: {
+    headers?: Record<string, string>
+    data?: unknown
+  }
+}
+
+// Retry state type
+export interface RetryState {
+  retryCount: number
+  error: GitHubError
+  lastAttempt: Date
+}
+
 export interface GitHubClientConfig {
   auth?: GitHubAuthConfig
   baseUrl?: string
@@ -28,13 +52,13 @@ export interface ThrottleOptions {
   minimumSecondaryRateRetryAfter?: number
   onRateLimit?: (
     retryAfter: number,
-    options: any,
+    options: RequestOptions,
     octokit: Octokit,
     retryCount: number
   ) => boolean | Promise<boolean>
   onSecondaryRateLimit?: (
     retryAfter: number,
-    options: any,
+    options: RequestOptions,
     octokit: Octokit,
     retryCount: number
   ) => boolean | Promise<boolean>
@@ -51,9 +75,9 @@ export interface RetryOptions {
   retries?: number
   retryAfterBaseValue?: number
   doNotRetry?: number[]
-  shouldRetry?: (error: any, retryCount: number) => boolean
+  shouldRetry?: (error: GitHubError, retryCount: number) => boolean
   calculateDelay?: (retryCount: number, baseDelay?: number, retryAfter?: number) => number
-  onRetry?: (error: any, retryCount: number, retryState?: any) => void
+  onRetry?: (error: GitHubError, retryCount: number, retryState?: RetryState) => void
   circuitBreaker?: CircuitBreakerOptions
 }
 
@@ -63,12 +87,20 @@ export interface CircuitBreakerOptions {
   recoveryTimeout: number
 }
 
+// Redis-like interface for cache storage
+export interface RedisLikeClient {
+  get(key: string): Promise<string | null>
+  set(key: string, value: string, px?: number): Promise<string>
+  del(key: string): Promise<number>
+  quit(): Promise<void>
+}
+
 export interface CacheOptions {
   enabled?: boolean
   ttl?: number
   storage?: 'memory' | 'redis'
   redisUrl?: string
-  redis?: any
+  redis?: RedisLikeClient
   dataloaderEnabled?: boolean
   backgroundRefresh?: boolean
   refreshThreshold?: number
@@ -76,7 +108,7 @@ export interface CacheOptions {
 }
 
 export interface CacheEntry {
-  data: any
+  data: unknown
   etag?: string | undefined
   createdAt: string
   expiresAt?: string | undefined
@@ -115,7 +147,6 @@ export interface GitHubErrorResponse {
   }>
 }
 
-
 export interface WebhookValidationResult {
   isValid: boolean
   error?: string
@@ -153,11 +184,15 @@ export interface GraphQLConnection<T> {
 export interface BatchRequest {
   id: string
   query: string
-  variables?: Record<string, any>
+  variables?: Record<string, unknown>
 }
 
-export interface BatchResponse<T = any> {
+export interface BatchResponse<T = unknown> {
   id: string
   data?: T
-  errors?: any[]
+  errors?: Array<{
+    message: string
+    type?: string
+    path?: string[]
+  }>
 }

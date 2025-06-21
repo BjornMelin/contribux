@@ -125,12 +125,13 @@ describe("Database Schema", () => {
         ORDER BY tablename, indexname
       `;
       
-      expect(hnsWIndexes.length).toBeGreaterThanOrEqual(3);
+      expect(hnsWIndexes.length).toBeGreaterThanOrEqual(4);
       
       const expectedIndexes = [
         "idx_users_profile_embedding_hnsw",
         "idx_repositories_embedding_hnsw", 
-        "idx_opportunities_embedding_hnsw"
+        "idx_opportunities_title_embedding_hnsw",
+        "idx_opportunities_description_embedding_hnsw"
       ];
       
       const indexNames = hnsWIndexes.map(idx => idx.indexname);

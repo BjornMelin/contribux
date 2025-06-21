@@ -79,7 +79,7 @@ export class DatabaseMonitor {
       const result = await this.sql`
         SELECT 
           schemaname,
-          tablename,
+          relname as tablename,
           indexrelname as indexname,
           idx_scan as scans_count,
           idx_tup_read as tuples_read,
@@ -101,7 +101,7 @@ export class DatabaseMonitor {
       const result = await this.sql`
         SELECT 
           schemaname,
-          tablename,
+          relname as tablename,
           indexrelname as indexname,
           pg_size_pretty(pg_relation_size(indexrelid)) as index_size,
           idx_scan as scans_count

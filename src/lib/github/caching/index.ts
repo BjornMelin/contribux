@@ -22,7 +22,7 @@ export interface CacheHeaders {
   'last-modified'?: string
 }
 
-export type CacheableData = string | number | boolean | object | null
+export type CacheableData = string | number | boolean | Record<string, unknown> | null
 
 export class MemoryCache implements CacheStorage {
   private cache = new Map<string, { value: string; expiresAt: number; accessedAt: number }>()

@@ -1,5 +1,12 @@
 import type { RequestError } from '@octokit/types'
 
+export interface GitHubGraphQLErrorData {
+  message: string
+  type?: string
+  path?: string[]
+  locations?: Array<{ line: number; column: number }>
+}
+
 export class GitHubClientError extends Error {
   constructor(message: string) {
     super(message)
@@ -30,8 +37,8 @@ export class GitHubRateLimitError extends GitHubClientError {
 export class GitHubGraphQLError extends GitHubClientError {
   constructor(
     message: string,
-    public readonly errors: any[],
-    public readonly data?: any
+    public readonly errors: GitHubGraphQLErrorData[],
+    public readonly data?: unknown
   ) {
     super(message)
     this.name = 'GitHubGraphQLError'
@@ -74,13 +81,15 @@ export function isRequestError(error: unknown): error is RequestError {
 
 export function isRateLimitError(error: unknown): boolean {
   if (!isRequestError(error)) return false
-  const response = (error as any).response
+  const response = (error as RequestError & { response: { headers: Record<string, string> } })
+    .response
   return error.status === 403 && response?.headers?.['x-ratelimit-remaining'] === '0'
 }
 
 export function isSecondaryRateLimitError(error: unknown): boolean {
   if (!isRequestError(error)) return false
-  const response = (error as any).response
+  const response = (error as RequestError & { response: { headers: Record<string, string> } })
+    .response
   return error.status === 403 && 'retry-after' in (response?.headers || {})
 }
 

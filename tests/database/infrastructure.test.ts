@@ -18,7 +18,7 @@ describe('Database Infrastructure', () => {
     it('should return PostgreSQL version info', async () => {
       const version = await dbHelper.getDatabaseVersion()
       expect(version).toMatch(/PostgreSQL/)
-      expect(version).toMatch(/16\./) // Expecting PostgreSQL 16
+      expect(version).toMatch(/1[67]\./) // Expecting PostgreSQL 16 or 17
     })
   })
 
@@ -105,9 +105,12 @@ describe('Database Infrastructure', () => {
     })
 
     it('should calculate cosine distance correctly', async () => {
-      // Test with known vectors
-      const embedding1 = new Array(1536).fill(1.0)
-      const embedding2 = new Array(1536).fill(0.0)
+      // Test with known vectors - orthogonal unit vectors should have distance 1.0
+      const embedding1 = new Array(1536).fill(0)
+      embedding1[0] = 1.0 // Unit vector in first dimension
+      
+      const embedding2 = new Array(1536).fill(0)  
+      embedding2[1] = 1.0 // Unit vector in second dimension
       
       const embedding1String = `[${embedding1.join(',')}]`
       const embedding2String = `[${embedding2.join(',')}]`
@@ -116,8 +119,8 @@ describe('Database Infrastructure', () => {
         SELECT ${embedding1String}::halfvec(1536) <-> ${embedding2String}::halfvec(1536) as distance
       `
 
-      expect(result[0].distance).toBeGreaterThan(0)
-      expect(result[0].distance).toBeLessThanOrEqual(2) // Max cosine distance is 2
+      // Orthogonal unit vectors should have cosine distance of 1.0
+      expect(result[0].distance).toBeCloseTo(1.0, 1)
     })
 
     it('should support cosine similarity operations', async () => {

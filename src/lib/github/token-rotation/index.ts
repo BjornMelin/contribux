@@ -1,3 +1,4 @@
+import { GitHubTokenExpiredError } from '../errors'
 import type { TokenInfo, TokenRotationConfig } from '../types'
 
 export interface TokenUsageStats {
@@ -84,7 +85,10 @@ export class TokenRotationManager {
           break
 
         default:
-          selectedToken = validTokens[0]!
+          selectedToken = validTokens[0] || null
+          if (!selectedToken) {
+            throw new GitHubTokenExpiredError('No valid tokens available')
+          }
       }
 
       // Update usage stats
@@ -133,7 +137,10 @@ export class TokenRotationManager {
     }
 
     // Update the global index
-    const selectedToken = tokens[nextIndex]!
+    const selectedToken = tokens[nextIndex]
+    if (!selectedToken) {
+      throw new GitHubTokenExpiredError('No tokens available at index')
+    }
     this.currentIndex = this.tokens.findIndex(t => t.token === selectedToken.token)
 
     return selectedToken
@@ -141,7 +148,10 @@ export class TokenRotationManager {
 
   private getLeastUsedToken(tokens: TokenInfo[]): TokenInfo {
     // Consider both usage count and error rate for selection
-    let bestToken = tokens[0]!
+    let bestToken = tokens[0]
+    if (!bestToken) {
+      throw new GitHubTokenExpiredError('No tokens available for least-used selection')
+    }
     let bestScore = this.calculateTokenScore(bestToken)
 
     for (const token of tokens.slice(1)) {
@@ -184,13 +194,23 @@ export class TokenRotationManager {
     let random = Math.random() * totalWeight
 
     for (let i = 0; i < tokens.length; i++) {
-      random -= weights[i]!
-      if (random <= 0) {
-        return tokens[i]!
+      const weight = weights[i]
+      if (weight !== undefined) {
+        random -= weight
+        if (random <= 0) {
+          const selectedToken = tokens[i]
+          if (selectedToken) {
+            return selectedToken
+          }
+        }
       }
     }
 
-    return tokens[tokens.length - 1]! // Fallback
+    const fallbackToken = tokens[tokens.length - 1]
+    if (!fallbackToken) {
+      throw new GitHubTokenExpiredError('No fallback token available for random selection')
+    }
+    return fallbackToken
   }
 
   async getTokenForScopes(requiredScopes: string[]): Promise<TokenInfo | null> {
@@ -218,18 +238,23 @@ export class TokenRotationManager {
 
   private getNextTokenFromList(tokens: TokenInfo[]): TokenInfo {
     switch (this.rotationStrategy) {
-      case 'round-robin':
+      case 'round-robin': {
         // Find first valid token in round-robin order
         for (let i = 0; i < this.tokens.length; i++) {
           const index = (this.currentIndex + i) % this.tokens.length
-          const token = this.tokens[index]!
-          if (tokens.some(t => t.token === token.token)) {
+          const token = this.tokens[index]
+          if (token && tokens.some(t => t.token === token.token)) {
             this.currentIndex = (index + 1) % this.tokens.length
             this.updateTokenUsage(token.token)
             return token
           }
         }
-        return tokens[0]!
+        const fallbackToken = tokens[0]
+        if (!fallbackToken) {
+          throw new GitHubTokenExpiredError('No fallback token available')
+        }
+        return fallbackToken
+      }
 
       case 'least-used':
         return this.getLeastUsedToken(tokens)
@@ -237,8 +262,13 @@ export class TokenRotationManager {
       case 'random':
         return this.getRandomToken(tokens)
 
-      default:
-        return tokens[0]!
+      default: {
+        const defaultToken = tokens[0]
+        if (!defaultToken) {
+          throw new GitHubTokenExpiredError('No default token available')
+        }
+        return defaultToken
+      }
     }
   }
 

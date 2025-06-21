@@ -9,10 +9,10 @@ export const connectionMetricsSchema = z.object({
 // Slow query schema
 export const slowQuerySchema = z.object({
   query: z.string(),
-  calls: z.number().int().min(0),
-  total_exec_time: z.number().min(0),
-  mean_exec_time: z.number().min(0),
-  rows: z.number().int().min(0),
+  calls: z.coerce.number().int().min(0),
+  total_exec_time: z.coerce.number().min(0),
+  mean_exec_time: z.coerce.number().min(0),
+  rows: z.coerce.number().int().min(0),
 })
 
 // Index statistics schema
@@ -20,9 +20,9 @@ export const indexStatSchema = z.object({
   schemaname: z.string(),
   tablename: z.string(),
   indexname: z.string(),
-  scans_count: z.number().int().min(0),
-  tuples_read: z.number().int().min(0),
-  tuples_fetched: z.number().int().min(0),
+  scans_count: z.coerce.number().int().min(0),
+  tuples_read: z.coerce.number().int().min(0),
+  tuples_fetched: z.coerce.number().int().min(0),
 })
 
 // Vector index metrics schema
@@ -31,7 +31,7 @@ export const vectorIndexMetricSchema = z.object({
   tablename: z.string(),
   indexname: z.string(),
   index_size: z.string(),
-  scans_count: z.number().int().min(0),
+  scans_count: z.coerce.number().int().min(0),
 })
 
 // Table size schema

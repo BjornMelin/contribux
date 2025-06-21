@@ -135,7 +135,24 @@ export class TestDatabaseHelper {
     
     for (const table of tables) {
       try {
-        const result = await this.sql`SELECT COUNT(*) as count FROM ${this.sql(table)}`
+        // Use individual queries for each table to avoid identifier issues
+        let result: any[]
+        switch (table) {
+          case 'users':
+            result = await this.sql`SELECT COUNT(*) as count FROM users`
+            break
+          case 'repositories':
+            result = await this.sql`SELECT COUNT(*) as count FROM repositories`
+            break
+          case 'opportunities':
+            result = await this.sql`SELECT COUNT(*) as count FROM opportunities`
+            break
+          case 'user_preferences':
+            result = await this.sql`SELECT COUNT(*) as count FROM user_preferences`
+            break
+          default:
+            result = [{ count: 0 }]
+        }
         counts[table] = Number(result[0].count)
       } catch (error) {
         console.warn(`Failed to count rows in ${table}:`, error)

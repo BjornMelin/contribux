@@ -32,6 +32,7 @@ import type {
   RetryOptions,
   ThrottleOptions,
   TokenInfo,
+  TokenRotationConfig,
 } from '../types'
 
 const MyOctokit = Octokit.plugin(restEndpointMethods).plugin(throttling).plugin(retry)
@@ -100,22 +101,31 @@ export class GitHubClient {
     }
 
     // Create GraphQL client with automatic rate limit inclusion if configured
-    const graphqlDefaults: any = {
-      headers: {
-        authorization: graphqlAuth ? `token ${graphqlAuth}` : undefined,
-      },
+    const graphqlDefaults = {
+      headers: graphqlAuth
+        ? {
+            authorization: `token ${graphqlAuth}`,
+          }
+        : {},
       baseUrl: graphqlEndpoint,
     }
 
     const baseGraphql = octokitGraphql.defaults(graphqlDefaults)
+
     if (config.includeRateLimit) {
-      // Wrap the GraphQL client to automatically add rate limit info
-      this.graphql = (async (query: string, variables?: any) => {
-        const queryWithRateLimit = addRateLimitToQuery(query)
-        return baseGraphql(queryWithRateLimit, variables)
-      }) as any
+      // Wrap the GraphQL client to automatically add rate limit info and retry logic
+      this.graphql = (async (query: string, variables?: Record<string, unknown>) => {
+        return this.retryManager.executeWithRetry(async () => {
+          const queryWithRateLimit = addRateLimitToQuery(query)
+          return baseGraphql(queryWithRateLimit, variables)
+        })
+      }) as GitHubGraphQLClient
     } else {
-      this.graphql = baseGraphql
+      this.graphql = (async (query: string, variables?: Record<string, unknown>) => {
+        return this.retryManager.executeWithRetry(async () => {
+          return baseGraphql(query, variables)
+        })
+      }) as GitHubGraphQLClient
     }
 
     // Initialize DataLoader if caching is enabled
@@ -133,8 +143,8 @@ export class GitHubClient {
     }
   }
 
-  private buildOctokitOptions(): any {
-    const options: any = {
+  private buildOctokitOptions(): Record<string, unknown> {
+    const options: Record<string, unknown> = {
       baseUrl: this.config.baseUrl,
       userAgent: this.config.userAgent || 'contribux/1.0.0',
     }
@@ -163,7 +173,7 @@ export class GitHubClient {
     return options
   }
 
-  private buildAuthStrategy(): any {
+  private buildAuthStrategy(): string | Record<string, unknown> | undefined {
     const { auth } = this.config
     if (!auth) return undefined
 
@@ -184,10 +194,11 @@ export class GitHubClient {
         return undefined
 
       case 'oauth':
-        return {
-          clientId: auth.clientId,
-          clientSecret: auth.clientSecret,
-        }
+        // For OAuth apps, we need a valid token string, not client credentials
+        // This is a placeholder - in real usage, OAuth would require a proper flow
+        return auth.clientId && auth.clientSecret
+          ? `oauth:${auth.clientId}:${auth.clientSecret}`
+          : undefined
 
       default:
         throw new GitHubClientError('Invalid authentication type')
@@ -246,7 +257,7 @@ export class GitHubClient {
 
     // Check token cache first
     const cachedToken = this.tokenCache.get(installationId)
-    if (cachedToken && new Date(cachedToken.expiresAt!) > new Date()) {
+    if (cachedToken && cachedToken.expiresAt && new Date(cachedToken.expiresAt) > new Date()) {
       this.currentInstallationId = installationId
       this.updateOctokitAuth(cachedToken.token)
       return
@@ -332,7 +343,7 @@ export class GitHubClient {
 
     const authHeader = type === 'Bearer' ? `Bearer ${token}` : `token ${token}`
 
-    const graphqlDefaults: any = {
+    const graphqlDefaults = {
       headers: {
         authorization: authHeader,
       },
@@ -340,14 +351,21 @@ export class GitHubClient {
     }
 
     const baseGraphql2 = octokitGraphql.defaults(graphqlDefaults)
+
     if (this.config.includeRateLimit) {
-      // Wrap the GraphQL client to automatically add rate limit info
-      this.graphql = (async (query: string, variables?: any) => {
-        const queryWithRateLimit = addRateLimitToQuery(query)
-        return baseGraphql2(queryWithRateLimit, variables)
-      }) as any
+      // Wrap the GraphQL client to automatically add rate limit info and retry logic
+      this.graphql = (async (query: string, variables?: Record<string, unknown>) => {
+        return this.retryManager.executeWithRetry(async () => {
+          const queryWithRateLimit = addRateLimitToQuery(query)
+          return baseGraphql2(queryWithRateLimit, variables)
+        })
+      }) as GitHubGraphQLClient
     } else {
-      this.graphql = baseGraphql2
+      this.graphql = (async (query: string, variables?: Record<string, unknown>) => {
+        return this.retryManager.executeWithRetry(async () => {
+          return baseGraphql2(query, variables)
+        })
+      }) as GitHubGraphQLClient
     }
   }
 
@@ -378,15 +396,15 @@ export class GitHubClient {
     }
   }
 
-  getRateLimitInfo(): any {
+  getRateLimitInfo(): Record<string, unknown> {
     return this.rateLimitManager.getState()
   }
 
-  getTokenRotationConfig(): any {
+  getTokenRotationConfig(): TokenRotationConfig | undefined {
     return this.config.tokenRotation
   }
 
-  async getRateLimitStatus(): Promise<any> {
+  async getRateLimitStatus(): Promise<Record<string, unknown>> {
     const response = await this.rest.rateLimit.get()
     this.updateRateLimitsFromResponse(response.data)
     return response.data
@@ -414,7 +432,7 @@ export class GitHubClient {
     return calculateRetryDelayWithJitter(retryCount, baseDelay, retryAfter)
   }
 
-  getRetryConfig(): any {
+  getRetryConfig(): RetryOptions {
     return this.config.retry || createDefaultRetryOptions()
   }
 
@@ -422,7 +440,10 @@ export class GitHubClient {
     return this.retryManager.executeWithRetry(operation)
   }
 
-  async executeGraphQLWithPointCheck(query: string, variables?: any): Promise<any> {
+  async executeGraphQLWithPointCheck(
+    query: string,
+    variables?: Record<string, unknown>
+  ): Promise<unknown> {
     this.validateGraphQLPointLimit(query)
     return this.retryManager.executeWithRetry(async () => {
       return this.graphql(query, variables)
@@ -431,10 +452,10 @@ export class GitHubClient {
 
   async paginateGraphQLQuery(
     query: string,
-    variables: any = {},
+    variables: Record<string, unknown> = {},
     pageSize: number = 100
-  ): Promise<any[]> {
-    const results: any[] = []
+  ): Promise<unknown[]> {
+    const results: unknown[] = []
     let hasNextPage = true
     let cursor: string | null = null
 
@@ -464,7 +485,7 @@ export class GitHubClient {
   async executeLargeGraphQLQuery(
     query: string,
     options: { maxPointsPerRequest?: number } = {}
-  ): Promise<any> {
+  ): Promise<unknown> {
     const maxPoints = options.maxPointsPerRequest || 50000
 
     // Check if the query has pagination support
@@ -486,7 +507,9 @@ export class GitHubClient {
 
     // For paginated queries, use cursor-based pagination
     if (hasCursor) {
-      const results: any = { repository: { issues: { edges: [] } } }
+      const results: { repository: { issues: { edges: unknown[] } } } = {
+        repository: { issues: { edges: [] } },
+      }
       let cursor: string | null = null
       let pageCount = 0
 
@@ -496,13 +519,17 @@ export class GitHubClient {
       while (pageCount < 3) {
         // Match test expectation of 3 batches
         const paginatedQuery = query.replace(/first:\s*\d+/i, `first: ${Math.min(batchSize, 34)}`) // 34 to match test
-        const response: any = await this.graphql(paginatedQuery, { cursor })
+        const response = (await this.graphql(paginatedQuery, { cursor })) as {
+          repository?: {
+            issues?: { edges?: unknown[]; pageInfo?: { hasNextPage?: boolean; endCursor?: string } }
+          }
+        }
 
         if (response.repository?.issues?.edges) {
           results.repository.issues.edges.push(...response.repository.issues.edges)
         }
 
-        cursor = response.repository?.issues?.pageInfo?.endCursor
+        cursor = response.repository?.issues?.pageInfo?.endCursor || null
         pageCount++
 
         if (!response.repository?.issues?.pageInfo?.hasNextPage) {
