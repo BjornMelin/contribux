@@ -122,10 +122,10 @@ export function analyzeGraphQLQuery(query: string): QueryAnalysis {
   }
 
   const analysis = {
-    points,
-    nodeCount: points, // Simplified: in reality, nodes != points
-    depth: maxDepth,
-    suggestions,
+    points: points || 0,
+    nodeCount: points || 0, // Simplified: in reality, nodes != points
+    depth: maxDepth || 0,
+    suggestions: suggestions || [],
   }
 
   // Validate the analysis using Zod schema

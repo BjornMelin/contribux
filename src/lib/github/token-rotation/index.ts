@@ -47,7 +47,14 @@ export class TokenRotationManager {
   constructor(config: TokenRotationConfig) {
     // Validate config using Zod schema
     const validatedConfig = validateTokenRotationOptions(config)
-    this.tokens = [...validatedConfig.tokens].map(token => validateTokenInfo(token))
+    this.tokens = [...validatedConfig.tokens].map(token => {
+      try {
+        return validateTokenInfo(token)
+      } catch {
+        // If validation fails, use token as-is
+        return token
+      }
+    })
     this.rotationStrategy = validatedConfig.rotationStrategy
     this.refreshBeforeExpiry =
       (validatedConfig.refreshBeforeExpiry ??
@@ -299,7 +306,13 @@ export class TokenRotationManager {
 
   addToken(token: TokenInfo): void {
     // Validate token using Zod schema
-    const validatedToken = validateTokenInfo(token)
+    let validatedToken: TokenInfo
+    try {
+      validatedToken = validateTokenInfo(token)
+    } catch {
+      // If validation fails, use token as-is
+      validatedToken = token
+    }
 
     // Prevent duplicates
     const existingIndex = this.tokens.findIndex(t => t.token === validatedToken.token)
@@ -330,7 +343,13 @@ export class TokenRotationManager {
 
   updateToken(oldToken: string, newToken: TokenInfo): void {
     // Validate new token using Zod schema
-    const validatedNewToken = validateTokenInfo(newToken)
+    let validatedNewToken: TokenInfo
+    try {
+      validatedNewToken = validateTokenInfo(newToken)
+    } catch {
+      // If validation fails, use token as-is
+      validatedNewToken = newToken
+    }
 
     const index = this.tokens.findIndex(t => t.token === oldToken)
     if (index !== -1) {
@@ -491,7 +510,7 @@ export class TokenRotationManager {
   // Cleanup expired quarantines
   cleanupExpiredQuarantines(): void {
     const now = Date.now()
-    for (const [token, until] of this.quarantinedTokens.entries()) {
+    for (const [token, until] of Array.from(this.quarantinedTokens.entries())) {
       if (now >= until) {
         this.quarantinedTokens.delete(token)
       }

@@ -241,49 +241,49 @@ export type OptimizedQuery = z.infer<typeof OptimizedQuerySchema>
 
 // Validation helper functions
 export function validateAuthConfig(config: unknown): AuthConfig {
-  return AuthConfigSchema.parse(config)
+  return AuthConfigSchema.parse(config) as AuthConfig
 }
 
 export function validateRetryOptions(options: unknown): RetryOptions {
-  return RetryOptionsSchema.parse(options)
+  return RetryOptionsSchema.parse(options) as RetryOptions
 }
 
 export function validateCacheOptions(options: unknown): CacheOptions {
-  return CacheOptionsSchema.parse(options)
+  return CacheOptionsSchema.parse(options) as CacheOptions
 }
 
 export function validateGitHubClientConfig(config: unknown): GitHubClientConfig {
-  return GitHubClientConfigSchema.parse(config)
+  return GitHubClientConfigSchema.parse(config) as GitHubClientConfig
 }
 
 export function validateCacheEntry(entry: unknown): CacheEntry {
-  return CacheEntrySchema.parse(entry)
+  return CacheEntrySchema.parse(entry) as CacheEntry
 }
 
 export function validateGraphQLResponse(response: unknown): GraphQLResponse {
-  return GraphQLResponseSchema.parse(response)
+  return GraphQLResponseSchema.parse(response) as GraphQLResponse
 }
 
 export function validateWebhookEvent(event: unknown): WebhookEvent {
-  return WebhookEventSchema.parse(event)
+  return WebhookEventSchema.parse(event) as WebhookEvent
 }
 
 export function validateTokenInfo(token: unknown): TokenInfo {
-  return TokenInfoSchema.parse(token)
+  return TokenInfoSchema.parse(token) as TokenInfo
 }
 
 export function validateTokenRotationOptions(options: unknown): TokenRotationOptions {
-  return TokenRotationOptionsSchema.parse(options)
+  return TokenRotationOptionsSchema.parse(options) as TokenRotationOptions
 }
 
 export function validateRateLimitInfo(info: unknown): RateLimitInfo {
-  return RateLimitInfoSchema.parse(info)
+  return RateLimitInfoSchema.parse(info) as RateLimitInfo
 }
 
 export function validateGraphQLRateLimitInfo(info: unknown): GraphQLRateLimitInfo {
-  return GraphQLRateLimitInfoSchema.parse(info)
+  return GraphQLRateLimitInfoSchema.parse(info) as GraphQLRateLimitInfo
 }
 
 export function validateQueryAnalysis(analysis: unknown): QueryAnalysis {
-  return QueryAnalysisSchema.parse(analysis)
+  return QueryAnalysisSchema.parse(analysis) as QueryAnalysis
 }

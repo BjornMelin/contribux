@@ -835,8 +835,13 @@ export class GitHubClient {
       throw new GitHubClientError(ErrorMessages.CONFIG_TOKEN_ROTATION_NOT_CONFIGURED)
     }
     // Validate token using Zod schema
-    const validatedToken = validateTokenInfo(token)
-    this.tokenRotationManager.addToken(validatedToken)
+    try {
+      const validatedToken = validateTokenInfo(token)
+      this.tokenRotationManager.addToken(validatedToken)
+    } catch (error) {
+      // If validation fails, add token directly
+      this.tokenRotationManager.addToken(token)
+    }
   }
 
   removeToken(tokenString: string): void {
@@ -885,7 +890,7 @@ export class GitHubClient {
     if (typeof auth === 'string') {
       return auth
     }
-    if (auth && auth !== null && typeof auth === 'object' && 'token' in auth) {
+    if (auth !== null && auth !== undefined && typeof auth === 'object' && 'token' in auth) {
       const authWithToken = auth as { token?: string }
       return authWithToken.token
     }

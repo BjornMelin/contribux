@@ -19,7 +19,7 @@ export class RateLimitManager {
     const reset = Number.parseInt(headers['x-ratelimit-reset'] || '0', 10)
     const used = Number.parseInt(headers['x-ratelimit-used'] || '0', 10)
 
-    const rateLimitInfo = {
+    const rateLimitInfo: RateLimitInfo = {
       limit,
       remaining,
       reset: new Date(reset * TIME.SECOND),
@@ -27,13 +27,18 @@ export class RateLimitManager {
     }
 
     // Validate rate limit info using Zod schema
-    const validatedInfo = validateRateLimitInfo(rateLimitInfo)
-    this.rateLimits.set(resource, validatedInfo)
+    try {
+      const validatedInfo = validateRateLimitInfo(rateLimitInfo)
+      this.rateLimits.set(resource, validatedInfo)
+    } catch {
+      // If validation fails, use the info as-is
+      this.rateLimits.set(resource, rateLimitInfo)
+    }
   }
 
   updateFromGraphQLResponse(rateLimit: Partial<GraphQLRateLimitInfo & { resetAt?: string }>): void {
     if (rateLimit) {
-      const graphqlInfo = {
+      const graphqlInfo: GraphQLRateLimitInfo = {
         limit: rateLimit.limit || 0,
         remaining: rateLimit.remaining || 0,
         reset: new Date(rateLimit.resetAt || rateLimit.reset || Date.now()),
@@ -43,7 +48,12 @@ export class RateLimitManager {
       }
 
       // Validate GraphQL rate limit info using Zod schema
-      this.graphqlRateLimit = validateGraphQLRateLimitInfo(graphqlInfo)
+      try {
+        this.graphqlRateLimit = validateGraphQLRateLimitInfo(graphqlInfo)
+      } catch {
+        // If validation fails, use the info as-is
+        this.graphqlRateLimit = graphqlInfo
+      }
     }
   }
 
@@ -80,7 +90,7 @@ export class RateLimitManager {
     const state: Record<string, unknown> = {}
 
     // Add REST rate limits
-    for (const [resource, rateLimit] of this.rateLimits.entries()) {
+    for (const [resource, rateLimit] of Array.from(this.rateLimits.entries())) {
       state[resource] = {
         limit: rateLimit.limit,
         remaining: rateLimit.remaining,

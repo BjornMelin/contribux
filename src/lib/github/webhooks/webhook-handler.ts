@@ -94,7 +94,7 @@ export class WebhookHandler {
       event = validateWebhookEvent(parsedEvent)
     } catch (_error) {
       // If validation fails, use the parsed event directly
-      event = parsedEvent
+      event = parsedEvent as WebhookEvent
     }
 
     // Additional validation for delivery ID format (should be a UUID)
