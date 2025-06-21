@@ -84,11 +84,13 @@ export class TokenRotationManager {
           selectedToken = this.getRandomToken(validTokens)
           break
 
-        default:
-          selectedToken = validTokens[0] || null
-          if (!selectedToken) {
+        default: {
+          const defaultToken = validTokens[0]
+          if (!defaultToken) {
             throw new GitHubTokenExpiredError('No valid tokens available')
           }
+          selectedToken = defaultToken
+        }
       }
 
       // Update usage stats

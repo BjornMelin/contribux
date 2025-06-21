@@ -91,11 +91,14 @@ export class LocalTestDatabaseHelper {
 
       return requiredTables.map(table => {
         const found = result.rows.find(t => t.table_name === table)
-        return {
+        const resultObj: { table: string; exists: boolean; columns?: number } = {
           table,
-          exists: !!found,
-          columns: found ? Number(found.column_count) : undefined
+          exists: !!found
         }
+        if (found) {
+          resultObj.columns = Number(found.column_count)
+        }
+        return resultObj
       })
     } finally {
       client.release()

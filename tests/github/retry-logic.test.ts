@@ -159,7 +159,7 @@ describe('GitHub Client Retry Logic', () => {
       })
       
       expect(attemptCount).toBe(2)
-      expect(result.data[0].title).toBe('Test Issue')
+      expect((result.data as any)[0]?.title).toBe('Test Issue')
     }, 10000)
 
     it('should NOT retry on permanent 4xx client errors', async () => {
@@ -437,7 +437,7 @@ describe('GitHub Client Retry Logic', () => {
       const result = await client.graphql(`query { viewer { login } }`)
       
       expect(attemptCount).toBe(2)
-      expect(result.viewer.login).toBe('testuser')
+      expect((result as any).viewer?.login).toBe('testuser')
     }, 10000)
 
     it('should NOT retry GraphQL queries on query errors', async () => {
@@ -503,7 +503,7 @@ describe('GitHub Client Retry Logic', () => {
       const result = await client.graphql(`query { viewer { login } }`)
       
       expect(attemptCount).toBe(2)
-      expect(result.viewer.login).toBe('testuser')
+      expect((result as any).viewer?.login).toBe('testuser')
     }, 10000)
   })
 

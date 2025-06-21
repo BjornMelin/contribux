@@ -80,7 +80,7 @@ describe('GitHub Token Rotation', () => {
         .times(10)
         .reply(function() {
           const authHeader = this.req.headers.authorization
-          const token = authHeader?.replace('token ', '')
+          const token = authHeader?.replace('token ', '') || ''
           tokenUsage.set(token, (tokenUsage.get(token) || 0) + 1)
           return [200, { login: 'testuser' }]
         })
@@ -118,7 +118,7 @@ describe('GitHub Token Rotation', () => {
         .times(20)
         .reply(function() {
           const authHeader = this.req.headers.authorization
-          const token = authHeader?.replace('token ', '')
+          const token = authHeader?.replace('token ', '') || ''
           tokenUsage.add(token)
           return [200, { login: 'testuser' }]
         })
@@ -320,8 +320,8 @@ describe('GitHub Token Rotation', () => {
 
       const tokenInfo = client.getTokenInfo()
       expect(tokenInfo).toHaveLength(2)
-      expect(tokenInfo[0].scopes).toContain('repo:read')
-      expect(tokenInfo[1].scopes).toContain('admin:org')
+      expect(tokenInfo[0]?.scopes).toContain('repo:read')
+      expect(tokenInfo[1]?.scopes).toContain('admin:org')
     })
 
     it('should select token based on required scopes', async () => {
@@ -386,7 +386,7 @@ describe('GitHub Token Rotation', () => {
         .get('/user')
         .times(30)
         .reply(function() {
-          const token = this.req.headers.authorization?.replace('token ', '')
+          const token = this.req.headers.authorization?.replace('token ', '') || ''
           tokenUsage.set(token, (tokenUsage.get(token) || 0) + 1)
           return [200, { login: 'testuser' }]
         })
@@ -523,7 +523,7 @@ describe('GitHub Token Rotation', () => {
 
       const activeTokens = client.getTokenInfo()
       expect(activeTokens).toHaveLength(1)
-      expect(activeTokens[0].token).toBe('valid-token')
+      expect(activeTokens[0]?.token).toBe('valid-token')
     })
   })
 })

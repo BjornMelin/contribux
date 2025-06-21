@@ -125,7 +125,7 @@ describe('GitHub Webhook Integration', () => {
       
       expect(event.type).toBe('pull_request')
       expect(event.action).toBe('opened')
-      expect(event.payload.pull_request.title).toBe('Test PR')
+      expect((event.payload as any).pull_request?.title).toBe('Test PR')
     })
 
     it('should handle push events', () => {
@@ -145,7 +145,7 @@ describe('GitHub Webhook Integration', () => {
       
       expect(event.type).toBe('push')
       expect(event.action).toBeUndefined() // Push events don't have actions
-      expect(event.payload.ref).toBe('refs/heads/main')
+      expect((event.payload as any).ref).toBe('refs/heads/main')
     })
 
     it('should throw on invalid JSON payload', () => {
@@ -351,8 +351,10 @@ describe('GitHub Webhook Integration', () => {
             author_association: 'OWNER',
             active_lock_reason: null,
             body: null,
-          }
-        } as IssuesPayload
+          },
+          repository: {} as any,
+          sender: {} as any
+        }
       }
 
       expect(issueEvent.type).toBe('issues')

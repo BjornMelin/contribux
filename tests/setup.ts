@@ -8,6 +8,7 @@ config({ path: ".env.test" });
 config({ path: ".env.local", override: false });
 
 // Set test environment
+// @ts-expect-error - NODE_ENV is readonly in TypeScript but we need to set it for tests
 process.env.NODE_ENV = "test";
 
 // Override DATABASE_URL with test-specific URL if provided

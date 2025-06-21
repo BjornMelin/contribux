@@ -100,9 +100,6 @@ export default defineConfig({
     clearMocks: true,
     restoreMocks: true,
 
-    // File watching
-    watchExclude: ['**/node_modules/**', '**/dist/**'],
-
     // Sequence configuration for consistent test ordering
     sequence: {
       shuffle: false,

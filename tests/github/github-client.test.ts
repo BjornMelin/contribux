@@ -63,9 +63,11 @@ describe('GitHubClient', () => {
     })
 
     it('should throw error for invalid configuration', () => {
-      const config = {
+      const config: GitHubClientConfig = {
         auth: {
-          type: 'invalid' as any
+          type: 'invalid' as any,
+          clientId: 'dummy',
+          clientSecret: 'dummy'
         }
       }
       expect(() => new GitHubClient(config)).toThrow(GitHubClientError)
@@ -210,7 +212,7 @@ describe('GitHubClient', () => {
       })
 
       const result = await client.graphql(`query { viewer { login } }`)
-      expect(result.viewer.login).toBe('enterprise-user')
+      expect((result as any).viewer?.login).toBe('enterprise-user')
     })
   })
 

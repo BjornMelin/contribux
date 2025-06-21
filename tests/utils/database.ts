@@ -22,7 +22,7 @@ export class TestDatabaseHelper {
   async testConnection(): Promise<boolean> {
     try {
       const result = await this.sql`SELECT 1 as test`
-      return result.length === 1 && result[0].test === 1
+      return result.length === 1 && result[0]?.test === 1
     } catch (error) {
       console.error('Database connection test failed:', error)
       return false
@@ -32,7 +32,7 @@ export class TestDatabaseHelper {
   // Get database version
   async getDatabaseVersion(): Promise<string> {
     const result = await this.sql`SELECT version() as version`
-    return result[0].version as string
+    return result[0]?.version as string
   }
 
   // Check if required extensions are installed
@@ -74,11 +74,14 @@ export class TestDatabaseHelper {
 
     return requiredTables.map(table => {
       const found = tables.find(t => t.table_name === table)
-      return {
+      const result: { table: string; exists: boolean; columns?: number } = {
         table,
-        exists: !!found,
-        columns: found ? Number(found.column_count) : undefined
+        exists: !!found
       }
+      if (found) {
+        result.columns = Number(found.column_count)
+      }
+      return result
     })
   }
 
@@ -178,7 +181,7 @@ export class TestDatabaseHelper {
         SELECT ${embedding1String}::halfvec(1536) <-> ${embedding2String}::halfvec(1536) as distance
       `
 
-      return typeof result[0].distance === 'number' && result[0].distance > 0
+      return typeof result[0]?.distance === 'number' && result[0]?.distance > 0
     } catch (error) {
       console.error('Vector operations test failed:', error)
       return false

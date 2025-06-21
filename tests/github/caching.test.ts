@@ -28,7 +28,7 @@ describe('GitHub Client Advanced Caching', () => {
         .reply(function() {
           requestHeaders.push({ request: 1, headers: this.req.headers })
           return [200, 
-            { name: 'repo', full_name: 'owner/repo' },
+            { name: 'repo', full_name: 'owner/repo', id: 1, private: false, html_url: 'https://github.com/owner/repo' },
             { 'etag': '"abc123"', 'cache-control': 'max-age=300' }
           ]
         })
@@ -70,14 +70,14 @@ describe('GitHub Client Advanced Caching', () => {
           requestCount++
           if (requestCount === 1) {
             return [200, 
-              { name: 'repo', stars: 100 },
+              { name: 'repo', full_name: 'owner/repo', id: 1, stargazers_count: 100 },
               { 'etag': '"v1"' }
             ]
           } else if (requestCount === 2) {
             // Second request has If-None-Match, but data changed
             if (this.req.headers['if-none-match'] === '"v1"') {
               return [200, 
-                { name: 'repo', stars: 200 },
+                { name: 'repo', full_name: 'owner/repo', id: 1, stargazers_count: 200 },
                 { 'etag': '"v2"' }
               ]
             }
@@ -87,17 +87,17 @@ describe('GitHub Client Advanced Caching', () => {
               return [304, '']
             }
           }
-          return [200, { name: 'repo', stars: 300 }]
+          return [200, { name: 'repo', full_name: 'owner/repo', id: 1, stargazers_count: 300 }]
         })
 
       const result1 = await client.rest.repos.get({ owner: 'owner', repo: 'repo' })
-      expect(result1.data.stars).toBe(100)
+      expect(result1.data.stargazers_count).toBe(100)
 
       const result2 = await client.rest.repos.get({ owner: 'owner', repo: 'repo' })
-      expect(result2.data.stars).toBe(200) // Updated data
+      expect(result2.data.stargazers_count).toBe(200) // Updated data
 
       const result3 = await client.rest.repos.get({ owner: 'owner', repo: 'repo' })
-      expect(result3.data.stars).toBe(200) // Cached data (304 response)
+      expect(result3.data.stargazers_count).toBe(200) // Cached data (304 response)
 
       expect(requestCount).toBe(3)
     })
@@ -115,7 +115,7 @@ describe('GitHub Client Advanced Caching', () => {
         .times(2)
         .reply(() => {
           requestCount++
-          return [200, { name: 'repo', full_name: 'owner/repo' }]
+          return [200, { name: 'repo', full_name: 'owner/repo', id: 1, private: false, html_url: 'https://github.com/owner/repo' }]
         })
 
       const result1 = await client.rest.repos.get({ owner: 'owner', repo: 'repo' })
@@ -146,7 +146,7 @@ describe('GitHub Client Advanced Caching', () => {
         .times(2)
         .reply(() => {
           requestCount++
-          return [200, { name: 'repo', id: requestCount }]
+          return [200, { name: 'repo', full_name: 'owner/repo', id: requestCount, private: false }]
         })
 
       const result1 = await client.rest.repos.get({ owner: 'owner', repo: 'repo' })
@@ -170,7 +170,7 @@ describe('GitHub Client Advanced Caching', () => {
         .times(2)
         .reply(function() {
           urls.push(this.req.path || '')
-          return [200, { name: 'repo', url: this.req.path }]
+          return [200, { name: 'repo', full_name: 'owner/repo', id: 1, private: false, html_url: this.req.path }]
         })
 
       await client.rest.repos.get({ owner: 'owner1', repo: 'repo1' })
@@ -231,12 +231,12 @@ describe('GitHub Client Advanced Caching', () => {
         .times(2)
         .reply(() => {
           getRequestCount++
-          return [200, { name: 'repo', description: `Request ${getRequestCount}` }]
+          return [200, { name: 'repo', full_name: 'owner/repo', id: 1, private: false, description: `Request ${getRequestCount}` }]
         })
 
       nock('https://api.github.com')
         .patch('/repos/owner/repo')
-        .reply(200, { name: 'repo', description: 'Updated' })
+        .reply(200, { name: 'repo', full_name: 'owner/repo', id: 1, private: false, description: 'Updated' })
 
       // First GET request
       const result1 = await client.rest.repos.get({ owner: 'owner', repo: 'repo' })
@@ -390,23 +390,23 @@ describe('GitHub Client Advanced Caching', () => {
         .times(2)
         .reply(() => {
           requestCount++
-          return [200, { name: 'repo', count: requestCount }]
+          return [200, { name: 'repo', full_name: 'owner/repo', id: requestCount, stargazers_count: requestCount * 10 }]
         })
 
       // First request
       const result1 = await client.rest.repos.get({ owner: 'owner', repo: 'repo' })
-      expect(result1.data.count).toBe(1)
+      expect(result1.data.id).toBe(1)
 
       // Immediate second request should use cache
       const result2 = await client.rest.repos.get({ owner: 'owner', repo: 'repo' })
-      expect(result2.data.count).toBe(1)
+      expect(result2.data.id).toBe(1)
 
       // Wait for TTL to expire
       await new Promise(resolve => setTimeout(resolve, 1100))
 
       // Third request should fetch fresh data
       const result3 = await client.rest.repos.get({ owner: 'owner', repo: 'repo' })
-      expect(result3.data.count).toBe(2)
+      expect(result3.data.id).toBe(2)
     })
 
     it('should use Cache-Control headers when available', async () => {
@@ -423,24 +423,24 @@ describe('GitHub Client Advanced Caching', () => {
         .reply(() => {
           requestCount++
           return [200, 
-            { name: 'repo', count: requestCount },
+            { name: 'repo', full_name: 'owner/repo', id: requestCount, stargazers_count: requestCount * 5 },
             { 'cache-control': 'max-age=1' } // 1 second from header
           ]
         })
 
       const result1 = await client.rest.repos.get({ owner: 'owner', repo: 'repo' })
-      expect(result1.data.count).toBe(1)
+      expect(result1.data.id).toBe(1)
 
       // Should use cache immediately
       const result2 = await client.rest.repos.get({ owner: 'owner', repo: 'repo' })
-      expect(result2.data.count).toBe(1)
+      expect(result2.data.id).toBe(1)
       expect(requestCount).toBe(1) // Still only 1 request
 
       // Wait for header-specified TTL
       await new Promise(resolve => setTimeout(resolve, 1100))
 
       const result3 = await client.rest.repos.get({ owner: 'owner', repo: 'repo' })
-      expect(result3.data.count).toBeGreaterThanOrEqual(2)
+      expect(result3.data.id).toBeGreaterThanOrEqual(2)
       expect(requestCount).toBeGreaterThanOrEqual(2) // At least 2 requests
     })
   })
@@ -455,7 +455,7 @@ describe('GitHub Client Advanced Caching', () => {
       nock('https://api.github.com')
         .get('/repos/owner/repo')
         .times(2) // Need to allow for potential multiple requests
-        .reply(200, { name: 'repo' })
+        .reply(200, { name: 'repo', full_name: 'owner/repo', id: 1, private: false })
 
       // First request - cache miss
       await client.rest.repos.get({ owner: 'owner', repo: 'repo' })
@@ -484,11 +484,11 @@ describe('GitHub Client Advanced Caching', () => {
 
       nock('https://api.github.com')
         .get('/repos/owner/repo1')
-        .reply(200, { name: 'repo1', data: 'x'.repeat(1000) })
+        .reply(200, { name: 'repo1', full_name: 'owner/repo1', id: 1, private: false, description: 'x'.repeat(1000) })
 
       nock('https://api.github.com')
         .get('/repos/owner/repo2')
-        .reply(200, { name: 'repo2', data: 'y'.repeat(2000) })
+        .reply(200, { name: 'repo2', full_name: 'owner/repo2', id: 2, private: false, description: 'y'.repeat(2000) })
 
       await client.rest.repos.get({ owner: 'owner', repo: 'repo1' })
       await client.rest.repos.get({ owner: 'owner', repo: 'repo2' })
@@ -512,7 +512,7 @@ describe('GitHub Client Advanced Caching', () => {
       repos.forEach(repo => {
         nock('https://api.github.com')
           .get(`/repos/owner/${repo}`)
-          .reply(200, { name: repo })
+          .reply(200, { name: repo, full_name: `owner/${repo}`, id: repos.indexOf(repo) + 1, private: false })
       })
 
       // Warm the cache by making requests
@@ -550,19 +550,19 @@ describe('GitHub Client Advanced Caching', () => {
         .times(3) // Allow more requests
         .reply(() => {
           requestCount++
-          return [200, { name: 'repo', version: requestCount }]
+          return [200, { name: 'repo', full_name: 'owner/repo', id: requestCount, updated_at: `2024-01-${requestCount.toString().padStart(2, '0')}T00:00:00Z` }]
         })
 
       // Initial request
       const result1 = await client.rest.repos.get({ owner: 'owner', repo: 'repo' })
-      expect(result1.data.version).toBe(1)
+      expect(result1.data.updated_at).toBe('2024-01-01T00:00:00Z')
 
       // Wait for cache to expire
       await new Promise(resolve => setTimeout(resolve, 2100))
 
       // This should fetch new data
       const result2 = await client.rest.repos.get({ owner: 'owner', repo: 'repo' })
-      expect(result2.data.version).toBe(2)
+      expect(result2.data.updated_at).toBe('2024-01-02T00:00:00Z')
       
       // Verify that requests were made
       expect(requestCount).toBe(2)

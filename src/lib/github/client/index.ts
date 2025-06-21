@@ -23,7 +23,7 @@ import {
   RetryManager,
   validateRetryOptions,
 } from '../retry-logic'
-import { TokenRotationManager } from '../token-rotation'
+import { TokenRotationManager } from '../token-rotation/index'
 import type {
   CacheMetrics,
   GitHubClientConfig,

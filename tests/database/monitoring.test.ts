@@ -61,7 +61,7 @@ describe("DatabaseMonitor", () => {
         const metric = metrics[0];
         expect(metric).toHaveProperty("indexname");
         expect(metric).toHaveProperty("index_size");
-        expect(metric.indexname).toMatch(/hnsw/);
+        expect(metric?.indexname).toMatch(/hnsw/);
       }
     });
   });
