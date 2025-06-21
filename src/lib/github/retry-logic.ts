@@ -1,3 +1,4 @@
+import { ErrorMessages } from './errors'
 import type { CircuitBreakerOptions, GitHubError, RetryOptions, RetryState } from './types'
 
 export class RetryManager {
@@ -11,7 +12,7 @@ export class RetryManager {
 
   async executeWithRetry<T>(operation: () => Promise<T>): Promise<T> {
     if (this.circuitBreaker?.isOpen()) {
-      throw new Error('Circuit breaker is open')
+      throw new Error(ErrorMessages.CIRCUIT_BREAKER_OPEN)
     }
 
     let lastError: GitHubError | null = null
@@ -191,7 +192,7 @@ export function createDefaultRetryOptions(): RetryOptions {
 export function validateRetryOptions(options: RetryOptions): void {
   if (options.retries !== undefined) {
     if (options.retries < 0) {
-      throw new Error('Retry count cannot be negative')
+      throw new Error(ErrorMessages.VALIDATION_RETRY_COUNT_NEGATIVE)
     }
     if (options.retries > 10) {
       throw new Error('Maximum retry count is 10')
@@ -204,10 +205,10 @@ export function validateRetryOptions(options: RetryOptions): void {
 
   if (options.circuitBreaker?.enabled) {
     if (options.circuitBreaker.failureThreshold < 1) {
-      throw new Error('Circuit breaker failure threshold must be at least 1')
+      throw new Error(ErrorMessages.VALIDATION_FAILURE_THRESHOLD_INVALID)
     }
     if (options.circuitBreaker.recoveryTimeout < 1000) {
-      throw new Error('Circuit breaker recovery timeout must be at least 1000ms')
+      throw new Error(ErrorMessages.VALIDATION_RECOVERY_TIMEOUT_INVALID)
     }
   }
 }

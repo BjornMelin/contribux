@@ -105,3 +105,61 @@ export function extractErrorMessage(error: unknown): string {
   }
   return 'Unknown error occurred'
 }
+
+/**
+ * Error message formatting standards:
+ * - Start with capital letter (sentence case)
+ * - No ending punctuation for simple messages
+ * - Use colon for contextual information
+ * - Use template literals for dynamic content
+ * - Provide actionable context when possible
+ */
+export const ErrorMessages = {
+  // Authentication errors
+  AUTH_TOKEN_REQUIRED: 'Authentication token is required',
+  AUTH_TOKEN_EXPIRED: 'Authentication token has expired',
+  AUTH_TOKEN_INVALID: 'Authentication token is invalid',
+  AUTH_APP_CONFIG_REQUIRED: 'GitHub App configuration required',
+  AUTH_TYPE_INVALID: (type: string) => `Invalid authentication type: ${type}`,
+
+  // Configuration errors
+  CONFIG_INVALID: 'Invalid configuration provided',
+  CONFIG_TOKEN_ROTATION_NOT_CONFIGURED: 'Token rotation not configured',
+  CONFIG_CACHE_NOT_CONFIGURED: 'Cache not configured',
+  CONFIG_WEBHOOK_SECRET_REQUIRED: 'Webhook secret is required and must be a non-empty string',
+
+  // Validation errors
+  VALIDATION_RETRY_COUNT_NEGATIVE: 'Retry count cannot be negative',
+  VALIDATION_CACHE_SIZE_INVALID: 'Cache size must be between 100 and 100,000',
+  VALIDATION_RECOVERY_TIMEOUT_INVALID: 'Recovery timeout must be positive',
+  VALIDATION_FAILURE_THRESHOLD_INVALID: 'Failure threshold must be positive',
+
+  // Rate limit errors
+  RATE_LIMIT_EXCEEDED: 'GitHub API rate limit exceeded',
+  RATE_LIMIT_SECONDARY: 'GitHub secondary rate limit hit',
+  RATE_LIMIT_GRAPHQL_EXCEEDED: (points: number, limit: number) =>
+    `Query exceeds maximum point limit: ${points.toLocaleString()} points (limit: ${limit.toLocaleString()})`,
+
+  // Circuit breaker errors
+  CIRCUIT_BREAKER_OPEN: 'Circuit breaker is open',
+
+  // Webhook errors
+  WEBHOOK_SIGNATURE_INVALID: 'Invalid webhook signature',
+  WEBHOOK_SIGNATURE_MISSING: 'Missing webhook signature header',
+  WEBHOOK_PAYLOAD_INVALID: 'Invalid webhook payload',
+  WEBHOOK_DELIVERY_ID_INVALID: 'Invalid delivery ID format',
+
+  // DataLoader errors
+  DATALOADER_BATCH_LENGTH_MISMATCH: (expected: number, received: number | string) =>
+    `DataLoader batch function must return an array of the same length as the input array\nExpected: ${expected}, received: ${received}`,
+  DATALOADER_KEY_NOT_FOUND: (key: string) => `Repository not found: ${key}`,
+
+  // API errors
+  API_ERROR: (context: string, message: string) => `GitHub API error for ${context}: ${message}`,
+  API_GRAPHQL_ERROR: 'GraphQL query failed',
+
+  // Token errors
+  TOKEN_REFRESH_FAILED: (error: string) => `Failed to refresh token: ${error}`,
+  TOKEN_NOT_FOUND: 'No available tokens',
+  TOKEN_ALL_EXPIRED: 'All tokens have expired',
+} as const

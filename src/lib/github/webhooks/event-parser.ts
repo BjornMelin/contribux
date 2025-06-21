@@ -1,3 +1,4 @@
+import { ErrorMessages } from '../errors'
 import type { WebhookEvent, WebhookHeaders } from './types'
 
 /**
@@ -12,7 +13,7 @@ export function parseWebhookEvent(
   try {
     parsedPayload = JSON.parse(payload) as Record<string, unknown>
   } catch (_error) {
-    throw new Error('Invalid JSON payload')
+    throw new Error(ErrorMessages.WEBHOOK_PAYLOAD_INVALID)
   }
 
   // Extract event type and delivery ID from headers
@@ -20,7 +21,7 @@ export function parseWebhookEvent(
   const deliveryId = headers['x-github-delivery']
 
   if (!eventType || !deliveryId) {
-    throw new Error('Missing required webhook headers')
+    throw new Error(ErrorMessages.WEBHOOK_SIGNATURE_MISSING)
   }
 
   // Build the structured event

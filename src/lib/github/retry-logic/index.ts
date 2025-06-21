@@ -1,5 +1,6 @@
 import type { RequestError } from '@octokit/types'
 import {
+  ErrorMessages,
   GitHubClientError,
   isRateLimitError,
   isRequestError,
@@ -441,7 +442,7 @@ export function createDefaultRetryOptions(): RetryOptions {
 export function validateRetryOptions(options: RetryOptions): void {
   if (options.retries !== undefined) {
     if (options.retries < 0) {
-      throw new GitHubClientError('Retry count cannot be negative')
+      throw new GitHubClientError(ErrorMessages.VALIDATION_RETRY_COUNT_NEGATIVE)
     }
     if (options.retries > 10) {
       throw new GitHubClientError('Maximum retry count is 10')
@@ -454,10 +455,10 @@ export function validateRetryOptions(options: RetryOptions): void {
 
   if (options.circuitBreaker) {
     if (options.circuitBreaker.failureThreshold < 1) {
-      throw new GitHubClientError('Circuit breaker failure threshold must be at least 1')
+      throw new GitHubClientError(ErrorMessages.VALIDATION_FAILURE_THRESHOLD_INVALID)
     }
     if (options.circuitBreaker.recoveryTimeout < 1000) {
-      throw new GitHubClientError('Circuit breaker recovery timeout must be at least 1000ms')
+      throw new GitHubClientError(ErrorMessages.VALIDATION_RECOVERY_TIMEOUT_INVALID)
     }
   }
 }

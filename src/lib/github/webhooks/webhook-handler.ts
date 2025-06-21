@@ -1,3 +1,4 @@
+import { ErrorMessages } from '../errors'
 import { parseWebhookEvent } from './event-parser'
 import { validateWebhookSignature, validateWebhookSignatureStrict } from './signature-validator'
 import type { WebhookConfiguration, WebhookHandlers, WebhookHeaders } from './types'
@@ -32,7 +33,7 @@ export class WebhookHandler {
 
   constructor(secret: string, handlers: WebhookHandlers = {}, options: WebhookHandlerOptions = {}) {
     if (!secret || typeof secret !== 'string' || secret.length === 0) {
-      throw new Error('Webhook secret is required and must be a non-empty string')
+      throw new Error(ErrorMessages.CONFIG_WEBHOOK_SECRET_REQUIRED)
     }
 
     this.secret = secret
@@ -45,7 +46,7 @@ export class WebhookHandler {
 
     // Validate cache size is reasonable
     if (this.options.maxCacheSize < 100 || this.options.maxCacheSize > 100000) {
-      throw new Error('maxCacheSize must be between 100 and 100,000')
+      throw new Error(ErrorMessages.VALIDATION_CACHE_SIZE_INVALID)
     }
   }
 
@@ -55,7 +56,7 @@ export class WebhookHandler {
   async handle(payload: string, headers: WebhookHeaders | Record<string, string>): Promise<void> {
     // Input validation
     if (!payload || typeof payload !== 'string') {
-      throw new Error('Invalid payload: must be a non-empty string')
+      throw new Error(ErrorMessages.WEBHOOK_PAYLOAD_INVALID)
     }
 
     if (!headers || typeof headers !== 'object') {
@@ -79,7 +80,7 @@ export class WebhookHandler {
     }
 
     if (!signatureValid) {
-      throw new Error('Invalid webhook signature')
+      throw new Error(ErrorMessages.WEBHOOK_SIGNATURE_INVALID)
     }
 
     // Parse the event
@@ -90,7 +91,7 @@ export class WebhookHandler {
       !event.deliveryId ||
       !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(event.deliveryId)
     ) {
-      throw new Error('Invalid delivery ID format')
+      throw new Error(ErrorMessages.WEBHOOK_DELIVERY_ID_INVALID)
     }
 
     // Check for duplicate delivery (idempotency protection)

@@ -1,3 +1,5 @@
+import { ErrorMessages } from './errors'
+
 /**
  * Modern DataLoader implementation for GitHub API batching and caching
  *
@@ -223,8 +225,10 @@ export class DataLoader<K, V> {
       // Validate that the batch function returned the correct number of results
       if (!Array.isArray(values) || values.length !== keys.length) {
         throw new Error(
-          `DataLoader batch function must return an array of the same length as the input array.\n` +
-            `Expected: ${keys.length}, received: ${Array.isArray(values) ? values.length : typeof values}`
+          ErrorMessages.DATALOADER_BATCH_LENGTH_MISMATCH(
+            keys.length,
+            Array.isArray(values) ? values.length : typeof values
+          )
         )
       }
 
@@ -342,7 +346,7 @@ export function createRepositoryDataLoader(
           const errorMessage = errorMap.get(alias)
 
           if (errorMessage) {
-            return new Error(`GitHub API error for ${key.owner}/${key.repo}: ${errorMessage}`)
+            return new Error(ErrorMessages.API_ERROR(`${key.owner}/${key.repo}`, errorMessage))
           }
 
           const repoData = typedResponse.data?.[alias]
@@ -362,7 +366,7 @@ export function createRepositoryDataLoader(
             return repoData
           }
 
-          return new Error(`Repository not found: ${key.owner}/${key.repo}`)
+          return new Error(ErrorMessages.DATALOADER_KEY_NOT_FOUND(`${key.owner}/${key.repo}`))
         })
       }
 
@@ -387,7 +391,7 @@ export function createRepositoryDataLoader(
           return repoData
         }
 
-        return new Error(`Repository not found: ${key.owner}/${key.repo}`)
+        return new Error(ErrorMessages.DATALOADER_KEY_NOT_FOUND(`${key.owner}/${key.repo}`))
       })
     } catch (error) {
       // Return the same error for all keys if the entire batch fails

@@ -9,7 +9,12 @@ import githubAppJwt from 'universal-github-app-jwt'
 import { CacheManager, createCacheEntry } from '../caching'
 import type { RepositoryData, RepositoryKey } from '../dataloader'
 import { createRepositoryDataLoader, type DataLoader } from '../dataloader'
-import { GitHubAuthenticationError, GitHubClientError, GitHubTokenExpiredError } from '../errors'
+import {
+  ErrorMessages,
+  GitHubAuthenticationError,
+  GitHubClientError,
+  GitHubTokenExpiredError,
+} from '../errors'
 import {
   addRateLimitToQuery,
   analyzeGraphQLQuery,
@@ -142,7 +147,7 @@ export class GitHubClient {
     if (this.config.auth) {
       const { type } = this.config.auth
       if (!['token', 'app', 'oauth'].includes(type)) {
-        throw new GitHubClientError(`Invalid authentication type: ${type}`)
+        throw new GitHubClientError(ErrorMessages.AUTH_TYPE_INVALID(type))
       }
     }
   }
@@ -205,7 +210,7 @@ export class GitHubClient {
           : undefined
 
       default:
-        throw new GitHubClientError('Invalid authentication type')
+        throw new GitHubClientError(ErrorMessages.CONFIG_INVALID)
     }
   }
 
@@ -244,7 +249,7 @@ export class GitHubClient {
 
   async authenticate(): Promise<void> {
     if (!this.config.auth) {
-      throw new GitHubAuthenticationError('No authentication configuration provided')
+      throw new GitHubAuthenticationError(ErrorMessages.AUTH_TOKEN_REQUIRED)
     }
 
     if (this.config.auth.type === 'app' && this.config.auth.installationId) {
@@ -818,21 +823,21 @@ export class GitHubClient {
         this.tokenCache.set(this.currentInstallationId, newToken)
       } catch (error) {
         this.tokenRotationManager.recordError(token.token)
-        throw new GitHubTokenExpiredError(`Failed to refresh token: ${error}`)
+        throw new GitHubTokenExpiredError(ErrorMessages.TOKEN_REFRESH_FAILED(String(error)))
       }
     }
   }
 
   addToken(token: TokenInfo): void {
     if (!this.tokenRotationManager) {
-      throw new GitHubClientError('Token rotation not configured')
+      throw new GitHubClientError(ErrorMessages.CONFIG_TOKEN_ROTATION_NOT_CONFIGURED)
     }
     this.tokenRotationManager.addToken(token)
   }
 
   removeToken(tokenString: string): void {
     if (!this.tokenRotationManager) {
-      throw new GitHubClientError('Token rotation not configured')
+      throw new GitHubClientError(ErrorMessages.CONFIG_TOKEN_ROTATION_NOT_CONFIGURED)
     }
     this.tokenRotationManager.removeToken(tokenString)
   }

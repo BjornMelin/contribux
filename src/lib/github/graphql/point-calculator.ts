@@ -1,3 +1,5 @@
+import { ErrorMessages } from '../errors'
+
 export const GRAPHQL_POINT_LIMIT = 500000
 
 export interface QueryAnalysis {
@@ -122,9 +124,7 @@ export function analyzeGraphQLQuery(query: string): QueryAnalysis {
 export function validateGraphQLPointLimit(query: string): void {
   const points = calculateGraphQLPoints(query)
   if (points > GRAPHQL_POINT_LIMIT) {
-    throw new Error(
-      `Query exceeds maximum node count (${GRAPHQL_POINT_LIMIT.toLocaleString()} points)`
-    )
+    throw new Error(ErrorMessages.RATE_LIMIT_GRAPHQL_EXCEEDED(points, GRAPHQL_POINT_LIMIT))
   }
 }
 
