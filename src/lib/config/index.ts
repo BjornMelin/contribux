@@ -227,21 +227,21 @@ function createConfig(): Config {
           security: {
             ...baseConfig.auth.security,
             failedLoginThreshold: 3, // Lower threshold for testing
-            failedLoginWindow: 2 * 60 * 1000, // 2 minutes
+            failedLoginWindow: 5 * 60 * 1000, // 5 minutes (minimum allowed)
           },
         },
         webauthn: {
           ...baseConfig.webauthn,
           timeout: 30 * 1000, // 30 seconds for testing
-          challengeExpiry: 2 * 60 * 1000, // 2 minutes for testing
+          challengeExpiry: 60 * 1000, // 1 minute (minimum allowed)
         },
         oauth: {
           ...baseConfig.oauth,
-          stateExpiry: 2 * 60 * 1000, // 2 minutes for testing
+          stateExpiry: 5 * 60 * 1000, // 5 minutes (minimum allowed)
         },
         database: {
           ...baseConfig.database,
-          healthCheckInterval: 10 * 1000, // 10 seconds for testing
+          healthCheckInterval: 30 * 1000, // 30 seconds (minimum allowed)
           slowQueryThreshold: 100, // 100ms for testing
         },
       }

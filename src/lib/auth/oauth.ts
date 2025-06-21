@@ -14,7 +14,12 @@ const GITHUB_API_URL = 'https://api.github.com'
 // Environment configuration with validation
 const getGithubClientId = () => env.GITHUB_CLIENT_ID || 'test-client-id'
 const getGithubClientSecret = () => env.GITHUB_CLIENT_SECRET || 'test-client-secret'
-const ALLOWED_REDIRECT_URIS = env.ALLOWED_REDIRECT_URIS.split(',')
+const ALLOWED_REDIRECT_URIS = env.ALLOWED_REDIRECT_URIS?.split(',') || [
+  'http://localhost:3000/auth/callback',
+  'http://localhost:3000/api/auth/github/callback',
+  'https://localhost:3000/auth/callback',
+  'https://localhost:3000/api/auth/github/callback'
+]
 
 // Validation schemas
 const GenerateOAuthUrlSchema = z.object({

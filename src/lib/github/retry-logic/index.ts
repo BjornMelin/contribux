@@ -439,6 +439,24 @@ export class RetryManager {
   resetCircuitBreaker(): void {
     this.circuitBreaker?.reset()
   }
+
+  /**
+   * Reset all retry manager state including circuit breaker
+   *
+   * This method resets the circuit breaker to its initial state,
+   * clearing all failure counts and opening the circuit for new requests.
+   * Useful for cleanup when destroying the client instance.
+   *
+   * @example
+   * ```typescript
+   * const retryManager = new RetryManager({ ... });
+   * // ... use the manager
+   * retryManager.reset(); // Reset all state
+   * ```
+   */
+  reset(): void {
+    this.resetCircuitBreaker()
+  }
 }
 
 /**

@@ -584,6 +584,25 @@ export class TokenRotationManager {
     this.quarantinedTokens.set(token, quarantineUntil)
   }
 
+  /**
+   * Clear all tokens and reset state
+   *
+   * This method removes all tokens and clears all associated state including
+   * usage statistics and quarantine information. Useful for cleanup when
+   * destroying the client instance.
+   *
+   * @example
+   * ```typescript
+   * tokenManager.clearTokens(); // Remove all tokens and state
+   * ```
+   */
+  clearTokens(): void {
+    this.tokens = []
+    this.usageStats.clear()
+    this.quarantinedTokens.clear()
+    this.currentIndex = 0
+  }
+
   getTokenHealth(): TokenHealthMetrics[] {
     return this.tokens.map(token => {
       const stats = this.usageStats.get(token.token)

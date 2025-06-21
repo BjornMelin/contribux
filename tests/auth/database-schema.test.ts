@@ -1,22 +1,44 @@
 import { describe, it, expect, beforeAll, vi } from 'vitest'
 import { neon } from '@neondatabase/serverless'
 
+// Get the test database URL from environment
+const getTestDatabaseUrl = () => {
+  // Try different environment variable sources
+  const testUrl = process.env.DATABASE_URL_TEST || 
+    'postgresql://neondb_owner:npg_G8poqg2YQRAz@ep-hidden-union-a8b34lc5-pooler.eastus2.azure.neon.tech/neondb?sslmode=require'
+  
+  return testUrl
+}
+
 // Skip these tests if no real test database is configured
-const hasTestDatabase = process.env.DATABASE_URL_TEST && 
-  process.env.DATABASE_URL_TEST !== 'sqlite://localhost/:memory:' &&
-  !process.env.DATABASE_URL_TEST.includes('sqlite')
+const testUrl = getTestDatabaseUrl()
+const hasTestDatabase = testUrl && 
+  testUrl !== 'sqlite://localhost/:memory:' &&
+  !testUrl.includes('sqlite') &&
+  testUrl.includes('postgresql')
 
 const describeConditional = hasTestDatabase ? describe : describe.skip
 
 describeConditional('Authentication Database Schema', () => {
   let sql: ReturnType<typeof neon>
 
-  beforeAll(() => {
-    const testUrl = process.env.DATABASE_URL_TEST
-    if (!testUrl || testUrl.includes('sqlite')) {
-      throw new Error('These tests require a real PostgreSQL test database. Set DATABASE_URL_TEST in .env.local')
+  beforeAll(async () => {
+    if (!hasTestDatabase) {
+      throw new Error('These tests require a real PostgreSQL test database. Set DATABASE_URL_TEST in .env.test')
     }
+    
+    // Initialize the database client with the test URL
     sql = neon(testUrl)
+    
+    // Test connection to ensure it works
+    try {
+      const result = await sql`SELECT 1 as test`
+      if (!result || !Array.isArray(result) || result.length === 0) {
+        throw new Error('Invalid database response')
+      }
+    } catch (error) {
+      throw new Error(`Failed to connect to test database: ${error?.message || 'Unknown error'}`)
+    }
   })
 
   describe('WebAuthn Tables', () => {

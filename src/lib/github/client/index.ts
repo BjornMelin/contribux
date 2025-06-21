@@ -376,6 +376,71 @@ export class GitHubClient {
   }
 
   /**
+   * Clean up all resources and destroy the client instance
+   *
+   * This method releases all resources held by the client including:
+   * - Cache manager timers and memory
+   * - DataLoader caches
+   * - Token caches and rotation state
+   * - Rate limit manager state
+   * - Retry manager circuit breaker state
+   *
+   * Always call this method when you're done with the client to prevent memory leaks.
+   *
+   * @example
+   * ```typescript
+   * const client = new GitHubClient({ ... });
+   * 
+   * try {
+   *   // Use the client
+   *   await client.rest.repos.get({ owner: 'owner', repo: 'repo' });
+   * } finally {
+   *   // Clean up resources
+   *   await client.destroy();
+   * }
+   * ```
+   */
+  async destroy(): Promise<void> {
+    // Clear cache manager and stop cleanup timer
+    if (this.cache) {
+      await this.cache.destroy()
+      this.cache = undefined
+    }
+
+    // Clear DataLoader cache
+    if (this.repositoryDataLoader) {
+      this.repositoryDataLoader.clearAll()
+      this.repositoryDataLoader = undefined
+    }
+
+    // Clear token caches
+    this.tokenCache.clear()
+    this.jwtToken = undefined
+    this.jwtExpiration = undefined
+    this.currentInstallationId = undefined
+
+    // Clear token rotation manager state
+    if (this.tokenRotationManager) {
+      this.tokenRotationManager.clearTokens()
+      this.tokenRotationManager = undefined
+    }
+
+    // Clear rate limit manager state
+    this.rateLimitManager.clear()
+
+    // Clear retry manager state (circuit breaker)
+    this.retryManager.reset()
+
+    // Clear scope requirements
+    this.scopeRequirements.clear()
+
+    // Clear any remaining references
+    this.octokit = undefined as any
+    this.rest = undefined as any
+    this.graphql = undefined as any
+  }
+
+  /**
    * Authenticate as a specific GitHub App installation
    *
    * This method exchanges a GitHub App JWT for an installation access token,

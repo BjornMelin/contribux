@@ -349,6 +349,27 @@ export class RateLimitManager {
     if (!info) return false
     return info.remaining < minimumRemaining
   }
+
+  /**
+   * Clear all rate limit state and reset to defaults
+   *
+   * This method resets all rate limit tracking to initial state.
+   * Useful for cleanup when destroying the client instance.
+   *
+   * @example
+   * ```typescript
+   * const manager = new RateLimitManager();
+   * // ... use the manager
+   * manager.clear(); // Reset all state
+   * ```
+   */
+  clear(): void {
+    this.state = {
+      core: { limit: 5000, remaining: 5000, reset: new Date(), used: 0 },
+      search: { limit: 30, remaining: 30, reset: new Date(), used: 0 },
+      graphql: { limit: 5000, remaining: 5000, reset: new Date(), used: 0, cost: 0, nodeCount: 0 },
+    }
+  }
 }
 
 /**
