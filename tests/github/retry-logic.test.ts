@@ -324,7 +324,9 @@ describe('GitHub Client Retry Logic', () => {
           }
         },
         throttle: {
-          enabled: false // Disable throttling to test only circuit breaker
+          enabled: false, // Disable throttling to test only circuit breaker
+          onRateLimit: () => false,
+          onSecondaryRateLimit: () => false
         }
       })
 

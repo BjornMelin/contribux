@@ -119,8 +119,8 @@ describe('Database Infrastructure', () => {
         SELECT ${embedding1String}::halfvec(1536) <-> ${embedding2String}::halfvec(1536) as distance
       `
 
-      // Orthogonal unit vectors should have cosine distance of 1.0
-      expect(result[0]?.distance).toBeCloseTo(1.0, 1)
+      // Orthogonal unit vectors should have L2 distance of sqrt(2) ≈ 1.414
+      expect(result[0]?.distance).toBeCloseTo(Math.sqrt(2), 1)
     })
 
     it('should support cosine similarity operations', async () => {

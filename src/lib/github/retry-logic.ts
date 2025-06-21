@@ -1,9 +1,5 @@
 import type { CircuitBreakerOptions, GitHubError, RetryOptions, RetryState } from './types'
 
-export interface RetryManager {
-  executeWithRetry<T>(operation: () => Promise<T>): Promise<T>
-}
-
 export class RetryManager {
   private circuitBreaker: CircuitBreaker | null = null
 
@@ -31,7 +27,7 @@ export class RetryManager {
         }
 
         return result
-      } catch (error: any) {
+      } catch (error) {
         lastError = error as GitHubError
 
         // Record failure for circuit breaker
@@ -161,7 +157,7 @@ export function calculateRetryDelay(
 ): number {
   // If retry-after header is present, use it (with small jitter)
   if (retryAfter !== undefined) {
-    const jitter = Math.random() * 0.1 // ±10% jitter
+    const jitter = Math.random() * 0.1 - 0.05 // ±5% jitter
     return Math.floor(retryAfter * (1 + jitter))
   }
 

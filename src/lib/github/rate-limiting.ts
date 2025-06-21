@@ -25,12 +25,12 @@ export class RateLimitManager {
     })
   }
 
-  updateFromGraphQLResponse(rateLimit: any): void {
+  updateFromGraphQLResponse(rateLimit: Partial<GraphQLRateLimitInfo & { resetAt?: string }>): void {
     if (rateLimit) {
       this.graphqlRateLimit = {
         limit: rateLimit.limit || 0,
         remaining: rateLimit.remaining || 0,
-        reset: new Date(rateLimit.resetAt || Date.now()),
+        reset: new Date(rateLimit.resetAt || rateLimit.reset || Date.now()),
         used: rateLimit.used || 0,
         cost: rateLimit.cost || 0,
         nodeCount: rateLimit.nodeCount || 0,

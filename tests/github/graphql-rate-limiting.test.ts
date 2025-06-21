@@ -1,7 +1,32 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import nock from 'nock'
 import { GitHubClient } from '@/lib/github'
-import type { GitHubClientConfig } from '@/lib/github'
+import type { GitHubClientConfig, GraphQLRateLimitInfo } from '@/lib/github'
+
+// Type definitions for test responses
+interface RepositoryResponse {
+  name: string
+  stargazerCount: number
+}
+
+interface BatchedRepositoryResponse {
+  [key: string]: RepositoryResponse
+}
+
+interface IssuesResponse {
+  issues: {
+    totalCount: number
+  }
+}
+
+interface BatchedIssuesResponse {
+  [key: string]: IssuesResponse
+}
+
+interface GraphQLResponseWithRateLimit<T> {
+  data: T
+  rateLimit?: GraphQLRateLimitInfo & { resetAt?: string }
+}
 
 describe('GraphQL Point-Aware Rate Limiting', () => {
   beforeEach(() => {
@@ -213,11 +238,11 @@ describe('GraphQL Point-Aware Rate Limiting', () => {
           name
           stargazerCount
         }`
-      })))
+      }))) as BatchedRepositoryResponse
 
-      expect(results.repo1.stargazerCount).toBe(100)
-      expect(results.repo2.stargazerCount).toBe(200)
-      expect(results.repo3.stargazerCount).toBe(300)
+      expect(results.repo1?.stargazerCount).toBe(100)
+      expect(results.repo2?.stargazerCount).toBe(200)
+      expect(results.repo3?.stargazerCount).toBe(300)
     })
 
     it('should respect point limits when batching', async () => {
@@ -261,13 +286,13 @@ describe('GraphQL Point-Aware Rate Limiting', () => {
 
       const results = await client.batchGraphQLQueriesWithPointLimit(queries, {
         maxPointsPerBatch: 50 // Very low limit to force batching
-      })
+      }) as BatchedIssuesResponse
 
       // Should make multiple requests or at least complete successfully
       expect(batchCount).toBeGreaterThanOrEqual(1)
       expect(Object.keys(results)).toHaveLength(10)
-      expect(results.repo0.issues.totalCount).toBe(0)
-      expect(results.repo9.issues.totalCount).toBe(90)
+      expect(results.repo0?.issues.totalCount).toBe(0)
+      expect(results.repo9?.issues.totalCount).toBe(90)
     })
   })
 
@@ -292,7 +317,16 @@ describe('GraphQL Point-Aware Rate Limiting', () => {
         auth: { type: 'token', token: 'test_token' }
       })
 
-      const result = await client.graphqlWithRateLimit(`
+      const result = await client.graphqlWithRateLimit<{
+        viewer: { login: string }
+        rateLimit: {
+          limit: number
+          cost: number
+          remaining: number
+          resetAt: string
+          nodeCount: number
+        }
+      }>(`
         query {
           viewer { login }
           rateLimit {
@@ -305,9 +339,11 @@ describe('GraphQL Point-Aware Rate Limiting', () => {
         }
       `)
 
-      expect(result.data.viewer.login).toBe('testuser')
-      expect(result.rateLimit.cost).toBe(1)
-      expect(result.rateLimit.remaining).toBe(4999)
+      // The GraphQL client extracts the data automatically
+      const data = result as any
+      expect(data.viewer.login).toBe('testuser')
+      expect(data.rateLimit.cost).toBe(1)
+      expect(data.rateLimit.remaining).toBe(4999)
     })
 
     it('should automatically add rateLimit to queries when needed', async () => {

@@ -4,6 +4,7 @@ import { graphql as octokitGraphql } from '@octokit/graphql'
 import { restEndpointMethods } from '@octokit/plugin-rest-endpoint-methods'
 import { retry } from '@octokit/plugin-retry'
 import { throttling } from '@octokit/plugin-throttling'
+import type { EndpointDefaults, OctokitResponse } from '@octokit/types'
 import githubAppJwt from 'universal-github-app-jwt'
 import { CacheManager, createCacheEntry } from '../caching'
 import type { RepositoryData, RepositoryKey } from '../dataloader'
@@ -29,6 +30,9 @@ import type {
   GitHubClientConfig,
   GitHubGraphQLClient,
   GitHubRestClient,
+  GraphQLPageInfo,
+  GraphQLRateLimitInfo,
+  RateLimitInfo,
   RetryOptions,
   ThrottleOptions,
   TokenInfo,
@@ -542,7 +546,7 @@ export class GitHubClient {
 
     // For non-paginated queries, use the existing split logic
     const batches = splitGraphQLQuery(query, {})
-    let combinedResult: any = {}
+    let combinedResult: unknown = {}
 
     for (const batch of batches) {
       const result = await this.graphql(batch)
@@ -552,16 +556,21 @@ export class GitHubClient {
     return combinedResult
   }
 
-  async batchGraphQLQueries(queries: Array<{ alias: string; query: string }>): Promise<any> {
+  async batchGraphQLQueries(queries: Array<{ alias: string; query: string }>): Promise<unknown> {
     const batchedQuery = buildBatchedQuery(queries)
 
     if (Array.isArray(batchedQuery)) {
       // Execute multiple queries in parallel
       const results = await Promise.all(batchedQuery.map(query => this.graphql(query)))
-      return results.map((result: any) => result.data || result)
+      return results.map(result => {
+        if (result && typeof result === 'object' && 'data' in result) {
+          return (result as { data: unknown }).data
+        }
+        return result
+      })
     } else {
       // Execute single batched query
-      const result: any = await this.graphql(batchedQuery)
+      const result = (await this.graphql(batchedQuery)) as Record<string, unknown>
       return result.data || result
     }
   }
@@ -569,7 +578,7 @@ export class GitHubClient {
   async batchGraphQLQueriesWithPointLimit(
     queries: Array<{ alias: string; query: string }>,
     options: { maxPointsPerBatch?: number } = {}
-  ): Promise<any> {
+  ): Promise<unknown> {
     const maxPoints = options.maxPointsPerBatch || 50000
 
     // Use the buildBatchedQuery function which handles complexity-based splitting
@@ -577,40 +586,55 @@ export class GitHubClient {
 
     if (typeof batchedResult === 'string') {
       // Single batch query
-      const result: any = await this.graphql(batchedResult)
+      const result = (await this.graphql(batchedResult)) as Record<string, unknown>
       return result.data || result
     } else {
       // Multiple batch queries
-      let combinedResult: any = {}
+      let combinedResult: Record<string, unknown> = {}
 
       for (const batchQuery of batchedResult) {
-        const result: any = await this.graphql(batchQuery)
+        const result = (await this.graphql(batchQuery)) as Record<string, unknown>
         const data = result.data || result
-        combinedResult = { ...combinedResult, ...data }
+        if (typeof data === 'object' && data !== null) {
+          combinedResult = { ...combinedResult, ...data }
+        }
       }
 
       return combinedResult
     }
   }
 
-  async graphqlWithRateLimit(query: string, variables?: any): Promise<any> {
+  async graphqlWithRateLimit<T = unknown>(
+    query: string,
+    variables?: Record<string, unknown>
+  ): Promise<T> {
     const queryWithRateLimit = this.config.includeRateLimit ? addRateLimitToQuery(query) : query
 
     const result = await this.retryManager.executeWithRetry(async () => {
       return this.graphql(queryWithRateLimit, variables)
     })
 
-    const typedResult = result as any
+    const typedResult = result as Record<string, unknown> & { rateLimit?: GraphQLRateLimitInfo }
     if (typedResult.rateLimit) {
       this.rateLimitManager.updateFromGraphQLResponse(typedResult.rateLimit)
     }
 
-    return { data: typedResult, rateLimit: typedResult.rateLimit }
+    return result as T
   }
 
-  private updateRateLimitsFromHeaders(headers: any): void {
+  private updateRateLimitsFromHeaders(headers: Record<string, string | undefined>): void {
     const resource = headers['x-ratelimit-resource'] || 'core'
-    this.rateLimitManager.updateFromHeaders(headers, resource)
+    // Filter out undefined values for rate limit manager
+    const cleanHeaders = Object.entries(headers).reduce<Record<string, string>>(
+      (acc, [key, value]) => {
+        if (value !== undefined) {
+          acc[key] = value
+        }
+        return acc
+      },
+      {}
+    )
+    this.rateLimitManager.updateFromHeaders(cleanHeaders, resource)
 
     // Check if we should emit a warning
     const percentageUsed = this.rateLimitManager.getPercentageUsed(resource)
@@ -624,17 +648,18 @@ export class GitHubClient {
     }
   }
 
-  private updateRateLimitsFromResponse(data: any): void {
-    if (data.resources) {
-      for (const [resource, info] of Object.entries(data.resources)) {
+  private updateRateLimitsFromResponse(data: unknown): void {
+    if (data && typeof data === 'object' && data !== null && 'resources' in data) {
+      const typedData = data as { resources: Record<string, unknown> }
+      for (const [resource, info] of Object.entries(typedData.resources)) {
         if (typeof info === 'object' && info !== null) {
-          const rateInfo = info as any
+          const rateInfo = info as RateLimitInfo
           this.rateLimitManager.updateFromHeaders(
             {
-              'x-ratelimit-limit': rateInfo.limit,
-              'x-ratelimit-remaining': rateInfo.remaining,
-              'x-ratelimit-reset': rateInfo.reset,
-              'x-ratelimit-used': rateInfo.used,
+              'x-ratelimit-limit': String(rateInfo.limit),
+              'x-ratelimit-remaining': String(rateInfo.remaining),
+              'x-ratelimit-reset': String(rateInfo.reset),
+              'x-ratelimit-used': String(rateInfo.used),
             },
             resource
           )
@@ -643,31 +668,48 @@ export class GitHubClient {
     }
   }
 
-  private extractEdges(data: any): any[] {
+  private extractEdges(data: unknown): unknown[] {
     // Recursive function to find edges in GraphQL response
     if (Array.isArray(data)) {
       return data.flatMap(item => this.extractEdges(item))
     }
 
     if (data && typeof data === 'object') {
-      if (data.edges && Array.isArray(data.edges)) {
-        return data.edges
+      const obj = data as Record<string, unknown>
+      if (obj.edges && Array.isArray(obj.edges)) {
+        return obj.edges
       }
 
-      return Object.values(data).flatMap(value => this.extractEdges(value))
+      return Object.values(obj).flatMap(value => this.extractEdges(value))
     }
 
     return []
   }
 
-  private extractPageInfo(data: any): any {
+  private extractPageInfo(data: unknown): GraphQLPageInfo | null {
     // Recursive function to find pageInfo in GraphQL response
-    if (data && typeof data === 'object') {
-      if (data.pageInfo) {
-        return data.pageInfo
+    if (data && typeof data === 'object' && data !== null) {
+      const obj = data as Record<string, unknown>
+      if ('pageInfo' in obj && obj.pageInfo && typeof obj.pageInfo === 'object') {
+        const pageInfo = obj.pageInfo as Record<string, unknown>
+        const result: GraphQLPageInfo = {
+          hasNextPage: typeof pageInfo.hasNextPage === 'boolean' ? pageInfo.hasNextPage : false,
+          hasPreviousPage:
+            typeof pageInfo.hasPreviousPage === 'boolean' ? pageInfo.hasPreviousPage : false,
+        }
+
+        if (typeof pageInfo.startCursor === 'string') {
+          result.startCursor = pageInfo.startCursor
+        }
+
+        if (typeof pageInfo.endCursor === 'string') {
+          result.endCursor = pageInfo.endCursor
+        }
+
+        return result
       }
 
-      for (const value of Object.values(data)) {
+      for (const value of Object.values(obj)) {
         const pageInfo = this.extractPageInfo(value)
         if (pageInfo) return pageInfo
       }
@@ -676,16 +718,23 @@ export class GitHubClient {
     return null
   }
 
-  private mergeResults(existing: any, newData: any): any {
+  private mergeResults(existing: unknown, newData: unknown): unknown {
     // Merge GraphQL results intelligently
     if (Array.isArray(existing) && Array.isArray(newData)) {
       return [...existing, ...newData]
     }
 
-    if (typeof existing === 'object' && typeof newData === 'object') {
-      const merged: any = { ...existing }
+    if (
+      typeof existing === 'object' &&
+      existing !== null &&
+      typeof newData === 'object' &&
+      newData !== null
+    ) {
+      const existingObj = existing as Record<string, unknown>
+      const newDataObj = newData as Record<string, unknown>
+      const merged: Record<string, unknown> = { ...existingObj }
 
-      for (const [key, value] of Object.entries(newData)) {
+      for (const [key, value] of Object.entries(newDataObj)) {
         if (key in merged) {
           merged[key] = this.mergeResults(merged[key], value)
         } else {
@@ -817,12 +866,19 @@ export class GitHubClient {
 
   private getCurrentAuthToken(): string | undefined {
     // Get the currently active auth token from Octokit
-    const auth = (this.octokit as any).auth
+    // Type assertion: Octokit's auth property is not exposed in the type definitions
+    // but is available at runtime for authentication purposes
+    const octokitWithAuth = this.octokit as GitHubRestClient & {
+      auth?: string | { token?: string } | null
+    }
+    const auth = octokitWithAuth.auth
+
     if (typeof auth === 'string') {
       return auth
     }
-    if (auth && typeof auth === 'object' && 'token' in auth) {
-      return auth.token
+    if (auth && auth !== null && typeof auth === 'object' && 'token' in auth) {
+      const authWithToken = auth as { token?: string }
+      return authWithToken.token
     }
     return this.getCurrentToken()
   }
@@ -842,8 +898,8 @@ export class GitHubClient {
 
         await testOctokit.request('GET /user')
         validTokens.push(token)
-      } catch (error: any) {
-        if (error.status === 401) {
+      } catch (error) {
+        if (error && typeof error === 'object' && 'status' in error && error.status === 401) {
           // Invalid token, remove it
           this.tokenRotationManager.removeToken(token.token)
         } else {
@@ -864,7 +920,7 @@ export class GitHubClient {
     if (!this.cache) return
 
     // Hook before request to check cache and add conditional headers
-    this.octokit.hook.before('request', async (options: any) => {
+    this.octokit.hook.before('request', async (options: Record<string, unknown>) => {
       // Only cache GET requests
       if (options.method !== 'GET') return
 
@@ -882,7 +938,7 @@ export class GitHubClient {
           if (existingETag) {
             // Add conditional request header if we have an ETag
             options.headers = {
-              ...options.headers,
+              ...(options.headers && typeof options.headers === 'object' ? options.headers : {}),
               'if-none-match': existingETag,
             }
           }
@@ -892,109 +948,177 @@ export class GitHubClient {
     })
 
     // Wrap the request to intercept cache hits
-    this.octokit.hook.wrap('request', async (request: any, options: any) => {
-      // Check if we have a valid cached response without ETag
-      if (options.method === 'GET') {
-        const cacheKey = this.generateCacheKeyFromRequest(options)
-        const cachedEntry = await this.cache?.get(cacheKey)
 
-        if (cachedEntry) {
-          const age = Date.now() - new Date(cachedEntry.createdAt).getTime()
-          const ttl = (cachedEntry.ttl || this.cache?.options.ttl || 300) * 1000
+    type RequestHook = (options: EndpointDefaults) => Promise<OctokitResponse<unknown>>
+    type WrapFunction = (
+      request: RequestHook,
+      options: EndpointDefaults
+    ) => Promise<OctokitResponse<unknown>>
 
-          if (age < ttl && !this.cache?.getETag(cacheKey)) {
-            // Check if we should refresh in background
-            const refreshThreshold = this.cache?.options.backgroundRefreshThreshold || 0.75
-            if (this.cache?.options.backgroundRefresh && age > ttl * refreshThreshold) {
-              // Trigger background refresh without blocking
-              process.nextTick(async () => {
-                try {
-                  // Remove if-none-match header for background refresh to get fresh data
-                  const refreshOptions = { ...options }
-                  if (refreshOptions.headers?.['if-none-match']) {
-                    delete refreshOptions.headers['if-none-match']
+    const wrapHook = this.octokit.hook.wrap as (name: 'request', hook: WrapFunction) => void
+
+    wrapHook(
+      'request',
+      async (
+        request: RequestHook,
+        options: EndpointDefaults
+      ): Promise<OctokitResponse<unknown>> => {
+        // Check if we have a valid cached response without ETag
+        if (options.method === 'GET') {
+          const cacheKey = this.generateCacheKeyFromRequest(options)
+          const cachedEntry = await this.cache?.get(cacheKey)
+
+          if (cachedEntry) {
+            const age = Date.now() - new Date(cachedEntry.createdAt).getTime()
+            const ttl = (cachedEntry.ttl || this.cache?.options.ttl || 300) * 1000
+
+            if (age < ttl && !this.cache?.getETag(cacheKey)) {
+              // Check if we should refresh in background
+              const refreshThreshold = this.cache?.options.backgroundRefreshThreshold || 0.75
+              if (this.cache?.options.backgroundRefresh && age > ttl * refreshThreshold) {
+                // Trigger background refresh without blocking
+                process.nextTick(async () => {
+                  try {
+                    // Remove if-none-match header for background refresh to get fresh data
+                    const refreshOptions: EndpointDefaults = {
+                      ...options,
+                      headers: {
+                        ...options.headers,
+                      },
+                    }
+                    if ('if-none-match' in refreshOptions.headers) {
+                      delete refreshOptions.headers['if-none-match']
+                    }
+                    await request(refreshOptions)
+                  } catch (_err) {
+                    // Ignore errors in background refresh
                   }
-                  await request(refreshOptions)
-                } catch (_err) {
-                  // Ignore errors in background refresh
-                }
-              })
+                })
+              }
+
+              // Update cache metrics
+              const metrics = this.cache?.getMetrics()
+              if (metrics) {
+                metrics.hits++
+              }
+
+              // Return cached response directly
+              return {
+                data: cachedEntry.data,
+                status: 200,
+                headers: {},
+                url: options.url || '',
+                retryCount: 0,
+              } as OctokitResponse<unknown>
             }
+          }
+        }
 
-            // Update cache metrics
-            const metrics = this.cache?.getMetrics()
-            metrics.hits++
+        // If we're making a real request, it's a cache miss
+        if (options.method === 'GET' && this.cache) {
+          const metrics = this.cache.getMetrics()
+          metrics.misses++
+        }
 
-            // Return cached response directly
+        // Proceed with the actual request
+        return request(options)
+      }
+    )
+
+    // Hook after successful request to cache responses
+    this.octokit.hook.after(
+      'request',
+      async (response: OctokitResponse<unknown>, options: EndpointDefaults) => {
+        // Only cache GET requests with successful responses
+        const status = typeof response.status === 'number' ? response.status : 200
+        if (options.method !== 'GET' || status < 200 || status >= 300) {
+          return
+        }
+
+        const cacheKey = this.generateCacheKeyFromRequest(options as Record<string, unknown>)
+        const headers =
+          response.headers && typeof response.headers === 'object'
+            ? (response.headers as Record<string, unknown>)
+            : {}
+        const etag = this.extractETagFromHeaders(headers)
+
+        if (response.data && this.cache) {
+          const cacheHeaders: Record<string, string> = {}
+          if (typeof headers['cache-control'] === 'string') {
+            cacheHeaders['cache-control'] = headers['cache-control']
+          }
+          if (typeof headers.etag === 'string') {
+            cacheHeaders.etag = headers.etag
+          }
+          if (typeof headers.expires === 'string') {
+            cacheHeaders.expires = headers.expires
+          }
+          if (typeof headers['last-modified'] === 'string') {
+            cacheHeaders['last-modified'] = headers['last-modified']
+          }
+          const ttl = this.cache.extractTTLFromHeaders(cacheHeaders)
+          const cacheEntry = createCacheEntry(
+            response.data as Record<string, unknown>,
+            etag,
+            cacheHeaders,
+            ttl
+          )
+
+          await this.cache.set(cacheKey, cacheEntry)
+
+          if (etag) {
+            this.cache.setETag(cacheKey, etag)
+          }
+        }
+      }
+    )
+
+    // Hook error to handle 304 Not Modified responses
+
+    type ErrorHook = (error: Error, options: EndpointDefaults) => Promise<OctokitResponse<unknown>>
+
+    const errorHook = this.octokit.hook.error as (name: 'request', hook: ErrorHook) => void
+
+    errorHook(
+      'request',
+      async (error: Error, options: EndpointDefaults): Promise<OctokitResponse<unknown>> => {
+        const requestError = error as unknown as Record<string, unknown> & {
+          status?: number
+          response?: { headers?: Record<string, string> }
+        }
+        if (requestError.status === 304 && options.method === 'GET') {
+          const cacheKey = this.generateCacheKeyFromRequest(options)
+          const cachedEntry = await this.cache?.get(cacheKey)
+
+          if (cachedEntry) {
+            // Return cached data as if it was a successful response
             return {
               data: cachedEntry.data,
               status: 200,
-              headers: {},
+              headers: requestError.response?.headers || {},
               url: options.url || '',
-            }
+              retryCount: 0,
+            } as OctokitResponse<unknown>
           }
         }
+
+        throw error
       }
-
-      // If we're making a real request, it's a cache miss
-      if (options.method === 'GET' && this.cache) {
-        const metrics = this.cache.getMetrics()
-        metrics.misses++
-      }
-
-      // Proceed with the actual request
-      return request(options)
-    })
-
-    // Hook after successful request to cache responses
-    this.octokit.hook.after('request', async (response: any, options: any) => {
-      // Only cache GET requests with successful responses
-      if (options.method !== 'GET' || response.status < 200 || response.status >= 300) {
-        return
-      }
-
-      const cacheKey = this.generateCacheKeyFromRequest(options)
-      const etag = this.extractETagFromHeaders(response.headers)
-
-      if (response.data && this.cache) {
-        const ttl = this.cache.extractTTLFromHeaders(response.headers)
-        const cacheEntry = createCacheEntry(response.data, etag, response.headers, ttl)
-
-        await this.cache.set(cacheKey, cacheEntry)
-
-        if (etag) {
-          this.cache.setETag(cacheKey, etag)
-        }
-      }
-    })
-
-    // Hook error to handle 304 Not Modified responses
-    this.octokit.hook.error('request', async (error: any, options: any) => {
-      if (error.status === 304 && options.method === 'GET') {
-        const cacheKey = this.generateCacheKeyFromRequest(options)
-        const cachedEntry = await this.cache?.get(cacheKey)
-
-        if (cachedEntry) {
-          // Return cached data as if it was a successful response
-          return {
-            data: cachedEntry.data,
-            status: 200,
-            headers: error.response?.headers || {},
-            url: options.url || '',
-          }
-        }
-      }
-
-      throw error
-    })
+    )
 
     // Hook for cache invalidation on write operations
-    this.octokit.hook.before('request', async (options: any) => {
+    this.octokit.hook.before('request', async (options: Record<string, unknown>) => {
       const writeOperations = ['POST', 'PUT', 'PATCH', 'DELETE']
-      if (writeOperations.includes(options.method)) {
+      // Ensure options.method is a string before checking if it's in writeOperations
+      if (typeof options.method === 'string' && writeOperations.includes(options.method)) {
         // Resolve URL template to get actual values
-        let url = options.url || ''
-        const params = { ...options, ...options.data, ...options.params }
+        // Ensure options.url is a string
+        let url = typeof options.url === 'string' ? options.url : ''
+        // Ensure options.data and options.params are objects before spreading
+        const optionsData = options.data && typeof options.data === 'object' ? options.data : {}
+        const optionsParams =
+          options.params && typeof options.params === 'object' ? options.params : {}
+        const params = { ...options, ...optionsData, ...optionsParams }
 
         // Replace URL template placeholders with actual values
         url = url.replace(/\{([^}]+)\}/g, (match: string, key: string) => {
@@ -1006,11 +1130,15 @@ export class GitHubClient {
 
         // Extract repository path for targeted invalidation
         const repoMatch = url.match(/\/repos\/([^/]+\/[^/]+)/)
-        if (repoMatch) {
-          const [owner, repo] = repoMatch[1].split('/')
-          // Invalidate all cache entries related to this repository
-          const pattern = `*${owner}/${repo}*`
-          await this.cache?.invalidatePattern(pattern)
+        if (repoMatch?.[1]) {
+          const repoPath = repoMatch[1]
+          const pathParts = repoPath.split('/')
+          if (pathParts.length >= 2) {
+            const [owner, repo] = pathParts
+            // Invalidate all cache entries related to this repository
+            const pattern = `*${owner}/${repo}*`
+            await this.cache?.invalidatePattern(pattern)
+          }
         }
       }
     })
@@ -1018,26 +1146,32 @@ export class GitHubClient {
 
   private setupRateLimitingHooks(): void {
     // Hook after successful request to update rate limits
-    this.octokit.hook.after('request', async (response: any, _options: any) => {
-      // Update rate limits from response headers
-      if (response.headers) {
-        this.updateRateLimitsFromHeaders(response.headers)
+    this.octokit.hook.after(
+      'request',
+      async (response: OctokitResponse<unknown>, _options: EndpointDefaults) => {
+        // Update rate limits from response headers
+        if (response.headers && typeof response.headers === 'object') {
+          this.updateRateLimitsFromHeaders(response.headers as Record<string, string | undefined>)
+        }
       }
-    })
+    )
   }
 
-  private generateCacheKeyFromRequest(options: any): string {
+  private generateCacheKeyFromRequest(options: Record<string, unknown>): string {
     if (!this.cache) {
       throw new GitHubClientError('Cache not configured')
     }
 
     const method = options.method || 'GET'
-    let url = options.url || ''
+    let url = typeof options.url === 'string' ? options.url : ''
     const authContext = this.getCurrentToken()?.substring(0, 8) // First 8 chars of token for uniqueness
 
     // Resolve URL templates using parameters from the request
     // Octokit stores parameters in various places, we need to check all
-    const params = { ...options, ...options.data, ...options.params }
+    // Ensure options.data and options.params are objects before spreading
+    const optionsData = options.data && typeof options.data === 'object' ? options.data : {}
+    const optionsParams = options.params && typeof options.params === 'object' ? options.params : {}
+    const params = { ...options, ...optionsData, ...optionsParams }
 
     // Replace URL template placeholders with actual values
     url = url.replace(/\{([^}]+)\}/g, (match: string, key: string) => {
@@ -1049,7 +1183,7 @@ export class GitHubClient {
 
     // Parse URL to include query parameters in cache key
     try {
-      const urlObj = new URL(url, 'https://api.github.com')
+      const urlObj = new URL(url || '/', 'https://api.github.com')
       const cleanUrl = urlObj.pathname + urlObj.search
 
       // Extract relevant parameters for cache key (exclude Octokit internals)
@@ -1065,14 +1199,17 @@ export class GitHubClient {
         'data',
         'params',
       ]
-      const cacheParams = Object.keys(params).reduce((acc: any, key: string) => {
-        if (!excludeKeys.includes(key) && params[key] !== undefined && params[key] !== null) {
-          acc[key] = params[key]
-        }
-        return acc
-      }, {})
+      const cacheParams = Object.keys(params).reduce(
+        (acc: Record<string, unknown>, key: string) => {
+          if (!excludeKeys.includes(key) && params[key] !== undefined && params[key] !== null) {
+            acc[key] = params[key]
+          }
+          return acc
+        },
+        {}
+      )
 
-      return this.cache.generateCacheKey(method, cleanUrl, cacheParams, authContext)
+      return this.cache.generateCacheKey(String(method), cleanUrl, cacheParams, authContext)
     } catch (_e) {
       // Fallback for malformed URLs
       const excludeKeys = [
@@ -1087,23 +1224,27 @@ export class GitHubClient {
         'data',
         'params',
       ]
-      const cacheParams = Object.keys(params).reduce((acc: any, key: string) => {
-        if (!excludeKeys.includes(key) && params[key] !== undefined && params[key] !== null) {
-          acc[key] = params[key]
-        }
-        return acc
-      }, {})
-      return this.cache.generateCacheKey(method, url, cacheParams, authContext)
+      const cacheParams = Object.keys(params).reduce(
+        (acc: Record<string, unknown>, key: string) => {
+          if (!excludeKeys.includes(key) && params[key] !== undefined && params[key] !== null) {
+            acc[key] = params[key]
+          }
+          return acc
+        },
+        {}
+      )
+      return this.cache.generateCacheKey(String(method), url, cacheParams, authContext)
     }
   }
 
-  private extractETagFromHeaders(headers: any): string | undefined {
+  private extractETagFromHeaders(headers: Record<string, unknown>): string | undefined {
     // Handle different header formats (case-insensitive)
-    return headers?.etag || headers?.ETag || headers?.etag || headers?.ETag
+    const etag = headers?.etag || headers?.ETag
+    return typeof etag === 'string' ? etag : undefined
   }
 
   // Cache-related methods
-  generateCacheKey(method: string, url: string, params: any): string {
+  generateCacheKey(method: string, url: string, params: Record<string, unknown>): string {
     if (!this.cache) {
       throw new GitHubClientError('Cache not configured')
     }
@@ -1119,7 +1260,7 @@ export class GitHubClient {
     return this.cache.getMetrics()
   }
 
-  async warmCache(endpoint: string, params: any[]): Promise<void> {
+  async warmCache(endpoint: string, params: Array<Record<string, unknown>>): Promise<void> {
     // Cache warming by pre-fetching data
     if (!this.cache) return
 
@@ -1128,7 +1269,8 @@ export class GitHubClient {
         // Parse endpoint to determine which API method to call
         const [resource, method] = endpoint.split('.')
         if (resource === 'repos' && method === 'get') {
-          await this.rest.repos.get(param)
+          // Type assertion for repository parameters
+          await this.rest.repos.get(param as { owner: string; repo: string })
         }
         // Add more endpoints as needed
       } catch (_error) {

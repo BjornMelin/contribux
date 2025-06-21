@@ -69,7 +69,9 @@ describe('GitHub Rate Limiting', () => {
           expect(rateLimitInfo.core.limit).toBe(5000)
           expect(rateLimitInfo.core.remaining).toBe(4999)
           expect(rateLimitInfo.core.used).toBe(1)
-          expect(rateLimitInfo.core.reset.getTime()).toBeGreaterThan(Date.now())
+          // reset is returned as ISO string from getState()
+          const resetTime = new Date(rateLimitInfo.core.reset as unknown as string).getTime()
+          expect(resetTime).toBeGreaterThan(Date.now())
         }
       }
     })
@@ -447,10 +449,15 @@ describe('GitHub Rate Limiting', () => {
           'x-ratelimit-limit': '5000',
           'x-ratelimit-remaining': '100',
           'x-ratelimit-reset': (Math.floor(Date.now() / 1000) + 3600).toString(),
-          'x-ratelimit-resource': 'core'
+          'x-ratelimit-resource': 'core',
+          'x-ratelimit-used': '4900'
         })
 
       await client.rest.users.getAuthenticated()
+      
+      // Allow time for the after hook to process
+      await new Promise(resolve => setTimeout(resolve, 10))
+      
       expect(onRateLimitWarning).toHaveBeenCalledWith({
         resource: 'core',
         limit: 5000,

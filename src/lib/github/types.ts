@@ -202,3 +202,55 @@ export interface BatchResponse<T = unknown> {
     path?: string[]
   }>
 }
+
+export interface GraphQLResponse<T = unknown> {
+  data?: T
+  errors?: Array<{
+    message: string
+    path?: Array<string | number>
+    extensions?: Record<string, unknown>
+  }>
+  rateLimit?: GraphQLRateLimitInfo
+}
+
+export interface OctokitHeaders {
+  'x-ratelimit-limit'?: string
+  'x-ratelimit-remaining'?: string
+  'x-ratelimit-reset'?: string
+  'x-ratelimit-used'?: string
+  'x-ratelimit-resource'?: string
+  'retry-after'?: string
+  'if-none-match'?: string
+  etag?: string
+  'cache-control'?: string
+  [key: string]: string | undefined
+}
+
+export interface OctokitRequestOptions {
+  method?: string
+  url?: string
+  headers?: OctokitHeaders
+  mediaType?: {
+    format?: string
+    previews?: string[]
+  }
+  data?: unknown
+  [key: string]: unknown
+}
+
+export interface OctokitResponse<T = unknown> {
+  data: T
+  status: number
+  headers: OctokitHeaders
+  url: string
+}
+
+export interface RateLimitResponse {
+  resources: {
+    core: RateLimitInfo
+    search: RateLimitInfo
+    graphql: RateLimitInfo
+    [key: string]: RateLimitInfo
+  }
+  rate: RateLimitInfo
+}
