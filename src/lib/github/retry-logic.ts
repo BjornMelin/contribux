@@ -1,6 +1,13 @@
 import { CIRCUIT_BREAKER_DEFAULTS, HTTP_STATUS, RETRY_DEFAULTS, TIME } from './constants'
 import { ErrorMessages } from './errors'
-import type { CircuitBreakerOptions, GitHubError, RetryOptions, RetryState } from './types'
+import type { GitHubError } from './interfaces/client'
+import type { CircuitBreakerOptions, RetryOptions } from './interfaces/retry'
+
+export interface RetryState {
+  retryCount: number
+  error: GitHubError
+  lastAttempt: Date
+}
 
 export class RetryManager {
   private circuitBreaker: CircuitBreaker | null = null

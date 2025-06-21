@@ -38,22 +38,13 @@ import type { GitHubClientConfig } from '@/lib/github/interfaces/client'
 import type { RateLimitInfo } from '@/lib/github/interfaces/rate-limiting'
 ```
 
-### Backward Compatibility
-
-The main `types.ts` file still re-exports all interfaces for backward compatibility:
-
-```typescript
-// This still works but is deprecated
-import type { GitHubClientConfig } from '@/lib/github/types'
-```
 
 ## Design Principles
 
 1. **Separation of Concerns** - Each file focuses on a specific aspect of the GitHub API
 2. **Minimal Dependencies** - Interface files have minimal cross-dependencies to avoid circular imports
 3. **Clear Documentation** - Each interface is well-documented with JSDoc comments
-4. **Backward Compatibility** - Existing imports continue to work through re-exports
-5. **Tree Shaking** - Consumers can import only the interfaces they need
+4. **Tree Shaking** - Consumers can import only the interfaces they need
 
 ## Migration Guide
 
@@ -71,5 +62,4 @@ When adding new interfaces:
 1. **Choose the appropriate module** based on functionality
 2. **Add comprehensive JSDoc documentation**
 3. **Export from the main `index.ts`** for discoverability
-4. **Update backward compatibility exports** in `types.ts` if needed
-5. **Add tests** to verify the interfaces work correctly
+4. **Add tests** to verify the interfaces work correctly

@@ -18,7 +18,7 @@ import { ErrorMessages } from './errors'
  */
 
 import type { CacheManager } from './caching'
-import type { GitHubGraphQLClient } from './types'
+import type { GitHubGraphQLClient } from './interfaces/client'
 
 // Core interfaces for repository data loading
 export interface RepositoryKey {

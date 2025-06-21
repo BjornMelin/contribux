@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import nock from 'nock'
 import { GitHubClient } from '@/lib/github'
-import type { GitHubClientConfig, TokenInfo } from '@/lib/github/types'
+import type { GitHubClientConfig, TokenInfo } from '@/lib/github/interfaces'
 
 // Note: GitHub App authentication is handled internally by Octokit.
 // These tests verify configuration and basic setup rather than internal JWT generation.

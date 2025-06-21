@@ -10,17 +10,6 @@ import type {
 } from '../interfaces/cache'
 import { validateCacheEntry, validateCacheOptions } from '../schemas'
 
-// Re-export interfaces for backward compatibility
-export type {
-  CacheableData,
-  CacheEntry,
-  CacheHeaders,
-  CacheMetrics,
-  CacheOptions,
-  CacheStorage,
-  RedisLike,
-} from '../interfaces/cache'
-
 export class MemoryCache implements CacheStorage {
   private cache = new Map<string, { value: string; expiresAt: number; accessedAt: number }>()
   private metrics: CacheMetrics = { hits: 0, misses: 0, size: 0, memoryUsage: 0, hitRatio: 0 }

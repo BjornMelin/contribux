@@ -1,5 +1,5 @@
 import { TIME } from './constants'
-import type { GraphQLRateLimitInfo, RateLimitInfo } from './types'
+import type { GraphQLRateLimitInfo, RateLimitInfo } from './interfaces/rate-limiting'
 
 export interface RateLimitState {
   core?: RateLimitInfo

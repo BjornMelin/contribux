@@ -1,5 +1,5 @@
 import { ErrorMessages, GitHubWebhookError, GitHubWebhookPayloadError } from '../errors'
-import type { WebhookEvent, WebhookHeaders } from './types'
+import type { WebhookEvent, WebhookHeaders } from '../interfaces/webhooks'
 
 /**
  * Parse GitHub webhook payload and headers into a structured event object

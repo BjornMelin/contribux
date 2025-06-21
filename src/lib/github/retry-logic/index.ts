@@ -474,21 +474,6 @@ export function calculateRetryDelay(
 }
 
 /**
- * Helper function to determine if an error should be retried
- * @deprecated Use RetryManager.shouldRetry instead
- */
-export function shouldRetryError(
-  error: GitHubError,
-  retryCount: number,
-  options: RetryOptions
-): boolean {
-  const manager = new RetryManager(options)
-  return (
-    manager as unknown as { shouldRetry: (error: GitHubError, retryCount: number) => boolean }
-  ).shouldRetry(error, retryCount)
-}
-
-/**
  * Create default retry options following 2025 best practices
  */
 export function createDefaultRetryOptions(): RetryOptions {

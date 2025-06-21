@@ -5,10 +5,15 @@ import {
   GitHubWebhookPayloadError,
   GitHubWebhookSignatureError,
 } from '../errors'
+import type {
+  WebhookConfiguration,
+  WebhookEvent,
+  WebhookHandlers,
+  WebhookHeaders,
+} from '../interfaces/webhooks'
 import { validateWebhookEvent } from '../schemas'
 import { parseWebhookEvent } from './event-parser'
 import { validateWebhookSignature, validateWebhookSignatureStrict } from './signature-validator'
-import type { WebhookConfiguration, WebhookEvent, WebhookHandlers, WebhookHeaders } from './types'
 
 /**
  * Configuration options for webhook handler
