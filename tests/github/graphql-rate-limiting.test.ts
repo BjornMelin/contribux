@@ -178,10 +178,10 @@ describe('GraphQL Point-Aware Rate Limiting', () => {
 
       const results = await client.executeLargeGraphQLQuery(query, {
         maxPointsPerRequest: 50
-      })
+      }) as any
 
       expect(batchCount).toBe(3)
-      expect(results.repository.issues.edges).toHaveLength(102)
+      expect(results.repository?.issues?.edges).toHaveLength(102)
     })
   })
 

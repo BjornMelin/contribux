@@ -187,7 +187,9 @@ describe('DataLoader', () => {
 
   describe('GitHub Repository DataLoader', () => {
     it('should create a repository dataloader with correct configuration', () => {
-      const mockGraphQL = vi.fn()
+      const mockGraphQL = vi.fn() as any
+      mockGraphQL.defaults = vi.fn()
+      mockGraphQL.endpoint = vi.fn()
       const loader = createRepositoryDataLoader(mockGraphQL)
 
       expect(loader).toBeInstanceOf(DataLoader)
@@ -224,7 +226,9 @@ describe('DataLoader', () => {
         }
       }
 
-      const mockGraphQL = vi.fn().mockResolvedValue(mockResponse)
+      const mockGraphQL = vi.fn().mockResolvedValue(mockResponse) as any
+      mockGraphQL.defaults = vi.fn()
+      mockGraphQL.endpoint = vi.fn()
       const loader = createRepositoryDataLoader(mockGraphQL)
 
       const keys: RepositoryKey[] = [
@@ -258,7 +262,9 @@ describe('DataLoader', () => {
         ]
       }
 
-      const mockGraphQL = vi.fn().mockResolvedValue(mockResponse)
+      const mockGraphQL = vi.fn().mockResolvedValue(mockResponse) as any
+      mockGraphQL.defaults = vi.fn()
+      mockGraphQL.endpoint = vi.fn()
       const loader = createRepositoryDataLoader(mockGraphQL)
 
       const keys: RepositoryKey[] = [
@@ -268,11 +274,11 @@ describe('DataLoader', () => {
 
       const results = await Promise.allSettled(keys.map(key => loader.load(key)))
 
-      expect(results[0].status).toBe('rejected')
-      expect(results[1].status).toBe('fulfilled')
+      expect(results[0]?.status).toBe('rejected')
+      expect(results[1]?.status).toBe('fulfilled')
       
-      if (results[0].status === 'rejected') {
-        expect(results[0].reason.message).toContain('test-repo-1')
+      if (results[0]?.status === 'rejected') {
+        expect(results[0].reason?.message).toContain('test-repo-1')
       }
     })
 
@@ -287,7 +293,9 @@ describe('DataLoader', () => {
         }
       }
 
-      const mockGraphQL = vi.fn().mockResolvedValue(mockResponse)
+      const mockGraphQL = vi.fn().mockResolvedValue(mockResponse) as any
+      mockGraphQL.defaults = vi.fn()
+      mockGraphQL.endpoint = vi.fn()
       const mockCacheManager: CacheManager = {
         generateCacheKey: vi.fn().mockReturnValue('cache-key'),
         set: vi.fn().mockResolvedValue(undefined)
@@ -322,7 +330,9 @@ describe('DataLoader', () => {
         }
       }
 
-      const mockGraphQL = vi.fn().mockResolvedValue(mockResponse)
+      const mockGraphQL = vi.fn().mockResolvedValue(mockResponse) as any
+      mockGraphQL.defaults = vi.fn()
+      mockGraphQL.endpoint = vi.fn()
       const loader = createRepositoryDataLoader(mockGraphQL)
 
       // Use a repository name with special characters
@@ -334,7 +344,9 @@ describe('DataLoader', () => {
     })
 
     it('should handle batch failures gracefully', async () => {
-      const mockGraphQL = vi.fn().mockRejectedValue(new Error('Network error'))
+      const mockGraphQL = vi.fn().mockRejectedValue(new Error('Network error')) as any
+      mockGraphQL.defaults = vi.fn()
+      mockGraphQL.endpoint = vi.fn()
       const loader = createRepositoryDataLoader(mockGraphQL)
 
       const keys: RepositoryKey[] = [
@@ -348,7 +360,7 @@ describe('DataLoader', () => {
       
       results.forEach(result => {
         if (result.status === 'rejected') {
-          expect(result.reason.message).toContain('Network error')
+          expect(result.reason?.message).toContain('Network error')
         }
       })
     })

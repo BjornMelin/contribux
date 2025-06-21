@@ -213,13 +213,16 @@ describe('GraphQL Query Optimization', () => {
       
       // Should return array of batched queries when limit exceeded
       expect(Array.isArray(batchedQueries)).toBe(true)
-      expect(batchedQueries.length).toBeGreaterThan(1)
       
-      // Each batch should be under the limit
-      batchedQueries.forEach(batch => {
-        const complexity = estimateQueryComplexity(batch)
-        expect(complexity.totalPoints).toBeLessThanOrEqual(500000)
-      })
+      if (Array.isArray(batchedQueries)) {
+        expect(batchedQueries.length).toBeGreaterThan(1)
+        
+        // Each batch should be under the limit
+        batchedQueries.forEach((batch: string) => {
+          const complexity = estimateQueryComplexity(batch)
+          expect(complexity.totalPoints).toBeLessThanOrEqual(500000)
+        })
+      }
     })
   })
 
