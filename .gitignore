@@ -43,6 +43,7 @@ public/precache.*.js
 .env.development.local
 .env.test.local
 .env.production.local
+.env.test
 
 # API keys and secrets
 .env.secrets
