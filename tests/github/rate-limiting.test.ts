@@ -2,7 +2,27 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import nock from 'nock'
 import { GitHubClient } from '@/lib/github'
 import { GitHubRateLimitError } from '@/lib/github'
-import type { GitHubClientConfig } from '@/lib/github'
+import type { GitHubClientConfig, RateLimitInfo, GraphQLRateLimitInfo } from '@/lib/github'
+import type { RateLimitState } from '@/lib/github/rate-limiting'
+
+// Type guard functions
+function isRateLimitInfo(obj: unknown): obj is RateLimitInfo {
+  return typeof obj === 'object' && obj !== null && 
+    'limit' in obj && 'remaining' in obj && 'reset' in obj && 'used' in obj
+}
+
+function isRateLimitState(obj: unknown): obj is RateLimitState {
+  return typeof obj === 'object' && obj !== null && 'core' in obj
+}
+
+function isGraphQLResponse(obj: unknown): obj is { viewer: { login: string }; rateLimit: GraphQLRateLimitInfo } {
+  return typeof obj === 'object' && obj !== null && 
+    'viewer' in obj && 'rateLimit' in obj
+}
+
+function isRateLimitStatus(obj: unknown): obj is { resources: { core: RateLimitInfo; search: RateLimitInfo; graphql: RateLimitInfo } } {
+  return typeof obj === 'object' && obj !== null && 'resources' in obj
+}
 
 describe('GitHub Rate Limiting', () => {
   beforeEach(() => {
@@ -30,7 +50,7 @@ describe('GitHub Rate Limiting', () => {
 
       const client = new GitHubClient({
         auth: { type: 'token', token: 'test_token' },
-        cache: undefined // Ensure no cache is used
+        cache: { enabled: false } // Ensure no cache is used
       })
 
       await client.rest.users.getAuthenticated()
@@ -40,11 +60,18 @@ describe('GitHub Rate Limiting', () => {
       
       // The rate limit manager updates from response headers
       const rateLimitInfo = client.getRateLimitInfo()
-
-      expect(rateLimitInfo.core.limit).toBe(5000)
-      expect(rateLimitInfo.core.remaining).toBe(4999)
-      expect(rateLimitInfo.core.used).toBe(1)
-      expect(new Date(rateLimitInfo.core.reset * 1000).getTime()).toBeGreaterThan(Date.now())
+      
+      // Type guard and assertions
+      expect(isRateLimitState(rateLimitInfo)).toBe(true)
+      if (isRateLimitState(rateLimitInfo)) {
+        expect(isRateLimitInfo(rateLimitInfo.core)).toBe(true)
+        if (isRateLimitInfo(rateLimitInfo.core)) {
+          expect(rateLimitInfo.core.limit).toBe(5000)
+          expect(rateLimitInfo.core.remaining).toBe(4999)
+          expect(rateLimitInfo.core.used).toBe(1)
+          expect(rateLimitInfo.core.reset.getTime()).toBeGreaterThan(Date.now())
+        }
+      }
     })
 
     it('should handle rate limit exceeded (403) errors', async () => {
@@ -220,11 +247,16 @@ describe('GitHub Rate Limiting', () => {
       `
 
       const result = await client.graphql(query)
-      expect(result.viewer.login).toBe('testuser')
-      expect(result.rateLimit.limit).toBe(5000)
-      expect(result.rateLimit.cost).toBe(1)
-      expect(result.rateLimit.remaining).toBe(4999)
-      expect(result.rateLimit.nodeCount).toBe(10)
+      
+      // Type guard and assertions
+      expect(isGraphQLResponse(result)).toBe(true)
+      if (isGraphQLResponse(result)) {
+        expect(result.viewer.login).toBe('testuser')
+        expect(result.rateLimit.limit).toBe(5000)
+        expect(result.rateLimit.cost).toBe(1)
+        expect(result.rateLimit.remaining).toBe(4999)
+        expect(result.rateLimit.nodeCount).toBe(10)
+      }
     })
 
     it('should calculate GraphQL query complexity', async () => {
@@ -387,9 +419,14 @@ describe('GitHub Rate Limiting', () => {
         })
 
       const status = await client.getRateLimitStatus()
-      expect(status.resources.core.limit).toBe(5000)
-      expect(status.resources.search.limit).toBe(30)
-      expect(status.resources.graphql.limit).toBe(5000)
+      
+      // Type guard and assertions
+      expect(isRateLimitStatus(status)).toBe(true)
+      if (isRateLimitStatus(status)) {
+        expect(status.resources.core.limit).toBe(5000)
+        expect(status.resources.search.limit).toBe(30)
+        expect(status.resources.graphql.limit).toBe(5000)
+      }
     })
 
     it('should emit rate limit warnings when approaching limits', async () => {
@@ -441,11 +478,21 @@ describe('GitHub Rate Limiting', () => {
       expect(uniqueDelays.size).toBeGreaterThan(1)
 
       // Check exponential backoff pattern (with consideration for max cap)
-      expect(delays[0]).toBeLessThan(delays[2])
-      expect(delays[2]).toBeLessThan(delays[4])
+      const delay0 = delays[0]
+      const delay2 = delays[2]
+      const delay4 = delays[4]
+      
+      expect(delay0).toBeDefined()
+      expect(delay2).toBeDefined()
+      expect(delay4).toBeDefined()
+      
+      if (delay0 !== undefined && delay2 !== undefined && delay4 !== undefined) {
+        expect(delay0).toBeLessThan(delay2)
+        expect(delay2).toBeLessThan(delay4)
+      }
       
       // Check max cap is applied
-      const maxDelay = Math.max(...delays)
+      const maxDelay = Math.max(...delays.filter((d): d is number => d !== undefined))
       expect(maxDelay).toBeLessThanOrEqual(30000)
     })
   })
