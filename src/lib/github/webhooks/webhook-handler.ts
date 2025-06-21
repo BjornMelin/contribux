@@ -1,7 +1,9 @@
+import { WEBHOOK_DEFAULTS } from '../constants'
 import { ErrorMessages } from '../errors'
+import { validateWebhookEvent } from '../schemas'
 import { parseWebhookEvent } from './event-parser'
 import { validateWebhookSignature, validateWebhookSignatureStrict } from './signature-validator'
-import type { WebhookConfiguration, WebhookHandlers, WebhookHeaders } from './types'
+import type { WebhookConfiguration, WebhookEvent, WebhookHandlers, WebhookHeaders } from './types'
 
 /**
  * Configuration options for webhook handler
@@ -84,13 +86,19 @@ export class WebhookHandler {
     }
 
     // Parse the event
-    const event = parseWebhookEvent(payload, headers)
+    const parsedEvent = parseWebhookEvent(payload, headers)
 
-    // Validate delivery ID format (should be a UUID)
-    if (
-      !event.deliveryId ||
-      !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(event.deliveryId)
-    ) {
+    // Validate event using Zod schema
+    let event: WebhookEvent
+    try {
+      event = validateWebhookEvent(parsedEvent)
+    } catch (_error) {
+      // If validation fails, use the parsed event directly
+      event = parsedEvent
+    }
+
+    // Additional validation for delivery ID format (should be a UUID)
+    if (!event.deliveryId || !WEBHOOK_DEFAULTS.DELIVERY_ID_REGEX.test(event.deliveryId)) {
       throw new Error(ErrorMessages.WEBHOOK_DELIVERY_ID_INVALID)
     }
 

@@ -1,6 +1,6 @@
+import { GRAPHQL_DEFAULTS } from '../constants'
 import { ErrorMessages } from '../errors'
-
-export const GRAPHQL_POINT_LIMIT = 500000
+import { validateQueryAnalysis } from '../schemas'
 
 export interface QueryAnalysis {
   points: number
@@ -76,13 +76,16 @@ export function analyzeGraphQLQuery(query: string): QueryAnalysis {
   }
 
   // Generate optimization suggestions
-  if (points > GRAPHQL_POINT_LIMIT) {
-    suggestions.push('Query exceeds maximum point limit of 500,000')
+  if (points > GRAPHQL_DEFAULTS.MAX_QUERY_COST) {
+    suggestions.push(
+      `Query exceeds maximum point limit of ${GRAPHQL_DEFAULTS.MAX_QUERY_COST.toLocaleString()}`
+    )
   }
 
   // Check for high connection sizes
+  const CONNECTION_SIZE_THRESHOLD = 50
   const highConnections = Array.from(query.matchAll(/first:\s*(\d+)/gi)).filter(
-    m => Number.parseInt(m[1] || '0', 10) > 50
+    m => Number.parseInt(m[1] || '0', 10) > CONNECTION_SIZE_THRESHOLD
   )
 
   highConnections.forEach(match => {
@@ -90,18 +93,25 @@ export function analyzeGraphQLQuery(query: string): QueryAnalysis {
   })
 
   connectionSizes.forEach(size => {
-    if (size > 50) {
-      suggestions.push(`Consider reducing connection size from ${size} to 50 or less`)
+    if (size > CONNECTION_SIZE_THRESHOLD) {
+      suggestions.push(
+        `Consider reducing connection size from ${size} to ${CONNECTION_SIZE_THRESHOLD} or less`
+      )
     }
   })
 
-  if (maxDepth > 4) {
+  const DEPTH_WARNING_THRESHOLD = 4
+  if (maxDepth > DEPTH_WARNING_THRESHOLD) {
     suggestions.push(
       `Query depth of ${maxDepth} is high. Consider flattening or using separate queries`
     )
   }
 
-  if (points > 10000 || connectionSizes.some(size => size > 50)) {
+  const PAGINATION_SUGGESTION_THRESHOLD = 10000
+  if (
+    points > PAGINATION_SUGGESTION_THRESHOLD ||
+    connectionSizes.some(size => size > CONNECTION_SIZE_THRESHOLD)
+  ) {
     suggestions.push('pagination')
   }
 
@@ -111,20 +121,25 @@ export function analyzeGraphQLQuery(query: string): QueryAnalysis {
     suggestions.push('Nested connections detected. Each level multiplies the point cost')
   }
 
-  return {
+  const analysis = {
     points,
     nodeCount: points, // Simplified: in reality, nodes != points
     depth: maxDepth,
     suggestions,
   }
+
+  // Validate the analysis using Zod schema
+  return validateQueryAnalysis(analysis)
 }
 
 // Removed in favor of query-optimizer.ts implementation
 
 export function validateGraphQLPointLimit(query: string): void {
   const points = calculateGraphQLPoints(query)
-  if (points > GRAPHQL_POINT_LIMIT) {
-    throw new Error(ErrorMessages.RATE_LIMIT_GRAPHQL_EXCEEDED(points, GRAPHQL_POINT_LIMIT))
+  if (points > GRAPHQL_DEFAULTS.MAX_QUERY_COST) {
+    throw new Error(
+      ErrorMessages.RATE_LIMIT_GRAPHQL_EXCEEDED(points, GRAPHQL_DEFAULTS.MAX_QUERY_COST)
+    )
   }
 }
 

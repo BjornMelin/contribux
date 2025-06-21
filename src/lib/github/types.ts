@@ -238,14 +238,14 @@ export interface WebhookValidationResult {
 export interface TokenInfo {
   token: string
   type: 'personal' | 'app' | 'installation'
-  expiresAt?: Date
-  scopes?: string[]
+  expiresAt?: Date | undefined
+  scopes?: string[] | undefined
 }
 
 export interface TokenRotationConfig {
   tokens: TokenInfo[]
   rotationStrategy: 'round-robin' | 'least-used' | 'random'
-  refreshBeforeExpiry?: number // minutes
+  refreshBeforeExpiry?: number | undefined // minutes
 }
 
 export interface GraphQLPageInfo {

@@ -443,7 +443,7 @@ export type WebhookPayload =
 
 export interface WebhookEvent {
   type: string
-  action?: string
+  action?: string | undefined
   deliveryId: string
   payload: WebhookPayload
 }

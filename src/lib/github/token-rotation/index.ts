@@ -1,4 +1,6 @@
+import { TIME, TOKEN_ROTATION_DEFAULTS } from '../constants'
 import { GitHubTokenExpiredError } from '../errors'
+import { validateTokenInfo, validateTokenRotationOptions } from '../schemas'
 import type { TokenInfo, TokenRotationConfig } from '../types'
 
 export interface TokenUsageStats {
@@ -38,14 +40,18 @@ export class TokenRotationManager {
   private refreshBeforeExpiry: number
   private tokenLock: Promise<void> = Promise.resolve()
   private quarantinedTokens: Map<string, number> = new Map() // token -> quarantine until timestamp
-  private readonly QUARANTINE_DURATION = 5 * 60 * 1000 // 5 minutes
+  private readonly QUARANTINE_DURATION = 5 * TIME.MINUTE // 5 minutes
   private readonly ERROR_RATE_THRESHOLD = 0.5 // 50% error rate triggers quarantine
   private readonly MIN_REQUESTS_FOR_QUARANTINE = 5 // Minimum requests before quarantine consideration
 
   constructor(config: TokenRotationConfig) {
-    this.tokens = [...config.tokens]
-    this.rotationStrategy = config.rotationStrategy
-    this.refreshBeforeExpiry = (config.refreshBeforeExpiry ?? 5) * 60 * 1000 // Convert to ms
+    // Validate config using Zod schema
+    const validatedConfig = validateTokenRotationOptions(config)
+    this.tokens = [...validatedConfig.tokens].map(token => validateTokenInfo(token))
+    this.rotationStrategy = validatedConfig.rotationStrategy
+    this.refreshBeforeExpiry =
+      (validatedConfig.refreshBeforeExpiry ??
+        TOKEN_ROTATION_DEFAULTS.TOKEN_EXPIRY_WARNING_MS / TIME.MINUTE) * TIME.MINUTE // Convert to ms
 
     // Initialize usage stats
     this.tokens.forEach(token => {
@@ -292,12 +298,15 @@ export class TokenRotationManager {
   }
 
   addToken(token: TokenInfo): void {
+    // Validate token using Zod schema
+    const validatedToken = validateTokenInfo(token)
+
     // Prevent duplicates
-    const existingIndex = this.tokens.findIndex(t => t.token === token.token)
+    const existingIndex = this.tokens.findIndex(t => t.token === validatedToken.token)
     if (existingIndex !== -1) {
-      this.tokens[existingIndex] = token
+      this.tokens[existingIndex] = validatedToken
     } else {
-      this.tokens.push(token)
+      this.tokens.push(validatedToken)
     }
 
     // Initialize usage stats
@@ -320,9 +329,12 @@ export class TokenRotationManager {
   }
 
   updateToken(oldToken: string, newToken: TokenInfo): void {
+    // Validate new token using Zod schema
+    const validatedNewToken = validateTokenInfo(newToken)
+
     const index = this.tokens.findIndex(t => t.token === oldToken)
     if (index !== -1) {
-      this.tokens[index] = newToken
+      this.tokens[index] = validatedNewToken
 
       // Transfer usage stats
       const oldStats = this.usageStats.get(oldToken)

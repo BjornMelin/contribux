@@ -1,3 +1,5 @@
+import { TIME } from './constants'
+import { validateGraphQLRateLimitInfo, validateRateLimitInfo } from './schemas'
 import type { GraphQLRateLimitInfo, RateLimitInfo } from './types'
 
 export interface RateLimitState {
@@ -17,17 +19,21 @@ export class RateLimitManager {
     const reset = Number.parseInt(headers['x-ratelimit-reset'] || '0', 10)
     const used = Number.parseInt(headers['x-ratelimit-used'] || '0', 10)
 
-    this.rateLimits.set(resource, {
+    const rateLimitInfo = {
       limit,
       remaining,
-      reset: new Date(reset * 1000),
+      reset: new Date(reset * TIME.SECOND),
       used,
-    })
+    }
+
+    // Validate rate limit info using Zod schema
+    const validatedInfo = validateRateLimitInfo(rateLimitInfo)
+    this.rateLimits.set(resource, validatedInfo)
   }
 
   updateFromGraphQLResponse(rateLimit: Partial<GraphQLRateLimitInfo & { resetAt?: string }>): void {
     if (rateLimit) {
-      this.graphqlRateLimit = {
+      const graphqlInfo = {
         limit: rateLimit.limit || 0,
         remaining: rateLimit.remaining || 0,
         reset: new Date(rateLimit.resetAt || rateLimit.reset || Date.now()),
@@ -35,6 +41,9 @@ export class RateLimitManager {
         cost: rateLimit.cost || 0,
         nodeCount: rateLimit.nodeCount || 0,
       }
+
+      // Validate GraphQL rate limit info using Zod schema
+      this.graphqlRateLimit = validateGraphQLRateLimitInfo(graphqlInfo)
     }
   }
 

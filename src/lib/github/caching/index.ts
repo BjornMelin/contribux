@@ -1,3 +1,5 @@
+import { CACHE_DEFAULTS, TIME } from '../constants'
+import { validateCacheEntry, validateCacheOptions } from '../schemas'
 import type { CacheEntry, CacheMetrics, CacheOptions } from '../types'
 
 export interface CacheStorage {
@@ -10,7 +12,7 @@ export interface CacheStorage {
 
 export interface RedisLike {
   get(key: string): Promise<string | null>
-  set(key: string, value: string, px?: number): Promise<string>
+  set(key: string, value: string, ttlMs: number): Promise<string>
   del(key: string): Promise<number>
   quit(): Promise<void>
 }
@@ -30,8 +32,8 @@ export class MemoryCache implements CacheStorage {
   private maxSize: number
   private cleanupInterval: NodeJS.Timeout | null = null
 
-  constructor(maxSize = 1000) {
-    this.maxSize = maxSize
+  constructor(maxSize?: number) {
+    this.maxSize = maxSize ?? CACHE_DEFAULTS.MAX_SIZE
     // Start periodic cleanup to prevent memory leaks
     this.startCleanupTimer()
   }
@@ -59,9 +61,10 @@ export class MemoryCache implements CacheStorage {
     return entry.value
   }
 
-  async set(key: string, value: string, ttl = 300000): Promise<void> {
+  async set(key: string, value: string, ttl?: number): Promise<void> {
     const now = Date.now()
-    const expiresAt = now + ttl
+    const actualTtl = ttl ?? CACHE_DEFAULTS.TTL_MS
+    const expiresAt = now + actualTtl
 
     // Check if we need to evict items due to size limit
     if (this.cache.size >= this.maxSize) {
@@ -139,12 +142,9 @@ export class MemoryCache implements CacheStorage {
 
   private startCleanupTimer(): void {
     // Run cleanup every 5 minutes to remove expired entries
-    this.cleanupInterval = setInterval(
-      () => {
-        this.cleanupExpired()
-      },
-      5 * 60 * 1000
-    )
+    this.cleanupInterval = setInterval(() => {
+      this.cleanupExpired()
+    }, 5 * TIME.MINUTE)
   }
 
   private cleanupExpired(): void {
@@ -179,9 +179,10 @@ export class RedisCache implements CacheStorage {
     }
   }
 
-  async set(key: string, value: string, ttl: number = 300000): Promise<void> {
+  async set(key: string, value: string, ttl?: number): Promise<void> {
     try {
-      await this.redis.set(key, value, ttl)
+      const actualTtl = ttl ?? CACHE_DEFAULTS.TTL_MS
+      await this.redis.set(key, value, actualTtl)
     } catch (error) {
       console.warn('Redis set failed:', error)
     }
@@ -205,7 +206,28 @@ export class CacheManager {
   private backgroundRefreshActive = new Set<string>()
 
   constructor(options: CacheOptions & { maxSize?: number }) {
-    this.options = { ttl: 300, maxSize: 1000, ...options }
+    // Validate options using Zod schema
+    const validatedOptions = validateCacheOptions(options)
+    // Ensure all properties are set correctly for exactOptionalPropertyTypes
+    this.options = {
+      enabled: validatedOptions.enabled ?? true,
+      storage: validatedOptions.storage ?? 'memory',
+      ttl: validatedOptions.ttl ?? CACHE_DEFAULTS.TTL_MS / TIME.SECOND,
+      maxSize: options.maxSize ?? CACHE_DEFAULTS.MAX_SIZE,
+      ...(validatedOptions.redis !== undefined && { redis: validatedOptions.redis }),
+      ...(validatedOptions.excludePatterns !== undefined && {
+        excludePatterns: validatedOptions.excludePatterns,
+      }),
+      ...(validatedOptions.includeHeaders !== undefined && {
+        includeHeaders: validatedOptions.includeHeaders,
+      }),
+      ...(validatedOptions.backgroundRefresh !== undefined && {
+        backgroundRefresh: validatedOptions.backgroundRefresh,
+      }),
+      ...(validatedOptions.refreshThreshold !== undefined && {
+        refreshThreshold: validatedOptions.refreshThreshold,
+      }),
+    }
     this.memoryCache = new MemoryCache(this.options.maxSize)
 
     if (options.storage === 'redis' && options.redis) {
@@ -227,7 +249,8 @@ export class CacheManager {
       const redisResult = await this.redisCache.get(key)
       if (redisResult) {
         // Store in memory cache for faster access
-        await this.memoryCache.set(key, redisResult, (this.options?.ttl || 300) * 1000)
+        const ttl = (this.options?.ttl || CACHE_DEFAULTS.TTL_MS / TIME.SECOND) * TIME.SECOND
+        await this.memoryCache.set(key, redisResult, ttl)
         this.metrics.hits++
         this.updateMetrics()
         return JSON.parse(redisResult)
@@ -240,8 +263,10 @@ export class CacheManager {
   }
 
   async set(key: string, entry: CacheEntry): Promise<void> {
-    const value = JSON.stringify(entry)
-    const ttl = (this.options.ttl || 300) * 1000
+    // Validate entry before caching
+    const validatedEntry = validateCacheEntry(entry)
+    const value = JSON.stringify(validatedEntry)
+    const ttl = (this.options.ttl || CACHE_DEFAULTS.TTL_MS / TIME.SECOND) * TIME.SECOND
 
     // Store in memory cache
     await this.memoryCache.set(key, value, ttl)
@@ -304,8 +329,8 @@ export class CacheManager {
     if (!this.options.backgroundRefresh) return false
 
     const age = Date.now() - new Date(entry.createdAt).getTime()
-    const ttl = (entry.ttl || this.options.ttl || 300) * 1000
-    const threshold = this.options.refreshThreshold || 0.8
+    const ttl = (entry.ttl || this.options.ttl || CACHE_DEFAULTS.TTL_MS / TIME.SECOND) * TIME.SECOND
+    const threshold = this.options.refreshThreshold || CACHE_DEFAULTS.BACKGROUND_REFRESH_THRESHOLD
 
     return age >= ttl * threshold
   }
@@ -330,7 +355,7 @@ export class CacheManager {
         return Number.parseInt(maxAgeMatch[1], 10)
       }
     }
-    return this.options.ttl || 300
+    return this.options.ttl || CACHE_DEFAULTS.TTL_MS / TIME.SECOND
   }
 
   getMetrics(): CacheMetrics {
@@ -375,7 +400,7 @@ export function createCacheEntry(
   const effectiveTtl =
     ttl || (headers ? extractTTLFromCacheControl(headers['cache-control']) : undefined)
   const expiresAt = effectiveTtl
-    ? new Date(Date.now() + effectiveTtl * 1000).toISOString()
+    ? new Date(Date.now() + effectiveTtl * TIME.SECOND).toISOString()
     : undefined
 
   return {

@@ -1,4 +1,4 @@
-import { GRAPHQL_POINT_LIMIT } from './point-calculator'
+import { GRAPHQL_DEFAULTS } from '../constants'
 
 export interface QueryComplexity {
   totalPoints: number
@@ -111,8 +111,8 @@ export function estimateQueryComplexity(query: string): QueryComplexity {
     totalPoints += connectionPoints
 
     // If this single connection exceeds the limit, we need to split
-    if (connectionPoints > GRAPHQL_POINT_LIMIT) {
-      totalPoints = GRAPHQL_POINT_LIMIT + 1 // Force split
+    if (connectionPoints > GRAPHQL_DEFAULTS.MAX_QUERY_COST) {
+      totalPoints = GRAPHQL_DEFAULTS.MAX_QUERY_COST + 1 // Force split
     }
   })
 
@@ -125,7 +125,7 @@ export function estimateQueryComplexity(query: string): QueryComplexity {
 }
 
 export function splitGraphQLQuery(query: string, options: SplitQueryOptions = {}): string[] {
-  const { maxPointsPerQuery = GRAPHQL_POINT_LIMIT } = options
+  const { maxPointsPerQuery = GRAPHQL_DEFAULTS.MAX_QUERY_COST } = options
 
   const complexity = estimateQueryComplexity(query)
 
@@ -240,7 +240,9 @@ ${basicFields.map(f => `    ${f}`).join('\n')}
       if (testComplexity.totalPoints <= maxPointsPerQuery) {
         // Calculate how many queries we need
         const originalMatch = query.match(/first:\s*(\d+)/i)
-        const originalSize = originalMatch ? Number.parseInt(originalMatch[1] || '100', 10) : 100
+        const originalSize = originalMatch
+          ? Number.parseInt(originalMatch[1] || '100', 10)
+          : GRAPHQL_DEFAULTS.MAX_BATCH_SIZE
         const numQueries = Math.ceil(originalSize / batchSize)
 
         // Create split queries - for test purposes, just create 2
@@ -435,7 +437,7 @@ function splitNestedConnections(field: string, maxPoints: number): string[] {
   const deepestConn = connections[connections.length - 1]
   if (!deepestConn) return [field]
 
-  const batchSize = Math.floor(Math.sqrt(maxPoints / 100)) // Rough estimate
+  const batchSize = Math.floor(Math.sqrt(maxPoints / GRAPHQL_DEFAULTS.MAX_BATCH_SIZE)) // Rough estimate
 
   const results: string[] = []
   const numBatches = Math.ceil(deepestConn.size / batchSize)
@@ -512,7 +514,7 @@ export function buildBatchedQuery(
   }>,
   options: BatchQueryOptions = {}
 ): string | string[] {
-  const { maxComplexity = GRAPHQL_POINT_LIMIT, includeRateLimit = true } = options
+  const { maxComplexity = GRAPHQL_DEFAULTS.MAX_QUERY_COST, includeRateLimit = true } = options
 
   // Normalize queries to have an id field
   const normalizedQueries = queries.map(q => {

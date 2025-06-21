@@ -1,3 +1,4 @@
+import { DATALOADER_DEFAULTS } from './constants'
 import { ErrorMessages } from './errors'
 
 /**
@@ -88,7 +89,7 @@ export class DataLoader<K, V> {
     this.shouldCache = options.cache !== false
     this.cacheKeyFn = options.cacheKeyFn ?? ((key: K) => JSON.stringify(key))
     this.cacheMap = options.cacheMap ?? new Map<string, Promise<V>>()
-    this.maxBatchSize = Math.max(1, options.maxBatchSize ?? Number.POSITIVE_INFINITY)
+    this.maxBatchSize = Math.max(1, options.maxBatchSize ?? DATALOADER_DEFAULTS.MAX_BATCH_SIZE)
     this.batchScheduleFn = options.batchScheduleFn ?? (callback => process.nextTick(callback))
   }
 
@@ -405,7 +406,7 @@ export function createRepositoryDataLoader(
   }
 
   return new DataLoader<RepositoryKey, RepositoryData>(batchLoadFn, {
-    cache: true,
+    cache: DATALOADER_DEFAULTS.CACHE_ENABLED,
     maxBatchSize: 50, // Conservative limit for GitHub GraphQL query complexity
     cacheKeyFn: (key: RepositoryKey) => `${key.owner}/${key.repo}`,
     batchScheduleFn: callback => process.nextTick(callback),

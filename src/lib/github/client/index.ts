@@ -29,6 +29,7 @@ import {
   RetryManager,
   validateRetryOptions,
 } from '../retry-logic'
+import { validateTokenInfo } from '../schemas'
 import { TokenRotationManager } from '../token-rotation/index'
 import type {
   CacheMetrics,
@@ -63,12 +64,13 @@ export class GitHubClient {
   private repositoryDataLoader?: DataLoader<RepositoryKey, RepositoryData>
 
   constructor(config: GitHubClientConfig = {}) {
+    // Validate config using Zod schema, or use the config directly
     this.config = config
     this.validateConfig()
     this.rateLimitManager = new RateLimitManager()
 
     // Initialize retry manager with validated options
-    const retryOptions = { ...createDefaultRetryOptions(), ...config.retry }
+    const retryOptions: RetryOptions = { ...createDefaultRetryOptions(), ...config.retry }
     validateRetryOptions(retryOptions)
     this.retryManager = new RetryManager(retryOptions)
 
@@ -832,7 +834,9 @@ export class GitHubClient {
     if (!this.tokenRotationManager) {
       throw new GitHubClientError(ErrorMessages.CONFIG_TOKEN_ROTATION_NOT_CONFIGURED)
     }
-    this.tokenRotationManager.addToken(token)
+    // Validate token using Zod schema
+    const validatedToken = validateTokenInfo(token)
+    this.tokenRotationManager.addToken(validatedToken)
   }
 
   removeToken(tokenString: string): void {
@@ -1069,6 +1073,7 @@ export class GitHubClient {
             ttl
           )
 
+          // Store cache entry directly - createCacheEntry ensures all required fields
           await this.cache.set(cacheKey, cacheEntry)
 
           if (etag) {
