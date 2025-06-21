@@ -158,7 +158,13 @@ describe('GitHub Client Retry Logic', () => {
       const operation = async () => {
         attempts++
         if (attempts === 1) {
-          const error = new GitHubRateLimitError('Rate Limited', 2) // 2 second retry-after
+          const error = new GitHubRateLimitError(
+            'Rate Limited', 
+            2, // retryAfter
+            5000, // limit
+            0, // remaining
+            new Date(Date.now() + 3600000) // reset
+          )
           throw error
         }
         return 'success'

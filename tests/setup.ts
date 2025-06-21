@@ -19,10 +19,11 @@ if (!global.crypto?.subtle) {
   });
 }
 
-// Set test environment - using a simple assignment
-if (!process.env.NODE_ENV) {
-  process.env.NODE_ENV = 'test';
-}
+// Set test environment - commented out due to TypeScript readonly property issue
+// The environment is already set by vitest config
+// if (!process.env.NODE_ENV) {
+//   process.env.NODE_ENV = 'test';
+// }
 
 // Create mock database client for tests that don't need real database
 const createMockSqlClient = () => {
