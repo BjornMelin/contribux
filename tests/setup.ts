@@ -19,12 +19,8 @@ if (!global.crypto?.subtle) {
   });
 }
 
-// Set test environment - use Object.defineProperty to work around readonly
-Object.defineProperty(process.env, 'NODE_ENV', {
-  value: 'test',
-  writable: true,
-  configurable: true
-});
+// Set test environment - set directly since Node.js allows it
+process.env.NODE_ENV = 'test';
 
 // Create mock database client for tests that don't need real database
 const createMockSqlClient = () => {
@@ -82,17 +78,19 @@ if (global.crypto) {
   }
 }
 
-// Mock fetch for API calls in tests
-global.fetch = vi.fn(() =>
-  Promise.resolve({
-    ok: true,
-    json: () => Promise.resolve({}),
-    text: () => Promise.resolve(''),
-    status: 200,
-    statusText: 'OK',
-    headers: new Headers(),
-  })
-) as any;
+// Mock fetch for API calls in tests - but only if not already mocked by test frameworks like nock
+if (!global.fetch) {
+  global.fetch = vi.fn(() =>
+    Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({}),
+      text: () => Promise.resolve(''),
+      status: 200,
+      statusText: 'OK',
+      headers: new Headers(),
+    })
+  ) as any;
+}
 
 // Mock WebAuthn SimpleWebAuthn server functions
 vi.mock('@simplewebauthn/server', () => ({

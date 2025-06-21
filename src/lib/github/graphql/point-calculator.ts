@@ -1,6 +1,5 @@
 import { GRAPHQL_DEFAULTS } from '../constants'
 import { ErrorMessages } from '../errors'
-import { validateQueryAnalysis } from '../schemas'
 
 export interface QueryAnalysis {
   points: number
@@ -121,15 +120,15 @@ export function analyzeGraphQLQuery(query: string): QueryAnalysis {
     suggestions.push('Nested connections detected. Each level multiplies the point cost')
   }
 
-  const analysis = {
+  const analysis: QueryAnalysis = {
     points: points || 0,
     nodeCount: points || 0, // Simplified: in reality, nodes != points
     depth: maxDepth || 0,
     suggestions: suggestions || [],
   }
 
-  // Validate the analysis using Zod schema
-  return validateQueryAnalysis(analysis)
+  // Return analysis directly since we constructed it safely
+  return analysis
 }
 
 // Removed in favor of query-optimizer.ts implementation

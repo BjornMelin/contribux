@@ -29,11 +29,11 @@ export function parseWebhookEvent(
     type: eventType,
     deliveryId,
     payload: parsedPayload,
-  }
-
-  // Some events have an action field
-  if (parsedPayload.action && typeof parsedPayload.action === 'string') {
-    event.action = parsedPayload.action
+    // Always include action field, even if undefined
+    action:
+      parsedPayload.action && typeof parsedPayload.action === 'string'
+        ? parsedPayload.action
+        : undefined,
   }
 
   return event

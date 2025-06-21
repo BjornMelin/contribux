@@ -91,9 +91,9 @@ export class WebhookHandler {
     // Validate event using Zod schema
     let event: WebhookEvent
     try {
-      event = validateWebhookEvent(parsedEvent)
+      event = validateWebhookEvent(parsedEvent) as WebhookEvent
     } catch (_error) {
-      // If validation fails, use the parsed event directly
+      // If validation fails, use the parsed event directly with type assertion
       event = parsedEvent as WebhookEvent
     }
 

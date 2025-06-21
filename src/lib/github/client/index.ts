@@ -29,7 +29,6 @@ import {
   RetryManager,
   validateRetryOptions,
 } from '../retry-logic'
-import { validateTokenInfo } from '../schemas'
 import { TokenRotationManager } from '../token-rotation/index'
 import type {
   CacheMetrics,
@@ -832,14 +831,8 @@ export class GitHubClient {
     if (!this.tokenRotationManager) {
       throw new GitHubClientError(ErrorMessages.CONFIG_TOKEN_ROTATION_NOT_CONFIGURED)
     }
-    // Validate token using Zod schema
-    try {
-      const validatedToken = validateTokenInfo(token)
-      this.tokenRotationManager.addToken(validatedToken)
-    } catch (_error) {
-      // If validation fails, add token directly
-      this.tokenRotationManager.addToken(token)
-    }
+    // Add token directly (validation should be done by caller)
+    this.tokenRotationManager.addToken(token)
   }
 
   removeToken(tokenString: string): void {
@@ -888,11 +881,15 @@ export class GitHubClient {
     if (typeof auth === 'string') {
       return auth
     }
-    if (auth !== null && auth !== undefined && typeof auth === 'object' && 'token' in auth) {
+    if (this.isAuthObjectWithToken(auth)) {
       const authWithToken = auth as { token?: string }
       return authWithToken.token
     }
     return this.getCurrentToken()
+  }
+
+  private isAuthObjectWithToken(auth: unknown): auth is { token?: string } {
+    return auth != null && typeof auth === 'object' && 'token' in auth
   }
 
   async validateTokens(): Promise<void> {

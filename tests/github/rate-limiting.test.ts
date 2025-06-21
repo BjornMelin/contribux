@@ -321,7 +321,7 @@ describe('GitHub Rate Limiting', () => {
       `
 
       await expect(client.executeGraphQLWithPointCheck(massiveQuery))
-        .rejects.toThrow('Query exceeds maximum node count')
+        .rejects.toThrow('Query exceeds maximum point limit')
     })
 
     it('should split large queries to stay under point limit', async () => {

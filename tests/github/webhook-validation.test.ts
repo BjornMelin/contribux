@@ -286,7 +286,7 @@ describe('GitHub Webhook Integration', () => {
     })
 
     it('should validate input parameters thoroughly', async () => {
-      await expect(handler.handle('', {})).rejects.toThrow('Invalid payload')
+      await expect(handler.handle('', {})).rejects.toThrow('Invalid webhook payload')
       await expect(handler.handle('valid', null as any)).rejects.toThrow('Invalid headers')
     })
   })

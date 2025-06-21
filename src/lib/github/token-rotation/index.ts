@@ -1,6 +1,6 @@
 import { TIME, TOKEN_ROTATION_DEFAULTS } from '../constants'
 import { GitHubTokenExpiredError } from '../errors'
-import { validateTokenInfo, validateTokenRotationOptions } from '../schemas'
+import { validateTokenRotationOptions } from '../schemas'
 import type { TokenInfo, TokenRotationConfig } from '../types'
 
 export interface TokenUsageStats {
@@ -47,14 +47,8 @@ export class TokenRotationManager {
   constructor(config: TokenRotationConfig) {
     // Validate config using Zod schema
     const validatedConfig = validateTokenRotationOptions(config)
-    this.tokens = [...validatedConfig.tokens].map(token => {
-      try {
-        return validateTokenInfo(token)
-      } catch {
-        // If validation fails, use token as-is
-        return token
-      }
-    })
+    // Use validated tokens directly since config was already validated
+    this.tokens = [...validatedConfig.tokens] as TokenInfo[]
     this.rotationStrategy = validatedConfig.rotationStrategy
     this.refreshBeforeExpiry =
       (validatedConfig.refreshBeforeExpiry ??
@@ -306,21 +300,12 @@ export class TokenRotationManager {
   }
 
   addToken(token: TokenInfo): void {
-    // Validate token using Zod schema
-    let validatedToken: TokenInfo
-    try {
-      validatedToken = validateTokenInfo(token)
-    } catch {
-      // If validation fails, use token as-is
-      validatedToken = token
-    }
-
     // Prevent duplicates
-    const existingIndex = this.tokens.findIndex(t => t.token === validatedToken.token)
+    const existingIndex = this.tokens.findIndex(t => t.token === token.token)
     if (existingIndex !== -1) {
-      this.tokens[existingIndex] = validatedToken
+      this.tokens[existingIndex] = token
     } else {
-      this.tokens.push(validatedToken)
+      this.tokens.push(token)
     }
 
     // Initialize usage stats
@@ -343,18 +328,9 @@ export class TokenRotationManager {
   }
 
   updateToken(oldToken: string, newToken: TokenInfo): void {
-    // Validate new token using Zod schema
-    let validatedNewToken: TokenInfo
-    try {
-      validatedNewToken = validateTokenInfo(newToken)
-    } catch {
-      // If validation fails, use token as-is
-      validatedNewToken = newToken
-    }
-
     const index = this.tokens.findIndex(t => t.token === oldToken)
     if (index !== -1) {
-      this.tokens[index] = validatedNewToken
+      this.tokens[index] = newToken
 
       // Transfer usage stats
       const oldStats = this.usageStats.get(oldToken)

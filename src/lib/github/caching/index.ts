@@ -201,7 +201,6 @@ export class CacheManager {
   private memoryCache: MemoryCache
   private redisCache?: RedisCache
   public options: CacheOptions & { maxSize?: number }
-  private metrics: CacheMetrics = { hits: 0, misses: 0, size: 0, memoryUsage: 0, hitRatio: 0 }
   private etagCache = new Map<string, string>()
   private backgroundRefreshActive = new Set<string>()
 
@@ -239,8 +238,6 @@ export class CacheManager {
     // Try memory cache first
     const memoryResult = await this.memoryCache.get(key)
     if (memoryResult) {
-      this.metrics.hits++
-      this.updateMetrics()
       return JSON.parse(memoryResult)
     }
 
@@ -251,14 +248,10 @@ export class CacheManager {
         // Store in memory cache for faster access
         const ttl = (this.options?.ttl || CACHE_DEFAULTS.TTL_MS / TIME.SECOND) * TIME.SECOND
         await this.memoryCache.set(key, redisResult, ttl)
-        this.metrics.hits++
-        this.updateMetrics()
         return JSON.parse(redisResult)
       }
     }
 
-    this.metrics.misses++
-    this.updateMetrics()
     return null
   }
 
@@ -275,8 +268,6 @@ export class CacheManager {
     if (this.redisCache) {
       await this.redisCache.set(key, value, ttl)
     }
-
-    this.updateMetrics()
   }
 
   async del(key: string): Promise<void> {
@@ -284,13 +275,11 @@ export class CacheManager {
     if (this.redisCache) {
       await this.redisCache.del(key)
     }
-    this.updateMetrics()
   }
 
   async clear(): Promise<void> {
     await this.memoryCache.clear()
     this.etagCache.clear()
-    this.updateMetrics()
   }
 
   destroy(): void {
@@ -359,24 +348,7 @@ export class CacheManager {
   }
 
   getMetrics(): CacheMetrics {
-    const memoryMetrics = this.memoryCache.getMetrics()
-    return {
-      hits: this.metrics.hits + memoryMetrics.hits,
-      misses: this.metrics.misses + memoryMetrics.misses,
-      size: memoryMetrics.size,
-      memoryUsage: memoryMetrics.memoryUsage,
-      hitRatio:
-        this.metrics.hits + this.metrics.misses > 0
-          ? this.metrics.hits / (this.metrics.hits + this.metrics.misses)
-          : 0,
-    }
-  }
-
-  private updateMetrics(): void {
-    this.metrics.hitRatio =
-      this.metrics.hits + this.metrics.misses > 0
-        ? this.metrics.hits / (this.metrics.hits + this.metrics.misses)
-        : 0
+    return this.memoryCache.getMetrics()
   }
 
   private hashString(str: string): string {

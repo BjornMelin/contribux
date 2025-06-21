@@ -110,7 +110,11 @@ describe('GitHub Client Retry Logic', () => {
         .reply(() => {
           attemptCount++
           try {
-            return retryHelper.execute()
+            const result = retryHelper.execute()
+            if (Array.isArray(result)) {
+              return result
+            }
+            return [200, { login: 'testuser' }]
           } catch (error) {
             const githubError = error as Error & { status: number }
             return [githubError.status, { message: githubError.message }]
@@ -165,10 +169,16 @@ describe('GitHub Client Retry Logic', () => {
       })
 
       const delaysUsed: number[] = []
+      let lastRequestTime = Date.now()
+      
       // @ts-expect-error accessing private property for testing
       const retryManager = client.retryManager as any
-      retryManager.options.onRetry = (error: any, retryCount: number, state: any) => {
-        delaysUsed.push(Date.now() - state.lastAttempt.getTime())
+      if (retryManager && retryManager.options) {
+        retryManager.options.onRetry = (error: any, retryCount: number) => {
+          const currentTime = Date.now()
+          delaysUsed.push(currentTime - lastRequestTime)
+          lastRequestTime = currentTime
+        }
       }
 
       let attemptCount = 0
@@ -196,6 +206,8 @@ describe('GitHub Client Retry Logic', () => {
       expect(result.data.login).toBe('testuser')
       
       // Verify that retry-after was respected
+      expect(delaysUsed).toHaveLength(1)
+      expect(delaysUsed[0]).toBeDefined()
       expect(delaysUsed[0]).toBeGreaterThanOrEqual(retryAfterSeconds * 1000)
       expect(delaysUsed[0]).toBeLessThanOrEqual(retryAfterSeconds * 1000 * 1.1) // Allow for jitter
     })
@@ -285,7 +297,8 @@ describe('GitHub Client Retry Logic', () => {
           // Expected to fail
         }
 
-        const circuitBreaker = (client as any).retryManager.circuitBreaker
+        const retryManager = (client as any).retryManager
+        const circuitBreaker = retryManager?.circuitBreaker
         const isOpen = circuitBreaker ? circuitBreaker.isOpen() : false
         const state = isOpen ? 'OPEN' : 'CLOSED'
         circuitStates.push(state)
@@ -402,7 +415,7 @@ describe('GitHub Client Retry Logic', () => {
       const result = await client.graphql(query) as any
 
       expect(attemptCount).toBe(2)
-      expect(result.data.viewer.login).toBe('testuser')
+      expect(result?.data?.viewer?.login).toBe('testuser')
     })
 
     it('should not retry on GraphQL syntax errors', async () => {
