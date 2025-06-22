@@ -83,7 +83,7 @@ if (global.crypto) {
 }
 
 // Mock fetch for API calls in tests
-global.fetch = vi.fn(() =>
+const mockFetch = vi.fn(() =>
   Promise.resolve({
     ok: true,
     json: () => Promise.resolve({}),
@@ -92,7 +92,9 @@ global.fetch = vi.fn(() =>
     statusText: 'OK',
     headers: new Headers(),
   })
-) as any;
+);
+
+global.fetch = mockFetch as any;
 
 // Mock WebAuthn SimpleWebAuthn server functions
 vi.mock('@simplewebauthn/server', () => ({

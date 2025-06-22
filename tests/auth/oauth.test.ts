@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { 
   generateOAuthUrl,
   validateOAuthCallback,
@@ -71,6 +71,12 @@ describe('OAuth Authentication', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    // Reset fetch mock to enable proper mocking in tests
+    global.fetch = vi.fn()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
   describe('OAuth URL Generation', () => {
