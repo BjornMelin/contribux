@@ -1,6 +1,5 @@
-// Database monitoring utilities for Neon PostgreSQL
-import { neon } from '@neondatabase/serverless'
-import { dbConfig } from '@/lib/db/config'
+// Database monitoring utilities for local PostgreSQL (for testing)
+import { Client } from 'pg'
 import {
   type ConnectionMetrics,
   connectionMetricsSchema,
@@ -20,27 +19,38 @@ import {
   vectorIndexMetricSchema,
 } from '../validation/database'
 
-export class DatabaseMonitor {
-  private sql
+export class DatabaseMonitorLocal {
+  private connectionString: string
 
   constructor(connectionString: string) {
-    this.sql = neon(connectionString)
+    this.connectionString = connectionString
+  }
+
+  private async query<T>(queryText: string, params: any[] = []): Promise<T[]> {
+    const client = new Client({ connectionString: this.connectionString })
+    try {
+      await client.connect()
+      const result = await client.query(queryText, params)
+      return result.rows as T[]
+    } finally {
+      await client.end()
+    }
   }
 
   async getConnectionMetrics(): Promise<ConnectionMetrics> {
     try {
-      const result = await this.sql`
-        SELECT 
+      const result = await this.query<{ state: string; count: string }>(
+        `SELECT 
           state,
           COUNT(*) as count
         FROM pg_stat_activity 
         WHERE datname = current_database()
-        GROUP BY state
-      `
+        GROUP BY state`
+      )
 
       const metrics = { active: 0, idle: 0 }
       if (result && Array.isArray(result)) {
-        result.forEach((row: unknown) => {
+        result.forEach((row) => {
           const validatedRow = connectionRowSchema.parse(row)
           const count = Number.parseInt(validatedRow.count, 10) || 0
           if (validatedRow.state === 'active') metrics.active = count
@@ -57,8 +67,8 @@ export class DatabaseMonitor {
 
   async getSlowQueries(limit = 10): Promise<SlowQuery[]> {
     try {
-      const result = await this.sql`
-        SELECT 
+      const result = await this.query<SlowQuery>(
+        `SELECT 
           query,
           calls,
           total_exec_time,
@@ -67,10 +77,11 @@ export class DatabaseMonitor {
         FROM pg_stat_statements
         WHERE total_exec_time > 1000  -- queries above 1 second threshold
         ORDER BY total_exec_time DESC
-        LIMIT ${limit}
-      `
+        LIMIT $1`,
+        [limit]
+      )
 
-      return result && Array.isArray(result) ? result.map((row: unknown) => slowQuerySchema.parse(row)) : []
+      return result && Array.isArray(result) ? result.map((row) => slowQuerySchema.parse(row)) : []
     } catch (error) {
       console.error('Failed to get slow queries (pg_stat_statements may not be enabled):', error)
       return []
@@ -79,8 +90,8 @@ export class DatabaseMonitor {
 
   async getIndexUsageStats(): Promise<IndexStat[]> {
     try {
-      const result = await this.sql`
-        SELECT 
+      const result = await this.query<any>(
+        `SELECT 
           schemaname,
           tablename,
           indexrelname as indexname,
@@ -89,10 +100,10 @@ export class DatabaseMonitor {
           idx_tup_fetch as tuples_fetched
         FROM pg_stat_user_indexes
         WHERE schemaname = 'public'
-        ORDER BY idx_scan DESC
-      `
+        ORDER BY idx_scan DESC`
+      )
 
-      return result && Array.isArray(result) ? result.map((row: unknown) => indexStatSchema.parse(row)) : []
+      return result && Array.isArray(result) ? result.map((row) => indexStatSchema.parse(row)) : []
     } catch (error) {
       console.error('Failed to get index usage stats:', error)
       return []
@@ -101,8 +112,8 @@ export class DatabaseMonitor {
 
   async getVectorIndexMetrics(): Promise<VectorIndexMetric[]> {
     try {
-      const result = await this.sql`
-        SELECT 
+      const result = await this.query<any>(
+        `SELECT 
           schemaname,
           tablename,
           indexrelname as indexname,
@@ -110,10 +121,10 @@ export class DatabaseMonitor {
           idx_scan as scans_count
         FROM pg_stat_user_indexes 
         WHERE indexrelname LIKE '%hnsw%'
-        ORDER BY pg_relation_size(indexrelid) DESC
-      `
+        ORDER BY pg_relation_size(indexrelid) DESC`
+      )
 
-      return result && Array.isArray(result) ? result.map((row: unknown) => vectorIndexMetricSchema.parse(row)) : []
+      return result && Array.isArray(result) ? result.map((row) => vectorIndexMetricSchema.parse(row)) : []
     } catch (error) {
       console.error('Failed to get vector index metrics:', error)
       return []
@@ -122,8 +133,8 @@ export class DatabaseMonitor {
 
   async getTableSizes(): Promise<TableSize[]> {
     try {
-      const result = await this.sql`
-        SELECT 
+      const result = await this.query<any>(
+        `SELECT 
           schemaname,
           tablename,
           pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as total_size,
@@ -131,10 +142,10 @@ export class DatabaseMonitor {
           pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename) - pg_relation_size(schemaname||'.'||tablename)) as index_size
         FROM pg_tables
         WHERE schemaname = 'public'
-        ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC
-      `
+        ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC`
+      )
 
-      return result && Array.isArray(result) ? result.map((row: unknown) => tableSizeSchema.parse(row)) : []
+      return result && Array.isArray(result) ? result.map((row) => tableSizeSchema.parse(row)) : []
     } catch (error) {
       console.error('Failed to get table sizes:', error)
       return []
@@ -147,7 +158,7 @@ export class DatabaseMonitor {
 
     try {
       // Check database connectivity
-      await this.sql`SELECT 1`
+      await this.query('SELECT 1')
       checks.push(
         healthCheckSchema.parse({
           name: 'Database Connectivity',
@@ -168,13 +179,13 @@ export class DatabaseMonitor {
 
     try {
       // Check required extensions
-      const extensionsResult = await this.sql`
-        SELECT extname 
+      const extensionsResult = await this.query<{ extname: string }>(
+        `SELECT extname 
         FROM pg_extension 
-        WHERE extname IN ('vector', 'pg_trgm', 'uuid-ossp', 'pgcrypto')
-      `
+        WHERE extname IN ('vector', 'pg_trgm', 'uuid-ossp', 'pgcrypto')`
+      )
 
-      const extensions = extensionsResult && Array.isArray(extensionsResult) ? extensionsResult.map((row: unknown) => extensionSchema.parse(row)) : []
+      const extensions = extensionsResult && Array.isArray(extensionsResult) ? extensionsResult.map((row) => extensionSchema.parse(row)) : []
       const requiredExtensions = ['vector', 'pg_trgm', 'uuid-ossp', 'pgcrypto']
       const installedExtensions = extensions.map(ext => ext.extname)
       const missing = requiredExtensions.filter(ext => !installedExtensions.includes(ext))

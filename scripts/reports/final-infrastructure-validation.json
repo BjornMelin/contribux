@@ -1,0 +1,191 @@
+{
+  "timestamp": "2025-06-21T18:45:08.377Z",
+  "infrastructure": "Docker + PostgreSQL 16 + pgvector + Redis 7",
+  "components": {
+    "database": {
+      "success": true,
+      "version": "PostgreSQL 16.8 (Debian 16.8-1.pgdg120+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14) 12.2.0, 64-bit",
+      "extensions": [
+        {
+          "extname": "pg_trgm",
+          "extversion": "1.6"
+        },
+        {
+          "extname": "vector",
+          "extversion": "0.8.0"
+        },
+        {
+          "extname": "pg_stat_statements",
+          "extversion": "1.10"
+        }
+      ]
+    },
+    "redis": {
+      "success": true,
+      "version": "7.4.4",
+      "response": "PONG"
+    },
+    "docker": {
+      "success": true,
+      "containers": [
+        {
+          "Command": "\"docker-entrypoint.s…\"",
+          "CreatedAt": "2025-06-21 11:58:09 -0600 MDT",
+          "ExitCode": 0,
+          "Health": "healthy",
+          "ID": "6083b0777a6d",
+          "Image": "pgvector/pgvector:pg16",
+          "Labels": "com.docker.compose.project.config_files=/home/bjorn/repos/agents/contribux/docker-compose.test.yml,com.docker.compose.service=postgres,com.docker.compose.version=2.35.1,desktop.docker.io/binds/1/SourceKind=wsl2DistroFile,desktop.docker.io/binds/2/Target=/etc/postgresql/postgresql.conf,desktop.docker.io/wsl-distro=Ubuntu,com.docker.compose.container-number=1,desktop.docker.io/binds/2/SourceKind=wsl2DistroFile,com.docker.compose.oneoff=False,com.docker.compose.project=contribux,desktop.docker.io/binds/2/Source=/home/bjorn/repos/agents/contribux/scripts/test-configs/postgresql.conf,com.docker.compose.config-hash=74abbf3046b90474effb30effdaded634d60819c074cb22ef14e71e292ed85ef,com.docker.compose.image=sha256:43134ce754794a846f74b85a0b565a4fdccccb0059bd6f3ad70936b08ac52777,com.docker.compose.project.working_dir=/home/bjorn/repos/agents/contribux,desktop.docker.io/binds/1/Source=/home/bjorn/repos/agents/contribux/database/init,desktop.docker.io/binds/1/Target=/docker-entrypoint-initdb.d,com.docker.compose.depends_on=",
+          "LocalVolumes": "1",
+          "Mounts": "/run/desktop/m…,/run/desktop/m…,contribux_post…",
+          "Name": "contribux-test-db",
+          "Names": "contribux-test-db",
+          "Networks": "contribux-test-network",
+          "Ports": "0.0.0.0:5432->5432/tcp",
+          "Project": "contribux",
+          "Publishers": [
+            {
+              "URL": "0.0.0.0",
+              "TargetPort": 5432,
+              "PublishedPort": 5432,
+              "Protocol": "tcp"
+            }
+          ],
+          "RunningFor": "46 minutes ago",
+          "Service": "postgres",
+          "Size": "0B",
+          "State": "running",
+          "Status": "Up 33 minutes (healthy)"
+        },
+        {
+          "Command": "\"docker-entrypoint.s…\"",
+          "CreatedAt": "2025-06-21 11:58:09 -0600 MDT",
+          "ExitCode": 0,
+          "Health": "healthy",
+          "ID": "62769836199a",
+          "Image": "redis:7-alpine",
+          "Labels": "com.docker.compose.config-hash=76731a07e0f589337d2261dc3756598914b7cbb2d79f5f8f7fbcdfd6612e0a55,com.docker.compose.depends_on=,com.docker.compose.project.config_files=/home/bjorn/repos/agents/contribux/docker-compose.test.yml,com.docker.compose.project.working_dir=/home/bjorn/repos/agents/contribux,com.docker.compose.service=redis,com.docker.compose.version=2.35.1,desktop.docker.io/binds/1/SourceKind=wsl2DistroFile,desktop.docker.io/binds/1/Target=/usr/local/etc/redis/redis.conf,com.docker.compose.image=sha256:7ff232a1fe042a3825e8acbf8b3cddf5f2d8b45fed1fc3f4628e0dee0fac3667,com.docker.compose.container-number=1,com.docker.compose.oneoff=False,com.docker.compose.project=contribux,desktop.docker.io/binds/1/Source=/home/bjorn/repos/agents/contribux/scripts/test-configs/redis.conf,desktop.docker.io/wsl-distro=Ubuntu",
+          "LocalVolumes": "1",
+          "Mounts": "contribux_redi…,/run/desktop/m…",
+          "Name": "contribux-test-redis",
+          "Names": "contribux-test-redis",
+          "Networks": "contribux-test-network",
+          "Ports": "0.0.0.0:6379->6379/tcp",
+          "Project": "contribux",
+          "Publishers": [
+            {
+              "URL": "0.0.0.0",
+              "TargetPort": 6379,
+              "PublishedPort": 6379,
+              "Protocol": "tcp"
+            }
+          ],
+          "RunningFor": "46 minutes ago",
+          "Service": "redis",
+          "Size": "0B",
+          "State": "running",
+          "Status": "Up 46 minutes (healthy)"
+        }
+      ],
+      "totalContainers": 2,
+      "runningContainers": 2
+    },
+    "vectorSearch": {
+      "success": true,
+      "results": {
+        "timestamp": "2025-06-21T18:45:08.586Z",
+        "database": "PostgreSQL with pgvector",
+        "tests": {
+          "vectorSearch": {
+            "executionTime": 1.7399340000000052,
+            "resultCount": 5,
+            "topSimilarity": 0.03105517046093531
+          },
+          "hybridSearch": {
+            "executionTime": 1.650905999999992,
+            "resultCount": 3
+          }
+        }
+      }
+    },
+    "cache": {
+      "success": true,
+      "results": {
+        "timestamp": "2025-06-21T18:45:08.602Z",
+        "cache": "Redis",
+        "tests": {
+          "basicOps": {
+            "setTime": 1.2436690000000112,
+            "getTime": 0.874541000000022,
+            "keyCount": 3,
+            "dataValid": true
+          },
+          "batchOps": {
+            "msetTime": 0.733789999999999,
+            "mgetTime": 0.9355810000000133,
+            "batchSize": 100,
+            "batchValid": true
+          },
+          "hashOps": {
+            "hsetTime": 0.5624629999999797,
+            "hgetallTime": 0.4148759999999925,
+            "hgetTime": 0.636760000000038,
+            "fieldCount": 6,
+            "hashValid": true
+          },
+          "cachePatterns": {
+            "cacheAside": {
+              "missTime": 11.197308000000021,
+              "hitTime": 0.3071649999999977,
+              "speedup": 36.453723568766314
+            },
+            "writeThrough": {
+              "writeTime": 4.655430000000024
+            }
+          }
+        },
+        "memoryInfo": {
+          "used_memory": "1321792",
+          "used_memory_human": "1.26M",
+          "used_memory_rss": "9043968",
+          "used_memory_rss_human": "8.62M",
+          "used_memory_peak": "1346248",
+          "used_memory_peak_human": "1.28M",
+          "used_memory_peak_perc": "98.18%",
+          "used_memory_overhead": "952728",
+          "used_memory_startup": "946472",
+          "used_memory_dataset": "369064",
+          "used_memory_dataset_perc": "98.33%",
+          "used_memory_lua": "31744",
+          "used_memory_vm_eval": "31744",
+          "used_memory_lua_human": "31.00K",
+          "used_memory_scripts_eval": "0",
+          "used_memory_vm_functions": "32768",
+          "used_memory_vm_total": "64512",
+          "used_memory_vm_total_human": "63.00K",
+          "used_memory_functions": "192",
+          "used_memory_scripts": "192",
+          "used_memory_scripts_human": "192B"
+        }
+      }
+    }
+  },
+  "summary": {
+    "overallSuccess": true,
+    "successRate": "5/5",
+    "successPercentage": 100,
+    "components": {
+      "database": true,
+      "redis": true,
+      "docker": true,
+      "vectorSearch": true,
+      "cache": true
+    },
+    "performance": {
+      "vectorSearchTime": 1.7399340000000052,
+      "hybridSearchTime": 1.650905999999992,
+      "cacheSetTime": 1.2436690000000112,
+      "cacheGetTime": 0.874541000000022
+    }
+  }
+}

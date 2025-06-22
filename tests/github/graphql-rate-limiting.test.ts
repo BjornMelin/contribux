@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import nock from 'nock'
 import { GitHubClient } from '@/lib/github'
 import type { GitHubClientConfig, GraphQLRateLimitInfo } from '@/lib/github'
+import { setupGitHubTestIsolation, createTrackedClient } from './test-helpers'
 
 // Type definitions for test responses
 interface RepositoryResponse {
@@ -29,18 +30,12 @@ interface GraphQLResponseWithRateLimit<T> {
 }
 
 describe('GraphQL Point-Aware Rate Limiting', () => {
-  beforeEach(() => {
-    nock.cleanAll()
-    vi.clearAllMocks()
-  })
-
-  afterEach(() => {
-    nock.cleanAll()
-  })
+  // Setup enhanced test isolation for GitHub tests
+  setupGitHubTestIsolation()
 
   describe('Query point calculation', () => {
     it('should calculate points for simple queries', () => {
-      const client = new GitHubClient()
+      const client = createTrackedClient(GitHubClient)
 
       const queries = [
         {
@@ -81,7 +76,7 @@ describe('GraphQL Point-Aware Rate Limiting', () => {
     })
 
     it('should handle nested connections correctly', () => {
-      const client = new GitHubClient()
+      const client = createTrackedClient(GitHubClient)
 
       const query = `query {
         organization(login: "github") {
@@ -105,7 +100,7 @@ describe('GraphQL Point-Aware Rate Limiting', () => {
     })
 
     it('should warn when approaching 500,000 node limit', () => {
-      const client = new GitHubClient()
+      const client = createTrackedClient(GitHubClient)
 
       const query = `query {
         search(query: "stars:>1", type: REPOSITORY, first: 100) {
@@ -135,7 +130,7 @@ describe('GraphQL Point-Aware Rate Limiting', () => {
 
   describe('Query optimization', () => {
     it('should suggest query optimizations for high-point queries', () => {
-      const client = new GitHubClient()
+      const client = createTrackedClient(GitHubClient)
 
       const query = `query {
         repository(owner: "microsoft", name: "vscode") {
@@ -160,7 +155,7 @@ describe('GraphQL Point-Aware Rate Limiting', () => {
     })
 
     it('should automatically split queries that exceed limits', async () => {
-      const client = new GitHubClient({
+      const client = createTrackedClient(GitHubClient, {
         auth: { type: 'token', token: 'test_token' }
       })
 
@@ -222,7 +217,7 @@ describe('GraphQL Point-Aware Rate Limiting', () => {
           }
         })
 
-      const client = new GitHubClient({
+      const client = createTrackedClient(GitHubClient, {
         auth: { type: 'token', token: 'test_token' }
       })
 
@@ -246,7 +241,7 @@ describe('GraphQL Point-Aware Rate Limiting', () => {
     })
 
     it('should respect point limits when batching', async () => {
-      const client = new GitHubClient({
+      const client = createTrackedClient(GitHubClient, {
         auth: { type: 'token', token: 'test_token' }
       })
 
@@ -313,7 +308,7 @@ describe('GraphQL Point-Aware Rate Limiting', () => {
           }
         })
 
-      const client = new GitHubClient({
+      const client = createTrackedClient(GitHubClient, {
         auth: { type: 'token', token: 'test_token' }
       })
 

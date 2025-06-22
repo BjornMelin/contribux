@@ -2,6 +2,81 @@
  * Test helpers for async and timing-sensitive tests
  */
 
+import { vi, beforeEach, afterEach } from 'vitest'
+import nock from 'nock'
+
+// Store references to created clients for cleanup
+const activeClients = new Set<{ destroy: () => Promise<void> }>()
+
+/**
+ * Register a client for automatic cleanup
+ */
+export function registerClientForCleanup(client: { destroy: () => Promise<void> }) {
+  activeClients.add(client)
+}
+
+/**
+ * Setup GitHub test isolation
+ */
+export function setupGitHubTestIsolation() {
+  beforeEach(() => {
+    // Clean all nock interceptors
+    nock.cleanAll()
+    
+    // Disable net connect to ensure all requests are mocked
+    nock.disableNetConnect()
+    
+    // Clear all mocks
+    vi.clearAllMocks()
+    
+    // Clear any global GitHub state
+    if (global.__githubClientCache) {
+      delete global.__githubClientCache
+    }
+    if (global.__githubRateLimitState) {
+      delete global.__githubRateLimitState
+    }
+    
+    // Reset nock back to clean state
+    nock.restore()
+    nock.activate()
+  })
+
+  afterEach(async () => {
+    // Clean all nock interceptors
+    nock.cleanAll()
+    
+    // Re-enable net connect
+    nock.enableNetConnect()
+    
+    // Destroy all active clients
+    const destroyPromises = Array.from(activeClients).map(async (client) => {
+      try {
+        await client.destroy()
+      } catch (error) {
+        // Ignore cleanup errors
+      }
+    })
+    await Promise.all(destroyPromises)
+    activeClients.clear()
+    
+    // Clear all mocks
+    vi.clearAllMocks()
+    
+    // Restore nock to clean state
+    nock.restore()
+  })
+}
+
+/**
+ * Create a tracked GitHub client that will be automatically cleaned up
+ */
+export function createTrackedClient(ClientClass: any, config?: any) {
+  const client = new ClientClass(config)
+  registerClientForCleanup(client)
+  return client
+}
+
 /**
  * Wait for a condition to be true with configurable polling
  * @param condition Function that returns true when condition is met

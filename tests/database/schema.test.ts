@@ -1,17 +1,11 @@
 // Database schema tests
-import { describe, it, expect, beforeAll } from 'vitest'
-import { neon } from "@neondatabase/serverless";
+import { describe, it, expect } from 'vitest'
+
+// Setup for database tests
+import "./setup";
+import { sql } from "./db-client";
 
 describe("Database Schema", () => {
-  let sql: ReturnType<typeof neon>;
-
-  beforeAll(() => {
-    const testUrl = process.env.DATABASE_URL_TEST || process.env.DATABASE_URL;
-    if (!testUrl) {
-      throw new Error("No test database URL configured");
-    }
-    sql = neon(testUrl);
-  });
 
   describe("Extensions", () => {
     it("should have required extensions installed", async () => {
@@ -126,12 +120,13 @@ describe("Database Schema", () => {
         ORDER BY tablename, indexname
       `;
       
-      expect((hnsWIndexes as Array<any>).length).toBeGreaterThanOrEqual(3);
+      expect((hnsWIndexes as Array<any>).length).toBeGreaterThanOrEqual(4);
       
       const expectedIndexes = [
         "idx_users_profile_embedding_hnsw",
         "idx_repositories_embedding_hnsw", 
-        "idx_opportunities_embedding_hnsw"
+        "idx_opportunities_description_embedding_hnsw",
+        "idx_opportunities_title_embedding_hnsw"
       ];
       
       const indexNames = (hnsWIndexes as Array<{ indexname: string; tablename: string }>).map(idx => idx.indexname);

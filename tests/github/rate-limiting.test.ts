@@ -4,6 +4,7 @@ import { GitHubClient } from '@/lib/github'
 import { GitHubRateLimitError } from '@/lib/github'
 import type { GitHubClientConfig, RateLimitInfo, GraphQLRateLimitInfo } from '@/lib/github'
 import type { RateLimitState } from '@/lib/github/rate-limiting'
+import { setupGitHubTestIsolation, createTrackedClient } from './test-helpers'
 
 // Type guard functions
 function isRateLimitInfo(obj: unknown): obj is RateLimitInfo {
@@ -25,14 +26,13 @@ function isRateLimitStatus(obj: unknown): obj is { resources: { core: RateLimitI
 }
 
 describe('GitHub Rate Limiting', () => {
-  beforeEach(() => {
-    nock.cleanAll()
-    vi.clearAllMocks()
-  })
+  // Setup enhanced test isolation for GitHub tests
+  setupGitHubTestIsolation()
 
-  afterEach(() => {
-    nock.cleanAll()
-  })
+  // Helper function to create and track clients
+  const createClient = (config?: Partial<GitHubClientConfig>) => {
+    return createTrackedClient(GitHubClient, config)
+  }
 
   describe('REST API rate limiting', () => {
     it('should track rate limit headers from responses', async () => {
@@ -48,7 +48,7 @@ describe('GitHub Rate Limiting', () => {
           'x-ratelimit-resource': 'core'
         })
 
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' },
         cache: { enabled: false } // Ensure no cache is used
       })
@@ -91,7 +91,7 @@ describe('GitHub Rate Limiting', () => {
           'x-ratelimit-used': '5000'
         })
 
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' },
         throttle: {
           enabled: true,
@@ -128,7 +128,7 @@ describe('GitHub Rate Limiting', () => {
         })
 
       const onRateLimit = vi.fn().mockReturnValue(true)
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' },
         throttle: {
           enabled: true,
@@ -155,7 +155,7 @@ describe('GitHub Rate Limiting', () => {
         })
 
       const onSecondaryRateLimit = vi.fn().mockReturnValue(false)
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' },
         throttle: {
           enabled: true,
@@ -193,7 +193,7 @@ describe('GitHub Rate Limiting', () => {
           }]
         })
 
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' },
         throttle: {
           enabled: true,
@@ -231,7 +231,7 @@ describe('GitHub Rate Limiting', () => {
           }
         })
 
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' }
       })
 
@@ -262,7 +262,7 @@ describe('GitHub Rate Limiting', () => {
     })
 
     it('should calculate GraphQL query complexity', async () => {
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' }
       })
 
@@ -294,7 +294,7 @@ describe('GitHub Rate Limiting', () => {
     })
 
     it('should prevent queries exceeding 500,000 node limit', async () => {
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' }
       })
 
@@ -362,7 +362,7 @@ describe('GitHub Rate Limiting', () => {
           }]
         })
 
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' }
       })
 
@@ -385,7 +385,7 @@ describe('GitHub Rate Limiting', () => {
 
   describe('Rate limit monitoring', () => {
     it('should provide rate limit status across all resources', async () => {
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' }
       })
 
@@ -434,7 +434,7 @@ describe('GitHub Rate Limiting', () => {
     it('should emit rate limit warnings when approaching limits', async () => {
       const onRateLimitWarning = vi.fn()
       
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' },
         throttle: {
           enabled: true,
@@ -470,7 +470,7 @@ describe('GitHub Rate Limiting', () => {
       const delays: number[] = []
       const baseDelay = 1000
 
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' }
       })
 

@@ -99,6 +99,8 @@ export default defineConfig({
     // Mock configuration
     clearMocks: true,
     restoreMocks: true,
+    unstubEnvs: true,
+    unstubGlobals: true,
 
     // Sequence configuration for consistent test ordering
     sequence: {

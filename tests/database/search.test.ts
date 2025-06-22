@@ -1,17 +1,11 @@
 // Hybrid search function tests
-import { describe, it, expect, beforeAll } from 'vitest'
-import { neon } from "@neondatabase/serverless";
+import { describe, it, expect } from 'vitest'
+
+// Setup for database tests
+import "./setup";
+import { sql } from "./db-client";
 
 describe("Hybrid Search Functions", () => {
-  let sql: ReturnType<typeof neon>;
-
-  beforeAll(() => {
-    const testUrl = process.env.DATABASE_URL_TEST || process.env.DATABASE_URL;
-    if (!testUrl) {
-      throw new Error("No test database URL configured");
-    }
-    sql = neon(testUrl);
-  });
 
   describe("hybrid_search_opportunities", () => {
     it("should exist and be callable", async () => {

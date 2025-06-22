@@ -1027,14 +1027,14 @@ export class GitHubClient {
           }
         }
 
-        if (response.repository?.issues?.edges) {
+        if (response?.repository?.issues?.edges) {
           results.repository.issues.edges.push(...response.repository.issues.edges)
         }
 
-        cursor = response.repository?.issues?.pageInfo?.endCursor || null
+        cursor = response?.repository?.issues?.pageInfo?.endCursor || null
         pageCount++
 
-        if (!response.repository?.issues?.pageInfo?.hasNextPage) {
+        if (!response?.repository?.issues?.pageInfo?.hasNextPage) {
           break
         }
       }
@@ -1060,16 +1060,11 @@ export class GitHubClient {
     if (Array.isArray(batchedQuery)) {
       // Execute multiple queries in parallel
       const results = await Promise.all(batchedQuery.map(query => this.graphql(query)))
-      return results.map(result => {
-        if (result && typeof result === 'object' && 'data' in result) {
-          return (result as { data: unknown }).data
-        }
-        return result
-      })
+      return results.map(result => result)
     }
     // Execute single batched query
     const result = (await this.graphql(batchedQuery)) as Record<string, unknown>
-    return result.data || result
+    return result
   }
 
   async batchGraphQLQueriesWithPointLimit(
@@ -1084,16 +1079,15 @@ export class GitHubClient {
     if (typeof batchedResult === 'string') {
       // Single batch query
       const result = (await this.graphql(batchedResult)) as Record<string, unknown>
-      return result.data || result
+      return result
     }
     // Multiple batch queries
     let combinedResult: Record<string, unknown> = {}
 
     for (const batchQuery of batchedResult) {
       const result = (await this.graphql(batchQuery)) as Record<string, unknown>
-      const data = result.data || result
-      if (typeof data === 'object' && data !== null) {
-        combinedResult = { ...combinedResult, ...data }
+      if (typeof result === 'object' && result !== null) {
+        combinedResult = { ...combinedResult, ...result }
       }
     }
 
@@ -1111,7 +1105,7 @@ export class GitHubClient {
     })
 
     const typedResult = result as Record<string, unknown> & { rateLimit?: GraphQLRateLimitInfo }
-    if (typedResult.rateLimit) {
+    if (typedResult?.rateLimit) {
       this.rateLimitManager.updateFromGraphQLResponse(typedResult.rateLimit)
     }
 

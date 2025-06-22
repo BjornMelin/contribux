@@ -39,7 +39,7 @@ vi.mock('@/lib/validation/env', () => {
       set WEBAUTHN_SUPPORTED_ALGORITHMS(v) { mockEnvValues.WEBAUTHN_SUPPORTED_ALGORITHMS = v },
       
       get NEXT_PUBLIC_APP_URL() { 
-        return mockEnvValues.NEXT_PUBLIC_APP_URL === undefined ? 'http://localhost:3000' : mockEnvValues.NEXT_PUBLIC_APP_URL 
+        return mockEnvValues.hasOwnProperty('NEXT_PUBLIC_APP_URL') ? mockEnvValues.NEXT_PUBLIC_APP_URL : 'http://localhost:3000'
       },
       set NEXT_PUBLIC_APP_URL(v) { mockEnvValues.NEXT_PUBLIC_APP_URL = v },
       
@@ -150,6 +150,7 @@ describe('WebAuthn Configuration', () => {
     })
 
     it('should use VERCEL_URL when available', () => {
+      env.NEXT_PUBLIC_APP_URL = undefined as any // Clear default
       env.VERCEL_URL = 'app-prod.vercel.app'
       
       const config = getWebAuthnConfig()
@@ -159,6 +160,7 @@ describe('WebAuthn Configuration', () => {
     })
 
     it('should prefer NEXT_PUBLIC_VERCEL_URL over VERCEL_URL', () => {
+      env.NEXT_PUBLIC_APP_URL = undefined as any // Clear default
       env.NEXT_PUBLIC_VERCEL_URL = 'public.vercel.app'
       env.VERCEL_URL = 'private.vercel.app'
       
@@ -235,6 +237,9 @@ describe('WebAuthn Configuration', () => {
       (env as any).NODE_ENV = 'production'
       env.WEBAUTHN_RP_ID = 'example.com'
       env.WEBAUTHN_ORIGINS = ''
+      env.NEXT_PUBLIC_APP_URL = undefined as any // Clear default
+      env.NEXT_PUBLIC_VERCEL_URL = undefined as any
+      env.VERCEL_URL = undefined as any
       
       expect(() => getWebAuthnConfig()).toThrow('At least one WebAuthn origin must be configured')
     })

@@ -92,10 +92,13 @@ const redisUrlSchema = z
   )
   .optional()
 
-// GitHub Client ID validation
+// GitHub Client ID validation (supports both OAuth and GitHub App format)
 const githubClientIdSchema = z
   .string()
-  .regex(/^[a-zA-Z0-9]{20}$/, 'GitHub Client ID must be exactly 20 alphanumeric characters')
+  .regex(
+    /^(Iv1\.[a-zA-Z0-9]{16}|[a-zA-Z0-9]{20})$/,
+    'GitHub Client ID must be either OAuth App format (Iv1.xxx) or GitHub App format (20 chars)'
+  )
   .optional()
 
 // Environment variable schema for runtime validation
@@ -383,8 +386,8 @@ function getValidatedEnv() {
     return envSchema.parse(process.env)
   } catch (error) {
     if (process.env.NODE_ENV === 'test') {
-      // In test environment, provide safe defaults
-      return envSchema.parse({
+      // In test environment, provide safe defaults with fallbacks
+      const testDefaults = {
         ...process.env,
         NODE_ENV: 'test',
         JWT_SECRET: 'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only',
@@ -392,22 +395,65 @@ function getValidatedEnv() {
           process.env.DATABASE_URL ||
           process.env.DATABASE_URL_TEST ||
           'postgresql://test:test@localhost:5432/testdb',
-        GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID || 'test1234567890abcdef',
+        GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID || 'Iv1.a1b2c3d4e5f6g7h8',
         GITHUB_CLIENT_SECRET:
           process.env.GITHUB_CLIENT_SECRET ||
           'test-github-client-secret-with-sufficient-length-for-testing-purposes-to-meet-40-char-requirement',
-        RP_ID: process.env.RP_ID || 'localhost',
-        NEXTAUTH_SECRET:
-          process.env.NEXTAUTH_SECRET ||
-          'test-nextauth-secret-with-sufficient-length-and-entropy-for-testing',
-        NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:3000',
-      })
+        NEXT_PUBLIC_RP_ID: process.env.NEXT_PUBLIC_RP_ID || 'localhost',
+        WEBAUTHN_RP_ID: process.env.WEBAUTHN_RP_ID || 'localhost',
+        NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+        CORS_ORIGINS: process.env.CORS_ORIGINS || 'http://localhost:3000',
+        ALLOWED_REDIRECT_URIS: 
+          process.env.ALLOWED_REDIRECT_URIS || 'http://localhost:3000/api/auth/github/callback',
+      }
+
+      try {
+        return envSchema.parse(testDefaults)
+      } catch (testError) {
+        // If test defaults still fail, provide minimal working config
+        console.warn('Test environment validation failed, using minimal config')
+        return envSchema.parse({
+          NODE_ENV: 'test',
+          JWT_SECRET: 'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only',
+          DATABASE_URL: 'postgresql://test:test@localhost:5432/testdb',
+          GITHUB_CLIENT_ID: 'Iv1.a1b2c3d4e5f6g7h8',
+          GITHUB_CLIENT_SECRET: 'test-github-client-secret-with-sufficient-length-for-testing-purposes-to-meet-40-char-requirement',
+          NEXT_PUBLIC_RP_ID: 'localhost',
+          NEXT_PUBLIC_APP_URL: 'http://localhost:3000',
+          CORS_ORIGINS: 'http://localhost:3000',
+          ALLOWED_REDIRECT_URIS: 'http://localhost:3000/api/auth/github/callback',
+          // Include all required defaults for test environment
+          DB_PROJECT_ID: 'test-project',
+          DB_MAIN_BRANCH: 'test-main',
+          DB_DEV_BRANCH: 'test-dev', 
+          DB_TEST_BRANCH: 'test-test',
+          DB_POOL_MIN: '2',
+          DB_POOL_MAX: '20',
+          DB_POOL_IDLE_TIMEOUT: '10000',
+          HNSW_EF_SEARCH: '200',
+          VECTOR_SIMILARITY_THRESHOLD: '0.7',
+          HYBRID_SEARCH_TEXT_WEIGHT: '0.3',
+          HYBRID_SEARCH_VECTOR_WEIGHT: '0.7',
+          PORT: '3000',
+          WEBAUTHN_TIMEOUT: '60000',
+          WEBAUTHN_CHALLENGE_EXPIRY: '300000',
+          WEBAUTHN_SUPPORTED_ALGORITHMS: '-7,-257',
+          RATE_LIMIT_MAX: '100',
+          RATE_LIMIT_WINDOW: '900',
+          LOG_LEVEL: 'error',
+          ENABLE_AUDIT_LOGS: 'false',
+          ENABLE_WEBAUTHN: 'true',
+          ENABLE_OAUTH: 'false',
+          MAINTENANCE_MODE: 'false',
+        })
+      }
     }
     throw error
   }
 }
 
-export const env = getValidatedEnv()
+// Export env only if not in validation test mode
+export const env = process.env.SKIP_ENV_VALIDATION ? ({} as Env) : getValidatedEnv()
 
 // Type inference for TypeScript
 export type Env = z.infer<typeof envSchema>
@@ -419,19 +465,41 @@ export const isTest = () => env.NODE_ENV === 'test'
 
 // Security utilities
 export function getJwtSecret(): string {
-  if (env.NODE_ENV === 'test') {
+  if (process.env.NODE_ENV === 'test') {
     return 'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only'
   }
-  return env.JWT_SECRET
+  
+  // For non-test environments, try to get from env first, then from process.env
+  try {
+    return env.JWT_SECRET || process.env.JWT_SECRET || (() => {
+      throw new Error('JWT_SECRET is required')
+    })()
+  } catch (error) {
+    // Fallback if env is not available
+    if (process.env.JWT_SECRET) {
+      return process.env.JWT_SECRET
+    }
+    throw new Error('JWT_SECRET is required')
+  }
 }
 
 export function getEncryptionKey(): string {
-  if (!env.ENCRYPTION_KEY) {
-    if (env.NODE_ENV === 'production') {
+  const envNodeEnv = process.env.NODE_ENV || 'development'
+  
+  // Try to get from env first, then from process.env
+  let encryptionKey: string | undefined
+  try {
+    encryptionKey = env.ENCRYPTION_KEY || process.env.ENCRYPTION_KEY
+  } catch (error) {
+    encryptionKey = process.env.ENCRYPTION_KEY
+  }
+  
+  if (!encryptionKey) {
+    if (envNodeEnv === 'production') {
       throw new Error('ENCRYPTION_KEY is required in production')
     }
     // Generate a deterministic key for development/test
     return createHash('sha256').update('development-encryption-key').digest('hex')
   }
-  return env.ENCRYPTION_KEY
+  return encryptionKey
 }

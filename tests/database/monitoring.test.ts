@@ -1,16 +1,26 @@
 // Database monitoring tests
 import { describe, it, expect, beforeAll } from 'vitest'
 import { DatabaseMonitor } from "../../src/lib/monitoring/database-monitor";
+import { DatabaseMonitorLocal } from "../../src/lib/monitoring/database-monitor-local";
+
+// Setup for database tests
+import "./setup";
+import { TEST_DATABASE_URL } from "./db-client";
 
 describe("DatabaseMonitor", () => {
-  let monitor: DatabaseMonitor;
+  let monitor: DatabaseMonitor | DatabaseMonitorLocal;
 
   beforeAll(() => {
-    const testUrl = process.env.DATABASE_URL_TEST || process.env.DATABASE_URL;
-    if (!testUrl) {
+    if (!TEST_DATABASE_URL) {
       throw new Error("No test database URL configured");
     }
-    monitor = new DatabaseMonitor(testUrl);
+    
+    // Use local monitor for local PostgreSQL databases
+    if (TEST_DATABASE_URL.includes('localhost') || TEST_DATABASE_URL.includes('127.0.0.1')) {
+      monitor = new DatabaseMonitorLocal(TEST_DATABASE_URL);
+    } else {
+      monitor = new DatabaseMonitor(TEST_DATABASE_URL);
+    }
   });
 
   describe("getConnectionMetrics", () => {

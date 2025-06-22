@@ -131,6 +131,30 @@ vi.mock('@/lib/auth/jwt', () => ({
   generateRefreshToken: vi.fn(async () => 'mock-refresh-token'),
 }))
 
+// Mock GDPR functions for middleware tests
+vi.mock('@/lib/auth/gdpr', () => ({
+  checkConsentRequired: vi.fn(),
+  recordUserConsent: vi.fn(),
+  revokeUserConsent: vi.fn(),
+  getUserConsents: vi.fn(() => Promise.resolve([])),
+  exportUserData: vi.fn(),
+  deleteUserData: vi.fn(),
+  anonymizeUserData: vi.fn(),
+  getDataRetentionPolicy: vi.fn(),
+  identifyDataForDeletion: vi.fn(),
+  logDataProcessing: vi.fn(),
+  getConsentOptions: vi.fn(),
+  checkGDPRCompliance: vi.fn(),
+  handleConsentWithdrawal: vi.fn(),
+  CONSENT_TYPES: {
+    TERMS_OF_SERVICE: 'terms_of_service',
+    PRIVACY_POLICY: 'privacy_policy',
+    MARKETING_EMAILS: 'marketing_emails',
+    USAGE_ANALYTICS: 'usage_analytics',
+    THIRD_PARTY_SHARING: 'third_party_sharing',
+  },
+}))
+
 // Import sql mock
 import { sql } from '@/lib/db/config'
 

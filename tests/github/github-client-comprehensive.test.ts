@@ -8,20 +8,20 @@ import {
   ErrorMessages,
 } from '@/lib/github'
 import type { GitHubClientConfig, TokenInfo } from '@/lib/github'
+import { setupGitHubTestIsolation, createTrackedClient } from './test-helpers'
 
 describe('GitHubClient - Comprehensive Coverage', () => {
-  beforeEach(() => {
-    nock.cleanAll()
-    vi.clearAllMocks()
-  })
+  // Setup enhanced test isolation for GitHub tests
+  setupGitHubTestIsolation()
 
-  afterEach(() => {
-    nock.cleanAll()
-  })
+  // Helper function to create and track clients
+  const createClient = (config?: Partial<GitHubClientConfig>) => {
+    return createTrackedClient(GitHubClient, config)
+  }
 
   describe('authentication methods', () => {
     it('should authenticate with valid configuration', async () => {
-      const client = new GitHubClient({
+      const client = createClient({
         auth: {
           type: 'token',
           token: 'ghp_test_token'
@@ -32,7 +32,7 @@ describe('GitHubClient - Comprehensive Coverage', () => {
     })
 
     it('should throw error when authenticating without configuration', async () => {
-      const client = new GitHubClient({})
+      const client = createClient({})
 
       await expect(client.authenticate()).rejects.toThrow(GitHubAuthenticationError)
       await expect(client.authenticate()).rejects.toThrow(ErrorMessages.AUTH_TOKEN_REQUIRED)
@@ -41,7 +41,7 @@ describe('GitHubClient - Comprehensive Coverage', () => {
     it('should authenticate as GitHub App installation', async () => {
       const installationId = 12345
 
-      const client = new GitHubClient({
+      const client = createClient({
         auth: {
           type: 'token',
           token: 'test_token'
@@ -53,7 +53,7 @@ describe('GitHubClient - Comprehensive Coverage', () => {
     })
 
     it('should handle authentication error for GitHub App', async () => {
-      const client = new GitHubClient({
+      const client = createClient({
         auth: {
           type: 'oauth',
           clientId: 'test_id',
@@ -66,7 +66,7 @@ describe('GitHubClient - Comprehensive Coverage', () => {
     })
 
     it('should throw error when authenticating as installation without app config', async () => {
-      const client = new GitHubClient({
+      const client = createClient({
         auth: {
           type: 'token',
           token: 'ghp_test_token'
@@ -78,7 +78,7 @@ describe('GitHubClient - Comprehensive Coverage', () => {
     })
 
     it('should use cached installation token when valid', async () => {
-      const client = new GitHubClient({
+      const client = createClient({
         auth: {
           type: 'token',
           token: 'test_token'
@@ -91,7 +91,7 @@ describe('GitHubClient - Comprehensive Coverage', () => {
     })
 
     it('should refresh JWT token when expired', async () => {
-      const client = new GitHubClient({
+      const client = createClient({
         auth: {
           type: 'app',
           appId: 123456,
@@ -103,7 +103,7 @@ describe('GitHubClient - Comprehensive Coverage', () => {
     })
 
     it('should refresh installation token when nearing expiration', async () => {
-      const client = new GitHubClient({
+      const client = createClient({
         auth: {
           type: 'token',
           token: 'test_token'
@@ -117,7 +117,7 @@ describe('GitHubClient - Comprehensive Coverage', () => {
 
   describe('GraphQL query optimization', () => {
     it('should provide GraphQL query optimization suggestions', () => {
-      const client = new GitHubClient()
+      const client = createClient()
 
       const query = `
         query {
@@ -141,7 +141,7 @@ describe('GitHubClient - Comprehensive Coverage', () => {
     })
 
     it('should calculate GraphQL points correctly', () => {
-      const client = new GitHubClient()
+      const client = createClient()
 
       const simpleQuery = `query { viewer { login } }`
       const complexQuery = `
@@ -168,7 +168,7 @@ describe('GitHubClient - Comprehensive Coverage', () => {
     })
 
     it('should validate GraphQL point limits', () => {
-      const client = new GitHubClient()
+      const client = createClient()
 
       const validQuery = `query { viewer { login } }`
       const invalidQuery = `
@@ -219,7 +219,7 @@ describe('GitHubClient - Comprehensive Coverage', () => {
           }]
         })
 
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' }
       })
 
@@ -254,7 +254,7 @@ describe('GitHubClient - Comprehensive Coverage', () => {
           }
         })
 
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' }
       })
 
@@ -291,7 +291,7 @@ describe('GitHubClient - Comprehensive Coverage', () => {
           }
         })
 
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' },
         includeRateLimit: true
       })
@@ -309,7 +309,7 @@ describe('GitHubClient - Comprehensive Coverage', () => {
 
   describe('retry logic', () => {
     it('should calculate retry delay with jitter', () => {
-      const client = new GitHubClient()
+      const client = createClient()
 
       const delay1 = client.calculateRetryDelay(0, 1000)
       const delay2 = client.calculateRetryDelay(1, 1000)
@@ -325,7 +325,7 @@ describe('GitHubClient - Comprehensive Coverage', () => {
     })
 
     it('should get retry configuration', () => {
-      const client = new GitHubClient({
+      const client = createClient({
         retry: {
           enabled: true,
           retries: 5,
@@ -348,7 +348,7 @@ describe('GitHubClient - Comprehensive Coverage', () => {
         return 'success'
       })
 
-      const client = new GitHubClient({
+      const client = createClient({
         retry: {
           enabled: true,
           retries: 3
@@ -372,7 +372,7 @@ describe('GitHubClient - Comprehensive Coverage', () => {
         refreshBeforeExpiry: 5
       }
 
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'primary_token' },
         tokenRotation: config
       })
@@ -382,7 +382,7 @@ describe('GitHubClient - Comprehensive Coverage', () => {
     })
 
     it('should add and remove tokens', () => {
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'primary_token' },
         tokenRotation: {
           tokens: [{ token: 'token1', type: 'personal', scopes: ['repo'] }],
@@ -407,7 +407,7 @@ describe('GitHubClient - Comprehensive Coverage', () => {
     })
 
     it('should throw error when adding token without rotation configured', () => {
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'primary_token' }
       })
 
@@ -422,7 +422,7 @@ describe('GitHubClient - Comprehensive Coverage', () => {
     })
 
     it('should get current token', () => {
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' }
       })
 
@@ -439,7 +439,7 @@ describe('GitHubClient - Comprehensive Coverage', () => {
         .get('/user')
         .reply(401, { message: 'Bad credentials' })
 
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'primary_token' },
         tokenRotation: {
           tokens: [
@@ -457,7 +457,7 @@ describe('GitHubClient - Comprehensive Coverage', () => {
 
   describe('cache operations', () => {
     it('should generate cache key', () => {
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' },
         cache: { enabled: true, storage: 'memory' }
       })
@@ -468,7 +468,7 @@ describe('GitHubClient - Comprehensive Coverage', () => {
     })
 
     it('should throw error when generating cache key without cache configured', () => {
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' }
       })
 
@@ -477,7 +477,7 @@ describe('GitHubClient - Comprehensive Coverage', () => {
     })
 
     it('should get cache metrics', () => {
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' },
         cache: { enabled: true, storage: 'memory' }
       })
@@ -499,7 +499,7 @@ describe('GitHubClient - Comprehensive Coverage', () => {
         .get('/repos/microsoft/typescript')
         .reply(200, { name: 'typescript', stargazerCount: 50000 })
 
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' },
         cache: { enabled: true, storage: 'memory' }
       })
@@ -515,7 +515,7 @@ describe('GitHubClient - Comprehensive Coverage', () => {
 
   describe('DataLoader operations', () => {
     it('should get repository loader', () => {
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' },
         cache: { enabled: true, dataloaderEnabled: true }
       })
@@ -526,7 +526,7 @@ describe('GitHubClient - Comprehensive Coverage', () => {
     })
 
     it('should handle DataLoader error gracefully', async () => {
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' },
         cache: { enabled: true, dataloaderEnabled: true }
       })
@@ -550,7 +550,7 @@ describe('GitHubClient - Comprehensive Coverage', () => {
     })
 
     it('should clear DataLoader cache', () => {
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' },
         cache: { enabled: true, dataloaderEnabled: true }
       })
@@ -573,7 +573,7 @@ describe('GitHubClient - Comprehensive Coverage', () => {
         }
       }
 
-      const client = new GitHubClient(config)
+      const client = createClient(config)
       expect(client).toBeInstanceOf(GitHubClient)
     })
 
@@ -591,7 +591,7 @@ describe('GitHubClient - Comprehensive Coverage', () => {
       const onRateLimit = vi.fn()
       const onSecondaryRateLimit = vi.fn()
 
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' },
         throttle: {
           enabled: true,
@@ -604,7 +604,7 @@ describe('GitHubClient - Comprehensive Coverage', () => {
     })
 
     it('should apply custom user agent', () => {
-      const client = new GitHubClient({
+      const client = createClient({
         userAgent: 'MyApp/1.0.0'
       })
 

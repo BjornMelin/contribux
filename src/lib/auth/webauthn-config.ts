@@ -117,14 +117,15 @@ export function getWebAuthnConfig(): WebAuthnConfig {
     // Build default origins based on environment
     origins = []
 
+    // Add development defaults first if in development
     if (isDevelopment) {
-      // Development defaults
       origins.push('http://localhost:3000')
       if (env.PORT && env.PORT !== 3000) {
         origins.push(`http://localhost:${env.PORT}`)
       }
     }
 
+    // Add production URLs if available
     if (env.NEXT_PUBLIC_APP_URL) {
       origins.push(env.NEXT_PUBLIC_APP_URL)
     } else if (env.NEXT_PUBLIC_VERCEL_URL) {

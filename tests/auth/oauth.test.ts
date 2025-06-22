@@ -64,8 +64,8 @@ describe('OAuth Authentication', () => {
   }
 
   const mockConfig = {
-    clientId: process.env.GITHUB_CLIENT_ID || 'test-client-id',
-    clientSecret: process.env.GITHUB_CLIENT_SECRET || 'test-client-secret',
+    clientId: 'test1234567890123456', // Using mocked value from env validation mock
+    clientSecret: 'test-github-client-secret-with-sufficient-length-for-testing', // Using mocked value
     redirectUri: process.env.GITHUB_REDIRECT_URI || 'http://localhost:3000/api/auth/github/callback'
   }
 

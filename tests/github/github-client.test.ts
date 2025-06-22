@@ -3,20 +3,20 @@ import nock from 'nock'
 import { GitHubClient } from '@/lib/github'
 import { GitHubAuthenticationError, GitHubClientError } from '@/lib/github'
 import type { GitHubClientConfig } from '@/lib/github'
+import { setupGitHubTestIsolation, createTrackedClient } from './test-helpers'
 
 describe('GitHubClient', () => {
-  beforeEach(() => {
-    nock.cleanAll()
-    vi.clearAllMocks()
-  })
+  // Setup enhanced test isolation for GitHub tests
+  setupGitHubTestIsolation()
 
-  afterEach(() => {
-    nock.cleanAll()
-  })
+  // Helper function to create and track clients
+  const createClient = (config?: Partial<GitHubClientConfig>) => {
+    return createTrackedClient(GitHubClient, config)
+  }
 
   describe('initialization', () => {
     it('should create client with minimal configuration', () => {
-      const client = new GitHubClient()
+      const client = createClient()
       expect(client).toBeInstanceOf(GitHubClient)
       expect(client.rest).toBeDefined()
       expect(client.graphql).toBeDefined()
@@ -29,7 +29,7 @@ describe('GitHubClient', () => {
           token: 'ghp_test_token'
         }
       }
-      const client = new GitHubClient(config)
+      const client = createClient(config)
       expect(client).toBeInstanceOf(GitHubClient)
     })
 
@@ -42,7 +42,7 @@ describe('GitHubClient', () => {
           installationId: 789
         }
       }
-      const client = new GitHubClient(config)
+      const client = createClient(config)
       expect(client).toBeInstanceOf(GitHubClient)
     })
 
@@ -50,7 +50,7 @@ describe('GitHubClient', () => {
       const config: GitHubClientConfig = {
         baseUrl: 'https://github.enterprise.com/api/v3'
       }
-      const client = new GitHubClient(config)
+      const client = createClient(config)
       expect(client).toBeInstanceOf(GitHubClient)
     })
 
@@ -58,7 +58,7 @@ describe('GitHubClient', () => {
       const config: GitHubClientConfig = {
         userAgent: 'contribux/1.0.0'
       }
-      const client = new GitHubClient(config)
+      const client = createClient(config)
       expect(client).toBeInstanceOf(GitHubClient)
     })
 
@@ -82,7 +82,7 @@ describe('GitHubClient', () => {
         .get('/user')
         .reply(200, mockUser)
 
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' }
       })
 
@@ -98,7 +98,7 @@ describe('GitHubClient', () => {
           documentation_url: 'https://docs.github.com/rest'
         })
 
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'invalid_token' }
       })
 
@@ -112,7 +112,7 @@ describe('GitHubClient', () => {
         .get('/api/v3/user')
         .reply(200, mockUser)
 
-      const client = new GitHubClient({
+      const client = createClient({
         baseUrl: 'https://github.enterprise.com/api/v3',
         auth: { type: 'token', token: 'test_token' }
       })
@@ -131,7 +131,7 @@ describe('GitHubClient', () => {
           return [200, { login: 'testuser' }]
         })
 
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' },
         userAgent: 'contribux-test/1.0'
       })
@@ -151,7 +151,7 @@ describe('GitHubClient', () => {
         .post('/graphql')
         .reply(200, { data: mockResponse })
 
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' }
       })
 
@@ -170,7 +170,7 @@ describe('GitHubClient', () => {
         .post('/graphql')
         .reply(200, { errors: mockErrors })
 
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' }
       })
 
@@ -188,7 +188,7 @@ describe('GitHubClient', () => {
           return [200, { data: { repository: { name: 'test-repo' } } }]
         })
 
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' }
       })
 
@@ -206,7 +206,7 @@ describe('GitHubClient', () => {
         .post('/api/graphql')
         .reply(200, { data: { viewer: { login: 'enterprise-user' } } })
 
-      const client = new GitHubClient({
+      const client = createClient({
         baseUrl: 'https://github.enterprise.com/api/v3',
         auth: { type: 'token', token: 'test_token' }
       })
@@ -222,7 +222,7 @@ describe('GitHubClient', () => {
         .get('/user')
         .replyWithError('Network error')
 
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' }
       })
 
@@ -237,7 +237,7 @@ describe('GitHubClient', () => {
           documentation_url: 'https://docs.github.com/rest'
         })
 
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'invalid_token' }
       })
 
@@ -256,7 +256,7 @@ describe('GitHubClient', () => {
           'x-ratelimit-used': '1'
         })
 
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' }
       })
 
@@ -276,7 +276,7 @@ describe('GitHubClient', () => {
           return [201, { number: 1, title: 'Test Issue' }]
         })
 
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' }
       })
 
@@ -307,7 +307,7 @@ describe('GitHubClient', () => {
         .get('/repos/testowner/testrepo/issues/1')
         .reply(200, mockIssue)
 
-      const client = new GitHubClient({
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' }
       })
 
@@ -333,7 +333,7 @@ describe('GitHubClient', () => {
         }
       }
 
-      const client = new GitHubClient(config)
+      const client = createClient(config)
       expect(client).toBeInstanceOf(GitHubClient)
     })
 
@@ -347,7 +347,7 @@ describe('GitHubClient', () => {
         }
       }
 
-      const client = new GitHubClient(config)
+      const client = createClient(config)
       expect(client).toBeInstanceOf(GitHubClient)
     })
 
@@ -361,7 +361,7 @@ describe('GitHubClient', () => {
         }
       }
 
-      const client = new GitHubClient(config)
+      const client = createClient(config)
       expect(client).toBeInstanceOf(GitHubClient)
     })
 
@@ -371,7 +371,7 @@ describe('GitHubClient', () => {
         log: 'debug'
       }
 
-      const client = new GitHubClient(config)
+      const client = createClient(config)
       expect(client).toBeInstanceOf(GitHubClient)
     })
   })

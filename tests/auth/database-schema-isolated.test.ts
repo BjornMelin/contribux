@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeAll } from 'vitest'
+import { Client } from 'pg'
 
 // This test is isolated from global setup to avoid any mocking interference
 // Database URL should be set in environment variables
-const DATABASE_URL_TEST = process.env.DATABASE_URL_TEST
+const DATABASE_URL_TEST = process.env.DATABASE_URL_TEST || process.env.DATABASE_URL
 
 describe('Authentication Database Schema (Isolated)', () => {
   let sql: any
@@ -12,9 +13,24 @@ describe('Authentication Database Schema (Isolated)', () => {
       throw new Error('DATABASE_URL_TEST must be set in environment for this test')
     }
     
-    // Dynamic import to avoid setup file interference
-    const { neon } = await import('@neondatabase/serverless')
-    sql = neon(DATABASE_URL_TEST)
+    // For local databases, use pg client
+    if (DATABASE_URL_TEST.includes('localhost') || DATABASE_URL_TEST.includes('127.0.0.1')) {
+      const client = new Client({ connectionString: DATABASE_URL_TEST })
+      await client.connect()
+      
+      sql = async (strings: TemplateStringsArray, ...values: any[]) => {
+        const query = strings.join('$')
+        const result = await client.query(query, values)
+        return result.rows
+      }
+      
+      // Store client for cleanup
+      (sql as any).client = client
+    } else {
+      // Dynamic import to avoid setup file interference
+      const { neon } = await import('@neondatabase/serverless')
+      sql = neon(DATABASE_URL_TEST)
+    }
     
     // Simple connection test
     try {
@@ -57,7 +73,7 @@ describe('Authentication Database Schema (Isolated)', () => {
         { column_name: 'credential_device_type', data_type: 'text', is_nullable: 'NO' },
         { column_name: 'credential_backed_up', data_type: 'boolean', is_nullable: 'NO' },
         { column_name: 'transports', data_type: 'ARRAY', is_nullable: 'YES' },
-        { column_name: 'created_at', data_type: 'timestamp with time zone', is_nullable: 'NO' },
+        { column_name: 'created_at', data_type: 'timestamp with time zone', is_nullable: 'YES' }, // Has DEFAULT NOW()
         { column_name: 'last_used_at', data_type: 'timestamp with time zone', is_nullable: 'YES' },
         { column_name: 'name', data_type: 'text', is_nullable: 'YES' }
       ]

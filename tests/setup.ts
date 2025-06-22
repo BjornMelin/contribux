@@ -1,7 +1,8 @@
 // Test setup configuration for Vitest
 import { config } from "dotenv";
-import { vi } from "vitest";
+import { vi, beforeEach, afterEach } from "vitest";
 import { Crypto } from "@peculiar/webcrypto";
+import { resetTestState } from "./test-utils/cleanup";
 
 // Load test environment variables first
 config({ path: ".env.test" });
@@ -247,3 +248,12 @@ if (!process.env.DEBUG_TESTS) {
     // Keep warn and error for debugging test issues
   };
 }
+
+// Global test isolation setup
+beforeEach(() => {
+  resetTestState();
+});
+
+afterEach(() => {
+  resetTestState();
+});

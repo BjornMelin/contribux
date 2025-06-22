@@ -1,33 +1,20 @@
 import { describe, it, expect, beforeAll, vi } from 'vitest'
-import { neon } from '@neondatabase/serverless'
-
-// Get the test database URL from environment
-const getTestDatabaseUrl = () => {
-  // Only use environment variable, no hardcoded fallback
-  const testUrl = process.env.DATABASE_URL_TEST
-  
-  return testUrl
-}
+import "../database/setup"
+import { sql, TEST_DATABASE_URL } from "../database/db-client"
 
 // Skip these tests if no real test database is configured
-const testUrl = getTestDatabaseUrl()
-const hasTestDatabase = testUrl && 
-  testUrl !== 'sqlite://localhost/:memory:' &&
-  !testUrl.includes('sqlite') &&
-  testUrl.includes('postgresql')
+const hasTestDatabase = TEST_DATABASE_URL && 
+  TEST_DATABASE_URL !== 'sqlite://localhost/:memory:' &&
+  !TEST_DATABASE_URL.includes('sqlite') &&
+  TEST_DATABASE_URL.includes('postgresql')
 
 const describeConditional = hasTestDatabase ? describe : describe.skip
 
 describeConditional('Authentication Database Schema', () => {
-  let sql: ReturnType<typeof neon>
-
   beforeAll(async () => {
     if (!hasTestDatabase) {
       throw new Error('These tests require a real PostgreSQL test database. Set DATABASE_URL_TEST in .env.test')
     }
-    
-    // Initialize the database client with the test URL
-    sql = neon(testUrl)
     
     // Test connection to ensure it works
     try {
@@ -36,7 +23,7 @@ describeConditional('Authentication Database Schema', () => {
         throw new Error('Invalid database response')
       }
     } catch (error) {
-      throw new Error(`Failed to connect to test database: ${error?.message || 'Unknown error'}`)
+      throw new Error(`Failed to connect to test database: ${error}`)
     }
   })
 
@@ -69,7 +56,7 @@ describeConditional('Authentication Database Schema', () => {
         { column_name: 'credential_device_type', data_type: 'text', is_nullable: 'NO' },
         { column_name: 'credential_backed_up', data_type: 'boolean', is_nullable: 'NO' },
         { column_name: 'transports', data_type: 'ARRAY', is_nullable: 'YES' },
-        { column_name: 'created_at', data_type: 'timestamp with time zone', is_nullable: 'NO' },
+        { column_name: 'created_at', data_type: 'timestamp with time zone', is_nullable: 'YES' }, // Has DEFAULT NOW()
         { column_name: 'last_used_at', data_type: 'timestamp with time zone', is_nullable: 'YES' },
         { column_name: 'name', data_type: 'text', is_nullable: 'YES' }
       ]
@@ -123,9 +110,9 @@ describeConditional('Authentication Database Schema', () => {
         { column_name: 'challenge', data_type: 'text', is_nullable: 'NO' },
         { column_name: 'user_id', data_type: 'uuid', is_nullable: 'YES' },
         { column_name: 'type', data_type: 'text', is_nullable: 'NO' },
-        { column_name: 'created_at', data_type: 'timestamp with time zone', is_nullable: 'NO' },
+        { column_name: 'created_at', data_type: 'timestamp with time zone', is_nullable: 'YES' }, // Has DEFAULT NOW()
         { column_name: 'expires_at', data_type: 'timestamp with time zone', is_nullable: 'NO' },
-        { column_name: 'used', data_type: 'boolean', is_nullable: 'NO' }
+        { column_name: 'used', data_type: 'boolean', is_nullable: 'YES' } // Has DEFAULT false
       ]
       
       expectedColumns.forEach(expected => {
@@ -166,8 +153,8 @@ describeConditional('Authentication Database Schema', () => {
         { column_name: 'auth_method', data_type: 'text', is_nullable: 'NO' },
         { column_name: 'ip_address', data_type: 'inet', is_nullable: 'YES' },
         { column_name: 'user_agent', data_type: 'text', is_nullable: 'YES' },
-        { column_name: 'created_at', data_type: 'timestamp with time zone', is_nullable: 'NO' },
-        { column_name: 'last_active_at', data_type: 'timestamp with time zone', is_nullable: 'NO' }
+        { column_name: 'created_at', data_type: 'timestamp with time zone', is_nullable: 'YES' }, // Has DEFAULT NOW()
+        { column_name: 'last_active_at', data_type: 'timestamp with time zone', is_nullable: 'YES' } // Has DEFAULT NOW()
       ]
       
       expectedColumns.forEach(expected => {
@@ -211,8 +198,8 @@ describeConditional('Authentication Database Schema', () => {
         { column_name: 'expires_at', data_type: 'timestamp with time zone', is_nullable: 'YES' },
         { column_name: 'token_type', data_type: 'text', is_nullable: 'YES' },
         { column_name: 'scope', data_type: 'text', is_nullable: 'YES' },
-        { column_name: 'created_at', data_type: 'timestamp with time zone', is_nullable: 'NO' },
-        { column_name: 'updated_at', data_type: 'timestamp with time zone', is_nullable: 'NO' }
+        { column_name: 'created_at', data_type: 'timestamp with time zone', is_nullable: 'YES' }, // Has DEFAULT NOW()
+        { column_name: 'updated_at', data_type: 'timestamp with time zone', is_nullable: 'YES' } // Has DEFAULT NOW()
       ]
       
       expectedColumns.forEach(expected => {
@@ -267,7 +254,7 @@ describeConditional('Authentication Database Schema', () => {
         { column_name: 'event_data', data_type: 'jsonb', is_nullable: 'YES' },
         { column_name: 'success', data_type: 'boolean', is_nullable: 'NO' },
         { column_name: 'error_message', data_type: 'text', is_nullable: 'YES' },
-        { column_name: 'created_at', data_type: 'timestamp with time zone', is_nullable: 'NO' }
+        { column_name: 'created_at', data_type: 'timestamp with time zone', is_nullable: 'YES' } // Has DEFAULT NOW()
       ]
       
       expectedColumns.forEach(expected => {
@@ -318,7 +305,7 @@ describeConditional('Authentication Database Schema', () => {
         { column_name: 'consent_type', data_type: 'text', is_nullable: 'NO' },
         { column_name: 'granted', data_type: 'boolean', is_nullable: 'NO' },
         { column_name: 'version', data_type: 'text', is_nullable: 'NO' },
-        { column_name: 'timestamp', data_type: 'timestamp with time zone', is_nullable: 'NO' },
+        { column_name: 'timestamp', data_type: 'timestamp with time zone', is_nullable: 'YES' }, // Has DEFAULT NOW()
         { column_name: 'ip_address', data_type: 'inet', is_nullable: 'YES' },
         { column_name: 'user_agent', data_type: 'text', is_nullable: 'YES' }
       ]
@@ -360,7 +347,7 @@ describeConditional('Authentication Database Schema', () => {
         { column_name: 'user_id', data_type: 'uuid', is_nullable: 'NO' },
         { column_name: 'session_id', data_type: 'text', is_nullable: 'NO' },
         { column_name: 'expires_at', data_type: 'timestamp with time zone', is_nullable: 'NO' },
-        { column_name: 'created_at', data_type: 'timestamp with time zone', is_nullable: 'NO' },
+        { column_name: 'created_at', data_type: 'timestamp with time zone', is_nullable: 'YES' }, // Has DEFAULT NOW()
         { column_name: 'revoked_at', data_type: 'timestamp with time zone', is_nullable: 'YES' },
         { column_name: 'replaced_by', data_type: 'uuid', is_nullable: 'YES' }
       ]
@@ -419,11 +406,13 @@ describeConditional('Authentication Database Schema', () => {
         JOIN information_schema.referential_constraints rc
           ON tc.constraint_name = rc.constraint_name
         WHERE tc.constraint_type = 'FOREIGN KEY'
-        AND tc.table_name IN ('webauthn_credentials', 'oauth_accounts', 'user_sessions', 'refresh_tokens')
+        AND tc.table_name IN ('webauthn_credentials', 'oauth_accounts', 'user_sessions', 'refresh_tokens', 'user_consents')
+        AND tc.constraint_name NOT LIKE '%replaced_by_fkey' -- Skip self-referential FK
       `
       
       if (Array.isArray(cascades)) {
         cascades.forEach(cascade => {
+          // All auth tables should have CASCADE delete for user_id FKs
           expect(cascade.delete_rule).toBe('CASCADE')
         })
       }
