@@ -11,6 +11,7 @@ import {
   createDeferred,
   MockTimer,
 } from '../../github/test-helpers'
+import { TEST_ITERATIONS, TEST_TIMEOUTS, runConcurrentTests } from '../../performance/optimize-tests'
 
 describe('GitHub Client Load Testing', () => {
   setupGitHubTestIsolation()
@@ -49,7 +50,7 @@ describe('GitHub Client Load Testing', () => {
 
   describe('High-Concurrency Operations', () => {
     it('should handle 50 concurrent REST API requests', async () => {
-      const concurrency = 50
+      const concurrency = TEST_ITERATIONS.LOAD_CONCURRENT_REQUESTS
       let requestCount = 0
 
       // Mock successful responses for all requests
@@ -95,7 +96,7 @@ describe('GitHub Client Load Testing', () => {
     }, 15000)
 
     it('should handle 100 concurrent GraphQL requests with batching', async () => {
-      const concurrency = 100
+      const concurrency = TEST_ITERATIONS.LOAD_CONCURRENT_REQUESTS
       let requestCount = 0
 
       // Mock GraphQL responses
@@ -838,18 +839,20 @@ describe('GitHub Client Load Testing', () => {
       const failures = results.filter(r => !r.success)
       const durations = requestTimings.map(t => t.duration)
 
+      const testDuration = Math.max(testEnd - testStart, 1) // Ensure minimum 1ms to avoid division by zero
+      
       const metrics = {
         totalRequests: results.length,
         successCount: successes.length,
         failureCount: failures.length,
         successRate: (successes.length / results.length) * 100,
-        totalTestDuration: testEnd - testStart,
+        totalTestDuration: testDuration,
         avgRequestDuration: durations.reduce((sum, d) => sum + d, 0) / durations.length,
         minRequestDuration: Math.min(...durations),
         maxRequestDuration: Math.max(...durations),
         p95RequestDuration: durations.sort((a, b) => a - b)[Math.floor(durations.length * 0.95)],
         p99RequestDuration: durations.sort((a, b) => a - b)[Math.floor(durations.length * 0.99)],
-        requestsPerSecond: (results.length / (testEnd - testStart)) * 1000,
+        requestsPerSecond: (results.length / testDuration) * 1000,
         cacheMetrics: client.getCacheMetrics(),
         rateLimitState: client.getRateLimitInfo(),
       }
