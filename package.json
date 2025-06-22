@@ -31,6 +31,8 @@
     "test:db": "cross-env NODE_ENV=test vitest run --config vitest.database.config.ts",
     "test:ci": "vitest run --coverage --reporter=verbose",
     "test:ui": "vitest --ui",
+    "test:fast": "vitest run --config tests/vitest.performance.config.ts",
+    "test:fast:watch": "vitest --config tests/vitest.performance.config.ts",
     "test:vector": "cross-env NODE_ENV=test vitest run tests/database/vector-search.test.ts",
     "test:performance": "node scripts/performance/benchmark-suite.js",
     "test:cache": "node scripts/performance/cache-test-utils.js",
@@ -107,6 +109,7 @@
     "tailwindcss": "^4.1.10",
     "tsx": "^4.19.2",
     "typescript": "^5.8.3",
+    "undici": "^7.10.0",
     "vitest": "^3.2.4"
   }
 }
