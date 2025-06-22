@@ -403,7 +403,7 @@ function getValidatedEnv() {
         WEBAUTHN_RP_ID: process.env.WEBAUTHN_RP_ID || 'localhost',
         NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
         CORS_ORIGINS: process.env.CORS_ORIGINS || 'http://localhost:3000',
-        ALLOWED_REDIRECT_URIS: 
+        ALLOWED_REDIRECT_URIS:
           process.env.ALLOWED_REDIRECT_URIS || 'http://localhost:3000/api/auth/github/callback',
       }
 
@@ -414,10 +414,12 @@ function getValidatedEnv() {
         console.warn('Test environment validation failed, using minimal config')
         return envSchema.parse({
           NODE_ENV: 'test',
-          JWT_SECRET: 'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only',
+          JWT_SECRET:
+            'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only',
           DATABASE_URL: 'postgresql://test:test@localhost:5432/testdb',
           GITHUB_CLIENT_ID: 'Iv1.a1b2c3d4e5f6g7h8',
-          GITHUB_CLIENT_SECRET: 'test-github-client-secret-with-sufficient-length-for-testing-purposes-to-meet-40-char-requirement',
+          GITHUB_CLIENT_SECRET:
+            'test-github-client-secret-with-sufficient-length-for-testing-purposes-to-meet-40-char-requirement',
           NEXT_PUBLIC_RP_ID: 'localhost',
           NEXT_PUBLIC_APP_URL: 'http://localhost:3000',
           CORS_ORIGINS: 'http://localhost:3000',
@@ -425,7 +427,7 @@ function getValidatedEnv() {
           // Include all required defaults for test environment
           DB_PROJECT_ID: 'test-project',
           DB_MAIN_BRANCH: 'test-main',
-          DB_DEV_BRANCH: 'test-dev', 
+          DB_DEV_BRANCH: 'test-dev',
           DB_TEST_BRANCH: 'test-test',
           DB_POOL_MIN: '2',
           DB_POOL_MAX: '20',
@@ -468,12 +470,16 @@ export function getJwtSecret(): string {
   if (process.env.NODE_ENV === 'test') {
     return 'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only'
   }
-  
+
   // For non-test environments, try to get from env first, then from process.env
   try {
-    return env.JWT_SECRET || process.env.JWT_SECRET || (() => {
-      throw new Error('JWT_SECRET is required')
-    })()
+    return (
+      env.JWT_SECRET ||
+      process.env.JWT_SECRET ||
+      (() => {
+        throw new Error('JWT_SECRET is required')
+      })()
+    )
   } catch (error) {
     // Fallback if env is not available
     if (process.env.JWT_SECRET) {
@@ -485,7 +491,7 @@ export function getJwtSecret(): string {
 
 export function getEncryptionKey(): string {
   const envNodeEnv = process.env.NODE_ENV || 'development'
-  
+
   // Try to get from env first, then from process.env
   let encryptionKey: string | undefined
   try {
@@ -493,7 +499,7 @@ export function getEncryptionKey(): string {
   } catch (error) {
     encryptionKey = process.env.ENCRYPTION_KEY
   }
-  
+
   if (!encryptionKey) {
     if (envNodeEnv === 'production') {
       throw new Error('ENCRYPTION_KEY is required in production')

@@ -18,7 +18,7 @@ const ALLOWED_REDIRECT_URIS = env.ALLOWED_REDIRECT_URIS?.split(',') || [
   'http://localhost:3000/auth/callback',
   'http://localhost:3000/api/auth/github/callback',
   'https://localhost:3000/auth/callback',
-  'https://localhost:3000/api/auth/github/callback'
+  'https://localhost:3000/api/auth/github/callback',
 ]
 
 // Validation schemas

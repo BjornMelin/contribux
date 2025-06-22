@@ -402,7 +402,7 @@ export class GitHubClient {
    * @example
    * ```typescript
    * const client = new GitHubClient({ ... });
-   * 
+   *
    * try {
    *   // Use the client
    *   await client.rest.repos.get({ owner: 'owner', repo: 'repo' });
@@ -416,40 +416,33 @@ export class GitHubClient {
     // Clear cache manager and stop cleanup timer
     if (this.cache) {
       await this.cache.destroy()
-      this.cache = undefined
     }
 
     // Clear DataLoader cache
     if (this.repositoryDataLoader) {
       this.repositoryDataLoader.clearAll()
-      this.repositoryDataLoader = undefined
     }
 
     // Clear token caches
     this.tokenCache.clear()
-    this.jwtToken = undefined
-    this.jwtExpiration = undefined
-    this.currentInstallationId = undefined
 
     // Clear token rotation manager state
     if (this.tokenRotationManager) {
       this.tokenRotationManager.clearTokens()
-      this.tokenRotationManager = undefined
     }
 
     // Clear rate limit manager state
-    this.rateLimitManager.clear()
+    this.rateLimitManager.reset()
 
-    // Clear retry manager state (circuit breaker)
-    this.retryManager.reset()
+    // Retry manager doesn't need explicit cleanup
 
     // Clear scope requirements
     this.scopeRequirements.clear()
 
-    // Clear any remaining references
-    this.octokit = undefined as any
-    this.rest = undefined as any
-    this.graphql = undefined as any
+    // Clear any remaining references - but keep types intact for cleanup
+    // this.octokit = undefined as any
+    // this.rest = undefined as any
+    // this.graphql = undefined as any
   }
 
   /**

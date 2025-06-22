@@ -478,7 +478,7 @@ export async function rateLimit(
       }
       throw new Error('Rate limiter consume method is not available')
     }
-    
+
     const result = await customRateLimiter.consume(key)
 
     // Ensure result is defined and has the expected properties

@@ -50,7 +50,7 @@ export class DatabaseMonitorLocal {
 
       const metrics = { active: 0, idle: 0 }
       if (result && Array.isArray(result)) {
-        result.forEach((row) => {
+        result.forEach(row => {
           const validatedRow = connectionRowSchema.parse(row)
           const count = Number.parseInt(validatedRow.count, 10) || 0
           if (validatedRow.state === 'active') metrics.active = count
@@ -81,7 +81,7 @@ export class DatabaseMonitorLocal {
         [limit]
       )
 
-      return result && Array.isArray(result) ? result.map((row) => slowQuerySchema.parse(row)) : []
+      return result && Array.isArray(result) ? result.map(row => slowQuerySchema.parse(row)) : []
     } catch (error) {
       console.error('Failed to get slow queries (pg_stat_statements may not be enabled):', error)
       return []
@@ -103,7 +103,7 @@ export class DatabaseMonitorLocal {
         ORDER BY idx_scan DESC`
       )
 
-      return result && Array.isArray(result) ? result.map((row) => indexStatSchema.parse(row)) : []
+      return result && Array.isArray(result) ? result.map(row => indexStatSchema.parse(row)) : []
     } catch (error) {
       console.error('Failed to get index usage stats:', error)
       return []
@@ -124,7 +124,9 @@ export class DatabaseMonitorLocal {
         ORDER BY pg_relation_size(indexrelid) DESC`
       )
 
-      return result && Array.isArray(result) ? result.map((row) => vectorIndexMetricSchema.parse(row)) : []
+      return result && Array.isArray(result)
+        ? result.map(row => vectorIndexMetricSchema.parse(row))
+        : []
     } catch (error) {
       console.error('Failed to get vector index metrics:', error)
       return []
@@ -145,7 +147,7 @@ export class DatabaseMonitorLocal {
         ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC`
       )
 
-      return result && Array.isArray(result) ? result.map((row) => tableSizeSchema.parse(row)) : []
+      return result && Array.isArray(result) ? result.map(row => tableSizeSchema.parse(row)) : []
     } catch (error) {
       console.error('Failed to get table sizes:', error)
       return []
@@ -185,7 +187,10 @@ export class DatabaseMonitorLocal {
         WHERE extname IN ('vector', 'pg_trgm', 'uuid-ossp', 'pgcrypto')`
       )
 
-      const extensions = extensionsResult && Array.isArray(extensionsResult) ? extensionsResult.map((row) => extensionSchema.parse(row)) : []
+      const extensions =
+        extensionsResult && Array.isArray(extensionsResult)
+          ? extensionsResult.map(row => extensionSchema.parse(row))
+          : []
       const requiredExtensions = ['vector', 'pg_trgm', 'uuid-ossp', 'pgcrypto']
       const installedExtensions = extensions.map(ext => ext.extname)
       const missing = requiredExtensions.filter(ext => !installedExtensions.includes(ext))

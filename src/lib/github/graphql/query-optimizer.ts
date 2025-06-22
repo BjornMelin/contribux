@@ -133,7 +133,7 @@ export function estimateQueryComplexity(query: string): QueryComplexity {
         // Find the matching closing brace for the parent connection
         const parentOpenBrace = query.indexOf('{', parentConn.index)
         const parentCloseBrace = findMatchingBrace(query, parentOpenBrace)
-        
+
         // Verify the current connection is within the parent's scope
         if (parentCloseBrace > conn.index) {
           multiplier *= parentConn.size
@@ -142,14 +142,14 @@ export function estimateQueryComplexity(query: string): QueryComplexity {
     }
 
     const connectionPoints = conn.size * multiplier
-    
+
     // For extremely deep nesting (6+ levels), apply exponential growth penalty
     let finalConnectionPoints = connectionPoints
     if (connDepth >= 6) {
       const depthPenalty = Math.pow(2, connDepth - 5)
       finalConnectionPoints = connectionPoints * depthPenalty
     }
-    
+
     totalPoints += finalConnectionPoints
 
     // Note: Don't artificially cap the total - let it reflect the true complexity
