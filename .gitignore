@@ -262,6 +262,26 @@ storybook-static/
 tmp/
 temp/
 .tmp/
+*.tmp
+*.temp
+*.tmp.*
+*-tmp.*
+*-temp.*
+
+# Working files and notes
+MIGRATION_NOTE*.md
+TODO_*.md
+NOTES_*.md
+WORKING_*.md
+*-working.*
+*-draft.*
+
+# Test output files
+test-output*.log
+test-results*.json
+test-report*.html
+coverage*.txt
+*-test-output.*
 
 # Cache directories
 .cache/
