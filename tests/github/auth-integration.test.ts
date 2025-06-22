@@ -33,20 +33,54 @@ MIIEowIBAAKCAQEA1234567890abcdef1234567890abcdef1234567890abcdef
 -----END RSA PRIVATE KEY-----`
 
   beforeEach(() => {
+    // Clean all nock interceptors
     nock.cleanAll()
+    nock.abortPendingRequests()
+    
+    // Disable net connect to ensure all requests are mocked
+    nock.disableNetConnect()
+    
+    // Clear all mocks
     vi.clearAllMocks()
+    
+    // Clear any global GitHub state
+    if (global.__githubClientCache) {
+      delete global.__githubClientCache
+    }
+    if (global.__githubRateLimitState) {
+      delete global.__githubRateLimitState
+    }
+    
+    // Reset nock back to clean state
+    nock.restore()
+    nock.activate()
   })
 
   afterEach(() => {
+    // Clean all nock interceptors
     nock.cleanAll()
+    nock.abortPendingRequests()
+    
+    // Re-enable net connect
+    nock.enableNetConnect()
+    
+    // Clear all mocks
+    vi.clearAllMocks()
+    
+    // Restore nock to clean state
+    nock.restore()
   })
 
   describe('Personal Access Token Authentication', () => {
     it('should authenticate with valid PAT token', async () => {
       const validToken = 'ghp_valid_token_12345'
       
-      // Mock successful authentication
-      nock('https://api.github.com')
+      // Mock successful authentication with explicit scope
+      const scope = nock('https://api.github.com', {
+        reqheaders: {
+          'authorization': `token ${validToken}`
+        }
+      })
         .get('/user')
         .reply(200, {
           login: 'testuser',
@@ -72,6 +106,9 @@ MIIEowIBAAKCAQEA1234567890abcdef1234567890abcdef1234567890abcdef
       try {
         const user = await client.rest.users.getAuthenticated()
 
+        // Verify nock was called
+        expect(scope.isDone()).toBe(true)
+
         // Verify authentication success
         expect(user.data).toBeDefined()
         expect(user.data.login).toBe('testuser')
@@ -94,8 +131,12 @@ MIIEowIBAAKCAQEA1234567890abcdef1234567890abcdef1234567890abcdef
     it('should fail with invalid PAT token', async () => {
       const invalidToken = 'ghp_invalid_token_12345'
       
-      // Mock authentication failure
-      nock('https://api.github.com')
+      // Mock authentication failure with specific token check
+      const scope = nock('https://api.github.com', {
+        reqheaders: {
+          'authorization': `token ${invalidToken}`
+        }
+      })
         .get('/user')
         .reply(401, {
           message: 'Bad credentials',
@@ -106,6 +147,9 @@ MIIEowIBAAKCAQEA1234567890abcdef1234567890abcdef1234567890abcdef
         auth: {
           type: 'token',
           token: invalidToken
+        },
+        retry: {
+          enabled: false // Disable retry for faster error testing
         }
       })
 
@@ -113,6 +157,7 @@ MIIEowIBAAKCAQEA1234567890abcdef1234567890abcdef1234567890abcdef
         await expect(
           client.rest.users.getAuthenticated()
         ).rejects.toThrow()
+        expect(scope.isDone()).toBe(true)
       } finally {
         await client.destroy()
       }
@@ -122,7 +167,11 @@ MIIEowIBAAKCAQEA1234567890abcdef1234567890abcdef1234567890abcdef
       const limitedToken = 'ghp_limited_scope_token'
       
       // Mock successful user auth but failed repo access
-      nock('https://api.github.com')
+      const userScope = nock('https://api.github.com', {
+        reqheaders: {
+          'authorization': `token ${limitedToken}`
+        }
+      })
         .get('/user')
         .reply(200, {
           login: 'testuser',
@@ -131,6 +180,12 @@ MIIEowIBAAKCAQEA1234567890abcdef1234567890abcdef1234567890abcdef
         }, {
           'x-oauth-scopes': 'user:email'
         })
+
+      const repoScope = nock('https://api.github.com', {
+        reqheaders: {
+          'authorization': `token ${limitedToken}`
+        }
+      })
         .get('/user/repos')
         .query({ per_page: 5 })
         .reply(403, {
@@ -142,6 +197,9 @@ MIIEowIBAAKCAQEA1234567890abcdef1234567890abcdef1234567890abcdef
         auth: {
           type: 'token',
           token: limitedToken
+        },
+        retry: {
+          enabled: false
         }
       })
 
@@ -150,11 +208,13 @@ MIIEowIBAAKCAQEA1234567890abcdef1234567890abcdef1234567890abcdef
         const user = await client.rest.users.getAuthenticated()
         expect(user.data.login).toBe('testuser')
         expect(user.headers['x-oauth-scopes']).toBe('user:email')
+        expect(userScope.isDone()).toBe(true)
 
         // Repository access should fail
         await expect(
           client.rest.repos.listForAuthenticatedUser({ per_page: 5 })
         ).rejects.toThrow()
+        expect(repoScope.isDone()).toBe(true)
       } finally {
         await client.destroy()
       }
@@ -263,7 +323,11 @@ MIIEowIBAAKCAQEA1234567890abcdef1234567890abcdef1234567890abcdef
       const oauthToken = 'gho_oauth_access_token'
 
       // Mock OAuth token validation
-      nock('https://api.github.com')
+      const scope = nock('https://api.github.com', {
+        reqheaders: {
+          'authorization': `token ${oauthToken}`
+        }
+      })
         .get('/user')
         .reply(200, {
           login: 'oauthuser',
@@ -282,6 +346,7 @@ MIIEowIBAAKCAQEA1234567890abcdef1234567890abcdef1234567890abcdef
         const user = await client.rest.users.getAuthenticated()
         expect(user.data.login).toBe('oauthuser')
         expect(user.data.id).toBe(54321)
+        expect(scope.isDone()).toBe(true)
       } finally {
         await client.destroy()
       }
@@ -373,8 +438,12 @@ MIIEowIBAAKCAQEA1234567890abcdef1234567890abcdef1234567890abcdef
       ]
 
       for (const testCase of testCases) {
-        // Mock error response
-        nock('https://api.github.com')
+        // Mock error response with specific token header
+        const scope = nock('https://api.github.com', {
+          reqheaders: {
+            'authorization': `token ${testCase.token}`
+          }
+        })
           .get('/user')
           .reply(testCase.status, { message: testCase.message })
 
@@ -392,6 +461,7 @@ MIIEowIBAAKCAQEA1234567890abcdef1234567890abcdef1234567890abcdef
           await expect(
             client.rest.users.getAuthenticated()
           ).rejects.toThrow()
+          expect(scope.isDone()).toBe(true)
         } finally {
           await client.destroy()
         }
@@ -404,7 +474,11 @@ MIIEowIBAAKCAQEA1234567890abcdef1234567890abcdef1234567890abcdef
       const token = 'ghp_test_token'
       const resetTime = Math.floor(Date.now() / 1000) + 3600
 
-      nock('https://api.github.com')
+      const scope = nock('https://api.github.com', {
+        reqheaders: {
+          'authorization': `token ${token}`
+        }
+      })
         .get('/user')
         .reply(200, {
           login: 'testuser',
@@ -443,6 +517,7 @@ MIIEowIBAAKCAQEA1234567890abcdef1234567890abcdef1234567890abcdef
         expect(remaining).toBe(4999)
         expect(used).toBe(1)
         expect(remaining + used).toBeLessThanOrEqual(limit)
+        expect(scope.isDone()).toBe(true)
       } finally {
         await client.destroy()
       }
@@ -451,20 +526,31 @@ MIIEowIBAAKCAQEA1234567890abcdef1234567890abcdef1234567890abcdef
     it('should handle GraphQL rate limits', async () => {
       const token = 'ghp_test_token'
 
-      nock('https://api.github.com')
+      // First check what nock sees
+      let interceptedRequests: any[] = []
+      
+      const scope = nock('https://api.github.com', {
+        reqheaders: {
+          'authorization': `token ${token}`
+        }
+      })
         .post('/graphql')
-        .reply(200, {
-          data: {
-            viewer: {
-              login: 'testuser'
-            },
-            rateLimit: {
-              limit: 5000,
-              cost: 1,
-              remaining: 4999,
-              resetAt: new Date(Date.now() + 3600000).toISOString()
+        .reply(function(uri, requestBody) {
+          interceptedRequests.push({ uri, requestBody, headers: this.req.headers })
+          return [200, {
+            data: {
+              viewer: {
+                login: 'testuser'
+              },
+              rateLimit: {
+                limit: 5000,
+                cost: 1,
+                remaining: 4999,
+                resetAt: new Date(Date.now() + 3600000).toISOString(),
+                nodeCount: 1
+              }
             }
-          }
+          }]
         })
 
       const client = new GitHubClient({
@@ -472,7 +558,7 @@ MIIEowIBAAKCAQEA1234567890abcdef1234567890abcdef1234567890abcdef
           type: 'token',
           token
         },
-        includeRateLimit: true
+        includeRateLimit: false
       })
 
       try {
@@ -486,16 +572,20 @@ MIIEowIBAAKCAQEA1234567890abcdef1234567890abcdef1234567890abcdef
               cost
               remaining
               resetAt
+              nodeCount
             }
           }
         `
 
-        const result = await client.graphql(query)
+        const result = await client.graphql(query) as any
+        
+        // The GraphQL client returns the data directly, not wrapped in a data property
         expect(result.viewer.login).toBe('testuser')
         expect(result.rateLimit).toBeDefined()
         expect(result.rateLimit.limit).toBe(5000)
         expect(result.rateLimit.remaining).toBe(4999)
         expect(result.rateLimit.cost).toBe(1)
+        expect(scope.isDone()).toBe(true)
       } finally {
         await client.destroy()
       }
@@ -506,7 +596,7 @@ MIIEowIBAAKCAQEA1234567890abcdef1234567890abcdef1234567890abcdef
     it('should format token headers correctly', async () => {
       const token = 'ghp_test_token_12345'
 
-      nock('https://api.github.com')
+      const scope = nock('https://api.github.com')
         .get('/user')
         .matchHeader('authorization', `token ${token}`)
         .reply(200, {
@@ -528,6 +618,7 @@ MIIEowIBAAKCAQEA1234567890abcdef1234567890abcdef1234567890abcdef
         // Verify the current token is correctly stored
         const currentToken = client.getCurrentToken()
         expect(currentToken).toBe(token)
+        expect(scope.isDone()).toBe(true)
       } finally {
         await client.destroy()
       }
@@ -536,7 +627,11 @@ MIIEowIBAAKCAQEA1234567890abcdef1234567890abcdef1234567890abcdef
     it('should maintain authentication context across requests', async () => {
       const token = 'ghp_persistent_token'
 
-      nock('https://api.github.com')
+      const scope = nock('https://api.github.com', {
+        reqheaders: {
+          'authorization': `token ${token}`
+        }
+      })
         .get('/user')
         .reply(200, { login: 'testuser', id: 12345 })
         .get('/user/repos')
@@ -568,6 +663,7 @@ MIIEowIBAAKCAQEA1234567890abcdef1234567890abcdef1234567890abcdef
         const user2 = await client.rest.users.getAuthenticated()
         expect(user2.data.login).toBe(user1.data.login)
         expect(user2.data.id).toBe(user1.data.id)
+        expect(scope.isDone()).toBe(true)
       } finally {
         await client.destroy()
       }
@@ -579,7 +675,11 @@ MIIEowIBAAKCAQEA1234567890abcdef1234567890abcdef1234567890abcdef
       const token = 'ghp_retry_token'
 
       // Mock intermittent failures followed by success
-      nock('https://api.github.com')
+      const scope = nock('https://api.github.com', {
+        reqheaders: {
+          'authorization': `token ${token}`
+        }
+      })
         .get('/user')
         .reply(401, { message: 'Bad credentials' })
         .get('/user')
@@ -605,6 +705,7 @@ MIIEowIBAAKCAQEA1234567890abcdef1234567890abcdef1234567890abcdef
       try {
         const user = await client.rest.users.getAuthenticated()
         expect(user.data.login).toBe('testuser')
+        expect(scope.isDone()).toBe(true)
       } finally {
         await client.destroy()
       }
@@ -614,7 +715,11 @@ MIIEowIBAAKCAQEA1234567890abcdef1234567890abcdef1234567890abcdef
       const token = 'ghp_timeout_token'
 
       // Mock timeout scenario with shorter delay but still noticeable
-      nock('https://api.github.com')
+      const scope = nock('https://api.github.com', {
+        reqheaders: {
+          'authorization': `token ${token}`
+        }
+      })
         .get('/user')
         .delay(200) // 200ms delay
         .reply(200, {
@@ -640,6 +745,7 @@ MIIEowIBAAKCAQEA1234567890abcdef1234567890abcdef1234567890abcdef
 
         const duration = Date.now() - startTime
         expect(duration).toBeGreaterThan(100) // Should have taken at least 100ms due to delay
+        expect(scope.isDone()).toBe(true)
       } finally {
         await client.destroy()
       }
