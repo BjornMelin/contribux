@@ -146,7 +146,7 @@ export function estimateQueryComplexity(query: string): QueryComplexity {
     // For extremely deep nesting (6+ levels), apply exponential growth penalty
     let finalConnectionPoints = connectionPoints
     if (connDepth >= 6) {
-      const depthPenalty = Math.pow(2, connDepth - 5)
+      const depthPenalty = 2 ** (connDepth - 5)
       finalConnectionPoints = connectionPoints * depthPenalty
     }
 
