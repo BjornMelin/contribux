@@ -1,0 +1,31 @@
+# GitGuardian Configuration
+# This file configures GitGuardian to ignore false positives in test files
+
+# API URL (optional)
+api-url: https://api.gitguardian.com
+
+# Paths to ignore completely
+paths-ignore:
+  - coverage-report.json
+  - "**/*.coverage"
+  - "**/.nyc_output"
+  - "**/node_modules/**"
+  - "**/.git/**"
+  - "**/dist/**"
+  - "**/build/**"
+
+# Patterns to ignore as false positives
+secrets-ignore:
+  # Test environment files with clearly marked test values
+  - name: "Test GitHub Client Secret Long Version"
+    match: "test-github-client-secret-with-sufficient-length-for-testing-purposes-to-meet-40-char-requirement"
+    paths:
+      - ".env.test.example"
+      - "tests/**/*.test.ts"
+
+# Additional configuration
+exit-zero: false  # Exit with non-zero code if secrets are found (except ignored ones)
+exclude-secrets:
+  - github_client_id   # These are test values with obvious test patterns
+  - github_token      # These match our test token patterns
+verbose: false

@@ -202,8 +202,8 @@ describe('Environment Validation', () => {
       vi.stubEnv('NODE_ENV', 'test')
       vi.stubEnv('DATABASE_URL', 'postgresql://user:pass@localhost:5432/test')
       vi.stubEnv('ENABLE_OAUTH', 'true')
-      vi.stubEnv('GITHUB_CLIENT_ID', 'Iv1234567890abcdef12') // Valid format: 20 alphanumeric chars
-      vi.stubEnv('GITHUB_CLIENT_SECRET', 'ghp_1234567890abcdef1234567890abcdef12345678')
+      vi.stubEnv('GITHUB_CLIENT_ID', 'Iv1.test1234567890ab') // Valid format: OAuth App format
+      vi.stubEnv('GITHUB_CLIENT_SECRET', 'test-oauth-client-secret-for-testing-only-with-sufficient-length')
       
       const { envSchema } = await importSchemaOnly()
       
@@ -215,7 +215,7 @@ describe('Environment Validation', () => {
       vi.stubEnv('DATABASE_URL', 'postgresql://user:pass@localhost:5432/test')
       vi.stubEnv('ENABLE_OAUTH', 'true')
       vi.stubEnv('GITHUB_CLIENT_ID', 'invalid-format') // Invalid format
-      vi.stubEnv('GITHUB_CLIENT_SECRET', 'ghp_1234567890abcdef1234567890abcdef12345678')
+      vi.stubEnv('GITHUB_CLIENT_SECRET', 'test-oauth-client-secret-for-testing-only-with-sufficient-length')
       
       const { envSchema } = await importSchemaOnly()
       

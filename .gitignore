@@ -127,6 +127,7 @@ playwright-report/
 # Coverage reports
 lcov.info
 coverage.lcov
+coverage-report.json
 
 # Playwright browsers and cache
 test-results/
