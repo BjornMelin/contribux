@@ -2,10 +2,11 @@
  * Central export point for all GitHub API interfaces
  *
  * This module re-exports all interface definitions from their specialized files
- * to provide a single point of access for consumers while maintaining organized
- * code structure.
+ * to provide a single point of access for consumers.
  */
 
+// Export core GitHub types
+export * from '../types'
 // Caching interfaces
 export type {
   CacheableData,
@@ -27,12 +28,14 @@ export type {
   RequestOptions,
   RetryState,
 } from './client'
+
 // DataLoader interfaces
 export type {
   DataLoaderOptions,
   RepositoryData,
   RepositoryKey,
 } from './dataloader'
+
 // GraphQL interfaces
 export type {
   BatchRequest,
@@ -41,6 +44,7 @@ export type {
   GraphQLPageInfo,
   GraphQLResponse,
 } from './graphql'
+
 // HTTP and Octokit interfaces
 export type {
   GitHubErrorResponse,
@@ -48,6 +52,7 @@ export type {
   OctokitRequestOptions,
   OctokitResponse,
 } from './http'
+
 // Rate limiting and throttling interfaces
 export type {
   GraphQLRateLimitInfo,
@@ -55,25 +60,25 @@ export type {
   RateLimitResponse,
   ThrottleOptions,
 } from './rate-limiting'
+
 // Retry and error handling interfaces
 export type {
   CircuitBreakerOptions,
   RetryOptions,
 } from './retry'
+
 // Token management interfaces
 export type {
   TokenInfo,
   TokenRotationConfig,
 } from './token'
+
 // Utility types
 export type { LogLevel } from './utils'
-// Webhook interfaces
+
+// Webhook interfaces (excluding duplicate core types)
 export type {
   ForkPayload,
-  GitHubIssue,
-  GitHubPullRequest,
-  GitHubRepository,
-  GitHubUser,
   IssuesPayload,
   PullRequestPayload,
   PushPayload,

@@ -4,6 +4,9 @@ import { vi, beforeEach, afterEach } from "vitest";
 import { Crypto } from "@peculiar/webcrypto";
 import { resetTestState } from "./test-utils/cleanup";
 
+// Import MSW for modern HTTP mocking
+import 'msw/node';
+
 // Load test environment variables first
 config({ path: ".env.test" });
 

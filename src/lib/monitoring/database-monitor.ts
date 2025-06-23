@@ -1,6 +1,5 @@
 // Database monitoring utilities for Neon PostgreSQL
 import { neon } from '@neondatabase/serverless'
-import { dbConfig } from '@/lib/db/config'
 import {
   type ConnectionMetrics,
   connectionMetricsSchema,
@@ -84,11 +83,11 @@ export class DatabaseMonitor {
       const result = await this.sql`
         SELECT 
           schemaname,
-          tablename,
+          relname as tablename,
           indexrelname as indexname,
-          idx_scan as scans_count,
-          idx_tup_read as tuples_read,
-          idx_tup_fetch as tuples_fetched
+          CAST(idx_scan as INTEGER) as scans_count,
+          CAST(idx_tup_read as INTEGER) as tuples_read,
+          CAST(idx_tup_fetch as INTEGER) as tuples_fetched
         FROM pg_stat_user_indexes
         WHERE schemaname = 'public'
         ORDER BY idx_scan DESC
@@ -108,10 +107,10 @@ export class DatabaseMonitor {
       const result = await this.sql`
         SELECT 
           schemaname,
-          tablename,
+          relname as tablename,
           indexrelname as indexname,
           pg_size_pretty(pg_relation_size(indexrelid)) as index_size,
-          idx_scan as scans_count
+          CAST(idx_scan as INTEGER) as scans_count
         FROM pg_stat_user_indexes 
         WHERE indexrelname LIKE '%hnsw%'
         ORDER BY pg_relation_size(indexrelid) DESC

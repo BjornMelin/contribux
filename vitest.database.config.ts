@@ -51,7 +51,9 @@ export default defineConfig({
     },
 
     // Disable fake timers for database tests
-    fakeTimers: false,
+    fakeTimers: {
+      toFake: [],
+    },
   },
 
   // ESBuild configuration

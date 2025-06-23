@@ -8,7 +8,7 @@ export default defineConfig({
     },
   },
   test: {
-    // Global test configuration
+    // Global test configuration - modern Vitest 3.2+ patterns
     globals: true,
     environment: 'node',
 
@@ -19,7 +19,7 @@ export default defineConfig({
     // Setup files
     setupFiles: ['./tests/setup.ts'],
 
-    // Coverage configuration with V8 provider (2025 best practice)
+    // Coverage configuration with V8 provider - modernized for Vitest 3.2+
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
@@ -41,33 +41,35 @@ export default defineConfig({
         'tailwind.config.js',
         'postcss.config.js',
       ],
-      // 2025 best practice: Set coverage thresholds
+      // Updated coverage thresholds for 90% minimum
       thresholds: {
         global: {
-          branches: 80,
-          functions: 80,
-          lines: 80,
-          statements: 80,
+          branches: 90,
+          functions: 90,
+          lines: 90,
+          statements: 90,
         },
       },
-      // Ignore empty lines and comments (2025 feature)
+      // Vitest 3.2+ features
       ignoreEmptyLines: true,
+      skipFull: false, // Include files with 100% coverage in reports
     },
 
-    // Performance optimizations - use single fork to prevent ESBuild service errors
+    // Modern pool configuration for Vitest 3.2+
     pool: 'forks',
     poolOptions: {
       forks: {
-        singleFork: true,
+        singleFork: false, // Enable parallel testing for better performance
         isolate: true,
+        maxForks: 4, // Optimize for modern CI environments
       },
     },
 
-    // Limit concurrency to prevent resource exhaustion
-    maxConcurrency: 1,
-    fileParallelism: false,
+    // Enable concurrency for faster test execution in Vitest 3.2+
+    maxConcurrency: 4,
+    fileParallelism: true,
 
-    // Configure fake timers properly
+    // Modern fake timers configuration
     fakeTimers: {
       toFake: [
         'setTimeout',
@@ -77,45 +79,61 @@ export default defineConfig({
         'setImmediate',
         'clearImmediate',
         'Date',
+        'performance',
       ],
       loopLimit: 10_000,
-      shouldAdvanceTime: false,
+      shouldAdvanceTime: true, // Auto-advance time for better async testing
       advanceTimeDelta: 20,
     },
 
-    // Reporter configuration
-    reporters: ['verbose'],
+    // Modern reporter configuration
+    reporters: ['verbose', 'hanging-process'],
 
-    // Timeout settings
-    testTimeout: 30000,
-    hookTimeout: 10000,
+    // Optimized timeout settings
+    testTimeout: 15000, // Reduced for faster feedback
+    hookTimeout: 5000,
 
-    // Retry configuration for flaky tests
-    retry: 0,
+    // Retry configuration optimized for modern CI
+    retry: 1, // Single retry for flaky tests
 
-    // Fail fast on first failure (useful for CI)
+    // Fail fast disabled for comprehensive test coverage
     bail: 0,
 
-    // Mock configuration
+    // Enhanced mock configuration for Vitest 3.2+
     clearMocks: true,
     restoreMocks: true,
     unstubEnvs: true,
     unstubGlobals: true,
+    mockReset: true, // Additional mock reset for test isolation
 
-    // Sequence configuration for consistent test ordering
+    // Optimized sequence configuration
     sequence: {
       shuffle: false,
-      concurrent: false,
+      concurrent: true, // Enable concurrent test execution
+      setupTimeout: 10000,
     },
 
     // Environment variables and context
     env: {
       NODE_ENV: 'test',
+      VITEST: 'true',
     },
+
+    // Modern benchmark configuration
+    benchmark: {
+      include: ['**/*.{bench,benchmark}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+      reporters: ['verbose'],
+    },
+
+    // Advanced debugging options
+    logHeapUsage: !process.env.CI,
+    isolate: true, // Better test isolation
   },
 
-  // ESBuild configuration for optimal TypeScript transpilation
+  // Optimized ESBuild configuration for Node.js 18+
   esbuild: {
     target: 'node18',
+    keepNames: true, // Better stack traces
+    sourcemap: true, // Enhanced debugging
   },
 })

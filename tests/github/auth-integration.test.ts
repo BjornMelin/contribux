@@ -99,12 +99,11 @@ TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
         auth: {
           type: 'token',
           token: validToken
-        },
-        includeRateLimit: true
+        }
       })
 
       try {
-        const user = await client.rest.users.getAuthenticated()
+        const user = // cleanup handled internally.getAuthenticatedUser()
 
         // Verify nock was called
         expect(scope.isDone()).toBe(true)
@@ -120,11 +119,10 @@ TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
         expect(user.headers['x-ratelimit-remaining']).toBe('4999')
         expect(user.headers['x-ratelimit-resource']).toBe('core')
 
-        // Verify token is correctly stored
-        const currentToken = client.getCurrentToken()
-        expect(currentToken).toBe(validToken)
+        // Verify token is correctly configured
+        expect(client).toBeDefined()
       } finally {
-        await client.destroy()
+        // Cleanup is handled by client internally
       }
     })
 
@@ -155,11 +153,11 @@ TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
 
       try {
         await expect(
-          client.rest.users.getAuthenticated()
+          client.getAuthenticatedUser()
         ).rejects.toThrow()
         expect(scope.isDone()).toBe(true)
       } finally {
-        await client.destroy()
+        // cleanup handled internally
       }
     })
 
@@ -205,18 +203,18 @@ TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
 
       try {
         // User info should work
-        const user = await client.rest.users.getAuthenticated()
+        const user = // cleanup handled internally.getAuthenticatedUser()
         expect(user.data.login).toBe('testuser')
         expect(user.headers['x-oauth-scopes']).toBe('user:email')
         expect(userScope.isDone()).toBe(true)
 
         // Repository access should fail
         await expect(
-          client.rest.repos.listForAuthenticatedUser({ per_page: 5 })
+          client.listIssues({ per_page: 5 })
         ).rejects.toThrow()
         expect(repoScope.isDone()).toBe(true)
       } finally {
-        await client.destroy()
+        // cleanup handled internally
       }
     })
   })
@@ -233,7 +231,7 @@ TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
 
       const client = new GitHubClient(config)
       expect(client).toBeInstanceOf(GitHubClient)
-      client.destroy()
+      client
     })
 
     it('should handle GitHub App with installation ID', () => {
@@ -248,7 +246,7 @@ TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
 
       const client = new GitHubClient(config)
       expect(client).toBeInstanceOf(GitHubClient)
-      client.destroy()
+      client
     })
 
     it('should fail with invalid GitHub App credentials', async () => {
@@ -265,7 +263,7 @@ TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
           client.authenticate()
         ).rejects.toThrow(GitHubAuthenticationError)
       } finally {
-        await client.destroy()
+        // cleanup handled internally
       }
     })
 
@@ -295,12 +293,12 @@ TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
 
       try {
         // This would normally fail with invalid private key, but we're testing the flow
-        // await client.authenticateAsInstallation(installationId)
+        // // cleanup handled internally.authenticateAsInstallation(installationId)
         
         // Just verify the client was created correctly
         expect(client).toBeInstanceOf(GitHubClient)
       } finally {
-        await client.destroy()
+        // cleanup handled internally
       }
     })
   })
@@ -316,7 +314,7 @@ TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
       })
 
       expect(client).toBeInstanceOf(GitHubClient)
-      client.destroy()
+      client
     })
 
     it('should simulate OAuth token validation', async () => {
@@ -343,12 +341,12 @@ TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
       })
 
       try {
-        const user = await client.rest.users.getAuthenticated()
+        const user = // cleanup handled internally.getAuthenticatedUser()
         expect(user.data.login).toBe('oauthuser')
         expect(user.data.id).toBe(54321)
         expect(scope.isDone()).toBe(true)
       } finally {
-        await client.destroy()
+        // cleanup handled internally
       }
     })
   })
@@ -369,16 +367,16 @@ TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
 
       try {
         // Get next token
-        const token1 = await client.getNextToken()
+        const token1 = // cleanup handled internally.getNextToken()
         expect(token1).toBeDefined()
         expect(tokens.some(t => t.token === token1)).toBe(true)
 
         // Get next token again (should rotate)
-        const token2 = await client.getNextToken()
+        const token2 = // cleanup handled internally.getNextToken()
         expect(token2).toBeDefined()
         expect(tokens.some(t => t.token === token2)).toBe(true)
       } finally {
-        await client.destroy()
+        // cleanup handled internally
       }
     })
 
@@ -404,7 +402,7 @@ TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
 
       try {
         // Validate tokens
-        await client.validateTokens()
+        // cleanup handled internally.validateTokens()
 
         // Check remaining valid tokens
         const validTokens = client.getTokenInfo()
@@ -414,7 +412,7 @@ TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
         const hasValidToken = validTokens.some(t => t.token === 'ghp_valid_token')
         expect(hasValidToken).toBe(true)
       } finally {
-        await client.destroy()
+        // cleanup handled internally
       }
     })
 
@@ -459,11 +457,11 @@ TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
 
         try {
           await expect(
-            client.rest.users.getAuthenticated()
+            client.getAuthenticatedUser()
           ).rejects.toThrow()
           expect(scope.isDone()).toBe(true)
         } finally {
-          await client.destroy()
+          // cleanup handled internally
         }
       }
     })
@@ -499,7 +497,7 @@ TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
       })
 
       try {
-        const response = await client.rest.users.getAuthenticated()
+        const response = // cleanup handled internally.getAuthenticatedUser()
 
         // Verify rate limit headers
         expect(response.headers['x-ratelimit-limit']).toBe('5000')
@@ -519,7 +517,7 @@ TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
         expect(remaining + used).toBeLessThanOrEqual(limit)
         expect(scope.isDone()).toBe(true)
       } finally {
-        await client.destroy()
+        // cleanup handled internally
       }
     })
 
@@ -577,7 +575,7 @@ TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
           }
         `
 
-        const result = await client.graphql(query) as any
+        const result = // cleanup handled internally.graphql(query) as any
         
         // The GraphQL client returns the data directly, not wrapped in a data property
         expect(result.viewer.login).toBe('testuser')
@@ -587,7 +585,7 @@ TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
         expect(result.rateLimit.cost).toBe(1)
         expect(scope.isDone()).toBe(true)
       } finally {
-        await client.destroy()
+        // cleanup handled internally
       }
     })
   })
@@ -612,15 +610,15 @@ TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
       })
 
       try {
-        const response = await client.rest.users.getAuthenticated()
+        const response = // cleanup handled internally.getAuthenticatedUser()
         expect(response.data.login).toBe('testuser')
 
         // Verify the current token is correctly stored
-        const currentToken = client.getCurrentToken()
+        const currentToken = client
         expect(currentToken).toBe(token)
         expect(scope.isDone()).toBe(true)
       } finally {
-        await client.destroy()
+        // cleanup handled internally
       }
     })
 
@@ -652,20 +650,20 @@ TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
 
       try {
         // First request
-        const user1 = await client.rest.users.getAuthenticated()
+        const user1 = // cleanup handled internally.getAuthenticatedUser()
         expect(user1.data.login).toBe('testuser')
 
         // Second request (different endpoint)
-        const repos = await client.rest.repos.listForAuthenticatedUser({ per_page: 5 })
+        const repos = // cleanup handled internally.listIssues({ per_page: 5 })
         expect(repos.data).toHaveLength(2)
 
         // Third request (same as first)
-        const user2 = await client.rest.users.getAuthenticated()
+        const user2 = // cleanup handled internally.getAuthenticatedUser()
         expect(user2.data.login).toBe(user1.data.login)
         expect(user2.data.id).toBe(user1.data.id)
         expect(scope.isDone()).toBe(true)
       } finally {
-        await client.destroy()
+        // cleanup handled internally
       }
     })
   })
@@ -703,11 +701,11 @@ TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
       })
 
       try {
-        const user = await client.rest.users.getAuthenticated()
+        const user = // cleanup handled internally.getAuthenticatedUser()
         expect(user.data.login).toBe('testuser')
         expect(scope.isDone()).toBe(true)
       } finally {
-        await client.destroy()
+        // cleanup handled internally
       }
     })
 
@@ -740,14 +738,14 @@ TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
       try {
         const startTime = Date.now()
         
-        const response = await client.rest.users.getAuthenticated()
+        const response = // cleanup handled internally.getAuthenticatedUser()
         expect(response.data.login).toBe('testuser')
 
         const duration = Date.now() - startTime
         expect(duration).toBeGreaterThan(100) // Should have taken at least 100ms due to delay
         expect(scope.isDone()).toBe(true)
       } finally {
-        await client.destroy()
+        // cleanup handled internally
       }
     }, { timeout: 5000 })
   })

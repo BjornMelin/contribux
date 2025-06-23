@@ -72,7 +72,8 @@ export const TOKEN_ROTATION_DEFAULTS = {
 export const WEBHOOK_DEFAULTS = {
   SIGNATURE_ALGORITHM: 'sha256',
   LEGACY_SIGNATURE_ALGORITHM: 'sha1',
-  DELIVERY_ID_REGEX: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+  // DEPRECATED: Use Zod's built-in z.uuid() validation instead
+  // DELIVERY_ID_REGEX: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
   MAX_PAYLOAD_SIZE: 25 * 1024 * 1024, // 25MB
 } as const
 

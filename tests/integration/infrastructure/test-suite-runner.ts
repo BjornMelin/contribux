@@ -20,7 +20,8 @@ import {
   createPerformanceAnalyzer,
   type PerformanceAnalysis 
 } from './performance-analyzer'
-import type { IntegrationTestEnv, loadIntegrationTestEnv } from './test-config'
+import { loadIntegrationTestEnv } from './test-config'
+import type { IntegrationTestEnv } from './test-config'
 
 export interface TestSuiteConfig {
   testPattern?: string
@@ -108,7 +109,7 @@ export class TestSuiteRunner {
     this.reporter = createIntegrationTestReporter({
       outputDir: this.outputDir,
       metricsCollector: this.metricsCollector,
-      qualityGates: this.config.qualityGates
+      qualityGates: this.config.qualityGates || []
     })
     this.analyzer = createPerformanceAnalyzer({
       baselineDir: join(this.outputDir, 'baselines'),

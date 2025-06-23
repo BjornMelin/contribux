@@ -26,7 +26,7 @@ export class DatabaseMonitorLocal {
     this.connectionString = connectionString
   }
 
-  private async query<T>(queryText: string, params: any[] = []): Promise<T[]> {
+  private async query<T>(queryText: string, params: unknown[] = []): Promise<T[]> {
     const client = new Client({ connectionString: this.connectionString })
     try {
       await client.connect()
@@ -90,14 +90,14 @@ export class DatabaseMonitorLocal {
 
   async getIndexUsageStats(): Promise<IndexStat[]> {
     try {
-      const result = await this.query<any>(
+      const result = await this.query<IndexStat>(
         `SELECT 
           schemaname,
-          tablename,
+          relname as tablename,
           indexrelname as indexname,
-          idx_scan as scans_count,
-          idx_tup_read as tuples_read,
-          idx_tup_fetch as tuples_fetched
+          CAST(idx_scan as INTEGER) as scans_count,
+          CAST(idx_tup_read as INTEGER) as tuples_read,
+          CAST(idx_tup_fetch as INTEGER) as tuples_fetched
         FROM pg_stat_user_indexes
         WHERE schemaname = 'public'
         ORDER BY idx_scan DESC`
@@ -112,13 +112,13 @@ export class DatabaseMonitorLocal {
 
   async getVectorIndexMetrics(): Promise<VectorIndexMetric[]> {
     try {
-      const result = await this.query<any>(
+      const result = await this.query<VectorIndexMetric>(
         `SELECT 
           schemaname,
-          tablename,
+          relname as tablename,
           indexrelname as indexname,
           pg_size_pretty(pg_relation_size(indexrelid)) as index_size,
-          idx_scan as scans_count
+          CAST(idx_scan as INTEGER) as scans_count
         FROM pg_stat_user_indexes 
         WHERE indexrelname LIKE '%hnsw%'
         ORDER BY pg_relation_size(indexrelid) DESC`
@@ -135,7 +135,7 @@ export class DatabaseMonitorLocal {
 
   async getTableSizes(): Promise<TableSize[]> {
     try {
-      const result = await this.query<any>(
+      const result = await this.query<TableSize>(
         `SELECT 
           schemaname,
           tablename,

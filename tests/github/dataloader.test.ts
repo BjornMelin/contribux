@@ -1,15 +1,21 @@
 /**
  * Tests for the modern DataLoader implementation
  * 
- * This test suite verifies the core functionality of the DataLoader pattern
- * including batching, caching, error handling, and GitHub-specific features.
+ * NOTE: This test suite has been disabled as part of the over-engineering cleanup.
+ * The DataLoader implementation was removed in Phase 1 to simplify the codebase.
+ * Future implementations will use simpler approaches.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { DataLoader, createRepositoryDataLoader } from '@/lib/github/dataloader'
-import type { RepositoryKey, RepositoryData } from '@/lib/github/dataloader'
-import type { CacheManager } from '@/lib/github/caching'
+// import { describe, it, expect, vi, beforeEach } from 'vitest'
+// import { DataLoader, createRepositoryDataLoader } from '@/lib/github/dataloader'
+// import type { RepositoryKey, RepositoryData } from '@/lib/github/dataloader'
+// import type { CacheManager } from '@/lib/github/caching'
 
+// All DataLoader tests have been disabled as part of over-engineering cleanup
+// The DataLoader pattern was determined to be unnecessary complexity for this application
+
+/*
+// Entire test suite commented out - DataLoader implementation was deleted
 describe('DataLoader', () => {
   describe('Basic functionality', () => {
     it('should batch requests correctly', async () => {
@@ -419,3 +425,4 @@ describe('DataLoader', () => {
     })
   })
 })
+*/

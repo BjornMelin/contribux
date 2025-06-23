@@ -409,7 +409,7 @@ function getValidatedEnv() {
 
       try {
         return envSchema.parse(testDefaults)
-      } catch (testError) {
+      } catch (_testError) {
         // If test defaults still fail, provide minimal working config
         console.warn('Test environment validation failed, using minimal config')
         return envSchema.parse({
@@ -480,7 +480,7 @@ export function getJwtSecret(): string {
         throw new Error('JWT_SECRET is required')
       })()
     )
-  } catch (error) {
+  } catch (_error) {
     // Fallback if env is not available
     if (process.env.JWT_SECRET) {
       return process.env.JWT_SECRET
@@ -496,7 +496,7 @@ export function getEncryptionKey(): string {
   let encryptionKey: string | undefined
   try {
     encryptionKey = env.ENCRYPTION_KEY || process.env.ENCRYPTION_KEY
-  } catch (error) {
+  } catch (_error) {
     encryptionKey = process.env.ENCRYPTION_KEY
   }
 

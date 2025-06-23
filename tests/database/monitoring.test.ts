@@ -43,6 +43,16 @@ describe("DatabaseMonitor", () => {
       expect(Array.isArray(queries)).toBe(true);
       // Should not fail even if pg_stat_statements is not available
     });
+
+    it("should handle pg_stat_statements extension not being properly configured", async () => {
+      // This test specifically verifies graceful degradation when pg_stat_statements
+      // is installed but not loaded via shared_preload_libraries
+      const queries = await monitor.getSlowQueries(5);
+      
+      // Should return empty array gracefully instead of throwing
+      expect(Array.isArray(queries)).toBe(true);
+      expect(queries.length).toBe(0);
+    });
   });
 
   describe("getIndexUsageStats", () => {

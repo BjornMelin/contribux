@@ -5,9 +5,19 @@
  * the GitHub API client, including authentication and basic request/response types.
  */
 
-import type { Octokit } from '@octokit/core'
-import type { graphql } from '@octokit/graphql'
-import type { Api } from '@octokit/plugin-rest-endpoint-methods'
+// Local type definitions for GitHub client interfaces
+interface Octokit {
+  rest: Record<string, Record<string, (...args: any[]) => Promise<any>>>
+  graphql: (...args: any[]) => Promise<any>
+  request: (options: RequestOptions) => Promise<any>
+}
+
+interface Api {
+  rest: Record<string, Record<string, (...args: any[]) => Promise<any>>>
+}
+
+type GraphQLFunction = (query: string, variables?: Record<string, any>) => Promise<any>
+
 import type { CacheOptions } from './cache'
 import type { ThrottleOptions } from './rate-limiting'
 import type { RetryOptions } from './retry'
@@ -15,7 +25,7 @@ import type { TokenRotationConfig } from './token'
 import type { LogLevel } from './utils'
 
 export type GitHubRestClient = Octokit & Api
-export type GitHubGraphQLClient = typeof graphql
+export type GitHubGraphQLClient = GraphQLFunction
 
 /**
  * Options passed to throttling callbacks for request inspection and modification
@@ -63,7 +73,7 @@ export interface RetryState {
 
 /**
  * Main configuration object for GitHubClient
- * Supports authentication, rate limiting, caching, and advanced features
+ * Supports authentication, rate limiting, caching, and extensible features
  */
 export interface GitHubClientConfig {
   /** Authentication configuration (token, app, or OAuth) */

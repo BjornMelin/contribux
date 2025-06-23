@@ -50,9 +50,11 @@ describe('Vector Search Integration', () => {
 
       // Insert similar users
       for (let i = 0; i < similarEmbeddings.length; i++) {
+        const embedding = similarEmbeddings[i];
+        if (!embedding) continue;
         await client.query(
           'INSERT INTO users (github_id, github_username, github_name, profile_embedding) VALUES ($1, $2, $3, $4)',
-          [999002 + i, `test_vector_similar_${i}`, `Similar User ${i}`, `[${similarEmbeddings[i].join(',')}]`]
+          [999002 + i, `test_vector_similar_${i}`, `Similar User ${i}`, `[${embedding.join(',')}]`]
         );
       }
 
@@ -162,6 +164,8 @@ describe('Vector Search Integration', () => {
 
       for (let i = 0; i < repositories.length; i++) {
         const repo = repositories[i];
+        if (!repo) continue;
+        
         await sql`
           INSERT INTO repositories (
             github_id, full_name, name, description, url, clone_url,
@@ -175,9 +179,13 @@ describe('Vector Search Integration', () => {
       }
 
       // Search for ML-related repositories
+      const firstRepo = repositories[0];
+      if (!firstRepo) throw new Error('No repositories to test with');
+      
       const mlQueryEmbedding = vectorUtils.generateSimilarEmbeddings(
-        repositories[0].embedding, 1, 0.95
+        firstRepo.embedding, 1, 0.95
       )[0];
+      if (!mlQueryEmbedding) throw new Error('Failed to generate query embedding');
 
       const result = await vectorUtils.testVectorSimilaritySearch(
         'repositories',
@@ -246,6 +254,8 @@ describe('Vector Search Integration', () => {
 
       for (let i = 0; i < opportunities.length; i++) {
         const opp = opportunities[i];
+        if (!opp) continue;
+        
         await sql`
           INSERT INTO opportunities (
             repository_id, github_issue_number, title, description, url,
@@ -260,9 +270,13 @@ describe('Vector Search Integration', () => {
       }
 
       // Search for ML-related opportunities
+      const firstOpp = opportunities[0];
+      if (!firstOpp) throw new Error('No opportunities to test with');
+      
       const mlQueryEmbedding = vectorUtils.generateSimilarEmbeddings(
-        opportunities[0].titleEmbedding, 1, 0.9
+        firstOpp.titleEmbedding, 1, 0.9
       )[0];
+      if (!mlQueryEmbedding) throw new Error('Failed to generate query embedding');
 
       const result = await vectorUtils.testVectorSimilaritySearch(
         'opportunities',
@@ -330,6 +344,8 @@ describe('Vector Search Integration', () => {
 
       for (let i = 0; i < opportunities.length; i++) {
         const opp = opportunities[i];
+        if (!opp) continue;
+        
         await sql`
           INSERT INTO opportunities (
             repository_id, github_issue_number, title, description, url,
@@ -345,9 +361,13 @@ describe('Vector Search Integration', () => {
 
       // Test hybrid search
       const searchTerm = 'machine learning';
+      const firstOpp = opportunities[0];
+      if (!firstOpp) throw new Error('No opportunities to test with');
+      
       const queryEmbedding = vectorUtils.generateSimilarEmbeddings(
-        opportunities[0].embedding, 1, 0.8
+        firstOpp.embedding, 1, 0.8
       )[0];
+      if (!queryEmbedding) throw new Error('Failed to generate query embedding');
 
       const hybridResult = await vectorUtils.testHybridSearch(
         'opportunities',
@@ -394,6 +414,7 @@ describe('Vector Search Integration', () => {
       // Insert test data
       for (let i = 0; i < testData.length; i++) {
         const item = testData[i];
+        if (!item) continue;
         await sql`
           INSERT INTO users (github_id, github_username, github_name, profile_embedding)
           VALUES (${baseId + i}, ${item.id + '_' + Date.now()}, ${'Test User ' + i}, ${item.embedding})
@@ -401,7 +422,11 @@ describe('Vector Search Integration', () => {
       }
 
       // Test performance with different ef_search values
-      const queryEmbedding = testData[0].embedding;
+      const firstItem = testData[0];
+      if (!firstItem) {
+        throw new Error('No test data available');
+      }
+      const queryEmbedding = firstItem.embedding;
       
       // Test with lower ef_search (faster, potentially less accurate)
       await sql`SET hnsw.ef_search = 100`;
@@ -447,14 +472,14 @@ describe('Vector Search Integration', () => {
       expect(benchmarkResults.inner_product).toBeDefined();
 
       // All metrics should return results
-      expect(benchmarkResults.cosine.resultCount).toBeGreaterThan(0);
-      expect(benchmarkResults.l2.resultCount).toBeGreaterThan(0);
-      expect(benchmarkResults.inner_product.resultCount).toBeGreaterThan(0);
+      expect(benchmarkResults.cosine?.resultCount).toBeGreaterThan(0);
+      expect(benchmarkResults.l2?.resultCount).toBeGreaterThan(0);
+      expect(benchmarkResults.inner_product?.resultCount).toBeGreaterThan(0);
 
       // Execution times should be reasonable
-      expect(benchmarkResults.cosine.executionTime).toBeLessThan(1000);
-      expect(benchmarkResults.l2.executionTime).toBeLessThan(1000);
-      expect(benchmarkResults.inner_product.executionTime).toBeLessThan(1000);
+      expect(benchmarkResults.cosine?.executionTime).toBeLessThan(1000);
+      expect(benchmarkResults.l2?.executionTime).toBeLessThan(1000);
+      expect(benchmarkResults.inner_product?.executionTime).toBeLessThan(1000);
     });
   });
 

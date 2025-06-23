@@ -5,7 +5,7 @@
  * and reduce resource usage during test runs.
  */
 
-import { vi } from 'vitest'
+import { vi, describe, it } from 'vitest'
 
 /**
  * Reduce iteration counts for expensive tests in test environment

@@ -16,6 +16,10 @@ if (!TEST_DATABASE_URL) {
 
 // Function to execute SQL queries based on the database type
 export async function executeSql(query: string, params: any[] = []) {
+  if (!TEST_DATABASE_URL) {
+    throw new Error('Database URL not configured for tests');
+  }
+  
   if (TEST_DATABASE_URL.includes('localhost') || TEST_DATABASE_URL.includes('127.0.0.1')) {
     // Use pg driver for local PostgreSQL
     const client = new Client({ connectionString: TEST_DATABASE_URL });
@@ -28,8 +32,18 @@ export async function executeSql(query: string, params: any[] = []) {
     }
   } else {
     // Use neon driver for Neon databases
-    const sql = neon(TEST_DATABASE_URL);
-    return await sql(query, params);
+    const sql = neon(TEST_DATABASE_URL!);
+    // Template literal call for neon
+    if (params.length === 0) {
+      return await sql`${query}`;
+    } else {
+      // Build parameterized query
+      let parameterizedQuery = query;
+      for (let i = 0; i < params.length; i++) {
+        parameterizedQuery = parameterizedQuery.replace(`$${i + 1}`, `'${params[i]}'`);
+      }
+      return await sql`${parameterizedQuery}`;
+    }
   }
 }
 
@@ -38,8 +52,8 @@ export function formatVector(vector: number[]): string {
   return `[${vector.join(',')}]`;
 }
 
-// Template literal function for SQL queries
-export function sql(strings: TemplateStringsArray, ...values: any[]) {
+// Template literal function for SQL queries - returns promise for query execution
+export function sql(strings: TemplateStringsArray, ...values: any[]): Promise<any[]> {
   // Build the query with placeholders
   let query = strings[0];
   const params: any[] = [];
@@ -55,11 +69,18 @@ export function sql(strings: TemplateStringsArray, ...values: any[]) {
     query += `$${i + 1}${strings[i + 1]}`;
   }
   
+  if (!TEST_DATABASE_URL) {
+    throw new Error('Database URL not configured for tests');
+  }
   return executeSql(query, params);
 }
 
 // Create a client for tests that need persistent connections
 export function createTestClient() {
+  if (!TEST_DATABASE_URL) {
+    throw new Error('Database URL not configured for tests');
+  }
+  
   if (TEST_DATABASE_URL.includes('localhost') || TEST_DATABASE_URL.includes('127.0.0.1')) {
     return new Client({ connectionString: TEST_DATABASE_URL });
   } else {

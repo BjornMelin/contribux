@@ -1,4 +1,9 @@
-import type { RequestError } from '@octokit/types'
+// Define minimal RequestError interface locally
+interface RequestError extends Error {
+  status: number
+  request: unknown
+  response: unknown
+}
 
 export interface GitHubGraphQLErrorData {
   message: string
@@ -11,6 +16,19 @@ export class GitHubClientError extends Error {
   constructor(message: string) {
     super(message)
     this.name = 'GitHubClientError'
+  }
+}
+
+// Unified error class for the GitHub client
+export class GitHubError extends Error {
+  constructor(
+    message: string,
+    public readonly code: string,
+    public readonly status?: number,
+    public readonly response?: any
+  ) {
+    super(message)
+    this.name = 'GitHubError'
   }
 }
 
@@ -137,7 +155,7 @@ export function extractErrorMessage(error: unknown): string {
 /**
  * Error message formatting standards:
  * - Start with capital letter (sentence case)
- * - No ending punctuation for simple messages
+ * - No ending punctuation for brief messages
  * - Use colon for contextual information
  * - Use template literals for dynamic content
  * - Provide actionable context when possible

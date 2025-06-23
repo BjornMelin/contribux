@@ -5,7 +5,14 @@ import { config } from "dotenv";
 config({ path: ".env.test" });
 
 // Ensure NODE_ENV is set to test
-process.env.NODE_ENV = 'test';
+if (!process.env.NODE_ENV) {
+  Object.defineProperty(process.env, 'NODE_ENV', {
+    value: 'test',
+    writable: false,
+    enumerable: true,
+    configurable: true
+  });
+}
 
 // Verify we have the required database URL
 if (!process.env.DATABASE_URL) {

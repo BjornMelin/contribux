@@ -5,8 +5,15 @@
  * including primary and secondary rate limits, and warning callbacks.
  */
 
-import type { Octokit } from '@octokit/core'
+// Use local Octokit interface
 import type { RequestOptions } from './client'
+
+// Local Octokit interface for type annotation
+interface Octokit {
+  rest: Record<string, Record<string, (...args: any[]) => Promise<any>>>
+  graphql: (...args: any[]) => Promise<any>
+  request: (options: RequestOptions) => Promise<any>
+}
 
 /**
  * Configuration for GitHub API rate limiting and throttling

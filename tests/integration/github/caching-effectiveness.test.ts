@@ -22,7 +22,8 @@ import nock from 'nock'
 import { GitHubClient } from '@/lib/github'
 import type { GitHubClientConfig } from '@/lib/github'
 import { CacheManager, createCacheEntry } from '@/lib/github/caching'
-import { createRepositoryDataLoader, DataLoader, type RepositoryKey, type RepositoryData } from '@/lib/github/dataloader'
+// DataLoader imports disabled - implementation removed in Phase 1 over-engineering cleanup
+// import { createRepositoryDataLoader, DataLoader, type RepositoryKey, type RepositoryData } from '@/lib/github/dataloader'
 import { waitFor, MockTimer, createRateLimitHeaders } from '../../github/test-helpers'
 
 
@@ -54,7 +55,8 @@ interface PerformanceMetrics {
 describe('GitHub API Caching Effectiveness', () => {
   let mockTimer: MockTimer
   let clients: GitHubClient[] = []
-  let dataLoader: DataLoader<RepositoryKey, RepositoryData>
+  // DataLoader disabled - implementation removed in Phase 1 over-engineering cleanup
+  // let dataLoader: DataLoader<RepositoryKey, RepositoryData>
   let performanceMetrics: PerformanceMetrics
 
   beforeEach(async () => {
@@ -76,9 +78,9 @@ describe('GitHub API Caching Effectiveness', () => {
       improvement: { timeReduction: 0, apiCallReduction: 0, hitRatio: 0 }
     }
     
-    // Initialize DataLoader for batching tests
-    const mockGraphQLClient = vi.fn()
-    dataLoader = createRepositoryDataLoader(mockGraphQLClient)
+    // DataLoader initialization disabled - implementation removed in Phase 1 over-engineering cleanup
+    // const mockGraphQLClient = vi.fn()
+    // dataLoader = createRepositoryDataLoader(mockGraphQLClient)
     
     if (global.gc) {
       global.gc()
@@ -96,14 +98,14 @@ describe('GitHub API Caching Effectiveness', () => {
     }
     clients = []
     
-    // Clean up DataLoader
-    if (dataLoader) {
-      try {
-        dataLoader.clearAll()
-      } catch (error) {
-        // Ignore cleanup errors
-      }
-    }
+    // DataLoader cleanup disabled - implementation removed in Phase 1 over-engineering cleanup
+    // if (dataLoader) {
+    //   try {
+    //     dataLoader.clearAll()
+    //   } catch (error) {
+    //     // Ignore cleanup errors
+    //   }
+    // }
     
     nock.cleanAll()
     nock.restore()
@@ -289,6 +291,8 @@ describe('GitHub API Caching Effectiveness', () => {
     })
   })
 
+  // DataLoader tests disabled - implementation removed in Phase 1 over-engineering cleanup
+  /*
   describe('DataLoader Cache Behavior', () => {
     it('should prevent N+1 queries through batching', async () => {
       const mockGraphQLClient = vi.fn()
@@ -411,6 +415,7 @@ describe('GitHub API Caching Effectiveness', () => {
       expect(mockGraphQLClient).toHaveBeenCalledTimes(1)
     })
   })
+  */
 
   describe('Cache Hit Rate Measurements', () => {
     it('should accurately measure cache hit rates under various scenarios', async () => {

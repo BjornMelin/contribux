@@ -46,7 +46,7 @@ describe('Security Audit Logging', () => {
     const mockSql = vi.mocked(sql)
     
     // Mock different SQL operations that the real audit functions perform
-    mockSql.mockImplementation((strings, ...values) => {
+    mockSql.mockImplementation((strings: TemplateStringsArray, ...values: any[]) => {
       const query = strings.join('?')
       
       // Mock INSERT operations (for logSecurityEvent)

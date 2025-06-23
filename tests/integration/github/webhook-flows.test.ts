@@ -224,7 +224,7 @@ describe('GitHub Webhook Integration Flows', () => {
       })
 
       it('should validate delivery ID format', async () => {
-        const handler = new WebhookHandler(WEBHOOK_SECRET)
+        const handler = new WebhookHandler(WEBHOOK_SECRET, {}, { validationMode: 'strict' })
         const payload = JSON.stringify({ test: 'data' })
         const signature = createHmac('sha256', WEBHOOK_SECRET).update(payload).digest('hex')
 
@@ -241,7 +241,7 @@ describe('GitHub Webhook Integration Flows', () => {
             'x-github-delivery': invalidId,
           }
 
-          await expect(handler.handle(payload, headers)).rejects.toThrow()
+          await expect(handler.handle(payload, headers)).rejects.toThrow('Webhook event validation failed')
         }
         
         // Test empty delivery ID
@@ -250,7 +250,7 @@ describe('GitHub Webhook Integration Flows', () => {
           'x-github-event': 'ping',
           'x-github-delivery': '',
         }
-        await expect(handler.handle(payload, emptyHeaders)).rejects.toThrow()
+        await expect(handler.handle(payload, emptyHeaders)).rejects.toThrow('Missing x-github-delivery header')
         
         // Test valid UUID should work
         const validHeaders = {

@@ -1,9 +1,15 @@
 /**
- * Test helpers for async and timing-sensitive tests
+ * Modern Test helpers - Vitest 3.2+ patterns
+ * 
+ * Features:
+ * - MSW integration replacing nock
+ * - Modern async testing utilities
+ * - Property-based test helpers
+ * - Enhanced cleanup patterns
  */
 
 import { vi, beforeEach, afterEach } from 'vitest'
-import nock from 'nock'
+import { mswServer } from './msw-setup'
 
 // Store references to created clients for cleanup
 const activeClients = new Set<{ destroy: () => Promise<void> }>()
@@ -16,18 +22,15 @@ export function registerClientForCleanup(client: { destroy: () => Promise<void> 
 }
 
 /**
- * Setup GitHub test isolation
+ * Setup GitHub test isolation with MSW
  */
 export function setupGitHubTestIsolation() {
   beforeEach(() => {
-    // Clean all nock interceptors
-    nock.cleanAll()
-    
-    // Disable net connect to ensure all requests are mocked
-    nock.disableNetConnect()
-    
     // Clear all mocks
     vi.clearAllMocks()
+    
+    // Reset MSW handlers to defaults
+    mswServer.resetHandlers()
     
     // Clear any global GitHub state
     if (global.__githubClientCache) {
@@ -36,18 +39,11 @@ export function setupGitHubTestIsolation() {
     if (global.__githubRateLimitState) {
       delete global.__githubRateLimitState
     }
-    
-    // Reset nock back to clean state
-    nock.restore()
-    nock.activate()
   })
 
   afterEach(async () => {
-    // Clean all nock interceptors
-    nock.cleanAll()
-    
-    // Re-enable net connect
-    nock.enableNetConnect()
+    // Reset MSW handlers
+    mswServer.resetHandlers()
     
     // Destroy all active clients
     const destroyPromises = Array.from(activeClients).map(async (client) => {
@@ -62,9 +58,6 @@ export function setupGitHubTestIsolation() {
     
     // Clear all mocks
     vi.clearAllMocks()
-    
-    // Restore nock to clean state
-    nock.restore()
   })
 }
 

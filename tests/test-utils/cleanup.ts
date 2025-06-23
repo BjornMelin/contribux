@@ -2,7 +2,7 @@
  * Test cleanup utilities for proper test isolation
  */
 
-import { vi } from 'vitest'
+import { vi, beforeEach, afterEach } from 'vitest'
 
 // Extend global type for test state
 declare global {

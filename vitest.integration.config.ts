@@ -187,7 +187,6 @@ export default defineConfig({
 
     // Global test configuration
     globalSetup: './tests/integration/infrastructure/global-setup.ts',
-    globalTeardown: './tests/integration/infrastructure/global-teardown.ts',
   },
 
   // ESBuild configuration

@@ -250,7 +250,9 @@ describe('GitHub Webhook Integration', () => {
       expect(mockHandlers.issues).toHaveBeenCalledTimes(1) // Still only called once
     })
 
-    it('should validate delivery ID format', async () => {
+    it('should validate delivery ID format in strict mode', async () => {
+      const strictHandler = new WebhookHandler(secret, {}, { validationMode: 'strict' })
+      
       const signature = createHmac('sha256', secret)
         .update(payload)
         .digest('hex')
@@ -261,7 +263,22 @@ describe('GitHub Webhook Integration', () => {
         'x-github-delivery': 'invalid-format' // Invalid delivery ID
       }
 
-      await expect(handler.handle(payload, headers)).rejects.toThrow('Invalid delivery ID format')
+      await expect(strictHandler.handle(payload, headers)).rejects.toThrow('Webhook event validation failed')
+    })
+
+    it('should handle invalid delivery ID format gracefully in lenient mode', async () => {
+      const signature = createHmac('sha256', secret)
+        .update(payload)
+        .digest('hex')
+      
+      const headers = {
+        'x-hub-signature-256': `sha256=${signature}`,
+        'x-github-event': 'issues',
+        'x-github-delivery': 'invalid-format' // Invalid delivery ID
+      }
+
+      // Should not throw in lenient mode, just warn
+      await expect(handler.handle(payload, headers)).resolves.toBeUndefined()
     })
 
     it('should support webhook configuration', () => {
@@ -298,11 +315,31 @@ describe('GitHub Webhook Integration', () => {
 
   describe('Enhanced Security Features', () => {
     it('should support configurable security options', () => {
-      const strictHandler = new WebhookHandler(secret, {}, { requireSha256: true })
+      const strictHandler = new WebhookHandler(secret, {}, { 
+        requireSha256: true,
+        validationMode: 'strict',
+        maxDeliveryAge: 30
+      })
       const config = strictHandler.getConfiguration()
       
       expect(config).toHaveProperty('supportedEvents')
       expect(config.supportedEvents).toContain('issues')
+    })
+
+    it('should enforce strict validation mode when configured', async () => {
+      const strictHandler = new WebhookHandler(secret, {}, { validationMode: 'strict' })
+      
+      const signature = createHmac('sha256', secret)
+        .update(payload)
+        .digest('hex')
+      
+      const headers = {
+        'x-hub-signature-256': `sha256=${signature}`,
+        'x-github-event': 'issues',
+        'x-github-delivery': 'not-a-valid-uuid' // Invalid UUID
+      }
+
+      await expect(strictHandler.handle(payload, headers)).rejects.toThrow('Webhook event validation failed')
     })
 
     it('should handle UTF-8 payloads correctly', () => {
@@ -613,7 +650,7 @@ describe('GitHub Webhook Integration', () => {
         
         // Force a cache cleanup scenario
         for (let i = 0; i < 150; i++) {
-          (handler as any).processedDeliveries.add(`delivery-${i}`)
+          (handler as any).processedDeliveries.set(`delivery-${i}`, Date.now())
         }
 
         // Should not throw when cleaning cache
