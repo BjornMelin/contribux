@@ -136,9 +136,16 @@ Database connections use branch-specific URLs:
 
 ### Testing Strategy
 - **Framework**: Vitest with V8 coverage provider
-- **Coverage targets**: 80% across all metrics
-- **Test organization**: Feature-based in tests/ directory
+- **Coverage targets**: 90% across all metrics through meaningful tests
+- **Test organization**: Feature-based in tests/ directory, logically grouped by functionality
 - **Global APIs**: Enabled for Jest-like syntax without imports
+
+### Test Quality Standards (MANDATORY)
+- **Functional Organization**: Group tests by business functionality, never by coverage metrics
+- **Realistic Scenarios**: Test real-world usage patterns that mirror production behavior
+- **Modern Patterns**: Use MSW 2.x for HTTP mocking, property-based testing for edge cases
+- **Proper Isolation**: Comprehensive setup/teardown with proper async/await patterns
+- **Meaningful Coverage**: Achieve coverage through valuable tests, not artificial line-targeting
 
 ## Development Workflow
 
@@ -194,6 +201,43 @@ This project uses Task Master AI for enhanced development workflow:
 - **Write tests using Vitest for the new features or functionality we want**
 - **Implement code to make those tests pass until all tests pass**
 - **Ensure the entire feature is implemented successfully and matches our requirements defined in the current task and subtasks**
+
+### Testing Anti-Patterns to AVOID (Learned from GitHub Client Consolidation)
+❌ **Coverage-Driven Testing**: Never create tests solely to hit coverage metrics or line numbers
+❌ **Artificial Error Scenarios**: Avoid fabricated edge cases that wouldn't occur in real usage  
+❌ **Internal Implementation Testing**: Don't test private methods or implementation details
+❌ **Line-Number Targeting**: Never write tests with comments like "covers lines X-Y"
+❌ **Metric-Named Tests**: Avoid test names like "coverage-boost" or "final-coverage-push"
+❌ **Timing-Dependent Tests**: Don't rely on real timers or timing for cache/async tests
+
+### Testing Best Practices to FOLLOW
+✅ **Functional Organization**: Structure tests by business functionality (Core, Edge Cases, Integration)
+✅ **User-Centric Scenarios**: Test from the perspective of actual API consumers and end users
+✅ **Realistic Edge Cases**: Test boundary conditions and error scenarios that mirror production
+✅ **Public API Focus**: Test through public interfaces, not internal implementation details
+✅ **Modern Test Patterns**: Use MSW for HTTP mocking, Vitest async utilities, property-based testing
+✅ **Proper Test Isolation**: Comprehensive beforeEach/afterEach with enhanced test isolation helpers
+✅ **Meaningful Test Names**: Descriptive names that explain business value, not technical coverage
+
+### Test File Organization Standards
+```
+Feature Tests Structure:
+├── feature-core.test.ts        # Basic initialization, configuration, defaults
+├── feature-edge-cases.test.ts  # Error handling, boundary conditions, realistic failures  
+├── feature-integration.test.ts # End-to-end flows, multi-service integration
+├── feature-comprehensive.test.ts # Full API testing, happy path scenarios
+└── specialized files as needed (errors, utilities, etc.)
+```
+
+### Test Quality Checklist (Use for ALL tests)
+- [ ] Tests organized by functionality, not coverage metrics
+- [ ] All test scenarios represent realistic usage patterns
+- [ ] MSW used for HTTP mocking with proper setup/teardown
+- [ ] Proper async/await patterns throughout
+- [ ] No artificial timing dependencies or internal method testing
+- [ ] Test names describe business value and expected behavior
+- [ ] 90%+ coverage achieved through meaningful scenarios, not line-targeting
+- [ ] Each test file has clear, logical sections with descriptive describe blocks
 
 ## Project Management Best Practices
 
