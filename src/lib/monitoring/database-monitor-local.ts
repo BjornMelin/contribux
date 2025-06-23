@@ -71,7 +71,7 @@ export class DatabaseMonitorLocal {
       const extensionCheck = await this.query<{ extname: string }>(
         `SELECT extname FROM pg_extension WHERE extname = 'pg_stat_statements'`
       )
-      
+
       if (!extensionCheck || extensionCheck.length === 0) {
         // Extension not installed, return empty array silently
         return []
@@ -92,9 +92,14 @@ export class DatabaseMonitorLocal {
       )
 
       return result && Array.isArray(result) ? result.map(row => slowQuerySchema.parse(row)) : []
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Check if error is due to pg_stat_statements not being loaded via shared_preload_libraries
-      if (error.message?.includes('pg_stat_statements must be loaded via shared_preload_libraries')) {
+      const errorMessage = error && typeof error === 'object' && 'message' in error 
+        ? String((error as { message: unknown }).message) 
+        : ''
+      if (
+        errorMessage.includes('pg_stat_statements must be loaded via shared_preload_libraries')
+      ) {
         // This is expected in test environments, return empty array silently
         return []
       }

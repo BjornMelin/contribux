@@ -22,6 +22,7 @@ import type {
   RepositoryIdentifier,
   SearchOptions,
 } from './types'
+import type { GitHubThrottleOptions, GitHubRetryOptions, GitHubCacheOptions } from '@/types/database'
 
 // Zod schemas for GitHub API response validation
 const GitHubUserSchema = z.object({
@@ -87,26 +88,14 @@ export interface SearchResult<T> {
 
 // Configuration types
 export interface GitHubClientConfig {
-  auth:
+  auth?:
     | { type: 'token'; token: string }
     | { type: 'app'; appId: number; privateKey: string; installationId?: number }
   baseUrl?: string
   userAgent?: string
-  throttle?: {
-    onRateLimit?: (retryAfter: number, options: { request: { retryCount: number } }) => boolean
-    onSecondaryRateLimit?: (
-      retryAfter: number,
-      options: { request: { retryCount: number } }
-    ) => boolean
-  }
-  cache?: {
-    maxAge?: number // Cache TTL in seconds
-    maxSize?: number // Max cache entries
-  }
-  retry?: {
-    retries?: number // Number of retries (0 to disable)
-    doNotRetry?: string[] // HTTP status codes to not retry
-  }
+  throttle?: GitHubThrottleOptions
+  cache?: GitHubCacheOptions
+  retry?: GitHubRetryOptions
 }
 
 interface CacheEntry<T = unknown> {
@@ -148,22 +137,22 @@ export class GitHubClient {
       }
     }
 
-    // Build options object with explicit type assertions for compatibility
+    // Build options object with proper typing for Octokit compatibility
     const octokitOptions = {
       ...(authConfig && { auth: authConfig }),
       userAgent: config.userAgent ?? 'contribux-github-client/1.0.0',
       throttle: {
         onRateLimit:
           config.throttle?.onRateLimit ??
-          ((retryAfter: number, options: { request: { retryCount: number } }) => {
+          ((retryAfter: number, options: { request?: { retryCount?: number } }) => {
             console.warn(`Rate limit exceeded. Retrying after ${retryAfter} seconds.`)
-            return options.request.retryCount < 2
+            return (options.request?.retryCount ?? 0) < 2
           }),
         onSecondaryRateLimit:
           config.throttle?.onSecondaryRateLimit ??
-          ((retryAfter: number, options: { request: { retryCount: number } }) => {
+          ((retryAfter: number, options: { request?: { retryCount?: number } }) => {
             console.warn(`Secondary rate limit triggered. Retrying after ${retryAfter} seconds.`)
-            return options.request.retryCount < 1
+            return (options.request?.retryCount ?? 0) < 1
           }),
       },
       retry: {

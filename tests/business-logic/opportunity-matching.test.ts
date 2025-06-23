@@ -244,15 +244,15 @@ class OpportunityMatcher {
   ): string[] {
     const reasons: string[] = []
 
-    if (scores.skillScore > 0.7) {
+    if (scores.skillScore && scores.skillScore > 0.7) {
       reasons.push('Strong skill match')
     }
 
-    if (scores.languageScore > 0.7) {
+    if (scores.languageScore && scores.languageScore > 0.7) {
       reasons.push('Uses your preferred technologies')
     }
 
-    if (scores.difficultyScore > 0.8) {
+    if (scores.difficultyScore && scores.difficultyScore > 0.8) {
       reasons.push('Perfect difficulty level for your experience')
     }
 

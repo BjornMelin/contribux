@@ -16,6 +16,7 @@ import {
   logSessionActivity,
 } from '@/lib/auth/audit'
 import { sql } from '@/lib/db/config'
+import type { SQLFunction } from '@/types/database'
 
 // Mock database
 vi.mock('@/lib/db/config', () => ({
@@ -42,10 +43,10 @@ describe('Security Audit Logging', () => {
     vi.setSystemTime(new Date('2024-01-01T00:00:00Z'))
 
     // Set up SQL mock responses for different query patterns
-    const mockSql = vi.mocked(sql) as any
+    const mockSql = vi.mocked(sql) as unknown as SQLFunction
 
     // Mock different SQL operations that the real audit functions perform
-    mockSql.mockImplementation((strings: TemplateStringsArray, ...values: any[]) => {
+    mockSql.mockImplementation?.((strings: TemplateStringsArray, ...values: unknown[]) => {
       const query = strings.join('?')
 
       // Mock INSERT operations (for logSecurityEvent)
@@ -408,15 +409,15 @@ describe('Security Audit Logging', () => {
 
   describe('Audit Reporting', () => {
     it('should generate audit report', async () => {
-      const mockSql = vi.mocked(sql) as any
+      const mockSql = vi.mocked(sql) as unknown as SQLFunction
 
       // Mock the getAuditLogs implementation call
-      mockSql.mockResolvedValueOnce([])
+      mockSql.mockResolvedValueOnce?.([])
 
       // Mock the Promise.all calls for summary statistics
-      mockSql.mockResolvedValueOnce([{ count: '1000' }]) // Total events
-      mockSql.mockResolvedValueOnce([]) // Event distribution
-      mockSql.mockResolvedValueOnce([]) // Top users
+      mockSql.mockResolvedValueOnce?.([{ count: '1000' }]) // Total events
+      mockSql.mockResolvedValueOnce?.([]) // Event distribution
+      mockSql.mockResolvedValueOnce?.([]) // Top users
 
       const report = await exportAuditReport({
         startDate: new Date('2024-01-01'),
@@ -435,10 +436,10 @@ describe('Security Audit Logging', () => {
     })
 
     it('should support CSV export format', async () => {
-      const mockSql = vi.mocked(sql) as any
+      const mockSql = vi.mocked(sql) as unknown as SQLFunction
 
       // Mock the getAuditLogs implementation call
-      mockSql.mockResolvedValueOnce([])
+      mockSql.mockResolvedValueOnce?.([])
 
       const report = await exportAuditReport({
         startDate: new Date('2024-01-01'),
@@ -453,8 +454,8 @@ describe('Security Audit Logging', () => {
 
   describe('Compliance Features', () => {
     it('should ensure tamper-proof logging', async () => {
-      const mockSql = vi.mocked(sql) as any
-      mockSql.mockResolvedValueOnce([
+      const mockSql = vi.mocked(sql) as unknown as SQLFunction
+      mockSql.mockResolvedValueOnce?.([
         {
           id: 'log-123',
           event_type: 'critical_operation',

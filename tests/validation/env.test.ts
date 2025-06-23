@@ -478,7 +478,7 @@ describe('Environment Validation', () => {
       const originalProcessExit = process.exit
 
       console.error = mockConsoleError
-      process.exit = mockProcessExit as any
+      process.exit = mockProcessExit as typeof process.exit
 
       try {
         // Set invalid environment - missing required production variables

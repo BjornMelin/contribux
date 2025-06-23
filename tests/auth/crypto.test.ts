@@ -25,7 +25,7 @@ describe('Web Crypto API Token Encryption', () => {
       expect(key).toBeDefined()
       expect(key.type).toBe('secret')
       expect(key.algorithm.name).toBe('AES-GCM')
-      expect((key.algorithm as any).length).toBe(256)
+      expect((key.algorithm as AesKeyAlgorithm).length).toBe(256)
       expect(key.usages).toContain('encrypt')
       expect(key.usages).toContain('decrypt')
     })
@@ -48,7 +48,7 @@ describe('Web Crypto API Token Encryption', () => {
       expect(imported).toBeDefined()
       expect(imported.type).toBe('secret')
       expect(imported.algorithm.name).toBe('AES-GCM')
-      expect((imported.algorithm as any).length).toBe(256)
+      expect((imported.algorithm as AesKeyAlgorithm).length).toBe(256)
     })
   })
 

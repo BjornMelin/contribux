@@ -71,7 +71,7 @@ vi.mock('next/server', () => {
   return {
     NextRequest: MockNextRequest,
     NextResponse: {
-      json: (data: any, init?: ResponseInit) => ({ data, init, type: 'json' }),
+      json: (data: unknown, init?: ResponseInit) => ({ data, init, type: 'json' }),
       redirect: (url: string) => ({ url, type: 'redirect' }),
       next: () => ({ type: 'next' }),
     },
@@ -392,7 +392,7 @@ describe('Authentication Integration Tests', () => {
 
       // Type assertion for NextResponse-like object
       const typedResponse = response as
-        | { type?: string; data?: any; init?: ResponseInit }
+        | { type?: string; data?: unknown; init?: ResponseInit }
         | undefined
       expect(typedResponse?.type).toBe('json')
       expect(typedResponse?.data).toEqual({ error: 'Authentication required' })

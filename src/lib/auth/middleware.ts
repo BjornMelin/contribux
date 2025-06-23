@@ -341,7 +341,9 @@ export function requireAuth<T = unknown>(
   options?: { errorMessage?: string }
 ) {
   return async (req: NextRequest, params: T): Promise<NextResponse> => {
-    const authReq = req as NextRequest & { auth?: { user: User; session_id: string; token_payload: AccessTokenPayload } }
+    const authReq = req as NextRequest & {
+      auth?: { user: User; session_id: string; token_payload: AccessTokenPayload }
+    }
     if (!authReq.auth) {
       return NextResponse.json(
         { error: options?.errorMessage || 'Authentication required' },
@@ -359,7 +361,9 @@ export function requireAuth<T = unknown>(
 export function requireConsent(consentTypes: string[]) {
   return <T = unknown>(handler: (req: NextRequest, params: T) => Promise<NextResponse>) => {
     return async (req: NextRequest, params: T): Promise<NextResponse> => {
-      const authReq = req as NextRequest & { auth?: { user: User; session_id: string; token_payload: AccessTokenPayload } }
+      const authReq = req as NextRequest & {
+        auth?: { user: User; session_id: string; token_payload: AccessTokenPayload }
+      }
       if (!authReq.auth) {
         return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
       }
@@ -395,7 +399,9 @@ export function requireTwoFactor<T = unknown>(
   handler: (req: NextRequest, params: T) => Promise<NextResponse>
 ) {
   return async (req: NextRequest, params: T): Promise<NextResponse> => {
-    const authReq = req as NextRequest & { auth?: { user: User; session_id: string; token_payload: AccessTokenPayload } }
+    const authReq = req as NextRequest & {
+      auth?: { user: User; session_id: string; token_payload: AccessTokenPayload }
+    }
     if (!authReq.auth) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }

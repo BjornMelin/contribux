@@ -210,31 +210,37 @@ describe('Route Protection Middleware', () => {
   beforeEach(async () => {
     // Clear all mocks first
     vi.clearAllMocks()
-    
+
     // Clear any environment variables that might affect tests
     delete process.env.REDIS_URL
     delete process.env.MAINTENANCE_MODE
     delete process.env.MAINTENANCE_BYPASS_TOKEN
-    
+
     // Reset specific mocks
     vi.mocked(verifyAccessToken).mockReset()
     vi.mocked(sql).mockReset()
     vi.mocked(logSecurityEvent).mockReset()
     vi.mocked(checkConsentRequired).mockReset()
-    
+
     // Reset rate limiter mocks
     try {
       const rateLimiterModule = await import('rate-limiter-flexible')
-      if (rateLimiterModule.RateLimiterRedis && typeof (rateLimiterModule.RateLimiterRedis as any).mockClear === 'function') {
-        (rateLimiterModule.RateLimiterRedis as any).mockClear()
+      if (
+        rateLimiterModule.RateLimiterRedis &&
+        typeof (rateLimiterModule.RateLimiterRedis as any).mockClear === 'function'
+      ) {
+        ;(rateLimiterModule.RateLimiterRedis as any).mockClear()
       }
-      if (rateLimiterModule.RateLimiterMemory && typeof (rateLimiterModule.RateLimiterMemory as any).mockClear === 'function') {
-        (rateLimiterModule.RateLimiterMemory as any).mockClear()
+      if (
+        rateLimiterModule.RateLimiterMemory &&
+        typeof (rateLimiterModule.RateLimiterMemory as any).mockClear === 'function'
+      ) {
+        ;(rateLimiterModule.RateLimiterMemory as any).mockClear()
       }
     } catch {
       // Ignore errors in test environment
     }
-    
+
     // Cleanup rate limiter before each test
     await shutdownRateLimiter()
   })
@@ -309,15 +315,15 @@ describe('Route Protection Middleware', () => {
       const mockVerifyToken = vi.mocked(verifyAccessToken)
       const mockSql = vi.mocked(sql)
       const mockLogEvent = vi.mocked(logSecurityEvent)
-      
+
       // Clear mocks before test
       mockVerifyToken.mockClear()
       mockSql.mockClear()
       mockLogEvent.mockClear()
-      
+
       // Mock log event for rate limiting audit
       mockLogEvent.mockResolvedValue({} as any)
-      
+
       const tokenPayload: AccessTokenPayload = {
         sub: mockUser.id,
         email: mockUser.email,
@@ -332,11 +338,11 @@ describe('Route Protection Middleware', () => {
       if (mockUser.github_username) {
         tokenPayload.github_username = mockUser.github_username
       }
-      
+
       // Setup mocks BEFORE creating the request
       mockVerifyToken.mockResolvedValueOnce(tokenPayload)
       mockSql.mockResolvedValueOnce([mockUser]) // User exists
-      
+
       const request = new NextRequest('http://localhost:3000/api/user')
       request.cookies.set('access_token', 'valid-token')
 
@@ -370,7 +376,7 @@ describe('Route Protection Middleware', () => {
     it('should handle rate limiting', async () => {
       // Make sure maintenance mode is OFF
       delete process.env.MAINTENANCE_MODE
-      
+
       const mockVerifyToken = vi.mocked(verifyAccessToken)
       const tokenPayload: AccessTokenPayload = {
         sub: mockUser.id,
@@ -386,18 +392,18 @@ describe('Route Protection Middleware', () => {
       if (mockUser.github_username) {
         tokenPayload.github_username = mockUser.github_username
       }
-      
+
       mockVerifyToken.mockResolvedValue(tokenPayload)
 
       const mockSql = vi.mocked(sql)
       mockSql.mockResolvedValue([mockUser])
-      
+
       const mockLogEvent = vi.mocked(logSecurityEvent)
       mockLogEvent.mockResolvedValue({} as any)
 
       // Use a unique IP for this test to avoid conflicts
       const uniqueIp = `192.168.104.${Math.floor(Math.random() * 255)}`
-      
+
       // Pre-exhaust the rate limit using the default rate limiter (60 requests)
       // We need to make 60 requests to exhaust the default limit
       for (let i = 0; i < 60; i++) {
@@ -414,7 +420,7 @@ describe('Route Protection Middleware', () => {
           expect(result.allowed).toBe(true)
         }
       }
-      
+
       // Now make one more request that should be rate limited
       const exhaustReq = new NextRequest('http://localhost:3000/api/test', {
         headers: {
@@ -431,7 +437,7 @@ describe('Route Protection Middleware', () => {
           'x-forwarded-for': uniqueIp,
         },
       })
-      
+
       const response = await authMiddleware(request)
 
       expect(response).toBeInstanceOf(NextResponse)
@@ -538,17 +544,17 @@ describe('Route Protection Middleware', () => {
     it('should audit security events', async () => {
       const mockLogEvent = vi.mocked(logSecurityEvent)
       mockLogEvent.mockClear()
-      
+
       const request = new NextRequest('http://localhost:3000/dashboard')
       const response = await authMiddleware(request)
 
       // Should get 401 for missing auth
       expect(response).toBeInstanceOf(NextResponse)
       expect(response?.status).toBe(401)
-      
+
       // Verify audit was called
       expect(mockLogEvent).toHaveBeenCalled()
-      const auditCall = mockLogEvent.mock.calls[0][0]
+      const auditCall = mockLogEvent.mock.calls[0]![0]
       expect(auditCall.event_type).toBe('authorization_failure')
       expect(auditCall.event_severity).toBe('warning')
       expect(auditCall.success).toBe(false)
@@ -761,7 +767,7 @@ describe('Route Protection Middleware', () => {
       // Use a unique IP for this test
       const uniqueIp = `192.168.50.${Math.floor(Math.random() * 255)}`
       const limit = 5
-      
+
       // First, consume all the allowed requests
       for (let i = 0; i < limit; i++) {
         const req = new NextRequest('http://localhost:3000/api/user', {
@@ -772,7 +778,7 @@ describe('Route Protection Middleware', () => {
         const res = await rateLimit(req, { limit, window: 60 * 1000 })
         expect(res.allowed).toBe(true)
       }
-      
+
       // Now the next request should be rate limited
       const request = new NextRequest('http://localhost:3000/api/user', {
         headers: {
@@ -854,16 +860,22 @@ describe('Route Protection Middleware', () => {
       // Mock failing rate limiters
       const rateLimiterModule = await import('rate-limiter-flexible')
 
-      if (rateLimiterModule.RateLimiterRedis && typeof (rateLimiterModule.RateLimiterRedis as any).mockImplementation === 'function') {
-        (rateLimiterModule.RateLimiterRedis as any).mockImplementation(() =>
+      if (
+        rateLimiterModule.RateLimiterRedis &&
+        typeof (rateLimiterModule.RateLimiterRedis as any).mockImplementation === 'function'
+      ) {
+        ;(rateLimiterModule.RateLimiterRedis as any).mockImplementation(() =>
           createMockRateLimiterInstance({
             consume: vi.fn().mockRejectedValue(new Error('Redis connection failed')),
           })
         )
       }
 
-      if (rateLimiterModule.RateLimiterMemory && typeof (rateLimiterModule.RateLimiterMemory as any).mockImplementation === 'function') {
-        (rateLimiterModule.RateLimiterMemory as any).mockImplementation(() =>
+      if (
+        rateLimiterModule.RateLimiterMemory &&
+        typeof (rateLimiterModule.RateLimiterMemory as any).mockImplementation === 'function'
+      ) {
+        ;(rateLimiterModule.RateLimiterMemory as any).mockImplementation(() =>
           createMockRateLimiterInstance({
             consume: vi.fn().mockRejectedValue(new Error('Memory limiter also fails')),
           })
@@ -886,11 +898,21 @@ describe('Route Protection Middleware', () => {
       expect(result.limit).toBe(10)
 
       // Reset mocks for other tests
-      if (rateLimiterModule.RateLimiterRedis && typeof (rateLimiterModule.RateLimiterRedis as any).mockImplementation === 'function') {
-        (rateLimiterModule.RateLimiterRedis as any).mockImplementation(() => createMockRateLimiterInstance())
+      if (
+        rateLimiterModule.RateLimiterRedis &&
+        typeof (rateLimiterModule.RateLimiterRedis as any).mockImplementation === 'function'
+      ) {
+        ;(rateLimiterModule.RateLimiterRedis as any).mockImplementation(() =>
+          createMockRateLimiterInstance()
+        )
       }
-      if (rateLimiterModule.RateLimiterMemory && typeof (rateLimiterModule.RateLimiterMemory as any).mockImplementation === 'function') {
-        (rateLimiterModule.RateLimiterMemory as any).mockImplementation(() => createMockRateLimiterInstance())
+      if (
+        rateLimiterModule.RateLimiterMemory &&
+        typeof (rateLimiterModule.RateLimiterMemory as any).mockImplementation === 'function'
+      ) {
+        ;(rateLimiterModule.RateLimiterMemory as any).mockImplementation(() =>
+          createMockRateLimiterInstance()
+        )
       }
     })
 
@@ -898,7 +920,7 @@ describe('Route Protection Middleware', () => {
       // This test verifies that rate limiting returns the correct response
       // when the limit is exceeded. Since we're using the legacy fallback
       // in tests (no Redis configured), we'll test that behavior.
-      
+
       // Use a unique IP for this test to avoid conflicts with other tests
       const uniqueIp = `192.168.1.${Math.floor(Math.random() * 100) + 101}`
       const request = new NextRequest('http://localhost:3000/api/user', {
@@ -910,14 +932,14 @@ describe('Route Protection Middleware', () => {
       // First, make requests to use up the rate limit
       const limit = 5
       const window = 60 * 1000
-      
+
       // Make requests up to the limit
       for (let i = 0; i < limit; i++) {
         const result = await rateLimit(request, { limit, window })
         expect(result.allowed).toBe(true)
         expect(result.remaining).toBe(limit - i - 1)
       }
-      
+
       // The next request should be rate limited
       const rateLimitedResult = await rateLimit(request, { limit, window })
 
@@ -1046,10 +1068,13 @@ describe('Route Protection Middleware', () => {
     it('should log successful requests', async () => {
       const mockLogEvent = vi.mocked(logSecurityEvent)
       mockLogEvent.mockClear()
-      mockLogEvent.mockImplementation(async () => ({
-        id: 'mock-audit-log-id',
-        created_at: new Date(),
-      } as any))
+      mockLogEvent.mockImplementation(
+        async () =>
+          ({
+            id: 'mock-audit-log-id',
+            created_at: new Date(),
+          }) as any
+      )
 
       const request = new NextRequest('http://localhost:3000/api/user')
       ;(request as any).auth = {

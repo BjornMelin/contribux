@@ -1,12 +1,13 @@
 import { Client } from 'pg'
 import { beforeAll, describe, expect, it } from 'vitest'
+import type { SQLFunction, DatabaseColumn, DatabaseTable } from '@/types/database'
 
 // This test is isolated from global setup to avoid any mocking interference
 // Database URL should be set in environment variables
 const DATABASE_URL_TEST = process.env.DATABASE_URL_TEST || process.env.DATABASE_URL
 
 describe('Authentication Database Schema (Isolated)', () => {
-  let sql: any
+  let sql: SQLFunction
 
   beforeAll(async () => {
     if (!DATABASE_URL_TEST) {
@@ -18,15 +19,14 @@ describe('Authentication Database Schema (Isolated)', () => {
       const client = new Client({ connectionString: DATABASE_URL_TEST })
       await client.connect()
 
-      sql = async (strings: TemplateStringsArray, ...values: any[]) => {
+      sql = async (strings: TemplateStringsArray, ...values: unknown[]) => {
         const query = strings.join('$')
         const result = await client.query(query, values)
         return result.rows
       }
 
       // Store client for cleanup
-
-      ;(sql as any).client = client
+      Object.assign(sql, { client })
     } else {
       // Dynamic import to avoid setup file interference
       const { neon } = await import('@neondatabase/serverless')
@@ -54,7 +54,7 @@ describe('Authentication Database Schema (Isolated)', () => {
 
       expect(Array.isArray(tables)).toBe(true)
       expect(tables).toHaveLength(1)
-      expect(tables[0]?.table_name).toBe('webauthn_credentials')
+      expect((tables as DatabaseTable[])[0]?.table_name).toBe('webauthn_credentials')
     })
 
     it('should have correct webauthn_credentials columns', async () => {
@@ -80,10 +80,10 @@ describe('Authentication Database Schema (Isolated)', () => {
       ]
 
       expect(Array.isArray(columns)).toBe(true)
-      expect(columns.length).toBeGreaterThanOrEqual(expectedColumns.length)
+      expect((columns as DatabaseColumn[]).length).toBeGreaterThanOrEqual(expectedColumns.length)
 
       expectedColumns.forEach(expected => {
-        const column = columns.find((c: any) => c.column_name === expected.column_name)
+        const column = (columns as DatabaseColumn[]).find((c: DatabaseColumn) => c.column_name === expected.column_name)
         expect(column).toBeDefined()
         if (column) {
           expect(column.data_type).toContain(expected.data_type)
@@ -104,7 +104,7 @@ describe('Authentication Database Schema (Isolated)', () => {
 
       expect(Array.isArray(tables)).toBe(true)
       expect(tables).toHaveLength(1)
-      expect(tables[0]?.table_name).toBe('auth_challenges')
+      expect((tables as DatabaseTable[])[0]?.table_name).toBe('auth_challenges')
     })
   })
 
@@ -119,7 +119,7 @@ describe('Authentication Database Schema (Isolated)', () => {
 
       expect(Array.isArray(tables)).toBe(true)
       expect(tables).toHaveLength(1)
-      expect(tables[0]?.table_name).toBe('user_sessions')
+      expect((tables as DatabaseTable[])[0]?.table_name).toBe('user_sessions')
     })
   })
 
@@ -134,7 +134,7 @@ describe('Authentication Database Schema (Isolated)', () => {
 
       expect(Array.isArray(tables)).toBe(true)
       expect(tables).toHaveLength(1)
-      expect(tables[0]?.table_name).toBe('oauth_accounts')
+      expect((tables as DatabaseTable[])[0]?.table_name).toBe('oauth_accounts')
     })
   })
 
@@ -149,7 +149,7 @@ describe('Authentication Database Schema (Isolated)', () => {
 
       expect(Array.isArray(tables)).toBe(true)
       expect(tables).toHaveLength(1)
-      expect(tables[0]?.table_name).toBe('security_audit_logs')
+      expect((tables as DatabaseTable[])[0]?.table_name).toBe('security_audit_logs')
     })
   })
 
@@ -164,7 +164,7 @@ describe('Authentication Database Schema (Isolated)', () => {
 
       expect(Array.isArray(tables)).toBe(true)
       expect(tables).toHaveLength(1)
-      expect(tables[0]?.table_name).toBe('user_consents')
+      expect((tables as DatabaseTable[])[0]?.table_name).toBe('user_consents')
     })
   })
 
@@ -179,7 +179,7 @@ describe('Authentication Database Schema (Isolated)', () => {
 
       expect(Array.isArray(tables)).toBe(true)
       expect(tables).toHaveLength(1)
-      expect(tables[0]?.table_name).toBe('refresh_tokens')
+      expect((tables as DatabaseTable[])[0]?.table_name).toBe('refresh_tokens')
     })
   })
 
@@ -193,7 +193,7 @@ describe('Authentication Database Schema (Isolated)', () => {
       `
 
       expect(Array.isArray(fks)).toBe(true)
-      expect(fks.length).toBeGreaterThan(0)
+      expect((fks as unknown[]).length).toBeGreaterThan(0)
     })
 
     it('should have foreign key from oauth_accounts to users', async () => {
@@ -205,7 +205,7 @@ describe('Authentication Database Schema (Isolated)', () => {
       `
 
       expect(Array.isArray(fks)).toBe(true)
-      expect(fks.length).toBeGreaterThan(0)
+      expect((fks as unknown[]).length).toBeGreaterThan(0)
     })
   })
 })
