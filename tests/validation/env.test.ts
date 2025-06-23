@@ -97,7 +97,7 @@ describe('Environment Validation', () => {
       vi.stubEnv('WEBAUTHN_RP_ID', 'example.com') // Set for consistency
       vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://example.com')
       vi.stubEnv('CORS_ORIGINS', 'https://example.com')
-      vi.stubEnv('ENCRYPTION_KEY', '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef')
+      vi.stubEnv('ENCRYPTION_KEY', 'test-encryption-key-for-testing-only-not-production-use-abcdefgh')
       vi.stubEnv('ENABLE_OAUTH', 'false')
       
       const { envSchema } = await importSchemaOnly()
@@ -110,7 +110,7 @@ describe('Environment Validation', () => {
       vi.stubEnv('DATABASE_URL', 'postgresql://user:pass@localhost:5432/test')
       vi.stubEnv('JWT_SECRET', 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6')
       vi.stubEnv('NEXT_PUBLIC_RP_ID', 'localhost')
-      vi.stubEnv('ENCRYPTION_KEY', '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef')
+      vi.stubEnv('ENCRYPTION_KEY', 'test-encryption-key-for-testing-only-not-production-use-abcdefgh')
       vi.stubEnv('ENABLE_OAUTH', 'false')
       
       const { envSchema } = await importSchemaOnly()
@@ -231,7 +231,7 @@ describe('Environment Validation', () => {
       vi.stubEnv('WEBAUTHN_RP_ID', 'example.com')
       vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://example.com')
       vi.stubEnv('CORS_ORIGINS', 'https://example.com')
-      vi.stubEnv('ENCRYPTION_KEY', '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef')
+      vi.stubEnv('ENCRYPTION_KEY', 'test-encryption-key-for-testing-only-not-production-use-abcdefgh')
       // Explicitly set OAuth credentials to empty strings to test requirement
       vi.stubEnv('GITHUB_CLIENT_ID', '')
       vi.stubEnv('GITHUB_CLIENT_SECRET', '')
