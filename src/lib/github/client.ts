@@ -92,8 +92,8 @@ export interface GitHubClientConfig {
   baseUrl?: string
   userAgent?: string
   throttle?: {
-    onRateLimit?: (retryAfter: number, options: any) => boolean
-    onSecondaryRateLimit?: (retryAfter: number, options: any) => boolean
+    onRateLimit?: (retryAfter: number, options: { request: { retryCount: number } }) => boolean
+    onSecondaryRateLimit?: (retryAfter: number, options: { request: { retryCount: number } }) => boolean
   }
   cache?: {
     maxAge?: number // Cache TTL in seconds
@@ -101,7 +101,7 @@ export interface GitHubClientConfig {
   }
 }
 
-interface CacheEntry<T = any> {
+interface CacheEntry<T = unknown> {
   data: T
   timestamp: number
   ttl: number
@@ -120,33 +120,35 @@ export class GitHubClient {
     // Create Octokit with plugins
     const OctokitWithPlugins = Octokit.plugin(throttling, retry)
 
-    let authConfig: any
+    let authConfig: string | ReturnType<typeof createAppAuth>
     if (config.auth.type === 'token') {
       authConfig = config.auth.token
     } else if (config.auth.type === 'app') {
-      const authOptions: any = {
+      const authOptions = {
         appId: config.auth.appId,
         privateKey: config.auth.privateKey,
-      }
+      } as { appId: number; privateKey: string; installationId?: number }
       if (config.auth.installationId !== undefined) {
         authOptions.installationId = config.auth.installationId
       }
       authConfig = createAppAuth(authOptions)
+    } else {
+      throw new Error('Invalid auth configuration')
     }
 
-    const octokitOptions: any = {
+    const octokitOptions: Record<string, unknown> = {
       auth: authConfig,
       userAgent: config.userAgent ?? 'contribux-github-client/1.0.0',
       throttle: {
         onRateLimit:
           config.throttle?.onRateLimit ??
-          ((retryAfter, options) => {
+          ((retryAfter: number, options: { request: { retryCount: number } }) => {
             console.warn(`Rate limit exceeded. Retrying after ${retryAfter} seconds.`)
             return options.request.retryCount < 2
           }),
         onSecondaryRateLimit:
           config.throttle?.onSecondaryRateLimit ??
-          ((retryAfter, options) => {
+          ((retryAfter: number, options: { request: { retryCount: number } }) => {
             console.warn(`Secondary rate limit triggered. Retrying after ${retryAfter} seconds.`)
             return options.request.retryCount < 1
           }),
@@ -160,11 +162,11 @@ export class GitHubClient {
       octokitOptions.baseUrl = config.baseUrl
     }
 
-    this.octokit = new OctokitWithPlugins(octokitOptions)
+    this.octokit = new OctokitWithPlugins(octokitOptions as any)
   }
 
   // Cache management
-  private getCacheKey(method: string, params: Record<string, any>): string {
+  private getCacheKey(method: string, params: Record<string, unknown>): string {
     return `${method}:${JSON.stringify(params)}`
   }
 
@@ -199,7 +201,7 @@ export class GitHubClient {
 
   // Error handling wrapper
   private async safeRequest<T>(
-    operation: () => Promise<any>,
+    operation: () => Promise<{ data: unknown }>,
     schema: z.ZodSchema<T>,
     cacheKey?: string,
     cacheTtl?: number
@@ -220,28 +222,31 @@ export class GitHubClient {
       }
 
       return data
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof z.ZodError) {
         throw new GitHubError(`Invalid response format: ${error.message}`, 'VALIDATION_ERROR')
       }
 
       // Handle Octokit errors
-      if (error.status) {
+      if (error && typeof error === 'object' && 'status' in error) {
+        const githubError = error as { status?: number; message?: string; response?: { data?: unknown } }
         throw new GitHubError(
-          error.message || 'GitHub API error',
+          githubError.message || 'GitHub API error',
           'API_ERROR',
-          error.status,
-          error.response?.data
+          githubError.status,
+          githubError.response?.data
         )
       }
 
-      throw new GitHubError(error.message || 'Unknown error', 'UNKNOWN_ERROR')
+      const errorMessage = error && typeof error === 'object' && 'message' in error ? 
+        String((error as { message: unknown }).message) : 'Unknown error'
+      throw new GitHubError(errorMessage, 'UNKNOWN_ERROR')
     }
   }
 
   // Repository operations
   async getRepository(identifier: RepositoryIdentifier): Promise<GitHubRepository> {
-    const cacheKey = this.getCacheKey('repo', identifier)
+    const cacheKey = this.getCacheKey('repo', identifier as Record<string, unknown>)
 
     return this.safeRequest(
       () =>
@@ -255,7 +260,7 @@ export class GitHubClient {
   }
 
   async searchRepositories(options: SearchOptions): Promise<SearchResult<GitHubRepository>> {
-    const cacheKey = this.getCacheKey('search-repos', options)
+    const cacheKey = this.getCacheKey('search-repos', options as Record<string, unknown>)
 
     return this.safeRequest(
       () =>
@@ -293,7 +298,7 @@ export class GitHubClient {
 
   // Issue operations
   async getIssue(identifier: IssueIdentifier): Promise<GitHubIssue> {
-    const cacheKey = this.getCacheKey('issue', identifier)
+    const cacheKey = this.getCacheKey('issue', identifier as Record<string, unknown>)
 
     return this.safeRequest(
       () =>
@@ -336,16 +341,17 @@ export class GitHubClient {
   }
 
   // GraphQL operations
-  async graphql<T = any>(query: string, variables?: Record<string, any>): Promise<T> {
+  async graphql<T = unknown>(query: string, variables?: Record<string, unknown>): Promise<T> {
     try {
       const response = await this.octokit.graphql(query, variables)
       return response as T
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const githubError = error && typeof error === 'object' ? error as { message?: string; status?: number; response?: { data?: unknown } } : {}
       throw new GitHubError(
-        error.message || 'GraphQL query failed',
+        githubError.message || 'GraphQL query failed',
         'GRAPHQL_ERROR',
-        error.status,
-        error.response?.data
+        githubError.status,
+        githubError.response?.data
       )
     }
   }

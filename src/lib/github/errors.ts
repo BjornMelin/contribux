@@ -25,7 +25,7 @@ export class GitHubError extends Error {
     message: string,
     public readonly code: string,
     public readonly status?: number,
-    public readonly response?: any
+    public readonly response?: unknown
   ) {
     super(message)
     this.name = 'GitHubError'
