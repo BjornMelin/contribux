@@ -154,10 +154,17 @@ traces/
 # Development Tools
 # ================================
 # IDE and editor files
-# Track VS Code workspace configuration
-# but ignore local overrides and logs
-.vscode/settings.local.json
+# VS Code - ignore user-specific settings but track workspace config
+.vscode/settings.json
+.vscode/launch.json
 .vscode/*.log
+.vscode/.ropeproject
+
+# Keep shared workspace configuration
+!.vscode/extensions.json
+!.vscode/tasks.json
+
+# Other IDEs
 .idea/
 *.swp
 *.swo
@@ -348,9 +355,8 @@ test-*.js
 *-debug.js
 # Dependency directories
 # Environment variables
-# Editor directories and files
+# Editor directories and files (consolidated above)
 .idea
-.vscode
 *.suo
 *.ntvs*
 *.njsproj
