@@ -49,25 +49,34 @@ Before you begin, ensure you have:
 
 1. **Fork the repository** on GitHub
 2. **Clone your fork** locally:
+
    ```bash
    git clone https://github.com/YOUR_USERNAME/contribux.git
    cd contribux
    ```
+
 3. **Install dependencies**:
+
    ```bash
    npm install
    ```
+
 4. **Set up environment variables**:
+
    ```bash
    cp .env.example .env.local
    # Edit .env.local with your API keys
    ```
+
 5. **Initialize the database**:
+
    ```bash
    npm run db:migrate
    npm run db:seed
    ```
+
 6. **Start the development server**:
+
    ```bash
    npm run dev
    ```
@@ -77,35 +86,41 @@ Before you begin, ensure you have:
 ## 💡 Ways to Contribute
 
 ### 🐛 **Bug Fixes**
+
 - Fix existing issues from our [Issues page](https://github.com/BjornMelin/contribux/issues)
 - Improve error handling and edge cases
 - Optimize performance bottlenecks
 
 ### ✨ **New Features**
+
 - Implement features from our [roadmap](https://github.com/BjornMelin/contribux/projects)
 - Add new AI agent capabilities
 - Enhance user experience and interface
 - Expand notification channels and integrations
 
 ### 📚 **Documentation**
+
 - Improve code comments and documentation
 - Write tutorials and how-to guides
 - Update API documentation
 - Create video walkthroughs
 
 ### 🧪 **Testing**
+
 - Add unit tests for untested code
 - Write integration tests for API endpoints
 - Create E2E tests for user workflows
 - Improve test coverage and reliability
 
 ### 🎨 **Design & UX**
+
 - Improve UI components and layouts
 - Enhance mobile responsiveness
 - Optimize user experience flows
 - Create new design assets
 
 ### 🔧 **Infrastructure**
+
 - Optimize database queries and schema
 - Improve CI/CD pipelines
 - Enhance monitoring and observability
@@ -181,7 +196,7 @@ npm run agents:deploy         # Deploy agent definitions
 
 Use descriptive branch names following this pattern:
 
-```
+```text
 <type>/<short-description>
 
 Examples:
@@ -195,7 +210,7 @@ refactor/database-query-optimization
 
 Follow [Conventional Commits](https://www.conventionalcommits.org/) specification:
 
-```
+```text
 <type>[optional scope]: <description>
 
 [optional body]
@@ -204,6 +219,7 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/) specificatio
 ```
 
 **Types:**
+
 - `feat`: New feature
 - `fix`: Bug fix
 - `docs`: Documentation changes
@@ -213,7 +229,8 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/) specificatio
 - `chore`: Maintenance tasks
 
 **Examples:**
-```
+
+```text
 feat(agents): add complexity scoring for Python repositories
 
 fix(notifications): resolve email delivery failures for large batches
@@ -227,7 +244,7 @@ test(scanner): add integration tests for GitHub API rate limiting
 
 Always link your PR to relevant issues:
 
-```
+```text
 Closes #123
 Fixes #456
 Relates to #789
@@ -257,14 +274,14 @@ interface OpportunityCardProps {
 export const OpportunityCard: React.FC<OpportunityCardProps> = ({
   opportunity,
   onClaim,
-  className
+  className,
 }) => {
   // Component implementation
 };
 
 // ✅ Good: Use React hooks appropriately
 const [isLoading, setIsLoading] = useState(false);
-const { data, error } = useSWR('/api/opportunities', fetcher);
+const { data, error } = useSWR("/api/opportunities", fetcher);
 ```
 
 ### Database Guidelines
@@ -296,27 +313,27 @@ const { data, error } = useSWR('/api/opportunities', fetcher);
 
 ```typescript
 // ✅ Good: Unit test example
-describe('OpportunityAnalyzer', () => {
-  it('should correctly analyze documentation opportunities', async () => {
+describe("OpportunityAnalyzer", () => {
+  it("should correctly analyze documentation opportunities", async () => {
     const analyzer = new OpportunityAnalyzer();
-    const mockIssue = createMockIssue({ type: 'documentation' });
-    
+    const mockIssue = createMockIssue({ type: "documentation" });
+
     const result = await analyzer.analyze(mockIssue);
-    
+
     expect(result.complexity).toBeLessThan(3);
     expect(result.confidence).toBeGreaterThan(0.8);
-    expect(result.type).toBe('documentation');
+    expect(result.type).toBe("documentation");
   });
 });
 
 // ✅ Good: Integration test example
-describe('/api/opportunities', () => {
-  it('should return filtered opportunities', async () => {
+describe("/api/opportunities", () => {
+  it("should return filtered opportunities", async () => {
     const response = await request(app)
-      .get('/api/opportunities')
-      .query({ type: 'bug', minScore: 7 })
+      .get("/api/opportunities")
+      .query({ type: "bug", minScore: 7 })
       .expect(200);
-    
+
     expect(response.body.opportunities).toBeDefined();
     expect(response.body.opportunities.length).toBeGreaterThan(0);
   });
@@ -336,6 +353,7 @@ describe('/api/opportunities', () => {
 ### Before Submitting
 
 1. **Sync with main**: Ensure your branch is up-to-date
+
    ```bash
    git checkout main
    git pull upstream main
@@ -344,6 +362,7 @@ describe('/api/opportunities', () => {
    ```
 
 2. **Run all checks**:
+
    ```bash
    npm run lint
    npm run type-check
@@ -359,21 +378,25 @@ When creating a PR, use this template:
 
 ```markdown
 ## 📝 Description
+
 Brief description of the changes and their purpose.
 
 ## 🎯 Type of Change
+
 - [ ] Bug fix (non-breaking change that fixes an issue)
 - [ ] New feature (non-breaking change that adds functionality)
 - [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
 - [ ] Documentation update
 
 ## 🧪 Testing
+
 - [ ] Unit tests added/updated
 - [ ] Integration tests added/updated
 - [ ] E2E tests added/updated
 - [ ] Manual testing completed
 
 ## 📋 Checklist
+
 - [ ] Code follows the project's style guidelines
 - [ ] Self-review completed
 - [ ] Comments added for complex logic
@@ -422,30 +445,37 @@ Brief description of the changes and their purpose.
 
 ```markdown
 ## 🐛 Bug Description
+
 A clear description of the bug.
 
 ## 🔄 Steps to Reproduce
+
 1. Go to '...'
 2. Click on '...'
 3. Scroll down to '...'
 4. See error
 
 ## ✅ Expected Behavior
+
 What you expected to happen.
 
 ## ❌ Actual Behavior
+
 What actually happened.
 
 ## 🌍 Environment
+
 - OS: [e.g., macOS 12.0]
 - Browser: [e.g., Chrome 91]
 - Node.js: [e.g., 18.16.0]
 - contribux version: [e.g., 2.0.0]
 
 ## 📸 Screenshots
+
 If applicable, add screenshots.
 
 ## 📄 Additional Context
+
 Any other context about the problem.
 ```
 
@@ -457,21 +487,27 @@ Any other context about the problem.
 
 ```markdown
 ## 🚀 Feature Request
+
 A clear description of the feature you'd like to see.
 
 ## 🎯 Problem Statement
+
 What problem does this feature solve?
 
 ## 💡 Proposed Solution
+
 How should this feature work?
 
 ## 🔄 Alternatives Considered
+
 What other solutions did you consider?
 
 ## 📈 Impact
+
 Who would benefit from this feature?
 
 ## 🛠️ Implementation Notes
+
 Any technical considerations or suggestions.
 ```
 
@@ -513,11 +549,13 @@ const ContribuxAnalyzer = new Agent({
       function: {
         name: "analyze_complexity",
         description: "Estimate issue complexity",
-        parameters: { /* schema */ }
-      }
-    }
+        parameters: {
+          /* schema */
+        },
+      },
+    },
   ],
-  handoffs: ["ContribuxStrategist"]
+  handoffs: ["ContribuxStrategist"],
 });
 ```
 
@@ -533,12 +571,12 @@ const ContribuxAnalyzer = new Agent({
 
 ```typescript
 // Test agent functionality
-describe('ContribuxAnalyzer', () => {
-  it('should analyze issue complexity correctly', async () => {
+describe("ContribuxAnalyzer", () => {
+  it("should analyze issue complexity correctly", async () => {
     const result = await agent.run({
-      messages: [{ role: 'user', content: mockIssueText }]
+      messages: [{ role: "user", content: mockIssueText }],
     });
-    
+
     expect(result.analysis).toBeDefined();
     expect(result.complexity).toBeGreaterThan(0);
     expect(result.complexity).toBeLessThanOrEqual(10);
@@ -575,7 +613,7 @@ We recognize contributors in several ways:
 - **GitHub Issues**: Bug reports and feature requests
 - **GitHub Discussions**: Questions and general discussion
 - **Discord**: Real-time chat (coming soon)
-- **Email**: maintainers@contribux.dev
+- **Email**: <maintainers@contribux.dev>
 
 ### When to Ask for Help
 
@@ -601,4 +639,4 @@ Your contributions make contribux better for everyone. Whether you're fixing a t
 
 ---
 
-*For questions about this guide, please [open an issue](https://github.com/BjornMelin/contribux/issues/new) or reach out to the maintainers.*
+_For questions about this guide, please [open an issue](https://github.com/BjornMelin/contribux/issues/new) or reach out to the maintainers._

@@ -13,6 +13,7 @@ This project uses Neon PostgreSQL with a branching-based migration strategy for 
 ## Migration Workflow
 
 ### 1. Development Phase
+
 ```bash
 # Work on development branch
 export DATABASE_URL=$DATABASE_URL_DEV
@@ -22,6 +23,7 @@ npm run db:migrate:dev
 ```
 
 ### 2. Testing Phase
+
 ```bash
 # Test migrations on testing branch
 export DATABASE_URL=$DATABASE_URL_TEST
@@ -32,6 +34,7 @@ npm run test:migrations
 ```
 
 ### 3. Production Deployment
+
 ```bash
 # Apply to main branch only after successful testing
 export DATABASE_URL=$DATABASE_URL
@@ -43,6 +46,7 @@ npm run db:migrate:prod
 ## Connection Pooling
 
 Neon provides built-in connection pooling through their pooler endpoints:
+
 - All connection strings include `-pooler` for automatic pooling
 - Transaction pooling mode is used by default
 - Optimal for Next.js serverless functions
@@ -57,18 +61,20 @@ const sql = neon(process.env.DATABASE_URL);
 const poolConfig = {
   min: 2,
   max: 20,
-  idleTimeoutMillis: 10000
+  idleTimeoutMillis: 10000,
 };
 ```
 
 ## Vector Search Configuration
 
 ### HNSW Index Settings
+
 - **m**: 16 (connections per node)
 - **ef_construction**: 64 (build quality)
 - **ef_search**: 200 (runtime search quality)
 
 ### Hybrid Search Parameters
+
 - **Text Weight**: 30% (pg_trgm fuzzy matching)
 - **Vector Weight**: 70% (semantic similarity)
 - **RRF k**: 60 (Reciprocal Rank Fusion parameter)
@@ -76,6 +82,7 @@ const poolConfig = {
 ## Migration Safety Checklist
 
 ### Pre-Migration
+
 - [ ] Create feature branch from main
 - [ ] Test schema changes on development branch
 - [ ] Verify all indexes are created successfully
@@ -83,6 +90,7 @@ const poolConfig = {
 - [ ] Run performance benchmarks
 
 ### Migration Execution
+
 - [ ] Backup current schema (Neon automatic)
 - [ ] Apply migration to testing branch
 - [ ] Run full test suite
@@ -90,6 +98,7 @@ const poolConfig = {
 - [ ] Check query performance
 
 ### Post-Migration
+
 - [ ] Monitor database performance
 - [ ] Verify application functionality
 - [ ] Check connection pool metrics
@@ -98,21 +107,24 @@ const poolConfig = {
 ## Database Schema Features
 
 ### Tables Created
+
 - `users` - User profiles with halfvec embeddings
 - `repositories` - Repository data with metadata
 - `opportunities` - Contribution opportunities
-- `user_preferences` - User matching preferences  
+- `user_preferences` - User matching preferences
 - `notifications` - System notifications
 - `contribution_outcomes` - Track contribution results
 - `user_repository_interactions` - User activity tracking
 
 ### Extensions Enabled
+
 - `vector 0.8.0` - Vector operations with halfvec support
 - `pg_trgm 1.6` - Fuzzy text matching
 - `uuid-ossp 1.1` - UUID generation
 - `pgcrypto 1.3` - Encryption functions
 
 ### Search Functions
+
 - `hybrid_search_opportunities()` - Combined vector + text search
 - `hybrid_search_repositories()` - Repository search
 - `search_similar_users()` - User similarity matching
@@ -121,6 +133,7 @@ const poolConfig = {
 ## Monitoring and Performance
 
 ### Key Metrics to Track
+
 - Connection pool utilization
 - HNSW index performance
 - Query execution times
@@ -128,6 +141,7 @@ const poolConfig = {
 - Memory usage with halfvec
 
 ### Performance Optimization
+
 - Use halfvec(1536) for 50% memory savings
 - HNSW indexes with optimal parameters
 - Proper query planning with ANALYZE
@@ -136,12 +150,14 @@ const poolConfig = {
 ## Backup and Recovery
 
 Neon provides:
+
 - Automatic daily backups
 - Point-in-time recovery
 - Branch-based backup strategy
 - Cross-region replication available
 
 ### Manual Backup Commands
+
 ```bash
 # Create backup branch
 neon branches create --project-id soft-dew-27794389 --name backup-$(date +%Y%m%d)

@@ -5,18 +5,22 @@
 Neon PostgreSQL provides comprehensive backup capabilities built into the platform:
 
 ### Automatic Daily Backups
+
 - **Frequency**: Daily automatic backups
 - **Retention**: 30 days by default (configurable)
 - **Storage**: Cross-region backup storage
 - **Recovery**: Point-in-time recovery (PITR) available
 
 ### Branch-Based Backup Strategy
+
 Each database branch serves as a backup point:
+
 - **Main Branch**: Production data with daily backups
 - **Development Branch**: Safe testing environment
 - **Testing Branch**: CI/CD and automated testing
 
 ### Creating Manual Backup Branches
+
 ```bash
 # Create a backup branch from current main
 neon branches create \
@@ -33,21 +37,25 @@ neon branches list --project-id soft-dew-27794389
 ### Key Performance Metrics
 
 #### 1. Connection Pool Monitoring
+
 - **Active Connections**: Monitor connection utilization
 - **Pool Saturation**: Alert when approaching limits
 - **Connection Errors**: Track failed connections
 
 #### 2. Query Performance
+
 - **Slow Query Detection**: Queries > 1000ms execution time
 - **Query Frequency**: High-frequency operations
 - **Execution Plans**: Monitor query plan changes
 
 #### 3. Vector Search Performance
+
 - **HNSW Index Usage**: Index scan frequency and efficiency
 - **Search Latency**: Vector similarity search response times
 - **Index Memory Usage**: halfvec memory optimization tracking
 
 #### 4. Storage and Index Metrics
+
 - **Table Growth**: Monitor table size increases
 - **Index Efficiency**: Track index usage statistics
 - **Disk Space**: Storage utilization trends
@@ -55,6 +63,7 @@ neon branches list --project-id soft-dew-27794389
 ### Monitoring Scripts
 
 #### Daily Health Check
+
 ```bash
 #\!/bin/bash
 # daily-health-check.sh
@@ -78,6 +87,7 @@ echo "✅ Health check completed"
 ```
 
 #### Performance Monitoring
+
 ```bash
 #\!/bin/bash
 # performance-monitor.sh
@@ -112,18 +122,21 @@ monitor.getVectorIndexMetrics().then(metrics => {
 ### Alerting Configuration
 
 #### Critical Alerts (Immediate Response)
+
 - Database connection failures
 - Query execution time > 10 seconds
 - Connection pool saturation (>90%)
 - Disk space usage > 85%
 
 #### Warning Alerts (Monitor Closely)
+
 - Query execution time > 5 seconds
 - Connection pool usage > 75%
 - High number of slow queries (>10 per hour)
 - Vector index efficiency degradation
 
 #### Example Alert Script
+
 ```bash
 #\!/bin/bash
 # alert-check.sh
@@ -155,20 +168,24 @@ fi
 ## Integration with External Services
 
 ### Application Performance Monitoring (APM)
+
 Integrate with services like:
+
 - **DataDog**: Database performance monitoring
 - **New Relic**: Application and database insights
 - **Prometheus + Grafana**: Custom metrics dashboards
 
 ### Log Aggregation
+
 - **Structured Logging**: JSON format for easy parsing
 - **Log Levels**: ERROR, WARN, INFO, DEBUG
 - **Query Logging**: Log slow queries and errors
 
 ### Example Monitoring Integration
+
 ```typescript
 // src/lib/monitoring/apm-integration.ts
-import { DatabaseMonitor } from './database-monitor';
+import { DatabaseMonitor } from "./database-monitor";
 
 export class APMIntegration {
   private monitor: DatabaseMonitor;
@@ -178,17 +195,13 @@ export class APMIntegration {
   }
 
   async collectMetrics() {
-    const [
-      connectionMetrics,
-      slowQueries,
-      vectorMetrics,
-      healthCheck
-    ] = await Promise.all([
-      this.monitor.getConnectionMetrics(),
-      this.monitor.getSlowQueries(),
-      this.monitor.getVectorIndexMetrics(),
-      this.monitor.checkDatabaseHealth()
-    ]);
+    const [connectionMetrics, slowQueries, vectorMetrics, healthCheck] =
+      await Promise.all([
+        this.monitor.getConnectionMetrics(),
+        this.monitor.getSlowQueries(),
+        this.monitor.getVectorIndexMetrics(),
+        this.monitor.checkDatabaseHealth(),
+      ]);
 
     // Send to APM service
     const metrics = {
@@ -197,13 +210,13 @@ export class APMIntegration {
         connections: connectionMetrics,
         health: healthCheck.status,
         slowQueryCount: slowQueries.length,
-        vectorIndexCount: vectorMetrics.length
-      }
+        vectorIndexCount: vectorMetrics.length,
+      },
     };
 
     // Example: Send to DataDog, New Relic, etc.
     // await this.sendToAPM(metrics);
-    
+
     return metrics;
   }
 }
@@ -212,6 +225,7 @@ export class APMIntegration {
 ## Disaster Recovery Procedures
 
 ### 1. Database Corruption Recovery
+
 ```bash
 # Create recovery branch from latest backup
 neon branches create \
@@ -224,6 +238,7 @@ npm run db:test-connection
 ```
 
 ### 2. Point-in-Time Recovery
+
 ```bash
 # Restore to specific timestamp
 neon branches create \
@@ -234,7 +249,9 @@ neon branches create \
 ```
 
 ### 3. Cross-Region Failover
+
 Neon provides cross-region backup storage. In case of regional failure:
+
 1. Access backup from alternative region
 2. Create new project in available region
 3. Restore from cross-region backup
@@ -243,18 +260,21 @@ Neon provides cross-region backup storage. In case of regional failure:
 ## Maintenance Procedures
 
 ### Weekly Maintenance
+
 - Review slow query reports
 - Analyze index usage statistics
 - Check connection pool metrics
 - Update table statistics (`ANALYZE`)
 
 ### Monthly Maintenance
+
 - Review storage usage trends
 - Optimize or rebuild underused indexes
 - Performance baseline comparison
 - Backup retention policy review
 
 ### Quarterly Maintenance
+
 - Full performance audit
 - Disaster recovery testing
 - Security audit and access review
@@ -265,24 +285,28 @@ Neon provides cross-region backup storage. In case of regional failure:
 ### Key Dashboards
 
 #### 1. Database Health Dashboard
+
 - Connection status indicator
 - Query performance trends
 - Error rate monitoring
 - Resource utilization
 
 #### 2. Vector Search Dashboard
+
 - HNSW index performance
 - Search latency metrics
 - Index memory usage
 - Query accuracy tracking
 
 #### 3. Application Integration Dashboard
+
 - API response times
 - Database query distribution
 - User activity correlation
 - Feature usage analytics
 
 ### Example Grafana Configuration
+
 ```json
 {
   "dashboard": {
@@ -300,7 +324,7 @@ Neon provides cross-region backup storage. In case of regional failure:
       },
       {
         "title": "Query Performance",
-        "type": "graph", 
+        "type": "graph",
         "targets": [
           {
             "query": "avg_query_time",

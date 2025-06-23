@@ -17,7 +17,7 @@ Successfully implemented configurable WebAuthn RP ID support to make WebAuthn co
 ### 2. Environment Variables Added (`src/lib/validation/env.ts`)
 
 - `WEBAUTHN_RP_ID` - Custom RP ID (optional, auto-detected from Vercel URLs)
-- `WEBAUTHN_RP_NAME` - Custom RP name (defaults to 'Contribux')  
+- `WEBAUTHN_RP_NAME` - Custom RP name (defaults to 'Contribux')
 - `WEBAUTHN_ORIGINS` - Comma-separated allowed origins (auto-detected)
 - `NEXT_PUBLIC_APP_URL` - App URL for origin configuration
 
@@ -35,11 +35,12 @@ Successfully implemented configurable WebAuthn RP ID support to make WebAuthn co
 ### 4. Configuration Pattern
 
 **Development:**
+
 ```javascript
 // Auto-detected configuration
 {
   rpId: 'localhost',
-  rpName: 'Contribux', 
+  rpName: 'Contribux',
   origins: ['http://localhost:3000'],
   isDevelopment: true,
   isProduction: false
@@ -47,6 +48,7 @@ Successfully implemented configurable WebAuthn RP ID support to make WebAuthn co
 ```
 
 **Production:**
+
 ```javascript
 // Auto-detected from VERCEL_URL
 {
@@ -54,11 +56,12 @@ Successfully implemented configurable WebAuthn RP ID support to make WebAuthn co
   rpName: 'Contribux',
   origins: ['https://myapp.vercel.app'],
   isDevelopment: false,
-  isProduction: true  
+  isProduction: true
 }
 ```
 
 **Custom Configuration:**
+
 ```bash
 # Environment variables
 WEBAUTHN_RP_ID="example.com"
@@ -93,11 +96,13 @@ The system automatically detects the appropriate configuration based on:
 
 ## Files Modified/Created
 
-### New Files:
+### New Files
+
 - `src/lib/auth/webauthn-config.ts` - Core configuration system
 - `tests/auth/webauthn-config.test.ts` - Comprehensive test suite
 
-### Modified Files:
+### Modified Files
+
 - `src/lib/auth/webauthn.ts` - Updated to use configurable RP ID
 - `src/lib/validation/env.ts` - Added WebAuthn environment variables
 - `tests/auth/webauthn.test.ts` - Updated tests for new system
@@ -106,42 +111,46 @@ The system automatically detects the appropriate configuration based on:
 ## Usage Examples
 
 ### Basic Usage (No changes required)
+
 ```javascript
 // Existing code continues to work
-const options = await generateRegistrationOptions(user)
+const options = await generateRegistrationOptions(user);
 const result = await verifyRegistrationResponse({
   response: clientResponse,
   expectedChallenge: challenge,
   expectedOrigin: origin,
-  expectedRPID: rpId
-})
+  expectedRPID: rpId,
+});
 ```
 
 ### Custom Configuration
+
 ```javascript
 // Using custom config for multi-tenant applications
 const customConfig = {
-  rpId: 'tenant.example.com',
-  rpName: 'Tenant App',
-  origins: ['https://tenant.example.com'],
+  rpId: "tenant.example.com",
+  rpName: "Tenant App",
+  origins: ["https://tenant.example.com"],
   isDevelopment: false,
-  isProduction: true
-}
+  isProduction: true,
+};
 
-const options = await generateRegistrationOptions(user, customConfig)
+const options = await generateRegistrationOptions(user, customConfig);
 ```
 
 ### Client-Side Integration
+
 ```javascript
 // Get configuration for frontend
-const clientConfig = getClientConfig()
+const clientConfig = getClientConfig();
 // Returns: { rpId, rpName, origins, isDevelopment }
 ```
 
 ### API Endpoint Validation
+
 ```javascript
 // Validate incoming WebAuthn requests
-validateWebAuthnRequest(origin, rpId, config)
+validateWebAuthnRequest(origin, rpId, config);
 // Throws error if origin or RP ID not allowed
 ```
 

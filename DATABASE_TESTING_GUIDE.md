@@ -18,16 +18,19 @@ This guide provides best practices for testing database operations in Node.js ap
 ### When to Mock vs Real Database
 
 **Unit Tests**: Use mocking for fast, isolated tests
+
 - In-memory databases or mock clients
 - Focus on business logic without database overhead
 - Fast execution for CI/CD pipelines
 
 **Integration Tests**: Use real databases for end-to-end validation
+
 - Real database behavior and constraints
 - Transaction handling and concurrency
 - Performance characteristics
 
-**Recommendation**: 
+**Recommendation**:
+
 - 80% unit tests with mocks
 - 20% integration tests with real databases
 
@@ -37,20 +40,20 @@ This guide provides best practices for testing database operations in Node.js ap
 
 ```typescript
 // Basic database client mocking
-import { vi } from 'vitest';
+import { vi } from "vitest";
 
 // Mock entire database module
-vi.mock('./database/client', () => ({
+vi.mock("./database/client", () => ({
   query: vi.fn(),
   insert: vi.fn(),
   update: vi.fn(),
   delete: vi.fn(),
-  transaction: vi.fn()
+  transaction: vi.fn(),
 }));
 
 // Type-safe mocking with vitest-mock-extended
-import { mockDeep } from 'vitest-mock-extended';
-import type { DatabaseClient } from './types';
+import { mockDeep } from "vitest-mock-extended";
+import type { DatabaseClient } from "./types";
 
 const mockDb = mockDeep<DatabaseClient>();
 ```
@@ -61,12 +64,12 @@ const mockDb = mockDeep<DatabaseClient>();
 // Install: pnpm add -D vitest-mock-extended prisma-mock-vitest
 
 // Mock Prisma Client
-import { mockDeep, mockReset, DeepMockProxy } from 'vitest-mock-extended';
-import { PrismaClient } from '@prisma/client';
+import { mockDeep, mockReset, DeepMockProxy } from "vitest-mock-extended";
+import { PrismaClient } from "@prisma/client";
 
 const mockPrisma = mockDeep<PrismaClient>();
 
-vi.mock('./lib/prisma', () => ({
+vi.mock("./lib/prisma", () => ({
   prisma: mockPrisma,
 }));
 
@@ -75,19 +78,19 @@ beforeEach(() => {
   mockReset(mockPrisma);
 });
 
-test('should create user', async () => {
-  const mockUser = { id: '1', email: 'test@example.com', name: 'Test User' };
-  
+test("should create user", async () => {
+  const mockUser = { id: "1", email: "test@example.com", name: "Test User" };
+
   mockPrisma.user.create.mockResolvedValue(mockUser);
-  
+
   const result = await userService.createUser({
-    email: 'test@example.com',
-    name: 'Test User'
+    email: "test@example.com",
+    name: "Test User",
   });
-  
+
   expect(result).toEqual(mockUser);
   expect(mockPrisma.user.create).toHaveBeenCalledWith({
-    data: { email: 'test@example.com', name: 'Test User' }
+    data: { email: "test@example.com", name: "Test User" },
   });
 });
 ```
@@ -96,29 +99,29 @@ test('should create user', async () => {
 
 ```typescript
 // For PostgreSQL-compatible testing without Docker
-import { vi } from 'vitest';
-import { PGlite } from '@electric-sql/pglite';
-import { drizzle } from 'drizzle-orm/pglite';
+import { vi } from "vitest";
+import { PGlite } from "@electric-sql/pglite";
+import { drizzle } from "drizzle-orm/pglite";
 
-vi.mock('src/db', async (importOriginal) => {
+vi.mock("src/db", async (importOriginal) => {
   const { default: _, ...rest } = await importOriginal();
-  const { PGlite } = await vi.importActual('@electric-sql/pglite');
-  const { drizzle } = await vi.importActual('drizzle-orm/pglite');
-  
+  const { PGlite } = await vi.importActual("@electric-sql/pglite");
+  const { drizzle } = await vi.importActual("drizzle-orm/pglite");
+
   const client = new PGlite();
   const db = drizzle(client, { schema });
-  
+
   // Apply schema to in-memory database
-  const { pushSchema } = require('drizzle-kit/api');
+  const { pushSchema } = require("drizzle-kit/api");
   const { apply } = await pushSchema(schema, db);
   await apply();
-  
+
   // Seed test data
   await db.insert(User).values({
-    email: 'test@example.com',
-    externalId: 'test-id'
+    email: "test@example.com",
+    externalId: "test-id",
   });
-  
+
   return { default: db, ...rest };
 });
 ```
@@ -129,26 +132,26 @@ vi.mock('src/db', async (importOriginal) => {
 
 ```typescript
 // vitest.config.ts
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig, loadEnv } from "vite";
 
 export default defineConfig(({ mode }) => ({
   test: {
     // Load all environment variables, not just VITE_ prefixed
-    env: loadEnv(mode, process.cwd(), ''),
-    
+    env: loadEnv(mode, process.cwd(), ""),
+
     // Disable isolation for better performance with proper cleanup
     isolate: false,
-    
+
     // Use single thread for database tests to prevent race conditions
     threads: false,
-    
+
     // Setup files for database initialization
-    setupFiles: ['./tests/setup.ts'],
-    
+    setupFiles: ["./tests/setup.ts"],
+
     // Global test configuration
     globals: true,
-    environment: 'node',
-    
+    environment: "node",
+
     // Longer timeout for database operations
     testTimeout: 30000,
   },
@@ -159,25 +162,25 @@ export default defineConfig(({ mode }) => ({
 
 ```typescript
 // tests/setup.ts
-import { loadEnv } from 'vite';
-import { beforeAll, afterAll } from 'vitest';
+import { loadEnv } from "vite";
+import { beforeAll, afterAll } from "vitest";
 
 // Load test environment variables
-const testEnv = loadEnv('test', process.cwd(), '');
+const testEnv = loadEnv("test", process.cwd(), "");
 
 // Set test database configuration
 process.env.DATABASE_URL = testEnv.DATABASE_URL_TEST;
-process.env.NODE_ENV = 'test';
+process.env.NODE_ENV = "test";
 
 let testDatabase: any;
 
 beforeAll(async () => {
   // Initialize test database connection
   testDatabase = await createTestDatabaseConnection();
-  
+
   // Run migrations or push schema
   await setupTestSchema();
-  
+
   return async () => {
     // Cleanup after all tests
     await testDatabase?.close();
@@ -188,7 +191,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   // Truncate all tables for clean slate
   await truncateAllTables();
-  
+
   // Seed common test data if needed
   await seedTestData();
 });
@@ -198,7 +201,7 @@ beforeEach(async () => {
 
 ```yaml
 # tests/docker-compose.test.yml
-version: '3'
+version: "3"
 services:
   test-db:
     image: postgres:16
@@ -210,33 +213,33 @@ services:
       POSTGRES_PASSWORD: test_pass
       POSTGRES_DB: test_db
     tmpfs:
-      - /var/lib/postgresql/data  # In-memory for speed
+      - /var/lib/postgresql/data # In-memory for speed
 ```
 
 ```typescript
 // tests/database/docker-setup.ts
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import { exec } from "child_process";
+import { promisify } from "util";
 
 const execAsync = promisify(exec);
 
 export async function startTestDatabase() {
   try {
-    await execAsync('docker-compose -f tests/docker-compose.test.yml up -d');
-    
+    await execAsync("docker-compose -f tests/docker-compose.test.yml up -d");
+
     // Wait for database to be ready
     await waitForDatabase();
-    
+
     // Run migrations
-    await execAsync('npm run db:migrate:test');
+    await execAsync("npm run db:migrate:test");
   } catch (error) {
-    console.error('Failed to start test database:', error);
+    console.error("Failed to start test database:", error);
     throw error;
   }
 }
 
 export async function stopTestDatabase() {
-  await execAsync('docker-compose -f tests/docker-compose.test.yml down');
+  await execAsync("docker-compose -f tests/docker-compose.test.yml down");
 }
 ```
 
@@ -260,21 +263,21 @@ DATABASE_URL="postgresql://ci_user:ci_pass@postgres:5432/ci_db"
 
 ```typescript
 // tests/environment.ts
-import { loadEnv } from 'vite';
+import { loadEnv } from "vite";
 
 export function setupTestEnvironment() {
-  const mode = process.env.NODE_ENV || 'test';
-  const env = loadEnv(mode, process.cwd(), '');
-  
+  const mode = process.env.NODE_ENV || "test";
+  const env = loadEnv(mode, process.cwd(), "");
+
   // Override environment variables for testing
   Object.assign(process.env, {
     ...env,
-    NODE_ENV: 'test',
-    LOG_LEVEL: 'error', // Reduce noise in tests
+    NODE_ENV: "test",
+    LOG_LEVEL: "error", // Reduce noise in tests
   });
-  
+
   // Validate required environment variables
-  const required = ['DATABASE_URL_TEST'];
+  const required = ["DATABASE_URL_TEST"];
   for (const key of required) {
     if (!process.env[key]) {
       throw new Error(`Missing required environment variable: ${key}`);
@@ -289,14 +292,14 @@ export function setupTestEnvironment() {
 
 ```typescript
 // tests/transaction-isolation.ts
-import { beforeEach, afterEach } from 'vitest';
+import { beforeEach, afterEach } from "vitest";
 
 let currentTransaction: any;
 
 beforeEach(async () => {
   // Start transaction for each test
   currentTransaction = await db.transaction();
-  
+
   // Use transaction client for all operations
   global.testDb = currentTransaction;
 });
@@ -318,26 +321,26 @@ export async function truncateAllTables() {
     WHERE schemaname = 'public'
     AND tablename NOT LIKE '%_prisma_%'
   `);
-  
+
   // Disable foreign key checks temporarily
-  await db.query('SET session_replication_role = replica;');
-  
+  await db.query("SET session_replication_role = replica;");
+
   // Truncate all tables
   for (const { tablename } of tables) {
     await db.query(`TRUNCATE TABLE "${tablename}" RESTART IDENTITY CASCADE;`);
   }
-  
+
   // Re-enable foreign key checks
-  await db.query('SET session_replication_role = DEFAULT;');
+  await db.query("SET session_replication_role = DEFAULT;");
 }
 
 // Alternative: Use TRUNCATE with foreign key handling
 export async function safeTruncateAllTables() {
   const tableNames = await getTableNames();
-  
+
   if (tableNames.length > 0) {
     await db.query(`
-      TRUNCATE TABLE ${tableNames.map(name => `"${name}"`).join(', ')} 
+      TRUNCATE TABLE ${tableNames.map((name) => `"${name}"`).join(", ")} 
       RESTART IDENTITY CASCADE
     `);
   }
@@ -348,12 +351,12 @@ export async function safeTruncateAllTables() {
 
 ```typescript
 // Advanced cleanup with Vitest hooks
-import { onTestFinished, beforeEach, afterEach } from 'vitest';
+import { onTestFinished, beforeEach, afterEach } from "vitest";
 
 beforeEach(async () => {
   // Setup test data
   const testData = await setupTestData();
-  
+
   // Register cleanup for this specific test
   onTestFinished(async () => {
     await cleanupTestData(testData.id);
@@ -377,28 +380,28 @@ export default defineConfig({
   test: {
     // Disable isolation for faster tests (requires proper cleanup)
     isolate: false,
-    
+
     // Single thread to prevent database race conditions
     threads: false,
-    
+
     // Increase test timeout for database operations
     testTimeout: 15000,
-    
+
     // Pool configuration for performance
     poolOptions: {
       forks: {
         isolate: false,
       },
     },
-    
+
     // Coverage configuration
     coverage: {
-      provider: 'v8',
+      provider: "v8",
       exclude: [
-        '**/tests/**',
-        '**/coverage/**',
-        '**/*.test.ts',
-        '**/*.spec.ts'
+        "**/tests/**",
+        "**/coverage/**",
+        "**/*.test.ts",
+        "**/*.spec.ts",
       ],
     },
   },
@@ -409,7 +412,7 @@ export default defineConfig({
 
 ```typescript
 // lib/test-db.ts
-import { Pool } from 'pg';
+import { Pool } from "pg";
 
 let testPool: Pool | null = null;
 
@@ -422,7 +425,7 @@ export function getTestDatabasePool() {
       connectionTimeoutMillis: 2000,
     });
   }
-  
+
   return testPool;
 }
 
@@ -441,7 +444,7 @@ export async function closeTestDatabasePool() {
 export default defineConfig({
   test: {
     // Enable parallel execution for unit tests
-    include: ['**/*.unit.test.ts'],
+    include: ["**/*.unit.test.ts"],
     threads: true,
     isolate: true,
   },
@@ -450,7 +453,7 @@ export default defineConfig({
 // Separate config for integration tests
 export const integrationConfig = defineConfig({
   test: {
-    include: ['**/*.integration.test.ts'],
+    include: ["**/*.integration.test.ts"],
     threads: false, // Sequential for database tests
     isolate: false,
   },
@@ -463,29 +466,29 @@ export const integrationConfig = defineConfig({
 
 ```typescript
 // tests/prisma-setup.ts
-import { PrismaClient } from '@prisma/client';
-import { execSync } from 'child_process';
+import { PrismaClient } from "@prisma/client";
+import { execSync } from "child_process";
 
 let prismaTestClient: PrismaClient;
 
 export async function setupPrismaTest() {
   // Generate test database URL
   const testDbUrl = process.env.DATABASE_URL_TEST;
-  
+
   // Push schema to test database (faster than migrate)
-  execSync('npx prisma db push --accept-data-loss', {
+  execSync("npx prisma db push --accept-data-loss", {
     env: { ...process.env, DATABASE_URL: testDbUrl },
   });
-  
+
   // Create test client
   prismaTestClient = new PrismaClient({
     datasources: {
       db: { url: testDbUrl },
     },
   });
-  
+
   await prismaTestClient.$connect();
-  
+
   return prismaTestClient;
 }
 
@@ -498,8 +501,8 @@ export async function teardownPrismaTest() {
 
 ```typescript
 // tests/mocks/prisma.ts
-import { PrismaClient } from '@prisma/client';
-import { mockDeep, DeepMockProxy } from 'vitest-mock-extended';
+import { PrismaClient } from "@prisma/client";
+import { mockDeep, DeepMockProxy } from "vitest-mock-extended";
 
 export type MockPrismaClient = DeepMockProxy<PrismaClient>;
 
@@ -534,11 +537,18 @@ export function mockPrismaResponses(mockPrisma: MockPrismaClient) {
 
 ```typescript
 // tests/integration/user.integration.test.ts
-import { describe, test, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import { setupTestDatabase, teardownTestDatabase } from '../helpers/database';
-import { UserService } from '../../src/services/user';
+import {
+  describe,
+  test,
+  expect,
+  beforeAll,
+  afterAll,
+  beforeEach,
+} from "vitest";
+import { setupTestDatabase, teardownTestDatabase } from "../helpers/database";
+import { UserService } from "../../src/services/user";
 
-describe('User Integration Tests', () => {
+describe("User Integration Tests", () => {
   let userService: UserService;
   let cleanup: () => Promise<void>;
 
@@ -557,12 +567,12 @@ describe('User Integration Tests', () => {
     await seedTestData();
   });
 
-  test('should create and retrieve user', async () => {
+  test("should create and retrieve user", async () => {
     // Arrange
     const userData = {
-      email: 'test@example.com',
-      name: 'Test User',
-      githubId: 'test-github-id',
+      email: "test@example.com",
+      name: "Test User",
+      githubId: "test-github-id",
     };
 
     // Act
@@ -574,16 +584,16 @@ describe('User Integration Tests', () => {
     expect(retrievedUser).toEqual(createdUser);
   });
 
-  test('should handle user preferences', async () => {
+  test("should handle user preferences", async () => {
     // Test user preferences functionality
     const user = await userService.createUser({
-      email: 'prefs@example.com',
-      name: 'Prefs User',
-      githubId: 'prefs-github',
+      email: "prefs@example.com",
+      name: "Prefs User",
+      githubId: "prefs-github",
     });
 
     const preferences = {
-      programmingLanguages: ['TypeScript', 'Python'],
+      programmingLanguages: ["TypeScript", "Python"],
       minStars: 100,
       maxComplexity: 5,
       notificationSettings: {
@@ -604,18 +614,18 @@ describe('User Integration Tests', () => {
 
 ```typescript
 // tests/unit/user.unit.test.ts
-import { describe, test, expect, vi, beforeEach } from 'vitest';
-import { mockDeep, mockReset } from 'vitest-mock-extended';
-import type { DatabaseClient } from '../../src/types';
-import { UserService } from '../../src/services/user';
+import { describe, test, expect, vi, beforeEach } from "vitest";
+import { mockDeep, mockReset } from "vitest-mock-extended";
+import type { DatabaseClient } from "../../src/types";
+import { UserService } from "../../src/services/user";
 
 const mockDb = mockDeep<DatabaseClient>();
 
-vi.mock('../../src/lib/database', () => ({
+vi.mock("../../src/lib/database", () => ({
   db: mockDb,
 }));
 
-describe('User Service Unit Tests', () => {
+describe("User Service Unit Tests", () => {
   let userService: UserService;
 
   beforeEach(() => {
@@ -623,16 +633,16 @@ describe('User Service Unit Tests', () => {
     userService = new UserService(mockDb);
   });
 
-  test('should create user with valid data', async () => {
+  test("should create user with valid data", async () => {
     // Arrange
     const userData = {
-      email: 'test@example.com',
-      name: 'Test User',
-      githubId: 'test-github-id',
+      email: "test@example.com",
+      name: "Test User",
+      githubId: "test-github-id",
     };
 
     const expectedUser = {
-      id: 'user-123',
+      id: "user-123",
       ...userData,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -650,19 +660,19 @@ describe('User Service Unit Tests', () => {
     });
   });
 
-  test('should throw error for duplicate email', async () => {
+  test("should throw error for duplicate email", async () => {
     // Arrange
     const userData = {
-      email: 'duplicate@example.com',
-      name: 'Duplicate User',
-      githubId: 'duplicate-github',
+      email: "duplicate@example.com",
+      name: "Duplicate User",
+      githubId: "duplicate-github",
     };
 
-    mockDb.user.create.mockRejectedValue(new Error('Unique constraint failed'));
+    mockDb.user.create.mockRejectedValue(new Error("Unique constraint failed"));
 
     // Act & Assert
     await expect(userService.createUser(userData)).rejects.toThrow(
-      'User with this email already exists'
+      "User with this email already exists"
     );
   });
 });
@@ -672,24 +682,24 @@ describe('User Service Unit Tests', () => {
 
 ```typescript
 // tests/helpers/database.ts
-import { PrismaClient } from '@prisma/client';
-import { execSync } from 'child_process';
+import { PrismaClient } from "@prisma/client";
+import { execSync } from "child_process";
 
 export async function setupTestDatabase() {
   const testDbUrl = process.env.DATABASE_URL_TEST!;
-  
+
   // Push schema to test database
-  execSync('npx prisma db push --accept-data-loss', {
+  execSync("npx prisma db push --accept-data-loss", {
     env: { ...process.env, DATABASE_URL: testDbUrl },
-    stdio: 'ignore',
+    stdio: "ignore",
   });
-  
+
   const prisma = new PrismaClient({
     datasources: { db: { url: testDbUrl } },
   });
-  
+
   await prisma.$connect();
-  
+
   return {
     db: prisma,
     cleanup: async () => {
@@ -703,25 +713,25 @@ export async function seedTestData(prisma: PrismaClient) {
   await prisma.user.createMany({
     data: [
       {
-        email: 'admin@example.com',
-        name: 'Admin User',
-        githubId: 'admin-github',
+        email: "admin@example.com",
+        name: "Admin User",
+        githubId: "admin-github",
       },
       {
-        email: 'user@example.com',
-        name: 'Regular User',
-        githubId: 'user-github',
+        email: "user@example.com",
+        name: "Regular User",
+        githubId: "user-github",
       },
     ],
   });
-  
+
   // Create test repositories
   await prisma.repository.createMany({
     data: [
       {
-        name: 'test-repo',
-        fullName: 'owner/test-repo',
-        description: 'Test repository',
+        name: "test-repo",
+        fullName: "owner/test-repo",
+        description: "Test repository",
         stars: 150,
         healthScore: 85,
       },
@@ -735,10 +745,12 @@ export async function truncateAllTables(prisma: PrismaClient) {
     WHERE schemaname = 'public' 
     AND tablename NOT LIKE '%_prisma_%'
   `;
-  
+
   if (tableNames.length > 0) {
     await prisma.$executeRawUnsafe(`
-      TRUNCATE TABLE ${tableNames.map(({ tablename }) => `"${tablename}"`).join(', ')} 
+      TRUNCATE TABLE ${tableNames
+        .map(({ tablename }) => `"${tablename}"`)
+        .join(", ")} 
       RESTART IDENTITY CASCADE
     `);
   }
@@ -756,11 +768,11 @@ export async function truncateAllTables(prisma: PrismaClient) {
     "test:watch": "vitest watch",
     "test:coverage": "vitest run --coverage",
     "test:ui": "vitest --ui",
-    
+
     "db:test-setup": "dotenv -e .env.test -- npx prisma db push --accept-data-loss",
     "db:test-seed": "dotenv -e .env.test -- npx prisma db seed",
     "db:test-reset": "dotenv -e .env.test -- npx prisma migrate reset --force",
-    
+
     "test:db": "run-s db:test-setup test:integration",
     "test:ci": "run-s db:test-setup test:unit test:integration"
   }
@@ -780,6 +792,7 @@ This comprehensive guide covers:
 7. **Real-world Examples**: Complete test suites and utilities
 
 Key takeaways:
+
 - Use mocks for unit tests, real databases for integration tests
 - Disable Vitest threading for database tests to prevent race conditions
 - Implement proper cleanup strategies for test isolation

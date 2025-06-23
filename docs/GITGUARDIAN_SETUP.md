@@ -13,6 +13,7 @@ The configuration is defined in `.gitguardian.yml` at the project root.
 ### Key Features
 
 #### 🚫 Excluded Paths
+
 - All test files (`tests/**/*`, `**/*.test.ts`, `**/*.spec.ts`)
 - Build artifacts (`coverage/**/*`, `.next/**/*`, `dist/**/*`)
 - Documentation files (`**/*.md`, `docs/**/*`)
@@ -20,6 +21,7 @@ The configuration is defined in `.gitguardian.yml` at the project root.
 - Configuration files with test data
 
 #### 🎯 Ignored Patterns
+
 - Test JWT secrets: `test-jwt-secret-for-unit-tests-only-32-chars-minimum`
 - Mock tokens: `token1`, `token2`, `token3`
 - Test database URLs: `postgresql://test:test@localhost`
@@ -27,6 +29,7 @@ The configuration is defined in `.gitguardian.yml` at the project root.
 - Generic test patterns: `test.*secret`, `mock.*token`, etc.
 
 #### 🔍 Custom Detectors
+
 - Production Neon database URLs
 - GitHub Personal Access Tokens (`ghp_*`)
 - OpenAI API keys (`sk-*`)
@@ -54,25 +57,31 @@ The configuration automatically applies when GitGuardian runs in CI/CD pipelines
 ## Common False Positives Handled
 
 ### 1. Test Secrets
+
 - **Pattern**: JWT secrets in test files
 - **Solution**: Excluded via `matches-ignore` and test file exclusions
 
 ### 2. Mock API Tokens
+
 - **Pattern**: GitHub API tokens like `token1`, `token2` in tests
 - **Solution**: Specific pattern exclusions for mock tokens
 
 ### 3. Test Database URLs
+
 - **Pattern**: Local PostgreSQL URLs in test configurations
 - **Solution**: Pattern exclusions for localhost test databases
 
 ### 4. Sample RSA Keys
+
 - **Pattern**: Fake private keys in authentication tests
 - **Solution**: Exclusions for keys with obvious test markers
 
 ## Adding New Exclusions
 
 ### For Test Files
+
 Add patterns to `paths-ignore` section:
+
 ```yaml
 paths-ignore:
   - "new-test-directory/**/*"
@@ -80,22 +89,26 @@ paths-ignore:
 ```
 
 ### For Specific Patterns
+
 Add regex patterns to `matches-ignore` section:
+
 ```yaml
 matches-ignore:
-  - 'your.*new.*test.*pattern'
-  - 'another-specific-mock-value'
+  - "your.*new.*test.*pattern"
+  - "another-specific-mock-value"
 ```
 
 ## Best Practices
 
 ### ✅ Do
+
 - Use clearly marked test values: `test-*`, `mock-*`, `fake-*`
 - Include "test" or "mock" in variable names
 - Keep test data in dedicated test directories
 - Use descriptive secret names that indicate their test nature
 
 ### ❌ Don't
+
 - Use production-like values in tests
 - Commit actual API keys or secrets (even expired ones)
 - Use ambiguous variable names for test data
@@ -125,6 +138,7 @@ Run the validation script to verify your configuration:
 ```
 
 This script:
+
 - ✅ Validates YAML syntax
 - ✅ Tests GitGuardian CLI integration
 - ✅ Runs sample scans with test patterns
