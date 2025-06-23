@@ -11,6 +11,13 @@ import { GitHubError } from '@/lib/github/errors'
 import { setupMSW } from './msw-setup'
 import { createTrackedClient, setupGitHubTestIsolation } from './test-helpers'
 
+// Type for testing internal properties
+interface GitHubClientTest extends GitHubClient {
+  setCache: (key: string, data: unknown) => void
+  getFromCache: (key: string) => unknown
+  safeRequest: unknown
+}
+
 describe('GitHub Client Async Edge Cases', () => {
   setupMSW()
   setupGitHubTestIsolation()
@@ -290,9 +297,9 @@ describe('GitHub Client Async Edge Cases', () => {
 
       // Add some cache entries manually
 
-      ;(client as any).setCache('key1', 'data1')
-      ;(client as any).setCache('key2', 'data2')
-      ;(client as any).setCache('key3', 'data3')
+      ;(client as GitHubClientTest).setCache('key1', 'data1')
+      ;(client as GitHubClientTest).setCache('key2', 'data2')
+      ;(client as GitHubClientTest).setCache('key3', 'data3')
 
       let stats = client.getCacheStats()
       expect(stats.size).toBe(3)
@@ -314,7 +321,7 @@ describe('GitHub Client Async Edge Cases', () => {
       })
 
       // Try to get from empty cache
-      const cached = (client as any).getFromCache('nonexistent-key')
+      const cached = (client as GitHubClientTest).getFromCache('nonexistent-key')
       expect(cached).toBeNull()
 
       const stats = client.getCacheStats()
@@ -368,8 +375,8 @@ describe('GitHub Client Async Edge Cases', () => {
       const client = createClient({ auth: { type: 'token', token: 'test_token' } })
 
       // Mock an error with full GitHub error structure
-      const originalSafeRequest = (client as any).safeRequest
-      ;(client as any).safeRequest = vi.fn().mockRejectedValueOnce(
+      const originalSafeRequest = (client as GitHubClientTest).safeRequest
+      ;(client as GitHubClientTest).safeRequest = vi.fn().mockRejectedValueOnce(
         new GitHubError('Detailed error message', 'API_ERROR', 422, {
           message: 'Validation Failed',
           errors: [{ field: 'name', code: 'invalid' }],
@@ -388,7 +395,7 @@ describe('GitHub Client Async Edge Cases', () => {
       }
       // Restore original method
 
-      ;(client as any).safeRequest = originalSafeRequest
+      ;(client as GitHubClientTest).safeRequest = originalSafeRequest
     })
   })
 })

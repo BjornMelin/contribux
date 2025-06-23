@@ -16,6 +16,12 @@ import { GitHubError } from '@/lib/github/errors'
 import { mswServer, setupMSW } from './msw-setup'
 import { createTrackedClient, setupGitHubTestIsolation } from './test-helpers'
 
+// Type for testing internal properties
+interface GitHubClientTest extends GitHubClient {
+  setCache: (key: string, data: unknown, ttl?: number) => void
+  getFromCache: (key: string) => unknown
+}
+
 describe('GitHub Client Final Edge Cases Tests', () => {
   setupMSW()
   setupGitHubTestIsolation()
@@ -32,8 +38,8 @@ describe('GitHub Client Final Edge Cases Tests', () => {
       })
 
       // Directly test the cache access method to cover expiration logic
-      const setCacheMethod = (client as any).setCache
-      const getCacheMethod = (client as any).getFromCache
+      const setCacheMethod = (client as GitHubClientTest).setCache
+      const getCacheMethod = (client as GitHubClientTest).getFromCache
 
       // Set a cache entry with very short TTL
       setCacheMethod.call(client, 'test-key', { data: 'test-data' }, 0.001) // 1ms TTL

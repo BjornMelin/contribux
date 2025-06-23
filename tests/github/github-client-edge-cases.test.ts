@@ -6,12 +6,17 @@
  */
 
 import { HttpResponse, http } from 'msw'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { GitHubClient } from '@/lib/github'
 import type { GitHubClientConfig } from '@/lib/github/client'
 import { GitHubError } from '@/lib/github/errors'
 import { mswServer, setupMSW } from './msw-setup'
 import { createTrackedClient, setupGitHubTestIsolation } from './test-helpers'
+
+// Type for testing internal properties
+interface GitHubClientTest extends GitHubClient {
+  safeRequest: unknown
+}
 
 describe('GitHubClient Edge Cases', () => {
   // Setup MSW server for HTTP mocking
@@ -220,7 +225,9 @@ describe('GitHubClient Edge Cases', () => {
       const client = createClient({ auth: { type: 'token', token: 'test' } })
 
       // This will timeout in real scenarios, but for testing we'll mock a timeout error
-      vi.spyOn(client as any, 'safeRequest').mockRejectedValueOnce(new Error('ETIMEDOUT'))
+      vi.spyOn(client as GitHubClientTest, 'safeRequest').mockRejectedValueOnce(
+        new Error('ETIMEDOUT')
+      )
 
       await expect(client.getAuthenticatedUser()).rejects.toThrow()
     })

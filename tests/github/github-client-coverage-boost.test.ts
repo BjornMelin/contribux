@@ -12,6 +12,14 @@ import { GitHubError } from '@/lib/github/errors'
 import { setupMSW } from './msw-setup'
 import { createTrackedClient, setupGitHubTestIsolation } from './test-helpers'
 
+// Type for testing internal properties
+interface GitHubClientTest extends GitHubClient {
+  safeRequest: unknown
+  setCache: (key: string, data: unknown, ttl?: number) => void
+  getFromCache: (key: string) => unknown
+  getCacheKey: (operation: string, params: Record<string, unknown>) => string
+}
+
 describe('GitHub Client Coverage Boost', () => {
   setupMSW()
   setupGitHubTestIsolation()
@@ -25,8 +33,8 @@ describe('GitHub Client Coverage Boost', () => {
       const client = createClient({ auth: { type: 'token', token: 'test_token' } })
 
       // Mock the safeRequest method to simulate a ZodError
-      const originalSafeRequest = (client as any).safeRequest
-      ;(client as any).safeRequest = vi.fn().mockRejectedValueOnce(
+      const originalSafeRequest = (client as GitHubClientTest).safeRequest
+      ;(client as GitHubClientTest).safeRequest = vi.fn().mockRejectedValueOnce(
         (() => {
           const { z } = require('zod')
           const error = new z.ZodError([
@@ -48,15 +56,15 @@ describe('GitHub Client Coverage Boost', () => {
 
       // Restore original method
 
-      ;(client as any).safeRequest = originalSafeRequest
+      ;(client as GitHubClientTest).safeRequest = originalSafeRequest
     })
 
     it('should handle unknown errors in safeRequest', async () => {
       const client = createClient({ auth: { type: 'token', token: 'test_token' } })
 
       // Mock to throw an unknown error type
-      const originalSafeRequest = (client as any).safeRequest
-      ;(client as any).safeRequest = vi
+      const originalSafeRequest = (client as GitHubClientTest).safeRequest
+      ;(client as GitHubClientTest).safeRequest = vi
         .fn()
         .mockRejectedValueOnce(new GitHubError('Unknown error', 'UNKNOWN_ERROR'))
 
@@ -66,14 +74,14 @@ describe('GitHub Client Coverage Boost', () => {
 
       // Restore original method
 
-      ;(client as any).safeRequest = originalSafeRequest
+      ;(client as GitHubClientTest).safeRequest = originalSafeRequest
     })
 
     it('should handle error objects with message property', async () => {
       const client = createClient({ auth: { type: 'token', token: 'test_token' } })
 
-      const originalSafeRequest = (client as any).safeRequest
-      ;(client as any).safeRequest = vi.fn().mockImplementationOnce(() => {
+      const originalSafeRequest = (client as GitHubClientTest).safeRequest
+      ;(client as GitHubClientTest).safeRequest = vi.fn().mockImplementationOnce(() => {
         throw { message: 'Custom error message', someOtherProp: 'value' }
       })
 
@@ -83,15 +91,15 @@ describe('GitHub Client Coverage Boost', () => {
 
       // Restore original method
 
-      ;(client as any).safeRequest = originalSafeRequest
+      ;(client as GitHubClientTest).safeRequest = originalSafeRequest
     })
 
     it('should handle GraphQL errors with status and response data', async () => {
       const client = createClient({ auth: { type: 'token', token: 'test_token' } })
 
       // Mock the octokit.graphql method to throw an error with status
-      const originalGraphql = client['octokit'].graphql
-      client['octokit'].graphql = vi.fn().mockRejectedValueOnce({
+      const originalGraphql = client.octokit.graphql
+      client.octokit.graphql = vi.fn().mockRejectedValueOnce({
         message: 'GraphQL error occurred',
         status: 400,
         response: { data: { errors: ['Field not found'] } },
@@ -100,7 +108,7 @@ describe('GitHub Client Coverage Boost', () => {
       await expect(client.graphql('query { invalid }')).rejects.toThrow(GitHubError)
 
       // Restore original method
-      client['octokit'].graphql = originalGraphql
+      client.octokit.graphql = originalGraphql
     })
   })
 
@@ -118,8 +126,8 @@ describe('GitHub Client Coverage Boost', () => {
 
       // Access private method for testing
 
-      ;(client as any).setCache(cacheKey, testData, customTtl)
-      const cached = (client as any).getFromCache(cacheKey)
+      ;(client as GitHubClientTest).setCache(cacheKey, testData, customTtl)
+      const cached = (client as GitHubClientTest).getFromCache(cacheKey)
 
       expect(cached).toEqual(testData)
     })
@@ -132,22 +140,22 @@ describe('GitHub Client Coverage Boost', () => {
 
       // Fill cache to capacity
 
-      ;(client as any).setCache('key1', 'data1')
-      ;(client as any).setCache('key2', 'data2')
+      ;(client as GitHubClientTest).setCache('key1', 'data1')
+      ;(client as GitHubClientTest).setCache('key2', 'data2')
 
       let stats = client.getCacheStats()
       expect(stats.size).toBe(2)
 
       // Add one more to trigger eviction
 
-      ;(client as any).setCache('key3', 'data3')
+      ;(client as GitHubClientTest).setCache('key3', 'data3')
 
       stats = client.getCacheStats()
       expect(stats.size).toBe(2) // Should stay at max size
 
       // First key should be evicted
-      const cached1 = (client as any).getFromCache('key1')
-      const cached3 = (client as any).getFromCache('key3')
+      const cached1 = (client as GitHubClientTest).getFromCache('key1')
+      const cached3 = (client as GitHubClientTest).getFromCache('key3')
 
       expect(cached1).toBeNull() // Evicted
       expect(cached3).toBe('data3') // Recently added
@@ -277,9 +285,12 @@ describe('GitHub Client Coverage Boost', () => {
     it('should generate unique cache keys for different operations', () => {
       const client = createClient({ auth: { type: 'token', token: 'test_token' } })
 
-      const key1 = (client as any).getCacheKey('repo', { owner: 'test', repo: 'test' })
-      const key2 = (client as any).getCacheKey('user', { username: 'test' })
-      const key3 = (client as any).getCacheKey('repo', { owner: 'test', repo: 'other' })
+      const key1 = (client as GitHubClientTest).getCacheKey('repo', { owner: 'test', repo: 'test' })
+      const key2 = (client as GitHubClientTest).getCacheKey('user', { username: 'test' })
+      const key3 = (client as GitHubClientTest).getCacheKey('repo', {
+        owner: 'test',
+        repo: 'other',
+      })
 
       expect(key1).not.toBe(key2)
       expect(key1).not.toBe(key3)
@@ -290,8 +301,8 @@ describe('GitHub Client Coverage Boost', () => {
       const client = createClient({ auth: { type: 'token', token: 'test_token' } })
 
       const params = { owner: 'test', repo: 'test' }
-      const key1 = (client as any).getCacheKey('repo', params)
-      const key2 = (client as any).getCacheKey('repo', params)
+      const key1 = (client as GitHubClientTest).getCacheKey('repo', params)
+      const key2 = (client as GitHubClientTest).getCacheKey('repo', params)
 
       expect(key1).toBe(key2)
     })
@@ -393,20 +404,20 @@ describe('GitHub Client Coverage Boost', () => {
 
   describe('throttle callback coverage', () => {
     it('should handle custom throttle callbacks', () => {
-      let rateLimitCalled = false
-      let secondaryRateLimitCalled = false
+      let _rateLimitCalled = false
+      let _secondaryRateLimitCalled = false
 
       const config: GitHubClientConfig = {
         auth: { type: 'token', token: 'test_token' },
         throttle: {
           onRateLimit: (retryAfter, options) => {
-            rateLimitCalled = true
+            _rateLimitCalled = true
             expect(typeof retryAfter).toBe('number')
             expect(options.request.retryCount).toBeDefined()
             return false // Don't retry
           },
           onSecondaryRateLimit: (retryAfter, options) => {
-            secondaryRateLimitCalled = true
+            _secondaryRateLimitCalled = true
             expect(typeof retryAfter).toBe('number')
             expect(options.request.retryCount).toBeDefined()
             return false // Don't retry

@@ -94,12 +94,11 @@ export class DatabaseMonitorLocal {
       return result && Array.isArray(result) ? result.map(row => slowQuerySchema.parse(row)) : []
     } catch (error: unknown) {
       // Check if error is due to pg_stat_statements not being loaded via shared_preload_libraries
-      const errorMessage = error && typeof error === 'object' && 'message' in error 
-        ? String((error as { message: unknown }).message) 
-        : ''
-      if (
-        errorMessage.includes('pg_stat_statements must be loaded via shared_preload_libraries')
-      ) {
+      const errorMessage =
+        error && typeof error === 'object' && 'message' in error
+          ? String((error as { message: unknown }).message)
+          : ''
+      if (errorMessage.includes('pg_stat_statements must be loaded via shared_preload_libraries')) {
         // This is expected in test environments, return empty array silently
         return []
       }

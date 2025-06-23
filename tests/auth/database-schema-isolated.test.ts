@@ -1,6 +1,6 @@
 import { Client } from 'pg'
 import { beforeAll, describe, expect, it } from 'vitest'
-import type { SQLFunction, DatabaseColumn, DatabaseTable } from '@/types/database'
+import type { DatabaseColumn, DatabaseTable, SQLFunction } from '@/types/database'
 
 // This test is isolated from global setup to avoid any mocking interference
 // Database URL should be set in environment variables
@@ -83,7 +83,9 @@ describe('Authentication Database Schema (Isolated)', () => {
       expect((columns as DatabaseColumn[]).length).toBeGreaterThanOrEqual(expectedColumns.length)
 
       expectedColumns.forEach(expected => {
-        const column = (columns as DatabaseColumn[]).find((c: DatabaseColumn) => c.column_name === expected.column_name)
+        const column = (columns as DatabaseColumn[]).find(
+          (c: DatabaseColumn) => c.column_name === expected.column_name
+        )
         expect(column).toBeDefined()
         if (column) {
           expect(column.data_type).toContain(expected.data_type)

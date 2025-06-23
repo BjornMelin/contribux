@@ -500,7 +500,7 @@ describe('WebAuthn Authentication', () => {
       global.window = {
         ...global.window,
         PublicKeyCredential: undefined,
-      } as any
+      } as typeof global.window
 
       const isSupported = await checkWebAuthnSupport()
       expect(isSupported).toBe(false)

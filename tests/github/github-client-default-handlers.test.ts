@@ -5,12 +5,19 @@
  * to ensure they are properly covered in our test suite.
  */
 
-import { HttpResponse, http } from 'msw'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { GitHubClient } from '@/lib/github'
 import type { GitHubClientConfig } from '@/lib/github/client'
-import { mswServer, setupMSW } from './msw-setup'
+import { setupMSW } from './msw-setup'
 import { createTrackedClient, setupGitHubTestIsolation } from './test-helpers'
+
+// Type for testing internal properties
+interface GitHubClientTest extends GitHubClient {
+  octokit: {
+    throttling?: unknown
+    retry?: unknown
+  }
+}
 
 describe('GitHub Client Default Handlers Tests', () => {
   setupMSW()
@@ -29,7 +36,7 @@ describe('GitHub Client Default Handlers Tests', () => {
       })
 
       // Access the internal octokit instance to get the default handler
-      const octokitInstance = (client as any).octokit
+      const octokitInstance = (client as GitHubClientTest).octokit
       expect(octokitInstance).toBeDefined()
 
       // The default handler should be created during client construction
@@ -57,7 +64,7 @@ describe('GitHub Client Default Handlers Tests', () => {
       })
 
       // Access the internal octokit instance to get the default handler
-      const octokitInstance = (client as any).octokit
+      const octokitInstance = (client as GitHubClientTest).octokit
       expect(octokitInstance).toBeDefined()
 
       // The default handler should be created during client construction
@@ -89,7 +96,7 @@ describe('GitHub Client Default Handlers Tests', () => {
       // Default throttle handlers are set up during client construction
       // This test verifies that the client can be created without custom throttle config
       // and will use the defaults defined in lines 158-160 and 164-166
-      const octokitInstance = (client as any).octokit
+      const octokitInstance = (client as GitHubClientTest).octokit
       expect(octokitInstance).toBeDefined()
     })
 
@@ -105,7 +112,7 @@ describe('GitHub Client Default Handlers Tests', () => {
 
       // Default retry settings should be applied during construction
       // Lines 170-171: doNotRetry: ['400', '401', '403', '404', '422'], retries: test ? 0 : 2
-      const octokitInstance = (client as any).octokit
+      const octokitInstance = (client as GitHubClientTest).octokit
       expect(octokitInstance).toBeDefined()
     })
 

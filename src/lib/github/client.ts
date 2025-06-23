@@ -15,6 +15,11 @@ import { retry } from '@octokit/plugin-retry'
 import { throttling } from '@octokit/plugin-throttling'
 import { Octokit } from 'octokit'
 import { z } from 'zod'
+import type {
+  GitHubCacheOptions,
+  GitHubRetryOptions,
+  GitHubThrottleOptions,
+} from '@/types/database'
 import { GitHubError } from './errors'
 import type {
   IssueIdentifier,
@@ -22,7 +27,6 @@ import type {
   RepositoryIdentifier,
   SearchOptions,
 } from './types'
-import type { GitHubThrottleOptions, GitHubRetryOptions, GitHubCacheOptions } from '@/types/database'
 
 // Zod schemas for GitHub API response validation
 const GitHubUserSchema = z.object({

@@ -5,7 +5,7 @@
  */
 
 import { HttpResponse, http } from 'msw'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { GitHubClient } from '@/lib/github'
 import type { GitHubClientConfig } from '@/lib/github/client'
 import { GitHubError } from '@/lib/github/errors'
@@ -328,10 +328,10 @@ describe('GitHub Client Focused Edge Cases', () => {
     it('should throw error for invalid auth type', () => {
       const config = {
         auth: {
-          type: 'invalid' as any,
+          type: 'invalid' as const,
           token: 'test',
         },
-      } as any
+      } as GitHubClientConfig
 
       expect(() => new GitHubClient(config)).toThrow('Invalid auth configuration')
     })

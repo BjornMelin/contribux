@@ -4,14 +4,26 @@
  * Targeting specific uncovered lines to reach 90% coverage target
  */
 
-import { HttpResponse, http } from 'msw'
 import { describe, expect, it, vi } from 'vitest'
-import { z } from 'zod'
 import { GitHubClient } from '@/lib/github'
 import type { GitHubClientConfig } from '@/lib/github/client'
 import { GitHubError } from '@/lib/github/errors'
-import { mswServer, setupMSW } from './msw-setup'
+import { setupMSW } from './msw-setup'
 import { createTrackedClient, setupGitHubTestIsolation } from './test-helpers'
+
+// Type for testing internal properties
+interface GitHubClientTest extends GitHubClient {
+  getFromCache: (key: string) => unknown
+  safeRequest: unknown
+  octokit: {
+    graphql: unknown
+    rest: {
+      repos: {
+        get: unknown
+      }
+    }
+  }
+}
 
 describe('GitHub Client Final Push Coverage Tests', () => {
   setupMSW()
@@ -35,7 +47,9 @@ describe('GitHub Client Final Push Coverage Tests', () => {
       await new Promise(resolve => setTimeout(resolve, 10))
 
       // Access the private getFromCache method to trigger expiration logic
-      const cached = (client as any).getFromCache('repo:{"owner":"owner","repo":"repo"}')
+      const cached = (client as GitHubClientTest).getFromCache(
+        'repo:{"owner":"owner","repo":"repo"}'
+      )
       expect(cached).toBeNull() // Should be null due to expiration and deletion
 
       // Verify cache stats show miss due to expiration
@@ -49,8 +63,8 @@ describe('GitHub Client Final Push Coverage Tests', () => {
       const client = createClient({ auth: { type: 'token', token: 'test_token' } })
 
       // Mock the safeRequest method to trigger ZodError
-      const originalSafeRequest = (client as any).safeRequest
-      ;(client as any).safeRequest = vi
+      const originalSafeRequest = (client as GitHubClientTest).safeRequest
+      ;(client as GitHubClientTest).safeRequest = vi
         .fn()
         .mockRejectedValueOnce(
           new GitHubError('Invalid response format: ZodError', 'VALIDATION_ERROR')
@@ -62,7 +76,7 @@ describe('GitHub Client Final Push Coverage Tests', () => {
 
       // Restore original method
 
-      ;(client as any).safeRequest = originalSafeRequest
+      ;(client as GitHubClientTest).safeRequest = originalSafeRequest
     })
   })
 
@@ -90,8 +104,8 @@ describe('GitHub Client Final Push Coverage Tests', () => {
       const client = createClient({ auth: { type: 'token', token: 'test_token' } })
 
       // Mock octokit.graphql to throw a non-object error
-      const originalGraphql = (client as any).octokit.graphql
-      ;(client as any).octokit.graphql = vi
+      const originalGraphql = (client as GitHubClientTest).octokit.graphql
+      ;(client as GitHubClientTest).octokit.graphql = vi
         .fn()
         .mockRejectedValueOnce('String error instead of object')
 
@@ -99,7 +113,7 @@ describe('GitHub Client Final Push Coverage Tests', () => {
 
       // Restore original method
 
-      ;(client as any).octokit.graphql = originalGraphql
+      ;(client as GitHubClientTest).octokit.graphql = originalGraphql
     })
   })
 
@@ -108,8 +122,8 @@ describe('GitHub Client Final Push Coverage Tests', () => {
       const client = createClient({ auth: { type: 'token', token: 'test_token' } })
 
       // Mock the underlying octokit to throw an error without message property
-      const originalGet = (client as any).octokit.rest.repos.get
-      ;(client as any).octokit.rest.repos.get = vi
+      const originalGet = (client as GitHubClientTest).octokit.rest.repos.get
+      ;(client as GitHubClientTest).octokit.rest.repos.get = vi
         .fn()
         .mockRejectedValueOnce({ someOtherProperty: 'value' })
 
@@ -119,15 +133,15 @@ describe('GitHub Client Final Push Coverage Tests', () => {
 
       // Restore original method
 
-      ;(client as any).octokit.rest.repos.get = originalGet
+      ;(client as GitHubClientTest).octokit.rest.repos.get = originalGet
     })
 
     it('should handle primitive error types in safeRequest', async () => {
       const client = createClient({ auth: { type: 'token', token: 'test_token' } })
 
       // Mock the underlying octokit to throw a primitive type
-      const originalGet = (client as any).octokit.rest.repos.get
-      ;(client as any).octokit.rest.repos.get = vi.fn().mockRejectedValueOnce(42)
+      const originalGet = (client as GitHubClientTest).octokit.rest.repos.get
+      ;(client as GitHubClientTest).octokit.rest.repos.get = vi.fn().mockRejectedValueOnce(42)
 
       await expect(client.getRepository({ owner: 'test', repo: 'test' })).rejects.toThrow(
         'Unknown error'
@@ -135,7 +149,7 @@ describe('GitHub Client Final Push Coverage Tests', () => {
 
       // Restore original method
 
-      ;(client as any).octokit.rest.repos.get = originalGet
+      ;(client as GitHubClientTest).octokit.rest.repos.get = originalGet
     })
   })
 })

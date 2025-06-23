@@ -72,11 +72,11 @@ describe('GitHubClient', () => {
     it('should throw error for invalid configuration', () => {
       const config = {
         auth: {
-          type: 'invalid' as any,
+          type: 'invalid' as const,
           clientId: 'dummy',
           clientSecret: 'dummy',
         },
-      } as any
+      } as GitHubClientConfig
       expect(() => new GitHubClient(config)).toThrow('Invalid auth configuration')
     })
   })

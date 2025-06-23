@@ -12,6 +12,17 @@ import { GitHubError } from '@/lib/github/errors'
 import { mswServer, setupMSW } from './msw-setup'
 import { createTrackedClient, setupGitHubTestIsolation } from './test-helpers'
 
+// Type for testing internal properties
+interface GitHubClientTest extends GitHubClient {
+  setCache: (key: string, data: unknown, ttl?: number) => void
+  getFromCache: (key: string) => unknown
+  safeRequest: unknown
+  getCacheKey: (operation: string, params: Record<string, unknown>) => string
+  octokit: {
+    graphql: unknown
+  }
+}
+
 describe('GitHub Client Final Coverage Tests', () => {
   setupMSW()
   setupGitHubTestIsolation()
@@ -24,10 +35,10 @@ describe('GitHub Client Final Coverage Tests', () => {
     it('should handle invalid auth configuration types', () => {
       const config = {
         auth: {
-          type: 'invalid' as any,
+          type: 'invalid' as const,
           token: 'test',
         },
-      } as any
+      } as GitHubClientConfig
 
       expect(() => new GitHubClient(config)).toThrow('Invalid auth configuration')
     })
@@ -53,7 +64,7 @@ describe('GitHub Client Final Coverage Tests', () => {
 
       // Try to add an item when cache is empty (edge case for firstKey)
 
-      ;(client as any).setCache('test-key', { test: 'data' })
+      ;(client as GitHubClientTest).setCache('test-key', { test: 'data' })
 
       const stats = client.getCacheStats()
       expect(stats.size).toBe(1)
@@ -67,10 +78,10 @@ describe('GitHub Client Final Coverage Tests', () => {
 
       // Test custom TTL
       const customTtl = 60
-      ;(client as any).setCache('custom-ttl-key', { test: 'data' }, customTtl)
+      ;(client as GitHubClientTest).setCache('custom-ttl-key', { test: 'data' }, customTtl)
 
       // Verify the data was cached
-      const cached = (client as any).getFromCache('custom-ttl-key')
+      const cached = (client as GitHubClientTest).getFromCache('custom-ttl-key')
       expect(cached).toEqual({ test: 'data' })
     })
   })
@@ -79,8 +90,8 @@ describe('GitHub Client Final Coverage Tests', () => {
     it('should handle errors with missing message property', async () => {
       const client = createClient({ auth: { type: 'token', token: 'test_token' } })
 
-      const originalSafeRequest = (client as any).safeRequest
-      ;(client as any).safeRequest = vi
+      const originalSafeRequest = (client as GitHubClientTest).safeRequest
+      ;(client as GitHubClientTest).safeRequest = vi
         .fn()
         .mockRejectedValueOnce(new GitHubError('GitHub API error', 'API_ERROR', 500))
 
@@ -90,14 +101,14 @@ describe('GitHub Client Final Coverage Tests', () => {
 
       // Restore original method
 
-      ;(client as any).safeRequest = originalSafeRequest
+      ;(client as GitHubClientTest).safeRequest = originalSafeRequest
     })
 
     it('should handle non-object errors', async () => {
       const client = createClient({ auth: { type: 'token', token: 'test_token' } })
 
-      const originalSafeRequest = (client as any).safeRequest
-      ;(client as any).safeRequest = vi.fn().mockImplementationOnce(() => {
+      const originalSafeRequest = (client as GitHubClientTest).safeRequest
+      ;(client as GitHubClientTest).safeRequest = vi.fn().mockImplementationOnce(() => {
         throw 'String error'
       })
 
@@ -107,14 +118,14 @@ describe('GitHub Client Final Coverage Tests', () => {
 
       // Restore original method
 
-      ;(client as any).safeRequest = originalSafeRequest
+      ;(client as GitHubClientTest).safeRequest = originalSafeRequest
     })
 
     it('should handle errors without status property', async () => {
       const client = createClient({ auth: { type: 'token', token: 'test_token' } })
 
-      const originalSafeRequest = (client as any).safeRequest
-      ;(client as any).safeRequest = vi.fn().mockImplementationOnce(() => {
+      const originalSafeRequest = (client as GitHubClientTest).safeRequest
+      ;(client as GitHubClientTest).safeRequest = vi.fn().mockImplementationOnce(() => {
         throw { message: 'Error without status' }
       })
 
@@ -124,7 +135,7 @@ describe('GitHub Client Final Coverage Tests', () => {
 
       // Restore original method
 
-      ;(client as any).safeRequest = originalSafeRequest
+      ;(client as GitHubClientTest).safeRequest = originalSafeRequest
     })
   })
 
@@ -133,8 +144,8 @@ describe('GitHub Client Final Coverage Tests', () => {
       const client = createClient({ auth: { type: 'token', token: 'test_token' } })
 
       // Mock Octokit's graphql method to throw an error
-      const originalGraphql = (client as any).octokit.graphql
-      ;(client as any).octokit.graphql = vi
+      const originalGraphql = (client as GitHubClientTest).octokit.graphql
+      ;(client as GitHubClientTest).octokit.graphql = vi
         .fn()
         .mockRejectedValueOnce(new Error('GraphQL query failed'))
 
@@ -142,7 +153,7 @@ describe('GitHub Client Final Coverage Tests', () => {
 
       // Restore original method
 
-      ;(client as any).octokit.graphql = originalGraphql
+      ;(client as GitHubClientTest).octokit.graphql = originalGraphql
     })
 
     it('should handle GraphQL with undefined variables parameter', async () => {
@@ -227,8 +238,8 @@ describe('GitHub Client Final Coverage Tests', () => {
       const params1 = { owner: 'test', repo: 'repo' }
       const params2 = { owner: 'test', repo: 'repo' }
 
-      const key1 = (client as any).getCacheKey('test', params1)
-      const key2 = (client as any).getCacheKey('test', params2)
+      const key1 = (client as GitHubClientTest).getCacheKey('test', params1)
+      const key2 = (client as GitHubClientTest).getCacheKey('test', params2)
 
       expect(key1).toBe(key2)
     })
@@ -238,8 +249,8 @@ describe('GitHub Client Final Coverage Tests', () => {
 
       const params = { owner: 'test', repo: 'repo' }
 
-      const key1 = (client as any).getCacheKey('operation1', params)
-      const key2 = (client as any).getCacheKey('operation2', params)
+      const key1 = (client as GitHubClientTest).getCacheKey('operation1', params)
+      const key2 = (client as GitHubClientTest).getCacheKey('operation2', params)
 
       expect(key1).not.toBe(key2)
     })
@@ -383,7 +394,7 @@ describe('GitHub Client Final Coverage Tests', () => {
       })
 
       // Try to get from empty cache
-      const cached = (client as any).getFromCache('nonexistent-key')
+      const cached = (client as GitHubClientTest).getFromCache('nonexistent-key')
       expect(cached).toBeNull()
 
       const stats = client.getCacheStats()

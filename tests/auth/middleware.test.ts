@@ -75,7 +75,7 @@ vi.mock('ioredis', () => {
 })
 
 vi.mock('rate-limiter-flexible', () => {
-  const createMockRateLimiter = (options?: any) => {
+  const createMockRateLimiter = (options?: { points?: number; duration?: number }) => {
     const limit = options?.points || 60
     return {
       consume: vi.fn().mockResolvedValue({
@@ -160,7 +160,9 @@ import {
 import { sql } from '@/lib/db/config'
 
 // Helper to create a complete mock rate limiter
-const createMockRateLimiterInstance = (overrides?: Partial<any>) => {
+const createMockRateLimiterInstance = (
+  overrides?: Partial<{ points: number; duration: number }>
+) => {
   const limit = overrides?.points || 60
   const duration = overrides?.duration || 60
 
@@ -227,15 +229,17 @@ describe('Route Protection Middleware', () => {
       const rateLimiterModule = await import('rate-limiter-flexible')
       if (
         rateLimiterModule.RateLimiterRedis &&
-        typeof (rateLimiterModule.RateLimiterRedis as any).mockClear === 'function'
+        typeof (rateLimiterModule.RateLimiterRedis as unknown as { mockClear?: () => void })
+          .mockClear === 'function'
       ) {
-        ;(rateLimiterModule.RateLimiterRedis as any).mockClear()
+        ;(rateLimiterModule.RateLimiterRedis as unknown as { mockClear: () => void }).mockClear()
       }
       if (
         rateLimiterModule.RateLimiterMemory &&
-        typeof (rateLimiterModule.RateLimiterMemory as any).mockClear === 'function'
+        typeof (rateLimiterModule.RateLimiterMemory as unknown as { mockClear?: () => void })
+          .mockClear === 'function'
       ) {
-        ;(rateLimiterModule.RateLimiterMemory as any).mockClear()
+        ;(rateLimiterModule.RateLimiterMemory as unknown as { mockClear: () => void }).mockClear()
       }
     } catch {
       // Ignore errors in test environment
@@ -322,7 +326,7 @@ describe('Route Protection Middleware', () => {
       mockLogEvent.mockClear()
 
       // Mock log event for rate limiting audit
-      mockLogEvent.mockResolvedValue({} as any)
+      mockLogEvent.mockResolvedValue({} as Record<string, unknown>)
 
       const tokenPayload: AccessTokenPayload = {
         sub: mockUser.id,
@@ -357,7 +361,7 @@ describe('Route Protection Middleware', () => {
       mockVerifyToken.mockRejectedValueOnce(new Error('Token expired'))
 
       const mockLogEvent = vi.mocked(logSecurityEvent)
-      mockLogEvent.mockResolvedValueOnce({} as any)
+      mockLogEvent.mockResolvedValueOnce({} as Record<string, unknown>)
 
       const request = new NextRequest('http://localhost:3000/api/user', {
         headers: {
@@ -399,7 +403,7 @@ describe('Route Protection Middleware', () => {
       mockSql.mockResolvedValue([mockUser])
 
       const mockLogEvent = vi.mocked(logSecurityEvent)
-      mockLogEvent.mockResolvedValue({} as any)
+      mockLogEvent.mockResolvedValue({} as Record<string, unknown>)
 
       // Use a unique IP for this test to avoid conflicts
       const uniqueIp = `192.168.104.${Math.floor(Math.random() * 255)}`
@@ -485,7 +489,7 @@ describe('Route Protection Middleware', () => {
       mockSql.mockResolvedValueOnce([mockUser]) // User exists
 
       const mockLogEvent = vi.mocked(logSecurityEvent)
-      mockLogEvent.mockResolvedValueOnce({} as any)
+      mockLogEvent.mockResolvedValueOnce({} as Record<string, unknown>)
 
       const request = new NextRequest('http://localhost:3000/api/user', {
         method: 'POST',
@@ -554,7 +558,7 @@ describe('Route Protection Middleware', () => {
 
       // Verify audit was called
       expect(mockLogEvent).toHaveBeenCalled()
-      const auditCall = mockLogEvent.mock.calls[0]![0]
+      const auditCall = mockLogEvent.mock.calls[0]?.[0]
       expect(auditCall.event_type).toBe('authorization_failure')
       expect(auditCall.event_severity).toBe('warning')
       expect(auditCall.success).toBe(false)
@@ -1116,7 +1120,7 @@ describe('Route Protection Middleware', () => {
     it('should log failed requests with error details', async () => {
       const mockLogEvent = vi.mocked(logSecurityEvent)
       mockLogEvent.mockClear()
-      mockLogEvent.mockResolvedValueOnce({} as any)
+      mockLogEvent.mockResolvedValueOnce({} as Record<string, unknown>)
 
       const request = new NextRequest('http://localhost:3000/api/user', {
         headers: {

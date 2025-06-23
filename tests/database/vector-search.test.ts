@@ -311,7 +311,9 @@ describe('Vector Search Integration', () => {
       `
 
       expect(combinedResult.length).toBeGreaterThan(0)
-      vectorTestHelpers.assertSimilarityRange(combinedResult.map((r: any) => r.combined_similarity))
+      vectorTestHelpers.assertSimilarityRange(
+        combinedResult.map((r: { combined_similarity: number }) => r.combined_similarity)
+      )
     })
   })
 

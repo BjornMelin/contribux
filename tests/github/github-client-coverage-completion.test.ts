@@ -5,14 +5,22 @@
  * Specifically targeting lines from coverage analysis: 158-160, 164-166, 242-243, 247, 252-258, 317-323, 342-367, 390-409
  */
 
-import { HttpResponse, http } from 'msw'
 import { describe, expect, it, vi } from 'vitest'
-import { z } from 'zod'
 import { GitHubClient } from '@/lib/github'
 import type { GitHubClientConfig } from '@/lib/github/client'
-import { GitHubError } from '@/lib/github/errors'
-import { mswServer, setupMSW } from './msw-setup'
+import { setupMSW } from './msw-setup'
 import { createTrackedClient, setupGitHubTestIsolation } from './test-helpers'
+
+// Type for testing internal properties
+interface GitHubClientTest extends GitHubClient {
+  octokit: {
+    rest: {
+      repos: {
+        get: unknown
+      }
+    }
+  }
+}
 
 describe('GitHub Client Coverage Completion Tests', () => {
   setupMSW()
@@ -98,8 +106,8 @@ describe('GitHub Client Coverage Completion Tests', () => {
       const client = createClient({ auth: { type: 'token', token: 'test_token' } })
 
       // Mock octokit to return invalid data that fails Zod validation
-      const originalGet = (client as any).octokit.rest.repos.get
-      ;(client as any).octokit.rest.repos.get = vi.fn().mockResolvedValueOnce({
+      const originalGet = (client as GitHubClientTest).octokit.rest.repos.get
+      ;(client as GitHubClientTest).octokit.rest.repos.get = vi.fn().mockResolvedValueOnce({
         data: {
           // Missing required fields to trigger ZodError
           invalid_field: 'value',
@@ -112,7 +120,7 @@ describe('GitHub Client Coverage Completion Tests', () => {
 
       // Restore
 
-      ;(client as any).octokit.rest.repos.get = originalGet
+      ;(client as GitHubClientTest).octokit.rest.repos.get = originalGet
     })
   })
 
@@ -121,8 +129,8 @@ describe('GitHub Client Coverage Completion Tests', () => {
       const client = createClient({ auth: { type: 'token', token: 'test_token' } })
 
       // Mock octokit to throw error without status
-      const originalGet = (client as any).octokit.rest.repos.get
-      ;(client as any).octokit.rest.repos.get = vi.fn().mockRejectedValueOnce({
+      const originalGet = (client as GitHubClientTest).octokit.rest.repos.get
+      ;(client as GitHubClientTest).octokit.rest.repos.get = vi.fn().mockRejectedValueOnce({
         message: 'Some error without status',
       })
 
@@ -132,15 +140,15 @@ describe('GitHub Client Coverage Completion Tests', () => {
 
       // Restore
 
-      ;(client as any).octokit.rest.repos.get = originalGet
+      ;(client as GitHubClientTest).octokit.rest.repos.get = originalGet
     })
 
     it('should handle error with missing message property', async () => {
       const client = createClient({ auth: { type: 'token', token: 'test_token' } })
 
       // Mock octokit to throw error with status but no message
-      const originalGet = (client as any).octokit.rest.repos.get
-      ;(client as any).octokit.rest.repos.get = vi.fn().mockRejectedValueOnce({
+      const originalGet = (client as GitHubClientTest).octokit.rest.repos.get
+      ;(client as GitHubClientTest).octokit.rest.repos.get = vi.fn().mockRejectedValueOnce({
         status: 500,
         // no message property
         response: { data: { error: 'Server error' } },
@@ -152,7 +160,7 @@ describe('GitHub Client Coverage Completion Tests', () => {
 
       // Restore
 
-      ;(client as any).octokit.rest.repos.get = originalGet
+      ;(client as GitHubClientTest).octokit.rest.repos.get = originalGet
     })
   })
 
@@ -227,11 +235,11 @@ describe('GitHub Client Coverage Completion Tests', () => {
       const customClient = createClient({
         auth: { type: 'token', token: 'test_token' },
         throttle: {
-          onRateLimit: (retryAfter: number, options: { request: { retryCount: number } }) => {
+          onRateLimit: (_retryAfter: number, options: { request: { retryCount: number } }) => {
             return options.request.retryCount < 3 // Different retry logic
           },
           onSecondaryRateLimit: (
-            retryAfter: number,
+            _retryAfter: number,
             options: { request: { retryCount: number } }
           ) => {
             return options.request.retryCount < 2 // Different retry logic

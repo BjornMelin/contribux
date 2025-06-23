@@ -110,7 +110,6 @@ app.get('/repos/:owner/:repo', (req, res) => {
 
 // Issues endpoints
 app.get('/repos/:owner/:repo/issues', (req, res) => {
-  const { owner, repo } = req.params
   const { state = 'open', per_page = 30, page = 1 } = req.query
 
   const issues = []
@@ -139,7 +138,6 @@ app.get('/repos/:owner/:repo/issues', (req, res) => {
 })
 
 app.post('/repos/:owner/:repo/issues', (req, res) => {
-  const { owner, repo } = req.params
   const { title, body, labels = [] } = req.body
 
   res.status(201).json({
@@ -164,8 +162,7 @@ app.post('/repos/:owner/:repo/issues', (req, res) => {
 })
 
 // Pull request endpoints
-app.get('/repos/:owner/:repo/pulls', (req, res) => {
-  const { owner, repo } = req.params
+app.get('/repos/:owner/:repo/pulls', (_req, res) => {
   res.json([
     {
       id: 3000,
@@ -192,9 +189,7 @@ app.get('/repos/:owner/:repo/pulls', (req, res) => {
 })
 
 // GraphQL endpoint
-app.post('/graphql', (req, res) => {
-  const { query, variables } = req.body
-
+app.post('/graphql', (_req, res) => {
   // Simple mock response
   res.json({
     data: {

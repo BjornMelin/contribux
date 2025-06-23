@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import '../database/setup'
-import { sql, TEST_DATABASE_URL } from '../database/db-client'
 import type { DatabaseColumn } from '@/types/database'
+import { sql, TEST_DATABASE_URL } from '../database/db-client'
 
 // Skip these tests if no real test database is configured
 const hasTestDatabase =
@@ -67,7 +67,9 @@ describeConditional('Authentication Database Schema', () => {
 
       expectedColumns.forEach(expected => {
         const column = Array.isArray(columns)
-          ? (columns as unknown[]).find((c: any) => c.column_name === expected.column_name)
+          ? (columns as DatabaseColumn[]).find(
+              (c: DatabaseColumn) => c.column_name === expected.column_name
+            )
           : undefined
         expect(column).toBeDefined()
         if (column && typeof column === 'object' && 'data_type' in column) {
@@ -124,7 +126,9 @@ describeConditional('Authentication Database Schema', () => {
 
       expectedColumns.forEach(expected => {
         const column = Array.isArray(columns)
-          ? (columns as unknown[]).find((c: any) => c.column_name === expected.column_name)
+          ? (columns as DatabaseColumn[]).find(
+              (c: DatabaseColumn) => c.column_name === expected.column_name
+            )
           : undefined
         expect(column).toBeDefined()
         if (column && typeof column === 'object' && 'data_type' in column) {
@@ -172,7 +176,9 @@ describeConditional('Authentication Database Schema', () => {
 
       expectedColumns.forEach(expected => {
         const column = Array.isArray(columns)
-          ? (columns as unknown[]).find((c: any) => c.column_name === expected.column_name)
+          ? (columns as DatabaseColumn[]).find(
+              (c: DatabaseColumn) => c.column_name === expected.column_name
+            )
           : undefined
         expect(column).toBeDefined()
         if (column && typeof column === 'object' && 'data_type' in column) {
@@ -219,7 +225,9 @@ describeConditional('Authentication Database Schema', () => {
 
       expectedColumns.forEach(expected => {
         const column = Array.isArray(columns)
-          ? (columns as unknown[]).find((c: any) => c.column_name === expected.column_name)
+          ? (columns as DatabaseColumn[]).find(
+              (c: DatabaseColumn) => c.column_name === expected.column_name
+            )
           : undefined
         expect(column).toBeDefined()
         if (column && typeof column === 'object' && 'data_type' in column) {
@@ -276,7 +284,9 @@ describeConditional('Authentication Database Schema', () => {
 
       expectedColumns.forEach(expected => {
         const column = Array.isArray(columns)
-          ? (columns as unknown[]).find((c: any) => c.column_name === expected.column_name)
+          ? (columns as DatabaseColumn[]).find(
+              (c: DatabaseColumn) => c.column_name === expected.column_name
+            )
           : undefined
         expect(column).toBeDefined()
         if (column && typeof column === 'object' && 'data_type' in column) {
@@ -331,7 +341,9 @@ describeConditional('Authentication Database Schema', () => {
 
       expectedColumns.forEach(expected => {
         const column = Array.isArray(columns)
-          ? (columns as unknown[]).find((c: any) => c.column_name === expected.column_name)
+          ? (columns as DatabaseColumn[]).find(
+              (c: DatabaseColumn) => c.column_name === expected.column_name
+            )
           : undefined
         expect(column).toBeDefined()
         if (column && typeof column === 'object' && 'data_type' in column) {
@@ -375,7 +387,9 @@ describeConditional('Authentication Database Schema', () => {
 
       expectedColumns.forEach(expected => {
         const column = Array.isArray(columns)
-          ? (columns as unknown[]).find((c: any) => c.column_name === expected.column_name)
+          ? (columns as DatabaseColumn[]).find(
+              (c: DatabaseColumn) => c.column_name === expected.column_name
+            )
           : undefined
         expect(column).toBeDefined()
         if (column && typeof column === 'object' && 'data_type' in column) {

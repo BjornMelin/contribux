@@ -131,7 +131,7 @@ interface SearchFiltersProps {
 }
 
 function SearchFilters({ filters, onFiltersChange, loading = false }: SearchFiltersProps) {
-  const handleFilterChange = (key: keyof SearchFilters, value: any) => {
+  const handleFilterChange = (key: keyof SearchFilters, value: string | boolean | string[]) => {
     onFiltersChange({ ...filters, [key]: value })
   }
 

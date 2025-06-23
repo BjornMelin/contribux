@@ -9,6 +9,8 @@
  */
 
 import { afterEach, beforeEach, vi } from 'vitest'
+import type { GitHubClient } from '@/lib/github'
+import type { GitHubClientConfig } from '@/lib/github/client'
 import { mockGitHubAPI } from './msw-setup'
 
 // Store references to created clients for cleanup
@@ -64,7 +66,10 @@ export function setupGitHubTestIsolation() {
 /**
  * Create a tracked GitHub client that will be automatically cleaned up
  */
-export function createTrackedClient(ClientClass: any, config?: any) {
+export function createTrackedClient(
+  ClientClass: typeof GitHubClient,
+  config?: Partial<GitHubClientConfig>
+) {
   const client = new ClientClass(config)
 
   // Add a mock destroy method if the client doesn't have one

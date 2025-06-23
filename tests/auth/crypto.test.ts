@@ -325,7 +325,7 @@ describe('Web Crypto API Token Encryption', () => {
         keyId: 'test',
       }
 
-      await expect(decryptToken(incomplete as any, key)).rejects.toThrow(
+      await expect(decryptToken(incomplete as unknown as EncryptedData, key)).rejects.toThrow(
         'Missing required encryption parameters'
       )
     })

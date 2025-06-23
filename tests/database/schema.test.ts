@@ -67,7 +67,7 @@ describe('Database Schema', () => {
         ORDER BY table_name, column_name
       `
 
-      expect((columns as Array<any>).length).toBeGreaterThan(0)
+      expect(Array.isArray(columns) ? columns.length : 0).toBeGreaterThan(0)
 
       // Check that we have embedding columns
       const embeddingColumns = (
@@ -124,7 +124,7 @@ describe('Database Schema', () => {
         ORDER BY tablename, indexname
       `
 
-      expect((hnsWIndexes as Array<any>).length).toBeGreaterThanOrEqual(4)
+      expect((hnsWIndexes as unknown[]).length).toBeGreaterThanOrEqual(4)
 
       const expectedIndexes = [
         'idx_users_profile_embedding_hnsw',
@@ -150,7 +150,7 @@ describe('Database Schema', () => {
         ORDER BY tablename, indexname
       `
 
-      expect((ginIndexes as Array<any>).length).toBeGreaterThan(0)
+      expect((ginIndexes as unknown[]).length).toBeGreaterThan(0)
     })
   })
 
@@ -200,7 +200,7 @@ describe('Database Schema', () => {
         ORDER BY event_object_table, trigger_name
       `
 
-      expect((triggers as Array<any>).length).toBeGreaterThanOrEqual(5)
+      expect((triggers as unknown[]).length).toBeGreaterThanOrEqual(5)
 
       const expectedTables = [
         'users',

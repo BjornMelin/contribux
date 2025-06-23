@@ -294,7 +294,10 @@ TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
         }
       `
 
-      const result = (await client.graphql(query)) as any
+      const result = (await client.graphql(query)) as {
+        viewer: { login: string }
+        rateLimit: { limit: number; remaining: number; cost: number }
+      }
 
       // The GraphQL client returns the data directly, not wrapped in a data property
       expect(result.viewer.login).toBe('testuser')

@@ -23,7 +23,7 @@ async function verifySetup() {
   try {
     // Check environment configuration
     console.log('📋 Checking environment configuration...')
-    let env
+    let env: unknown
     try {
       env = loadIntegrationTestEnv()
     } catch (_error) {

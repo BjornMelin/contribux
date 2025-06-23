@@ -16,7 +16,7 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('GitHubClient Integration Tests', () => 
     client = createGitHubClient({
       auth: {
         type: 'token',
-        token: process.env.GITHUB_TOKEN!,
+        token: process.env.GITHUB_TOKEN ?? 'dummy-token',
       },
       cache: {
         maxAge: 60, // 1 minute for tests

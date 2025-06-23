@@ -13,6 +13,14 @@ import type { GitHubClientConfig } from '@/lib/github/client'
 import { setupMSW } from './msw-setup'
 import { createTrackedClient, setupGitHubTestIsolation } from './test-helpers'
 
+// Type for testing internal properties
+interface GitHubClientTest extends GitHubClient {
+  octokit: {
+    hook: unknown
+  }
+  setCache: (key: string, data: unknown, ttl?: number) => void
+}
+
 describe('GitHub Client Final Coverage Push Tests', () => {
   setupMSW()
   setupGitHubTestIsolation()
@@ -28,7 +36,7 @@ describe('GitHub Client Final Coverage Push Tests', () => {
       // But we can test that the code path for app auth setup exists
 
       // Mock the createAppAuth function to avoid key validation issues
-      const mockCreateAppAuth = vi.fn().mockReturnValue('mock-app-auth')
+      const _mockCreateAppAuth = vi.fn().mockReturnValue('mock-app-auth')
 
       // Create a minimal test that covers the app auth code path
       const config: GitHubClientConfig = {
@@ -53,7 +61,7 @@ describe('GitHub Client Final Coverage Push Tests', () => {
     it('should throw error for invalid auth configuration', () => {
       const invalidConfig = {
         auth: {
-          type: 'invalid' as any,
+          type: 'invalid' as const,
           token: 'test',
         },
       }
@@ -74,7 +82,7 @@ describe('GitHub Client Final Coverage Push Tests', () => {
       })
 
       // Access the internal octokit configuration to trigger the default handlers
-      const octokitInstance = (client as any).octokit
+      const octokitInstance = (client as GitHubClientTest).octokit
       expect(octokitInstance).toBeDefined()
 
       // The default handlers are created during construction
@@ -88,7 +96,7 @@ describe('GitHub Client Final Coverage Push Tests', () => {
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
       // Create client that will use default handlers
-      const client = createClient({
+      const _client = createClient({
         auth: { type: 'token', token: 'test_token' },
       })
 
@@ -158,7 +166,7 @@ describe('GitHub Client Final Coverage Push Tests', () => {
       })
 
       // Access the private setCache method to test the eviction logic directly
-      const setCacheMethod = (client as any).setCache
+      const setCacheMethod = (client as GitHubClientTest).setCache
       expect(setCacheMethod).toBeDefined()
 
       // Manually test the LRU eviction logic

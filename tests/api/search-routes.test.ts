@@ -160,8 +160,8 @@ class MockSearchAPI {
     if (params.query) {
       filtered = filtered.filter(
         opp =>
-          opp.title.toLowerCase().includes(params.query!.toLowerCase()) ||
-          opp.description?.toLowerCase().includes(params.query!.toLowerCase())
+          opp.title.toLowerCase().includes(params.query?.toLowerCase() ?? '') ||
+          opp.description?.toLowerCase().includes(params.query?.toLowerCase() ?? '')
       )
     }
 
@@ -182,7 +182,7 @@ class MockSearchAPI {
     }
 
     if (params.min_score) {
-      filtered = filtered.filter(opp => opp.relevance_score >= params.min_score!)
+      filtered = filtered.filter(opp => opp.relevance_score >= (params.min_score ?? 0))
     }
 
     // Pagination
@@ -261,9 +261,9 @@ class MockSearchAPI {
     if (params.query) {
       filtered = filtered.filter(
         repo =>
-          repo.name.toLowerCase().includes(params.query!.toLowerCase()) ||
-          repo.description?.toLowerCase().includes(params.query!.toLowerCase()) ||
-          repo.topics.some(topic => topic.toLowerCase().includes(params.query!.toLowerCase()))
+          repo.name.toLowerCase().includes(params.query?.toLowerCase() ?? '') ||
+          repo.description?.toLowerCase().includes(params.query?.toLowerCase() ?? '') ||
+          repo.topics.some(topic => topic.toLowerCase().includes(params.query?.toLowerCase() ?? ''))
       )
     }
 
@@ -274,11 +274,11 @@ class MockSearchAPI {
     }
 
     if (params.min_stars) {
-      filtered = filtered.filter(repo => repo.stars_count >= params.min_stars!)
+      filtered = filtered.filter(repo => repo.stars_count >= (params.min_stars ?? 0))
     }
 
     if (params.min_health_score) {
-      filtered = filtered.filter(repo => repo.health_score >= params.min_health_score!)
+      filtered = filtered.filter(repo => repo.health_score >= (params.min_health_score ?? 0))
     }
 
     // Pagination
@@ -325,25 +325,25 @@ const server = setupServer(
       languages?: string[]
       min_score?: number
     } = {}
-    
+
     const query = url.searchParams.get('q')
     if (query) params.query = query
-    
+
     const page = url.searchParams.get('page')
     if (page) params.page = Number(page)
-    
+
     const perPage = url.searchParams.get('per_page')
     if (perPage) params.per_page = Number(perPage)
-    
+
     const difficulty = url.searchParams.get('difficulty')
     if (difficulty) params.difficulty = difficulty
-    
+
     const type = url.searchParams.get('type')
     if (type) params.type = type
-    
+
     const languages = url.searchParams.get('languages')
     if (languages) params.languages = languages.split(',')
-    
+
     const minScore = url.searchParams.get('min_score')
     if (minScore) params.min_score = Number(minScore)
 
@@ -389,22 +389,22 @@ const server = setupServer(
       min_stars?: number
       min_health_score?: number
     } = {}
-    
+
     const query = url.searchParams.get('q')
     if (query) params.query = query
-    
+
     const page = url.searchParams.get('page')
     if (page) params.page = Number(page)
-    
+
     const perPage = url.searchParams.get('per_page')
     if (perPage) params.per_page = Number(perPage)
-    
+
     const language = url.searchParams.get('language')
     if (language) params.language = language
-    
+
     const minStars = url.searchParams.get('min_stars')
     if (minStars) params.min_stars = Number(minStars)
-    
+
     const minHealthScore = url.searchParams.get('min_health_score')
     if (minHealthScore) params.min_health_score = Number(minHealthScore)
 
@@ -478,7 +478,7 @@ describe('Search API Routes', () => {
       const validated = SearchOpportunitiesResponseSchema.parse(data)
       expect(validated.success).toBe(true)
       expect(validated.data.opportunities).toHaveLength(1) // Filtered by TypeScript
-      expect(validated.data.opportunities[0]!.title).toContain('TypeScript')
+      expect(validated.data.opportunities[0]?.title).toContain('TypeScript')
       expect(validated.metadata.query).toBe('TypeScript')
     })
 
@@ -570,9 +570,9 @@ describe('Search API Routes', () => {
 
       expect(response.status).toBe(200)
       expect(data.metadata).toBeDefined()
-      expect(data.metadata!.execution_time_ms).toBeGreaterThan(0)
-      expect(data.metadata!.query).toBe('test')
-      expect(data.metadata!.filters).toBeDefined()
+      expect(data.metadata?.execution_time_ms).toBeGreaterThan(0)
+      expect(data.metadata?.query).toBe('test')
+      expect(data.metadata?.filters).toBeDefined()
     })
   })
 
@@ -601,7 +601,7 @@ describe('Search API Routes', () => {
       const validated = SearchRepositoriesResponseSchema.parse(data)
       expect(validated.success).toBe(true)
       expect(validated.data.repositories).toHaveLength(1)
-      expect(validated.data.repositories[0]!.name).toContain('search')
+      expect(validated.data.repositories[0]?.name).toContain('search')
     })
 
     it('should filter by language', async () => {
@@ -710,8 +710,8 @@ describe('Search API Routes', () => {
       const data = await response.json()
 
       expect(response.status).toBe(200)
-      expect(data.metadata!.execution_time_ms).toBeGreaterThan(0)
-      expect(data.metadata!.execution_time_ms).toBeLessThan(1000) // Should be fast
+      expect(data.metadata?.execution_time_ms).toBeGreaterThan(0)
+      expect(data.metadata?.execution_time_ms).toBeLessThan(1000) // Should be fast
     })
 
     it('should handle malformed query parameters gracefully', async () => {

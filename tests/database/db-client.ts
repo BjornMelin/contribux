@@ -22,7 +22,7 @@ const VALIDATED_TEST_DATABASE_URL = TEST_DATABASE_URL
 
 // Type definitions for query results
 export interface QueryRow {
-  [key: string]: any
+  [key: string]: unknown
 }
 
 export interface ExecuteSqlOptions {
@@ -36,7 +36,7 @@ export interface ExecuteSqlOptions {
  */
 export async function executeSql<T extends QueryRow = QueryRow>(
   query: string,
-  params: any[] = [],
+  params: unknown[] = [],
   options?: ExecuteSqlOptions
 ): Promise<T[]> {
   const { client: providedClient, logQuery = false } = options || {}
@@ -82,7 +82,7 @@ export async function executeSql<T extends QueryRow = QueryRow>(
 async function executeNeonQuery(
   sql: NeonQueryFunction<false, false>,
   query: string,
-  params: any[]
+  params: unknown[]
 ): Promise<QueryRow[]> {
   if (params.length === 0) {
     // No parameters, execute directly
@@ -130,7 +130,7 @@ export function formatVectorParam(vector: number[]): string {
 // Overloaded sql function signatures for better TypeScript support
 export type SqlTemplateFunction = <T extends QueryRow = QueryRow>(
   strings: TemplateStringsArray,
-  ...values: any[]
+  ...values: unknown[]
 ) => Promise<T[]>
 
 /**
@@ -139,11 +139,11 @@ export type SqlTemplateFunction = <T extends QueryRow = QueryRow>(
  */
 export const sql: SqlTemplateFunction = async function sql<T extends QueryRow = QueryRow>(
   strings: TemplateStringsArray,
-  ...values: any[]
+  ...values: unknown[]
 ): Promise<T[]> {
   // Build the query with placeholders
   let query = strings[0] || ''
-  const params: any[] = []
+  const params: unknown[] = []
 
   for (let i = 0; i < values.length; i++) {
     const value = values[i]
@@ -223,8 +223,8 @@ export function isLocalPostgres(): boolean {
 /**
  * Type guard for checking query results
  */
-export function hasRows<T extends QueryRow>(result: any): result is { rows: T[] } {
-  return result && Array.isArray(result.rows)
+export function hasRows<T extends QueryRow>(result: unknown): result is { rows: T[] } {
+  return result && typeof result === 'object' && Array.isArray((result as { rows?: unknown }).rows)
 }
 
 export type { NeonQueryFunction } from '@neondatabase/serverless'

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock environment values storage
-const mockEnvValues: Record<string, any> = {}
+const mockEnvValues: Record<string, string | number | undefined> = {}
 
 // Create a mock environment that will be used in the factory
 vi.mock('@/lib/validation/env', () => {
@@ -162,7 +162,7 @@ describe('WebAuthn Configuration', () => {
 
   describe('Production Environment', () => {
     beforeEach(() => {
-      ;(env as any).NODE_ENV = 'production'
+      env.NODE_ENV = 'production'
     })
 
     it('should reject localhost RP ID in production', () => {
@@ -192,7 +192,7 @@ describe('WebAuthn Configuration', () => {
     })
 
     it('should use VERCEL_URL when available', () => {
-      env.NEXT_PUBLIC_APP_URL = undefined as any // Clear default
+      env.NEXT_PUBLIC_APP_URL = undefined // Clear default
       env.VERCEL_URL = 'app-prod.vercel.app'
 
       const config = getWebAuthnConfig()
@@ -202,7 +202,7 @@ describe('WebAuthn Configuration', () => {
     })
 
     it('should prefer NEXT_PUBLIC_VERCEL_URL over VERCEL_URL', () => {
-      env.NEXT_PUBLIC_APP_URL = undefined as any // Clear default
+      env.NEXT_PUBLIC_APP_URL = undefined // Clear default
       env.NEXT_PUBLIC_VERCEL_URL = 'public.vercel.app'
       env.VERCEL_URL = 'private.vercel.app'
 
@@ -275,12 +275,12 @@ describe('WebAuthn Configuration', () => {
     })
 
     it('should require at least one origin', () => {
-      ;(env as any).NODE_ENV = 'production'
+      env.NODE_ENV = 'production'
       env.WEBAUTHN_RP_ID = 'example.com'
       env.WEBAUTHN_ORIGINS = ''
-      env.NEXT_PUBLIC_APP_URL = undefined as any // Clear default
-      env.NEXT_PUBLIC_VERCEL_URL = undefined as any
-      env.VERCEL_URL = undefined as any
+      env.NEXT_PUBLIC_APP_URL = undefined // Clear default
+      env.NEXT_PUBLIC_VERCEL_URL = undefined
+      env.VERCEL_URL = undefined
 
       expect(() => getWebAuthnConfig()).toThrow('At least one WebAuthn origin must be configured')
     })
@@ -359,7 +359,7 @@ describe('WebAuthn Configuration', () => {
     })
 
     it('should log error and rethrow on invalid config', () => {
-      ;(env as any).NODE_ENV = 'production'
+      env.NODE_ENV = 'production'
       // No configuration provided
 
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})

@@ -31,19 +31,21 @@ export interface SQLFunction {
     query(query: string, values?: unknown[]): Promise<QueryResult>
     end(): Promise<void>
   }
-  mockImplementation?: (fn: (strings: TemplateStringsArray, ...values: unknown[]) => Promise<unknown[]>) => void
+  mockImplementation?: (
+    fn: (strings: TemplateStringsArray, ...values: unknown[]) => Promise<unknown[]>
+  ) => void
   mockResolvedValueOnce?: (value: unknown[]) => SQLFunction
 }
 
-export interface MockSQLOptions {
+export interface ThrottleRequestOptions {
   request: {
     retryCount: number
   }
 }
 
 export interface GitHubThrottleOptions {
-  onRateLimit?: (retryAfter: number, options: MockSQLOptions) => boolean
-  onSecondaryRateLimit?: (retryAfter: number, options: MockSQLOptions) => boolean
+  onRateLimit?: (retryAfter: number, options: ThrottleRequestOptions) => boolean
+  onSecondaryRateLimit?: (retryAfter: number, options: ThrottleRequestOptions) => boolean
 }
 
 export interface GitHubRetryOptions {
