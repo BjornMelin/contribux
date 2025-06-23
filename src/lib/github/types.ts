@@ -42,30 +42,34 @@ const AppAuthSchema = z.object({
     .optional(),
 })
 
-const AuthSchema = z
-  .discriminatedUnion('type', [TokenAuthSchema, AppAuthSchema], {
-    errorMap: (issue, ctx) => {
-      if (issue.code === z.ZodIssueCode.invalid_union_discriminator) {
-        return { message: 'Invalid authentication type. Must be "token" or "app"' }
-      }
-      return { message: ctx.defaultError }
-    },
-  })
-  .refine(
-    data => {
-      // Detect conflicts: ensure no mixing of auth types
-      if (data.type === 'token') {
-        return !('appId' in data) && !('privateKey' in data) && !('installationId' in data)
-      }
-      if (data.type === 'app') {
-        return !('token' in data)
-      }
-      return true
-    },
-    {
-      message: 'Cannot mix token and app authentication',
-    }
-  )
+const AuthSchema = z.any().refine(data => {
+  if (!data || typeof data !== 'object') {
+    return false
+  }
+
+  // Check for invalid type
+  if (!data.type || !['token', 'app'].includes(data.type)) {
+    throw new Error('Invalid authentication type. Must be "token" or "app"')
+  }
+
+  // Check for conflicts first
+  const hasTokenFields = 'token' in data
+  const hasAppFields = 'appId' in data || 'privateKey' in data || 'installationId' in data
+
+  if (hasTokenFields && hasAppFields) {
+    throw new Error('Cannot mix token and app authentication')
+  }
+
+  // Validate specific auth type
+  if (data.type === 'token') {
+    return TokenAuthSchema.parse(data)
+  }
+  if (data.type === 'app') {
+    return AppAuthSchema.parse(data)
+  }
+
+  return true
+})
 
 const CacheOptionsSchema = z
   .object({
@@ -88,12 +92,17 @@ const CacheOptionsSchema = z
 
 const ThrottleOptionsSchema = z
   .object({
-    onRateLimit: z.any().refine((val) => val === undefined || typeof val === 'function', {
-      message: 'onRateLimit must be a function'
-    }).optional(),
-    onSecondaryRateLimit: z.any().refine((val) => val === undefined || typeof val === 'function', {
-      message: 'onSecondaryRateLimit must be a function'
-    })
+    onRateLimit: z
+      .any()
+      .refine(val => val === undefined || typeof val === 'function', {
+        message: 'onRateLimit must be a function',
+      })
+      .optional(),
+    onSecondaryRateLimit: z
+      .any()
+      .refine(val => val === undefined || typeof val === 'function', {
+        message: 'onSecondaryRateLimit must be a function',
+      })
       .optional(),
   })
   .optional()
@@ -109,9 +118,14 @@ const RetryOptionsSchema = z
       .max(10, 'Retries cannot exceed 10')
       .optional(),
     doNotRetry: z
-      .array(z.string(), {
-        invalid_type_error: 'doNotRetry must be an array of strings',
-      })
+      .any()
+      .refine(
+        val =>
+          val === undefined || (Array.isArray(val) && val.every(item => typeof item === 'string')),
+        {
+          message: 'doNotRetry must be an array of strings',
+        }
+      )
       .optional(),
   })
   .optional()

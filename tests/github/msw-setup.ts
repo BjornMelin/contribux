@@ -655,9 +655,86 @@ export const mockGitHubAPI = {
   },
 
   /**
+   * Set response delay (for testing timing-sensitive operations)
+   */
+  setResponseDelay: (delayMs: number) => {
+    // Store delay for use in custom handlers
+    ;(mockGitHubAPI as any)._responseDelay = delayMs
+  },
+
+  /**
+   * Mock a specific error response for all endpoints
+   */
+  setErrorResponse: (status: number, errorData: any) => {
+    const delay = (mockGitHubAPI as any)._responseDelay || 0
+
+    mswServer.use(
+      http.get(`${GITHUB_API_BASE}/*`, async () => {
+        if (delay > 0) {
+          await new Promise(resolve => setTimeout(resolve, delay))
+        }
+        return HttpResponse.json(errorData, { status })
+      }),
+      http.post(`${GITHUB_API_BASE}/*`, async () => {
+        if (delay > 0) {
+          await new Promise(resolve => setTimeout(resolve, delay))
+        }
+        return HttpResponse.json(errorData, { status })
+      })
+    )
+  },
+
+  /**
+   * Mock a custom response for all endpoints
+   */
+  setCustomResponse: (status: number, data: any) => {
+    const delay = (mockGitHubAPI as any)._responseDelay || 0
+
+    mswServer.use(
+      http.get(`${GITHUB_API_BASE}/*`, async () => {
+        if (delay > 0) {
+          await new Promise(resolve => setTimeout(resolve, delay))
+        }
+        return HttpResponse.json(data, { status })
+      }),
+      http.post(`${GITHUB_API_BASE}/*`, async () => {
+        if (delay > 0) {
+          await new Promise(resolve => setTimeout(resolve, delay))
+        }
+        return HttpResponse.json(data, { status })
+      })
+    )
+  },
+
+  /**
+   * Set a custom handler function
+   */
+  setCustomHandler: (handlerFn: () => { status: number; data: any }) => {
+    const delay = (mockGitHubAPI as any)._responseDelay || 0
+
+    mswServer.use(
+      http.get(`${GITHUB_API_BASE}/*`, async () => {
+        if (delay > 0) {
+          await new Promise(resolve => setTimeout(resolve, delay))
+        }
+        const result = handlerFn()
+        return HttpResponse.json(result.data, { status: result.status })
+      }),
+      http.post(`${GITHUB_API_BASE}/*`, async () => {
+        if (delay > 0) {
+          await new Promise(resolve => setTimeout(resolve, delay))
+        }
+        const result = handlerFn()
+        return HttpResponse.json(result.data, { status: result.status })
+      })
+    )
+  },
+
+  /**
    * Reset all handlers to default
    */
   resetToDefaults: () => {
     mswServer.resetHandlers(...defaultHandlers)
+    ;(mockGitHubAPI as any)._responseDelay = 0
   },
 }

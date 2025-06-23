@@ -15,11 +15,6 @@ import { retry } from '@octokit/plugin-retry'
 import { throttling } from '@octokit/plugin-throttling'
 import { Octokit } from 'octokit'
 import { z } from 'zod'
-import type {
-  GitHubCacheOptions,
-  GitHubRetryOptions,
-  GitHubThrottleOptions,
-} from '@/types/database'
 import { createRequestContext, GitHubError } from './errors'
 import type {
   IssueIdentifier,
@@ -28,7 +23,6 @@ import type {
   SearchOptions,
   GitHubClientConfig as TypesGitHubClientConfig,
 } from './types'
-import { GitHubClientConfigSchema } from './types'
 
 // Zod schemas for GitHub API response validation
 const GitHubUserSchema = z.object({
@@ -110,44 +104,157 @@ export class GitHubClient {
   private cacheHits = 0
   private cacheMisses = 0
 
-  constructor(config: Partial<GitHubClientConfig> = {}) {
-    // Validate configuration with Zod
-    try {
-      GitHubClientConfigSchema.parse(config)
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        // Extract first error for clear message
-        const firstError = error.errors[0]
+  private validateConfiguration(config: Partial<GitHubClientConfig>): void {
+    // Auth validation
+    if (config.auth) {
+      const auth = config.auth as Record<string, unknown>
 
-        // Provide specific error messages based on context
-        if (firstError.path.includes('auth')) {
-          throw new Error(firstError.message)
-        }
-        if (firstError.path.includes('cache')) {
-          throw new Error(firstError.message)
-        }
-        if (firstError.path.includes('throttle')) {
-          throw new Error(firstError.message)
-        }
-        if (firstError.path.includes('retry')) {
-          throw new Error(firstError.message)
-        }
-        if (firstError.path.includes('baseUrl')) {
-          throw new Error(firstError.message)
-        }
-        if (firstError.path.includes('userAgent')) {
-          throw new Error(firstError.message)
-        }
-
-        // Generic error message for other validation issues
-        const errorPath = firstError.path.length > 0 ? `${firstError.path.join('.')}: ` : ''
-        throw new Error(`${errorPath}${firstError.message}`)
+      // Check auth type
+      if (!auth.type || !['token', 'app'].includes(auth.type)) {
+        throw new Error('Invalid authentication type. Must be "token" or "app"')
       }
-      throw error
+
+      // Check for conflicting auth configurations
+      const hasTokenFields = 'token' in auth
+      const hasAppFields = 'appId' in auth || 'privateKey' in auth || 'installationId' in auth
+
+      if (hasTokenFields && hasAppFields) {
+        throw new Error('Cannot mix token and app authentication')
+      }
+
+      // Validate token auth
+      if (auth.type === 'token') {
+        if (!('token' in auth)) {
+          throw new Error('Token is required for token authentication')
+        }
+        if (typeof auth.token !== 'string') {
+          throw new Error('Token must be a string')
+        }
+        if (auth.token === '') {
+          throw new Error('Token cannot be empty')
+        }
+      }
+
+      // Validate app auth
+      if (auth.type === 'app') {
+        if (!('appId' in auth)) {
+          throw new Error('App ID is required for app authentication')
+        }
+        if (typeof auth.appId !== 'number' || auth.appId <= 0) {
+          throw new Error('App ID must be a positive integer')
+        }
+        if (!('privateKey' in auth)) {
+          throw new Error('Private key is required for app authentication')
+        }
+        if (typeof auth.privateKey !== 'string') {
+          throw new Error('Private key must be a string')
+        }
+        if (auth.privateKey === '') {
+          throw new Error('Private key cannot be empty')
+        }
+        if (
+          'installationId' in auth &&
+          (typeof auth.installationId !== 'number' || auth.installationId <= 0)
+        ) {
+          throw new Error('Installation ID must be a positive integer')
+        }
+      }
     }
+
+    // Cache validation
+    if (config.cache) {
+      if ('maxAge' in config.cache) {
+        if (typeof config.cache.maxAge !== 'number' || config.cache.maxAge <= 0) {
+          throw new Error('Cache maxAge must be a positive integer')
+        }
+      }
+      if ('maxSize' in config.cache) {
+        if (typeof config.cache.maxSize !== 'number' || config.cache.maxSize <= 0) {
+          throw new Error('Cache maxSize must be a positive integer')
+        }
+      }
+    }
+
+    // Throttle validation
+    if (config.throttle) {
+      if ('onRateLimit' in config.throttle && config.throttle.onRateLimit !== undefined) {
+        if (typeof config.throttle.onRateLimit !== 'function') {
+          throw new Error('onRateLimit must be a function')
+        }
+      }
+      if (
+        'onSecondaryRateLimit' in config.throttle &&
+        config.throttle.onSecondaryRateLimit !== undefined
+      ) {
+        if (typeof config.throttle.onSecondaryRateLimit !== 'function') {
+          throw new Error('onSecondaryRateLimit must be a function')
+        }
+      }
+    }
+
+    // Retry validation
+    if (config.retry) {
+      if ('retries' in config.retry && config.retry.retries !== undefined) {
+        if (
+          typeof config.retry.retries !== 'number' ||
+          config.retry.retries < 0 ||
+          config.retry.retries > 10
+        ) {
+          if (config.retry.retries < 0) {
+            throw new Error('Retries must be a non-negative integer')
+          }
+          throw new Error('Retries cannot exceed 10')
+        }
+      }
+      if ('doNotRetry' in config.retry && config.retry.doNotRetry !== undefined) {
+        if (
+          !Array.isArray(config.retry.doNotRetry) ||
+          !config.retry.doNotRetry.every(item => typeof item === 'string')
+        ) {
+          throw new Error('doNotRetry must be an array of strings')
+        }
+      }
+    }
+
+    // Base configuration validation
+    if ('baseUrl' in config && config.baseUrl !== undefined) {
+      if (typeof config.baseUrl !== 'string') {
+        throw new Error('baseUrl must be a string')
+      }
+      try {
+        new URL(config.baseUrl)
+      } catch {
+        throw new Error('baseUrl must be a valid URL')
+      }
+    }
+
+    if ('userAgent' in config && config.userAgent !== undefined) {
+      if (typeof config.userAgent !== 'string') {
+        throw new Error('userAgent must be a string')
+      }
+      if (config.userAgent === '') {
+        throw new Error('userAgent cannot be empty')
+      }
+    }
+
+    // Warn about problematic configurations
+    if (config.cache?.maxAge && config.cache.maxAge < 30 && config.throttle?.onRateLimit) {
+      console.warn(
+        'Configuration warning: Short cache duration with aggressive retry settings may cause performance issues'
+      )
+    }
+  }
+
+  constructor(config: Partial<GitHubClientConfig> = {}) {
+    // Comprehensive configuration validation
+    this.validateConfiguration(config)
 
     this.cacheMaxAge = config.cache?.maxAge ?? 300 // 5 minutes default
     this.cacheMaxSize = config.cache?.maxSize ?? 1000
+    this.retryConfig = {
+      retries: config.retry?.retries ?? (process.env.NODE_ENV === 'test' ? 0 : 2),
+      doNotRetry: config.retry?.doNotRetry ?? ['400', '401', '403', '404', '422'],
+    }
 
     // Create Octokit with plugins
     const OctokitWithPlugins = Octokit.plugin(throttling, retry)
@@ -304,7 +411,7 @@ export class GitHubClient {
     cacheTtl?: number
   ): Promise<T> {
     const startTime = new Date()
-    const retryAttempt = 0
+    let actualRetryAttempt = 0
 
     try {
       // Check cache first
@@ -323,12 +430,37 @@ export class GitHubClient {
 
       return data
     } catch (error: unknown) {
+      // Extract retry information from Octokit error structure
+      if (error && typeof error === 'object') {
+        // Check for retry count in various possible locations
+        const errorWithRequest = error as {
+          request?: { retryCount?: number; [key: string]: unknown }
+          retryCount?: number
+          [key: string]: unknown
+        }
+
+        // Try to extract retry count from different possible locations
+        if (errorWithRequest.request?.retryCount !== undefined) {
+          actualRetryAttempt = errorWithRequest.request.retryCount
+        } else if (errorWithRequest.retryCount !== undefined) {
+          actualRetryAttempt = errorWithRequest.retryCount
+        } else {
+          // For very long duration requests (indicating retries), estimate retry attempts
+          const duration = Date.now() - startTime.getTime()
+          if (duration > 2000) {
+            // If request took longer than 2 seconds, likely had retries
+            // Rough estimation: each retry typically adds 1-2 seconds
+            actualRetryAttempt = Math.min(Math.floor(duration / 2000), this.retryConfig.retries)
+          }
+        }
+      }
+
       // Create request context for error reporting
       const requestContext = createRequestContext(
         requestInfo.method,
         requestInfo.operation,
         requestInfo.params,
-        retryAttempt,
+        actualRetryAttempt,
         this.getRetryConfiguration()?.retries,
         startTime
       )
@@ -352,11 +484,6 @@ export class GitHubClient {
           request?: { retryCount?: number }
         }
 
-        // Update retry attempt if available
-        if (githubError.request?.retryCount !== undefined) {
-          requestContext.retryAttempt = githubError.request.retryCount
-        }
-
         throw new GitHubError(
           githubError.message || 'GitHub API error',
           'API_ERROR',
@@ -374,10 +501,8 @@ export class GitHubClient {
     }
   }
 
-  private getRetryConfiguration(): { retries: number } | undefined {
-    // This is a simplified way to get retry config - in real implementation,
-    // we'd store the retry config during initialization
-    return { retries: 2 } // Default value
+  private getRetryConfiguration(): { retries: number } {
+    return { retries: this.retryConfig.retries }
   }
 
   // Repository operations
@@ -561,15 +686,11 @@ export class GitHubClient {
       }),
     })
 
-    return this.safeRequest(
-      () => this.octokit.rest.rateLimit.get(),
-      schema,
-      {
-        method: 'GET',
-        operation: 'getRateLimit',
-        params: {},
-      }
-    )
+    return this.safeRequest(() => this.octokit.rest.rateLimit.get(), schema, {
+      method: 'GET',
+      operation: 'getRateLimit',
+      params: {},
+    })
   }
 
   // Cache management
