@@ -12,6 +12,23 @@ export interface GitHubGraphQLErrorData {
   locations?: Array<{ line: number; column: number }>
 }
 
+export interface RequestContext {
+  /** HTTP method used for the request */
+  method: string
+  /** Operation name (e.g., 'getRepository', 'getUser') */
+  operation: string
+  /** Request parameters (sanitized to remove sensitive data) */
+  params: Record<string, unknown>
+  /** Timestamp when the request was initiated */
+  timestamp: Date
+  /** Current retry attempt number (0 for initial attempt) */
+  retryAttempt: number
+  /** Maximum number of retries configured */
+  maxRetries?: number
+  /** Request duration in milliseconds (if available) */
+  duration?: number
+}
+
 export class GitHubClientError extends Error {
   constructor(message: string) {
     super(message)
@@ -21,14 +38,61 @@ export class GitHubClientError extends Error {
 
 // Unified error class for the GitHub client
 export class GitHubError extends Error {
+  public readonly requestContext?: RequestContext
+  public readonly isRetryable: boolean
+  public readonly errorCategory: 'client' | 'server' | 'network' | 'validation'
+
   constructor(
     message: string,
     public readonly code: string,
     public readonly status?: number,
-    public readonly response?: unknown
+    public readonly response?: unknown,
+    requestContext?: RequestContext
   ) {
     super(message)
     this.name = 'GitHubError'
+    this.requestContext = requestContext
+
+    // Classify error based on status code
+    this.isRetryable = this.determineRetryability(status, code)
+    this.errorCategory = this.categorizeError(status, code)
+  }
+
+  private determineRetryability(status?: number, code?: string): boolean {
+    // Non-retryable conditions
+    if (!status) return false
+    if (status >= 400 && status < 500) {
+      // Client errors are generally not retryable, except for a few cases
+      return status === 429 || status === 408 // Rate limit or timeout
+    }
+    if (code === 'VALIDATION_ERROR') return false
+
+    // Server errors are generally retryable
+    return status >= 500 || status === 429
+  }
+
+  private categorizeError(
+    status?: number,
+    code?: string
+  ): 'client' | 'server' | 'network' | 'validation' {
+    if (code === 'VALIDATION_ERROR') return 'validation'
+    if (!status) return 'network'
+    if (status >= 400 && status < 500) return 'client'
+    if (status >= 500) return 'server'
+    return 'network'
+  }
+
+  toJSON() {
+    return {
+      name: this.name,
+      message: this.message,
+      code: this.code,
+      status: this.status,
+      isRetryable: this.isRetryable,
+      errorCategory: this.errorCategory,
+      requestContext: this.requestContext,
+      // Exclude response to prevent circular references and sensitive data
+    }
   }
 }
 
@@ -150,6 +214,56 @@ export function extractErrorMessage(error: unknown): string {
     return String(error.message)
   }
   return 'Unknown error occurred'
+}
+
+/**
+ * Sanitizes request parameters to remove sensitive information
+ */
+export function sanitizeParams(params: Record<string, unknown>): Record<string, unknown> {
+  const sanitized = { ...params }
+
+  // List of sensitive keys to remove or mask
+  const sensitiveKeys = ['token', 'auth', 'password', 'secret', 'key', 'privateKey']
+
+  for (const key of sensitiveKeys) {
+    if (key in sanitized) {
+      delete sanitized[key]
+    }
+  }
+
+  // Recursively sanitize nested objects
+  for (const [key, value] of Object.entries(sanitized)) {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      sanitized[key] = sanitizeParams(value as Record<string, unknown>)
+    }
+  }
+
+  return sanitized
+}
+
+/**
+ * Creates a request context object for error reporting
+ */
+export function createRequestContext(
+  method: string,
+  operation: string,
+  params: Record<string, unknown>,
+  retryAttempt = 0,
+  maxRetries?: number,
+  startTime?: Date
+): RequestContext {
+  const timestamp = startTime || new Date()
+  const duration = startTime ? Date.now() - startTime.getTime() : undefined
+
+  return {
+    method,
+    operation,
+    params: sanitizeParams(params),
+    timestamp,
+    retryAttempt,
+    maxRetries,
+    duration,
+  }
 }
 
 /**

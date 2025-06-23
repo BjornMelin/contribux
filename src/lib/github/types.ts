@@ -5,6 +5,157 @@
  * Provides clean, focused type definitions for the GitHub client.
  */
 
+import { z } from 'zod'
+
+// Configuration validation schemas
+const TokenAuthSchema = z.object({
+  type: z.literal('token'),
+  token: z
+    .string({
+      required_error: 'Token is required for token authentication',
+      invalid_type_error: 'Token must be a string',
+    })
+    .min(1, 'Token cannot be empty'),
+})
+
+const AppAuthSchema = z.object({
+  type: z.literal('app'),
+  appId: z
+    .number({
+      required_error: 'App ID is required for app authentication',
+      invalid_type_error: 'App ID must be a positive integer',
+    })
+    .int()
+    .positive('App ID must be a positive integer'),
+  privateKey: z
+    .string({
+      required_error: 'Private key is required for app authentication',
+      invalid_type_error: 'Private key must be a string',
+    })
+    .min(1, 'Private key cannot be empty'),
+  installationId: z
+    .number({
+      invalid_type_error: 'Installation ID must be a positive integer',
+    })
+    .int()
+    .positive('Installation ID must be a positive integer')
+    .optional(),
+})
+
+const AuthSchema = z
+  .discriminatedUnion('type', [TokenAuthSchema, AppAuthSchema], {
+    errorMap: (issue, ctx) => {
+      if (issue.code === z.ZodIssueCode.invalid_union_discriminator) {
+        return { message: 'Invalid authentication type. Must be "token" or "app"' }
+      }
+      return { message: ctx.defaultError }
+    },
+  })
+  .refine(
+    data => {
+      // Detect conflicts: ensure no mixing of auth types
+      if (data.type === 'token') {
+        return !('appId' in data) && !('privateKey' in data) && !('installationId' in data)
+      }
+      if (data.type === 'app') {
+        return !('token' in data)
+      }
+      return true
+    },
+    {
+      message: 'Cannot mix token and app authentication',
+    }
+  )
+
+const CacheOptionsSchema = z
+  .object({
+    maxAge: z
+      .number({
+        invalid_type_error: 'Cache maxAge must be a positive integer',
+      })
+      .int()
+      .positive('Cache maxAge must be a positive integer')
+      .optional(),
+    maxSize: z
+      .number({
+        invalid_type_error: 'Cache maxSize must be a positive integer',
+      })
+      .int()
+      .positive('Cache maxSize must be a positive integer')
+      .optional(),
+  })
+  .optional()
+
+const ThrottleOptionsSchema = z
+  .object({
+    onRateLimit: z.any().refine((val) => val === undefined || typeof val === 'function', {
+      message: 'onRateLimit must be a function'
+    }).optional(),
+    onSecondaryRateLimit: z.any().refine((val) => val === undefined || typeof val === 'function', {
+      message: 'onSecondaryRateLimit must be a function'
+    })
+      .optional(),
+  })
+  .optional()
+
+const RetryOptionsSchema = z
+  .object({
+    retries: z
+      .number({
+        invalid_type_error: 'Retries must be a non-negative integer',
+      })
+      .int()
+      .min(0, 'Retries must be a non-negative integer')
+      .max(10, 'Retries cannot exceed 10')
+      .optional(),
+    doNotRetry: z
+      .array(z.string(), {
+        invalid_type_error: 'doNotRetry must be an array of strings',
+      })
+      .optional(),
+  })
+  .optional()
+
+const GitHubClientConfigSchema = z
+  .object({
+    auth: AuthSchema.optional(),
+    baseUrl: z
+      .string({
+        invalid_type_error: 'baseUrl must be a string',
+      })
+      .url('baseUrl must be a valid URL')
+      .optional(),
+    userAgent: z
+      .string({
+        invalid_type_error: 'userAgent must be a string',
+      })
+      .min(1, 'userAgent cannot be empty')
+      .optional(),
+    throttle: ThrottleOptionsSchema,
+    cache: CacheOptionsSchema,
+    retry: RetryOptionsSchema,
+  })
+  .refine(config => {
+    // Warn about potentially problematic configurations
+    if (config.cache?.maxAge && config.cache.maxAge < 30 && config.throttle?.onRateLimit) {
+      console.warn(
+        'Configuration warning: Short cache duration with aggressive retry settings may cause performance issues'
+      )
+    }
+    return true
+  })
+
+// Export validation schemas and their inferred types
+export {
+  GitHubClientConfigSchema,
+  AuthSchema,
+  CacheOptionsSchema,
+  ThrottleOptionsSchema,
+  RetryOptionsSchema,
+}
+export type GitHubClientConfig = z.infer<typeof GitHubClientConfigSchema>
+export type AuthConfig = z.infer<typeof AuthSchema>
+
 // Core GitHub data structures
 export interface GitHubRepository {
   id: number

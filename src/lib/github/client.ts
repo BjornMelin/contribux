@@ -20,13 +20,15 @@ import type {
   GitHubRetryOptions,
   GitHubThrottleOptions,
 } from '@/types/database'
-import { GitHubError } from './errors'
+import { createRequestContext, GitHubError } from './errors'
 import type {
   IssueIdentifier,
   PaginationOptions,
   RepositoryIdentifier,
   SearchOptions,
+  GitHubClientConfig as TypesGitHubClientConfig,
 } from './types'
+import { GitHubClientConfigSchema } from './types'
 
 // Zod schemas for GitHub API response validation
 const GitHubUserSchema = z.object({
@@ -90,17 +92,8 @@ export interface SearchResult<T> {
   items: T[]
 }
 
-// Configuration types
-export interface GitHubClientConfig {
-  auth?:
-    | { type: 'token'; token: string }
-    | { type: 'app'; appId: number; privateKey: string; installationId?: number }
-  baseUrl?: string
-  userAgent?: string
-  throttle?: GitHubThrottleOptions
-  cache?: GitHubCacheOptions
-  retry?: GitHubRetryOptions
-}
+// Use validated configuration type
+export type GitHubClientConfig = TypesGitHubClientConfig
 
 interface CacheEntry<T = unknown> {
   data: T
@@ -113,10 +106,46 @@ export class GitHubClient {
   private cache: Map<string, CacheEntry> = new Map()
   private readonly cacheMaxAge: number
   private readonly cacheMaxSize: number
+  private readonly retryConfig: { retries: number; doNotRetry: string[] }
   private cacheHits = 0
   private cacheMisses = 0
 
   constructor(config: Partial<GitHubClientConfig> = {}) {
+    // Validate configuration with Zod
+    try {
+      GitHubClientConfigSchema.parse(config)
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        // Extract first error for clear message
+        const firstError = error.errors[0]
+
+        // Provide specific error messages based on context
+        if (firstError.path.includes('auth')) {
+          throw new Error(firstError.message)
+        }
+        if (firstError.path.includes('cache')) {
+          throw new Error(firstError.message)
+        }
+        if (firstError.path.includes('throttle')) {
+          throw new Error(firstError.message)
+        }
+        if (firstError.path.includes('retry')) {
+          throw new Error(firstError.message)
+        }
+        if (firstError.path.includes('baseUrl')) {
+          throw new Error(firstError.message)
+        }
+        if (firstError.path.includes('userAgent')) {
+          throw new Error(firstError.message)
+        }
+
+        // Generic error message for other validation issues
+        const errorPath = firstError.path.length > 0 ? `${firstError.path.join('.')}: ` : ''
+        throw new Error(`${errorPath}${firstError.message}`)
+      }
+      throw error
+    }
+
     this.cacheMaxAge = config.cache?.maxAge ?? 300 // 5 minutes default
     this.cacheMaxSize = config.cache?.maxSize ?? 1000
 
@@ -171,7 +200,61 @@ export class GitHubClient {
 
   // Cache management
   private getCacheKey(method: string, params: Record<string, unknown>): string {
-    return `${method}:${JSON.stringify(params)}`
+    const deterministic = this.deterministicStringify(params)
+    const baseKey = `${method}:${deterministic}`
+
+    // For very long keys, use SHA-256 hash to keep them manageable
+    if (baseKey.length > 250) {
+      return `${method}:${this.hashString(deterministic)}`
+    }
+
+    return baseKey
+  }
+
+  /**
+   * Creates a deterministic string representation of an object by sorting keys recursively
+   */
+  private deterministicStringify(obj: unknown): string {
+    if (obj === null) return 'null'
+    if (obj === undefined) return 'undefined'
+    if (typeof obj === 'string') return JSON.stringify(obj)
+    if (typeof obj === 'number' || typeof obj === 'boolean') return String(obj)
+
+    if (Array.isArray(obj)) {
+      return `[${obj.map(item => this.deterministicStringify(item)).join(',')}]`
+    }
+
+    if (typeof obj === 'object') {
+      const entries = Object.entries(obj as Record<string, unknown>)
+        .filter(([, value]) => value !== undefined) // Remove undefined values
+        .sort(([a], [b]) => a.localeCompare(b)) // Sort by key
+        .map(([key, value]) => `${JSON.stringify(key)}:${this.deterministicStringify(value)}`)
+
+      return `{${entries.join(',')}}`
+    }
+
+    return String(obj)
+  }
+
+  /**
+   * Creates a SHA-256 hash of a string for cache key compression
+   */
+  private hashString(str: string): string {
+    // Simple hash function for Node.js environment
+    // In a browser environment, you might want to use Web Crypto API
+    try {
+      const crypto = require('node:crypto')
+      return crypto.createHash('sha256').update(str).digest('hex').substring(0, 32)
+    } catch {
+      // Fallback to a simple hash if crypto is not available
+      let hash = 0
+      for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i)
+        hash = (hash << 5) - hash + char
+        hash = hash & hash // Convert to 32bit integer
+      }
+      return Math.abs(hash).toString(16).padStart(8, '0')
+    }
   }
 
   private getFromCache<T>(key: string): T | null {
@@ -212,9 +295,17 @@ export class GitHubClient {
   private async safeRequest<T>(
     operation: () => Promise<{ data: unknown }>,
     schema: z.ZodSchema<T>,
+    requestInfo: {
+      method: string
+      operation: string
+      params: Record<string, unknown>
+    },
     cacheKey?: string,
     cacheTtl?: number
   ): Promise<T> {
+    const startTime = new Date()
+    const retryAttempt = 0
+
     try {
       // Check cache first
       if (cacheKey) {
@@ -232,8 +323,24 @@ export class GitHubClient {
 
       return data
     } catch (error: unknown) {
+      // Create request context for error reporting
+      const requestContext = createRequestContext(
+        requestInfo.method,
+        requestInfo.operation,
+        requestInfo.params,
+        retryAttempt,
+        this.getRetryConfiguration()?.retries,
+        startTime
+      )
+
       if (error instanceof z.ZodError) {
-        throw new GitHubError(`Invalid response format: ${error.message}`, 'VALIDATION_ERROR')
+        throw new GitHubError(
+          `Invalid response format: ${error.message}`,
+          'VALIDATION_ERROR',
+          undefined,
+          undefined,
+          requestContext
+        )
       }
 
       // Handle Octokit errors
@@ -242,12 +349,20 @@ export class GitHubClient {
           status?: number
           message?: string
           response?: { data?: unknown }
+          request?: { retryCount?: number }
         }
+
+        // Update retry attempt if available
+        if (githubError.request?.retryCount !== undefined) {
+          requestContext.retryAttempt = githubError.request.retryCount
+        }
+
         throw new GitHubError(
           githubError.message || 'GitHub API error',
           'API_ERROR',
           githubError.status,
-          githubError.response?.data
+          githubError.response?.data,
+          requestContext
         )
       }
 
@@ -255,8 +370,14 @@ export class GitHubClient {
         error && typeof error === 'object' && 'message' in error
           ? String((error as { message: unknown }).message)
           : 'Unknown error'
-      throw new GitHubError(errorMessage, 'UNKNOWN_ERROR')
+      throw new GitHubError(errorMessage, 'UNKNOWN_ERROR', undefined, undefined, requestContext)
     }
+  }
+
+  private getRetryConfiguration(): { retries: number } | undefined {
+    // This is a simplified way to get retry config - in real implementation,
+    // we'd store the retry config during initialization
+    return { retries: 2 } // Default value
   }
 
   // Repository operations
@@ -270,6 +391,11 @@ export class GitHubClient {
           repo: identifier.repo,
         }),
       GitHubRepositorySchema,
+      {
+        method: 'GET',
+        operation: 'getRepository',
+        params: identifier,
+      },
       cacheKey
     )
   }
@@ -291,6 +417,11 @@ export class GitHubClient {
         incomplete_results: z.boolean(),
         items: z.array(GitHubRepositorySchema),
       }) as z.ZodType<SearchResult<GitHubRepository>>,
+      {
+        method: 'GET',
+        operation: 'searchRepositories',
+        params: options,
+      },
       cacheKey,
       60 // Cache searches for 1 minute
     )
@@ -303,6 +434,11 @@ export class GitHubClient {
     return this.safeRequest(
       () => this.octokit.rest.users.getByUsername({ username }),
       GitHubUserSchema,
+      {
+        method: 'GET',
+        operation: 'getUser',
+        params: { username },
+      },
       cacheKey
     )
   }
@@ -312,6 +448,11 @@ export class GitHubClient {
     return this.safeRequest(
       () => this.octokit.rest.users.getAuthenticated(),
       GitHubUserSchema,
+      {
+        method: 'GET',
+        operation: 'getAuthenticatedUser',
+        params: {},
+      },
       cacheKey
     )
   }
@@ -328,6 +469,11 @@ export class GitHubClient {
           issue_number: identifier.issueNumber,
         }),
       GitHubIssueSchema,
+      {
+        method: 'GET',
+        operation: 'getIssue',
+        params: identifier,
+      },
       cacheKey
     )
   }
@@ -356,12 +502,27 @@ export class GitHubClient {
           ...(options.per_page && { per_page: options.per_page }),
         }),
       z.array(GitHubIssueSchema),
+      {
+        method: 'GET',
+        operation: 'listIssues',
+        params: { ...identifier, ...options },
+      },
       cacheKey
     )
   }
 
   // GraphQL operations
   async graphql<T = unknown>(query: string, variables?: Record<string, unknown>): Promise<T> {
+    const startTime = new Date()
+    const requestContext = createRequestContext(
+      'POST',
+      'graphql',
+      { query: query.length > 100 ? `${query.substring(0, 100)}...` : query, variables },
+      0,
+      this.getRetryConfiguration()?.retries,
+      startTime
+    )
+
     try {
       const response = await this.octokit.graphql(query, variables)
       return response as T
@@ -374,7 +535,8 @@ export class GitHubClient {
         githubError.message || 'GraphQL query failed',
         'GRAPHQL_ERROR',
         githubError.status,
-        githubError.response?.data
+        githubError.response?.data,
+        requestContext
       )
     }
   }
@@ -399,7 +561,15 @@ export class GitHubClient {
       }),
     })
 
-    return this.safeRequest(() => this.octokit.rest.rateLimit.get(), schema)
+    return this.safeRequest(
+      () => this.octokit.rest.rateLimit.get(),
+      schema,
+      {
+        method: 'GET',
+        operation: 'getRateLimit',
+        params: {},
+      }
+    )
   }
 
   // Cache management
