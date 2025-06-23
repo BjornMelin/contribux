@@ -31,7 +31,7 @@ describe('GitHubClient - Comprehensive Tests', () => {
         expect(
           () =>
             new GitHubClient({
-              auth: { type: 'invalid' } as any,
+              auth: { type: 'invalid' as 'token' | 'app' },
             })
         ).toThrow(/Invalid authentication type/)
       })
@@ -40,7 +40,7 @@ describe('GitHubClient - Comprehensive Tests', () => {
         expect(
           () =>
             new GitHubClient({
-              auth: { type: 'token' } as any,
+              auth: { type: 'token' } as { type: 'token' },
             })
         ).toThrow(/Token is required for token authentication/)
       })
@@ -58,7 +58,7 @@ describe('GitHubClient - Comprehensive Tests', () => {
         expect(
           () =>
             new GitHubClient({
-              auth: { type: 'token', token: 123 } as any,
+              auth: { type: 'token', token: 123 as unknown as string },
             })
         ).toThrow(/Token must be a string/)
       })
@@ -67,7 +67,7 @@ describe('GitHubClient - Comprehensive Tests', () => {
         expect(
           () =>
             new GitHubClient({
-              auth: { type: 'app', privateKey: 'test-key' } as any,
+              auth: { type: 'app', privateKey: 'test-key' } as { type: 'app'; privateKey: string },
             })
         ).toThrow(/App ID is required for app authentication/)
       })
@@ -76,7 +76,7 @@ describe('GitHubClient - Comprehensive Tests', () => {
         expect(
           () =>
             new GitHubClient({
-              auth: { type: 'app', appId: 'invalid', privateKey: 'test-key' } as any,
+              auth: { type: 'app', appId: 'invalid' as unknown as number, privateKey: 'test-key' },
             })
         ).toThrow(/App ID must be a positive integer/)
       })
@@ -85,7 +85,7 @@ describe('GitHubClient - Comprehensive Tests', () => {
         expect(
           () =>
             new GitHubClient({
-              auth: { type: 'app', appId: 123 } as any,
+              auth: { type: 'app', appId: 123 } as { type: 'app'; appId: number },
             })
         ).toThrow(/Private key is required for app authentication/)
       })
@@ -108,7 +108,7 @@ describe('GitHubClient - Comprehensive Tests', () => {
                 appId: 123,
                 privateKey: 'test-key',
                 installationId: 'invalid',
-              } as any,
+              } as { type: 'app'; appId: number; privateKey: string; installationId: unknown },
             })
         ).toThrow(/Installation ID must be a positive integer/)
       })
@@ -146,7 +146,7 @@ describe('GitHubClient - Comprehensive Tests', () => {
         expect(
           () =>
             new GitHubClient({
-              cache: { maxAge: 'invalid' } as any,
+              cache: { maxAge: 'invalid' as unknown as number },
             })
         ).toThrow(/Cache maxAge must be a positive integer/)
       })
@@ -157,7 +157,7 @@ describe('GitHubClient - Comprehensive Tests', () => {
         expect(
           () =>
             new GitHubClient({
-              throttle: { onRateLimit: 'not-a-function' } as any,
+              throttle: { onRateLimit: 'not-a-function' as unknown as () => boolean },
             })
         ).toThrow(/onRateLimit must be a function/)
       })
@@ -166,7 +166,7 @@ describe('GitHubClient - Comprehensive Tests', () => {
         expect(
           () =>
             new GitHubClient({
-              throttle: { onSecondaryRateLimit: 'not-a-function' } as any,
+              throttle: { onSecondaryRateLimit: 'not-a-function' as unknown as () => boolean },
             })
         ).toThrow(/onSecondaryRateLimit must be a function/)
       })
@@ -195,7 +195,7 @@ describe('GitHubClient - Comprehensive Tests', () => {
         expect(
           () =>
             new GitHubClient({
-              retry: { doNotRetry: ['200', 404] } as any,
+              retry: { doNotRetry: ['200', 404 as unknown as string] },
             })
         ).toThrow(/doNotRetry must be an array of strings/)
       })
@@ -224,7 +224,7 @@ describe('GitHubClient - Comprehensive Tests', () => {
         expect(
           () =>
             new GitHubClient({
-              userAgent: 123 as any,
+              userAgent: 123 as unknown as string,
             })
         ).toThrow(/userAgent must be a string/)
       })
@@ -235,7 +235,11 @@ describe('GitHubClient - Comprehensive Tests', () => {
         expect(
           () =>
             new GitHubClient({
-              auth: { type: 'token', token: 'test', appId: 123 } as any,
+              auth: { type: 'token', token: 'test', appId: 123 } as {
+                type: 'token'
+                token: string
+                appId: number
+              },
             })
         ).toThrow(/Cannot mix token and app authentication/)
       })
@@ -573,7 +577,11 @@ describe('GitHubClient - Comprehensive Tests', () => {
         method: string,
         params: Record<string, unknown>
       ): string => {
-        return (client as any).getCacheKey(method, params)
+        return (
+          client as unknown as {
+            getCacheKey: (method: string, params: Record<string, unknown>) => string
+          }
+        ).getCacheKey(method, params)
       }
 
       it('should generate deterministic cache keys regardless of object property order', () => {

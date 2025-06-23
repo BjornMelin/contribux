@@ -397,7 +397,7 @@ const defaultHandlers = [
   // GraphQL endpoint
   http.post(GITHUB_GRAPHQL_URL, async ({ request }) => {
     const authHeader = request.headers.get('authorization')
-    const body = (await request.json()) as { query: string; variables?: Record<string, any> }
+    const body = (await request.json()) as { query: string; variables?: Record<string, unknown> }
 
     // Check authentication
     if (!isValidToken(authHeader)) {
@@ -477,8 +477,8 @@ export const mswServer = setupServer(...defaultHandlers)
 export function setupMSW() {
   beforeAll(() => {
     // Restore original fetch for MSW to work properly
-    if ((global as any).__originalFetch) {
-      global.fetch = (global as any).__originalFetch
+    if ((global as { __originalFetch?: typeof fetch }).__originalFetch) {
+      global.fetch = (global as { __originalFetch: typeof fetch }).__originalFetch
     }
     mswServer.listen({ onUnhandledRequest: 'warn' })
   })
@@ -491,10 +491,15 @@ export function setupMSW() {
   afterAll(() => {
     mswServer.close()
     // Restore the mock fetch for other tests
-    if ((global as any).__mockFetch) {
-      global.fetch = (global as any).__mockFetch
+    if ((global as { __mockFetch?: typeof fetch }).__mockFetch) {
+      global.fetch = (global as { __mockFetch: typeof fetch }).__mockFetch
     }
   })
+}
+
+// Internal state interface for mock API
+interface MockGitHubAPIState {
+  _responseDelay: number
 }
 
 // Helper functions for test-specific mocking
@@ -568,10 +573,10 @@ export const mockGitHubAPI = {
   /**
    * Mock a custom GraphQL response
    */
-  mockGraphQL: (data: any, errors?: any[]) => {
+  mockGraphQL: (data: unknown, errors?: unknown[]) => {
     mswServer.use(
       http.post(GITHUB_GRAPHQL_URL, () => {
-        const response: any = {}
+        const response: Record<string, unknown> = {}
         if (data) response.data = data
         if (errors) response.errors = errors
         return HttpResponse.json(response)
@@ -659,14 +664,14 @@ export const mockGitHubAPI = {
    */
   setResponseDelay: (delayMs: number) => {
     // Store delay for use in custom handlers
-    ;(mockGitHubAPI as any)._responseDelay = delayMs
+    ;(mockGitHubAPI as MockGitHubAPIState)._responseDelay = delayMs
   },
 
   /**
    * Mock a specific error response for all endpoints
    */
-  setErrorResponse: (status: number, errorData: any) => {
-    const delay = (mockGitHubAPI as any)._responseDelay || 0
+  setErrorResponse: (status: number, errorData: unknown) => {
+    const delay = (mockGitHubAPI as MockGitHubAPIState)._responseDelay || 0
 
     mswServer.use(
       http.get(`${GITHUB_API_BASE}/*`, async () => {
@@ -687,8 +692,8 @@ export const mockGitHubAPI = {
   /**
    * Mock a custom response for all endpoints
    */
-  setCustomResponse: (status: number, data: any) => {
-    const delay = (mockGitHubAPI as any)._responseDelay || 0
+  setCustomResponse: (status: number, data: unknown) => {
+    const delay = (mockGitHubAPI as MockGitHubAPIState)._responseDelay || 0
 
     mswServer.use(
       http.get(`${GITHUB_API_BASE}/*`, async () => {
@@ -709,8 +714,8 @@ export const mockGitHubAPI = {
   /**
    * Set a custom handler function
    */
-  setCustomHandler: (handlerFn: () => { status: number; data: any }) => {
-    const delay = (mockGitHubAPI as any)._responseDelay || 0
+  setCustomHandler: (handlerFn: () => { status: number; data: unknown }) => {
+    const delay = (mockGitHubAPI as MockGitHubAPIState)._responseDelay || 0
 
     mswServer.use(
       http.get(`${GITHUB_API_BASE}/*`, async () => {
@@ -735,6 +740,6 @@ export const mockGitHubAPI = {
    */
   resetToDefaults: () => {
     mswServer.resetHandlers(...defaultHandlers)
-    ;(mockGitHubAPI as any)._responseDelay = 0
+    ;(mockGitHubAPI as MockGitHubAPIState)._responseDelay = 0
   },
 }
