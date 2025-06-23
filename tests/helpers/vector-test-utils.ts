@@ -1,43 +1,55 @@
 /**
  * Vector Similarity Test Utilities for contribux
  * Provides comprehensive testing and validation of vector operations
+ * with proper TypeScript support
  */
 
-import { Client } from 'pg';
+import { Client } from 'pg'
+import type { QueryRow } from '../database/db-client'
 
 export interface VectorTestResult {
-  query: string;
-  executionTime: number;
-  resultCount: number;
-  topSimilarity: number;
-  averageSimilarity: number;
-  indexUsed: boolean;
+  query: string
+  executionTime: number
+  resultCount: number
+  topSimilarity: number
+  averageSimilarity: number
+  indexUsed: boolean
 }
 
 export interface VectorEmbedding {
-  id: string;
-  embedding: number[];
-  metadata?: Record<string, any>;
+  id: string
+  embedding: number[]
+  metadata?: Record<string, any>
+}
+
+export interface VectorQueryResult extends QueryRow {
+  id: string
+  distance: number
+  similarity: number
+}
+
+export interface ExplainResult extends QueryRow {
+  'QUERY PLAN'?: any
 }
 
 export class VectorTestUtils {
-  private client: Client;
+  private client: Client
 
   constructor(databaseUrl: string) {
-    this.client = new Client({ connectionString: databaseUrl });
+    this.client = new Client({ connectionString: databaseUrl })
   }
 
   async connect(): Promise<void> {
-    await this.client.connect();
+    await this.client.connect()
   }
 
   async disconnect(): Promise<void> {
-    await this.client.end();
+    await this.client.end()
   }
 
-  private async query(text: string, params?: any[]): Promise<any[]> {
-    const result = await this.client.query(text, params);
-    return result.rows;
+  private async query<T extends QueryRow = QueryRow>(text: string, params?: any[]): Promise<T[]> {
+    const result = await this.client.query<T>(text, params)
+    return result.rows
   }
 
   /**
@@ -45,59 +57,65 @@ export class VectorTestUtils {
    * Simulates embeddings from OpenAI's text-embedding-ada-002 model
    */
   generateFakeEmbedding(seed?: string): number[] {
-    const random = this.seededRandom(seed);
-    const embedding: number[] = [];
-    
+    const random = this.seededRandom(seed)
+    const embedding: number[] = []
+
     // Generate 1536-dimensional vector with realistic distribution
     for (let i = 0; i < 1536; i++) {
       // Use Box-Muller transform for normal distribution
-      const u1 = random();
-      const u2 = random();
-      const z0 = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-      
+      const u1 = random()
+      const u2 = random()
+      const z0 = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2)
+
       // Scale to typical embedding range
-      embedding.push(z0 * 0.1);
+      embedding.push(z0 * 0.1)
     }
-    
+
     // Normalize to unit vector (common in embeddings)
-    return this.normalizeVector(embedding);
+    return this.normalizeVector(embedding)
   }
 
   /**
    * Generate embeddings that are semantically similar
    */
-  generateSimilarEmbeddings(baseEmbedding: number[], count: number, similarity: number = 0.8): number[][] {
-    const embeddings: number[][] = [];
-    
+  generateSimilarEmbeddings(baseEmbedding: number[], count: number, similarity = 0.8): number[][] {
+    const embeddings: number[][] = []
+
     for (let i = 0; i < count; i++) {
-      const noise = this.generateFakeEmbedding(`noise_${i}`);
-      const similar = baseEmbedding.map((val, idx) => 
-        val * similarity + noise[idx] * (1 - similarity)
-      );
-      embeddings.push(this.normalizeVector(similar));
+      const noise = this.generateFakeEmbedding(`noise_${i}`)
+      const similar = baseEmbedding.map(
+        (val, idx) => val * similarity + noise[idx] * (1 - similarity)
+      )
+      embeddings.push(this.normalizeVector(similar))
     }
-    
-    return embeddings;
+
+    return embeddings
   }
 
   /**
    * Format array for PostgreSQL halfvec type
    */
   private formatVectorForPostgres(vector: number[]): string {
-    return `[${vector.join(',')}]`;
+    if (!Array.isArray(vector)) {
+      throw new TypeError('Vector must be an array')
+    }
+    if (vector.length !== 1536) {
+      throw new Error('Vector must have exactly 1536 dimensions for halfvec')
+    }
+    return `[${vector.map(v => v.toString()).join(',')}]`
   }
 
   /**
    * Test vector similarity search performance with HNSW index
    */
   async testVectorSimilaritySearch(
-    table: string, 
-    embeddingColumn: string, 
+    table: string,
+    embeddingColumn: string,
     queryEmbedding: number[],
-    limit: number = 10
+    limit = 10
   ): Promise<VectorTestResult> {
-    const startTime = performance.now();
-    
+    const startTime = performance.now()
+
     const query = `
       SELECT 
         id,
@@ -107,10 +125,12 @@ export class VectorTestUtils {
       WHERE ${embeddingColumn} IS NOT NULL
       ORDER BY ${embeddingColumn} <=> $1::halfvec
       LIMIT ${limit}
-    `;
+    `
 
-    const results = await this.query(query, [this.formatVectorForPostgres(queryEmbedding)]);
-    const endTime = performance.now();
+    const results = await this.query<VectorQueryResult>(query, [
+      this.formatVectorForPostgres(queryEmbedding),
+    ])
+    const endTime = performance.now()
 
     // Check if HNSW index was used
     const explainQuery = `
@@ -119,28 +139,31 @@ export class VectorTestUtils {
       WHERE ${embeddingColumn} IS NOT NULL
       ORDER BY ${embeddingColumn} <=> $1::halfvec
       LIMIT ${limit}
-    `;
-    
-    const explainResults = await this.query(explainQuery, [this.formatVectorForPostgres(queryEmbedding)]);
-    
+    `
+
+    const explainResults = await this.query<ExplainResult>(explainQuery, [
+      this.formatVectorForPostgres(queryEmbedding),
+    ])
+
     // Parse JSON explain output
-    let indexUsed = false;
-    if (explainResults[0] && explainResults[0]['QUERY PLAN']) {
-      const plan = explainResults[0]['QUERY PLAN'];
-      const planText = JSON.stringify(plan);
-      indexUsed = planText.includes('Index Scan') && planText.includes('hnsw');
+    let indexUsed = false
+    if (explainResults[0]?.['QUERY PLAN']) {
+      const plan = explainResults[0]['QUERY PLAN']
+      const planText = JSON.stringify(plan)
+      indexUsed = planText.includes('Index Scan') && planText.includes('hnsw')
     }
 
-    const similarities = results.map((r: any) => r.similarity);
-    
+    const similarities = results.map(r => r.similarity).filter(s => !Number.isNaN(s))
+
     return {
       query,
       executionTime: endTime - startTime,
       resultCount: results.length,
-      topSimilarity: Math.max(...similarities),
-      averageSimilarity: similarities.reduce((a: number, b: number) => a + b, 0) / similarities.length,
-      indexUsed
-    };
+      topSimilarity: similarities.length > 0 ? Math.max(...similarities) : 0,
+      averageSimilarity:
+        similarities.length > 0 ? similarities.reduce((a, b) => a + b, 0) / similarities.length : 0,
+      indexUsed,
+    }
   }
 
   /**
@@ -152,12 +175,12 @@ export class VectorTestUtils {
     embeddingColumn: string,
     searchTerm: string,
     queryEmbedding: number[],
-    textWeight: number = 0.3,
-    vectorWeight: number = 0.7,
-    limit: number = 10
+    textWeight = 0.3,
+    vectorWeight = 0.7,
+    limit = 10
   ): Promise<VectorTestResult> {
-    const startTime = performance.now();
-    
+    const startTime = performance.now()
+
     const query = `
       SELECT 
         id,
@@ -173,21 +196,26 @@ export class VectorTestUtils {
         AND ${textColumn} IS NOT NULL
       ORDER BY combined_score DESC
       LIMIT ${limit}
-    `;
+    `
 
-    const results = await this.query(query, [searchTerm, this.formatVectorForPostgres(queryEmbedding), textWeight, vectorWeight]);
-    const endTime = performance.now();
+    const results = await this.query(query, [
+      searchTerm,
+      this.formatVectorForPostgres(queryEmbedding),
+      textWeight,
+      vectorWeight,
+    ])
+    const endTime = performance.now()
 
-    const scores = results.map((r: any) => r.combined_score);
-    
+    const scores = results.map((r: any) => r.combined_score)
+
     return {
       query,
       executionTime: endTime - startTime,
       resultCount: results.length,
       topSimilarity: Math.max(...scores),
       averageSimilarity: scores.reduce((a: number, b: number) => a + b, 0) / scores.length,
-      indexUsed: false // Hybrid search typically doesn't use single index
-    };
+      indexUsed: false, // Hybrid search typically doesn't use single index
+    }
   }
 
   /**
@@ -197,19 +225,19 @@ export class VectorTestUtils {
     table: string,
     embeddingColumn: string,
     queryEmbedding: number[],
-    limit: number = 10
+    limit = 10
   ): Promise<Record<string, VectorTestResult>> {
     const metrics = {
       cosine: '<=>',
       l2: '<->',
-      inner_product: '<#>'
-    };
+      inner_product: '<#>',
+    }
 
-    const results: Record<string, VectorTestResult> = {};
+    const results: Record<string, VectorTestResult> = {}
 
     for (const [metricName, operator] of Object.entries(metrics)) {
-      const startTime = performance.now();
-      
+      const startTime = performance.now()
+
       const query = `
         SELECT 
           id,
@@ -218,24 +246,24 @@ export class VectorTestUtils {
         WHERE ${embeddingColumn} IS NOT NULL
         ORDER BY ${embeddingColumn} ${operator} $1::halfvec
         LIMIT ${limit}
-      `;
+      `
 
-      const metricResults = await this.query(query, [this.formatVectorForPostgres(queryEmbedding)]);
-      const endTime = performance.now();
+      const metricResults = await this.query(query, [this.formatVectorForPostgres(queryEmbedding)])
+      const endTime = performance.now()
 
-      const distances = metricResults.map((r: any) => r.distance);
-      
+      const distances = metricResults.map((r: any) => r.distance)
+
       results[metricName] = {
         query,
         executionTime: endTime - startTime,
         resultCount: metricResults.length,
         topSimilarity: Math.min(...distances), // For distance, smaller is better
         averageSimilarity: distances.reduce((a: number, b: number) => a + b, 0) / distances.length,
-        indexUsed: false // Would need separate EXPLAIN for each
-      };
+        indexUsed: false, // Would need separate EXPLAIN for each
+      }
     }
 
-    return results;
+    return results
   }
 
   /**
@@ -246,51 +274,50 @@ export class VectorTestUtils {
     embeddingColumn: string,
     configurations: Array<{ m: number; ef_construction: number }>
   ): Promise<Record<string, any>> {
-    const results: Record<string, any> = {};
-    const testEmbedding = this.generateFakeEmbedding('hnsw_test');
+    const results: Record<string, any> = {}
+    const testEmbedding = this.generateFakeEmbedding('hnsw_test')
 
     for (const config of configurations) {
-      const indexName = `test_hnsw_${config.m}_${config.ef_construction}`;
-      
+      const indexName = `test_hnsw_${config.m}_${config.ef_construction}`
+
       try {
         // Create test index with specific configuration
         await this.query(`
           CREATE INDEX ${indexName} ON ${table} 
           USING hnsw (${embeddingColumn} halfvec_cosine_ops) 
           WITH (m = ${config.m}, ef_construction = ${config.ef_construction})
-        `);
+        `)
 
         // Test query performance
         const testResult = await this.testVectorSimilaritySearch(
-          table, 
-          embeddingColumn, 
-          testEmbedding, 
+          table,
+          embeddingColumn,
+          testEmbedding,
           10
-        );
+        )
 
         // Get index size
         const indexSize = await this.query(`
           SELECT pg_size_pretty(pg_relation_size('${indexName}')) as size
-        `);
+        `)
 
         results[`m${config.m}_ef${config.ef_construction}`] = {
           configuration: config,
           performance: testResult,
-          indexSize: indexSize[0]?.size || 'unknown'
-        };
+          indexSize: indexSize[0]?.size || 'unknown',
+        }
 
         // Drop test index
-        await this.query(`DROP INDEX IF EXISTS ${indexName}`);
-        
+        await this.query(`DROP INDEX IF EXISTS ${indexName}`)
       } catch (error) {
         results[`m${config.m}_ef${config.ef_construction}`] = {
           configuration: config,
-          error: (error as Error).message
-        };
+          error: (error as Error).message,
+        }
       }
     }
 
-    return results;
+    return results
   }
 
   /**
@@ -300,78 +327,79 @@ export class VectorTestUtils {
     results: Array<{ id: string; similarity: number; embedding?: number[] }>,
     queryEmbedding: number[]
   ): Promise<{ isValid: boolean; issues: string[] }> {
-    const issues: string[] = [];
+    const issues: string[] = []
 
     // Check if results are sorted by similarity (descending)
     for (let i = 1; i < results.length; i++) {
       if (results[i].similarity > results[i - 1].similarity) {
-        issues.push(`Results not sorted: item ${i} has higher similarity than item ${i - 1}`);
+        issues.push(`Results not sorted: item ${i} has higher similarity than item ${i - 1}`)
       }
     }
 
     // Validate similarity scores are in valid range
     for (const result of results) {
       if (result.similarity < -1 || result.similarity > 1) {
-        issues.push(`Invalid similarity score for ${result.id}: ${result.similarity}`);
+        issues.push(`Invalid similarity score for ${result.id}: ${result.similarity}`)
       }
     }
 
     // If embeddings are provided, validate cosine similarity calculation
     for (const result of results) {
       if (result.embedding) {
-        const calculatedSimilarity = this.cosineSimilarity(queryEmbedding, result.embedding);
-        const difference = Math.abs(calculatedSimilarity - result.similarity);
-        
-        if (difference > 0.001) { // Allow small floating point differences
-          issues.push(`Similarity calculation mismatch for ${result.id}: calculated ${calculatedSimilarity}, got ${result.similarity}`);
+        const calculatedSimilarity = this.cosineSimilarity(queryEmbedding, result.embedding)
+        const difference = Math.abs(calculatedSimilarity - result.similarity)
+
+        if (difference > 0.001) {
+          // Allow small floating point differences
+          issues.push(
+            `Similarity calculation mismatch for ${result.id}: calculated ${calculatedSimilarity}, got ${result.similarity}`
+          )
         }
       }
     }
 
     return {
       isValid: issues.length === 0,
-      issues
-    };
+      issues,
+    }
   }
 
   /**
    * Generate test data with controlled similarity patterns
    */
   async generateTestVectorData(
-    table: string,
-    embeddingColumn: string,
+    _table: string,
+    _embeddingColumn: string,
     count: number,
-    clusters: number = 3
+    clusters = 3
   ): Promise<VectorEmbedding[]> {
-    const embeddings: VectorEmbedding[] = [];
-    
+    const embeddings: VectorEmbedding[] = []
+
     // Generate cluster centers
-    const clusterCenters = Array.from({ length: clusters }, (_, i) => 
+    const clusterCenters = Array.from({ length: clusters }, (_, i) =>
       this.generateFakeEmbedding(`cluster_${i}`)
-    );
+    )
 
     // Generate embeddings around cluster centers
     for (let i = 0; i < count; i++) {
-      const clusterIndex = i % clusters;
-      const center = clusterCenters[clusterIndex];
-      
+      const clusterIndex = i % clusters
+      const center = clusterCenters[clusterIndex]
+
       // Add some noise to create variation within clusters
-      const noise = this.generateFakeEmbedding(`item_${i}_noise`);
-      const embedding = center.map((val, idx) => 
-        val * 0.8 + noise[idx] * 0.2
-      );
-      
+      const noise = this.generateFakeEmbedding(`item_${i}_noise`)
+      const embedding = center.map((val, idx) => val * 0.8 + noise[idx] * 0.2)
+
       embeddings.push({
         id: `test_item_${i}`,
         embedding: this.normalizeVector(embedding),
         metadata: {
           cluster: clusterIndex,
-          generated_at: new Date().toISOString()
-        }
-      });
+          generated_at: new Date().toISOString(),
+        },
+      })
     }
 
-    return embeddings;
+    return embeddings
   }
 
   /**
@@ -381,79 +409,79 @@ export class VectorTestUtils {
     table: string,
     embeddingColumn: string,
     indexName: string,
-    m: number = 16,
-    ef_construction: number = 200
+    m = 16,
+    ef_construction = 200
   ): Promise<{ buildTime: number; indexSize: string; rowCount: number }> {
     // Get row count before building index
     const rowCountResult = await this.query(`
       SELECT COUNT(*) as count FROM ${table} WHERE ${embeddingColumn} IS NOT NULL
-    `);
-    const rowCount = rowCountResult[0].count;
+    `)
+    const rowCount = rowCountResult[0].count
 
     // Measure index build time
-    const startTime = performance.now();
-    
+    const startTime = performance.now()
+
     await this.query(`
       CREATE INDEX ${indexName} ON ${table} 
       USING hnsw (${embeddingColumn} halfvec_cosine_ops) 
       WITH (m = ${m}, ef_construction = ${ef_construction})
-    `);
-    
-    const endTime = performance.now();
-    const buildTime = endTime - startTime;
+    `)
+
+    const endTime = performance.now()
+    const buildTime = endTime - startTime
 
     // Get index size
     const sizeResult = await this.query(`
       SELECT pg_size_pretty(pg_relation_size('${indexName}')) as size
-    `);
-    const indexSize = sizeResult[0]?.size || 'unknown';
+    `)
+    const indexSize = sizeResult[0]?.size || 'unknown'
 
     return {
       buildTime,
       indexSize,
-      rowCount: parseInt(rowCount)
-    };
+      rowCount: Number.parseInt(rowCount),
+    }
   }
 
   // Utility methods
 
   private seededRandom(seed?: string): () => number {
-    let seedValue = 0;
+    let seedValue = 0
     if (seed) {
       for (let i = 0; i < seed.length; i++) {
-        seedValue += seed.charCodeAt(i);
+        seedValue += seed.charCodeAt(i)
       }
     } else {
-      seedValue = Math.floor(Math.random() * 1000000);
+      seedValue = Math.floor(Math.random() * 1000000)
     }
-    
+
     return () => {
-      seedValue = (seedValue * 9301 + 49297) % 233280;
-      return seedValue / 233280;
-    };
+      seedValue = (seedValue * 9301 + 49297) % 233280
+      return seedValue / 233280
+    }
   }
 
   private normalizeVector(vector: number[]): number[] {
-    const magnitude = Math.sqrt(vector.reduce((sum, val) => sum + val * val, 0));
-    return magnitude > 0 ? vector.map(val => val / magnitude) : vector;
+    const magnitude = Math.sqrt(vector.reduce((sum, val) => sum + val * val, 0))
+    return magnitude > 0 ? vector.map(val => val / magnitude) : vector
   }
 
   private cosineSimilarity(a: number[], b: number[]): number {
     if (a.length !== b.length) {
-      throw new Error('Vectors must have the same length');
+      throw new Error('Vectors must have the same length')
     }
 
-    let dotProduct = 0;
-    let normA = 0;
-    let normB = 0;
+    let dotProduct = 0
+    let normA = 0
+    let normB = 0
 
     for (let i = 0; i < a.length; i++) {
-      dotProduct += a[i] * b[i];
-      normA += a[i] * a[i];
-      normB += b[i] * b[i];
+      dotProduct += a[i] * b[i]
+      normA += a[i] * a[i]
+      normB += b[i] * b[i]
     }
 
-    return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+    return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB))
   }
 }
 
@@ -467,7 +495,7 @@ export const vectorTestHelpers = {
   assertSimilarityOrdering: (results: Array<{ similarity: number }>) => {
     for (let i = 1; i < results.length; i++) {
       if (results[i].similarity > results[i - 1].similarity) {
-        throw new Error(`Similarity results not properly ordered at position ${i}`);
+        throw new Error(`Similarity results not properly ordered at position ${i}`)
       }
     }
   },
@@ -475,10 +503,10 @@ export const vectorTestHelpers = {
   /**
    * Assert that similarities are within expected range
    */
-  assertSimilarityRange: (similarities: number[], min: number = -1, max: number = 1) => {
+  assertSimilarityRange: (similarities: number[], min = -1, max = 1) => {
     for (const similarity of similarities) {
       if (similarity < min || similarity > max) {
-        throw new Error(`Similarity ${similarity} is outside expected range [${min}, ${max}]`);
+        throw new Error(`Similarity ${similarity} is outside expected range [${min}, ${max}]`)
       }
     }
   },
@@ -487,20 +515,20 @@ export const vectorTestHelpers = {
    * Create a test embedding with specific characteristics
    */
   createTestEmbedding: (type: 'positive' | 'negative' | 'sparse' | 'dense'): number[] => {
-    const utils = new VectorTestUtils('');
-    const base = utils.generateFakeEmbedding(type);
-    
+    const utils = new VectorTestUtils('')
+    const base = utils.generateFakeEmbedding(type)
+
     switch (type) {
       case 'positive':
-        return base.map(val => Math.abs(val));
+        return base.map(val => Math.abs(val))
       case 'negative':
-        return base.map(val => -Math.abs(val));
+        return base.map(val => -Math.abs(val))
       case 'sparse':
-        return base.map(val => Math.random() > 0.9 ? val : 0);
+        return base.map(val => (Math.random() > 0.9 ? val : 0))
       case 'dense':
-        return base.map(val => val + (Math.random() - 0.5) * 0.1);
+        return base.map(val => val + (Math.random() - 0.5) * 0.1)
       default:
-        return base;
+        return base
     }
   },
 
@@ -508,14 +536,14 @@ export const vectorTestHelpers = {
    * Generate test query vectors for different scenarios
    */
   generateTestQueries: () => {
-    const utils = new VectorTestUtils('');
+    const utils = new VectorTestUtils('')
     return {
       typical: utils.generateFakeEmbedding('typical_query'),
       edge_case_zeros: new Array(1536).fill(0),
       edge_case_ones: new Array(1536).fill(1),
-      edge_case_alternating: Array.from({ length: 1536 }, (_, i) => i % 2 === 0 ? 1 : -1),
+      edge_case_alternating: Array.from({ length: 1536 }, (_, i) => (i % 2 === 0 ? 1 : -1)),
       high_magnitude: utils.generateFakeEmbedding('high_mag').map(val => val * 10),
-      low_magnitude: utils.generateFakeEmbedding('low_mag').map(val => val * 0.01)
-    };
-  }
-};
+      low_magnitude: utils.generateFakeEmbedding('low_mag').map(val => val * 0.01),
+    }
+  },
+}

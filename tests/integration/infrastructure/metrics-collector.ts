@@ -1,11 +1,11 @@
 /**
  * Metrics Collector for Integration Tests
- * 
+ *
  * Collects performance metrics, cache statistics, and resource usage
  * during integration test execution.
  */
 
-import type { TestMetrics, MetricsCollector as IMetricsCollector } from './test-config'
+import type { MetricsCollector as IMetricsCollector, TestMetrics } from './test-config'
 
 interface ApiCallMetric {
   endpoint: string
@@ -37,7 +37,7 @@ export class MetricsCollector implements IMetricsCollector {
   private cacheMetrics: CacheMetric[] = []
   private memoryMetrics: MemoryMetric[] = []
   private rateLimitMetrics: RateLimitMetric[] = []
-  
+
   /**
    * Record an API call
    */
@@ -46,10 +46,10 @@ export class MetricsCollector implements IMetricsCollector {
       endpoint,
       duration,
       status,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     })
   }
-  
+
   /**
    * Record a cache hit
    */
@@ -57,10 +57,10 @@ export class MetricsCollector implements IMetricsCollector {
     this.cacheMetrics.push({
       key,
       hit: true,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     })
   }
-  
+
   /**
    * Record a cache miss
    */
@@ -68,20 +68,20 @@ export class MetricsCollector implements IMetricsCollector {
     this.cacheMetrics.push({
       key,
       hit: false,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     })
   }
-  
+
   /**
    * Record memory usage
    */
   recordMemoryUsage(usage: number): void {
     this.memoryMetrics.push({
       usage,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     })
   }
-  
+
   /**
    * Record rate limit status
    */
@@ -90,10 +90,10 @@ export class MetricsCollector implements IMetricsCollector {
       resource,
       remaining,
       limit,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     })
   }
-  
+
   /**
    * Get aggregated metrics
    */
@@ -102,7 +102,7 @@ export class MetricsCollector implements IMetricsCollector {
     const apiCallsByEndpoint: Record<string, number> = {}
     let totalDuration = 0
     let errorCount = 0
-    
+
     for (const call of this.apiCalls) {
       apiCallsByEndpoint[call.endpoint] = (apiCallsByEndpoint[call.endpoint] || 0) + 1
       totalDuration += call.duration
@@ -110,52 +110,55 @@ export class MetricsCollector implements IMetricsCollector {
         errorCount++
       }
     }
-    
+
     // Cache metrics
     const cacheHits = this.cacheMetrics.filter(m => m.hit).length
     const cacheMisses = this.cacheMetrics.filter(m => !m.hit).length
     const cacheTotal = cacheHits + cacheMisses
-    
+
     // Memory metrics
     const memoryUsages = this.memoryMetrics.map(m => m.usage)
     const peakMemory = memoryUsages.length > 0 ? Math.max(...memoryUsages) : 0
-    const avgMemory = memoryUsages.length > 0 
-      ? memoryUsages.reduce((a, b) => a + b, 0) / memoryUsages.length 
-      : 0
-    const memoryGrowth = memoryUsages.length > 1 
-      ? memoryUsages[memoryUsages.length - 1] - memoryUsages[0]
-      : 0
-    
+    const avgMemory =
+      memoryUsages.length > 0 ? memoryUsages.reduce((a, b) => a + b, 0) / memoryUsages.length : 0
+    const lastUsage = memoryUsages.length > 0 ? memoryUsages[memoryUsages.length - 1] : undefined
+    const firstUsage = memoryUsages.length > 0 ? memoryUsages[0] : undefined
+    const memoryGrowth =
+      lastUsage !== undefined && firstUsage !== undefined && memoryUsages.length > 1
+        ? lastUsage - firstUsage
+        : 0
+
     // Rate limit metrics
     const rateLimitTriggered = this.rateLimitMetrics.filter(m => m.remaining === 0).length
-    const minRemaining = this.rateLimitMetrics.length > 0
-      ? Math.min(...this.rateLimitMetrics.map(m => m.remaining))
-      : Infinity
-    
+    const minRemaining =
+      this.rateLimitMetrics.length > 0
+        ? Math.min(...this.rateLimitMetrics.map(m => m.remaining))
+        : Number.POSITIVE_INFINITY
+
     return {
       apiCalls: {
         total: this.apiCalls.length,
         byEndpoint: apiCallsByEndpoint,
         averageDuration: this.apiCalls.length > 0 ? totalDuration / this.apiCalls.length : 0,
-        errorRate: this.apiCalls.length > 0 ? errorCount / this.apiCalls.length : 0
+        errorRate: this.apiCalls.length > 0 ? errorCount / this.apiCalls.length : 0,
       },
       cache: {
         hits: cacheHits,
         misses: cacheMisses,
-        hitRate: cacheTotal > 0 ? cacheHits / cacheTotal : 0
+        hitRate: cacheTotal > 0 ? cacheHits / cacheTotal : 0,
       },
       memory: {
         peak: peakMemory,
         average: avgMemory,
-        growth: memoryGrowth
+        growth: memoryGrowth,
       },
       rateLimit: {
         triggered: rateLimitTriggered,
-        minimumRemaining: minRemaining === Infinity ? -1 : minRemaining
-      }
+        minimumRemaining: minRemaining === Number.POSITIVE_INFINITY ? -1 : minRemaining,
+      },
     }
   }
-  
+
   /**
    * Reset all metrics
    */
@@ -165,28 +168,32 @@ export class MetricsCollector implements IMetricsCollector {
     this.memoryMetrics = []
     this.rateLimitMetrics = []
   }
-  
+
   /**
    * Export metrics to JSON
    */
   exportToJSON(): string {
-    return JSON.stringify({
-      metrics: this.getMetrics(),
-      raw: {
-        apiCalls: this.apiCalls,
-        cacheMetrics: this.cacheMetrics,
-        memoryMetrics: this.memoryMetrics,
-        rateLimitMetrics: this.rateLimitMetrics
-      }
-    }, null, 2)
+    return JSON.stringify(
+      {
+        metrics: this.getMetrics(),
+        raw: {
+          apiCalls: this.apiCalls,
+          cacheMetrics: this.cacheMetrics,
+          memoryMetrics: this.memoryMetrics,
+          rateLimitMetrics: this.rateLimitMetrics,
+        },
+      },
+      null,
+      2
+    )
   }
-  
+
   /**
    * Generate a summary report
    */
   generateReport(): string {
     const metrics = this.getMetrics()
-    
+
     return `
 Integration Test Metrics Report
 ==============================
@@ -222,14 +229,14 @@ Rate Limiting:
  * Memory profiler for integration tests
  */
 export class MemoryProfiler {
-  private collector: MetricsCollector
+  private collector: IMetricsCollector
   private interval: NodeJS.Timeout | null = null
-  private baseline: number = 0
-  
-  constructor(collector: MetricsCollector) {
+  private baseline = 0
+
+  constructor(collector: IMetricsCollector) {
     this.collector = collector
   }
-  
+
   /**
    * Start memory profiling
    */
@@ -237,21 +244,21 @@ export class MemoryProfiler {
     if (this.interval) {
       return
     }
-    
+
     // Record baseline
     if (global.gc) {
       global.gc()
     }
     this.baseline = process.memoryUsage().heapUsed
     this.collector.recordMemoryUsage(this.baseline)
-    
+
     // Start periodic sampling
     this.interval = setInterval(() => {
       const usage = process.memoryUsage().heapUsed
       this.collector.recordMemoryUsage(usage)
     }, intervalMs)
   }
-  
+
   /**
    * Stop memory profiling
    */
@@ -261,7 +268,7 @@ export class MemoryProfiler {
       this.interval = null
     }
   }
-  
+
   /**
    * Force garbage collection and measure
    */

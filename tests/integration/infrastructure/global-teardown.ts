@@ -1,19 +1,24 @@
 /**
  * Global Teardown for Integration Tests
- * 
+ *
  * Performs cleanup after all integration tests complete,
  * including resource cleanup, final report generation,
  * and performance analysis.
  */
 
-import { readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs'
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { GlobalTeardownContext } from 'vitest/node'
+
+// Type for global teardown context - Vitest may not export this directly
+interface GlobalTeardownContext {
+  provide(key: string, value: unknown): void
+}
+
 import { createPerformanceAnalyzer } from './performance-analyzer'
 
 export default async function globalTeardown({ provide }: GlobalTeardownContext) {
   console.log('\n🧹 Starting Integration Test Global Teardown')
-  console.log('=' .repeat(60))
+  console.log('='.repeat(60))
 
   const teardownStartTime = Date.now()
 
@@ -26,7 +31,7 @@ export default async function globalTeardown({ provide }: GlobalTeardownContext)
       try {
         const cleanupTasks = JSON.parse(readFileSync(cleanupTasksPath, 'utf-8'))
         console.log(`🗑️  Performing cleanup for ${cleanupTasks.length} test artifacts`)
-        
+
         for (const task of cleanupTasks) {
           try {
             await performCleanupTask(task)
@@ -34,7 +39,7 @@ export default async function globalTeardown({ provide }: GlobalTeardownContext)
             console.warn(`⚠️  Failed to cleanup ${task.type} ${task.identifier}:`, error)
           }
         }
-        
+
         console.log('✅ Test data cleanup completed')
       } catch (error) {
         console.warn('⚠️  Failed to read cleanup tasks:', error)
@@ -45,7 +50,7 @@ export default async function globalTeardown({ provide }: GlobalTeardownContext)
     if (global.gc) {
       global.gc()
       const finalMemory = process.memoryUsage()
-      
+
       const memoryReport = {
         timestamp: new Date().toISOString(),
         finalMemory: {
@@ -63,13 +68,13 @@ export default async function globalTeardown({ provide }: GlobalTeardownContext)
         },
         gcStats: {
           forced: true,
-          timestamp: Date.now()
-        }
+          timestamp: Date.now(),
+        },
       }
-      
+
       const memoryReportPath = join(reportsDir, 'final-memory-report.json')
       writeFileSync(memoryReportPath, JSON.stringify(memoryReport, null, 2))
-      
+
       console.log('🧠 Final Memory Report:')
       console.log(`  - RSS: ${memoryReport.formattedMemory.rss}`)
       console.log(`  - Heap Used: ${memoryReport.formattedMemory.heapUsed}`)
@@ -84,31 +89,33 @@ export default async function globalTeardown({ provide }: GlobalTeardownContext)
         const report = JSON.parse(readFileSync(latestReportPath, 'utf-8'))
         const analyzer = createPerformanceAnalyzer({
           baselineDir: join(reportsDir, 'baselines'),
-          reportsDir
+          reportsDir,
         })
-        
+
         const analysis = analyzer.analyzePerformance(report)
-        
+
         console.log('\n📈 Final Performance Analysis:')
         console.log(`  - Total Tests: ${analysis.summary.totalTests}`)
         console.log(`  - Regressions: ${analysis.summary.regressions}`)
         console.log(`  - Improvements: ${analysis.summary.improvements}`)
         console.log(`  - Critical Issues: ${analysis.summary.criticalIssues}`)
-        
+
         if (analysis.summary.criticalIssues > 0) {
           console.log('\n🚨 Critical Performance Issues Detected:')
           analysis.regressions
             .filter(r => r.severity === 'critical')
             .forEach(regression => {
-              console.log(`  - ${regression.testName}: ${regression.metric} increased by ${regression.regressionPercent.toFixed(1)}%`)
+              console.log(
+                `  - ${regression.testName}: ${regression.metric} increased by ${regression.regressionPercent.toFixed(1)}%`
+              )
             })
         }
-        
+
         // Generate performance summary
         const performanceSummaryPath = join(reportsDir, 'performance-summary.txt')
         const summary = analyzer.generatePerformanceReport(analysis)
         writeFileSync(performanceSummaryPath, summary)
-        
+
         console.log('✅ Performance analysis completed')
       }
     } catch (error) {
@@ -118,13 +125,13 @@ export default async function globalTeardown({ provide }: GlobalTeardownContext)
     // Generate test execution summary
     const teardownEndTime = Date.now()
     const teardownDuration = teardownEndTime - teardownStartTime
-    
+
     const executionSummary = {
       teardown: {
         startTime: teardownStartTime,
         endTime: teardownEndTime,
         duration: teardownDuration,
-        success: true
+        success: true,
       },
       timestamp: new Date().toISOString(),
       environment: {
@@ -132,10 +139,10 @@ export default async function globalTeardown({ provide }: GlobalTeardownContext)
         platform: process.platform,
         arch: process.arch,
         cwd: process.cwd(),
-        env: process.env.NODE_ENV
-      }
+        env: process.env.NODE_ENV,
+      },
     }
-    
+
     const summaryPath = join(reportsDir, 'execution-summary.json')
     writeFileSync(summaryPath, JSON.stringify(executionSummary, null, 2))
 
@@ -143,29 +150,28 @@ export default async function globalTeardown({ provide }: GlobalTeardownContext)
     await cleanupTemporaryFiles(reportsDir)
 
     console.log(`\n✅ Global teardown completed in ${teardownDuration}ms`)
-    console.log('=' .repeat(60))
-
+    console.log('='.repeat(60))
   } catch (error) {
     console.error('❌ Global teardown failed:', error)
-    
+
     // Save error report
     const errorReport = {
       timestamp: new Date().toISOString(),
       error: {
         message: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
-        type: error instanceof Error ? error.constructor.name : 'Unknown'
+        type: error instanceof Error ? error.constructor.name : 'Unknown',
       },
-      teardownDuration: Date.now() - teardownStartTime
+      teardownDuration: Date.now() - teardownStartTime,
     }
-    
+
     try {
       const errorPath = join('./tests/integration/reports', 'teardown-error.json')
       writeFileSync(errorPath, JSON.stringify(errorReport, null, 2))
     } catch (writeError) {
       console.error('Failed to save error report:', writeError)
     }
-    
+
     // Don't throw - we want the test results to be available even if teardown fails
     console.warn('⚠️  Continuing despite teardown errors')
   }
@@ -243,13 +249,13 @@ async function cleanupTemporaryFiles(reportsDir: string): Promise<void> {
       join(reportsDir, 'cleanup-tasks.json'),
       join(reportsDir, 'metrics-config.json'),
     ]
-    
+
     for (const file of tempFiles) {
       if (existsSync(file)) {
         rmSync(file, { force: true })
       }
     }
-    
+
     console.log('🧹 Temporary files cleaned up')
   } catch (error) {
     console.warn('⚠️  Failed to cleanup temporary files:', error)

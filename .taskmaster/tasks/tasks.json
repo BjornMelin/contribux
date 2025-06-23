@@ -353,6 +353,15 @@
             "status": "done",
             "dependencies": [],
             "parentTaskId": 3
+          },
+          {
+            "id": 17,
+            "title": "Fix Auth Test Configuration Errors",
+            "description": "Fix ~15 auth test configuration errors by updating tests to match new GitHubClientConfig interface",
+            "details": "Updated auth integration tests to use correct client configuration by removing OAuth auth type usage (GitHubClient only supports 'token' and 'app' auth types), fixing references to old API response formats, updating test expectations to match new client return types, removing config options not in new GitHubClientConfig interface, and fixing method calls expecting different signatures. All auth integration tests now have correct types with no TypeScript errors.",
+            "status": "done",
+            "dependencies": [],
+            "parentTaskId": 3
           }
         ]
       },
@@ -2780,7 +2789,7 @@
     ],
     "metadata": {
       "created": "2025-06-19T21:07:56.850Z",
-      "updated": "2025-06-23T02:58:07.861Z",
+      "updated": "2025-06-23T16:00:33.172Z",
       "description": "Tasks for master context"
     }
   }

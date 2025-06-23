@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeAll } from 'vitest'
 import { Client } from 'pg'
+import { beforeAll, describe, expect, it } from 'vitest'
 
 // This test is isolated from global setup to avoid any mocking interference
 // Database URL should be set in environment variables
@@ -12,26 +12,27 @@ describe('Authentication Database Schema (Isolated)', () => {
     if (!DATABASE_URL_TEST) {
       throw new Error('DATABASE_URL_TEST must be set in environment for this test')
     }
-    
+
     // For local databases, use pg client
     if (DATABASE_URL_TEST.includes('localhost') || DATABASE_URL_TEST.includes('127.0.0.1')) {
       const client = new Client({ connectionString: DATABASE_URL_TEST })
       await client.connect()
-      
+
       sql = async (strings: TemplateStringsArray, ...values: any[]) => {
         const query = strings.join('$')
         const result = await client.query(query, values)
         return result.rows
       }
-      
+
       // Store client for cleanup
-      (sql as any).client = client
+
+      ;(sql as any).client = client
     } else {
       // Dynamic import to avoid setup file interference
       const { neon } = await import('@neondatabase/serverless')
       sql = neon(DATABASE_URL_TEST)
     }
-    
+
     // Simple connection test
     try {
       const result = await sql`SELECT 1 as test`
@@ -50,7 +51,7 @@ describe('Authentication Database Schema (Isolated)', () => {
         WHERE table_schema = 'public' 
         AND table_name = 'webauthn_credentials'
       `
-      
+
       expect(Array.isArray(tables)).toBe(true)
       expect(tables).toHaveLength(1)
       expect(tables[0]?.table_name).toBe('webauthn_credentials')
@@ -63,7 +64,7 @@ describe('Authentication Database Schema (Isolated)', () => {
         WHERE table_name = 'webauthn_credentials'
         ORDER BY ordinal_position
       `
-      
+
       const expectedColumns = [
         { column_name: 'id', data_type: 'uuid', is_nullable: 'NO' },
         { column_name: 'user_id', data_type: 'uuid', is_nullable: 'NO' },
@@ -75,12 +76,12 @@ describe('Authentication Database Schema (Isolated)', () => {
         { column_name: 'transports', data_type: 'ARRAY', is_nullable: 'YES' },
         { column_name: 'created_at', data_type: 'timestamp with time zone', is_nullable: 'YES' }, // Has DEFAULT NOW()
         { column_name: 'last_used_at', data_type: 'timestamp with time zone', is_nullable: 'YES' },
-        { column_name: 'name', data_type: 'text', is_nullable: 'YES' }
+        { column_name: 'name', data_type: 'text', is_nullable: 'YES' },
       ]
-      
+
       expect(Array.isArray(columns)).toBe(true)
       expect(columns.length).toBeGreaterThanOrEqual(expectedColumns.length)
-      
+
       expectedColumns.forEach(expected => {
         const column = columns.find((c: any) => c.column_name === expected.column_name)
         expect(column).toBeDefined()
@@ -100,7 +101,7 @@ describe('Authentication Database Schema (Isolated)', () => {
         WHERE table_schema = 'public' 
         AND table_name = 'auth_challenges'
       `
-      
+
       expect(Array.isArray(tables)).toBe(true)
       expect(tables).toHaveLength(1)
       expect(tables[0]?.table_name).toBe('auth_challenges')
@@ -115,7 +116,7 @@ describe('Authentication Database Schema (Isolated)', () => {
         WHERE table_schema = 'public' 
         AND table_name = 'user_sessions'
       `
-      
+
       expect(Array.isArray(tables)).toBe(true)
       expect(tables).toHaveLength(1)
       expect(tables[0]?.table_name).toBe('user_sessions')
@@ -130,7 +131,7 @@ describe('Authentication Database Schema (Isolated)', () => {
         WHERE table_schema = 'public' 
         AND table_name = 'oauth_accounts'
       `
-      
+
       expect(Array.isArray(tables)).toBe(true)
       expect(tables).toHaveLength(1)
       expect(tables[0]?.table_name).toBe('oauth_accounts')
@@ -145,7 +146,7 @@ describe('Authentication Database Schema (Isolated)', () => {
         WHERE table_schema = 'public' 
         AND table_name = 'security_audit_logs'
       `
-      
+
       expect(Array.isArray(tables)).toBe(true)
       expect(tables).toHaveLength(1)
       expect(tables[0]?.table_name).toBe('security_audit_logs')
@@ -160,7 +161,7 @@ describe('Authentication Database Schema (Isolated)', () => {
         WHERE table_schema = 'public' 
         AND table_name = 'user_consents'
       `
-      
+
       expect(Array.isArray(tables)).toBe(true)
       expect(tables).toHaveLength(1)
       expect(tables[0]?.table_name).toBe('user_consents')
@@ -175,7 +176,7 @@ describe('Authentication Database Schema (Isolated)', () => {
         WHERE table_schema = 'public' 
         AND table_name = 'refresh_tokens'
       `
-      
+
       expect(Array.isArray(tables)).toBe(true)
       expect(tables).toHaveLength(1)
       expect(tables[0]?.table_name).toBe('refresh_tokens')
@@ -190,7 +191,7 @@ describe('Authentication Database Schema (Isolated)', () => {
         WHERE table_name = 'webauthn_credentials'
         AND constraint_type = 'FOREIGN KEY'
       `
-      
+
       expect(Array.isArray(fks)).toBe(true)
       expect(fks.length).toBeGreaterThan(0)
     })
@@ -202,7 +203,7 @@ describe('Authentication Database Schema (Isolated)', () => {
         WHERE table_name = 'oauth_accounts'
         AND constraint_type = 'FOREIGN KEY'
       `
-      
+
       expect(Array.isArray(fks)).toBe(true)
       expect(fks.length).toBeGreaterThan(0)
     })

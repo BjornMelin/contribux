@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { generateAccessToken, verifyAccessToken } from '@/lib/auth/jwt'
 import type { User } from '@/types/auth'
 
@@ -18,8 +18,8 @@ vi.mock('@/lib/config', () => ({
     jwt: {
       accessTokenExpiry: 900, // 15 minutes
       refreshTokenExpiry: 604800, // 7 days
-    }
-  }
+    },
+  },
 }))
 
 describe('JWT Jose Library Integration', () => {
@@ -34,14 +34,14 @@ describe('JWT Jose Library Integration', () => {
     failed_login_attempts: 0,
     last_login_at: null,
     created_at: new Date(),
-    updated_at: new Date()
+    updated_at: new Date(),
   }
 
   const mockSession = {
     id: 'session-123',
     user_id: mockUser.id,
     created_at: new Date(),
-    expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000)
+    expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
   }
 
   beforeEach(() => {
@@ -51,21 +51,21 @@ describe('JWT Jose Library Integration', () => {
   describe('Access Token Generation with Jose', () => {
     it('should generate a valid JWT with proper structure', async () => {
       const token = await generateAccessToken(mockUser, mockSession, 'oauth')
-      
+
       // Should be a valid JWT with 3 parts
       expect(typeof token).toBe('string')
       expect(token).toMatch(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/)
-      
+
       const parts = token.split('.')
       expect(parts).toHaveLength(3)
     })
 
     it('should include required JWT claims', async () => {
       const token = await generateAccessToken(mockUser, mockSession, 'oauth')
-      
+
       // Verify the token can be decoded and contains expected claims
       const payload = await verifyAccessToken(token)
-      
+
       expect(payload).toMatchObject({
         sub: mockUser.id,
         email: mockUser.email,
@@ -73,9 +73,9 @@ describe('JWT Jose Library Integration', () => {
         auth_method: 'oauth',
         session_id: mockSession.id,
         iss: 'contribux',
-        aud: ['contribux-api']
+        aud: ['contribux-api'],
       })
-      
+
       // Should have expiration
       expect(payload.exp).toBeDefined()
       expect(payload.iat).toBeDefined()
@@ -84,16 +84,14 @@ describe('JWT Jose Library Integration', () => {
 
     it('should use HS256 algorithm for signing', async () => {
       const token = await generateAccessToken(mockUser, mockSession, 'oauth')
-      
+
       // Decode header without verification
       const headerB64 = token.split('.')[0]
       if (!headerB64) {
         throw new Error('Invalid token format')
       }
-      const header = JSON.parse(
-        Buffer.from(headerB64, 'base64url').toString()
-      )
-      
+      const header = JSON.parse(Buffer.from(headerB64, 'base64url').toString())
+
       expect(header.alg).toBe('HS256')
       expect(header.typ).toBe('JWT')
     })
@@ -102,9 +100,9 @@ describe('JWT Jose Library Integration', () => {
       const beforeGeneration = Math.floor(Date.now() / 1000)
       const token = await generateAccessToken(mockUser, mockSession, 'oauth')
       const afterGeneration = Math.floor(Date.now() / 1000)
-      
+
       const payload = await verifyAccessToken(token)
-      
+
       // Should expire in approximately 15 minutes (900 seconds)
       const expectedExpiry = beforeGeneration + 900
       expect(payload.exp).toBeGreaterThanOrEqual(expectedExpiry - 5) // Allow 5 second tolerance
@@ -116,7 +114,7 @@ describe('JWT Jose Library Integration', () => {
     it('should verify valid tokens', async () => {
       const token = await generateAccessToken(mockUser, mockSession, 'oauth')
       const payload = await verifyAccessToken(token)
-      
+
       expect(payload).toBeDefined()
       expect(payload.sub).toBe(mockUser.id)
       expect(payload.email).toBe(mockUser.email)
@@ -130,18 +128,18 @@ describe('JWT Jose Library Integration', () => {
 
     it('should reject tokens with invalid signature', async () => {
       const token = await generateAccessToken(mockUser, mockSession, 'oauth')
-      
+
       // Tamper with the signature
       const parts = token.split('.')
       const tamperedToken = `${parts[0]}.${parts[1]}.invalid-signature`
-      
+
       await expect(verifyAccessToken(tamperedToken)).rejects.toThrow()
     })
 
     it('should include jti (JWT ID) for replay protection', async () => {
       const token = await generateAccessToken(mockUser, mockSession, 'oauth')
       const payload = await verifyAccessToken(token)
-      
+
       expect(payload.jti).toBeDefined()
       expect(typeof payload.jti).toBe('string')
     })
@@ -149,10 +147,10 @@ describe('JWT Jose Library Integration', () => {
     it('should generate unique JTI for each token', async () => {
       const token1 = await generateAccessToken(mockUser, mockSession, 'oauth')
       const token2 = await generateAccessToken(mockUser, mockSession, 'oauth')
-      
+
       const payload1 = await verifyAccessToken(token1)
       const payload2 = await verifyAccessToken(token2)
-      
+
       expect(payload1.jti).not.toBe(payload2.jti)
     })
   })
@@ -161,22 +159,22 @@ describe('JWT Jose Library Integration', () => {
     it('should use cryptographically secure signatures', async () => {
       const token1 = await generateAccessToken(mockUser, mockSession, 'oauth')
       const token2 = await generateAccessToken(mockUser, mockSession, 'oauth')
-      
+
       // Different tokens should have different signatures even with same payload
       const sig1 = token1.split('.')[2]
       const sig2 = token2.split('.')[2]
-      
+
       expect(sig1).not.toBe(sig2)
     })
 
     it('should properly handle buffer conversion for secrets', async () => {
       // This tests that our jose implementation properly converts string secrets to Uint8Array
       const token = await generateAccessToken(mockUser, mockSession, 'oauth')
-      
+
       // Should not throw and should produce a valid token
       expect(token).toBeDefined()
       expect(typeof token).toBe('string')
-      
+
       // Should be verifiable
       const payload = await verifyAccessToken(token)
       expect(payload.sub).toBe(mockUser.id)

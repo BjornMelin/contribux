@@ -2,7 +2,7 @@
 
 /**
  * Setup Verification Script
- * 
+ *
  * Verifies that the integration test reporting system is properly configured
  * and all dependencies are available.
  */
@@ -10,13 +10,13 @@
 import { existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { MetricsCollector } from './metrics-collector'
-import { createIntegrationTestReporter } from './reporter'
 import { createPerformanceAnalyzer } from './performance-analyzer'
+import { createIntegrationTestReporter } from './reporter'
 import { loadIntegrationTestEnv } from './test-config'
 
 async function verifySetup() {
   console.log('🔍 Verifying Integration Test Setup')
-  console.log('=' .repeat(50))
+  console.log('='.repeat(50))
 
   let hasErrors = false
 
@@ -26,34 +26,34 @@ async function verifySetup() {
     let env
     try {
       env = loadIntegrationTestEnv()
-    } catch (error) {
+    } catch (_error) {
       console.log('  ⚠️  Environment validation failed - checking individual variables...')
       env = {
         GITHUB_TEST_TOKEN: process.env.GITHUB_TEST_TOKEN,
         GITHUB_TEST_ORG: process.env.GITHUB_TEST_ORG || 'test-org',
         GITHUB_TEST_REPO_PREFIX: process.env.GITHUB_TEST_REPO_PREFIX || 'contribux-test-',
-        TEST_TIMEOUT: parseInt(process.env.TEST_TIMEOUT || '60000'),
-        TEST_CONCURRENCY: parseInt(process.env.TEST_CONCURRENCY || '3'),
+        TEST_TIMEOUT: Number.parseInt(process.env.TEST_TIMEOUT || '60000'),
+        TEST_CONCURRENCY: Number.parseInt(process.env.TEST_CONCURRENCY || '3'),
         TEST_CLEANUP: process.env.TEST_CLEANUP !== 'false',
         LOAD_TEST_ENABLED: process.env.LOAD_TEST_ENABLED === 'true',
-        LOAD_TEST_DURATION: parseInt(process.env.LOAD_TEST_DURATION || '30000'),
-        LOAD_TEST_CONCURRENT_USERS: parseInt(process.env.LOAD_TEST_CONCURRENT_USERS || '10'),
+        LOAD_TEST_DURATION: Number.parseInt(process.env.LOAD_TEST_DURATION || '30000'),
+        LOAD_TEST_CONCURRENT_USERS: Number.parseInt(process.env.LOAD_TEST_CONCURRENT_USERS || '10'),
         METRICS_ENABLED: process.env.METRICS_ENABLED !== 'false',
         MEMORY_PROFILING: process.env.MEMORY_PROFILING !== 'false',
         WEBHOOK_TEST_SECRET: process.env.WEBHOOK_TEST_SECRET || 'test-webhook-secret',
-        WEBHOOK_TEST_PORT: parseInt(process.env.WEBHOOK_TEST_PORT || '3001'),
+        WEBHOOK_TEST_PORT: Number.parseInt(process.env.WEBHOOK_TEST_PORT || '3001'),
         GITHUB_APP_ID: process.env.GITHUB_APP_ID,
         GITHUB_APP_PRIVATE_KEY: process.env.GITHUB_APP_PRIVATE_KEY,
-        GITHUB_APP_INSTALLATION_ID: process.env.GITHUB_APP_INSTALLATION_ID
+        GITHUB_APP_INSTALLATION_ID: process.env.GITHUB_APP_INSTALLATION_ID,
       }
     }
-    
+
     if (env.GITHUB_TEST_TOKEN) {
       console.log('  ✅ GitHub test token configured')
     } else {
       console.log('  ⚠️  GitHub test token missing (GITHUB_TEST_TOKEN) - required for actual tests')
     }
-    
+
     if (env.GITHUB_TEST_ORG) {
       console.log('  ✅ GitHub test organization configured')
     } else {
@@ -83,12 +83,12 @@ async function verifySetup() {
     // Test metrics collector
     console.log('\n📊 Testing metrics collector...')
     const metricsCollector = new MetricsCollector()
-    
+
     // Record some test metrics
     metricsCollector.recordApiCall('/test', 100, 200)
     metricsCollector.recordCacheHit('test-key')
     metricsCollector.recordMemoryUsage(process.memoryUsage().heapUsed)
-    
+
     const metrics = metricsCollector.getMetrics()
     if (metrics.apiCalls.total === 1) {
       console.log('  ✅ Metrics collector working')
@@ -101,9 +101,9 @@ async function verifySetup() {
     console.log('\n📄 Testing reporter...')
     const reporter = createIntegrationTestReporter({
       outputDir: reportsDir,
-      metricsCollector
+      metricsCollector,
     })
-    
+
     if (reporter) {
       console.log('  ✅ Reporter initialized successfully')
     } else {
@@ -115,9 +115,9 @@ async function verifySetup() {
     console.log('\n📈 Testing performance analyzer...')
     const analyzer = createPerformanceAnalyzer({
       baselineDir: baselinesDir,
-      reportsDir
+      reportsDir,
     })
-    
+
     if (analyzer) {
       console.log('  ✅ Performance analyzer initialized successfully')
     } else {
@@ -131,11 +131,11 @@ async function verifySetup() {
       try {
         const response = await fetch('https://api.github.com/user', {
           headers: {
-            'Authorization': `token ${env.GITHUB_TEST_TOKEN}`,
-            'User-Agent': 'contribux-integration-test-setup'
-          }
+            Authorization: `token ${env.GITHUB_TEST_TOKEN}`,
+            'User-Agent': 'contribux-integration-test-setup',
+          },
         })
-        
+
         if (response.ok) {
           const user = await response.json()
           console.log(`  ✅ GitHub API accessible (user: ${user.login})`)
@@ -163,7 +163,7 @@ async function verifySetup() {
     console.log('\n📦 Checking dependencies...')
     try {
       const { program } = await import('commander')
-      if (program) {
+      if (typeof program === 'object' && program !== null) {
         console.log('  ✅ commander available')
       } else {
         console.log('  ❌ commander not working correctly')
@@ -176,7 +176,7 @@ async function verifySetup() {
 
     try {
       const { defineConfig } = await import('vitest/config')
-      if (defineConfig) {
+      if (typeof defineConfig === 'function') {
         console.log('  ✅ vitest available')
       } else {
         console.log('  ❌ vitest not working correctly')
@@ -188,7 +188,7 @@ async function verifySetup() {
     }
 
     // Summary
-    console.log('\n' + '=' .repeat(50))
+    console.log(`\n${'='.repeat(50)}`)
     if (hasErrors) {
       console.log('❌ Setup verification failed - please fix the errors above')
       console.log('\nTo fix common issues:')
@@ -208,7 +208,6 @@ async function verifySetup() {
       console.log('  pnpm test:integration:status # Check status')
       console.log('  pnpm test:integration:report # Generate HTML report')
     }
-
   } catch (error) {
     console.error('\n❌ Setup verification failed with error:', error)
     process.exit(1)

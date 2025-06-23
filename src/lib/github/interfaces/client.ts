@@ -5,18 +5,28 @@
  * the GitHub API client, including authentication and basic request/response types.
  */
 
+import type {
+  GraphQLResponse,
+  GraphQLVariables,
+  OctokitResponse,
+  RestApiMethod,
+} from './octokit-types'
+
 // Local type definitions for GitHub client interfaces
 interface Octokit {
-  rest: Record<string, Record<string, (...args: any[]) => Promise<any>>>
-  graphql: (...args: any[]) => Promise<any>
-  request: (options: RequestOptions) => Promise<any>
+  rest: Record<string, Record<string, RestApiMethod>>
+  graphql: <T = unknown>(query: string, variables?: GraphQLVariables) => Promise<GraphQLResponse<T>>
+  request: <T = unknown>(options: RequestOptions) => Promise<OctokitResponse<T>>
 }
 
 interface Api {
-  rest: Record<string, Record<string, (...args: any[]) => Promise<any>>>
+  rest: Record<string, Record<string, RestApiMethod>>
 }
 
-type GraphQLFunction = (query: string, variables?: Record<string, any>) => Promise<any>
+type GraphQLFunction = <T = unknown>(
+  query: string,
+  variables?: GraphQLVariables
+) => Promise<GraphQLResponse<T>>
 
 import type { CacheOptions } from './cache'
 import type { ThrottleOptions } from './rate-limiting'
@@ -77,23 +87,23 @@ export interface RetryState {
  */
 export interface GitHubClientConfig {
   /** Authentication configuration (token, app, or OAuth) */
-  auth?: GitHubAuthConfig
+  auth?: GitHubAuthConfig | undefined
   /** Custom API base URL (defaults to https://api.github.com) */
-  baseUrl?: string
+  baseUrl?: string | undefined
   /** Custom user agent string */
-  userAgent?: string
+  userAgent?: string | undefined
   /** Rate limiting and throttling options */
-  throttle?: ThrottleOptions
+  throttle?: ThrottleOptions | undefined
   /** Retry logic configuration */
-  retry?: RetryOptions
+  retry?: RetryOptions | undefined
   /** Caching configuration for responses */
-  cache?: CacheOptions
+  cache?: CacheOptions | undefined
   /** Logging level for debugging */
-  log?: LogLevel
+  log?: LogLevel | undefined
   /** Whether to include rate limit info in GraphQL queries */
-  includeRateLimit?: boolean
+  includeRateLimit?: boolean | undefined
   /** Token rotation configuration for multiple tokens */
-  tokenRotation?: TokenRotationConfig
+  tokenRotation?: TokenRotationConfig | undefined
 }
 
 export type GitHubAuthConfig =
@@ -102,7 +112,7 @@ export type GitHubAuthConfig =
       type: 'app'
       appId: number
       privateKey: string
-      installationId?: number
-      webhookSecret?: string
+      installationId?: number | undefined
+      webhookSecret?: string | undefined
     }
   | { type: 'oauth'; clientId: string; clientSecret: string }

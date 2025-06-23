@@ -18,6 +18,7 @@ export interface GitHubRepository {
   created_at: string
   updated_at: string
   stargazers_count: number
+  forks_count: number
   language: string | null
   topics: string[]
   default_branch: string
@@ -81,14 +82,17 @@ export interface GitHubLabel {
 export interface RepositoryIdentifier {
   owner: string
   repo: string
+  [key: string]: unknown
 }
 
 export interface IssueIdentifier extends RepositoryIdentifier {
   issueNumber: number
+  [key: string]: unknown
 }
 
 export interface PullRequestIdentifier extends RepositoryIdentifier {
   pullNumber: number
+  [key: string]: unknown
 }
 
 // Pagination and search types
@@ -101,6 +105,7 @@ export interface SearchOptions extends PaginationOptions {
   q: string
   sort?: 'stars' | 'forks' | 'help-wanted-issues' | 'updated'
   order?: 'asc' | 'desc'
+  [key: string]: unknown
 }
 
 export interface SearchResult<T> {

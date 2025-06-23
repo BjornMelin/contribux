@@ -1,14 +1,13 @@
 /**
  * Custom Vitest Reporter for Integration Tests
- * 
+ *
  * Provides comprehensive test reporting with metrics integration,
  * performance analysis, and quality gates for CI/CD.
  */
 
-import { Reporter } from 'vitest'
-import type { File, Suite, Task, TestResult, UserConfig } from 'vitest'
-import { writeFileSync, mkdirSync, existsSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import type { File, Reporter, Suite, Task } from 'vitest'
 import type { MetricsCollector, TestMetrics } from './test-config'
 
 export interface TestReport {
@@ -45,20 +44,22 @@ export interface TestCaseReport {
   name: string
   status: 'passed' | 'failed' | 'skipped' | 'todo'
   duration: number
-  error?: TestError
+  error?: TestError | undefined
   retries: number
-  metadata?: Record<string, unknown>
+  metadata?: Record<string, unknown> | undefined
 }
 
 export interface TestError {
   message: string
-  stack?: string
+  stack?: string | undefined
   type: string
-  location?: {
-    file: string
-    line: number
-    column: number
-  }
+  location?:
+    | {
+        file: string
+        line: number
+        column: number
+      }
+    | undefined
 }
 
 export interface PerformanceReport {
@@ -101,9 +102,9 @@ export interface QualityGateResult {
 }
 
 export class IntegrationTestReporter implements Reporter {
-  private metricsCollector?: MetricsCollector
-  private startTime: number = 0
-  private endTime: number = 0
+  private metricsCollector?: MetricsCollector | undefined
+  private startTime = 0
+  private endTime = 0
   private report: TestReport | null = null
   private outputDir: string
   private qualityGates: QualityGate[]
@@ -111,24 +112,24 @@ export class IntegrationTestReporter implements Reporter {
   constructor(
     options: {
       outputDir?: string
-      metricsCollector?: MetricsCollector
+      metricsCollector?: MetricsCollector | undefined
       qualityGates?: QualityGate[]
     } = {}
   ) {
     this.outputDir = options.outputDir || './tests/integration/reports'
     this.metricsCollector = options.metricsCollector
     this.qualityGates = options.qualityGates || this.getDefaultQualityGates()
-    
+
     // Ensure output directory exists
     if (!existsSync(this.outputDir)) {
       mkdirSync(this.outputDir, { recursive: true })
     }
   }
 
-  onInit(ctx: any): void {
+  onInit(): void {
     this.startTime = Date.now()
     console.log('🚀 Integration Test Reporter initialized')
-    
+
     if (this.metricsCollector) {
       this.metricsCollector.reset()
       console.log('📊 Metrics collection enabled')
@@ -149,7 +150,7 @@ export class IntegrationTestReporter implements Reporter {
     }
   }
 
-  private generateReport(files: File[], errors: unknown[], duration: number): TestReport {
+  private generateReport(files: File[], _errors: unknown[], duration: number): TestReport {
     const suites = files.map(file => this.processSuite(file))
     const summary = this.generateSummary(files)
     const performance = this.generatePerformanceReport(files, duration)
@@ -164,7 +165,7 @@ export class IntegrationTestReporter implements Reporter {
       qualityGates,
       timestamp: new Date().toISOString(),
       duration,
-      environment: process.env.NODE_ENV || 'test'
+      environment: process.env.NODE_ENV || 'test',
     }
   }
 
@@ -180,7 +181,7 @@ export class IntegrationTestReporter implements Reporter {
       duration,
       tests,
       status,
-      errors
+      errors,
     }
   }
 
@@ -195,7 +196,7 @@ export class IntegrationTestReporter implements Reporter {
           duration: task.result?.duration || 0,
           error: task.result?.errors?.[0] ? this.formatError(task.result.errors[0]) : undefined,
           retries: task.result?.retryCount || 0,
-          metadata: this.extractTestMetadata(task)
+          metadata: this.extractTestMetadata(task),
         })
       } else if (task.type === 'suite' && task.tasks) {
         task.tasks.forEach(processTask)
@@ -233,11 +234,13 @@ export class IntegrationTestReporter implements Reporter {
       message: error.message || 'Unknown error',
       stack: error.stack,
       type: error.name || error.constructor?.name || 'Error',
-      location: error.location ? {
-        file: error.location.file,
-        line: error.location.line,
-        column: error.location.column
-      } : undefined
+      location: error.location
+        ? {
+            file: error.location.file,
+            line: error.location.line,
+            column: error.location.column,
+          }
+        : undefined,
     }
   }
 
@@ -260,11 +263,11 @@ export class IntegrationTestReporter implements Reporter {
   private extractTestMetadata(task: Task): Record<string, unknown> {
     // Extract metadata from test context or custom properties
     const metadata: Record<string, unknown> = {}
-    
+
     if (task.meta) {
       Object.assign(metadata, task.meta)
     }
-    
+
     return metadata
   }
 
@@ -280,10 +283,18 @@ export class IntegrationTestReporter implements Reporter {
         total++
         const status = this.getTestStatus(task)
         switch (status) {
-          case 'passed': passed++; break
-          case 'failed': failed++; break
-          case 'skipped': skipped++; break
-          case 'todo': todo++; break
+          case 'passed':
+            passed++
+            break
+          case 'failed':
+            failed++
+            break
+          case 'skipped':
+            skipped++
+            break
+          case 'todo':
+            todo++
+            break
         }
       } else if ('tasks' in task && task.tasks) {
         task.tasks.forEach(countTests)
@@ -302,11 +313,11 @@ export class IntegrationTestReporter implements Reporter {
       failed,
       skipped,
       todo,
-      success: failed === 0
+      success: failed === 0,
     }
   }
 
-  private generatePerformanceReport(files: File[], totalDuration: number): PerformanceReport {
+  private generatePerformanceReport(files: File[], _totalDuration: number): PerformanceReport {
     const allTests: Array<{ name: string; file: string; duration: number }> = []
     let setupTime = 0
     let teardownTime = 0
@@ -316,7 +327,7 @@ export class IntegrationTestReporter implements Reporter {
         allTests.push({
           name: task.name,
           file: file.filepath || file.name,
-          duration: task.result.duration
+          duration: task.result.duration,
         })
       } else if ('tasks' in task && task.tasks) {
         task.tasks.forEach(t => collectTestTimes(t, file))
@@ -327,14 +338,18 @@ export class IntegrationTestReporter implements Reporter {
       if (file.tasks) {
         file.tasks.forEach(task => collectTestTimes(task, file))
       }
-      // Estimate setup/teardown time
-      setupTime += file.setupDuration || 0
-      teardownTime += file.teardownDuration || 0
+      // Estimate setup/teardown time from file duration if available
+      // Note: Vitest doesn't expose setup/teardown times directly
+      const fileDuration = file.result?.duration || 0
+      const testsDuration = allTests
+        .filter(t => t.file === (file.filepath || file.name))
+        .reduce((sum, t) => sum + t.duration, 0)
+      const overhead = Math.max(0, fileDuration - testsDuration)
+      setupTime += overhead * 0.5 // Estimate half of overhead as setup
+      teardownTime += overhead * 0.5 // Estimate half of overhead as teardown
     })
 
-    const slowestTests = allTests
-      .sort((a, b) => b.duration - a.duration)
-      .slice(0, 10)
+    const slowestTests = allTests.sort((a, b) => b.duration - a.duration).slice(0, 10)
 
     const totalTestTime = allTests.reduce((sum, test) => sum + test.duration, 0)
     const averageTestDuration = allTests.length > 0 ? totalTestTime / allTests.length : 0
@@ -350,8 +365,8 @@ export class IntegrationTestReporter implements Reporter {
       memoryUsage: {
         peak: memoryUsage.heapUsed,
         average: memoryUsage.heapUsed, // Simplified - could track over time
-        atEnd: memoryUsage.heapUsed
-      }
+        atEnd: memoryUsage.heapUsed,
+      },
     }
   }
 
@@ -362,36 +377,36 @@ export class IntegrationTestReporter implements Reporter {
         type: 'coverage',
         threshold: 100,
         operator: 'eq',
-        description: 'All tests must pass'
+        description: 'All tests must pass',
       },
       {
         name: 'Average Test Duration',
         type: 'performance',
         threshold: 5000,
         operator: 'lt',
-        description: 'Average test duration should be under 5 seconds'
+        description: 'Average test duration should be under 5 seconds',
       },
       {
         name: 'Cache Hit Rate',
         type: 'metrics',
         threshold: 0.8,
         operator: 'gte',
-        description: 'Cache hit rate should be at least 80%'
+        description: 'Cache hit rate should be at least 80%',
       },
       {
         name: 'API Error Rate',
         type: 'metrics',
         threshold: 0.05,
         operator: 'lt',
-        description: 'API error rate should be under 5%'
+        description: 'API error rate should be under 5%',
       },
       {
         name: 'Memory Growth',
         type: 'performance',
         threshold: 100 * 1024 * 1024, // 100MB
         operator: 'lt',
-        description: 'Memory growth should be under 100MB'
-      }
+        description: 'Memory growth should be under 100MB',
+      },
     ]
   }
 
@@ -403,14 +418,14 @@ export class IntegrationTestReporter implements Reporter {
     return this.qualityGates.map(gate => {
       const value = this.getValueForGate(gate, summary, performance, metrics)
       const passed = this.evaluateGate(gate, value)
-      
+
       return {
         gate,
         value,
         passed,
-        message: passed 
+        message: passed
           ? `✅ ${gate.name}: ${value} ${gate.operator} ${gate.threshold}`
-          : `❌ ${gate.name}: ${value} not ${gate.operator} ${gate.threshold}`
+          : `❌ ${gate.name}: ${value} not ${gate.operator} ${gate.threshold}`,
       }
     })
   }
@@ -439,12 +454,18 @@ export class IntegrationTestReporter implements Reporter {
 
   private evaluateGate(gate: QualityGate, value: number): boolean {
     switch (gate.operator) {
-      case 'gt': return value > gate.threshold
-      case 'gte': return value >= gate.threshold
-      case 'lt': return value < gate.threshold
-      case 'lte': return value <= gate.threshold
-      case 'eq': return Math.abs(value - gate.threshold) < 0.001
-      default: return false
+      case 'gt':
+        return value > gate.threshold
+      case 'gte':
+        return value >= gate.threshold
+      case 'lt':
+        return value < gate.threshold
+      case 'lte':
+        return value <= gate.threshold
+      case 'eq':
+        return Math.abs(value - gate.threshold) < 0.001
+      default:
+        return false
     }
   }
 
@@ -452,20 +473,20 @@ export class IntegrationTestReporter implements Reporter {
     if (!this.report) return
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    
+
     // Write JSON report
     const jsonPath = join(this.outputDir, `test-report-${timestamp}.json`)
     writeFileSync(jsonPath, JSON.stringify(this.report, null, 2))
-    
+
     // Write HTML report
     const htmlPath = join(this.outputDir, `test-report-${timestamp}.html`)
     writeFileSync(htmlPath, this.generateHtmlReport())
-    
+
     // Write latest reports (for CI/CD)
     writeFileSync(join(this.outputDir, 'latest-report.json'), JSON.stringify(this.report, null, 2))
     writeFileSync(join(this.outputDir, 'latest-report.html'), this.generateHtmlReport())
-    
-    console.log(`📊 Reports written to:`)
+
+    console.log('📊 Reports written to:')
     console.log(`  - JSON: ${jsonPath}`)
     console.log(`  - HTML: ${htmlPath}`)
   }
@@ -567,18 +588,24 @@ export class IntegrationTestReporter implements Reporter {
                         <tr><th>Test Name</th><th>File</th><th>Duration</th></tr>
                     </thead>
                     <tbody>
-                        ${performance.slowestTests.map(test => `
+                        ${performance.slowestTests
+                          .map(
+                            test => `
                             <tr>
                                 <td>${test.name}</td>
                                 <td>${test.file}</td>
                                 <td>${test.duration.toFixed(0)}ms</td>
                             </tr>
-                        `).join('')}
+                        `
+                          )
+                          .join('')}
                     </tbody>
                 </table>
             </div>
 
-            ${metrics ? `
+            ${
+              metrics
+                ? `
             <div class="section">
                 <h2>API & Cache Metrics</h2>
                 <div class="metric-grid">
@@ -603,22 +630,30 @@ export class IntegrationTestReporter implements Reporter {
                     <canvas id="metricsChart"></canvas>
                 </div>
             </div>
-            ` : ''}
+            `
+                : ''
+            }
 
             <div class="section">
                 <h2>Quality Gates</h2>
-                ${qualityGates.map(result => `
+                ${qualityGates
+                  .map(
+                    result => `
                     <div class="quality-gate ${result.passed ? 'passed' : 'failed'}">
                         <span>${result.message}</span>
                     </div>
-                `).join('')}
+                `
+                  )
+                  .join('')}
             </div>
         </div>
     </div>
 
     <script>
         // Initialize charts if metrics are available
-        ${metrics ? `
+        ${
+          metrics
+            ? `
         const ctx = document.getElementById('metricsChart').getContext('2d');
         new Chart(ctx, {
             type: 'doughnut',
@@ -645,7 +680,9 @@ export class IntegrationTestReporter implements Reporter {
                 }
             }
         });
-        ` : ''}
+        `
+            : ''
+        }
     </script>
 </body>
 </html>
@@ -666,7 +703,7 @@ export class IntegrationTestReporter implements Reporter {
     console.log(`📝 Todo: ${summary.todo}`)
     console.log(`⏱️  Average Duration: ${performance.averageTestDuration.toFixed(0)}ms`)
     console.log(`🧠 Peak Memory: ${(performance.memoryUsage.peak / 1024 / 1024).toFixed(1)}MB`)
-    
+
     if (failedGates.length > 0) {
       console.log('\n❌ Failed Quality Gates:')
       failedGates.forEach(gate => console.log(`  ${gate.message}`))
@@ -679,10 +716,10 @@ export class IntegrationTestReporter implements Reporter {
     if (!this.report) return
 
     const failedGates = this.report.qualityGates.filter(g => !g.passed)
-    
+
     if (failedGates.length > 0) {
       console.error('\n🚨 Quality Gates Failed - Consider failing the CI/CD pipeline')
-      
+
       // In CI environment, exit with non-zero code
       if (process.env.CI === 'true') {
         process.exit(1)

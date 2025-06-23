@@ -1,6 +1,6 @@
 /**
  * Modern Test helpers - Vitest 3.2+ patterns
- * 
+ *
  * Features:
  * - MSW integration replacing nock
  * - Modern async testing utilities
@@ -8,8 +8,8 @@
  * - Enhanced cleanup patterns
  */
 
-import { vi, beforeEach, afterEach } from 'vitest'
-import { mswServer } from './msw-setup'
+import { afterEach, beforeEach, vi } from 'vitest'
+import { mockGitHubAPI } from './msw-setup'
 
 // Store references to created clients for cleanup
 const activeClients = new Set<{ destroy: () => Promise<void> }>()
@@ -28,10 +28,10 @@ export function setupGitHubTestIsolation() {
   beforeEach(() => {
     // Clear all mocks
     vi.clearAllMocks()
-    
-    // Reset MSW handlers to defaults
-    mswServer.resetHandlers()
-    
+
+    // Reset MSW handlers to defaults using the resetToDefaults helper
+    mockGitHubAPI.resetToDefaults()
+
     // Clear any global GitHub state
     if (global.__githubClientCache) {
       delete global.__githubClientCache
@@ -42,20 +42,20 @@ export function setupGitHubTestIsolation() {
   })
 
   afterEach(async () => {
-    // Reset MSW handlers
-    mswServer.resetHandlers()
-    
+    // Reset MSW handlers to defaults
+    mockGitHubAPI.resetToDefaults()
+
     // Destroy all active clients
-    const destroyPromises = Array.from(activeClients).map(async (client) => {
+    const destroyPromises = Array.from(activeClients).map(async client => {
       try {
         await client.destroy()
-      } catch (error) {
+      } catch (_error) {
         // Ignore cleanup errors
       }
     })
     await Promise.all(destroyPromises)
     activeClients.clear()
-    
+
     // Clear all mocks
     vi.clearAllMocks()
   })
@@ -66,6 +66,17 @@ export function setupGitHubTestIsolation() {
  */
 export function createTrackedClient(ClientClass: any, config?: any) {
   const client = new ClientClass(config)
+
+  // Add a mock destroy method if the client doesn't have one
+  if (!client.destroy) {
+    client.destroy = async () => {
+      // Clear any caches if available
+      if (client.clearCache) {
+        client.clearCache()
+      }
+    }
+  }
+
   registerClientForCleanup(client)
   return client
 }
@@ -83,8 +94,11 @@ export async function waitFor(
     errorMessage?: string
   } = {}
 ): Promise<void> {
-  const { timeout = 5000, interval = 50, errorMessage = 'Condition not met within timeout' } =
-    options
+  const {
+    timeout = 5000,
+    interval = 50,
+    errorMessage = 'Condition not met within timeout',
+  } = options
 
   const startTime = Date.now()
 
@@ -114,8 +128,11 @@ export async function waitForChange<T>(
     errorMessage?: string
   } = {}
 ): Promise<T> {
-  const { timeout = 5000, interval = 50, errorMessage = 'Value did not change within timeout' } =
-    options
+  const {
+    timeout = 5000,
+    interval = 50,
+    errorMessage = 'Value did not change within timeout',
+  } = options
 
   const startTime = Date.now()
 
@@ -182,7 +199,7 @@ export class MockTimer {
 
   advance(ms: number): void {
     const targetTime = this.currentTime + ms
-    
+
     while (this.currentTime < targetTime) {
       // Find the next timer to fire
       const nextTimer = this.timers
@@ -269,13 +286,15 @@ export class RetryTestHelper {
 /**
  * Mock rate limit headers for consistent testing
  */
-export function createRateLimitHeaders(options: {
-  limit?: number
-  remaining?: number
-  reset?: number
-  used?: number
-  retryAfter?: number
-} = {}): Record<string, string> {
+export function createRateLimitHeaders(
+  options: {
+    limit?: number
+    remaining?: number
+    reset?: number
+    used?: number
+    retryAfter?: number
+  } = {}
+): Record<string, string> {
   const {
     limit = 5000,
     remaining = 4999,

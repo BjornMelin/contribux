@@ -7,7 +7,7 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["src/**/*", "*.ts", "*.tsx", "*.js", "*.jsx"]
+    "includes": ["src/**/*", "tests/**/*", "*.ts", "*.tsx", "*.js", "*.jsx"]
   },
   "linter": {
     "enabled": true,

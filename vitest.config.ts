@@ -90,7 +90,6 @@ export default defineConfig({
     reporters: ['verbose', 'hanging-process'],
 
     // Optimized timeout settings
-    testTimeout: 15000, // Reduced for faster feedback
     hookTimeout: 5000,
 
     // Retry configuration optimized for modern CI
@@ -110,8 +109,10 @@ export default defineConfig({
     sequence: {
       shuffle: false,
       concurrent: true, // Enable concurrent test execution
-      setupTimeout: 10000,
     },
+
+    // Test setup timeout
+    testTimeout: 10000,
 
     // Environment variables and context
     env: {

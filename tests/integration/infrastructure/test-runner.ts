@@ -1,14 +1,14 @@
 /**
  * Integration Test Runner
- * 
+ *
  * Provides utilities for running integration tests with proper setup,
  * execution, and teardown phases.
  */
 
-import { describe, beforeAll, afterAll, beforeEach, afterEach } from 'vitest'
+import { afterAll, beforeAll, describe, it } from 'vitest'
+import { MemoryProfiler } from './metrics-collector'
 import type { IntegrationTestContext } from './test-config'
 import { IntegrationTestSetup } from './test-setup'
-import { MemoryProfiler } from './metrics-collector'
 
 let globalSetup: IntegrationTestSetup | null = null
 let globalContext: IntegrationTestContext | null = null
@@ -25,14 +25,14 @@ export function setupIntegrationTests(): {
     globalSetup = new IntegrationTestSetup()
     globalContext = await globalSetup.setup()
   }, 120000) // 2 minute timeout for setup
-  
+
   afterAll(async () => {
     console.log('Tearing down integration test environment...')
     if (globalSetup) {
       await globalSetup.cleanup()
     }
   }, 60000) // 1 minute timeout for cleanup
-  
+
   return {
     getContext: () => {
       if (!globalContext) {
@@ -47,7 +47,7 @@ export function setupIntegrationTests(): {
         return true
       }
       return false
-    }
+    },
   }
 }
 
@@ -63,30 +63,34 @@ export function integrationTest(
   }
 ): void {
   const { timeout = 30000, memoryProfiling = true } = options || {}
-  
-  it(name, async () => {
-    if (!globalContext) {
-      throw new Error('Integration test context not initialized')
-    }
-    
-    let profiler: MemoryProfiler | undefined
-    
-    // Start memory profiling if enabled
-    if (memoryProfiling && globalContext.metricsCollector) {
-      profiler = new MemoryProfiler(globalContext.metricsCollector)
-      profiler.start()
-    }
-    
-    try {
-      // Run the test
-      await fn(globalContext)
-    } finally {
-      // Stop memory profiling
-      if (profiler) {
-        profiler.stop()
+
+  it(
+    name,
+    async () => {
+      if (!globalContext) {
+        throw new Error('Integration test context not initialized')
       }
-    }
-  }, timeout)
+
+      let profiler: MemoryProfiler | undefined
+
+      // Start memory profiling if enabled
+      if (memoryProfiling && globalContext.metricsCollector) {
+        profiler = new MemoryProfiler(globalContext.metricsCollector)
+        profiler.start()
+      }
+
+      try {
+        // Run the test
+        await fn(globalContext)
+      } finally {
+        // Stop memory profiling
+        if (profiler) {
+          profiler.stop()
+        }
+      }
+    },
+    timeout
+  )
 }
 
 /**
@@ -101,7 +105,7 @@ export function describeIntegration(
   }
 ): void {
   const { skip = false, skipIfNoEnv = true } = options || {}
-  
+
   // Check environment variables
   if (skipIfNoEnv) {
     const hasRequiredEnv = process.env.GITHUB_TEST_TOKEN && process.env.GITHUB_TEST_ORG
@@ -112,12 +116,12 @@ export function describeIntegration(
       return
     }
   }
-  
+
   const describeFn = skip ? describe.skip : describe
-  
+
   describeFn(name, () => {
     const { getContext } = setupIntegrationTests()
-    
+
     // Provide context to test suite
     fn(getContext())
   })
@@ -135,23 +139,23 @@ export async function withRetry<T>(
   }
 ): Promise<T> {
   const { retries = 3, delay = 1000, backoff = 2 } = options || {}
-  
+
   let lastError: Error | undefined
-  
+
   for (let i = 0; i < retries; i++) {
     try {
       return await fn()
     } catch (error) {
       lastError = error as Error
-      
+
       if (i < retries - 1) {
-        const waitTime = delay * Math.pow(backoff, i)
+        const waitTime = delay * backoff ** i
         console.log(`Retry ${i + 1}/${retries} after ${waitTime}ms: ${lastError.message}`)
         await new Promise(resolve => setTimeout(resolve, waitTime))
       }
     }
   }
-  
+
   throw lastError
 }
 
@@ -167,9 +171,9 @@ export async function waitForCondition(
   }
 ): Promise<void> {
   const { timeout = 10000, interval = 100, message = 'Condition not met' } = options || {}
-  
+
   const startTime = Date.now()
-  
+
   while (Date.now() - startTime < timeout) {
     const result = await condition()
     if (result) {
@@ -177,7 +181,7 @@ export async function waitForCondition(
     }
     await new Promise(resolve => setTimeout(resolve, interval))
   }
-  
+
   throw new Error(`${message} (timeout: ${timeout}ms)`)
 }
 
@@ -190,27 +194,27 @@ export async function measurePerformance<T>(
   context?: IntegrationTestContext
 ): Promise<{ result: T; duration: number }> {
   const startTime = performance.now()
-  
+
   try {
     const result = await fn()
     const duration = performance.now() - startTime
-    
+
     // Record metric if collector available
     if (context?.metricsCollector) {
       context.metricsCollector.recordApiCall(name, duration, 200)
     }
-    
+
     console.log(`${name}: ${duration.toFixed(2)}ms`)
-    
+
     return { result, duration }
   } catch (error) {
     const duration = performance.now() - startTime
-    
+
     // Record error metric
     if (context?.metricsCollector) {
       context.metricsCollector.recordApiCall(name, duration, 500)
     }
-    
+
     throw error
   }
 }

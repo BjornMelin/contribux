@@ -1,64 +1,65 @@
-const express = require('express');
-const bodyParser = require('body-parser');
+const express = require('express')
+const bodyParser = require('body-parser')
 
-const app = express();
-const PORT = process.env.PORT || 3002;
-const MOCK_RATE_LIMIT = process.env.MOCK_RATE_LIMIT === 'true';
-const MOCK_DELAY_MS = parseInt(process.env.MOCK_DELAY_MS || '0', 10);
+const app = express()
+const PORT = process.env.PORT || 3002
+const MOCK_RATE_LIMIT = process.env.MOCK_RATE_LIMIT === 'true'
+const MOCK_DELAY_MS = Number.parseInt(process.env.MOCK_DELAY_MS || '0', 10)
 
 // Request counters for rate limiting simulation
-const requestCounts = new Map();
+const requestCounts = new Map()
 
 // Middleware
-app.use(bodyParser.json());
+app.use(bodyParser.json())
 
 // Add delay if configured
-app.use((req, res, next) => {
+app.use((_req, _res, next) => {
   if (MOCK_DELAY_MS > 0) {
-    setTimeout(next, MOCK_DELAY_MS);
+    setTimeout(next, MOCK_DELAY_MS)
   } else {
-    next();
+    next()
   }
-});
+})
 
 // Add rate limit headers
 app.use((req, res, next) => {
-  const key = req.headers.authorization || 'anonymous';
-  const count = requestCounts.get(key) || 0;
-  requestCounts.set(key, count + 1);
-  
+  const key = req.headers.authorization || 'anonymous'
+  const count = requestCounts.get(key) || 0
+  requestCounts.set(key, count + 1)
+
   // Simulate rate limits
-  const limit = 5000;
-  const remaining = Math.max(0, limit - count);
-  const reset = Math.floor(Date.now() / 1000) + 3600;
-  
+  const limit = 5000
+  const remaining = Math.max(0, limit - count)
+  const reset = Math.floor(Date.now() / 1000) + 3600
+
   res.set({
     'X-RateLimit-Limit': limit.toString(),
     'X-RateLimit-Remaining': remaining.toString(),
     'X-RateLimit-Reset': reset.toString(),
     'X-RateLimit-Used': count.toString(),
-    'X-RateLimit-Resource': 'core'
-  });
-  
+    'X-RateLimit-Resource': 'core',
+  })
+
   // Simulate rate limit exceeded
   if (MOCK_RATE_LIMIT && remaining === 0) {
     res.status(403).json({
       message: 'API rate limit exceeded',
-      documentation_url: 'https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting'
-    });
-    return;
+      documentation_url:
+        'https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting',
+    })
+    return
   }
-  
-  next();
-});
+
+  next()
+})
 
 // Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'healthy', mock: true });
-});
+app.get('/health', (_req, res) => {
+  res.json({ status: 'healthy', mock: true })
+})
 
 // User endpoint
-app.get('/user', (req, res) => {
+app.get('/user', (_req, res) => {
   res.json({
     login: 'test-user',
     id: 12345,
@@ -69,13 +70,13 @@ app.get('/user', (req, res) => {
     company: 'Test Company',
     email: 'test@example.com',
     created_at: '2020-01-01T00:00:00Z',
-    updated_at: '2023-01-01T00:00:00Z'
-  });
-});
+    updated_at: '2023-01-01T00:00:00Z',
+  })
+})
 
 // Repository endpoints
 app.get('/repos/:owner/:repo', (req, res) => {
-  const { owner, repo } = req.params;
+  const { owner, repo } = req.params
   res.json({
     id: 123456,
     node_id: 'MDEwOlJlcG9zaXRvcnkxMjM0NTY=',
@@ -84,7 +85,7 @@ app.get('/repos/:owner/:repo', (req, res) => {
     owner: {
       login: owner,
       id: 12345,
-      type: 'User'
+      type: 'User',
     },
     private: false,
     description: 'Test repository',
@@ -103,20 +104,20 @@ app.get('/repos/:owner/:repo', (req, res) => {
     has_pages: false,
     forks_count: 10,
     open_issues_count: 5,
-    default_branch: 'main'
-  });
-});
+    default_branch: 'main',
+  })
+})
 
 // Issues endpoints
 app.get('/repos/:owner/:repo/issues', (req, res) => {
-  const { owner, repo } = req.params;
-  const { state = 'open', per_page = 30, page = 1 } = req.query;
-  
-  const issues = [];
-  const total = state === 'open' ? 5 : 10;
-  const start = (page - 1) * per_page;
-  const end = Math.min(start + per_page, total);
-  
+  const { owner, repo } = req.params
+  const { state = 'open', per_page = 30, page = 1 } = req.query
+
+  const issues = []
+  const total = state === 'open' ? 5 : 10
+  const start = (page - 1) * per_page
+  const end = Math.min(start + per_page, total)
+
   for (let i = start; i < end; i++) {
     issues.push({
       id: 1000 + i,
@@ -125,22 +126,22 @@ app.get('/repos/:owner/:repo/issues', (req, res) => {
       title: `Test Issue ${i + 1}`,
       user: {
         login: 'test-user',
-        id: 12345
+        id: 12345,
       },
       state: state,
       created_at: '2023-01-01T00:00:00Z',
       updated_at: '2023-01-01T00:00:00Z',
-      body: `This is test issue ${i + 1}`
-    });
+      body: `This is test issue ${i + 1}`,
+    })
   }
-  
-  res.json(issues);
-});
+
+  res.json(issues)
+})
 
 app.post('/repos/:owner/:repo/issues', (req, res) => {
-  const { owner, repo } = req.params;
-  const { title, body, labels = [] } = req.body;
-  
+  const { owner, repo } = req.params
+  const { title, body, labels = [] } = req.body
+
   res.status(201).json({
     id: 2000,
     node_id: 'MDU6SXNzdWUyMDAw',
@@ -148,7 +149,7 @@ app.post('/repos/:owner/:repo/issues', (req, res) => {
     title: title,
     user: {
       login: 'test-user',
-      id: 12345
+      id: 12345,
     },
     state: 'open',
     created_at: new Date().toISOString(),
@@ -157,14 +158,14 @@ app.post('/repos/:owner/:repo/issues', (req, res) => {
     labels: labels.map(label => ({
       id: 1,
       name: label,
-      color: 'ffffff'
-    }))
-  });
-});
+      color: 'ffffff',
+    })),
+  })
+})
 
 // Pull request endpoints
 app.get('/repos/:owner/:repo/pulls', (req, res) => {
-  const { owner, repo } = req.params;
+  const { owner, repo } = req.params
   res.json([
     {
       id: 3000,
@@ -174,44 +175,44 @@ app.get('/repos/:owner/:repo/pulls', (req, res) => {
       title: 'Test PR',
       user: {
         login: 'test-user',
-        id: 12345
+        id: 12345,
       },
       created_at: '2023-01-01T00:00:00Z',
       updated_at: '2023-01-01T00:00:00Z',
       head: {
         ref: 'feature-branch',
-        sha: 'abc123'
+        sha: 'abc123',
       },
       base: {
         ref: 'main',
-        sha: 'def456'
-      }
-    }
-  ]);
-});
+        sha: 'def456',
+      },
+    },
+  ])
+})
 
 // GraphQL endpoint
 app.post('/graphql', (req, res) => {
-  const { query, variables } = req.body;
-  
+  const { query, variables } = req.body
+
   // Simple mock response
   res.json({
     data: {
       viewer: {
-        login: 'test-user'
+        login: 'test-user',
       },
       rateLimit: {
         limit: 5000,
         cost: 1,
         remaining: 4999,
-        resetAt: new Date(Date.now() + 3600000).toISOString()
-      }
-    }
-  });
-});
+        resetAt: new Date(Date.now() + 3600000).toISOString(),
+      },
+    },
+  })
+})
 
 // Search endpoints
-app.get('/search/repositories', (req, res) => {
+app.get('/search/repositories', (_req, res) => {
   res.json({
     total_count: 1,
     incomplete_results: false,
@@ -222,22 +223,22 @@ app.get('/search/repositories', (req, res) => {
         full_name: 'test-user/test-repo',
         owner: {
           login: 'test-user',
-          id: 12345
-        }
-      }
-    ]
-  });
-});
+          id: 12345,
+        },
+      },
+    ],
+  })
+})
 
 // Reset rate limits endpoint (for testing)
-app.post('/test/reset-rate-limits', (req, res) => {
-  requestCounts.clear();
-  res.json({ message: 'Rate limits reset' });
-});
+app.post('/test/reset-rate-limits', (_req, res) => {
+  requestCounts.clear()
+  res.json({ message: 'Rate limits reset' })
+})
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`GitHub mock server listening on port ${PORT}`);
-  console.log(`Mock rate limiting: ${MOCK_RATE_LIMIT}`);
-  console.log(`Mock delay: ${MOCK_DELAY_MS}ms`);
-});
+  console.log(`GitHub mock server listening on port ${PORT}`)
+  console.log(`Mock rate limiting: ${MOCK_RATE_LIMIT}`)
+  console.log(`Mock delay: ${MOCK_DELAY_MS}ms`)
+})

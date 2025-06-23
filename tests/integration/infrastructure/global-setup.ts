@@ -1,19 +1,24 @@
 /**
  * Global Setup for Integration Tests
- * 
+ *
  * Performs one-time setup before all integration tests run,
  * including test infrastructure, metrics initialization, and
  * environment validation.
  */
 
-import { writeFileSync, mkdirSync, existsSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { GlobalSetupContext } from 'vitest/node'
+
+// Type for global setup context - Vitest may not export this directly
+interface GlobalSetupContext {
+  provide(key: string, value: unknown): void
+}
+
 import { loadIntegrationTestEnv } from './test-config'
 
 export default async function globalSetup({ provide }: GlobalSetupContext) {
   console.log('🚀 Starting Integration Test Global Setup')
-  console.log('=' .repeat(60))
+  console.log('='.repeat(60))
 
   try {
     // Load and validate environment
@@ -52,11 +57,11 @@ export default async function globalSetup({ provide }: GlobalSetupContext) {
       try {
         const response = await fetch('https://api.github.com/user', {
           headers: {
-            'Authorization': `token ${env.GITHUB_TEST_TOKEN}`,
+            Authorization: `token ${env.GITHUB_TEST_TOKEN}`,
             'User-Agent': 'contribux-integration-tests',
           },
         })
-        
+
         if (response.ok) {
           const user = await response.json()
           console.log(`✅ GitHub API connection validated (user: ${user.login})`)
@@ -82,15 +87,15 @@ export default async function globalSetup({ provide }: GlobalSetupContext) {
     const baselinePath = join(baselinesDir, 'performance-baselines.json')
     if (!existsSync(baselinePath)) {
       const initialBaselines = {
-        '__overall__': {
+        __overall__: {
           timestamp: new Date().toISOString(),
           testName: '__overall__',
           averageDuration: 2000, // 2 seconds baseline
           memoryUsage: 100 * 1024 * 1024, // 100MB baseline
           apiCallCount: 0,
           cacheHitRate: 0.9,
-          errorRate: 0
-        }
+          errorRate: 0,
+        },
       }
       writeFileSync(baselinePath, JSON.stringify(initialBaselines, null, 2))
       console.log('✅ Performance baselines initialized')
@@ -112,7 +117,9 @@ export default async function globalSetup({ provide }: GlobalSetupContext) {
       // Force initial garbage collection
       global.gc()
       const initialMemory = process.memoryUsage()
-      console.log(`🧠 Memory profiling enabled - Initial heap: ${(initialMemory.heapUsed / 1024 / 1024).toFixed(2)}MB`)
+      console.log(
+        `🧠 Memory profiling enabled - Initial heap: ${(initialMemory.heapUsed / 1024 / 1024).toFixed(2)}MB`
+      )
     }
 
     // Log test configuration summary
@@ -126,13 +133,12 @@ export default async function globalSetup({ provide }: GlobalSetupContext) {
     console.log(`  - Cleanup After Tests: ${env.TEST_CLEANUP}`)
 
     // Provide global data to tests
-    provide('integrationEnv', env)
-    provide('metricsConfig', metricsConfig)
-    provide('startTime', Date.now())
+    provide('integrationEnv', env as any)
+    provide('metricsConfig', metricsConfig as any)
+    provide('startTime', Date.now() as any)
 
     console.log('\n✅ Global setup completed successfully')
-    console.log('=' .repeat(60))
-
+    console.log('='.repeat(60))
   } catch (error) {
     console.error('❌ Global setup failed:', error)
     throw error

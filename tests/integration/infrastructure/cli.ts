@@ -2,18 +2,18 @@
 
 /**
  * Integration Test CLI
- * 
+ *
  * Command-line interface for running integration tests with comprehensive
  * reporting, performance analysis, and CI/CD integration.
  */
 
-import { program } from 'commander'
+import { spawn } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { spawn } from 'node:child_process'
-import { createTestSuiteRunner, runIntegrationTests } from './test-suite-runner'
+import { program } from 'commander'
 import { createPerformanceAnalyzer } from './performance-analyzer'
 import type { TestSuiteConfig } from './test-suite-runner'
+import { runIntegrationTests } from './test-suite-runner'
 
 // Package info
 const packageJson = JSON.parse(readFileSync(join(__dirname, '../../../package.json'), 'utf-8'))
@@ -40,12 +40,12 @@ program
   .option('--output-dir <dir>', 'Output directory for reports', './tests/integration/reports')
   .option('--slack-webhook <url>', 'Slack webhook URL for alerts')
   .option('--slack-channel <channel>', 'Slack channel for alerts', '#alerts')
-  .action(async (options) => {
+  .action(async options => {
     try {
       const config: TestSuiteConfig = {
         testPattern: options.pattern,
-        timeout: parseInt(options.timeout),
-        retries: parseInt(options.retries),
+        timeout: Number.parseInt(options.timeout),
+        retries: Number.parseInt(options.retries),
         parallel: options.parallel,
         coverage: options.coverage,
         bail: options.bail,
@@ -54,12 +54,14 @@ program
         collectMetrics: options.metrics,
         performanceBaselines: options.baselines,
         outputDir: options.outputDir,
-        alerting: options.slackWebhook ? {
-          slack: {
-            webhook: options.slackWebhook,
-            channel: options.slackChannel
-          }
-        } : undefined
+        alerting: options.slackWebhook
+          ? {
+              slack: {
+                webhook: options.slackWebhook,
+                channel: options.slackChannel,
+              },
+            }
+          : undefined,
       }
 
       console.log('🚀 Starting Integration Test Suite')
@@ -92,10 +94,10 @@ program
   .option('--baseline-dir <dir>', 'Baseline directory', './tests/integration/reports/baselines')
   .option('--output-dir <dir>', 'Output directory', './tests/integration/reports')
   .option('--update-baselines', 'Update performance baselines')
-  .action(async (options) => {
+  .action(async options => {
     try {
       const inputFile = options.input || './tests/integration/reports/latest-report.json'
-      
+
       if (!existsSync(inputFile)) {
         console.error(`❌ Input file not found: ${inputFile}`)
         process.exit(1)
@@ -104,7 +106,7 @@ program
       const report = JSON.parse(readFileSync(inputFile, 'utf-8'))
       const analyzer = createPerformanceAnalyzer({
         baselineDir: options.baselineDir,
-        reportsDir: options.outputDir
+        reportsDir: options.outputDir,
       })
 
       console.log('📈 Analyzing performance...')
@@ -125,7 +127,10 @@ program
           })
       }
 
-      console.log('\n📝 Full report saved to:', join(options.outputDir, 'latest-performance-analysis.json'))
+      console.log(
+        '\n📝 Full report saved to:',
+        join(options.outputDir, 'latest-performance-analysis.json')
+      )
 
       if (analysis.summary.criticalIssues > 0) {
         process.exit(1)
@@ -143,7 +148,7 @@ program
   .option('-i, --input <file>', 'Input test report JSON file')
   .option('-o, --output <file>', 'Output HTML file')
   .option('--template <file>', 'Custom HTML template')
-  .action(async (options) => {
+  .action(async options => {
     try {
       const inputFile = options.input || './tests/integration/reports/latest-report.json'
       const outputFile = options.output || './tests/integration/reports/latest-report.html'
@@ -154,17 +159,17 @@ program
       }
 
       console.log('📄 Generating HTML report...')
-      
+
       // Use Vitest to generate the HTML report
       const vitestProcess = spawn('npx', ['vitest', 'run', '--reporter=html'], {
         stdio: 'inherit',
         env: {
           ...process.env,
-          VITEST_HTML_REPORT_PATH: outputFile
-        }
+          VITEST_HTML_REPORT_PATH: outputFile,
+        },
       })
 
-      vitestProcess.on('close', (code) => {
+      vitestProcess.on('close', code => {
         if (code === 0) {
           console.log(`✅ HTML report generated: ${outputFile}`)
         } else {
@@ -186,10 +191,10 @@ program
   .option('--baselines', 'Reset performance baselines')
   .option('--all', 'Clean up everything')
   .option('--older-than <days>', 'Clean up files older than N days', '7')
-  .action(async (options) => {
+  .action(async options => {
     try {
-      const reportsDir = './tests/integration/reports'
-      const olderThanMs = parseInt(options.olderThan) * 24 * 60 * 60 * 1000
+      const _reportsDir = './tests/integration/reports'
+      const _olderThanMs = Number.parseInt(options.olderThan) * 24 * 60 * 60 * 1000
 
       console.log('🧹 Starting cleanup...')
 
@@ -217,13 +222,17 @@ program
   .command('watch')
   .description('Run tests in watch mode for development')
   .option('-p, --pattern <pattern>', 'Test file pattern', 'tests/integration/**/*.test.ts')
-  .action(async (options) => {
+  .action(async options => {
     try {
       console.log('👀 Starting test watcher...')
-      
-      const vitestProcess = spawn('npx', ['vitest', '--config', 'vitest.integration.config.ts', options.pattern], {
-        stdio: 'inherit'
-      })
+
+      const vitestProcess = spawn(
+        'npx',
+        ['vitest', '--config', 'vitest.integration.config.ts', options.pattern],
+        {
+          stdio: 'inherit',
+        }
+      )
 
       process.on('SIGINT', () => {
         console.log('\n🛑 Stopping test watcher...')
@@ -231,7 +240,7 @@ program
         process.exit(0)
       })
 
-      vitestProcess.on('close', (code) => {
+      vitestProcess.on('close', code => {
         process.exit(code || 0)
       })
     } catch (error) {
@@ -247,9 +256,9 @@ program
   .action(async () => {
     try {
       const reportsDir = './tests/integration/reports'
-      
+
       console.log('📊 Integration Test Status')
-      console.log('=' .repeat(40))
+      console.log('='.repeat(40))
 
       // Check latest report
       const latestReportPath = join(reportsDir, 'latest-report.json')
@@ -282,7 +291,6 @@ program
       console.log(`  - Platform: ${process.platform}`)
       console.log(`  - CI Mode: ${process.env.CI === 'true' ? 'Yes' : 'No'}`)
       console.log(`  - GitHub Token: ${process.env.GITHUB_TEST_TOKEN ? 'Configured' : 'Missing'}`)
-
     } catch (error) {
       console.error('❌ Failed to get status:', error)
       process.exit(1)

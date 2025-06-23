@@ -233,6 +233,18 @@ export async function authMiddleware(request: NextRequest): Promise<NextResponse
     // Verify token
     const payload = await verifyAccessToken(token)
 
+    // Check if payload is valid and has required properties
+    if (!payload || !payload.sub) {
+      await auditRequest(request, {
+        event_type: 'authorization_failure',
+        resource: path,
+        success: false,
+        error: 'Invalid token payload',
+      })
+
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+    }
+
     // Load user from database
     const userResult = await sql`
       SELECT * FROM users 
@@ -240,7 +252,7 @@ export async function authMiddleware(request: NextRequest): Promise<NextResponse
       LIMIT 1
     `
 
-    if (userResult.length === 0) {
+    if (!userResult || userResult.length === 0) {
       await auditRequest(request, {
         event_type: 'authorization_failure',
         resource: path,
@@ -329,7 +341,8 @@ export function requireAuth<T = unknown>(
   options?: { errorMessage?: string }
 ) {
   return async (req: NextRequest, params: T): Promise<NextResponse> => {
-    if (!(req as NextRequest & { auth?: unknown }).auth) {
+    const authReq = req as NextRequest & { auth?: { user: User; session_id: string; token_payload: AccessTokenPayload } }
+    if (!authReq.auth) {
       return NextResponse.json(
         { error: options?.errorMessage || 'Authentication required' },
         { status: 401 }
@@ -346,15 +359,15 @@ export function requireAuth<T = unknown>(
 export function requireConsent(consentTypes: string[]) {
   return <T = unknown>(handler: (req: NextRequest, params: T) => Promise<NextResponse>) => {
     return async (req: NextRequest, params: T): Promise<NextResponse> => {
-      const auth = (req as NextRequest & { auth?: { user: User } }).auth
-      if (!auth) {
+      const authReq = req as NextRequest & { auth?: { user: User; session_id: string; token_payload: AccessTokenPayload } }
+      if (!authReq.auth) {
         return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
       }
 
       const missingConsents: string[] = []
 
       for (const consentType of consentTypes) {
-        if (await checkConsentRequired(auth.user.id, consentType)) {
+        if (await checkConsentRequired(authReq.auth.user.id, consentType)) {
           missingConsents.push(consentType)
         }
       }
@@ -382,12 +395,12 @@ export function requireTwoFactor<T = unknown>(
   handler: (req: NextRequest, params: T) => Promise<NextResponse>
 ) {
   return async (req: NextRequest, params: T): Promise<NextResponse> => {
-    const auth = (req as NextRequest & { auth?: { user: User } }).auth
-    if (!auth) {
+    const authReq = req as NextRequest & { auth?: { user: User; session_id: string; token_payload: AccessTokenPayload } }
+    if (!authReq.auth) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
-    if (!auth.user.two_factor_enabled) {
+    if (!authReq.auth.user.two_factor_enabled) {
       return NextResponse.json(
         {
           error: 'Two-factor authentication required',

@@ -67,6 +67,16 @@ export class DatabaseMonitorLocal {
 
   async getSlowQueries(limit = 10): Promise<SlowQuery[]> {
     try {
+      // First check if pg_stat_statements extension is available
+      const extensionCheck = await this.query<{ extname: string }>(
+        `SELECT extname FROM pg_extension WHERE extname = 'pg_stat_statements'`
+      )
+      
+      if (!extensionCheck || extensionCheck.length === 0) {
+        // Extension not installed, return empty array silently
+        return []
+      }
+
       const result = await this.query<SlowQuery>(
         `SELECT 
           query,
@@ -82,8 +92,14 @@ export class DatabaseMonitorLocal {
       )
 
       return result && Array.isArray(result) ? result.map(row => slowQuerySchema.parse(row)) : []
-    } catch (error) {
-      console.error('Failed to get slow queries (pg_stat_statements may not be enabled):', error)
+    } catch (error: any) {
+      // Check if error is due to pg_stat_statements not being loaded via shared_preload_libraries
+      if (error.message?.includes('pg_stat_statements must be loaded via shared_preload_libraries')) {
+        // This is expected in test environments, return empty array silently
+        return []
+      }
+      // For other errors, log them but still return empty array
+      console.error('Failed to get slow queries:', error)
       return []
     }
   }

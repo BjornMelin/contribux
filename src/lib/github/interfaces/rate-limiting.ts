@@ -7,12 +7,18 @@
 
 // Use local Octokit interface
 import type { RequestOptions } from './client'
+import type {
+  GraphQLResponse,
+  GraphQLVariables,
+  OctokitResponse,
+  RestApiMethod,
+} from './octokit-types'
 
 // Local Octokit interface for type annotation
 interface Octokit {
-  rest: Record<string, Record<string, (...args: any[]) => Promise<any>>>
-  graphql: (...args: any[]) => Promise<any>
-  request: (options: RequestOptions) => Promise<any>
+  rest: Record<string, Record<string, RestApiMethod>>
+  graphql: <T = unknown>(query: string, variables?: GraphQLVariables) => Promise<GraphQLResponse<T>>
+  request: <T = unknown>(options: RequestOptions) => Promise<OctokitResponse<T>>
 }
 
 /**

@@ -1,24 +1,19 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { 
-  generateRegistrationOptions,
-  verifyRegistrationResponse,
-  generateAuthenticationOptions,
-  verifyAuthenticationResponse,
+import type { AuthenticationResponseJSON, RegistrationResponseJSON } from '@simplewebauthn/types'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {
   checkWebAuthnSupport,
+  generateAuthenticationOptions,
+  generateRegistrationOptions,
   getClientConfig,
-  validateWebAuthnRequest
+  validateWebAuthnRequest,
+  verifyAuthenticationResponse,
+  verifyRegistrationResponse,
 } from '@/lib/auth/webauthn'
 import type { WebAuthnConfig } from '@/lib/auth/webauthn-config'
 import { sql } from '@/lib/db/config'
-import type { 
-  PublicKeyCredentialCreationOptionsJSON,
-  PublicKeyCredentialRequestOptionsJSON,
-  RegistrationResponseJSON,
-  AuthenticationResponseJSON 
-} from '@simplewebauthn/types'
 
 // Mock env validation for this test file
-vi.mock("@/lib/validation/env", () => ({
+vi.mock('@/lib/validation/env', () => ({
   env: {
     NODE_ENV: 'test',
     DATABASE_URL: 'postgresql://test:test@localhost:5432/testdb',
@@ -32,9 +27,10 @@ vi.mock("@/lib/validation/env", () => ({
   isProduction: () => false,
   isDevelopment: () => false,
   isTest: () => true,
-  getJwtSecret: () => 'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only',
+  getJwtSecret: () =>
+    'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only',
   getEncryptionKey: () => 'test-encryption-key-32-bytes-long',
-}));
+}))
 
 // WebAuthn configuration for tests
 const mockWebAuthnConfig = {
@@ -60,7 +56,7 @@ describe('WebAuthn Authentication', () => {
   const mockUser = {
     id: '123e4567-e89b-12d3-a456-426614174000',
     email: 'test@example.com',
-    github_username: 'testuser'
+    github_username: 'testuser',
   }
 
   beforeEach(() => {
@@ -72,22 +68,22 @@ describe('WebAuthn Authentication', () => {
       const options = await generateRegistrationOptions({
         userId: mockUser.id,
         userEmail: mockUser.email,
-        userName: mockUser.github_username
+        userName: mockUser.github_username,
       })
 
       expect(options).toMatchObject({
         challenge: expect.any(String),
         rp: {
           name: 'Contribux',
-          id: expect.any(String)
+          id: expect.any(String),
         },
         user: {
           id: expect.any(String),
           name: mockUser.github_username,
-          displayName: mockUser.github_username
+          displayName: mockUser.github_username,
         },
         pubKeyCredParams: expect.arrayContaining([
-          { alg: -7, type: 'public-key' }  // ES256 is always first, RS256 might not be in test
+          { alg: -7, type: 'public-key' }, // ES256 is always first, RS256 might not be in test
         ]),
         timeout: 60000,
         attestation: 'none',
@@ -95,8 +91,8 @@ describe('WebAuthn Authentication', () => {
           authenticatorAttachment: 'platform',
           requireResidentKey: true,
           residentKey: 'required',
-          userVerification: 'required'
-        }
+          userVerification: 'required',
+        },
       })
     })
 
@@ -107,31 +103,31 @@ describe('WebAuthn Authentication', () => {
       await generateRegistrationOptions({
         userId: mockUser.id,
         userEmail: mockUser.email,
-        userName: mockUser.github_username
+        userName: mockUser.github_username,
       })
 
       expect(mockSql).toHaveBeenCalled()
       const calls = mockSql.mock.calls
-      const insertCall = calls.find(call => 
-        call[0] && call[0][0] && call[0][0].includes('INSERT INTO auth_challenges')
-      )
+      const insertCall = calls.find(call => call[0]?.[0]?.includes('INSERT INTO auth_challenges'))
       expect(insertCall).toBeDefined()
     })
 
     it('should verify registration response and store credential', async () => {
       const mockChallenge = 'test-challenge-123'
       const mockSql = vi.mocked(sql)
-      
+
       // Mock challenge retrieval
-      mockSql.mockResolvedValueOnce([{ 
-        challenge: mockChallenge,
-        user_id: mockUser.id,
-        created_at: new Date()
-      }])
-      
+      mockSql.mockResolvedValueOnce([
+        {
+          challenge: mockChallenge,
+          user_id: mockUser.id,
+          created_at: new Date(),
+        },
+      ])
+
       // Mock credential storage
       mockSql.mockResolvedValueOnce([])
-      
+
       // Mock challenge update
       mockSql.mockResolvedValueOnce([])
 
@@ -139,34 +135,36 @@ describe('WebAuthn Authentication', () => {
         id: 'credential-id-123',
         rawId: 'credential-id-123',
         response: {
-          clientDataJSON: btoa(JSON.stringify({
-            type: 'webauthn.create',
-            challenge: mockChallenge,
-            origin: 'http://localhost:3000'
-          })),
+          clientDataJSON: btoa(
+            JSON.stringify({
+              type: 'webauthn.create',
+              challenge: mockChallenge,
+              origin: 'http://localhost:3000',
+            })
+          ),
           attestationObject: 'mock-attestation',
           publicKey: 'mock-public-key',
           publicKeyAlgorithm: -7,
-          authenticatorData: 'mock-auth-data'
+          authenticatorData: 'mock-auth-data',
         },
         type: 'public-key',
         clientExtensionResults: {},
-        authenticatorAttachment: 'platform'
+        authenticatorAttachment: 'platform',
       }
 
       const result = await verifyRegistrationResponse({
         response: mockResponse,
         expectedChallenge: mockChallenge,
         expectedOrigin: 'http://localhost:3000',
-        expectedRPID: 'localhost'
+        expectedRPID: 'localhost',
       })
 
       expect(result.verified).toBe(true)
       expect(result.registrationInfo).toBeDefined()
       expect(mockSql).toHaveBeenCalled()
       const calls = mockSql.mock.calls
-      const insertCall = calls.find(call => 
-        call[0] && call[0][0] && call[0][0].includes('INSERT INTO webauthn_credentials')
+      const insertCall = calls.find(call =>
+        call[0]?.[0]?.includes('INSERT INTO webauthn_credentials')
       )
       expect(insertCall).toBeDefined()
     })
@@ -179,19 +177,21 @@ describe('WebAuthn Authentication', () => {
         id: 'credential-id-123',
         rawId: 'credential-id-123',
         response: {
-          clientDataJSON: btoa(JSON.stringify({
-            type: 'webauthn.create',
-            challenge: 'invalid-challenge',
-            origin: 'http://localhost:3000'
-          })),
+          clientDataJSON: btoa(
+            JSON.stringify({
+              type: 'webauthn.create',
+              challenge: 'invalid-challenge',
+              origin: 'http://localhost:3000',
+            })
+          ),
           attestationObject: 'mock-attestation',
           publicKey: 'mock-public-key',
           publicKeyAlgorithm: -7,
-          authenticatorData: 'mock-auth-data'
+          authenticatorData: 'mock-auth-data',
         },
         type: 'public-key',
         clientExtensionResults: {},
-        authenticatorAttachment: 'platform'
+        authenticatorAttachment: 'platform',
       }
 
       await expect(
@@ -199,7 +199,7 @@ describe('WebAuthn Authentication', () => {
           response: mockResponse,
           expectedChallenge: 'expected-challenge',
           expectedOrigin: 'http://localhost:3000',
-          expectedRPID: 'localhost'
+          expectedRPID: 'localhost',
         })
       ).rejects.toThrow('Invalid challenge')
     })
@@ -209,12 +209,15 @@ describe('WebAuthn Authentication', () => {
     it('should generate authentication options for existing user', async () => {
       const mockSql = vi.mocked(sql)
       mockSql.mockResolvedValueOnce([
-        { credential_id: Buffer.from('cred-1').toString('base64'), transports: ['internal', 'hybrid'] },
-        { credential_id: Buffer.from('cred-2').toString('base64'), transports: ['internal'] }
+        {
+          credential_id: Buffer.from('cred-1').toString('base64'),
+          transports: ['internal', 'hybrid'],
+        },
+        { credential_id: Buffer.from('cred-2').toString('base64'), transports: ['internal'] },
       ])
 
       const options = await generateAuthenticationOptions({
-        userId: mockUser.id
+        userId: mockUser.id,
       })
 
       expect(options).toMatchObject({
@@ -222,28 +225,32 @@ describe('WebAuthn Authentication', () => {
         timeout: 60000,
         userVerification: 'required',
         rpId: expect.any(String),
-        allowCredentials: expect.any(Array)
+        allowCredentials: expect.any(Array),
       })
     })
 
     it('should verify authentication response', async () => {
       const mockChallenge = 'auth-challenge-123'
       const mockSql = vi.mocked(sql)
-      
+
       // Mock challenge retrieval
-      mockSql.mockResolvedValueOnce([{ 
-        challenge: mockChallenge,
-        user_id: mockUser.id 
-      }])
-      
+      mockSql.mockResolvedValueOnce([
+        {
+          challenge: mockChallenge,
+          user_id: mockUser.id,
+        },
+      ])
+
       // Mock credential retrieval
-      mockSql.mockResolvedValueOnce([{
-        credential_id: 'cred-123',
-        public_key: 'mock-public-key',
-        counter: 0,
-        user_id: mockUser.id
-      }])
-      
+      mockSql.mockResolvedValueOnce([
+        {
+          credential_id: 'cred-123',
+          public_key: 'mock-public-key',
+          counter: 0,
+          user_id: mockUser.id,
+        },
+      ])
+
       // Mock counter update
       mockSql.mockResolvedValueOnce([])
 
@@ -251,24 +258,26 @@ describe('WebAuthn Authentication', () => {
         id: 'cred-123',
         rawId: 'cred-123',
         response: {
-          clientDataJSON: btoa(JSON.stringify({
-            type: 'webauthn.get',
-            challenge: mockChallenge,
-            origin: 'http://localhost:3000'
-          })),
+          clientDataJSON: btoa(
+            JSON.stringify({
+              type: 'webauthn.get',
+              challenge: mockChallenge,
+              origin: 'http://localhost:3000',
+            })
+          ),
           authenticatorData: 'mock-auth-data',
           signature: 'mock-signature',
-          userHandle: mockUser.id
+          userHandle: mockUser.id,
         },
         type: 'public-key',
-        clientExtensionResults: {}
+        clientExtensionResults: {},
       }
 
       const result = await verifyAuthenticationResponse({
         response: mockResponse,
         expectedChallenge: mockChallenge,
         expectedOrigin: 'http://localhost:3000',
-        expectedRPID: 'localhost'
+        expectedRPID: 'localhost',
       })
 
       expect(result.verified).toBe(true)
@@ -278,27 +287,31 @@ describe('WebAuthn Authentication', () => {
 
     it('should reject authentication with unknown credential', async () => {
       const mockSql = vi.mocked(sql)
-      mockSql.mockResolvedValueOnce([{ 
-        challenge: 'test-challenge',
-        user_id: mockUser.id 
-      }])
+      mockSql.mockResolvedValueOnce([
+        {
+          challenge: 'test-challenge',
+          user_id: mockUser.id,
+        },
+      ])
       mockSql.mockResolvedValueOnce([]) // No credential found
 
       const mockResponse: AuthenticationResponseJSON = {
         id: 'unknown-cred',
         rawId: 'unknown-cred',
         response: {
-          clientDataJSON: btoa(JSON.stringify({
-            type: 'webauthn.get',
-            challenge: 'test-challenge',
-            origin: 'http://localhost:3000'
-          })),
+          clientDataJSON: btoa(
+            JSON.stringify({
+              type: 'webauthn.get',
+              challenge: 'test-challenge',
+              origin: 'http://localhost:3000',
+            })
+          ),
           authenticatorData: 'mock-auth-data',
           signature: 'mock-signature',
-          userHandle: mockUser.id
+          userHandle: mockUser.id,
         },
         type: 'public-key',
-        clientExtensionResults: {}
+        clientExtensionResults: {},
       }
 
       await expect(
@@ -306,47 +319,55 @@ describe('WebAuthn Authentication', () => {
           response: mockResponse,
           expectedChallenge: 'test-challenge',
           expectedOrigin: 'http://localhost:3000',
-          expectedRPID: 'localhost'
+          expectedRPID: 'localhost',
         })
       ).rejects.toThrow('Credential not found')
     })
 
     it('should handle counter verification to prevent replay attacks', async () => {
-      const { verifyAuthenticationResponse: mockVerifyAuth } = await import('@simplewebauthn/server')
+      const { verifyAuthenticationResponse: mockVerifyAuth } = await import(
+        '@simplewebauthn/server'
+      )
       vi.mocked(mockVerifyAuth).mockRejectedValueOnce(new Error('Counter verification failed'))
-      
+
       const mockSql = vi.mocked(sql)
-      
+
       // Mock challenge retrieval
-      mockSql.mockResolvedValueOnce([{ 
-        challenge: 'test-challenge',
-        user_id: mockUser.id,
-        created_at: new Date()
-      }])
-      
+      mockSql.mockResolvedValueOnce([
+        {
+          challenge: 'test-challenge',
+          user_id: mockUser.id,
+          created_at: new Date(),
+        },
+      ])
+
       // Mock credential with counter
-      mockSql.mockResolvedValueOnce([{
-        credential_id: Buffer.from('cred-123').toString('base64'),
-        public_key: Buffer.from('mock-public-key').toString('base64'),
-        counter: 100,
-        user_id: mockUser.id
-      }])
+      mockSql.mockResolvedValueOnce([
+        {
+          credential_id: Buffer.from('cred-123').toString('base64'),
+          public_key: Buffer.from('mock-public-key').toString('base64'),
+          counter: 100,
+          user_id: mockUser.id,
+        },
+      ])
 
       const mockResponse: AuthenticationResponseJSON = {
         id: 'cred-123',
         rawId: 'cred-123',
         response: {
-          clientDataJSON: btoa(JSON.stringify({
-            type: 'webauthn.get',
-            challenge: 'test-challenge',
-            origin: 'http://localhost:3000'
-          })),
+          clientDataJSON: btoa(
+            JSON.stringify({
+              type: 'webauthn.get',
+              challenge: 'test-challenge',
+              origin: 'http://localhost:3000',
+            })
+          ),
           authenticatorData: 'mock-auth-data-with-counter-50', // Counter less than stored
           signature: 'mock-signature',
-          userHandle: mockUser.id
+          userHandle: mockUser.id,
         },
         type: 'public-key',
-        clientExtensionResults: {}
+        clientExtensionResults: {},
       }
 
       await expect(
@@ -354,7 +375,7 @@ describe('WebAuthn Authentication', () => {
           response: mockResponse,
           expectedChallenge: 'test-challenge',
           expectedOrigin: 'http://localhost:3000',
-          expectedRPID: 'localhost'
+          expectedRPID: 'localhost',
         })
       ).rejects.toThrow('Counter verification failed')
     })
@@ -366,28 +387,30 @@ describe('WebAuthn Authentication', () => {
       const expiredChallenge = {
         challenge: 'expired-challenge',
         user_id: mockUser.id,
-        created_at: new Date(Date.now() - 6 * 60 * 1000) // 6 minutes ago
+        created_at: new Date(Date.now() - 6 * 60 * 1000), // 6 minutes ago
       }
-      
+
       mockSql.mockResolvedValueOnce([expiredChallenge])
 
       const mockResponse: RegistrationResponseJSON = {
         id: 'expired-cred',
         rawId: 'expired-cred',
         response: {
-          clientDataJSON: btoa(JSON.stringify({
-            type: 'webauthn.create',
-            challenge: 'expired-challenge',
-            origin: 'http://localhost:3000'
-          })),
+          clientDataJSON: btoa(
+            JSON.stringify({
+              type: 'webauthn.create',
+              challenge: 'expired-challenge',
+              origin: 'http://localhost:3000',
+            })
+          ),
           attestationObject: 'mock-attestation',
           publicKey: 'mock-public-key',
           publicKeyAlgorithm: -7,
-          authenticatorData: 'mock-auth-data'
+          authenticatorData: 'mock-auth-data',
         },
         type: 'public-key',
         clientExtensionResults: {},
-        authenticatorAttachment: 'platform'
+        authenticatorAttachment: 'platform',
       }
 
       await expect(
@@ -395,7 +418,7 @@ describe('WebAuthn Authentication', () => {
           response: mockResponse,
           expectedChallenge: 'expired-challenge',
           expectedOrigin: 'http://localhost:3000',
-          expectedRPID: 'localhost'
+          expectedRPID: 'localhost',
         })
       ).rejects.toThrow('Challenge expired')
     })
@@ -403,33 +426,37 @@ describe('WebAuthn Authentication', () => {
     it('should validate origin for CSRF protection', async () => {
       const { verifyRegistrationResponse: mockVerifyReg } = await import('@simplewebauthn/server')
       vi.mocked(mockVerifyReg).mockRejectedValueOnce(new Error('Invalid origin'))
-      
+
       const mockSql = vi.mocked(sql)
-      
+
       // Mock challenge retrieval
-      mockSql.mockResolvedValueOnce([{ 
-        challenge: 'test-challenge',
-        user_id: mockUser.id,
-        created_at: new Date()
-      }])
+      mockSql.mockResolvedValueOnce([
+        {
+          challenge: 'test-challenge',
+          user_id: mockUser.id,
+          created_at: new Date(),
+        },
+      ])
 
       const mockResponse: RegistrationResponseJSON = {
         id: 'cred-123',
         rawId: 'cred-123',
         response: {
-          clientDataJSON: btoa(JSON.stringify({
-            type: 'webauthn.create',
-            challenge: 'test-challenge',
-            origin: 'http://evil.com'
-          })),
+          clientDataJSON: btoa(
+            JSON.stringify({
+              type: 'webauthn.create',
+              challenge: 'test-challenge',
+              origin: 'http://evil.com',
+            })
+          ),
           attestationObject: 'mock-attestation',
           publicKey: 'mock-public-key',
           publicKeyAlgorithm: -7,
-          authenticatorData: 'mock-auth-data'
+          authenticatorData: 'mock-auth-data',
         },
         type: 'public-key',
         clientExtensionResults: {},
-        authenticatorAttachment: 'platform'
+        authenticatorAttachment: 'platform',
       }
 
       await expect(
@@ -437,18 +464,18 @@ describe('WebAuthn Authentication', () => {
           response: mockResponse,
           expectedChallenge: 'test-challenge',
           expectedOrigin: 'http://localhost:3000',
-          expectedRPID: 'localhost'
+          expectedRPID: 'localhost',
         })
       ).rejects.toThrow('Invalid origin')
     })
 
     it('should support multiple credentials per user', async () => {
       const mockSql = vi.mocked(sql)
-      
+
       // Mock existing credentials check
       mockSql.mockResolvedValueOnce([
         { credential_id: 'existing-cred-1' },
-        { credential_id: 'existing-cred-2' }
+        { credential_id: 'existing-cred-2' },
       ])
 
       const credentialCount = await sql`
@@ -472,7 +499,7 @@ describe('WebAuthn Authentication', () => {
       const originalWindow = global.window
       global.window = {
         ...global.window,
-        PublicKeyCredential: undefined
+        PublicKeyCredential: undefined,
       } as any
 
       const isSupported = await checkWebAuthnSupport()
@@ -496,17 +523,20 @@ describe('WebAuthn Authentication', () => {
         timeout: 60000,
       }
 
-      const options = await generateRegistrationOptions({
-        userId: mockUser.id,
-        userEmail: mockUser.email,
-        userName: mockUser.github_username
-      }, customConfig)
+      const options = await generateRegistrationOptions(
+        {
+          userId: mockUser.id,
+          userEmail: mockUser.email,
+          userName: mockUser.github_username,
+        },
+        customConfig
+      )
 
       expect(options).toMatchObject({
         rp: {
           name: 'Custom App',
-          id: 'custom.example.com'
-        }
+          id: 'custom.example.com',
+        },
       })
     })
 
@@ -524,15 +554,18 @@ describe('WebAuthn Authentication', () => {
 
       const mockSql = vi.mocked(sql)
       mockSql.mockResolvedValueOnce([
-        { credential_id: Buffer.from('cred-1').toString('base64'), transports: ['internal'] }
+        { credential_id: Buffer.from('cred-1').toString('base64'), transports: ['internal'] },
       ])
 
-      const options = await generateAuthenticationOptions({
-        userId: mockUser.id
-      }, customConfig)
+      const options = await generateAuthenticationOptions(
+        {
+          userId: mockUser.id,
+        },
+        customConfig
+      )
 
       expect(options).toMatchObject({
-        rpId: 'custom.example.com'
+        rpId: 'custom.example.com',
       })
     })
 
@@ -549,38 +582,45 @@ describe('WebAuthn Authentication', () => {
       }
 
       const mockSql = vi.mocked(sql)
-      mockSql.mockResolvedValueOnce([{ 
-        challenge: 'test-challenge',
-        user_id: mockUser.id,
-        created_at: new Date()
-      }])
+      mockSql.mockResolvedValueOnce([
+        {
+          challenge: 'test-challenge',
+          user_id: mockUser.id,
+          created_at: new Date(),
+        },
+      ])
 
       const mockResponse: RegistrationResponseJSON = {
         id: 'credential-id-123',
         rawId: 'credential-id-123',
         response: {
-          clientDataJSON: btoa(JSON.stringify({
-            type: 'webauthn.create',
-            challenge: 'test-challenge',
-            origin: 'https://evil.com'  // Not allowed origin
-          })),
+          clientDataJSON: btoa(
+            JSON.stringify({
+              type: 'webauthn.create',
+              challenge: 'test-challenge',
+              origin: 'https://evil.com', // Not allowed origin
+            })
+          ),
           attestationObject: 'mock-attestation',
           publicKey: 'mock-public-key',
           publicKeyAlgorithm: -7,
-          authenticatorData: 'mock-auth-data'
+          authenticatorData: 'mock-auth-data',
         },
         type: 'public-key',
         clientExtensionResults: {},
-        authenticatorAttachment: 'platform'
+        authenticatorAttachment: 'platform',
       }
 
       await expect(
-        verifyRegistrationResponse({
-          response: mockResponse,
-          expectedChallenge: 'test-challenge',
-          expectedOrigin: 'https://evil.com',
-          expectedRPID: 'example.com'
-        }, customConfig)
+        verifyRegistrationResponse(
+          {
+            response: mockResponse,
+            expectedChallenge: 'test-challenge',
+            expectedOrigin: 'https://evil.com',
+            expectedRPID: 'example.com',
+          },
+          customConfig
+        )
       ).rejects.toThrow("Origin 'https://evil.com' is not allowed for this WebAuthn configuration")
     })
 
@@ -597,12 +637,15 @@ describe('WebAuthn Authentication', () => {
       }
 
       await expect(
-        verifyAuthenticationResponse({
-          response: {} as AuthenticationResponseJSON,
-          expectedChallenge: 'test-challenge',
-          expectedOrigin: 'https://evil.com',
-          expectedRPID: 'example.com'
-        }, customConfig)
+        verifyAuthenticationResponse(
+          {
+            response: {} as AuthenticationResponseJSON,
+            expectedChallenge: 'test-challenge',
+            expectedOrigin: 'https://evil.com',
+            expectedRPID: 'example.com',
+          },
+          customConfig
+        )
       ).rejects.toThrow("Origin 'https://evil.com' is not allowed for this WebAuthn configuration")
     })
 
@@ -618,18 +661,17 @@ describe('WebAuthn Authentication', () => {
     })
 
     it('should validate WebAuthn request parameters', () => {
-      expect(() => 
+      expect(() =>
         validateWebAuthnRequest('http://localhost:3000', 'localhost', mockWebAuthnConfig)
       ).not.toThrow()
 
-      expect(() => 
+      expect(() =>
         validateWebAuthnRequest('https://evil.com', 'localhost', mockWebAuthnConfig)
       ).toThrow("Origin 'https://evil.com' is not allowed")
 
-      expect(() => 
+      expect(() =>
         validateWebAuthnRequest('http://localhost:3000', 'wrong-rp-id', mockWebAuthnConfig)
       ).toThrow("RP ID 'wrong-rp-id' does not match configured RP ID 'localhost'")
     })
   })
 })
-

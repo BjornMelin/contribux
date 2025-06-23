@@ -1,93 +1,98 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import type { AuthEventType, EventSeverity, SecurityAuditLog } from '@/types/auth'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Unmock audit functions to test the real implementations
 vi.unmock('@/lib/auth/audit')
 
 import {
-  logSecurityEvent,
-  logAuthenticationAttempt,
-  logSessionActivity,
-  logDataAccess,
-  logConfigurationChange,
-  getAuditLogs,
-  getSecurityMetrics,
+  deleteAuditLog,
   detectAnomalies,
   exportAuditReport,
-  deleteAuditLog
+  getAuditLogs,
+  getSecurityMetrics,
+  logAuthenticationAttempt,
+  logConfigurationChange,
+  logDataAccess,
+  logSecurityEvent,
+  logSessionActivity,
 } from '@/lib/auth/audit'
 import { sql } from '@/lib/db/config'
 
 // Mock database
 vi.mock('@/lib/db/config', () => ({
-  sql: vi.fn()
+  sql: vi.fn(),
 }))
 
 describe('Security Audit Logging', () => {
   const mockUser = {
     id: '123e4567-e89b-12d3-a456-426614174000',
     email: 'test@example.com',
-    github_username: 'testuser'
+    github_username: 'testuser',
   }
 
   const mockContext = {
     ip_address: '192.168.1.1',
     user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
     request_id: 'req-123',
-    session_id: 'session-123'
+    session_id: 'session-123',
   }
 
   beforeEach(() => {
     vi.clearAllMocks()
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2024-01-01T00:00:00Z'))
-    
+
     // Set up SQL mock responses for different query patterns
-    const mockSql = vi.mocked(sql)
-    
+    const mockSql = vi.mocked(sql) as any
+
     // Mock different SQL operations that the real audit functions perform
     mockSql.mockImplementation((strings: TemplateStringsArray, ...values: any[]) => {
       const query = strings.join('?')
-      
+
       // Mock INSERT operations (for logSecurityEvent)
       if (query.includes('INSERT INTO security_audit_logs')) {
-        return Promise.resolve([{
-          id: 'mock-audit-log-id',
-          event_type: values[0], // Use actual event_type from parameters
-          event_severity: values[1], // Use actual event_severity from parameters
-          user_id: values[2],
-          ip_address: values[3],
-          user_agent: values[4],
-          event_data: values[5],
-          success: values[6],
-          error_message: values[7],
-          checksum: values[8],
-          created_at: new Date('2024-01-01T00:00:00Z')
-        }])
+        return Promise.resolve([
+          {
+            id: 'mock-audit-log-id',
+            event_type: values[0], // Use actual event_type from parameters
+            event_severity: values[1], // Use actual event_severity from parameters
+            user_id: values[2],
+            ip_address: values[3],
+            user_agent: values[4],
+            event_data: values[5],
+            success: values[6],
+            error_message: values[7],
+            checksum: values[8],
+            created_at: new Date('2024-01-01T00:00:00Z'),
+          },
+        ])
       }
-      
+
       // Mock SELECT operations for failed login attempts (return empty for no failures)
-      if (query.includes('FROM security_audit_logs') && query.includes('login_failure') && !query.includes('COUNT(*)')) {
+      if (
+        query.includes('FROM security_audit_logs') &&
+        query.includes('login_failure') &&
+        !query.includes('COUNT(*)')
+      ) {
         return Promise.resolve([])
       }
-      
+
       // Mock SELECT operations for user sessions
       if (query.includes('FROM user_sessions')) {
         return Promise.resolve([])
       }
-      
+
       // Mock SELECT operations for getAuditLogs
       if (query.includes('SELECT * FROM security_audit_logs') && !query.includes('INSERT')) {
         return Promise.resolve([])
       }
-      
+
       // Mock COUNT operations for metrics - be more specific about the queries
       if (query.includes('COUNT(*) as count')) {
         // login_success count query
         if (query.includes("event_type = 'login_success'")) {
           return Promise.resolve([{ count: '10' }])
         }
-        // login_failure count query  
+        // login_failure count query
         if (query.includes("event_type = 'login_failure'")) {
           return Promise.resolve([{ count: '1' }])
         }
@@ -101,17 +106,17 @@ describe('Security Audit Logging', () => {
         }
         return Promise.resolve([{ count: '0' }])
       }
-      
+
       // Mock UPDATE operations
       if (query.includes('UPDATE users') || query.includes('UPDATE auth_challenges')) {
         return Promise.resolve([])
       }
-      
+
       // Mock DELETE operations
       if (query.includes('DELETE FROM')) {
         return Promise.resolve([])
       }
-      
+
       // Default empty response
       return Promise.resolve([])
     })
@@ -131,15 +136,15 @@ describe('Security Audit Logging', () => {
         user_agent: mockContext.user_agent,
         event_data: {
           auth_method: 'webauthn',
-          session_id: mockContext.session_id
+          session_id: mockContext.session_id,
         },
-        success: true
+        success: true,
       })
 
       expect(log).toMatchObject({
         event_type: 'login_success',
         event_severity: 'info',
-        user_id: mockUser.id
+        user_id: mockUser.id,
       })
     })
 
@@ -151,10 +156,10 @@ describe('Security Audit Logging', () => {
         event_data: {
           endpoint: '/api/auth/login',
           limit: 10,
-          window: '1m'
+          window: '1m',
         },
         success: false,
-        error_message: 'Too many requests'
+        error_message: 'Too many requests',
       })
 
       // Since SQL is mocked, function returns the mock structure
@@ -164,19 +169,19 @@ describe('Security Audit Logging', () => {
 
     it('should assign appropriate severity levels', async () => {
       // Mock getEventSeverity to return different values for different events
-      const mockGetEventSeverity = vi.mocked(vi.fn(async (eventType: string) => {
-        const severityMap: Record<string, string> = {
-          'login_success': 'info',
-          'login_failure': 'warning',
-          'account_locked': 'error',
-          'data_breach_attempt': 'critical'
-        }
-        return severityMap[eventType] || 'warning'
-      }))
-      
-      const severityTests = [
-        { event: 'login_failure', expected: 'warning' }
-      ]
+      const mockGetEventSeverity = vi.mocked(
+        vi.fn(async (eventType: string) => {
+          const severityMap: Record<string, string> = {
+            login_success: 'info',
+            login_failure: 'warning',
+            account_locked: 'error',
+            data_breach_attempt: 'critical',
+          }
+          return severityMap[eventType] || 'warning'
+        })
+      )
+
+      const severityTests = [{ event: 'login_failure', expected: 'warning' }]
 
       for (const test of severityTests) {
         const severity = await mockGetEventSeverity(test.event)
@@ -198,15 +203,15 @@ describe('Security Audit Logging', () => {
           geo_location: {
             country: 'US',
             region: 'CA',
-            city: 'San Francisco'
-          }
-        }
+            city: 'San Francisco',
+          },
+        },
       })
 
       // Since we're testing the real function, verify it returns expected structure
       expect(result).toMatchObject({
         recentFailures: expect.any(Number),
-        accountLocked: expect.any(Boolean)
+        accountLocked: expect.any(Boolean),
       })
     })
 
@@ -217,12 +222,12 @@ describe('Security Audit Logging', () => {
         authMethod: 'webauthn',
         success: false,
         error: 'Invalid credentials',
-        context: mockContext
+        context: mockContext,
       })
 
       expect(result).toMatchObject({
         recentFailures: expect.any(Number),
-        accountLocked: expect.any(Boolean)
+        accountLocked: expect.any(Boolean),
       })
     })
 
@@ -233,12 +238,12 @@ describe('Security Audit Logging', () => {
         authMethod: 'oauth',
         success: false,
         error: 'Invalid credentials',
-        context: mockContext
+        context: mockContext,
       })
 
       expect(result).toMatchObject({
         recentFailures: expect.any(Number),
-        accountLocked: expect.any(Boolean)
+        accountLocked: expect.any(Boolean),
       })
     })
   })
@@ -249,11 +254,11 @@ describe('Security Audit Logging', () => {
         sessionId: 'session-123',
         userId: mockUser.id,
         activityType: 'session_created',
-        context: mockContext
+        context: mockContext,
       })
 
       expect(result).toMatchObject({
-        anomalyDetected: expect.any(Boolean)
+        anomalyDetected: expect.any(Boolean),
       })
     })
 
@@ -262,11 +267,11 @@ describe('Security Audit Logging', () => {
         sessionId: 'session-123',
         userId: mockUser.id,
         activityType: 'session_refreshed',
-        context: mockContext
+        context: mockContext,
       })
 
       expect(result).toMatchObject({
-        anomalyDetected: expect.any(Boolean)
+        anomalyDetected: expect.any(Boolean),
       })
     })
   })
@@ -279,7 +284,7 @@ describe('Security Audit Logging', () => {
         resourceId: 'user-456',
         operation: 'read',
         fields: ['email', 'github_token'],
-        context: mockContext
+        context: mockContext,
       })
 
       // Since logDataAccess is mocked, just verify it executed successfully
@@ -291,7 +296,7 @@ describe('Security Audit Logging', () => {
         resourceType: 'user_export',
         operation: 'export',
         recordCount: 1000,
-        context: mockContext
+        context: mockContext,
       })
 
       // Since logDataAccess is mocked, just verify it executed successfully
@@ -305,10 +310,10 @@ describe('Security Audit Logging', () => {
         configType: 'security_settings',
         changes: {
           two_factor_enabled: { from: false, to: true },
-          session_timeout: { from: 3600, to: 1800 }
+          session_timeout: { from: 3600, to: 1800 },
         },
         context: mockContext,
-        privilegeLevel: 'admin'
+        privilegeLevel: 'admin',
       })
 
       // Since logConfigurationChange is mocked, just verify it executed successfully
@@ -322,7 +327,7 @@ describe('Security Audit Logging', () => {
           configType: 'encryption_keys',
           changes: { algorithm: { from: 'AES-128', to: 'AES-256' } },
           context: mockContext,
-          privilegeLevel: 'user'
+          privilegeLevel: 'user',
         })
       ).rejects.toThrow('Insufficient privileges for critical configuration change')
     })
@@ -335,7 +340,7 @@ describe('Security Audit Logging', () => {
         eventTypes: ['login_success', 'data_access'],
         startDate: new Date('2024-01-01'),
         endDate: new Date('2024-01-31'),
-        limit: 100
+        limit: 100,
       })
 
       // getAuditLogs should return empty array based on our SQL mock
@@ -345,7 +350,7 @@ describe('Security Audit Logging', () => {
     it('should support pagination', async () => {
       const page1 = await getAuditLogs({
         limit: 50,
-        offset: 0
+        offset: 0,
       })
 
       // getAuditLogs should return empty array based on our SQL mock
@@ -356,7 +361,7 @@ describe('Security Audit Logging', () => {
   describe('Security Metrics', () => {
     it('should calculate security metrics', async () => {
       const metrics = await getSecurityMetrics({
-        timeRange: '24h'
+        timeRange: '24h',
       })
 
       // With our SQL mocks: 10 successful logins, 1 failed login = 90% success rate
@@ -364,14 +369,14 @@ describe('Security Audit Logging', () => {
         loginSuccessRate: 90,
         failedLoginCount: 1,
         lockedAccountCount: 0,
-        anomalyCount: 0
+        anomalyCount: 0,
       })
     })
 
     it('should track metrics over time', async () => {
       const timeSeries = await getSecurityMetrics({
         timeRange: '7d',
-        groupBy: 'day'
+        groupBy: 'day',
       })
 
       expect(timeSeries).toBeDefined()
@@ -384,7 +389,7 @@ describe('Security Audit Logging', () => {
         userId: mockUser.id,
         eventType: 'login_attempt',
         timestamp: new Date('2024-01-01T03:00:00Z'), // 3 AM login
-        context: mockContext
+        context: mockContext,
       })
 
       expect(anomaly.detected).toBe(false)
@@ -394,7 +399,7 @@ describe('Security Audit Logging', () => {
       const anomaly = await detectAnomalies({
         userId: mockUser.id,
         eventType: 'data_export',
-        context: mockContext
+        context: mockContext,
       })
 
       expect(anomaly.detected).toBe(false)
@@ -403,11 +408,11 @@ describe('Security Audit Logging', () => {
 
   describe('Audit Reporting', () => {
     it('should generate audit report', async () => {
-      const mockSql = vi.mocked(sql)
-      
+      const mockSql = vi.mocked(sql) as any
+
       // Mock the getAuditLogs implementation call
       mockSql.mockResolvedValueOnce([])
-      
+
       // Mock the Promise.all calls for summary statistics
       mockSql.mockResolvedValueOnce([{ count: '1000' }]) // Total events
       mockSql.mockResolvedValueOnce([]) // Event distribution
@@ -416,29 +421,29 @@ describe('Security Audit Logging', () => {
       const report = await exportAuditReport({
         startDate: new Date('2024-01-01'),
         endDate: new Date('2024-01-31'),
-        format: 'json'
+        format: 'json',
       })
 
       expect(report).toMatchObject({
         metadata: expect.objectContaining({
           generated_at: expect.any(Date),
-          period: expect.any(Object)
+          period: expect.any(Object),
         }),
         summary: expect.any(Object),
-        events: expect.any(Array)
+        events: expect.any(Array),
       })
     })
 
     it('should support CSV export format', async () => {
-      const mockSql = vi.mocked(sql)
-      
+      const mockSql = vi.mocked(sql) as any
+
       // Mock the getAuditLogs implementation call
       mockSql.mockResolvedValueOnce([])
 
       const report = await exportAuditReport({
         startDate: new Date('2024-01-01'),
         endDate: new Date('2024-01-31'),
-        format: 'csv'
+        format: 'csv',
       })
 
       expect(typeof report).toBe('string')
@@ -448,23 +453,25 @@ describe('Security Audit Logging', () => {
 
   describe('Compliance Features', () => {
     it('should ensure tamper-proof logging', async () => {
-      const mockSql = vi.mocked(sql)
-      mockSql.mockResolvedValueOnce([{
-        id: 'log-123',
-        event_type: 'critical_operation',
-        event_severity: 'critical',
-        user_id: mockUser.id,
-        checksum: 'abc123def456',
-        created_at: new Date(),
-        success: true
-      }])
+      const mockSql = vi.mocked(sql) as any
+      mockSql.mockResolvedValueOnce([
+        {
+          id: 'log-123',
+          event_type: 'critical_operation',
+          event_severity: 'critical',
+          user_id: mockUser.id,
+          checksum: 'abc123def456',
+          created_at: new Date(),
+          success: true,
+        },
+      ])
 
       const log = await logSecurityEvent({
         event_type: 'critical_operation',
         event_severity: 'critical',
         user_id: mockUser.id,
         event_data: { operation: 'delete_user' },
-        success: true
+        success: true,
       })
 
       // Verify checksum was calculated
@@ -478,4 +485,3 @@ describe('Security Audit Logging', () => {
     })
   })
 })
-

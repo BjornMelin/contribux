@@ -1,17 +1,16 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { 
-  generateOAuthUrl,
-  validateOAuthCallback,
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import {
   exchangeCodeForTokens,
+  generateOAuthUrl,
   refreshOAuthTokens,
-  unlinkOAuthAccount
+  unlinkOAuthAccount,
+  validateOAuthCallback,
 } from '@/lib/auth/oauth'
 import { sql } from '@/lib/db/config'
-import { generatePKCEChallenge } from '@/lib/auth/pkce'
-import type { OAuthTokens, OAuthCallbackParams } from '@/types/auth'
+import type { OAuthCallbackParams } from '@/types/auth'
 
 // Mock env validation for this test file
-vi.mock("@/lib/validation/env", () => ({
+vi.mock('@/lib/validation/env', () => ({
   env: {
     NODE_ENV: 'test',
     DATABASE_URL: 'postgresql://test:test@localhost:5432/testdb',
@@ -22,16 +21,17 @@ vi.mock("@/lib/validation/env", () => ({
   isProduction: () => false,
   isDevelopment: () => false,
   isTest: () => true,
-  getJwtSecret: () => 'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only',
+  getJwtSecret: () =>
+    'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only',
   getEncryptionKey: () => 'test-encryption-key-32-bytes-long',
-}));
+}))
 
 // Mock PKCE generation
 vi.mock('@/lib/auth/pkce', () => ({
   generatePKCEChallenge: vi.fn(() => ({
     codeVerifier: 'test-verifier-123',
-    codeChallenge: 'test-challenge-123'
-  }))
+    codeChallenge: 'test-challenge-123',
+  })),
 }))
 
 // Mock crypto functions
@@ -39,18 +39,18 @@ vi.mock('@/lib/auth/crypto', async () => {
   const actual = await vi.importActual<typeof import('@/lib/auth/crypto')>('@/lib/auth/crypto')
   return {
     ...actual,
-    encryptOAuthToken: vi.fn(async (token: string) => 
+    encryptOAuthToken: vi.fn(async (token: string) =>
       JSON.stringify({
         iv: Buffer.from('test-iv').toString('base64'),
-        ciphertext: Buffer.from('encrypted-' + token).toString('base64'),
+        ciphertext: Buffer.from(`encrypted-${token}`).toString('base64'),
         tag: Buffer.from('test-tag').toString('base64'),
-        keyId: 'key-123'
+        keyId: 'key-123',
       })
     ),
-    decryptOAuthToken: vi.fn(async (encrypted: string) => {
+    decryptOAuthToken: vi.fn(async (_encrypted: string) => {
       // Return mock refresh token
       return 'ghr_refreshtoken123'
-    })
+    }),
   }
 })
 
@@ -60,13 +60,14 @@ describe('OAuth Authentication', () => {
   const mockUser = {
     id: '123e4567-e89b-12d3-a456-426614174000',
     email: 'test@example.com',
-    github_username: 'testuser'
+    github_username: 'testuser',
   }
 
   const mockConfig = {
     clientId: 'test1234567890123456', // Using mocked value from env validation mock
     clientSecret: 'test-github-client-secret-with-sufficient-length-for-testing', // Using mocked value
-    redirectUri: process.env.GITHUB_REDIRECT_URI || 'http://localhost:3000/api/auth/github/callback'
+    redirectUri:
+      process.env.GITHUB_REDIRECT_URI || 'http://localhost:3000/api/auth/github/callback',
   }
 
   beforeEach(() => {
@@ -87,13 +88,13 @@ describe('OAuth Authentication', () => {
       const result = await generateOAuthUrl({
         provider: 'github',
         redirectUri: mockConfig.redirectUri,
-        scopes: ['user:email', 'read:user']
+        scopes: ['user:email', 'read:user'],
       })
 
       expect(result).toMatchObject({
         url: expect.stringContaining('https://github.com/login/oauth/authorize'),
         state: expect.any(String),
-        codeVerifier: 'test-verifier-123'
+        codeVerifier: 'test-verifier-123',
       })
 
       // Verify URL contains required parameters
@@ -113,14 +114,12 @@ describe('OAuth Authentication', () => {
       await generateOAuthUrl({
         provider: 'github',
         redirectUri: mockConfig.redirectUri,
-        scopes: ['user:email']
+        scopes: ['user:email'],
       })
 
       expect(mockSql).toHaveBeenCalled()
       const calls = mockSql.mock.calls
-      const stateCall = calls.find(call => 
-        call[0] && call[0][0] && call[0][0].includes('INSERT INTO oauth_states')
-      )
+      const stateCall = calls.find(call => call[0]?.[0]?.includes('INSERT INTO oauth_states'))
       expect(stateCall).toBeDefined()
     })
 
@@ -133,7 +132,7 @@ describe('OAuth Authentication', () => {
         redirectUri: mockConfig.redirectUri,
         scopes: ['user:email'],
         userId: mockUser.id,
-        allowSignup: false
+        allowSignup: false,
       })
 
       const url = new URL(result.url)
@@ -149,7 +148,7 @@ describe('OAuth Authentication', () => {
         code_verifier: 'test-verifier-123',
         provider: 'github',
         redirect_uri: mockConfig.redirectUri,
-        created_at: new Date()
+        created_at: new Date(),
       }
 
       // Mock state retrieval
@@ -159,7 +158,7 @@ describe('OAuth Authentication', () => {
 
       const params: OAuthCallbackParams = {
         code: 'auth-code-123',
-        state: 'test-state-123'
+        state: 'test-state-123',
       }
 
       const result = await validateOAuthCallback(params)
@@ -168,7 +167,7 @@ describe('OAuth Authentication', () => {
         valid: true,
         code: 'auth-code-123',
         codeVerifier: 'test-verifier-123',
-        provider: 'github'
+        provider: 'github',
       })
     })
 
@@ -178,12 +177,10 @@ describe('OAuth Authentication', () => {
 
       const params: OAuthCallbackParams = {
         code: 'auth-code-123',
-        state: 'invalid-state'
+        state: 'invalid-state',
       }
 
-      await expect(
-        validateOAuthCallback(params)
-      ).rejects.toThrow('Invalid OAuth state')
+      await expect(validateOAuthCallback(params)).rejects.toThrow('Invalid OAuth state')
     })
 
     it('should reject callback with expired state', async () => {
@@ -193,31 +190,29 @@ describe('OAuth Authentication', () => {
         code_verifier: 'test-verifier-123',
         provider: 'github',
         redirect_uri: mockConfig.redirectUri,
-        created_at: new Date(Date.now() - 11 * 60 * 1000) // 11 minutes ago
+        created_at: new Date(Date.now() - 11 * 60 * 1000), // 11 minutes ago
       }
 
       mockSql.mockResolvedValueOnce([expiredState])
 
       const params: OAuthCallbackParams = {
         code: 'auth-code-123',
-        state: 'test-state-123'
+        state: 'test-state-123',
       }
 
-      await expect(
-        validateOAuthCallback(params)
-      ).rejects.toThrow('OAuth state expired')
+      await expect(validateOAuthCallback(params)).rejects.toThrow('OAuth state expired')
     })
 
     it('should reject callback with error parameter', async () => {
       const params: OAuthCallbackParams = {
         error: 'access_denied',
         error_description: 'User denied access',
-        state: 'test-state-123'
+        state: 'test-state-123',
       }
 
-      await expect(
-        validateOAuthCallback(params)
-      ).rejects.toThrow('OAuth error: access_denied - User denied access')
+      await expect(validateOAuthCallback(params)).rejects.toThrow(
+        'OAuth error: access_denied - User denied access'
+      )
     })
   })
 
@@ -228,25 +223,25 @@ describe('OAuth Authentication', () => {
         access_token: 'gho_accesstoken123',
         token_type: 'bearer',
         scope: 'user:email read:user',
-        refresh_token: 'ghr_refreshtoken123'
+        refresh_token: 'ghr_refreshtoken123',
       }
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => mockTokenResponse
+        json: async () => mockTokenResponse,
       } as Response)
 
       const tokens = await exchangeCodeForTokens({
         code: 'auth-code-123',
         codeVerifier: 'test-verifier-123',
-        redirectUri: mockConfig.redirectUri
+        redirectUri: mockConfig.redirectUri,
       })
 
       expect(tokens).toMatchObject({
         accessToken: 'gho_accesstoken123',
         tokenType: 'bearer',
         scope: 'user:email read:user',
-        refreshToken: 'ghr_refreshtoken123'
+        refreshToken: 'ghr_refreshtoken123',
       })
 
       // Verify fetch was called with correct parameters
@@ -255,16 +250,16 @@ describe('OAuth Authentication', () => {
         expect.objectContaining({
           method: 'POST',
           headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             client_id: mockConfig.clientId,
             client_secret: mockConfig.clientSecret,
             code: 'auth-code-123',
             redirect_uri: mockConfig.redirectUri,
-            code_verifier: 'test-verifier-123'
-          })
+            code_verifier: 'test-verifier-123',
+          }),
         })
       )
     })
@@ -276,15 +271,15 @@ describe('OAuth Authentication', () => {
         status: 400,
         json: async () => ({
           error: 'bad_verification_code',
-          error_description: 'The code passed is incorrect or expired.'
-        })
+          error_description: 'The code passed is incorrect or expired.',
+        }),
       } as Response)
 
       await expect(
         exchangeCodeForTokens({
           code: 'invalid-code',
           codeVerifier: 'test-verifier-123',
-          redirectUri: mockConfig.redirectUri
+          redirectUri: mockConfig.redirectUri,
         })
       ).rejects.toThrow('Token exchange failed: bad_verification_code')
     })
@@ -292,7 +287,7 @@ describe('OAuth Authentication', () => {
     it('should fetch user profile and store OAuth account', async () => {
       const mockFetch = vi.mocked(fetch)
       const mockSql = vi.mocked(sql)
-      
+
       // Mock token exchange
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -300,8 +295,8 @@ describe('OAuth Authentication', () => {
           access_token: 'gho_accesstoken123',
           token_type: 'bearer',
           scope: 'user:email read:user',
-          refresh_token: 'ghr_refreshtoken123'
-        })
+          refresh_token: 'ghr_refreshtoken123',
+        }),
       } as Response)
 
       // Mock user profile fetch
@@ -311,28 +306,30 @@ describe('OAuth Authentication', () => {
           id: 123456,
           login: 'testuser',
           email: 'test@example.com',
-          name: 'Test User'
-        })
+          name: 'Test User',
+        }),
       } as Response)
 
       // Mock user lookup/creation
       mockSql.mockResolvedValueOnce([mockUser]) // User exists
-      
+
       // Mock encryption key lookup
-      mockSql.mockResolvedValueOnce([{
-        id: 'key-123',
-        key_data: JSON.stringify({
-          k: 'dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleXRlc3RrZXk=',
-          kty: 'oct',
-          alg: 'A256GCM',
-          key_ops: ['encrypt', 'decrypt']
-        }),
-        is_active: true
-      }]) // Active encryption key exists
-      
+      mockSql.mockResolvedValueOnce([
+        {
+          id: 'key-123',
+          key_data: JSON.stringify({
+            k: 'dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleXRlc3RrZXk=',
+            kty: 'oct',
+            alg: 'A256GCM',
+            key_ops: ['encrypt', 'decrypt'],
+          }),
+          is_active: true,
+        },
+      ]) // Active encryption key exists
+
       // Mock OAuth account token encryption storage
       mockSql.mockResolvedValueOnce([])
-      
+
       // Mock OAuth account creation
       mockSql.mockResolvedValueOnce([])
 
@@ -340,7 +337,7 @@ describe('OAuth Authentication', () => {
         code: 'auth-code-123',
         codeVerifier: 'test-verifier-123',
         redirectUri: mockConfig.redirectUri,
-        fetchUserProfile: true
+        fetchUserProfile: true,
       })
 
       expect(result).toMatchObject({
@@ -348,8 +345,8 @@ describe('OAuth Authentication', () => {
         user: expect.objectContaining({
           id: mockUser.id,
           email: 'test@example.com',
-          github_username: 'testuser'
-        })
+          github_username: 'testuser',
+        }),
       })
 
       // Verify user profile was fetched
@@ -357,9 +354,9 @@ describe('OAuth Authentication', () => {
         'https://api.github.com/user',
         expect.objectContaining({
           headers: {
-            'Authorization': 'Bearer gho_accesstoken123',
-            'Accept': 'application/vnd.github.v3+json'
-          }
+            Authorization: 'Bearer gho_accesstoken123',
+            Accept: 'application/vnd.github.v3+json',
+          },
         })
       )
     })
@@ -369,31 +366,35 @@ describe('OAuth Authentication', () => {
     it('should refresh access token using refresh token', async () => {
       const mockFetch = vi.mocked(fetch)
       const mockSql = vi.mocked(sql)
-      
+
       // Mock OAuth account retrieval
-      mockSql.mockResolvedValueOnce([{
-        id: 'oauth-account-id',
-        user_id: mockUser.id,
-        provider: 'github',
-        refresh_token: JSON.stringify({
-          iv: Buffer.from('test-iv').toString('base64'),
-          ciphertext: Buffer.from('encrypted-tokens').toString('base64'),
-          tag: Buffer.from('test-tag').toString('base64'),
-          keyId: 'key-123'
-        })
-      }])
-      
+      mockSql.mockResolvedValueOnce([
+        {
+          id: 'oauth-account-id',
+          user_id: mockUser.id,
+          provider: 'github',
+          refresh_token: JSON.stringify({
+            iv: Buffer.from('test-iv').toString('base64'),
+            ciphertext: Buffer.from('encrypted-tokens').toString('base64'),
+            tag: Buffer.from('test-tag').toString('base64'),
+            keyId: 'key-123',
+          }),
+        },
+      ])
+
       // Mock encryption key lookup
-      mockSql.mockResolvedValueOnce([{
-        id: 'key-123',
-        key_data: JSON.stringify({
-          k: 'dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleXRlc3RrZXk=',
-          kty: 'oct',
-          alg: 'A256GCM',
-          key_ops: ['encrypt', 'decrypt']
-        }),
-        is_active: true
-      }])
+      mockSql.mockResolvedValueOnce([
+        {
+          id: 'key-123',
+          key_data: JSON.stringify({
+            k: 'dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleXRlc3RrZXk=',
+            kty: 'oct',
+            alg: 'A256GCM',
+            key_ops: ['encrypt', 'decrypt'],
+          }),
+          is_active: true,
+        },
+      ])
 
       // Mock token refresh response
       mockFetch.mockResolvedValueOnce({
@@ -404,34 +405,36 @@ describe('OAuth Authentication', () => {
           expires_in: 28800,
           refresh_token: 'ghr_newrefreshtoken456',
           refresh_token_expires_in: 15897600,
-          scope: 'user:email read:user'
-        })
+          scope: 'user:email read:user',
+        }),
       } as Response)
 
       // Mock encryption key lookup for new token
-      mockSql.mockResolvedValueOnce([{
-        id: 'key-123',
-        key_data: JSON.stringify({
-          k: 'dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleXRlc3RrZXk=',
-          kty: 'oct',
-          alg: 'A256GCM',
-          key_ops: ['encrypt', 'decrypt']
-        }),
-        is_active: true
-      }])
-      
+      mockSql.mockResolvedValueOnce([
+        {
+          id: 'key-123',
+          key_data: JSON.stringify({
+            k: 'dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleXRlc3RrZXk=',
+            kty: 'oct',
+            alg: 'A256GCM',
+            key_ops: ['encrypt', 'decrypt'],
+          }),
+          is_active: true,
+        },
+      ])
+
       // Mock token update
       mockSql.mockResolvedValueOnce([])
 
       const tokens = await refreshOAuthTokens({
         userId: mockUser.id,
-        provider: 'github'
+        provider: 'github',
       })
 
       expect(tokens).toMatchObject({
         accessToken: 'gho_newaccesstoken456',
         refreshToken: 'ghr_newrefreshtoken456',
-        expiresAt: expect.any(Date)
+        expiresAt: expect.any(Date),
       })
 
       // Verify refresh token was used
@@ -439,7 +442,7 @@ describe('OAuth Authentication', () => {
         'https://github.com/login/oauth/access_token',
         expect.objectContaining({
           method: 'POST',
-          body: expect.stringContaining('grant_type=refresh_token')
+          body: expect.stringContaining('grant_type=refresh_token'),
         })
       )
     })
@@ -447,44 +450,48 @@ describe('OAuth Authentication', () => {
     it('should handle refresh token errors', async () => {
       const mockFetch = vi.mocked(fetch)
       const mockSql = vi.mocked(sql)
-      
-      mockSql.mockResolvedValueOnce([{
-        id: 'oauth-account-id',
-        user_id: mockUser.id,
-        provider: 'github',
-        refresh_token: JSON.stringify({
-          iv: Buffer.from('test-iv').toString('base64'),
-          ciphertext: Buffer.from('encrypted-tokens').toString('base64'),
-          tag: Buffer.from('test-tag').toString('base64'),
-          keyId: 'key-123'
-        })
-      }])
-      
+
+      mockSql.mockResolvedValueOnce([
+        {
+          id: 'oauth-account-id',
+          user_id: mockUser.id,
+          provider: 'github',
+          refresh_token: JSON.stringify({
+            iv: Buffer.from('test-iv').toString('base64'),
+            ciphertext: Buffer.from('encrypted-tokens').toString('base64'),
+            tag: Buffer.from('test-tag').toString('base64'),
+            keyId: 'key-123',
+          }),
+        },
+      ])
+
       // Mock encryption key lookup
-      mockSql.mockResolvedValueOnce([{
-        id: 'key-123',
-        key_data: JSON.stringify({
-          k: 'dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleXRlc3RrZXk=',
-          kty: 'oct',
-          alg: 'A256GCM',
-          key_ops: ['encrypt', 'decrypt']
-        }),
-        is_active: true
-      }])
+      mockSql.mockResolvedValueOnce([
+        {
+          id: 'key-123',
+          key_data: JSON.stringify({
+            k: 'dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleXRlc3RrZXk=',
+            kty: 'oct',
+            alg: 'A256GCM',
+            key_ops: ['encrypt', 'decrypt'],
+          }),
+          is_active: true,
+        },
+      ])
 
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 401,
         json: async () => ({
           error: 'invalid_grant',
-          error_description: 'The provided authorization grant is invalid, expired, or revoked'
-        })
+          error_description: 'The provided authorization grant is invalid, expired, or revoked',
+        }),
       } as Response)
 
       await expect(
         refreshOAuthTokens({
           userId: mockUser.id,
-          provider: 'github'
+          provider: 'github',
         })
       ).rejects.toThrow('Token refresh failed: invalid_grant')
     })
@@ -493,59 +500,61 @@ describe('OAuth Authentication', () => {
   describe('OAuth Account Management', () => {
     it('should unlink OAuth account', async () => {
       const mockSql = vi.mocked(sql)
-      
+
       // Mock account exists check
-      mockSql.mockResolvedValueOnce([{
-        id: 'oauth-account-id',
-        user_id: mockUser.id,
-        provider: 'github'
-      }])
-      
+      mockSql.mockResolvedValueOnce([
+        {
+          id: 'oauth-account-id',
+          user_id: mockUser.id,
+          provider: 'github',
+        },
+      ])
+
       // Mock WebAuthn credentials count (user has WebAuthn)
       mockSql.mockResolvedValueOnce([{ count: '1' }])
-      
+
       // Mock other OAuth accounts count
       mockSql.mockResolvedValueOnce([{ count: '0' }])
-      
+
       // Mock account deletion
       mockSql.mockResolvedValueOnce([])
-      
+
       // Mock audit log
       mockSql.mockResolvedValueOnce([])
 
       await unlinkOAuthAccount({
         userId: mockUser.id,
-        provider: 'github'
+        provider: 'github',
       })
 
       // Verify deletion was called
       const calls = mockSql.mock.calls
-      const deleteCall = calls.find(call => 
-        call[0] && call[0][0] && call[0][0].includes('DELETE FROM oauth_accounts')
-      )
+      const deleteCall = calls.find(call => call[0]?.[0]?.includes('DELETE FROM oauth_accounts'))
       expect(deleteCall).toBeDefined()
     })
 
     it('should prevent unlinking last auth method', async () => {
       const mockSql = vi.mocked(sql)
-      
+
       // Mock account exists
-      mockSql.mockResolvedValueOnce([{
-        id: 'oauth-account-id',
-        user_id: mockUser.id,
-        provider: 'github'
-      }])
-      
+      mockSql.mockResolvedValueOnce([
+        {
+          id: 'oauth-account-id',
+          user_id: mockUser.id,
+          provider: 'github',
+        },
+      ])
+
       // Mock no WebAuthn credentials
       mockSql.mockResolvedValueOnce([{ count: '0' }])
-      
+
       // Mock no other OAuth accounts
       mockSql.mockResolvedValueOnce([{ count: '0' }])
 
       await expect(
         unlinkOAuthAccount({
           userId: mockUser.id,
-          provider: 'github'
+          provider: 'github',
         })
       ).rejects.toThrow('Cannot unlink last authentication method')
     })
@@ -557,7 +566,7 @@ describe('OAuth Authentication', () => {
         generateOAuthUrl({
           provider: 'github',
           redirectUri: 'http://evil.com/callback',
-          scopes: ['user:email']
+          scopes: ['user:email'],
         })
       ).rejects.toThrow('Invalid redirect URI')
     })
@@ -565,14 +574,14 @@ describe('OAuth Authentication', () => {
     it('should encrypt tokens before storage', async () => {
       const mockSql = vi.mocked(sql)
       const mockFetch = vi.mocked(fetch)
-      
+
       // Mock token exchange
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           access_token: 'gho_plaintext_token',
-          refresh_token: 'ghr_plaintext_refresh'
-        })
+          refresh_token: 'ghr_plaintext_refresh',
+        }),
       } as Response)
 
       // Mock user profile
@@ -581,28 +590,30 @@ describe('OAuth Authentication', () => {
         json: async () => ({
           id: 123456,
           login: 'testuser',
-          email: 'test@example.com'
-        })
+          email: 'test@example.com',
+        }),
       } as Response)
 
       // Mock encryption key lookup
-      mockSql.mockResolvedValueOnce([{
-        id: 'key-123',
-        key_data: JSON.stringify({
-          k: 'dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleXRlc3RrZXk=',
-          kty: 'oct',
-          alg: 'A256GCM',
-          key_ops: ['encrypt', 'decrypt']
-        }),
-        is_active: true
-      }])
-      
+      mockSql.mockResolvedValueOnce([
+        {
+          id: 'key-123',
+          key_data: JSON.stringify({
+            k: 'dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleXRlc3RrZXk=',
+            kty: 'oct',
+            alg: 'A256GCM',
+            key_ops: ['encrypt', 'decrypt'],
+          }),
+          is_active: true,
+        },
+      ])
+
       // Mock OAuth account token encryption storage
       mockSql.mockResolvedValueOnce([])
-      
+
       // Mock user lookup
       mockSql.mockResolvedValueOnce([mockUser])
-      
+
       // Capture OAuth account creation
       mockSql.mockResolvedValueOnce([])
 
@@ -610,15 +621,13 @@ describe('OAuth Authentication', () => {
         code: 'auth-code-123',
         codeVerifier: 'test-verifier-123',
         redirectUri: mockConfig.redirectUri,
-        fetchUserProfile: true
+        fetchUserProfile: true,
       })
 
       // Verify tokens were encrypted before storage
       const calls = mockSql.mock.calls
-      const insertCall = calls.find(call => 
-        call[0] && call[0][0] && call[0][0].includes('INSERT INTO oauth_accounts')
-      )
-      
+      const insertCall = calls.find(call => call[0]?.[0]?.includes('INSERT INTO oauth_accounts'))
+
       expect(insertCall).toBeDefined()
       // The actual tokens in the call should be encrypted (not plain text)
       expect(insertCall).not.toContain('gho_plaintext_token')
@@ -628,13 +637,13 @@ describe('OAuth Authentication', () => {
     it('should log OAuth events in audit log', async () => {
       const mockSql = vi.mocked(sql)
       const mockFetch = vi.mocked(fetch)
-      
+
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           access_token: 'token',
-          refresh_token: 'refresh'
-        })
+          refresh_token: 'refresh',
+        }),
       } as Response)
 
       mockFetch.mockResolvedValueOnce({
@@ -642,25 +651,27 @@ describe('OAuth Authentication', () => {
         json: async () => ({
           id: 123456,
           login: 'testuser',
-          email: 'test@example.com'
-        })
+          email: 'test@example.com',
+        }),
       } as Response)
 
       // Mock encryption key lookup
-      mockSql.mockResolvedValueOnce([{
-        id: 'key-123',
-        key_data: JSON.stringify({
-          k: 'dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleXRlc3RrZXk=',
-          kty: 'oct',
-          alg: 'A256GCM',
-          key_ops: ['encrypt', 'decrypt']
-        }),
-        is_active: true
-      }])
-      
+      mockSql.mockResolvedValueOnce([
+        {
+          id: 'key-123',
+          key_data: JSON.stringify({
+            k: 'dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleXRlc3RrZXk=',
+            kty: 'oct',
+            alg: 'A256GCM',
+            key_ops: ['encrypt', 'decrypt'],
+          }),
+          is_active: true,
+        },
+      ])
+
       // Mock OAuth account token encryption storage
       mockSql.mockResolvedValueOnce([])
-      
+
       mockSql.mockResolvedValueOnce([mockUser])
       mockSql.mockResolvedValueOnce([]) // OAuth account creation
       mockSql.mockResolvedValueOnce([]) // Audit log
@@ -672,15 +683,13 @@ describe('OAuth Authentication', () => {
         fetchUserProfile: true,
         securityContext: {
           ip_address: '192.168.1.1',
-          user_agent: 'Mozilla/5.0...'
-        }
+          user_agent: 'Mozilla/5.0...',
+        },
       })
 
       // Verify audit log was created
       const calls = mockSql.mock.calls
-      const auditCall = calls.find(call => 
-        call[0] && call[0][0] && call[0][0].includes('security_audit_logs')
-      )
+      const auditCall = calls.find(call => call[0]?.[0]?.includes('security_audit_logs'))
       expect(auditCall).toBeDefined()
     })
   })

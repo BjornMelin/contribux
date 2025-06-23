@@ -1,11 +1,11 @@
 /**
  * Test Performance Optimization Utilities
- * 
+ *
  * This module provides utilities to optimize test execution time
  * and reduce resource usage during test runs.
  */
 
-import { vi, describe, it } from 'vitest'
+import { describe, it, vi } from 'vitest'
 
 /**
  * Reduce iteration counts for expensive tests in test environment
@@ -17,13 +17,13 @@ export const TEST_ITERATIONS = {
   MEMORY_CLIENT_COUNT: process.env.CI ? 5 : 2,
   MEMORY_BATCH_COUNT: process.env.CI ? 10 : 3,
   MEMORY_CYCLE_COUNT: process.env.CI ? 5 : 2,
-  
+
   // Load testing iterations
   LOAD_CONCURRENT_REQUESTS: process.env.CI ? 100 : 20,
   LOAD_TOKEN_ROTATION_COUNT: process.env.CI ? 50 : 10,
   LOAD_WEBHOOK_COUNT: process.env.CI ? 30 : 10,
   LOAD_STRESS_ITERATIONS: process.env.CI ? 20 : 5,
-  
+
   // Rate limiting test iterations
   RATE_LIMIT_REQUEST_COUNT: process.env.CI ? 10 : 5,
   RATE_LIMIT_RETRY_COUNT: process.env.CI ? 5 : 2,
@@ -38,11 +38,11 @@ export const TEST_TIMEOUTS = {
   SHORT: process.env.CI ? 100 : 50,
   MEDIUM: process.env.CI ? 500 : 200,
   LONG: process.env.CI ? 1000 : 500,
-  
+
   // Memory test specific
   MEMORY_STABILIZATION: process.env.CI ? 100 : 50,
   MEMORY_GC_WAIT: process.env.CI ? 50 : 20,
-  
+
   // Rate limit specific
   RATE_LIMIT_BACKOFF: process.env.CI ? 100 : 50,
   RATE_LIMIT_RECOVERY: process.env.CI ? 500 : 200,
@@ -60,7 +60,11 @@ export function setupPerformanceOptimizations() {
         ...actual,
         randomBytes: (size: number) => {
           // Faster pseudo-random for tests
-          return Buffer.from(Array(size).fill(0).map(() => Math.floor(Math.random() * 256)))
+          return Buffer.from(
+            Array(size)
+              .fill(0)
+              .map(() => Math.floor(Math.random() * 256))
+          )
         },
       }
     })
@@ -136,9 +140,9 @@ export class OptimizedMemoryTracker {
 /**
  * Batch API mocking for performance
  */
-export function setupBatchMocking(nock: any, baseUrl: string = 'https://api.github.com') {
+export function setupBatchMocking(nock: any, baseUrl = 'https://api.github.com') {
   const responses = new Map<string, any>()
-  
+
   // Pre-generate responses
   for (let i = 1; i <= 100; i++) {
     responses.set(`/repos/owner/repo${i}`, {
@@ -147,17 +151,18 @@ export function setupBatchMocking(nock: any, baseUrl: string = 'https://api.gith
       description: `Test repository ${i}`,
     })
   }
-  
+
   // Set up persistent mock
   const scope = nock(baseUrl)
     .persist()
     .get(/\/repos\/owner\/repo\d+/)
-    .reply((uri) => {
+    .reply((uri: string) => {
       const match = uri.match(/repo(\d+)/)
-      const num = match ? parseInt(match[1]) : 1
-      return [200, responses.get(`/repos/owner/repo${num}`) || { error: 'Not found' }]
+      const num = match?.[1] ? Number.parseInt(match[1]) : 1
+      const response = responses.get(`/repos/owner/repo${num}`)
+      return [200, response || { error: 'Not found' }]
     })
-  
+
   return scope
 }
 
@@ -182,17 +187,17 @@ export async function runConcurrentTests<T>(
 ): Promise<T[]> {
   const { maxConcurrency = 10, delay = 0 } = options
   const results: T[] = []
-  
+
   // Run in batches for better performance
   for (let i = 0; i < tasks.length; i += maxConcurrency) {
     const batch = tasks.slice(i, i + maxConcurrency)
     const batchResults = await Promise.all(batch.map(task => task()))
     results.push(...batchResults)
-    
+
     if (delay > 0 && i + maxConcurrency < tasks.length) {
       await fastWait(delay)
     }
   }
-  
+
   return results
 }

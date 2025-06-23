@@ -1,28 +1,28 @@
-import { describe, it, expect } from 'vitest'
-import {
-  GitHubClientError,
-  GitHubAuthenticationError,
-  GitHubRateLimitError,
-  GitHubGraphQLError,
-  GitHubWebhookError,
-  GitHubWebhookSignatureError,
-  GitHubWebhookPayloadError,
-  GitHubTokenExpiredError,
-  GitHubCacheError,
-  isRequestError,
-  isRateLimitError,
-  isSecondaryRateLimitError,
-  extractErrorMessage,
-  ErrorMessages,
-  type GitHubGraphQLErrorData,
-} from '@/lib/github/errors'
 import type { RequestError } from '@octokit/types'
+import { describe, expect, it } from 'vitest'
+import {
+  ErrorMessages,
+  extractErrorMessage,
+  GitHubAuthenticationError,
+  GitHubCacheError,
+  GitHubClientError,
+  GitHubGraphQLError,
+  type GitHubGraphQLErrorData,
+  GitHubRateLimitError,
+  GitHubTokenExpiredError,
+  GitHubWebhookError,
+  GitHubWebhookPayloadError,
+  GitHubWebhookSignatureError,
+  isRateLimitError,
+  isRequestError,
+  isSecondaryRateLimitError,
+} from '@/lib/github/errors'
 
 describe('GitHub Error Classes', () => {
   describe('GitHubClientError', () => {
     it('should create basic client error', () => {
       const error = new GitHubClientError('Test error message')
-      
+
       expect(error).toBeInstanceOf(Error)
       expect(error).toBeInstanceOf(GitHubClientError)
       expect(error.name).toBe('GitHubClientError')
@@ -43,7 +43,7 @@ describe('GitHub Error Classes', () => {
   describe('GitHubAuthenticationError', () => {
     it('should create authentication error with default message', () => {
       const error = new GitHubAuthenticationError()
-      
+
       expect(error).toBeInstanceOf(GitHubClientError)
       expect(error.name).toBe('GitHubAuthenticationError')
       expect(error.message).toBe('Authentication failed')
@@ -52,7 +52,7 @@ describe('GitHub Error Classes', () => {
     it('should create authentication error with custom message', () => {
       const customMessage = 'Invalid token provided'
       const error = new GitHubAuthenticationError(customMessage)
-      
+
       expect(error.message).toBe(customMessage)
     })
 
@@ -71,7 +71,7 @@ describe('GitHub Error Classes', () => {
       const reset = new Date()
 
       const error = new GitHubRateLimitError(message, retryAfter, limit, remaining, reset)
-      
+
       expect(error).toBeInstanceOf(GitHubClientError)
       expect(error.name).toBe('GitHubRateLimitError')
       expect(error.message).toBe(message)
@@ -83,7 +83,7 @@ describe('GitHub Error Classes', () => {
 
     it('should have readonly properties', () => {
       const error = new GitHubRateLimitError('Test', 60, 5000, 0, new Date())
-      
+
       // Properties should be accessible
       expect(error.retryAfter).toBe(60)
       expect(error.limit).toBe(5000)
@@ -100,19 +100,19 @@ describe('GitHub Error Classes', () => {
           message: 'Field "invalidField" doesn\'t exist',
           type: 'INVALID_FIELD',
           path: ['user', 'invalidField'],
-          locations: [{ line: 1, column: 15 }]
+          locations: [{ line: 1, column: 15 }],
         },
         {
           message: 'Argument "first" must be positive',
           type: 'ARGUMENT_ERROR',
           path: ['repository', 'issues'],
-          locations: [{ line: 2, column: 20 }]
-        }
+          locations: [{ line: 2, column: 20 }],
+        },
       ]
       const data = { user: { login: 'testuser' } }
 
       const error = new GitHubGraphQLError(message, errors, data)
-      
+
       expect(error).toBeInstanceOf(GitHubClientError)
       expect(error.name).toBe('GitHubGraphQLError')
       expect(error.message).toBe(message)
@@ -122,18 +122,18 @@ describe('GitHub Error Classes', () => {
 
     it('should create GraphQL error without data', () => {
       const errors: GitHubGraphQLErrorData[] = [
-        { message: 'Syntax error', locations: [{ line: 1, column: 1 }] }
+        { message: 'Syntax error', locations: [{ line: 1, column: 1 }] },
       ]
 
       const error = new GitHubGraphQLError('Syntax error', errors)
-      
+
       expect(error.errors).toEqual(errors)
       expect(error.data).toBeUndefined()
     })
 
     it('should handle minimal error data', () => {
       const errors: GitHubGraphQLErrorData[] = [
-        { message: 'Simple error' } // Only message, no optional fields
+        { message: 'Simple error' }, // Only message, no optional fields
       ]
 
       const error = new GitHubGraphQLError('Error', errors)
@@ -150,7 +150,7 @@ describe('GitHub Error Classes', () => {
       const reason = 'invalid-signature'
 
       const error = new GitHubWebhookError(message, reason)
-      
+
       expect(error).toBeInstanceOf(GitHubClientError)
       expect(error.name).toBe('GitHubWebhookError')
       expect(error.message).toBe(message)
@@ -164,7 +164,7 @@ describe('GitHub Error Classes', () => {
         'parse-error',
         'invalid-payload',
         'duplicate-delivery',
-        'handler-error'
+        'handler-error',
       ] as const
 
       reasons.forEach(reason => {
@@ -181,7 +181,7 @@ describe('GitHub Error Classes', () => {
       const providedSignature = 'sha256=abc123'
 
       const error = new GitHubWebhookSignatureError(message, algorithm, providedSignature)
-      
+
       expect(error).toBeInstanceOf(GitHubWebhookError)
       expect(error.name).toBe('GitHubWebhookSignatureError')
       expect(error.reason).toBe('invalid-signature')
@@ -191,7 +191,7 @@ describe('GitHub Error Classes', () => {
 
     it('should create signature error with minimal data', () => {
       const error = new GitHubWebhookSignatureError('Invalid signature')
-      
+
       expect(error.algorithm).toBeUndefined()
       expect(error.providedSignature).toBeUndefined()
     })
@@ -204,7 +204,7 @@ describe('GitHub Error Classes', () => {
       const parseError = new Error('JSON parse error')
 
       const error = new GitHubWebhookPayloadError(message, payloadSize, parseError)
-      
+
       expect(error).toBeInstanceOf(GitHubWebhookError)
       expect(error.name).toBe('GitHubWebhookPayloadError')
       expect(error.reason).toBe('parse-error')
@@ -214,7 +214,7 @@ describe('GitHub Error Classes', () => {
 
     it('should create payload error with minimal data', () => {
       const error = new GitHubWebhookPayloadError('Parse failed')
-      
+
       expect(error.payloadSize).toBeUndefined()
       expect(error.parseError).toBeUndefined()
     })
@@ -223,7 +223,7 @@ describe('GitHub Error Classes', () => {
   describe('GitHubTokenExpiredError', () => {
     it('should create token expired error with default message', () => {
       const error = new GitHubTokenExpiredError()
-      
+
       expect(error).toBeInstanceOf(GitHubAuthenticationError)
       expect(error.name).toBe('GitHubTokenExpiredError')
       expect(error.message).toBe('Token has expired')
@@ -235,7 +235,7 @@ describe('GitHub Error Classes', () => {
       const expiredAt = new Date('2024-01-01T00:00:00Z')
 
       const error = new GitHubTokenExpiredError(message, expiredAt)
-      
+
       expect(error.message).toBe(message)
       expect(error.expiredAt).toBe(expiredAt)
     })
@@ -247,7 +247,7 @@ describe('GitHub Error Classes', () => {
       const operation = 'set'
 
       const error = new GitHubCacheError(message, operation)
-      
+
       expect(error).toBeInstanceOf(GitHubClientError)
       expect(error.name).toBe('GitHubCacheError')
       expect(error.message).toBe(message)
@@ -271,7 +271,7 @@ describe('Error Utility Functions', () => {
       const requestError = Object.assign(new Error('Not found'), {
         status: 404,
         request: { method: 'GET', url: '/test' },
-        response: { status: 404, headers: {} }
+        response: { status: 404, headers: {} },
       }) as RequestError
 
       expect(isRequestError(requestError)).toBe(true)
@@ -300,9 +300,9 @@ describe('Error Utility Functions', () => {
         response: {
           status: 403,
           headers: {
-            'x-ratelimit-remaining': '0'
-          }
-        }
+            'x-ratelimit-remaining': '0',
+          },
+        },
       }) as RequestError & { response: { headers: Record<string, string> } }
 
       expect(isRateLimitError(rateLimitError)).toBe(true)
@@ -315,9 +315,9 @@ describe('Error Utility Functions', () => {
         response: {
           status: 403,
           headers: {
-            'x-ratelimit-remaining': '100' // Still has remaining
-          }
-        }
+            'x-ratelimit-remaining': '100', // Still has remaining
+          },
+        },
       }) as RequestError & { response: { headers: Record<string, string> } }
 
       expect(isRateLimitError(forbiddenError)).toBe(false)
@@ -330,9 +330,9 @@ describe('Error Utility Functions', () => {
         response: {
           status: 404,
           headers: {
-            'x-ratelimit-remaining': '0'
-          }
-        }
+            'x-ratelimit-remaining': '0',
+          },
+        },
       }) as RequestError & { response: { headers: Record<string, string> } }
 
       expect(isRateLimitError(notFoundError)).toBe(false)
@@ -342,7 +342,7 @@ describe('Error Utility Functions', () => {
       const errorWithoutHeaders = Object.assign(new Error('Forbidden'), {
         status: 403,
         request: { method: 'GET', url: '/test' },
-        response: { status: 403 }
+        response: { status: 403 },
       }) as RequestError
 
       expect(isRateLimitError(errorWithoutHeaders)).toBe(false)
@@ -357,9 +357,9 @@ describe('Error Utility Functions', () => {
         response: {
           status: 403,
           headers: {
-            'retry-after': '60'
-          }
-        }
+            'retry-after': '60',
+          },
+        },
       }) as RequestError & { response: { headers: Record<string, string> } }
 
       expect(isSecondaryRateLimitError(secondaryError)).toBe(true)
@@ -371,8 +371,8 @@ describe('Error Utility Functions', () => {
         request: { method: 'POST', url: '/test' },
         response: {
           status: 403,
-          headers: {}
-        }
+          headers: {},
+        },
       }) as RequestError & { response: { headers: Record<string, string> } }
 
       expect(isSecondaryRateLimitError(regularError)).toBe(false)
@@ -385,9 +385,9 @@ describe('Error Utility Functions', () => {
         response: {
           status: 503,
           headers: {
-            'retry-after': '60'
-          }
-        }
+            'retry-after': '60',
+          },
+        },
       }) as RequestError & { response: { headers: Record<string, string> } }
 
       expect(isSecondaryRateLimitError(serviceUnavailable)).toBe(false)
@@ -445,58 +445,79 @@ describe('ErrorMessages', () => {
 
   it('should provide dynamic error message functions', () => {
     expect(ErrorMessages.AUTH_TYPE_INVALID('oauth2')).toBe('Invalid authentication type: oauth2')
-    expect(ErrorMessages.RATE_LIMIT_GRAPHQL_EXCEEDED(75000, 50000))
-      .toBe('Query exceeds maximum point limit: 75,000 points (limit: 50,000)')
+    expect(ErrorMessages.RATE_LIMIT_GRAPHQL_EXCEEDED(75000, 50000)).toBe(
+      'Query exceeds maximum point limit: 75,000 points (limit: 50,000)'
+    )
   })
 
   it('should format webhook error messages', () => {
-    expect(ErrorMessages.WEBHOOK_PAYLOAD_TOO_LARGE(2097152, 1048576))
-      .toBe('Payload too large: 2,097,152 bytes (max: 1,048,576)')
-    
-    expect(ErrorMessages.WEBHOOK_DUPLICATE_DELIVERY('12345-67890'))
-      .toBe('Duplicate delivery ID: 12345-67890')
-    
-    expect(ErrorMessages.WEBHOOK_ALGORITHM_UNSUPPORTED('md5'))
-      .toBe('Unsupported signature algorithm: md5')
+    expect(ErrorMessages.WEBHOOK_PAYLOAD_TOO_LARGE(2097152, 1048576)).toBe(
+      'Payload too large: 2,097,152 bytes (max: 1,048,576)'
+    )
+
+    expect(ErrorMessages.WEBHOOK_DUPLICATE_DELIVERY('12345-67890')).toBe(
+      'Duplicate delivery ID: 12345-67890'
+    )
+
+    expect(ErrorMessages.WEBHOOK_ALGORITHM_UNSUPPORTED('md5')).toBe(
+      'Unsupported signature algorithm: md5'
+    )
   })
 
   it('should format DataLoader error messages', () => {
-    expect(ErrorMessages.DATALOADER_BATCH_LENGTH_MISMATCH(5, 3))
-      .toBe('DataLoader batch function must return an array of the same length as the input array\nExpected: 5, received: 3')
-    
-    expect(ErrorMessages.DATALOADER_KEY_NOT_FOUND('owner/repo'))
-      .toBe('Repository not found: owner/repo')
+    expect(ErrorMessages.DATALOADER_BATCH_LENGTH_MISMATCH(5, 3)).toBe(
+      'DataLoader batch function must return an array of the same length as the input array\nExpected: 5, received: 3'
+    )
+
+    expect(ErrorMessages.DATALOADER_KEY_NOT_FOUND('owner/repo')).toBe(
+      'Repository not found: owner/repo'
+    )
   })
 
   it('should format API error messages', () => {
-    expect(ErrorMessages.API_ERROR('repository fetch', 'Not found'))
-      .toBe('GitHub API error for repository fetch: Not found')
-    
-    expect(ErrorMessages.TOKEN_REFRESH_FAILED('Invalid credentials'))
-      .toBe('Failed to refresh token: Invalid credentials')
+    expect(ErrorMessages.API_ERROR('repository fetch', 'Not found')).toBe(
+      'GitHub API error for repository fetch: Not found'
+    )
+
+    expect(ErrorMessages.TOKEN_REFRESH_FAILED('Invalid credentials')).toBe(
+      'Failed to refresh token: Invalid credentials'
+    )
   })
 
   it('should format webhook handler error messages', () => {
-    expect(ErrorMessages.WEBHOOK_HANDLER_EXECUTION_FAILED('push', 'Database connection failed'))
-      .toBe('Handler for push event failed: Database connection failed')
+    expect(
+      ErrorMessages.WEBHOOK_HANDLER_EXECUTION_FAILED('push', 'Database connection failed')
+    ).toBe('Handler for push event failed: Database connection failed')
   })
 
   it('should provide validation error messages', () => {
     expect(ErrorMessages.VALIDATION_RETRY_COUNT_NEGATIVE).toBe('Retry count cannot be negative')
-    expect(ErrorMessages.VALIDATION_CACHE_SIZE_INVALID).toBe('Cache size must be between 100 and 100,000')
-    expect(ErrorMessages.VALIDATION_RECOVERY_TIMEOUT_INVALID).toBe('Recovery timeout must be positive')
-    expect(ErrorMessages.VALIDATION_FAILURE_THRESHOLD_INVALID).toBe('Failure threshold must be positive')
+    expect(ErrorMessages.VALIDATION_CACHE_SIZE_INVALID).toBe(
+      'Cache size must be between 100 and 100,000'
+    )
+    expect(ErrorMessages.VALIDATION_RECOVERY_TIMEOUT_INVALID).toBe(
+      'Recovery timeout must be positive'
+    )
+    expect(ErrorMessages.VALIDATION_FAILURE_THRESHOLD_INVALID).toBe(
+      'Failure threshold must be positive'
+    )
   })
 
   it('should provide configuration error messages', () => {
     expect(ErrorMessages.CONFIG_TOKEN_ROTATION_NOT_CONFIGURED).toBe('Token rotation not configured')
     expect(ErrorMessages.CONFIG_CACHE_NOT_CONFIGURED).toBe('Cache not configured')
-    expect(ErrorMessages.CONFIG_WEBHOOK_SECRET_REQUIRED).toBe('Webhook secret is required and must be a non-empty string')
+    expect(ErrorMessages.CONFIG_WEBHOOK_SECRET_REQUIRED).toBe(
+      'Webhook secret is required and must be a non-empty string'
+    )
   })
 
   it('should handle webhook validation errors', () => {
-    expect(ErrorMessages.WEBHOOK_SECRET_TOO_SHORT).toBe('Webhook secret must be at least 10 characters long')
-    expect(ErrorMessages.WEBHOOK_SIGNATURE_FORMAT_INVALID).toBe('Signature format is invalid (must be algorithm=signature)')
+    expect(ErrorMessages.WEBHOOK_SECRET_TOO_SHORT).toBe(
+      'Webhook secret must be at least 10 characters long'
+    )
+    expect(ErrorMessages.WEBHOOK_SIGNATURE_FORMAT_INVALID).toBe(
+      'Signature format is invalid (must be algorithm=signature)'
+    )
     expect(ErrorMessages.WEBHOOK_EVENT_TYPE_MISSING).toBe('Missing x-github-event header')
     expect(ErrorMessages.WEBHOOK_DELIVERY_ID_MISSING).toBe('Missing x-github-delivery header')
   })

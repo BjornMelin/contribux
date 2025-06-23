@@ -45,6 +45,7 @@ const GitHubRepositorySchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
   stargazers_count: z.number(),
+  forks_count: z.number(),
   language: z.string().nullable(),
   topics: z.array(z.string()).optional(),
   default_branch: z.string(),
@@ -93,11 +94,18 @@ export interface GitHubClientConfig {
   userAgent?: string
   throttle?: {
     onRateLimit?: (retryAfter: number, options: { request: { retryCount: number } }) => boolean
-    onSecondaryRateLimit?: (retryAfter: number, options: { request: { retryCount: number } }) => boolean
+    onSecondaryRateLimit?: (
+      retryAfter: number,
+      options: { request: { retryCount: number } }
+    ) => boolean
   }
   cache?: {
     maxAge?: number // Cache TTL in seconds
     maxSize?: number // Max cache entries
+  }
+  retry?: {
+    retries?: number // Number of retries (0 to disable)
+    doNotRetry?: string[] // HTTP status codes to not retry
   }
 }
 
@@ -112,32 +120,37 @@ export class GitHubClient {
   private cache: Map<string, CacheEntry> = new Map()
   private readonly cacheMaxAge: number
   private readonly cacheMaxSize: number
+  private cacheHits = 0
+  private cacheMisses = 0
 
-  constructor(config: GitHubClientConfig) {
+  constructor(config: Partial<GitHubClientConfig> = {}) {
     this.cacheMaxAge = config.cache?.maxAge ?? 300 // 5 minutes default
     this.cacheMaxSize = config.cache?.maxSize ?? 1000
 
     // Create Octokit with plugins
     const OctokitWithPlugins = Octokit.plugin(throttling, retry)
 
-    let authConfig: string | ReturnType<typeof createAppAuth>
-    if (config.auth.type === 'token') {
-      authConfig = config.auth.token
-    } else if (config.auth.type === 'app') {
-      const authOptions = {
-        appId: config.auth.appId,
-        privateKey: config.auth.privateKey,
-      } as { appId: number; privateKey: string; installationId?: number }
-      if (config.auth.installationId !== undefined) {
-        authOptions.installationId = config.auth.installationId
+    let authConfig: string | ReturnType<typeof createAppAuth> | undefined
+    if (config.auth) {
+      if (config.auth.type === 'token') {
+        authConfig = config.auth.token
+      } else if (config.auth.type === 'app') {
+        const authOptions = {
+          appId: config.auth.appId,
+          privateKey: config.auth.privateKey,
+        } as { appId: number; privateKey: string; installationId?: number }
+        if (config.auth.installationId !== undefined) {
+          authOptions.installationId = config.auth.installationId
+        }
+        authConfig = createAppAuth(authOptions)
+      } else {
+        throw new Error('Invalid auth configuration')
       }
-      authConfig = createAppAuth(authOptions)
-    } else {
-      throw new Error('Invalid auth configuration')
     }
 
-    const octokitOptions: Record<string, unknown> = {
-      auth: authConfig,
+    // Build options object with explicit type assertions for compatibility
+    const octokitOptions = {
+      ...(authConfig && { auth: authConfig }),
       userAgent: config.userAgent ?? 'contribux-github-client/1.0.0',
       throttle: {
         onRateLimit:
@@ -154,15 +167,13 @@ export class GitHubClient {
           }),
       },
       retry: {
-        doNotRetry: ['400', '401', '403', '404', '422'],
+        doNotRetry: config.retry?.doNotRetry ?? ['400', '401', '403', '404', '422'],
+        retries: config.retry?.retries ?? (process.env.NODE_ENV === 'test' ? 0 : 2),
       },
+      ...(config.baseUrl && { baseUrl: config.baseUrl }),
     }
 
-    if (config.baseUrl) {
-      octokitOptions.baseUrl = config.baseUrl
-    }
-
-    this.octokit = new OctokitWithPlugins(octokitOptions as any)
+    this.octokit = new OctokitWithPlugins(octokitOptions)
   }
 
   // Cache management
@@ -172,14 +183,19 @@ export class GitHubClient {
 
   private getFromCache<T>(key: string): T | null {
     const entry = this.cache.get(key)
-    if (!entry) return null
+    if (!entry) {
+      this.cacheMisses++
+      return null
+    }
 
     const now = Date.now()
     if (now - entry.timestamp > entry.ttl * 1000) {
       this.cache.delete(key)
+      this.cacheMisses++
       return null
     }
 
+    this.cacheHits++
     return entry.data as T
   }
 
@@ -229,7 +245,11 @@ export class GitHubClient {
 
       // Handle Octokit errors
       if (error && typeof error === 'object' && 'status' in error) {
-        const githubError = error as { status?: number; message?: string; response?: { data?: unknown } }
+        const githubError = error as {
+          status?: number
+          message?: string
+          response?: { data?: unknown }
+        }
         throw new GitHubError(
           githubError.message || 'GitHub API error',
           'API_ERROR',
@@ -238,8 +258,10 @@ export class GitHubClient {
         )
       }
 
-      const errorMessage = error && typeof error === 'object' && 'message' in error ? 
-        String((error as { message: unknown }).message) : 'Unknown error'
+      const errorMessage =
+        error && typeof error === 'object' && 'message' in error
+          ? String((error as { message: unknown }).message)
+          : 'Unknown error'
       throw new GitHubError(errorMessage, 'UNKNOWN_ERROR')
     }
   }
@@ -293,7 +315,12 @@ export class GitHubClient {
   }
 
   async getAuthenticatedUser(): Promise<GitHubUser> {
-    return this.safeRequest(() => this.octokit.rest.users.getAuthenticated(), GitHubUserSchema)
+    const cacheKey = this.getCacheKey('auth-user', {})
+    return this.safeRequest(
+      () => this.octokit.rest.users.getAuthenticated(),
+      GitHubUserSchema,
+      cacheKey
+    )
   }
 
   // Issue operations
@@ -346,7 +373,10 @@ export class GitHubClient {
       const response = await this.octokit.graphql(query, variables)
       return response as T
     } catch (error: unknown) {
-      const githubError = error && typeof error === 'object' ? error as { message?: string; status?: number; response?: { data?: unknown } } : {}
+      const githubError =
+        error && typeof error === 'object'
+          ? (error as { message?: string; status?: number; response?: { data?: unknown } })
+          : {}
       throw new GitHubError(
         githubError.message || 'GraphQL query failed',
         'GRAPHQL_ERROR',
@@ -382,12 +412,24 @@ export class GitHubClient {
   // Cache management
   clearCache(): void {
     this.cache.clear()
+    this.cacheHits = 0
+    this.cacheMisses = 0
   }
 
-  getCacheStats(): { size: number; maxSize: number } {
+  getCacheStats(): {
+    size: number
+    maxSize: number
+    hits: number
+    misses: number
+    hitRate: number
+  } {
+    const total = this.cacheHits + this.cacheMisses
     return {
       size: this.cache.size,
       maxSize: this.cacheMaxSize,
+      hits: this.cacheHits,
+      misses: this.cacheMisses,
+      hitRate: total > 0 ? this.cacheHits / total : 0,
     }
   }
 }

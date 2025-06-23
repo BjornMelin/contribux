@@ -3,7 +3,7 @@
  * These tests are disabled by default to avoid hitting rate limits
  */
 
-import { describe, it, expect, beforeAll } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import { createGitHubClient } from '../../src/lib/github/client'
 import { GitHubError } from '../../src/lib/github/errors'
 
@@ -16,12 +16,12 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('GitHubClient Integration Tests', () => 
     client = createGitHubClient({
       auth: {
         type: 'token',
-        token: process.env.GITHUB_TOKEN!
+        token: process.env.GITHUB_TOKEN!,
       },
       cache: {
         maxAge: 60, // 1 minute for tests
-        maxSize: 100
-      }
+        maxSize: 100,
+      },
     })
   })
 
@@ -35,9 +35,9 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('GitHubClient Integration Tests', () => 
   it('should get a public repository', async () => {
     const repo = await client.getRepository({
       owner: 'microsoft',
-      repo: 'vscode'
+      repo: 'vscode',
     })
-    
+
     expect(repo).toBeDefined()
     expect(repo.name).toBe('vscode')
     expect(repo.owner.login).toBe('microsoft')
@@ -50,7 +50,7 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('GitHubClient Integration Tests', () => 
       q: 'language:typescript stars:>1000',
       sort: 'stars',
       order: 'desc',
-      per_page: 5
+      per_page: 5,
     })
 
     expect(results).toBeDefined()
@@ -78,7 +78,7 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('GitHubClient Integration Tests', () => 
 
   it('should get rate limit information', async () => {
     const rateLimit = await client.getRateLimit()
-    
+
     expect(rateLimit).toBeDefined()
     expect(rateLimit.core).toBeDefined()
     expect(typeof rateLimit.core.limit).toBe('number')
@@ -90,7 +90,7 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('GitHubClient Integration Tests', () => 
     await expect(async () => {
       await client.getRepository({
         owner: 'nonexistent-user-12345',
-        repo: 'nonexistent-repo-12345'
+        repo: 'nonexistent-repo-12345',
       })
     }).rejects.toThrow(GitHubError)
   }, 10000)
@@ -100,7 +100,7 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('GitHubClient Integration Tests', () => 
     const start1 = Date.now()
     const repo1 = await client.getRepository({
       owner: 'microsoft',
-      repo: 'vscode'
+      repo: 'vscode',
     })
     const time1 = Date.now() - start1
 
@@ -108,13 +108,13 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('GitHubClient Integration Tests', () => 
     const start2 = Date.now()
     const repo2 = await client.getRepository({
       owner: 'microsoft',
-      repo: 'vscode'
+      repo: 'vscode',
     })
     const time2 = Date.now() - start2
 
     expect(repo1.id).toBe(repo2.id)
     expect(time2).toBeLessThan(time1) // Second call should be faster
-    
+
     const cacheStats = client.getCacheStats()
     expect(cacheStats.size).toBeGreaterThan(0)
   }, 15000)
@@ -123,7 +123,7 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('GitHubClient Integration Tests', () => 
     // Make a request to populate cache
     await client.getRepository({
       owner: 'microsoft',
-      repo: 'vscode'
+      repo: 'vscode',
     })
 
     let cacheStats = client.getCacheStats()
@@ -142,8 +142,8 @@ describe('GitHubClient Basic Tests', () => {
     const tokenClient = createGitHubClient({
       auth: {
         type: 'token',
-        token: 'ghp_test1234567890abcdef1234567890abcdef12'
-      }
+        token: 'ghp_test1234567890abcdef1234567890abcdef12',
+      },
     })
     expect(tokenClient).toBeDefined()
     expect(tokenClient.getCacheStats).toBeDefined()
@@ -154,14 +154,14 @@ describe('GitHubClient Basic Tests', () => {
     const customClient = createGitHubClient({
       auth: {
         type: 'token',
-        token: 'ghp_test1234567890abcdef1234567890abcdef12'
+        token: 'ghp_test1234567890abcdef1234567890abcdef12',
       },
       baseUrl: 'https://api.github.enterprise.com',
       userAgent: 'custom-agent/1.0.0',
       cache: {
         maxAge: 600,
-        maxSize: 500
-      }
+        maxSize: 500,
+      },
     })
     expect(customClient).toBeDefined()
     expect(customClient.getCacheStats().maxSize).toBe(500)
@@ -171,8 +171,8 @@ describe('GitHubClient Basic Tests', () => {
     const client = createGitHubClient({
       auth: {
         type: 'token',
-        token: 'ghp_test1234567890abcdef1234567890abcdef12'
-      }
+        token: 'ghp_test1234567890abcdef1234567890abcdef12',
+      },
     })
 
     const stats = client.getCacheStats()

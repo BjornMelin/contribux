@@ -1,14 +1,13 @@
 /**
  * Performance Analyzer for Integration Tests
- * 
+ *
  * Provides deep performance analysis, trend tracking, and automated
  * performance regression detection for integration tests.
  */
 
-import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { TestReport, TestCaseReport, PerformanceReport } from './reporter'
-import type { TestMetrics } from './test-config'
+import type { TestReport } from './reporter'
 
 export interface PerformanceBaseline {
   timestamp: string
@@ -63,11 +62,11 @@ export interface AlertConfig {
 
 export interface PerformanceThresholds {
   maxDurationIncrease: number // Percentage
-  maxMemoryIncrease: number   // Percentage
-  minCacheHitRate: number     // Absolute value (0-1)
+  maxMemoryIncrease: number // Percentage
+  minCacheHitRate: number // Absolute value (0-1)
   maxErrorRateIncrease: number // Percentage
   criticalDurationThreshold: number // Milliseconds
-  criticalMemoryThreshold: number   // Bytes
+  criticalMemoryThreshold: number // Bytes
 }
 
 export class PerformanceAnalyzer {
@@ -75,21 +74,23 @@ export class PerformanceAnalyzer {
   private reportsDir: string
   private thresholds: PerformanceThresholds
 
-  constructor(options: {
-    baselineDir?: string
-    reportsDir?: string
-    thresholds?: Partial<PerformanceThresholds>
-  } = {}) {
+  constructor(
+    options: {
+      baselineDir?: string
+      reportsDir?: string
+      thresholds?: Partial<PerformanceThresholds>
+    } = {}
+  ) {
     this.baselineDir = options.baselineDir || './tests/integration/reports/baselines'
     this.reportsDir = options.reportsDir || './tests/integration/reports'
     this.thresholds = {
       maxDurationIncrease: 20, // 20% increase is concerning
-      maxMemoryIncrease: 30,   // 30% memory increase is concerning
-      minCacheHitRate: 0.8,    // Below 80% cache hit rate is concerning
+      maxMemoryIncrease: 30, // 30% memory increase is concerning
+      minCacheHitRate: 0.8, // Below 80% cache hit rate is concerning
       maxErrorRateIncrease: 5, // 5% error rate increase is concerning
       criticalDurationThreshold: 10000, // 10 seconds is critical
       criticalMemoryThreshold: 500 * 1024 * 1024, // 500MB is critical
-      ...options.thresholds
+      ...options.thresholds,
     }
 
     // Ensure directories exist
@@ -117,7 +118,7 @@ export class PerformanceAnalyzer {
       regressions: trends.filter(t => t.regression).length,
       improvements: trends.filter(t => t.improvement).length,
       stable: trends.filter(t => !t.regression && !t.improvement).length,
-      criticalIssues: regressions.filter(r => r.severity === 'critical').length
+      criticalIssues: regressions.filter(r => r.severity === 'critical').length,
     }
 
     const analysis: PerformanceAnalysis = {
@@ -125,12 +126,12 @@ export class PerformanceAnalyzer {
       trends,
       regressions,
       recommendations,
-      alerting
+      alerting,
     }
 
     // Save analysis
     this.saveAnalysis(analysis)
-    
+
     // Update baselines if this is a stable run
     if (summary.criticalIssues === 0 && summary.regressions <= summary.totalTests * 0.1) {
       this.updateBaselines(currentBaselines)
@@ -153,7 +154,7 @@ export class PerformanceAnalyzer {
       memoryUsage: report.performance.memoryUsage.peak,
       apiCallCount: report.metrics?.apiCalls.total || 0,
       cacheHitRate: report.metrics?.cache.hitRate || 0,
-      errorRate: report.metrics?.apiCalls.errorRate || 0
+      errorRate: report.metrics?.apiCalls.errorRate || 0,
     })
 
     // Individual test baselines
@@ -167,7 +168,7 @@ export class PerformanceAnalyzer {
             memoryUsage: 0, // Individual test memory tracking would need implementation
             apiCallCount: 0, // Would need test-specific API tracking
             cacheHitRate: 0, // Would need test-specific cache tracking
-            errorRate: 0    // Individual test error tracking
+            errorRate: 0, // Individual test error tracking
           })
         }
       })
@@ -208,7 +209,7 @@ export class PerformanceAnalyzer {
 
     current.forEach(currentBaseline => {
       const baseline = baselines.get(currentBaseline.testName)
-      
+
       if (!baseline) {
         // New test - no trend available
         return
@@ -231,7 +232,7 @@ export class PerformanceAnalyzer {
         regression,
         improvement,
         changePercent: durationChange,
-        analysis
+        analysis,
       })
     })
 
@@ -244,81 +245,91 @@ export class PerformanceAnalyzer {
   private detectRegressions(trends: PerformanceTrend[]): PerformanceRegression[] {
     const regressions: PerformanceRegression[] = []
 
-    trends.filter(t => t.regression).forEach(trend => {
-      const { baseline, current, testName } = trend
+    trends
+      .filter(t => t.regression)
+      .forEach(trend => {
+        const { baseline, current, testName } = trend
 
-      // Duration regression
-      if (current.averageDuration > baseline.averageDuration) {
-        const regressionPercent = this.calculatePercentChange(
-          baseline.averageDuration,
-          current.averageDuration
-        )
+        // Duration regression
+        if (current.averageDuration > baseline.averageDuration) {
+          const regressionPercent = this.calculatePercentChange(
+            baseline.averageDuration,
+            current.averageDuration
+          )
 
-        regressions.push({
-          testName,
-          metric: 'duration',
-          baseline: baseline.averageDuration,
-          current: current.averageDuration,
-          regressionPercent,
-          severity: this.calculateSeverity('duration', regressionPercent, current.averageDuration),
-          recommendation: this.getRecommendation('duration', regressionPercent)
-        })
-      }
+          regressions.push({
+            testName,
+            metric: 'duration',
+            baseline: baseline.averageDuration,
+            current: current.averageDuration,
+            regressionPercent,
+            severity: this.calculateSeverity(
+              'duration',
+              regressionPercent,
+              current.averageDuration
+            ),
+            recommendation: this.getRecommendation('duration', regressionPercent),
+          })
+        }
 
-      // Memory regression
-      if (current.memoryUsage > baseline.memoryUsage) {
-        const regressionPercent = this.calculatePercentChange(
-          baseline.memoryUsage,
-          current.memoryUsage
-        )
+        // Memory regression
+        if (current.memoryUsage > baseline.memoryUsage) {
+          const regressionPercent = this.calculatePercentChange(
+            baseline.memoryUsage,
+            current.memoryUsage
+          )
 
-        regressions.push({
-          testName,
-          metric: 'memory',
-          baseline: baseline.memoryUsage,
-          current: current.memoryUsage,
-          regressionPercent,
-          severity: this.calculateSeverity('memory', regressionPercent, current.memoryUsage),
-          recommendation: this.getRecommendation('memory', regressionPercent)
-        })
-      }
+          regressions.push({
+            testName,
+            metric: 'memory',
+            baseline: baseline.memoryUsage,
+            current: current.memoryUsage,
+            regressionPercent,
+            severity: this.calculateSeverity('memory', regressionPercent, current.memoryUsage),
+            recommendation: this.getRecommendation('memory', regressionPercent),
+          })
+        }
 
-      // Cache hit rate regression
-      if (current.cacheHitRate < baseline.cacheHitRate) {
-        const regressionPercent = this.calculatePercentChange(
-          baseline.cacheHitRate,
-          current.cacheHitRate
-        )
+        // Cache hit rate regression
+        if (current.cacheHitRate < baseline.cacheHitRate) {
+          const regressionPercent = this.calculatePercentChange(
+            baseline.cacheHitRate,
+            current.cacheHitRate
+          )
 
-        regressions.push({
-          testName,
-          metric: 'cacheHitRate',
-          baseline: baseline.cacheHitRate,
-          current: current.cacheHitRate,
-          regressionPercent: Math.abs(regressionPercent),
-          severity: this.calculateSeverity('cacheHitRate', Math.abs(regressionPercent), current.cacheHitRate),
-          recommendation: this.getRecommendation('cacheHitRate', Math.abs(regressionPercent))
-        })
-      }
+          regressions.push({
+            testName,
+            metric: 'cacheHitRate',
+            baseline: baseline.cacheHitRate,
+            current: current.cacheHitRate,
+            regressionPercent: Math.abs(regressionPercent),
+            severity: this.calculateSeverity(
+              'cacheHitRate',
+              Math.abs(regressionPercent),
+              current.cacheHitRate
+            ),
+            recommendation: this.getRecommendation('cacheHitRate', Math.abs(regressionPercent)),
+          })
+        }
 
-      // Error rate regression
-      if (current.errorRate > baseline.errorRate) {
-        const regressionPercent = this.calculatePercentChange(
-          baseline.errorRate,
-          current.errorRate
-        )
+        // Error rate regression
+        if (current.errorRate > baseline.errorRate) {
+          const regressionPercent = this.calculatePercentChange(
+            baseline.errorRate,
+            current.errorRate
+          )
 
-        regressions.push({
-          testName,
-          metric: 'errorRate',
-          baseline: baseline.errorRate,
-          current: current.errorRate,
-          regressionPercent,
-          severity: this.calculateSeverity('errorRate', regressionPercent, current.errorRate),
-          recommendation: this.getRecommendation('errorRate', regressionPercent)
-        })
-      }
-    })
+          regressions.push({
+            testName,
+            metric: 'errorRate',
+            baseline: baseline.errorRate,
+            current: current.errorRate,
+            regressionPercent,
+            severity: this.calculateSeverity('errorRate', regressionPercent, current.errorRate),
+            recommendation: this.getRecommendation('errorRate', regressionPercent),
+          })
+        }
+      })
 
     return regressions
   }
@@ -327,9 +338,12 @@ export class PerformanceAnalyzer {
    * Check if performance is regressed
    */
   private isRegression(baseline: PerformanceBaseline, current: PerformanceBaseline): boolean {
-    const durationIncrease = this.calculatePercentChange(baseline.averageDuration, current.averageDuration)
+    const durationIncrease = this.calculatePercentChange(
+      baseline.averageDuration,
+      current.averageDuration
+    )
     const memoryIncrease = this.calculatePercentChange(baseline.memoryUsage, current.memoryUsage)
-    const cacheHitDecrease = baseline.cacheHitRate - current.cacheHitRate
+    const _cacheHitDecrease = baseline.cacheHitRate - current.cacheHitRate
     const errorRateIncrease = this.calculatePercentChange(baseline.errorRate, current.errorRate)
 
     return (
@@ -346,16 +360,19 @@ export class PerformanceAnalyzer {
    * Check if performance is improved
    */
   private isImprovement(baseline: PerformanceBaseline, current: PerformanceBaseline): boolean {
-    const durationDecrease = this.calculatePercentChange(baseline.averageDuration, current.averageDuration)
+    const durationDecrease = this.calculatePercentChange(
+      baseline.averageDuration,
+      current.averageDuration
+    )
     const memoryDecrease = this.calculatePercentChange(baseline.memoryUsage, current.memoryUsage)
     const cacheHitIncrease = current.cacheHitRate - baseline.cacheHitRate
     const errorRateDecrease = this.calculatePercentChange(baseline.errorRate, current.errorRate)
 
     return (
       durationDecrease < -10 || // 10% improvement in duration
-      memoryDecrease < -10 ||   // 10% improvement in memory
+      memoryDecrease < -10 || // 10% improvement in memory
       cacheHitIncrease > 0.05 || // 5% improvement in cache hit rate
-      errorRateDecrease < -10    // 10% improvement in error rate
+      errorRateDecrease < -10 // 10% improvement in error rate
     )
   }
 
@@ -408,12 +425,16 @@ export class PerformanceAnalyzer {
   /**
    * Get recommendation for regression
    */
-  private getRecommendation(metric: string, regressionPercent: number): string {
+  private getRecommendation(metric: string, _regressionPercent: number): string {
     const recommendations: Record<string, string> = {
-      duration: 'Consider profiling the test to identify slow operations. Check for inefficient database queries, API calls, or synchronous operations.',
-      memory: 'Look for memory leaks, large object allocations, or inefficient data structures. Consider implementing object pooling or lazy loading.',
-      cacheHitRate: 'Review cache configuration, TTL settings, and cache key strategies. Consider cache warming or optimization of cache usage patterns.',
-      errorRate: 'Investigate error logs, API rate limits, network connectivity, or service reliability issues. Consider implementing circuit breakers or retry mechanisms.'
+      duration:
+        'Consider profiling the test to identify slow operations. Check for inefficient database queries, API calls, or synchronous operations.',
+      memory:
+        'Look for memory leaks, large object allocations, or inefficient data structures. Consider implementing object pooling or lazy loading.',
+      cacheHitRate:
+        'Review cache configuration, TTL settings, and cache key strategies. Consider cache warming or optimization of cache usage patterns.',
+      errorRate:
+        'Investigate error logs, API rate limits, network connectivity, or service reliability issues. Consider implementing circuit breakers or retry mechanisms.',
     }
 
     return recommendations[metric] || 'Review the specific metric for optimization opportunities.'
@@ -423,8 +444,8 @@ export class PerformanceAnalyzer {
    * Generate trend analysis
    */
   private generateTrendAnalysis(
-    baseline: PerformanceBaseline,
-    current: PerformanceBaseline,
+    _baseline: PerformanceBaseline,
+    _current: PerformanceBaseline,
     changePercent: number
   ): string {
     if (Math.abs(changePercent) < 5) {
@@ -507,8 +528,8 @@ export class PerformanceAnalyzer {
             baseline: regression.baseline,
             current: regression.current,
             regressionPercent: regression.regressionPercent,
-            recommendation: regression.recommendation
-          }
+            recommendation: regression.recommendation,
+          },
         })
       }
     })
@@ -544,11 +565,11 @@ export class PerformanceAnalyzer {
 
     try {
       writeFileSync(analysisPath, JSON.stringify(analysis, null, 2))
-      
+
       // Also save as latest
       const latestPath = join(this.reportsDir, 'latest-performance-analysis.json')
       writeFileSync(latestPath, JSON.stringify(analysis, null, 2))
-      
+
       console.log(`📈 Performance analysis saved: ${analysisPath}`)
     } catch (error) {
       console.error('Failed to save performance analysis:', error)

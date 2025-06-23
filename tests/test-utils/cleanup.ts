@@ -2,7 +2,7 @@
  * Test cleanup utilities for proper test isolation
  */
 
-import { vi, beforeEach, afterEach } from 'vitest'
+import { afterEach, beforeEach, vi } from 'vitest'
 
 // Extend global type for test state
 declare global {
@@ -27,22 +27,22 @@ const originalConsole = {
 export function resetTestState() {
   // Clear all mocks first
   vi.clearAllMocks()
-  
+
   // Clear all timers
   vi.clearAllTimers()
-  
+
   // Reset environment variables
   process.env = { ...originalEnv }
-  
+
   // Reset console methods
   console.log = originalConsole.log
   console.error = originalConsole.error
   console.warn = originalConsole.warn
   console.info = originalConsole.info
-  
+
   // Clear any module-level state
   clearModuleLevelState()
-  
+
   // Clear nock if it exists
   try {
     const nock = require('nock')
@@ -61,13 +61,13 @@ function clearModuleLevelState() {
   if (rateLimitStore) {
     rateLimitStore.clear()
   }
-  
+
   // Clear Redis state
   clearRedisState()
-  
+
   // Clear any cached configurations
   clearConfigCache()
-  
+
   // Clear GitHub client state
   clearGitHubClientState()
 }
@@ -81,7 +81,7 @@ function clearGitHubClientState() {
   if (global.__githubClientCache) {
     delete global.__githubClientCache
   }
-  
+
   // Clear any rate limit trackers
   if (global.__githubRateLimitState) {
     delete global.__githubRateLimitState
@@ -121,7 +121,7 @@ export function setupTestIsolation() {
   beforeEach(() => {
     resetTestState()
   })
-  
+
   // Clean up after each test
   afterEach(() => {
     resetTestState()
@@ -133,23 +133,23 @@ export function setupTestIsolation() {
  */
 export function createIsolatedTestEnv() {
   const testEnv = { ...originalEnv }
-  
+
   return {
     set(key: string, value: string) {
       testEnv[key] = value
       process.env[key] = value
     },
-    
+
     get(key: string) {
       return testEnv[key]
     },
-    
+
     reset() {
       process.env = { ...originalEnv }
     },
-    
+
     restore() {
       process.env = { ...testEnv }
-    }
+    },
   }
 }

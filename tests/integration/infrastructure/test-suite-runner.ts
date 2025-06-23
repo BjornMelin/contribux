@@ -1,74 +1,80 @@
 /**
  * Test Suite Runner with Integrated Reporting
- * 
+ *
  * Orchestrates test execution with comprehensive metrics collection,
  * performance analysis, and automated reporting for CI/CD integration.
  */
 
-import { spawn, ChildProcess } from 'node:child_process'
+import { spawn } from 'node:child_process'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs'
 import { MetricsCollector } from './metrics-collector'
-import { 
-  IntegrationTestReporter, 
-  createIntegrationTestReporter, 
-  type QualityGate,
-  type TestReport 
-} from './reporter'
-import { 
-  PerformanceAnalyzer, 
+import {
   createPerformanceAnalyzer,
-  type PerformanceAnalysis 
+  type PerformanceAnalysis,
+  type PerformanceAnalyzer,
 } from './performance-analyzer'
-import { loadIntegrationTestEnv } from './test-config'
+import {
+  createIntegrationTestReporter,
+  type IntegrationTestReporter,
+  type QualityGate,
+  type TestReport,
+} from './reporter'
 import type { IntegrationTestEnv } from './test-config'
+import { loadIntegrationTestEnv } from './test-config'
 
 export interface TestSuiteConfig {
-  testPattern?: string
-  outputDir?: string
-  timeout?: number
-  retries?: number
-  parallel?: boolean
-  coverage?: boolean
-  bail?: boolean
-  qualityGates?: QualityGate[]
-  performanceBaselines?: boolean
-  ciMode?: boolean
-  reporter?: 'verbose' | 'json' | 'html' | 'all'
-  collectMetrics?: boolean
-  alerting?: {
-    slack?: {
-      webhook: string
-      channel?: string
-    }
-    email?: {
-      recipients: string[]
-      smtp: {
-        host: string
-        port: number
-        secure: boolean
-        auth: {
-          user: string
-          pass: string
-        }
+  testPattern?: string | undefined
+  outputDir?: string | undefined
+  timeout?: number | undefined
+  retries?: number | undefined
+  parallel?: boolean | undefined
+  coverage?: boolean | undefined
+  bail?: boolean | undefined
+  qualityGates?: QualityGate[] | undefined
+  performanceBaselines?: boolean | undefined
+  ciMode?: boolean | undefined
+  reporter?: 'verbose' | 'json' | 'html' | 'all' | undefined
+  collectMetrics?: boolean | undefined
+  alerting?:
+    | {
+        slack?:
+          | {
+              webhook: string
+              channel?: string | undefined
+            }
+          | undefined
+        email?:
+          | {
+              recipients: string[]
+              smtp: {
+                host: string
+                port: number
+                secure: boolean
+                auth: {
+                  user: string
+                  pass: string
+                }
+              }
+            }
+          | undefined
       }
-    }
-  }
+    | undefined
 }
 
 export interface TestSuiteResult {
   success: boolean
   report: TestReport
-  analysis?: PerformanceAnalysis
+  analysis?: PerformanceAnalysis | undefined
   executionTime: number
   exitCode: number
   stdout: string
   stderr: string
   artifacts: {
     reportPath: string
-    analysisPath?: string
-    metricsPath?: string
-    coveragePath?: string
+    analysisPath?: string | undefined
+    metricsPath?: string | undefined
+    coveragePath?: string | undefined
   }
 }
 
@@ -93,12 +99,12 @@ export class TestSuiteRunner {
       reporter: 'all',
       collectMetrics: true,
       performanceBaselines: true,
-      ...config
+      ...config,
     }
 
     this.env = loadIntegrationTestEnv()
     this.outputDir = this.config.outputDir!
-    
+
     // Ensure output directory exists
     if (!existsSync(this.outputDir)) {
       mkdirSync(this.outputDir, { recursive: true })
@@ -109,11 +115,11 @@ export class TestSuiteRunner {
     this.reporter = createIntegrationTestReporter({
       outputDir: this.outputDir,
       metricsCollector: this.metricsCollector,
-      qualityGates: this.config.qualityGates || []
+      qualityGates: this.config.qualityGates || [],
     })
     this.analyzer = createPerformanceAnalyzer({
       baselineDir: join(this.outputDir, 'baselines'),
-      reportsDir: this.outputDir
+      reportsDir: this.outputDir,
     })
   }
 
@@ -122,55 +128,54 @@ export class TestSuiteRunner {
    */
   async runTestSuite(): Promise<TestSuiteResult> {
     console.log('🚀 Starting Integration Test Suite')
-    console.log('=' .repeat(50))
-    
+    console.log('='.repeat(50))
+
     const startTime = Date.now()
-    
+
     try {
       // Pre-test setup
       await this.preTestSetup()
-      
+
       // Run tests with Vitest
       const vitestResult = await this.runVitest()
-      
+
       // Post-test analysis
       const report = await this.generateReport(vitestResult)
-      const analysis = this.config.performanceBaselines 
-        ? this.analyzer.analyzePerformance(report) 
+      const analysis = this.config.performanceBaselines
+        ? this.analyzer.analyzePerformance(report)
         : undefined
-      
+
       // Generate artifacts
       const artifacts = await this.generateArtifacts(report, analysis)
-      
+
       // Send alerts if needed
       if (this.config.alerting && (!report.summary.success || analysis?.summary.criticalIssues)) {
         await this.sendAlerts(report, analysis)
       }
-      
+
       const executionTime = Date.now() - startTime
-      
+
       console.log(`✅ Test suite completed in ${(executionTime / 1000).toFixed(2)}s`)
-      
+
       return {
-        success: report.summary.success && (analysis?.summary.criticalIssues === 0 ?? true),
+        success: report.summary.success && (!analysis || analysis.summary.criticalIssues === 0),
         report,
         analysis,
         executionTime,
         exitCode: vitestResult.exitCode,
         stdout: vitestResult.stdout,
         stderr: vitestResult.stderr,
-        artifacts
+        artifacts,
       }
-      
     } catch (error) {
       console.error('❌ Test suite failed:', error)
-      
+
       const executionTime = Date.now() - startTime
-      
+
       // Generate minimal error report
       const errorReport = this.generateErrorReport(error, executionTime)
       const artifacts = await this.generateArtifacts(errorReport)
-      
+
       return {
         success: false,
         report: errorReport,
@@ -178,7 +183,7 @@ export class TestSuiteRunner {
         exitCode: 1,
         stdout: '',
         stderr: error instanceof Error ? error.message : String(error),
-        artifacts
+        artifacts,
       }
     }
   }
@@ -188,18 +193,18 @@ export class TestSuiteRunner {
    */
   private async preTestSetup(): Promise<void> {
     console.log('🔧 Setting up test environment...')
-    
+
     // Validate environment variables
     if (!this.env.GITHUB_TEST_TOKEN) {
       throw new Error('GITHUB_TEST_TOKEN is required for integration tests')
     }
-    
+
     // Reset metrics collector
     this.metricsCollector.reset()
-    
+
     // Clean up any existing test artifacts
     await this.cleanupPreviousRuns()
-    
+
     console.log('✅ Test environment ready')
   }
 
@@ -213,18 +218,18 @@ export class TestSuiteRunner {
   }> {
     return new Promise((resolve, reject) => {
       const vitestArgs = this.buildVitestArgs()
-      
+
       console.log(`🧪 Running Vitest: vitest ${vitestArgs.join(' ')}`)
-      
+
       const vitest = spawn('npx', ['vitest', ...vitestArgs], {
         cwd: process.cwd(),
         env: {
           ...process.env,
           NODE_ENV: 'test',
           // Pass metrics collector reference (simplified)
-          INTEGRATION_TEST_METRICS: 'true'
+          INTEGRATION_TEST_METRICS: 'true',
         },
-        stdio: ['pipe', 'pipe', 'pipe']
+        stdio: ['pipe', 'pipe', 'pipe'],
       })
 
       let stdout = ''
@@ -246,15 +251,15 @@ export class TestSuiteRunner {
         }
       })
 
-      vitest.on('close', (code) => {
+      vitest.on('close', code => {
         resolve({
           exitCode: code || 0,
           stdout,
-          stderr
+          stderr,
         })
       })
 
-      vitest.on('error', (error) => {
+      vitest.on('error', error => {
         reject(new Error(`Failed to run Vitest: ${error.message}`))
       })
 
@@ -275,47 +280,47 @@ export class TestSuiteRunner {
    */
   private buildVitestArgs(): string[] {
     const args: string[] = []
-    
+
     // Test pattern
     if (this.config.testPattern) {
       args.push(this.config.testPattern)
     }
-    
+
     // Run mode
     args.push('run')
-    
+
     // Coverage
     if (this.config.coverage) {
       args.push('--coverage')
     }
-    
+
     // Parallel execution
     if (!this.config.parallel) {
       args.push('--no-file-parallelism')
     }
-    
+
     // Bail on first failure
     if (this.config.bail) {
       args.push('--bail')
     }
-    
+
     // Retries
     if (this.config.retries && this.config.retries > 0) {
       args.push('--retry', this.config.retries.toString())
     }
-    
+
     // Reporter
     if (this.config.reporter === 'json') {
       args.push('--reporter=json')
     } else if (this.config.reporter === 'verbose') {
       args.push('--reporter=verbose')
     }
-    
+
     // CI mode
     if (this.config.ciMode) {
       args.push('--run')
     }
-    
+
     return args
   }
 
@@ -336,7 +341,7 @@ export class TestSuiteRunner {
         failed: 0,
         skipped: 0,
         todo: 0,
-        success: vitestResult.exitCode === 0
+        success: vitestResult.exitCode === 0,
       },
       suites: [],
       metrics: this.config.collectMetrics ? this.metricsCollector.getMetrics() : null,
@@ -349,13 +354,13 @@ export class TestSuiteRunner {
         memoryUsage: {
           peak: process.memoryUsage().heapUsed,
           average: process.memoryUsage().heapUsed,
-          atEnd: process.memoryUsage().heapUsed
-        }
+          atEnd: process.memoryUsage().heapUsed,
+        },
       },
       qualityGates: [],
       timestamp: new Date().toISOString(),
       duration: 0,
-      environment: 'test'
+      environment: 'test',
     }
 
     // Try to load actual Vitest report if available
@@ -364,7 +369,7 @@ export class TestSuiteRunner {
       try {
         const reportData = JSON.parse(readFileSync(reportPath, 'utf-8'))
         Object.assign(mockReport, reportData)
-      } catch (error) {
+      } catch (_error) {
         console.warn('Failed to load Vitest report, using mock data')
       }
     }
@@ -377,7 +382,7 @@ export class TestSuiteRunner {
    */
   private generateErrorReport(error: unknown, executionTime: number): TestReport {
     const errorMessage = error instanceof Error ? error.message : String(error)
-    
+
     return {
       summary: {
         total: 0,
@@ -385,28 +390,34 @@ export class TestSuiteRunner {
         failed: 1,
         skipped: 0,
         todo: 0,
-        success: false
+        success: false,
       },
-      suites: [{
-        name: 'Test Suite Execution',
-        file: 'runner',
-        duration: executionTime,
-        tests: [{
-          name: 'Test Suite Setup',
-          status: 'failed',
+      suites: [
+        {
+          name: 'Test Suite Execution',
+          file: 'runner',
           duration: executionTime,
-          error: {
-            message: errorMessage,
-            type: 'SetupError'
-          },
-          retries: 0
-        }],
-        status: 'failed',
-        errors: [{
-          message: errorMessage,
-          type: 'SetupError'
-        }]
-      }],
+          tests: [
+            {
+              name: 'Test Suite Setup',
+              status: 'failed',
+              duration: executionTime,
+              error: {
+                message: errorMessage,
+                type: 'SetupError',
+              },
+              retries: 0,
+            },
+          ],
+          status: 'failed',
+          errors: [
+            {
+              message: errorMessage,
+              type: 'SetupError',
+            },
+          ],
+        },
+      ],
       metrics: null,
       performance: {
         slowestTests: [],
@@ -417,13 +428,13 @@ export class TestSuiteRunner {
         memoryUsage: {
           peak: process.memoryUsage().heapUsed,
           average: process.memoryUsage().heapUsed,
-          atEnd: process.memoryUsage().heapUsed
-        }
+          atEnd: process.memoryUsage().heapUsed,
+        },
       },
       qualityGates: [],
       timestamp: new Date().toISOString(),
       duration: executionTime,
-      environment: 'test'
+      environment: 'test',
     }
   }
 
@@ -431,30 +442,30 @@ export class TestSuiteRunner {
    * Generate test artifacts
    */
   private async generateArtifacts(
-    report: TestReport, 
+    report: TestReport,
     analysis?: PerformanceAnalysis
   ): Promise<TestSuiteResult['artifacts']> {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    
+
     const artifacts: TestSuiteResult['artifacts'] = {
-      reportPath: join(this.outputDir, `test-report-${timestamp}.json`)
+      reportPath: join(this.outputDir, `test-report-${timestamp}.json`),
     }
 
     // Save main report
     writeFileSync(artifacts.reportPath, JSON.stringify(report, null, 2))
-    
+
     // Save analysis if available
     if (analysis) {
       artifacts.analysisPath = join(this.outputDir, `performance-analysis-${timestamp}.json`)
       writeFileSync(artifacts.analysisPath, JSON.stringify(analysis, null, 2))
     }
-    
+
     // Save metrics if available
     if (report.metrics) {
       artifacts.metricsPath = join(this.outputDir, `metrics-${timestamp}.json`)
       writeFileSync(artifacts.metricsPath, JSON.stringify(report.metrics, null, 2))
     }
-    
+
     // Save coverage if available
     const coveragePath = join(process.cwd(), 'coverage', 'coverage-final.json')
     if (existsSync(coveragePath)) {
@@ -479,24 +490,24 @@ export class TestSuiteRunner {
     if (!this.config.alerting) return
 
     const alerts = []
-    
+
     // Test failure alerts
     if (!report.summary.success) {
       alerts.push({
         type: 'test_failure',
         message: `Integration tests failed: ${report.summary.failed} of ${report.summary.total} tests failed`,
         severity: 'high',
-        data: report.summary
+        data: report.summary,
       })
     }
-    
+
     // Performance regression alerts
     if (analysis?.summary.criticalIssues) {
       alerts.push({
         type: 'performance_regression',
         message: `Critical performance regressions detected: ${analysis.summary.criticalIssues} issues`,
         severity: 'critical',
-        data: analysis.summary
+        data: analysis.summary,
       })
     }
 
@@ -505,7 +516,7 @@ export class TestSuiteRunner {
       if (this.config.alerting.slack) {
         await this.sendSlackAlert(alert, this.config.alerting.slack)
       }
-      
+
       if (this.config.alerting.email) {
         await this.sendEmailAlert(alert, this.config.alerting.email)
       }
@@ -515,38 +526,43 @@ export class TestSuiteRunner {
   /**
    * Send Slack alert
    */
-  private async sendSlackAlert(alert: any, config: NonNullable<TestSuiteConfig['alerting']>['slack']): Promise<void> {
+  private async sendSlackAlert(
+    alert: any,
+    config: NonNullable<TestSuiteConfig['alerting']>['slack']
+  ): Promise<void> {
     try {
       const payload = {
         channel: config.channel || '#alerts',
         text: alert.message,
-        attachments: [{
-          color: alert.severity === 'critical' ? 'danger' : 'warning',
-          fields: [
-            {
-              title: 'Type',
-              value: alert.type,
-              short: true
-            },
-            {
-              title: 'Severity',
-              value: alert.severity,
-              short: true
-            }
-          ]
-        }]
+        attachments: [
+          {
+            color: alert.severity === 'critical' ? 'danger' : 'warning',
+            fields: [
+              {
+                title: 'Type',
+                value: alert.type,
+                short: true,
+              },
+              {
+                title: 'Severity',
+                value: alert.severity,
+                short: true,
+              },
+            ],
+          },
+        ],
       }
 
       const response = await fetch(config.webhook, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       })
 
       if (!response.ok) {
         throw new Error(`Slack API error: ${response.statusText}`)
       }
-      
+
       console.log('📱 Slack alert sent successfully')
     } catch (error) {
       console.error('Failed to send Slack alert:', error)
@@ -556,7 +572,10 @@ export class TestSuiteRunner {
   /**
    * Send email alert
    */
-  private async sendEmailAlert(alert: any, config: NonNullable<TestSuiteConfig['alerting']>['email']): Promise<void> {
+  private async sendEmailAlert(
+    _alert: any,
+    config: NonNullable<TestSuiteConfig['alerting']>['email']
+  ): Promise<void> {
     // Email implementation would go here
     // For now, just log that we would send an email
     console.log('📧 Email alert would be sent to:', config.recipients.join(', '))
