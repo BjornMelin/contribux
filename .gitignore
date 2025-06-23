@@ -62,10 +62,17 @@ secrets.json
 pgdata/
 postgres-data/
 
-# Database dumps and backups
-*.sql
+# Database runtime and local data (keep schema and migration files)
+database/data/
+database/logs/
+database/*.pid
+database/*.lock
+
+# Database dumps and backups (keep versioned schema files)
 *.dump
 *.backup
+database/backups/
+database/snapshots/
 
 # Prisma generated files (keep schema.prisma)
 prisma/migrations/.migrate_info
@@ -163,6 +170,9 @@ traces/
 # Keep shared workspace configuration
 !.vscode/extensions.json
 !.vscode/tasks.json
+
+# Claude Code personal settings
+.claude/
 
 # Other IDEs
 .idea/
@@ -353,6 +363,10 @@ dev-debug.log
 debug-*.js
 test-*.js
 *-debug.js
+
+# Development debug and test files in root
+debug-jwt.js
+test-entropy.js
 # Dependency directories
 # Environment variables
 # Editor directories and files (consolidated above)
