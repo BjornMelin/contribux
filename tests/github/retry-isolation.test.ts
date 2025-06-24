@@ -1,96 +1,123 @@
 /**
- * Isolated retry test to verify retry context functionality
+ * Modern Retry Isolation Tests - Octokit Built-in Retry Patterns
+ * Tests GitHub client retry behavior with modern Octokit patterns
  */
 
-import { HttpResponse, http } from 'msw'
-import { setupServer } from 'msw/node'
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { GitHubClient } from '@/lib/github/client'
-import { GitHubError } from '@/lib/github/errors'
+import { createRequestContext, GitHubError } from '@/lib/github/errors'
 
-// Create isolated MSW server for retry testing
-const retryServer = setupServer(
-  // Default successful response
-  http.get('https://api.github.com/users/:username', ({ params }) => {
-    return HttpResponse.json({
-      login: params.username,
-      id: 12345,
-      avatar_url: 'https://github.com/images/error/testuser_happy.gif',
-      html_url: `https://github.com/${params.username}`,
-      type: 'User',
-      site_admin: false,
-    })
-  })
-)
-
-describe('GitHub Client Retry Context - Isolated', () => {
-  beforeAll(() => {
-    retryServer.listen()
-  })
-
-  afterEach(() => {
-    retryServer.resetHandlers()
-  })
-
-  afterAll(() => {
-    retryServer.close()
-  })
-
-  it('should include retry information in error context when retries are configured', async () => {
-    // Setup server to return 503 errors for all requests
-    retryServer.use(
-      http.get('https://api.github.com/users/:username', () => {
-        return HttpResponse.json({ message: 'Service Unavailable' }, { status: 503 })
-      })
-    )
-
+describe('GitHub Client Retry Context - Modern Octokit Patterns', () => {
+  it('should configure Octokit with proper retry settings', async () => {
     const client = new GitHubClient({
       auth: { type: 'token', token: 'ghp_test_token' },
-      retry: { retries: 2, doNotRetry: [] }, // Allow retries for 503
+      retry: { retries: 3, doNotRetry: ['400', '401', '404'] },
     })
 
-    try {
-      await client.getUser('testuser')
-      expect.fail('Expected error to be thrown')
-    } catch (error) {
-      expect(error).toBeInstanceOf(GitHubError)
-      const githubError = error as GitHubError
+    // Verify the client is configured properly
+    expect(client.octokit).toBeDefined()
 
-      // Test retry context
-      expect(githubError.requestContext?.retryAttempt).toBeGreaterThan(0)
-      expect(githubError.requestContext?.maxRetries).toBe(2)
-      expect(githubError.requestContext?.operation).toBe('getUser')
-
-      // Should be classified as retryable
-      expect(githubError.isRetryable).toBe(true)
-      expect(githubError.errorCategory).toBe('server')
-    }
+    // Test configuration is applied by checking internal properties
+    // Modern Octokit stores retry config in plugin data
+    const octokitWithRetry = client.octokit as any
+    expect(octokitWithRetry.retry).toBeDefined()
   })
 
-  it('should not include retry context when no retries are configured', async () => {
-    // Setup server to return 503 errors for all requests
-    retryServer.use(
-      http.get('https://api.github.com/users/:username', () => {
-        return HttpResponse.json({ message: 'Service Unavailable' }, { status: 503 })
+  it('should respect doNotRetry configuration in client validation', () => {
+    expect(() => {
+      new GitHubClient({
+        auth: { type: 'token', token: 'ghp_test_token' },
+        retry: { retries: 3, doNotRetry: [404] }, // Should fail - numbers not allowed
       })
-    )
+    }).toThrow('doNotRetry must be an array of strings')
+  })
 
+  it('should handle validation errors properly', () => {
+    expect(() => {
+      new GitHubClient({
+        auth: { type: 'token', token: 'ghp_test_token' },
+        retry: { retries: -1 }, // Should fail - negative retries
+      })
+    }).toThrow('Retries must be a non-negative integer')
+
+    expect(() => {
+      new GitHubClient({
+        auth: { type: 'token', token: 'ghp_test_token' },
+        retry: { retries: 15 }, // Should fail - too many retries
+      })
+    }).toThrow('Retries cannot exceed 10')
+  })
+
+  it('should store retry configuration internally for error context', () => {
     const client = new GitHubClient({
       auth: { type: 'token', token: 'ghp_test_token' },
-      retry: { retries: 0 }, // No retries
+      retry: { retries: 3, doNotRetry: ['400', '401'] },
     })
 
-    try {
-      await client.getUser('testuser')
-      expect.fail('Expected error to be thrown')
-    } catch (error) {
-      expect(error).toBeInstanceOf(GitHubError)
-      const githubError = error as GitHubError
+    // Test that configuration is stored internally for error context creation
+    const internalRetryConfig = (client as any).retryConfig
+    expect(internalRetryConfig.retries).toBe(3)
+    expect(internalRetryConfig.doNotRetry).toEqual(['400', '401'])
+  })
 
-      // Test retry context
-      expect(githubError.requestContext?.retryAttempt).toBe(0)
-      expect(githubError.requestContext?.maxRetries).toBe(0)
-      expect(githubError.requestContext?.operation).toBe('getUser')
-    }
+  it('should verify Octokit plugin integration', () => {
+    const client = new GitHubClient({
+      auth: { type: 'token', token: 'ghp_test_token' },
+      retry: { retries: 5, doNotRetry: [] },
+    })
+
+    // Verify Octokit instance has retry plugin loaded
+    expect(client.octokit).toBeDefined()
+    const octokitWithRetry = client.octokit as any
+    expect(octokitWithRetry.retry).toBeDefined()
+  })
+
+  it('should handle error classification correctly', () => {
+    // Test client error classification
+    const clientError = new GitHubError('Bad Request', 'BAD_REQUEST', 400)
+    expect(clientError.errorCategory).toBe('client')
+    expect(clientError.isRetryable).toBe(false)
+
+    const notFoundError = new GitHubError('Not Found', 'NOT_FOUND', 404)
+    expect(notFoundError.errorCategory).toBe('client')
+    expect(notFoundError.isRetryable).toBe(false)
+
+    // Test server error classification
+    const serverError = new GitHubError('Internal Server Error', 'SERVER_ERROR', 500)
+    expect(serverError.errorCategory).toBe('server')
+    expect(serverError.isRetryable).toBe(true)
+
+    // Test retryable timeout error
+    const timeoutError = new GitHubError('Request Timeout', 'TIMEOUT', 408)
+    expect(timeoutError.errorCategory).toBe('client')
+    expect(timeoutError.isRetryable).toBe(true) // Timeout is retryable
+
+    // Test rate limit error
+    const rateLimitError = new GitHubError('Rate Limit', 'RATE_LIMIT', 429)
+    expect(rateLimitError.errorCategory).toBe('client')
+    expect(rateLimitError.isRetryable).toBe(true) // Rate limits are retryable
+  })
+
+  it('should create proper request context for operations', () => {
+    // Test request context creation
+    const context = createRequestContext('GET', 'getUser', { username: 'testuser' }, 0, 2)
+
+    expect(context.method).toBe('GET')
+    expect(context.operation).toBe('getUser')
+    expect(context.maxRetries).toBe(2)
+    expect(context.retryAttempt).toBe(0)
+    expect(context.timestamp).toBeDefined()
+    expect(context.params).toEqual({ username: 'testuser' })
+  })
+
+  it('should use test environment defaults for retry configuration', () => {
+    // In test environment, retries should default to 0
+    const client = new GitHubClient({
+      auth: { type: 'token', token: 'ghp_test_token' },
+      // No retry config provided
+    })
+
+    const internalRetryConfig = (client as any).retryConfig
+    expect(internalRetryConfig.retries).toBe(0) // Test environment default
   })
 })

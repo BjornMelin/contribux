@@ -115,7 +115,7 @@ describe('Environment Validation - Schema Tests', () => {
         NODE_ENV: 'test',
         // Let JWT_SECRET use default transformation for test environment
       })
-      delete testEnv.JWT_SECRET // Let it use the test default
+      delete (testEnv as any).JWT_SECRET // Let it use the test default
 
       const result = envSchema.parse(testEnv)
       expect(result.JWT_SECRET).toBe(
@@ -255,8 +255,8 @@ describe('Environment Validation - Schema Tests', () => {
         JWT_SECRET: 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6',
       })
       // Remove OAuth credentials to test optional behavior in development
-      delete testEnv.GITHUB_CLIENT_ID
-      delete testEnv.GITHUB_CLIENT_SECRET
+      delete (testEnv as any).GITHUB_CLIENT_ID
+      delete (testEnv as any).GITHUB_CLIENT_SECRET
 
       expect(() => envSchema.parse(testEnv)).not.toThrow()
     })

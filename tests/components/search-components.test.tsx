@@ -7,7 +7,6 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { userEvent } from '@testing-library/user-event'
 import type React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { z } from 'zod'
 import '@testing-library/jest-dom'
 
 // Create isolated render helper
@@ -98,7 +97,7 @@ describe('Search Components', () => {
   afterEach(() => {
     // Remove the container completely
     cleanup()
-    if (container && container.parentNode) {
+    if (container?.parentNode) {
       container.parentNode.removeChild(container)
     }
     document.body.innerHTML = ''

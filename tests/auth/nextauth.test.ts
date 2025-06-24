@@ -56,7 +56,7 @@ describe('NextAuth Configuration', () => {
   describe('Callbacks', () => {
     beforeEach(() => {
       // Mock sql for database queries
-      vi.mocked(sql).mockImplementation((strings: TemplateStringsArray, ...values: unknown[]) => {
+      vi.mocked(sql).mockImplementation((strings: TemplateStringsArray, ..._values: unknown[]) => {
         const query = strings.join('')
 
         // Mock user lookup

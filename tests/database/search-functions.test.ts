@@ -81,8 +81,8 @@ describe('Database Search Functions', () => {
     `)
 
     // Read and execute the updated search functions
-    const fs = require('fs')
-    const path = require('path')
+    const fs = require('node:fs')
+    const path = require('node:path')
     const sqlFile = path.join(__dirname, '..', '..', 'database', 'init', 'search_functions.sql')
     const sql = fs.readFileSync(sqlFile, 'utf8')
     await pool.query(sql)

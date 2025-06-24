@@ -1,7 +1,6 @@
-import React from 'react'
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { signIn } from 'next-auth/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import OAuthSignInPage from '@/app/auth/signin/page'
 
 // Mock next-auth/react
@@ -104,9 +103,7 @@ describe('OAuth Sign-In Flow', () => {
 
     it('shows loading state during sign-in', async () => {
       const mockSignIn = vi.mocked(signIn)
-      mockSignIn.mockImplementation(
-        () => new Promise(resolve => setTimeout(resolve, 100))
-      )
+      mockSignIn.mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)))
 
       render(<OAuthSignInPage />)
 
@@ -123,7 +120,7 @@ describe('OAuth Sign-In Flow', () => {
     it('handles sign-in errors gracefully', async () => {
       const mockSignIn = vi.mocked(signIn)
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-      
+
       mockSignIn.mockRejectedValueOnce(new Error('Authentication failed'))
 
       render(<OAuthSignInPage />)
@@ -133,10 +130,7 @@ describe('OAuth Sign-In Flow', () => {
       fireEvent.click(githubButton!)
 
       await waitFor(() => {
-        expect(consoleErrorSpy).toHaveBeenCalledWith(
-          'GitHub sign-in failed:',
-          expect.any(Error)
-        )
+        expect(consoleErrorSpy).toHaveBeenCalledWith('GitHub sign-in failed:', expect.any(Error))
       })
 
       consoleErrorSpy.mockRestore()

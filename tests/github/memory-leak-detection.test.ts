@@ -87,7 +87,7 @@ describe('Memory Leak Detection', () => {
     // Simulate operations without actual requests
     for (let i = 0; i < 100; i++) {
       // Just check cache stats
-      const stats = client.getCacheStats()
+      const _stats = client.getCacheStats()
 
       if (i > 0 && i % 20 === 0) {
         forceGC()

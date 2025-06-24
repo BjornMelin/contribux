@@ -51,11 +51,18 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
 
   describe('Network Failures & API Errors', () => {
     it('should handle network timeouts', async () => {
-      const client = createClient({ auth: { type: 'token', token: 'test_token' } })
+      const client = createClient({
+        auth: { type: 'token', token: 'test_token' },
+        retry: { retries: 0 }, // Disable retries for faster test
+      })
 
-      // Mock timeout error directly on safeRequest method
-      vi.spyOn(client as GitHubClientTest, 'safeRequest').mockRejectedValueOnce(
-        new Error('ETIMEDOUT')
+      // Mock timeout using MSW with delayed response that exceeds client timeout
+      mswServer.use(
+        http.get('https://api.github.com/user', async () => {
+          // Simulate timeout by delaying response longer than client timeout
+          await new Promise(resolve => setTimeout(resolve, 10000))
+          return HttpResponse.json({ login: 'test' })
+        })
       )
 
       await expect(client.getAuthenticatedUser()).rejects.toThrow()
@@ -95,14 +102,20 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
     })
 
     it('should handle network disconnection errors', async () => {
-      const client = createClient({ auth: { type: 'token', token: 'test_token' } })
+      const client = createClient({
+        auth: { type: 'token', token: 'test_token' },
+        retry: { retries: 0 }, // Disable retries for faster test
+      })
 
-      // Mock network error
-      vi.spyOn(client as GitHubClientTest, 'safeRequest').mockRejectedValueOnce(
-        new Error('ECONNREFUSED')
+      // Mock network disconnection using MSW
+      mswServer.use(
+        http.get('https://api.github.com/rate_limit', () => {
+          // Simulate network error by returning HttpResponse.error()
+          return HttpResponse.error()
+        })
       )
 
-      await expect(client.getRateLimit()).rejects.toThrow('ECONNREFUSED')
+      await expect(client.getRateLimit()).rejects.toThrow()
     })
   })
 
@@ -358,11 +371,16 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
         retry: { retries: 0 },
       })
 
-      // Mock an error with GitHub error structure
-      vi.spyOn(client as GitHubClientTest, 'safeRequest').mockRejectedValueOnce(
-        new GitHubError('Detailed error message', 'API_ERROR', 422, {
-          message: 'Validation Failed',
-          errors: [{ field: 'name', code: 'invalid' }],
+      // Mock detailed GitHub error using MSW
+      mswServer.use(
+        http.get('https://api.github.com/repos/test/test', () => {
+          return HttpResponse.json(
+            {
+              message: 'Validation Failed',
+              errors: [{ field: 'name', code: 'invalid' }],
+            },
+            { status: 422 }
+          )
         })
       )
 
@@ -371,8 +389,6 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
         expect.fail('Should have thrown an error')
       } catch (error) {
         expect(error).toBeInstanceOf(GitHubError)
-        expect((error as GitHubError).message).toBe('Detailed error message')
-        expect((error as GitHubError).code).toBe('API_ERROR')
         expect((error as GitHubError).status).toBe(422)
         expect((error as GitHubError).response).toBeDefined()
       }

@@ -5,7 +5,6 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import { z } from 'zod'
 
 // Import the validation functions directly to test them in isolation
 import { calculateShannonEntropy, validateJwtSecret } from '../../src/lib/validation/env'

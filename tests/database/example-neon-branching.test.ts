@@ -98,7 +98,7 @@ describe('Neon Branching Test Example', () => {
 
       await sql`
         INSERT INTO concurrent_test_${i} (id, value) 
-        VALUES (${i}, ${'value-' + i})
+        VALUES (${i}, ${`value-${i}`})
       `
 
       const result = await sql`

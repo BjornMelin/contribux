@@ -4,8 +4,6 @@
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { GitHubClient } from '@/lib/github'
-import { setupMSW } from './msw-setup'
-import { setupGitHubTestIsolation } from './test-helpers'
 
 describe('Memory Profiling', () => {
   // Skip MSW setup to reduce memory overhead

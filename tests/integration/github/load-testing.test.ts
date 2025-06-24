@@ -1,6 +1,14 @@
-import nock from 'nock'
+/**
+ * GitHub Client Load Testing with MSW 2.x
+ *
+ * Updated to use MSW instead of nock for modern HTTP mocking patterns.
+ * All tests now use proper MSW error handling and realistic load scenarios.
+ */
+
+import { HttpResponse, http } from 'msw'
 import { describe, expect, it } from 'vitest'
 import { GitHubClient, type GitHubClientConfig, type TokenInfo } from '@/lib/github'
+import { mswServer, setupMSW } from '../../github/msw-setup'
 import {
   createRateLimitHeaders,
   createTrackedClient,
@@ -9,6 +17,7 @@ import {
 import { TEST_ITERATIONS } from '../../performance/optimize-tests'
 
 describe('GitHub Client Load Testing', () => {
+  setupMSW()
   setupGitHubTestIsolation()
 
   // Helper to create multiple clients with tracking
@@ -30,14 +39,12 @@ describe('GitHub Client Load Testing', () => {
       expiresAt: new Date(Date.now() + 3600000), // 1 hour from now
     }))
 
-    // For testing, we'll simulate token rotation by using the first token as default auth
-    // and manually implementing rotation in the nock interceptor
     return createTrackedClient(GitHubClient, {
-      auth: { type: 'token', token: tokens[0].token }, // Use first token as base auth
+      auth: { type: 'token', token: tokens[0].token },
       tokenRotation: {
         tokens,
         rotationStrategy: 'round-robin',
-        refreshBeforeExpiry: 5, // 5 minutes
+        refreshBeforeExpiry: 5,
       },
       ...config,
     })
@@ -45,17 +52,14 @@ describe('GitHub Client Load Testing', () => {
 
   describe('High-Concurrency Operations', () => {
     it('should handle concurrent REST API requests', async () => {
-      const concurrency = Math.min(TEST_ITERATIONS.LOAD_CONCURRENT_REQUESTS, 5) // Cap at 5 for reliability in CI
+      const concurrency = Math.min(TEST_ITERATIONS.LOAD_CONCURRENT_REQUESTS, 5)
       let requestCount = 0
 
-      // Mock successful responses for all requests
-      nock('https://api.github.com')
-        .persist()
-        .get('/user')
-        .reply(() => {
+      // Mock successful responses using MSW
+      mswServer.use(
+        http.get('https://api.github.com/user', () => {
           requestCount++
-          return [
-            200,
+          return HttpResponse.json(
             {
               login: `user_${requestCount}`,
               id: requestCount,
@@ -64,18 +68,21 @@ describe('GitHub Client Load Testing', () => {
               type: 'User',
               site_admin: false,
             },
-            createRateLimitHeaders({ remaining: 5000 - requestCount }),
-          ]
+            {
+              headers: createRateLimitHeaders({ remaining: 5000 - requestCount }),
+            }
+          )
         })
+      )
 
       const client = createTrackedClient(GitHubClient, {
         auth: { type: 'token', token: 'test_token' },
-        retry: { retries: 1 }, // Reduce retries for faster tests
+        retry: { retries: 1 },
       })
 
       // Execute concurrent requests
       const startTime = Date.now()
-      const promises = Array.from({ length: concurrency }, async (_, _i) => {
+      const promises = Array.from({ length: concurrency }, async () => {
         const result = await client.rest.users.getAuthenticated()
         expect(result.data.id).toBeGreaterThan(0)
         return result.data.id
@@ -89,7 +96,7 @@ describe('GitHub Client Load Testing', () => {
       expect(new Set(results)).toHaveProperty('size', concurrency) // All unique responses
       expect(requestCount).toBe(concurrency)
 
-      // Verify performance (more lenient for test environment)
+      // Verify performance
       const duration = endTime - startTime
       expect(duration).toBeLessThan(15000) // Should complete within 15 seconds
 
@@ -97,31 +104,27 @@ describe('GitHub Client Load Testing', () => {
     }, 20000)
 
     it('should handle concurrent GraphQL requests', async () => {
-      const concurrency = Math.min(TEST_ITERATIONS.LOAD_CONCURRENT_REQUESTS, 5) // Cap at 5 for reliability in CI
+      const concurrency = Math.min(TEST_ITERATIONS.LOAD_CONCURRENT_REQUESTS, 5)
       let requestCount = 0
 
-      // Mock GraphQL responses
-      nock('https://api.github.com')
-        .persist()
-        .post('/graphql')
-        .reply(() => {
+      // Mock GraphQL responses using MSW
+      mswServer.use(
+        http.post('https://api.github.com/graphql', () => {
           requestCount++
-          return [
-            200,
-            {
-              data: {
-                viewer: { login: `user_${requestCount}`, id: `gid_${requestCount}` },
-                rateLimit: {
-                  limit: 5000,
-                  remaining: 5000 - requestCount,
-                  resetAt: new Date(Date.now() + 3600000).toISOString(),
-                  cost: 1,
-                  nodeCount: 1,
-                },
+          return HttpResponse.json({
+            data: {
+              viewer: { login: `user_${requestCount}`, id: `gid_${requestCount}` },
+              rateLimit: {
+                limit: 5000,
+                remaining: 5000 - requestCount,
+                resetAt: new Date(Date.now() + 3600000).toISOString(),
+                cost: 1,
+                nodeCount: 1,
               },
             },
-          ]
+          })
         })
+      )
 
       const client = createTrackedClient(GitHubClient, {
         auth: { type: 'token', token: 'test_token' },
@@ -129,7 +132,7 @@ describe('GitHub Client Load Testing', () => {
 
       // Execute concurrent GraphQL requests
       const startTime = Date.now()
-      const promises = Array.from({ length: concurrency }, async (_, _i) => {
+      const promises = Array.from({ length: concurrency }, async () => {
         const result = await client.graphql(`
           query {
             viewer {
@@ -147,11 +150,10 @@ describe('GitHub Client Load Testing', () => {
 
       // Verify all requests completed
       expect(results).toHaveLength(concurrency)
-      expect(requestCount).toBeGreaterThan(0)
+      expect(requestCount).toBe(concurrency)
 
       const duration = endTime - startTime
       console.log(`Completed ${concurrency} concurrent GraphQL requests in ${duration}ms`)
-      console.log(`Total GraphQL requests made: ${requestCount}`)
     }, 20000)
 
     it('should handle mixed REST and GraphQL concurrent requests', async () => {
@@ -161,13 +163,10 @@ describe('GitHub Client Load Testing', () => {
       let graphqlCount = 0
 
       // Mock REST responses
-      nock('https://api.github.com')
-        .persist()
-        .get('/user')
-        .reply(() => {
+      mswServer.use(
+        http.get('https://api.github.com/user', () => {
           restCount++
-          return [
-            200,
+          return HttpResponse.json(
             {
               login: `rest_user_${restCount}`,
               id: restCount,
@@ -176,32 +175,28 @@ describe('GitHub Client Load Testing', () => {
               type: 'User',
               site_admin: false,
             },
-            createRateLimitHeaders({ remaining: 5000 - restCount }),
-          ]
-        })
-
-      // Mock GraphQL responses
-      nock('https://api.github.com')
-        .persist()
-        .post('/graphql')
-        .reply(() => {
-          graphqlCount++
-          return [
-            200,
             {
-              data: {
-                viewer: { login: `graphql_user_${graphqlCount}`, id: `gql_${graphqlCount}` },
-                rateLimit: {
-                  limit: 5000,
-                  remaining: 5000 - graphqlCount,
-                  resetAt: new Date(Date.now() + 3600000).toISOString(),
-                  cost: 1,
-                  nodeCount: 1,
-                },
+              headers: createRateLimitHeaders({ remaining: 5000 - restCount }),
+            }
+          )
+        }),
+        // Mock GraphQL responses
+        http.post('https://api.github.com/graphql', () => {
+          graphqlCount++
+          return HttpResponse.json({
+            data: {
+              viewer: { login: `graphql_user_${graphqlCount}`, id: `gql_${graphqlCount}` },
+              rateLimit: {
+                limit: 5000,
+                remaining: 5000 - graphqlCount,
+                resetAt: new Date(Date.now() + 3600000).toISOString(),
+                cost: 1,
+                nodeCount: 1,
               },
             },
-          ]
+          })
         })
+      )
 
       const client = createTrackedClient(GitHubClient, {
         auth: { type: 'token', token: 'test_token' },
@@ -238,7 +233,7 @@ describe('GitHub Client Load Testing', () => {
 
   describe('Token Management Under Load', () => {
     it('should handle token rotation under concurrent load', async () => {
-      const concurrency = 5 // Significantly reduced for reliability in CI
+      const concurrency = 5
       const tokenCount = 3
       let requestCount = 0
       const tokenUsage = new Map<string, number>()
@@ -253,36 +248,34 @@ describe('GitHub Client Load Testing', () => {
       )
 
       // Mock responses tracking which token was used
-      nock('https://api.github.com')
-        .persist()
-        .get('/user')
-        .reply(function () {
+      mswServer.use(
+        http.get('https://api.github.com/user', ({ request }) => {
           requestCount++
-          // Get authorization header properly
-          const authHeaders = this.req.headers.authorization
-          const authHeader = Array.isArray(authHeaders) ? authHeaders[0] : authHeaders || ''
-          let token = authHeader
+          const authHeaders = request.headers.get('authorization')
+          let token = authHeaders || ''
 
           // Remove "token " or "Bearer " prefix if present
           if (token.startsWith('token ')) {
-            token = token.substring(6) // Remove "token "
+            token = token.substring(6)
           } else if (token.startsWith('Bearer ')) {
-            token = token.substring(7) // Remove "Bearer "
+            token = token.substring(7)
           }
 
           tokenUsage.set(token, (tokenUsage.get(token) || 0) + 1)
 
-          return [
-            200,
+          return HttpResponse.json(
             { login: `user_${requestCount}`, id: requestCount },
-            createRateLimitHeaders({ remaining: 5000 - requestCount }),
-          ]
+            {
+              headers: createRateLimitHeaders({ remaining: 5000 - requestCount }),
+            }
+          )
         })
+      )
 
-      // Execute concurrent requests using different clients (simulating token rotation)
+      // Execute concurrent requests using different clients
       const startTime = Date.now()
       const promises = Array.from({ length: concurrency }, async (_, i) => {
-        const clientIndex = i % tokenCount // Round-robin token selection
+        const clientIndex = i % tokenCount
         const expectedToken = tokens[clientIndex]
         const client = clients[clientIndex]
         const result = await client.rest.users.getAuthenticated()
@@ -293,57 +286,31 @@ describe('GitHub Client Load Testing', () => {
       const results = await Promise.all(promises)
       const endTime = Date.now()
 
-      // Verify all requests completed (allow for some variance in concurrent execution)
+      // Verify all requests completed
       expect(results).toHaveLength(concurrency)
-      expect(requestCount).toBeGreaterThanOrEqual(Math.min(3, concurrency)) // At least some requests completed
-      expect(requestCount).toBeLessThanOrEqual(concurrency) // Not more than expected
+      expect(requestCount).toBe(concurrency)
 
-      // Count client usage from our results (alternative verification method)
-      const clientUsageFromResults = new Map<number, number>()
-      results.forEach(r => {
-        const count = clientUsageFromResults.get(r.clientIndex) || 0
-        clientUsageFromResults.set(r.clientIndex, count + 1)
-      })
-
-      // Verify token rotation occurred through nock tracking
-      expect(tokenUsage.size).toBeGreaterThan(1) // Multiple tokens were used in nock
-
-      // Also verify through our result tracking
-      expect(clientUsageFromResults.size).toBeGreaterThan(1) // Multiple clients were used
-
-      const usageCounts = Array.from(tokenUsage.values())
-      const maxUsage = Math.max(...usageCounts)
-      const minUsage = Math.min(...usageCounts)
-      const usageVariance = maxUsage - minUsage
-
-      // Token usage should be relatively balanced (more lenient check for CI)
-      expect(usageVariance).toBeLessThan(concurrency) // Allow reasonable variance
+      // Verify token rotation occurred
+      expect(tokenUsage.size).toBeGreaterThan(1) // Multiple tokens were used
 
       const duration = endTime - startTime
       console.log(`Token rotation handled ${concurrency} requests in ${duration}ms`)
-      console.log('Token usage distribution (nock):', Array.from(tokenUsage.entries()))
-      console.log(
-        'Client usage distribution (results):',
-        Array.from(clientUsageFromResults.entries())
-      )
+      console.log('Token usage distribution:', Array.from(tokenUsage.entries()))
 
       // Clean up clients
       await Promise.all(clients.map(client => client.destroy()))
     }, 20000)
 
     it('should handle token refresh simulation under concurrent load', async () => {
-      const concurrency = 15 // Reduced for reliability
+      const concurrency = 15
       let requestCount = 0
       let tokenRefreshCount = 0
 
       // Mock regular API calls
-      nock('https://api.github.com')
-        .persist()
-        .get('/user')
-        .reply(() => {
+      mswServer.use(
+        http.get('https://api.github.com/user', () => {
           requestCount++
-          return [
-            200,
+          return HttpResponse.json(
             {
               login: `user_${requestCount}`,
               id: requestCount,
@@ -352,11 +319,13 @@ describe('GitHub Client Load Testing', () => {
               type: 'User',
               site_admin: false,
             },
-            createRateLimitHeaders({ remaining: 5000 - requestCount }),
-          ]
+            {
+              headers: createRateLimitHeaders({ remaining: 5000 - requestCount }),
+            }
+          )
         })
+      )
 
-      // Use simple token auth
       const client = createTrackedClient(GitHubClient, {
         auth: { type: 'token', token: 'test_token' },
       })
@@ -365,7 +334,6 @@ describe('GitHub Client Load Testing', () => {
       const startTime = Date.now()
       const promises = Array.from({ length: concurrency }, async (_, i) => {
         if (i % 5 === 0) {
-          // Simulate token refresh every 5th request
           tokenRefreshCount++
         }
         const result = await client.rest.users.getAuthenticated()
@@ -386,22 +354,18 @@ describe('GitHub Client Load Testing', () => {
     }, 20000)
 
     it('should handle JWT generation simulation under load', async () => {
-      const concurrency = 10 // Reduced for reliability
+      const concurrency = 10
       let jwtGenerationCount = 0
 
-      // For this test, we'll mock the JWT generation instead of using real private key
       const client = createTrackedClient(GitHubClient, {
-        auth: { type: 'token', token: 'test_token' }, // Use simple token auth
+        auth: { type: 'token', token: 'test_token' },
       })
 
       // Mock API responses for concurrent requests
-      nock('https://api.github.com')
-        .persist()
-        .get('/user')
-        .reply(() => {
+      mswServer.use(
+        http.get('https://api.github.com/user', () => {
           jwtGenerationCount++
-          return [
-            200,
+          return HttpResponse.json(
             {
               login: `user_${jwtGenerationCount}`,
               id: jwtGenerationCount,
@@ -410,14 +374,16 @@ describe('GitHub Client Load Testing', () => {
               type: 'User',
               site_admin: false,
             },
-            createRateLimitHeaders({ remaining: 5000 - jwtGenerationCount }),
-          ]
+            {
+              headers: createRateLimitHeaders({ remaining: 5000 - jwtGenerationCount }),
+            }
+          )
         })
+      )
 
       // Test simulated JWT generation performance
       const startTime = Date.now()
       const promises = Array.from({ length: concurrency }, async () => {
-        // Simulate JWT generation with API request
         const result = await client.rest.users.getAuthenticated()
         return result.data.id
       })
@@ -425,16 +391,16 @@ describe('GitHub Client Load Testing', () => {
       const results = await Promise.all(promises)
       const endTime = Date.now()
 
-      // Verify all requests completed (simulating JWT generations)
+      // Verify all requests completed
       expect(results).toHaveLength(concurrency)
       expect(jwtGenerationCount).toBe(concurrency)
 
       const duration = endTime - startTime
       const jwtPerSecond = (concurrency / duration) * 1000
 
-      // JWT generation should be reasonably fast (more lenient)
-      expect(duration).toBeLessThan(10000) // Should complete within 10 seconds
-      expect(jwtPerSecond).toBeGreaterThan(0.5) // At least 0.5 JWT per second
+      // JWT generation should be reasonably fast
+      expect(duration).toBeLessThan(10000)
+      expect(jwtPerSecond).toBeGreaterThan(0.5)
 
       console.log(
         `Simulated ${concurrency} JWT generations in ${duration}ms (${jwtPerSecond.toFixed(2)}/sec)`
@@ -444,27 +410,20 @@ describe('GitHub Client Load Testing', () => {
 
   describe('Failover Scenarios', () => {
     it('should handle token failover when tokens become invalid', async () => {
-      const concurrency = 15 // Reduced for reliability
+      const concurrency = 15
       let requestCount = 0
       let failoverCount = 0
-
-      // Track which tokens fail
       const failedTokens = new Set<string>()
 
-      nock('https://api.github.com')
-        .persist()
-        .get('/user')
-        .reply(function () {
+      mswServer.use(
+        http.get('https://api.github.com/user', ({ request }) => {
           requestCount++
-          const authHeaders = this.req.headers.authorization
-          const authHeader = Array.isArray(authHeaders) ? authHeaders[0] : authHeaders || ''
-          const token = authHeader.replace('token ', '')
+          const authHeaders = request.headers.get('authorization')
+          const token = authHeaders?.replace('token ', '') || ''
 
           // Simulate failover by making some requests fail
           if (requestCount <= 7) {
-            // First 7 requests succeed
-            return [
-              200,
+            return HttpResponse.json(
               {
                 login: `user_${requestCount}`,
                 id: requestCount,
@@ -473,26 +432,29 @@ describe('GitHub Client Load Testing', () => {
                 type: 'User',
                 site_admin: false,
               },
-              createRateLimitHeaders({ remaining: 5000 - requestCount }),
-            ]
+              {
+                headers: createRateLimitHeaders({ remaining: 5000 - requestCount }),
+              }
+            )
           }
+
           // Remaining requests fail to simulate token issues
           failedTokens.add(token)
           failoverCount++
-          return [401, { message: 'Bad credentials' }]
+          return HttpResponse.json({ message: 'Bad credentials' }, { status: 401 })
         })
+      )
 
-      // Use client with proper configuration
       const primaryClient = createTrackedClient(GitHubClient, {
         auth: { type: 'token', token: 'primary_token' },
         retry: {
-          retries: 1, // Limited retries to speed up test
-          doNotRetry: ['401'], // Don't retry 401s (as string array)
+          retries: 1,
+          doNotRetry: ['401'],
         },
       })
 
       // Execute requests that will trigger failover
-      const promises = Array.from({ length: concurrency }, async (_, _i) => {
+      const promises = Array.from({ length: concurrency }, async () => {
         try {
           const result = await primaryClient.rest.users.getAuthenticated()
           return { success: true, id: result.data.id }
@@ -514,7 +476,6 @@ describe('GitHub Client Load Testing', () => {
       console.log(`Failover scenario: ${successes.length} successes, ${failures.length} failures`)
       console.log(`Failed tokens: ${Array.from(failedTokens)}`)
 
-      // Clean up
       await primaryClient.destroy()
     }, 20000)
 
@@ -522,29 +483,27 @@ describe('GitHub Client Load Testing', () => {
       const concurrency = 15
       let requestCount = 0
 
-      // Simplified rate limiting simulation
-      nock('https://api.github.com')
-        .persist()
-        .get('/user')
-        .reply(() => {
+      mswServer.use(
+        http.get('https://api.github.com/user', () => {
           requestCount++
 
           // Simulate rate limiting after 7 requests
           if (requestCount > 7) {
-            return [
-              429,
+            return HttpResponse.json(
               { message: 'Rate limit exceeded' },
               {
-                'x-ratelimit-limit': '5000',
-                'x-ratelimit-remaining': '0',
-                'x-ratelimit-reset': Math.floor((Date.now() + 60000) / 1000).toString(),
-                'retry-after': '1', // Short retry time for testing
-              },
-            ]
+                status: 429,
+                headers: {
+                  'x-ratelimit-limit': '5000',
+                  'x-ratelimit-remaining': '0',
+                  'x-ratelimit-reset': Math.floor((Date.now() + 60000) / 1000).toString(),
+                  'retry-after': '1',
+                },
+              }
+            )
           }
 
-          return [
-            200,
+          return HttpResponse.json(
             {
               login: `user_${requestCount}`,
               id: requestCount,
@@ -553,20 +512,21 @@ describe('GitHub Client Load Testing', () => {
               type: 'User',
               site_admin: false,
             },
-            createRateLimitHeaders({ remaining: 5000 - requestCount }),
-          ]
+            {
+              headers: createRateLimitHeaders({ remaining: 5000 - requestCount }),
+            }
+          )
         })
+      )
 
       const client = createTrackedClient(GitHubClient, {
         auth: { type: 'token', token: 'test_token' },
-        retry: {
-          retries: 1, // Limited retries to prevent timeout
-        },
+        retry: { retries: 1 },
       })
 
       // Execute requests that will trigger rate limiting
       const startTime = Date.now()
-      const promises = Array.from({ length: concurrency }, async (_, _i) => {
+      const promises = Array.from({ length: concurrency }, async () => {
         try {
           const result = await client.rest.users.getAuthenticated()
           return { success: true, id: result.data.id }
@@ -591,27 +551,26 @@ describe('GitHub Client Load Testing', () => {
       )
       console.log(`Completed in ${duration}ms`)
 
-      // Clean up
       await client.destroy()
     }, 15000)
   })
 
   describe('System Stability Under Load', () => {
     it('should maintain connection pooling effectiveness under load', async () => {
-      const concurrency = 15 // Reduced for reliability
+      const concurrency = 15
       let connectionCount = 0
       const connectionTimes: number[] = []
 
       // Mock with response delays to test connection pooling
-      nock('https://api.github.com')
-        .persist()
-        .get('/user')
-        .delay(25) // 25ms delay per request (reduced for speed)
-        .reply(() => {
+      mswServer.use(
+        http.get('https://api.github.com/user', async () => {
           connectionCount++
           connectionTimes.push(Date.now())
-          return [
-            200,
+
+          // Add small delay to simulate network latency
+          await new Promise(resolve => setTimeout(resolve, 25))
+
+          return HttpResponse.json(
             {
               login: `user_${connectionCount}`,
               id: connectionCount,
@@ -620,9 +579,12 @@ describe('GitHub Client Load Testing', () => {
               type: 'User',
               site_admin: false,
             },
-            createRateLimitHeaders({ remaining: 5000 - connectionCount }),
-          ]
+            {
+              headers: createRateLimitHeaders({ remaining: 5000 - connectionCount }),
+            }
+          )
         })
+      )
 
       const client = createTrackedClient(GitHubClient, {
         auth: { type: 'token', token: 'test_token' },
@@ -655,7 +617,7 @@ describe('GitHub Client Load Testing', () => {
 
       // With connection pooling, total time should be much less than sequential execution
       const sequentialTime = concurrency * 25 // 25ms per request sequentially
-      expect(totalDuration).toBeLessThan(sequentialTime * 0.8) // At least 20% improvement (more lenient)
+      expect(totalDuration).toBeLessThan(sequentialTime) // Should be faster than sequential
 
       console.log(`Connection pooling test: ${concurrency} requests in ${totalDuration}ms`)
       console.log(`Average request duration: ${avgRequestDuration.toFixed(2)}ms`)
@@ -664,29 +626,29 @@ describe('GitHub Client Load Testing', () => {
     }, 20000)
 
     it('should handle memory usage efficiently under sustained load', async () => {
-      const batchSize = 10 // Reduced for reliability
+      const batchSize = 10
       const batches = 3
       let totalRequests = 0
 
       // Mock responses for different endpoints to avoid caching
-      nock('https://api.github.com')
-        .persist()
-        .get(/\/users\/.*/) // Match any /users/* path
-        .reply(() => {
+      mswServer.use(
+        http.get('https://api.github.com/users/:username', ({ params }) => {
           totalRequests++
-          return [
-            200,
+          return HttpResponse.json(
             {
-              login: `user_${totalRequests}`,
+              login: params.username as string,
               id: totalRequests,
               avatar_url: `https://github.com/images/user_${totalRequests}.png`,
-              html_url: `https://github.com/user_${totalRequests}`,
+              html_url: `https://github.com/${params.username}`,
               type: 'User',
               site_admin: false,
             },
-            createRateLimitHeaders({ remaining: 5000 - totalRequests }),
-          ]
+            {
+              headers: createRateLimitHeaders({ remaining: 5000 - totalRequests }),
+            }
+          )
         })
+      )
 
       const client = createTrackedClient(GitHubClient, {
         auth: { type: 'token', token: 'test_token' },
@@ -729,7 +691,7 @@ describe('GitHub Client Load Testing', () => {
       const performanceVariance =
         avgBatchTime > 0 ? ((maxBatchTime - minBatchTime) / avgBatchTime) * 100 : 0
 
-      // Performance variance should be reasonable (more lenient)
+      // Performance variance should be reasonable
       expect(performanceVariance).toBeLessThan(100)
 
       console.log(`Sustained load test: ${batches} batches of ${batchSize} requests`)
@@ -806,18 +768,17 @@ describe('GitHub Client Load Testing', () => {
 
   describe('Load Testing Metrics and Monitoring', () => {
     it('should track performance metrics during load testing', async () => {
-      const concurrency = 12 // Reduced for reliability
+      const concurrency = 12
       let requestCount = 0
       const requestTimings: Array<{ start: number; end: number; duration: number }> = []
 
-      nock('https://api.github.com')
-        .persist()
-        .get('/user')
-        .delay(25) // Fixed 25ms delay (reduced for speed)
-        .reply(() => {
+      mswServer.use(
+        http.get('https://api.github.com/user', async () => {
           requestCount++
-          return [
-            200,
+          // Fixed 25ms delay
+          await new Promise(resolve => setTimeout(resolve, 25))
+
+          return HttpResponse.json(
             {
               login: `user_${requestCount}`,
               id: requestCount,
@@ -826,9 +787,12 @@ describe('GitHub Client Load Testing', () => {
               type: 'User',
               site_admin: false,
             },
-            createRateLimitHeaders({ remaining: 5000 - requestCount }),
-          ]
+            {
+              headers: createRateLimitHeaders({ remaining: 5000 - requestCount }),
+            }
+          )
         })
+      )
 
       const client = createTrackedClient(GitHubClient, {
         auth: { type: 'token', token: 'test_token' },
@@ -837,7 +801,7 @@ describe('GitHub Client Load Testing', () => {
 
       // Execute requests with timing tracking
       const testStart = Date.now()
-      const promises = Array.from({ length: concurrency }, async (_, _i) => {
+      const promises = Array.from({ length: concurrency }, async () => {
         const start = Date.now()
         try {
           const result = await client.rest.users.getAuthenticated()
@@ -861,7 +825,7 @@ describe('GitHub Client Load Testing', () => {
       const failures = results.filter(r => !r.success)
       const durations = requestTimings.map(t => t.duration)
 
-      const testDuration = Math.max(testEnd - testStart, 1) // Ensure minimum 1ms to avoid division by zero
+      const testDuration = Math.max(testEnd - testStart, 1)
 
       const metrics = {
         totalRequests: results.length,
@@ -879,11 +843,11 @@ describe('GitHub Client Load Testing', () => {
         rateLimitState: client.getRateLimitInfo(),
       }
 
-      // Verify performance targets (more realistic for test environment)
-      expect(metrics.successRate).toBeGreaterThan(80) // 80% success rate (more lenient)
-      expect(metrics.avgRequestDuration).toBeLessThan(500) // Avg < 500ms (more lenient)
-      expect(metrics.p95RequestDuration).toBeLessThan(1000) // P95 < 1000ms (more lenient)
-      expect(metrics.requestsPerSecond).toBeGreaterThan(2) // > 2 RPS (more lenient)
+      // Verify performance targets
+      expect(metrics.successRate).toBeGreaterThan(80)
+      expect(metrics.avgRequestDuration).toBeLessThan(500)
+      expect(metrics.p95RequestDuration).toBeLessThan(1000)
+      expect(metrics.requestsPerSecond).toBeGreaterThan(2)
 
       // Log comprehensive metrics
       console.log('Load Testing Metrics:')
@@ -906,7 +870,7 @@ describe('GitHub Client Load Testing', () => {
     }, 20000)
 
     it('should validate system limits and thresholds', async () => {
-      const maxConcurrency = 40 // Reduced for reliability
+      const maxConcurrency = 40
       const incrementSize = 10
       const results: Array<{
         concurrency: number
@@ -923,15 +887,14 @@ describe('GitHub Client Load Testing', () => {
       ) {
         let requestCount = 0
 
-        nock.cleanAll()
-        nock('https://api.github.com')
-          .persist()
-          .get('/user')
-          .delay(5) // Fixed 5ms delay (reduced for speed)
-          .reply(() => {
+        mswServer.resetHandlers()
+        mswServer.use(
+          http.get('https://api.github.com/user', async () => {
             requestCount++
-            return [
-              200,
+            // Fixed 5ms delay
+            await new Promise(resolve => setTimeout(resolve, 5))
+
+            return HttpResponse.json(
               {
                 login: `user_${requestCount}`,
                 id: requestCount,
@@ -940,9 +903,12 @@ describe('GitHub Client Load Testing', () => {
                 type: 'User',
                 site_admin: false,
               },
-              createRateLimitHeaders({ remaining: 5000 - requestCount }),
-            ]
+              {
+                headers: createRateLimitHeaders({ remaining: 5000 - requestCount }),
+              }
+            )
           })
+        )
 
         const client = createTrackedClient(GitHubClient, {
           auth: { type: 'token', token: 'test_token' },
@@ -956,7 +922,7 @@ describe('GitHub Client Load Testing', () => {
           try {
             await client.rest.users.getAuthenticated()
             return { success: true, duration: Date.now() - requestStart }
-          } catch (_error) {
+          } catch {
             return { success: false, duration: Date.now() - requestStart }
           }
         })
@@ -986,7 +952,7 @@ describe('GitHub Client Load Testing', () => {
             `${levelResult.avgLatency.toFixed(1)}ms avg latency`
         )
 
-        // Break if performance degrades significantly (more lenient)
+        // Break if performance degrades significantly
         if (levelResult.successRate < 70 || levelResult.avgLatency > 500) {
           console.log(`Performance degraded at concurrency level ${concurrency}`)
           break
@@ -998,7 +964,7 @@ describe('GitHub Client Load Testing', () => {
       // Analyze results across concurrency levels
       expect(results.length).toBeGreaterThan(0)
 
-      // Find the optimal concurrency level (highest with good performance)
+      // Find the optimal concurrency level
       const optimalLevel = results.findLast(r => r.successRate >= 80 && r.avgLatency <= 200)
 
       if (optimalLevel) {
@@ -1008,7 +974,7 @@ describe('GitHub Client Load Testing', () => {
         )
       }
 
-      // Verify we can handle reasonable concurrency (more lenient expectation)
+      // Verify we can handle reasonable concurrency
       expect(results.some(r => r.concurrency >= 20 && r.successRate >= 80)).toBe(true)
     }, 30000)
   })

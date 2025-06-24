@@ -244,7 +244,7 @@ const defaultHandlers = [
 
   // GET /rate_limit
   http.get(`${GITHUB_API_BASE}/rate_limit`, ({ request }) => {
-    const url = new URL(request.url)
+    const _url = new URL(request.url)
     const userAgent = request.headers.get('user-agent') || ''
 
     // Check if this is from an edge case test (look for specific test markers)

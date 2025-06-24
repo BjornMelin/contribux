@@ -7,7 +7,6 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { z } from 'zod'
 
 describe('Environment Validation', () => {
   beforeEach(() => {
@@ -421,7 +420,7 @@ describe('Environment Validation', () => {
       const originalProcessExit = process.exit
 
       console.error = mockConsoleError
-      process.exit = mockProcessExit as typeof process.exit
+      process.exit = mockProcessExit as unknown as typeof process.exit
 
       try {
         // Set invalid environment
