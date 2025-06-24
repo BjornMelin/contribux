@@ -273,14 +273,14 @@ export class GitHubClient {
       throttle: {
         onRateLimit:
           config.throttle?.onRateLimit ||
-          ((retryAfter, options, octokit, retryCount) => {
+          ((retryAfter, _options, _octokit, retryCount) => {
             console.warn(`Rate limit exceeded. Retrying after ${retryAfter} seconds.`)
             // Retry up to 2 times for rate limits
             return retryCount < 2
           }),
         onSecondaryRateLimit:
           config.throttle?.onSecondaryRateLimit ||
-          ((retryAfter, options, octokit, retryCount) => {
+          ((retryAfter, _options, _octokit, retryCount) => {
             console.warn(`Secondary rate limit hit. Retrying after ${retryAfter} seconds.`)
             // Retry once for secondary rate limits
             return retryCount < 1
@@ -302,7 +302,7 @@ export class GitHubClient {
     context: { method: string; operation: string; params: Record<string, unknown> }
   ): Promise<T> {
     // Generate cache key for this request
-    const cacheKey = this.getCacheKey(context.method + ':' + context.operation, context.params)
+    const cacheKey = this.getCacheKey(`${context.method}:${context.operation}`, context.params)
     const now = Date.now()
     const cacheMaxAge = 60000 // 60 seconds cache
 
@@ -537,7 +537,7 @@ export class GitHubClient {
         {
           method: 'POST',
           operation: 'graphql',
-          params: { query: query.slice(0, 100) + '...', variables },
+          params: { query: `${query.slice(0, 100)}...`, variables },
           timestamp: new Date(),
         }
       )
