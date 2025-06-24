@@ -3,7 +3,7 @@
  * Provides authentication, authorization, and security middleware for Next.js routes
  */
 
-import { timingSafeEqual } from 'node:crypto'
+import { timingSafeEqual } from 'crypto'
 import Redis from 'ioredis'
 import { type NextRequest, NextResponse } from 'next/server'
 import { RateLimiterMemory, RateLimiterRedis } from 'rate-limiter-flexible'

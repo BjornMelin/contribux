@@ -4,7 +4,7 @@
  * digital signatures, and cryptographic operations for zero-trust architecture
  */
 
-import { timingSafeEqual } from 'node:crypto'
+import { timingSafeEqual } from 'crypto'
 import { z } from 'zod'
 
 // Re-export existing crypto utilities for backward compatibility
