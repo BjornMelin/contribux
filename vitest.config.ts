@@ -55,19 +55,37 @@ export default defineConfig({
       skipFull: false, // Include files with 100% coverage in reports
     },
 
-    // Modern pool configuration for Vitest 3.2+
+    // Modern pool configuration for Vitest 3.2+ with aggressive memory optimization
     pool: 'forks',
     poolOptions: {
       forks: {
         singleFork: false, // Enable parallel testing for better performance
-        isolate: true,
-        maxForks: 4, // Optimize for modern CI environments
+        isolate: true, // Full isolation between tests for memory safety
+        maxForks: process.env.CI ? 1 : 2, // Reduce forks for memory optimization
+        minForks: 1, // Minimum number of worker processes
+        execArgv: [
+          '--max-old-space-size=2048', // Reduce heap size for memory optimization
+          '--expose-gc', // Enable garbage collection
+          '--gc-interval=100', // More frequent GC
+          '--optimize-for-size', // Optimize for memory usage over speed
+        ],
       },
     },
 
-    // Enable concurrency for faster test execution in Vitest 3.2+
-    maxConcurrency: 4,
+    // Enable concurrency for faster test execution in Vitest 3.2+ with memory constraints
+    maxConcurrency: process.env.CI ? 1 : 2, // Further reduce concurrency for memory optimization
     fileParallelism: true,
+
+    // Vitest 3.2+ memory optimization features
+    teardownTimeout: 15000, // Extended teardown for thorough cleanup
+    forceRerunTriggers: ['**/test-utils/**'], // Restart workers when test utils change
+
+    // Enhanced memory management
+    poolMatchGlobs: [
+      // Heavy tests run in separate pool with lower memory
+      ['**/integration/**', { pool: 'forks', poolOptions: { forks: { maxForks: 1 } } }],
+      ['**/github/load-testing**', { pool: 'forks', poolOptions: { forks: { maxForks: 1 } } }],
+    ],
 
     // Modern fake timers configuration
     fakeTimers: {
@@ -90,7 +108,8 @@ export default defineConfig({
     reporters: ['verbose', 'hanging-process'],
 
     // Optimized timeout settings
-    hookTimeout: 5000,
+    testTimeout: 10000,
+    hookTimeout: 10000, // Extended hook timeout for cleanup operations
 
     // Retry configuration optimized for modern CI
     retry: 1, // Single retry for flaky tests
@@ -98,26 +117,26 @@ export default defineConfig({
     // Fail fast disabled for comprehensive test coverage
     bail: 0,
 
-    // Enhanced mock configuration for Vitest 3.2+
+    // Enhanced mock configuration for Vitest 3.2+ with memory optimization
     clearMocks: true,
     restoreMocks: true,
     unstubEnvs: true,
     unstubGlobals: true,
     mockReset: true, // Additional mock reset for test isolation
 
-    // Optimized sequence configuration
+    // Optimized sequence configuration for memory efficiency
     sequence: {
       shuffle: false,
       concurrent: true, // Enable concurrent test execution
+      setupFiles: 'list', // Optimize setup file handling
     },
-
-    // Test setup timeout
-    testTimeout: 10000,
 
     // Environment variables and context
     env: {
       NODE_ENV: 'test',
       VITEST: 'true',
+      // Enable garbage collection for memory testing
+      NODE_OPTIONS: '--expose-gc',
     },
 
     // Modern benchmark configuration
@@ -126,9 +145,12 @@ export default defineConfig({
       reporters: ['verbose'],
     },
 
-    // Advanced debugging options
-    logHeapUsage: !process.env.CI,
+    // Advanced debugging and memory optimization options
+    logHeapUsage: !process.env.CI, // Log heap usage in local development
     isolate: true, // Better test isolation
+
+    // Optimized watch mode for development
+    watch: process.env.CI !== 'true',
   },
 
   // Optimized ESBuild configuration for Node.js 18+

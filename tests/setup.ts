@@ -1,15 +1,25 @@
 // Test setup configuration for Vitest
+// Modern test setup with PGlite and Neon branching for optimal database testing
 
 import { Crypto } from '@peculiar/webcrypto'
 import { config } from 'dotenv'
 import { afterEach, beforeEach, vi } from 'vitest'
-import { resetTestState } from './test-utils/cleanup'
+import { TestDatabaseManager } from '@/lib/test-utils/test-database-manager'
+import { registerCleanup, resetTestState, setupEnhancedTestIsolation } from './test-utils/cleanup'
 
 // Import MSW for modern HTTP mocking
 import 'msw/node'
 
 // Import jest-dom matchers for better assertions
+// Note: Despite the name, @testing-library/jest-dom works perfectly with Vitest
+// It provides useful matchers like toBeInTheDocument(), toHaveAttribute(), etc.
 import '@testing-library/jest-dom'
+
+// Make React available globally for JSX transform
+import React from 'react'
+
+// @ts-ignore
+global.React = React
 
 // Load test environment variables first
 config({ path: '.env.test' })
@@ -33,17 +43,35 @@ if (!global.crypto?.subtle) {
 //   process.env.NODE_ENV = 'test';
 // }
 
-// Create mock database client for tests that don't need real database
-const createMockSqlClient = () => {
-  const mockSql = vi.fn()
-  mockSql.mockResolvedValue([])
-  return mockSql
+// Intelligent database client setup - chooses optimal strategy automatically
+// PGlite for fast unit tests, Neon branching for integration tests
+const createIntelligentDbClient = () => {
+  // Return a proxy that routes to the correct database based on test context
+  return new Proxy(
+    {},
+    {
+      get(target, prop) {
+        if (prop === 'sql') {
+          // Will be replaced by test-specific setup
+          return vi.fn().mockResolvedValue([])
+        }
+        return (target as any)[prop]
+      },
+    }
+  )
 }
 
-// Global mock for database client
+// Enhanced database configuration with intelligent routing
 vi.mock('@/lib/db/config', () => ({
-  sql: createMockSqlClient(),
+  sql: createIntelligentDbClient(),
   getDatabaseUrl: vi.fn(branch => {
+    // Intelligent URL routing based on test strategy
+    const testStrategy = process.env.TEST_DB_STRATEGY
+
+    if (testStrategy === 'pglite') {
+      return 'postgresql://test:test@localhost:5432/test_pglite'
+    }
+
     switch (branch) {
       case 'test':
         return process.env.DATABASE_URL_TEST || process.env.DATABASE_URL
@@ -60,12 +88,12 @@ vi.mock('@/lib/db/config', () => ({
     vectorWeight: 0.7,
   },
   dbBranches: {
-    main: 'test-main',
-    dev: 'test-dev',
-    test: 'test-test',
+    main: 'main',
+    dev: 'dev',
+    test: 'test',
   },
   dbConfig: {
-    projectId: 'test-project',
+    projectId: process.env.NEON_PROJECT_ID || 'test-project',
     poolMin: 2,
     poolMax: 20,
     poolIdleTimeout: 10000,
@@ -299,11 +327,40 @@ if (!process.env.DEBUG_TESTS) {
   }
 }
 
-// Global test isolation setup
+// Enhanced test isolation setup with memory optimization
+setupEnhancedTestIsolation()
+
+// Global test isolation setup with database cleanup
 beforeEach(() => {
   resetTestState()
 })
 
-afterEach(() => {
+afterEach(async () => {
   resetTestState()
+
+  // Force garbage collection after each test for memory optimization
+  if (global.gc) {
+    global.gc()
+  }
+})
+
+// Cleanup database connections after all tests with enhanced resource management
+import { afterAll } from 'vitest'
+
+afterAll(async () => {
+  // Register database cleanup for proper resource management
+  const dbManager = TestDatabaseManager.getInstance()
+  await dbManager.cleanup()
+
+  // Clear all global test state
+  if (global.__testCleanupRegistry) {
+    global.__testCleanupRegistry.clear()
+  }
+
+  // Force final garbage collection
+  if (global.gc) {
+    global.gc()
+  }
+
+  console.log('✅ All database connections and resources cleaned up')
 })

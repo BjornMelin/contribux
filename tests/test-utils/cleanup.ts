@@ -1,5 +1,6 @@
 /**
- * Test cleanup utilities for proper test isolation
+ * Test cleanup utilities for proper test isolation and memory optimization
+ * Enhanced for Vitest 3.2+ with memory leak prevention
  */
 
 import { afterEach, beforeEach, vi } from 'vitest'
@@ -8,6 +9,11 @@ import { afterEach, beforeEach, vi } from 'vitest'
 declare global {
   var __githubClientCache: any
   var __githubRateLimitState: any
+  var __testCleanupRegistry: Set<() => Promise<void> | void>
+  var __mswerkerInstances: any[]
+  var __activeTimers: Set<NodeJS.Timeout>
+  var __activeIntervals: Set<NodeJS.Timeout>
+  var __eventListeners: Map<string, Function[]>
 }
 
 // Store original environment variables
@@ -21,14 +27,25 @@ const originalConsole = {
   info: console.info,
 }
 
+// Track active resources for cleanup
+const resourceTracker = {
+  timers: new Set<NodeJS.Timeout>(),
+  intervals: new Set<NodeJS.Timeout>(),
+  listeners: new Map<string, Function[]>(),
+  openConnections: new Set<any>(),
+  childProcesses: new Set<any>(),
+  fileHandles: new Set<any>(),
+}
+
 /**
- * Reset all test state to ensure proper isolation
+ * Reset all test state to ensure proper isolation and prevent memory leaks
  */
 export function resetTestState() {
   // Clear all mocks first
   vi.clearAllMocks()
 
-  // Clear all timers
+  // Clear all timers and intervals with enhanced tracking
+  clearAllActiveTimers()
   vi.clearAllTimers()
 
   // Reset environment variables
@@ -43,6 +60,9 @@ export function resetTestState() {
   // Clear any module-level state
   clearModuleLevelState()
 
+  // Clear tracked resources
+  clearTrackedResources()
+
   // Clear nock if it exists
   try {
     const nock = require('nock')
@@ -50,6 +70,12 @@ export function resetTestState() {
   } catch {
     // nock might not be available in all tests
   }
+
+  // Run cleanup registry
+  runCleanupRegistry()
+
+  // Force garbage collection if available
+  forceGarbageCollection()
 }
 
 /**
@@ -150,6 +176,248 @@ export function createIsolatedTestEnv() {
 
     restore() {
       process.env = { ...testEnv }
+    },
+  }
+}
+
+/**
+ * Clear all active timers and intervals to prevent memory leaks
+ */
+function clearAllActiveTimers() {
+  // Clear tracked timers
+  for (const timer of resourceTracker.timers) {
+    clearTimeout(timer)
+  }
+  resourceTracker.timers.clear()
+
+  // Clear tracked intervals
+  for (const interval of resourceTracker.intervals) {
+    clearInterval(interval)
+  }
+  resourceTracker.intervals.clear()
+
+  // Clear global timer tracking if available
+  if (global.__activeTimers) {
+    for (const timer of global.__activeTimers) {
+      clearTimeout(timer)
+    }
+    global.__activeTimers.clear()
+  }
+
+  if (global.__activeIntervals) {
+    for (const interval of global.__activeIntervals) {
+      clearInterval(interval)
+    }
+    global.__activeIntervals.clear()
+  }
+}
+
+/**
+ * Clear all tracked resources to prevent memory leaks
+ */
+function clearTrackedResources() {
+  // Close any open connections
+  for (const connection of resourceTracker.openConnections) {
+    try {
+      if (connection && typeof connection.close === 'function') {
+        connection.close()
+      } else if (connection && typeof connection.destroy === 'function') {
+        connection.destroy()
+      } else if (connection && typeof connection.end === 'function') {
+        connection.end()
+      }
+    } catch (error) {
+      console.warn('Failed to close connection:', error)
+    }
+  }
+  resourceTracker.openConnections.clear()
+
+  // Terminate child processes
+  for (const process of resourceTracker.childProcesses) {
+    try {
+      if (process && typeof process.kill === 'function') {
+        process.kill()
+      }
+    } catch (error) {
+      console.warn('Failed to kill child process:', error)
+    }
+  }
+  resourceTracker.childProcesses.clear()
+
+  // Close file handles
+  for (const handle of resourceTracker.fileHandles) {
+    try {
+      if (handle && typeof handle.close === 'function') {
+        handle.close()
+      }
+    } catch (error) {
+      console.warn('Failed to close file handle:', error)
+    }
+  }
+  resourceTracker.fileHandles.clear()
+
+  // Remove event listeners
+  for (const [target, listeners] of resourceTracker.listeners) {
+    for (const listener of listeners) {
+      try {
+        if (typeof target === 'string' && (global as any)[target]) {
+          ;(global as any)[target].removeEventListener?.('*', listener)
+        }
+      } catch (error) {
+        console.warn('Failed to remove event listener:', error)
+      }
+    }
+  }
+  resourceTracker.listeners.clear()
+}
+
+/**
+ * Run cleanup registry for custom cleanup functions
+ */
+function runCleanupRegistry() {
+  if (global.__testCleanupRegistry) {
+    for (const cleanupFn of global.__testCleanupRegistry) {
+      try {
+        const result = cleanupFn()
+        if (result instanceof Promise) {
+          result.catch(error => console.warn('Cleanup function failed:', error))
+        }
+      } catch (error) {
+        console.warn('Cleanup function failed:', error)
+      }
+    }
+    global.__testCleanupRegistry.clear()
+  }
+}
+
+/**
+ * Force garbage collection if available
+ */
+function forceGarbageCollection() {
+  if (global.gc && typeof global.gc === 'function') {
+    try {
+      global.gc()
+    } catch (error) {
+      // GC might not be available in all environments
+    }
+  }
+}
+
+/**
+ * Register a resource for cleanup
+ */
+export function registerForCleanup(
+  resource: any,
+  type: 'connection' | 'process' | 'handle' | 'timer' | 'interval'
+) {
+  switch (type) {
+    case 'connection':
+      resourceTracker.openConnections.add(resource)
+      break
+    case 'process':
+      resourceTracker.childProcesses.add(resource)
+      break
+    case 'handle':
+      resourceTracker.fileHandles.add(resource)
+      break
+    case 'timer':
+      resourceTracker.timers.add(resource)
+      break
+    case 'interval':
+      resourceTracker.intervals.add(resource)
+      break
+  }
+}
+
+/**
+ * Register a custom cleanup function
+ */
+export function registerCleanup(cleanupFn: () => Promise<void> | void) {
+  if (!global.__testCleanupRegistry) {
+    global.__testCleanupRegistry = new Set()
+  }
+  global.__testCleanupRegistry.add(cleanupFn)
+}
+
+/**
+ * Enhanced setup for test isolation with memory optimization
+ */
+export function setupEnhancedTestIsolation() {
+  // Initialize global cleanup registry
+  if (!global.__testCleanupRegistry) {
+    global.__testCleanupRegistry = new Set()
+  }
+
+  beforeEach(() => {
+    // Reset state before each test
+    resetTestState()
+
+    // Track new resources from this point
+    resourceTracker.timers.clear()
+    resourceTracker.intervals.clear()
+    resourceTracker.listeners.clear()
+    resourceTracker.openConnections.clear()
+    resourceTracker.childProcesses.clear()
+    resourceTracker.fileHandles.clear()
+  })
+
+  afterEach(async () => {
+    // Clean up after each test
+    resetTestState()
+
+    // Additional async cleanup delay for Node.js resource cleanup
+    await new Promise(resolve => setTimeout(resolve, 10))
+
+    // Force final GC
+    forceGarbageCollection()
+  })
+}
+
+/**
+ * Memory usage monitoring for tests
+ */
+export function getMemoryUsage() {
+  const usage = process.memoryUsage()
+  return {
+    heapUsed: Math.round((usage.heapUsed / 1024 / 1024) * 100) / 100, // MB
+    heapTotal: Math.round((usage.heapTotal / 1024 / 1024) * 100) / 100, // MB
+    external: Math.round((usage.external / 1024 / 1024) * 100) / 100, // MB
+    rss: Math.round((usage.rss / 1024 / 1024) * 100) / 100, // MB
+  }
+}
+
+/**
+ * Monitor memory growth during tests
+ */
+export function createMemoryMonitor() {
+  let baseline: ReturnType<typeof getMemoryUsage> | null = null
+
+  return {
+    start() {
+      forceGarbageCollection()
+      baseline = getMemoryUsage()
+      return baseline
+    },
+
+    check() {
+      if (!baseline) throw new Error('Memory monitor not started')
+      forceGarbageCollection()
+      const current = getMemoryUsage()
+      const growth = {
+        heapUsed: current.heapUsed - baseline.heapUsed,
+        heapTotal: current.heapTotal - baseline.heapTotal,
+        external: current.external - baseline.external,
+        rss: current.rss - baseline.rss,
+      }
+      return { current, baseline, growth }
+    },
+
+    expectGrowthUnder(limitMB: number) {
+      const { growth } = this.check()
+      if (growth.heapUsed > limitMB) {
+        console.warn(`Memory growth ${growth.heapUsed}MB exceeds limit ${limitMB}MB`)
+      }
+      return growth.heapUsed < limitMB
     },
   }
 }
