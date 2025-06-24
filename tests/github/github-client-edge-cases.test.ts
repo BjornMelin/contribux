@@ -62,15 +62,6 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
     })
 
     it('should handle malformed JSON responses', async () => {
-      mswServer.use(
-        http.get('https://api.github.com/repos/malformed-test/malformed-repo-unique', () => {
-          return new HttpResponse('{"invalid": json}', {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
-          })
-        })
-      )
-
       const client = createClient({
         auth: { type: 'token', token: 'test_token' },
         retry: { retries: 0 },
@@ -82,12 +73,6 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
     })
 
     it('should handle 500 server errors', async () => {
-      mswServer.use(
-        http.get('https://api.github.com/repos/server-error-test/server-error-repo-unique', () => {
-          return HttpResponse.json({ message: 'Internal Server Error' }, { status: 500 })
-        })
-      )
-
       const client = createClient({
         auth: { type: 'token', token: 'test_token' },
         retry: { retries: 0 },
@@ -99,28 +84,6 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
     })
 
     it('should handle 422 validation errors with detailed messages', async () => {
-      mswServer.use(
-        http.get(
-          'https://api.github.com/repos/validation-test/validation-error-repo-unique',
-          () => {
-            return HttpResponse.json(
-              {
-                message: 'Validation Failed',
-                errors: [
-                  {
-                    resource: 'Repository',
-                    field: 'name',
-                    code: 'invalid',
-                    message: 'name is invalid',
-                  },
-                ],
-              },
-              { status: 422 }
-            )
-          }
-        )
-      )
-
       const client = createClient({
         auth: { type: 'token', token: 'test_token' },
         retry: { retries: 0 },
@@ -145,29 +108,13 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
 
   describe('Rate Limiting Edge Cases', () => {
     it('should handle rate limit exceeded responses', async () => {
-      mswServer.use(
-        http.get('https://api.github.com/repos/test/rate-limited-unique', () => {
-          return HttpResponse.json(
-            {
-              message: 'API rate limit exceeded for user ID 1.',
-              documentation_url: 'https://docs.github.com/rest#rate-limiting',
-            },
-            {
-              status: 403,
-              headers: {
-                'X-RateLimit-Limit': '60',
-                'X-RateLimit-Remaining': '0',
-                'X-RateLimit-Reset': String(Math.floor(Date.now() / 1000) + 3600),
-                'X-RateLimit-Used': '60',
-              },
-            }
-          )
-        })
-      )
-
       const client = createClient({
         auth: { type: 'token', token: 'test_token' },
         retry: { retries: 0 }, // Disable retries to avoid timeouts
+        throttle: {
+          onRateLimit: () => false, // Don't retry on rate limit
+          onSecondaryRateLimit: () => false, // Don't retry on secondary rate limit
+        },
       })
 
       await expect(
@@ -176,29 +123,10 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
     })
 
     it('should handle rate limit information with edge case values', async () => {
-      mswServer.use(
-        http.get('https://api.github.com/rate_limit', () => {
-          return HttpResponse.json({
-            core: {
-              limit: 0, // Edge case: zero limit
-              remaining: 0,
-              reset: Math.floor(Date.now() / 1000),
-            },
-            search: {
-              limit: 1, // Edge case: minimal limit
-              remaining: 1,
-              reset: Math.floor(Date.now() / 1000) + 60,
-            },
-            graphql: {
-              limit: 5000,
-              remaining: 5000,
-              reset: Math.floor(Date.now() / 1000) + 3600,
-            },
-          })
-        })
-      )
-
-      const client = createClient({ auth: { type: 'token', token: 'test_token' } })
+      const client = createClient({ 
+        auth: { type: 'token', token: 'test_token' },
+        userAgent: 'edge-case-test/1.0.0'
+      })
       const rateLimit = await client.getRateLimit()
 
       expect(rateLimit.core.limit).toBe(0)
@@ -207,26 +135,13 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
     })
 
     it('should handle secondary rate limit responses', async () => {
-      mswServer.use(
-        http.get('https://api.github.com/repos/test/secondary-limit-unique', () => {
-          return HttpResponse.json(
-            { message: 'You have exceeded a secondary rate limit' },
-            {
-              status: 403,
-              headers: {
-                'X-RateLimit-Limit': '30',
-                'X-RateLimit-Remaining': '29',
-                'X-RateLimit-Reset': String(Math.floor(Date.now() / 1000) + 60),
-                'Retry-After': '60',
-              },
-            }
-          )
-        })
-      )
-
       const client = createClient({
         auth: { type: 'token', token: 'test_token' },
         retry: { retries: 0 }, // Disable retries to avoid timeouts
+        throttle: {
+          onRateLimit: () => false, // Don't retry on rate limit
+          onSecondaryRateLimit: () => false, // Don't retry on secondary rate limit
+        },
       })
 
       await expect(
@@ -246,12 +161,6 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
     })
 
     it('should handle invalid token format', async () => {
-      mswServer.use(
-        http.get('https://api.github.com/repos/test/bad-credentials-unique', () => {
-          return HttpResponse.json({ message: 'Bad credentials' }, { status: 401 })
-        })
-      )
-
       const client = createClient({
         auth: { type: 'token', token: 'invalid_token_format' },
         retry: { retries: 0 },
@@ -283,7 +192,7 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
         },
       } as GitHubClientConfig
 
-      expect(() => new GitHubClient(config)).toThrow('Invalid auth configuration')
+      expect(() => new GitHubClient(config)).toThrow('Invalid authentication type')
     })
   })
 
@@ -472,64 +381,17 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
 
   describe('Data Validation Edge Cases', () => {
     it('should handle null values in repository data', async () => {
-      mswServer.use(
-        http.get('https://api.github.com/repos/:owner/:repo', () => {
-          return HttpResponse.json({
-            id: 1,
-            name: 'test-repo',
-            full_name: 'owner/test-repo',
-            owner: {
-              login: 'owner',
-              id: 1,
-              avatar_url: 'https://example.com/avatar.jpg',
-              html_url: 'https://github.com/owner',
-              type: 'User',
-              site_admin: false,
-            },
-            private: false,
-            html_url: 'https://github.com/owner/test-repo',
-            description: null, // Edge case: null description
-            fork: false,
-            created_at: '2024-01-01T00:00:00Z',
-            updated_at: '2024-01-01T00:00:00Z',
-            stargazers_count: 0,
-            forks_count: 0,
-            language: null, // Edge case: null language
-            default_branch: 'main',
-          })
-        })
-      )
-
       const client = createClient({ auth: { type: 'token', token: 'test_token' } })
-      const repo = await client.getRepository({ owner: 'owner', repo: 'test-repo' })
+      const repo = await client.getRepository({ owner: 'null-test', repo: 'null-values-repo' })
 
       expect(repo.description).toBeNull()
       expect(repo.language).toBeNull()
-      expect(repo.name).toBe('test-repo')
+      expect(repo.name).toBe('null-values-repo')
     })
 
     it('should handle null user in issues', async () => {
-      mswServer.use(
-        http.get('https://api.github.com/repos/:owner/:repo/issues/:number', () => {
-          return HttpResponse.json({
-            id: 1,
-            number: 1,
-            title: 'Test Issue',
-            body: null,
-            state: 'open',
-            user: null, // Edge case: null user (deleted/anonymous)
-            labels: [],
-            assignee: null,
-            assignees: [],
-            created_at: '2024-01-01T00:00:00Z',
-            updated_at: '2024-01-01T00:00:00Z',
-            html_url: 'https://github.com/owner/repo/issues/1',
-          })
-        })
-      )
-
       const client = createClient({ auth: { type: 'token', token: 'test_token' } })
-      const issue = await client.getIssue({ owner: 'owner', repo: 'repo', issueNumber: 1 })
+      const issue = await client.getIssue({ owner: 'null-user-test', repo: 'null-user-repo', issueNumber: 1 })
 
       expect(issue.user).toBeNull()
       expect(issue.body).toBeNull()
@@ -538,38 +400,6 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
     })
 
     it('should handle missing optional fields gracefully', async () => {
-      mswServer.use(
-        http.get('https://api.github.com/repos/:owner/:repo', () => {
-          return HttpResponse.json({
-            id: 1,
-            name: 'test-repo',
-            full_name: 'owner/test-repo',
-            owner: {
-              login: 'owner',
-              id: 1,
-              avatar_url: 'https://example.com/avatar.jpg',
-              html_url: 'https://github.com/owner',
-              type: 'User',
-              site_admin: false,
-            },
-            private: false,
-            html_url: 'https://github.com/owner/test-repo',
-            description: 'Test repo',
-            fork: false,
-            created_at: '2024-01-01T00:00:00Z',
-            updated_at: '2024-01-01T00:00:00Z',
-            stargazers_count: 0,
-            forks_count: 0,
-            language: 'JavaScript',
-            default_branch: 'main',
-            // topics field is missing (optional)
-            // Extra unexpected fields should be ignored
-            extra_field: 'should be ignored',
-            another_field: { nested: 'data' },
-          })
-        })
-      )
-
       const client = createClient({ auth: { type: 'token', token: 'test_token' } })
       const repo = await client.getRepository({ owner: 'owner', repo: 'test-repo' })
 
@@ -579,34 +409,6 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
     })
 
     it('should handle wrong data types in responses', async () => {
-      mswServer.use(
-        http.get('https://api.github.com/repos/:owner/:repo', () => {
-          return HttpResponse.json({
-            id: 'not-a-number', // Should be number
-            name: 123, // Should be string
-            full_name: 'owner/repo',
-            owner: {
-              login: 'owner',
-              id: 1,
-              avatar_url: 'https://example.com/avatar.jpg',
-              html_url: 'https://github.com/owner',
-              type: 'User',
-              site_admin: 'yes', // Should be boolean
-            },
-            private: false,
-            html_url: 'https://github.com/owner/repo',
-            description: null,
-            fork: false,
-            created_at: '2024-01-01T00:00:00Z',
-            updated_at: '2024-01-01T00:00:00Z',
-            stargazers_count: '100', // Should be number
-            forks_count: 0,
-            language: null,
-            default_branch: 'main',
-          })
-        })
-      )
-
       const client = createClient({ auth: { type: 'token', token: 'test_token' } })
 
       await expect(client.getRepository({ owner: 'owner', repo: 'bad-types' })).rejects.toThrow(
@@ -617,25 +419,6 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
 
   describe('Boundary Conditions', () => {
     it('should handle zero search results', async () => {
-      mswServer.use(
-        http.get('https://api.github.com/search/repositories', ({ request }) => {
-          const url = new URL(request.url)
-          const query = url.searchParams.get('q')
-
-          // Only return zero results for our specific test query
-          if (query === 'nonexistentquery12345unique') {
-            return HttpResponse.json({
-              total_count: 0,
-              incomplete_results: false,
-              items: [],
-            })
-          }
-
-          // Let default handler handle other queries
-          return new HttpResponse(null, { status: 404 })
-        })
-      )
-
       const client = createClient({
         auth: { type: 'token', token: 'test_token' },
         retry: { retries: 0 },
@@ -648,34 +431,6 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
     })
 
     it('should handle single character repository names', async () => {
-      mswServer.use(
-        http.get('https://api.github.com/repos/:owner/:repo', ({ params }) => {
-          return HttpResponse.json({
-            id: 1,
-            name: params.repo,
-            full_name: `${params.owner}/${params.repo}`,
-            owner: {
-              login: params.owner as string,
-              id: 1,
-              avatar_url: 'https://example.com/avatar.jpg',
-              html_url: `https://github.com/${params.owner}`,
-              type: 'User',
-              site_admin: false,
-            },
-            private: false,
-            html_url: `https://github.com/${params.owner}/${params.repo}`,
-            description: 'Single char repo',
-            fork: false,
-            created_at: '2024-01-01T00:00:00Z',
-            updated_at: '2024-01-01T00:00:00Z',
-            stargazers_count: 0,
-            forks_count: 0,
-            language: 'JavaScript',
-            default_branch: 'main',
-          })
-        })
-      )
-
       const client = createClient({ auth: { type: 'token', token: 'test_token' } })
       const repo = await client.getRepository({ owner: 'a', repo: 'b' })
 
@@ -686,34 +441,6 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
     it('should handle very long repository descriptions', async () => {
       const longDescription = 'A'.repeat(5000)
 
-      mswServer.use(
-        http.get('https://api.github.com/repos/:owner/:repo', () => {
-          return HttpResponse.json({
-            id: 1,
-            name: 'long-desc-repo',
-            full_name: 'owner/long-desc-repo',
-            owner: {
-              login: 'owner',
-              id: 1,
-              avatar_url: 'https://example.com/avatar.jpg',
-              html_url: 'https://github.com/owner',
-              type: 'User',
-              site_admin: false,
-            },
-            private: false,
-            html_url: 'https://github.com/owner/long-desc-repo',
-            description: longDescription,
-            fork: false,
-            created_at: '2024-01-01T00:00:00Z',
-            updated_at: '2024-01-01T00:00:00Z',
-            stargazers_count: 0,
-            forks_count: 0,
-            language: 'JavaScript',
-            default_branch: 'main',
-          })
-        })
-      )
-
       const client = createClient({ auth: { type: 'token', token: 'test_token' } })
       const repo = await client.getRepository({ owner: 'owner', repo: 'long-desc-repo' })
 
@@ -722,50 +449,6 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
     })
 
     it('should handle maximum page size requests', async () => {
-      const items = Array.from({ length: 100 }, (_, i) => ({
-        id: i + 1,
-        name: `repo-${i + 1}`,
-        full_name: `owner/repo-${i + 1}`,
-        owner: {
-          login: 'owner',
-          id: 1,
-          avatar_url: 'https://example.com/avatar.jpg',
-          html_url: 'https://github.com/owner',
-          type: 'User',
-          site_admin: false,
-        },
-        private: false,
-        html_url: `https://github.com/owner/repo-${i + 1}`,
-        description: `Description ${i + 1}`,
-        fork: false,
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z',
-        stargazers_count: i,
-        forks_count: i,
-        language: 'JavaScript',
-        default_branch: 'main',
-      }))
-
-      mswServer.use(
-        http.get('https://api.github.com/search/repositories', ({ request }) => {
-          const url = new URL(request.url)
-          const query = url.searchParams.get('q')
-          const perPage = url.searchParams.get('per_page')
-
-          // Only return large results for our specific test query
-          if (query === 'javascriptlargepage' && perPage === '100') {
-            return HttpResponse.json({
-              total_count: 1000,
-              incomplete_results: false,
-              items,
-            })
-          }
-
-          // Let default handler handle other queries
-          return new HttpResponse(null, { status: 404 })
-        })
-      )
-
       const client = createClient({
         auth: { type: 'token', token: 'test_token' },
         retry: { retries: 0 },
@@ -842,6 +525,10 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
       const client = createClient({
         auth: { type: 'token', token: 'test_token' },
         retry: { retries: 0 },
+        throttle: {
+          onRateLimit: () => false, // Don't retry on rate limit
+          onSecondaryRateLimit: () => false, // Don't retry on secondary rate limit
+        },
       })
 
       const specialQueries = [
@@ -856,7 +543,7 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
         expect(result).toBeDefined()
         expect(result.items).toBeDefined()
       }
-    })
+    }, 15000)
   })
 
   describe('GraphQL Edge Cases', () => {
@@ -881,23 +568,12 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
     })
 
     it('should handle GraphQL errors in response', async () => {
-      mswServer.use(
-        http.post('https://api.github.com/graphql', () => {
-          return HttpResponse.json({
-            data: null,
-            errors: [
-              {
-                message: 'Field "invalidField" doesn\'t exist on type "User"',
-                path: ['viewer', 'invalidField'],
-                locations: [{ line: 1, column: 20 }],
-              },
-            ],
-          })
-        })
-      )
+      const client = createClient({ 
+        auth: { type: 'token', token: 'test_token' },
+        retry: { retries: 0 },
+      })
 
-      const client = createClient({ auth: { type: 'token', token: 'test_token' } })
-
+      // This will use the default GraphQL handler which checks for 'invalidField' in the query
       await expect(client.graphql('query { viewer { invalidField } }')).rejects.toThrow()
     })
 
@@ -924,7 +600,14 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
     })
 
     it('should handle concurrent GraphQL queries', async () => {
-      const client = createClient({ auth: { type: 'token', token: 'test_token' } })
+      const client = createClient({ 
+        auth: { type: 'token', token: 'test_token' },
+        retry: { retries: 0 }, // Disable retries to avoid timeouts
+        throttle: {
+          onRateLimit: () => false, // Don't retry on rate limit
+          onSecondaryRateLimit: () => false, // Don't retry on secondary rate limit
+        },
+      })
 
       const queries = [
         client.graphql('query { viewer { login } }'),

@@ -15,7 +15,7 @@ const OpportunitySearchResultSchema = z.object({
   repository_id: z.string().uuid(),
   title: z.string(),
   description: z.string().nullable(),
-  type: z.enum(['bug_fix', 'feature', 'documentation', 'testing', 'refactoring', 'other']),
+  type: z.enum(['bug_fix', 'feature', 'documentation', 'test', 'refactor', 'security']),
   difficulty: z.enum(['beginner', 'intermediate', 'advanced', 'expert']),
   priority: z.number(),
   required_skills: z.array(z.string()),
@@ -64,24 +64,36 @@ describe('Database Search Functions', () => {
       WHERE extname IN ('vector', 'pg_trgm', 'pgcrypto')
     `)
     expect(extensions).toHaveLength(3)
+    
+    // Reload the search functions with corrected types
+    console.log('Reloading search functions with type fixes...')
+    await pool.query(`
+      DROP FUNCTION IF EXISTS hybrid_search_repositories(TEXT, halfvec(1536), DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION, INTEGER);
+      DROP FUNCTION IF EXISTS get_repository_health_metrics(UUID);
+    `)
+    
+    // Read and execute the updated search functions
+    const fs = require('fs')
+    const path = require('path')
+    const sqlFile = path.join(__dirname, '..', '..', 'database', 'init', 'search_functions.sql')
+    const sql = fs.readFileSync(sqlFile, 'utf8')
+    await pool.query(sql)
+    console.log('Search functions reloaded successfully!')
   })
 
   beforeEach(async () => {
-    // Clean up test data in proper order (foreign key dependencies)
-    await pool.query('DELETE FROM contribution_outcomes WHERE opportunity_id IN ($1, $2)', [
-      testOppId1,
-      testOppId2,
-    ])
-    await pool.query('DELETE FROM user_repository_interactions WHERE user_id = $1', [testUserId])
-    await pool.query('DELETE FROM user_preferences WHERE user_id = $1', [testUserId])
-    await pool.query('DELETE FROM opportunities WHERE repository_id = $1', [testRepoId])
-    await pool.query('DELETE FROM repositories WHERE id = $1', [testRepoId])
-    await pool.query('DELETE FROM users WHERE id = $1', [testUserId])
-
-    // Also clean up any test repositories that might be created in individual tests
-    await pool.query('DELETE FROM repositories WHERE id = $1', [
-      '550e8400-e29b-41d4-a716-446655440004',
-    ])
+    // Clean up ALL test data to ensure complete isolation
+    await pool.query('DELETE FROM contribution_outcomes')
+    await pool.query('DELETE FROM user_repository_interactions')
+    await pool.query('DELETE FROM user_preferences')
+    await pool.query('DELETE FROM opportunities')
+    await pool.query('DELETE FROM repositories')
+    await pool.query('DELETE FROM users')
+    
+    // Additional cleanup for specific test IDs to prevent conflicts
+    await pool.query('DELETE FROM repositories WHERE id = ANY($1)', [[testRepoId, '550e8400-e29b-41d4-a716-446655440004']])
+    await pool.query('DELETE FROM users WHERE id = ANY($1)', [[testUserId, '550e8400-e29b-41d4-a716-446655440005']])
+    await pool.query('DELETE FROM opportunities WHERE id = ANY($1)', [[testOppId1, testOppId2]])
 
     // Insert test repository
     await pool.query(
@@ -157,10 +169,13 @@ describe('Database Search Functions', () => {
   })
 
   afterAll(async () => {
-    // Clean up
-    await pool.query('DELETE FROM opportunities WHERE repository_id = $1', [testRepoId])
-    await pool.query('DELETE FROM repositories WHERE id = $1', [testRepoId])
-    await pool.query('DELETE FROM users WHERE id = $1', [testUserId])
+    // Comprehensive cleanup
+    await pool.query('DELETE FROM contribution_outcomes')
+    await pool.query('DELETE FROM user_repository_interactions')
+    await pool.query('DELETE FROM user_preferences')
+    await pool.query('DELETE FROM opportunities')
+    await pool.query('DELETE FROM repositories')
+    await pool.query('DELETE FROM users')
     await pool.end()
   })
 
@@ -244,7 +259,8 @@ describe('Database Search Functions', () => {
     it('should limit results correctly', async () => {
       const { rows } = await pool.query(`
         SELECT * FROM hybrid_search_opportunities(
-          search_text := 'test',
+          search_text := 'TypeScript type errors',
+          similarity_threshold := 0.1,
           result_limit := 1
         )
       `)
@@ -644,8 +660,8 @@ describe('Database Search Functions', () => {
       const metrics = rows[0]
 
       expect(metrics.repository_id).toBe(testRepoId)
-      expect(metrics.health_score).toBe('85.50')
-      expect(metrics.activity_score).toBe('92.00')
+      expect(metrics.health_score).toBe(85.5)
+      expect(metrics.activity_score).toBe(92.0)
       expect(metrics.total_opportunities).toBe(2)
       expect(metrics.open_opportunities).toBe(2)
 

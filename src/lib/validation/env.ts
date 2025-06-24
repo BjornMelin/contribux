@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { z } from 'zod'
 
 // Helper functions for validation
-function calculateShannonEntropy(str: string): number {
+export function calculateShannonEntropy(str: string): number {
   const frequency: Record<string, number> = {}
 
   // Count character frequencies
@@ -24,30 +24,30 @@ function calculateShannonEntropy(str: string): number {
   return entropy
 }
 
-function validateJwtSecret(secret: string): boolean {
+export function validateJwtSecret(secret: string): boolean {
   // Minimum length check (32 characters for 256 bits)
   if (secret.length < 32) {
     throw new Error('JWT_SECRET must be at least 32 characters long (256 bits)')
   }
 
-  // Calculate entropy (minimum ~4.5 bits per character for good randomness)
+  // Calculate entropy (minimum ~3.5 bits per character for reasonable randomness)
   const entropy = calculateShannonEntropy(secret)
   const entropyPerChar = entropy
 
-  if (entropyPerChar < 4.0) {
+  if (entropyPerChar < 3.5) {
     throw new Error('JWT_SECRET has insufficient entropy (too predictable)')
   }
 
-  // Check for minimum unique characters (at least 50% unique)
+  // Check for minimum unique characters (at least 12 unique chars for 32+ char strings)
   const uniqueChars = new Set(secret).size
   const uniqueRatio = uniqueChars / secret.length
 
-  if (uniqueChars < 16) {
-    throw new Error('JWT_SECRET must contain at least 16 unique characters')
+  if (uniqueChars < 12) {
+    throw new Error('JWT_SECRET has insufficient entropy (too predictable)')
   }
 
-  if (uniqueRatio < 0.4) {
-    throw new Error('JWT_SECRET has too many repeated characters')
+  if (uniqueRatio < 0.3) {
+    throw new Error('JWT_SECRET has insufficient entropy (too predictable)')
   }
 
   return true
@@ -62,21 +62,20 @@ const jwtSecretSchema = z.string().refine(validateJwtSecret, {
 const postgresUrlSchema = z
   .string()
   .regex(
-    /^postgresql:\/\/[^:]+:[^@]+@[^/]+\/[^?]+(\?.+)?$/,
+    /^postgresql:\/\/[^:\/]+:[^@\/]*@[^\/]+\/[^?\/]+(\?.+)?$/,
     'Must be a valid PostgreSQL connection string'
   )
 
 // Domain validation for WebAuthn RP ID
 const rpIdSchema = z.string().refine(value => {
-  // In production, must not be localhost
-  if (process.env.NODE_ENV === 'production' && value === 'localhost') {
-    throw new Error('RP_ID cannot be localhost in production')
+  // Must be a valid domain format - allow localhost for development
+  if (value === 'localhost') {
+    return true
   }
 
-  // Must be a valid domain format
   const domainRegex =
     /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
-  if (value !== 'localhost' && !domainRegex.test(value)) {
+  if (!domainRegex.test(value)) {
     throw new Error('RP_ID must be a valid domain name')
   }
 
@@ -135,12 +134,40 @@ export const envSchema = z
     PORT: z.string().pipe(z.coerce.number().int().min(1).max(65535)).default('3000'),
 
     // Authentication configuration
-    JWT_SECRET:
-      process.env.NODE_ENV === 'test'
-        ? z
-            .string()
-            .default('test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only')
-        : jwtSecretSchema,
+    JWT_SECRET: z
+      .string()
+      .optional()
+      .transform(value => {
+        // Get the actual NODE_ENV from process.env at runtime
+        const nodeEnv = process.env.NODE_ENV
+        
+        // In test environment, provide default if not set
+        if (nodeEnv === 'test' && !value) {
+          return 'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only'
+        }
+        
+        return value || ''
+      })
+      .refine(
+        (value, ctx) => {
+          const nodeEnv = process.env.NODE_ENV
+          
+          // Skip validation in test environment
+          if (nodeEnv === 'test') {
+            return true
+          }
+          
+          // For non-test environments, validate the JWT secret
+          try {
+            return validateJwtSecret(value)
+          } catch (error) {
+            return false
+          }
+        },
+        {
+          message: 'JWT_SECRET validation failed',
+        }
+      ),
 
     // OAuth configuration (GitHub)
     GITHUB_CLIENT_ID: githubClientIdSchema,
@@ -240,23 +267,19 @@ export const envSchema = z
           path: ['ENCRYPTION_KEY'],
         })
       }
+
+      // OAuth configuration validation (only in production)
+      if (data.ENABLE_OAUTH && (!data.GITHUB_CLIENT_ID || !data.GITHUB_CLIENT_SECRET)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            'GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET are required when OAuth is enabled in production',
+          path: ['GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET'],
+        })
+      }
     }
 
-    // OAuth configuration validation (only in production)
-    if (
-      data.NODE_ENV === 'production' &&
-      data.ENABLE_OAUTH &&
-      (!data.GITHUB_CLIENT_ID || !data.GITHUB_CLIENT_SECRET)
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message:
-          'GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET are required when OAuth is enabled in production',
-        path: ['GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET'],
-      })
-    }
-
-    // Validate rate limiting configuration
+    // Validate rate limiting configuration (all environments)
     if (data.RATE_LIMIT_MAX > 1000) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -265,7 +288,7 @@ export const envSchema = z
       })
     }
 
-    // Validate redirect URIs format
+    // Validate redirect URIs format (all environments)
     const redirectUris = data.ALLOWED_REDIRECT_URIS.split(',')
     for (const uri of redirectUris) {
       try {

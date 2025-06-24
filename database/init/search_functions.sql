@@ -139,8 +139,8 @@ RETURNS TABLE(
     language VARCHAR(100),
     topics TEXT[],
     stars_count INTEGER,
-    health_score NUMERIC(5,2),
-    activity_score NUMERIC(5,2),
+    health_score DOUBLE PRECISION,
+    activity_score DOUBLE PRECISION,
     first_time_contributor_friendly BOOLEAN,
     created_at TIMESTAMP WITH TIME ZONE,
     relevance_score DOUBLE PRECISION
@@ -167,8 +167,8 @@ BEGIN
             r.language,
             r.topics,
             r.stars_count,
-            r.health_score,
-            r.activity_score,
+            r.health_score::DOUBLE PRECISION,
+            r.activity_score::DOUBLE PRECISION,
             r.first_time_contributor_friendly,
             r.created_at,
             CASE 
@@ -216,7 +216,7 @@ BEGIN
             ((vs.text_score * text_weight + vs.vector_score * vector_weight) / 
              (text_weight + vector_weight)) * 
             -- Quality boost based on health score and stars
-            (1.0 + (vs.health_score / 200.0) + (LOG(GREATEST(vs.stars_count, 1)) / 50.0)) AS relevance_score
+            (1.0 + (vs.health_score::DOUBLE PRECISION / 200.0) + (LOG(GREATEST(vs.stars_count, 1)) / 50.0)) AS relevance_score
         FROM vector_scores vs
     )
     SELECT 
@@ -235,7 +235,7 @@ BEGIN
         cs.relevance_score
     FROM combined_scores cs
     WHERE cs.relevance_score >= similarity_threshold
-    ORDER BY cs.relevance_score DESC, cs.stars_count DESC, cs.health_score DESC
+    ORDER BY cs.relevance_score DESC, cs.stars_count DESC, cs.health_score::DOUBLE PRECISION DESC
     LIMIT result_limit;
 END;
 $$ LANGUAGE plpgsql;
@@ -359,7 +359,7 @@ BEGIN
                 -- Language preference match
                 CASE 
                     WHEN user_record.preferred_languages && 
-                         (SELECT ARRAY[r.language::TEXT] FROM repositories r WHERE r.id = o.repository_id)
+                         ARRAY[COALESCE((SELECT r.language FROM repositories r WHERE r.id = o.repository_id), '')]::TEXT[]
                     THEN 0.15
                     ELSE 0.0
                 END +
@@ -405,7 +405,7 @@ BEGIN
                 END,
                 CASE 
                     WHEN user_record.preferred_languages && 
-                         (SELECT ARRAY[r.language::TEXT] FROM repositories r WHERE r.id = o.repository_id)
+                         ARRAY[COALESCE((SELECT r.language FROM repositories r WHERE r.id = o.repository_id), '')]::TEXT[]
                     THEN 'Uses your preferred languages'
                 END,
                 CASE 
@@ -510,10 +510,10 @@ CREATE OR REPLACE FUNCTION get_repository_health_metrics(
 )
 RETURNS TABLE(
     repository_id UUID,
-    health_score NUMERIC(5,2),
-    activity_score NUMERIC(5,2),
-    community_score NUMERIC(5,2),
-    documentation_score NUMERIC(5,2),
+    health_score DOUBLE PRECISION,
+    activity_score DOUBLE PRECISION,
+    community_score DOUBLE PRECISION,
+    documentation_score DOUBLE PRECISION,
     contributor_friendliness INTEGER,
     total_opportunities INTEGER,
     open_opportunities INTEGER,
@@ -548,10 +548,10 @@ BEGIN
     RETURN QUERY
     SELECT 
         repo_record.id,
-        repo_record.health_score,
-        repo_record.activity_score,
-        repo_record.community_score,
-        repo_record.documentation_score,
+        repo_record.health_score::DOUBLE PRECISION,
+        repo_record.activity_score::DOUBLE PRECISION,
+        repo_record.community_score::DOUBLE PRECISION,
+        repo_record.documentation_score::DOUBLE PRECISION,
         repo_record.contributor_friendliness,
         COALESCE(opportunity_stats.total_opps, 0)::INTEGER,
         COALESCE(opportunity_stats.open_opps, 0)::INTEGER,

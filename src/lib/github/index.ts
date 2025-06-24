@@ -18,3 +18,6 @@ export * from './errors'
 export * from './types'
 // Core utilities
 export * from './utils'
+
+// Re-export specific types for load testing
+export type { TokenInfo } from './types'

@@ -243,13 +243,252 @@ const defaultHandlers = [
   }),
 
   // GET /rate_limit
-  http.get(`${GITHUB_API_BASE}/rate_limit`, () => {
+  http.get(`${GITHUB_API_BASE}/rate_limit`, ({ request }) => {
+    const url = new URL(request.url)
+    const userAgent = request.headers.get('user-agent') || ''
+    
+    // Check if this is from an edge case test (look for specific test markers)
+    if (userAgent.includes('edge-case-test') || request.headers.get('x-test-scenario') === 'edge-case-rate-limits') {
+      return HttpResponse.json({
+        core: {
+          limit: 0, // Edge case: zero limit
+          remaining: 0,
+          reset: Math.floor(Date.now() / 1000),
+        },
+        search: {
+          limit: 1, // Edge case: minimal limit
+          remaining: 1,
+          reset: Math.floor(Date.now() / 1000) + 60,
+        },
+        graphql: {
+          limit: 5000,
+          remaining: 5000,
+          reset: Math.floor(Date.now() / 1000) + 3600,
+        },
+      })
+    }
+    
     return HttpResponse.json(defaultMockResponses.rateLimit)
   }),
 
   // GET /repos/:owner/:repo
-  http.get(`${GITHUB_API_BASE}/repos/:owner/:repo`, ({ params }) => {
+  http.get(`${GITHUB_API_BASE}/repos/:owner/:repo`, ({ params, request }) => {
     const { owner, repo } = params as { owner: string; repo: string }
+    const url = new URL(request.url)
+    const pathname = url.pathname
+    
+    // Let test-specific error handlers take precedence
+    if (pathname.includes('malformed-test/malformed-repo-unique')) {
+      // Return malformed JSON for the malformed JSON test
+      return new HttpResponse('{"invalid": json}', {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    
+    if (pathname.includes('server-error-test/server-error-repo-unique')) {
+      // Return 500 error for server error test
+      return HttpResponse.json({ message: 'Internal Server Error' }, { status: 500 })
+    }
+    
+    if (pathname.includes('validation-test/validation-error-repo-unique')) {
+      // Return 422 validation error for validation test
+      return HttpResponse.json(
+        {
+          message: 'Validation Failed',
+          errors: [
+            {
+              resource: 'Repository',
+              field: 'name',
+              code: 'invalid',
+              message: 'name is invalid',
+            },
+          ],
+        },
+        { status: 422 }
+      )
+    }
+    
+    if (pathname.includes('rate-limited-unique')) {
+      // Return rate limit error
+      return HttpResponse.json(
+        {
+          message: 'API rate limit exceeded for user ID 1.',
+          documentation_url: 'https://docs.github.com/rest#rate-limiting',
+        },
+        {
+          status: 403,
+          headers: {
+            'X-RateLimit-Limit': '60',
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': String(Math.floor(Date.now() / 1000) + 3600),
+            'X-RateLimit-Used': '60',
+          },
+        }
+      )
+    }
+    
+    if (pathname.includes('secondary-limit-unique')) {
+      // Return secondary rate limit error
+      return HttpResponse.json(
+        { message: 'You have exceeded a secondary rate limit' },
+        {
+          status: 403,
+          headers: {
+            'X-RateLimit-Limit': '30',
+            'X-RateLimit-Remaining': '29',
+            'X-RateLimit-Reset': String(Math.floor(Date.now() / 1000) + 60),
+            'Retry-After': '60',
+          },
+        }
+      )
+    }
+    
+    if (pathname.includes('bad-credentials-unique')) {
+      // Return bad credentials error
+      return HttpResponse.json({ message: 'Bad credentials' }, { status: 401 })
+    }
+
+    // Handle specific test scenarios based on owner/repo combination
+    if (owner === 'null-test' && repo === 'null-values-repo') {
+      return HttpResponse.json({
+        id: 1,
+        name: 'null-values-repo',
+        full_name: 'null-test/null-values-repo',
+        owner: {
+          login: 'null-test',
+          id: 1,
+          avatar_url: 'https://example.com/avatar.jpg',
+          html_url: 'https://github.com/null-test',
+          type: 'User',
+          site_admin: false,
+        },
+        private: false,
+        html_url: 'https://github.com/null-test/null-values-repo',
+        description: null, // Edge case: null description
+        fork: false,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+        stargazers_count: 0,
+        forks_count: 0,
+        language: null, // Edge case: null language
+        default_branch: 'main',
+      })
+    }
+
+    // Handle wrong data types test
+    if (repo === 'bad-types') {
+      return HttpResponse.json({
+        id: 'not-a-number', // Should be number
+        name: 123, // Should be string
+        full_name: 'owner/repo',
+        owner: {
+          login: 'owner',
+          id: 1,
+          avatar_url: 'https://example.com/avatar.jpg',
+          html_url: 'https://github.com/owner',
+          type: 'User',
+          site_admin: 'yes', // Should be boolean
+        },
+        private: false,
+        html_url: 'https://github.com/owner/repo',
+        description: null,
+        fork: false,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+        stargazers_count: '100', // Should be number
+        forks_count: 0,
+        language: null,
+        default_branch: 'main',
+      })
+    }
+
+    // Handle missing optional fields test - remove topics field entirely
+    if (repo === 'test-repo') {
+      return HttpResponse.json({
+        id: 1,
+        name: 'test-repo',
+        full_name: 'owner/test-repo',
+        owner: {
+          login: 'owner',
+          id: 1,
+          avatar_url: 'https://example.com/avatar.jpg',
+          html_url: 'https://github.com/owner',
+          type: 'User',
+          site_admin: false,
+        },
+        private: false,
+        html_url: 'https://github.com/owner/test-repo',
+        description: 'Test repo',
+        fork: false,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+        stargazers_count: 0,
+        forks_count: 0,
+        language: 'JavaScript',
+        default_branch: 'main',
+        // topics field is missing (optional) - NO topics field at all
+        // Extra unexpected fields should be ignored
+        extra_field: 'should be ignored',
+        another_field: { nested: 'data' },
+      })
+    }
+
+    // Handle long description test
+    if (repo === 'long-desc-repo') {
+      const longDescription = 'A'.repeat(5000)
+      return HttpResponse.json({
+        id: 1,
+        name: 'long-desc-repo',
+        full_name: 'owner/long-desc-repo',
+        owner: {
+          login: 'owner',
+          id: 1,
+          avatar_url: 'https://example.com/avatar.jpg',
+          html_url: 'https://github.com/owner',
+          type: 'User',
+          site_admin: false,
+        },
+        private: false,
+        html_url: 'https://github.com/owner/long-desc-repo',
+        description: longDescription,
+        fork: false,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+        stargazers_count: 0,
+        forks_count: 0,
+        language: 'JavaScript',
+        default_branch: 'main',
+      })
+    }
+
+    // Handle single character repo names - use exact params
+    if (owner === 'a' && repo === 'b') {
+      return HttpResponse.json({
+        id: 1,
+        name: 'b',
+        full_name: 'a/b',
+        owner: {
+          login: 'a',
+          id: 1,
+          avatar_url: 'https://example.com/avatar.jpg',
+          html_url: 'https://github.com/a',
+          type: 'User',
+          site_admin: false,
+        },
+        private: false,
+        html_url: 'https://github.com/a/b',
+        description: 'Single char repo',
+        fork: false,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+        stargazers_count: 0,
+        forks_count: 0,
+        language: 'JavaScript',
+        default_branch: 'main',
+      })
+    }
+    
     return HttpResponse.json({
       ...defaultMockResponses.repository,
       owner: {
@@ -278,6 +517,47 @@ const defaultHandlers = [
     const url = new URL(request.url)
     const q = url.searchParams.get('q') || 'test'
     const perPage = Number.parseInt(url.searchParams.get('per_page') || '30')
+
+    // Handle specific test queries first
+    if (q === 'nonexistentquery12345unique') {
+      return HttpResponse.json({
+        total_count: 0,
+        incomplete_results: false,
+        items: [],
+      })
+    }
+
+    if (q === 'javascriptlargepage' && url.searchParams.get('per_page') === '100') {
+      const items = Array.from({ length: 100 }, (_, i) => ({
+        id: i + 1,
+        name: `repo-${i + 1}`,
+        full_name: `owner/repo-${i + 1}`,
+        owner: {
+          login: 'owner',
+          id: 1,
+          avatar_url: 'https://example.com/avatar.jpg',
+          html_url: 'https://github.com/owner',
+          type: 'User',
+          site_admin: false,
+        },
+        private: false,
+        html_url: `https://github.com/owner/repo-${i + 1}`,
+        description: `Description ${i + 1}`,
+        fork: false,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+        stargazers_count: i,
+        forks_count: i,
+        language: 'JavaScript',
+        default_branch: 'main',
+      }))
+
+      return HttpResponse.json({
+        total_count: 1000,
+        incomplete_results: false,
+        items,
+      })
+    }
 
     // Generate multiple items for pagination tests
     const items = Array.from({ length: perPage }, (_, i) => ({
@@ -368,6 +648,24 @@ const defaultHandlers = [
     // Check authentication
     if (!isValidToken(authHeader)) {
       return HttpResponse.json({ message: 'Bad credentials' }, { status: 401 })
+    }
+
+    // Handle null user test case
+    if (owner === 'null-user-test' && repo === 'null-user-repo' && issue_number === '1') {
+      return HttpResponse.json({
+        id: 1,
+        number: 1,
+        title: 'Test Issue',
+        body: null,
+        state: 'open',
+        user: null, // Edge case: null user (deleted/anonymous)
+        labels: [],
+        assignee: null,
+        assignees: [],
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+        html_url: 'https://github.com/null-user-test/null-user-repo/issues/1',
+      })
     }
 
     return HttpResponse.json({

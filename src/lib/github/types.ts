@@ -278,3 +278,11 @@ export interface SearchResult<T> {
   incomplete_results: boolean
   items: T[]
 }
+
+// Token management types for load testing
+export interface TokenInfo {
+  token: string
+  type: 'personal' | 'app' | 'installation'
+  scopes?: string[]
+  expiresAt?: Date
+}

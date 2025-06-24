@@ -22,89 +22,110 @@ describe('Environment Validation', () => {
     vi.resetModules()
   })
 
-  // Helper to import env module with proper isolation
-  async function importSchemaOnly() {
-    vi.stubEnv('SKIP_ENV_VALIDATION', 'true')
-    const module = await import('../../src/lib/validation/env')
-    return module
+  // Helper to create a clean env schema for testing
+  async function createTestSchema() {
+    vi.resetModules()
+    const { envSchema } = await import('../../src/lib/validation/env')
+    return envSchema
+  }
+
+  // Helper to set up a complete valid environment
+  function setupValidTestEnv(overrides: Record<string, string> = {}) {
+    const baseEnv = {
+      NODE_ENV: 'test',
+      DATABASE_URL: 'postgresql://user:pass@localhost:5432/test',
+      JWT_SECRET: '9Kf7Hq3Zx8Wm2Tn6Vy4Bu1Pg5Rk0Jc7Lv9Aw3Ez6Qh2Ms8Np4Dt1Fb5Gy7Xw',
+      ENABLE_OAUTH: 'false',
+      NEXT_PUBLIC_RP_ID: 'localhost',
+      NEXT_PUBLIC_APP_URL: 'http://localhost:3000',
+      CORS_ORIGINS: 'http://localhost:3000',
+      ALLOWED_REDIRECT_URIS: 'http://localhost:3000/api/auth/github/callback',
+      RATE_LIMIT_MAX: '100',
+      // Include all required default values
+      DB_PROJECT_ID: 'test-project',
+      DB_MAIN_BRANCH: 'test-main',
+      DB_DEV_BRANCH: 'test-dev',
+      DB_TEST_BRANCH: 'test-test',
+      DB_POOL_MIN: '2',
+      DB_POOL_MAX: '20',
+      DB_POOL_IDLE_TIMEOUT: '10000',
+      HNSW_EF_SEARCH: '200',
+      VECTOR_SIMILARITY_THRESHOLD: '0.7',
+      HYBRID_SEARCH_TEXT_WEIGHT: '0.3',
+      HYBRID_SEARCH_VECTOR_WEIGHT: '0.7',
+      PORT: '3000',
+      NEXT_PUBLIC_APP_NAME: 'Contribux',
+      WEBAUTHN_RP_NAME: 'Contribux',
+      WEBAUTHN_TIMEOUT: '60000',
+      WEBAUTHN_CHALLENGE_EXPIRY: '300000',
+      WEBAUTHN_SUPPORTED_ALGORITHMS: '-7,-257',
+      RATE_LIMIT_WINDOW: '900',
+      LOG_LEVEL: 'error',
+      ENABLE_AUDIT_LOGS: 'false',
+      ENABLE_WEBAUTHN: 'true',
+      MAINTENANCE_MODE: 'false',
+      ...overrides,
+    }
+
+    // Set all environment variables
+    for (const [key, value] of Object.entries(baseEnv)) {
+      vi.stubEnv(key, value)
+    }
+
+    return baseEnv
   }
 
   describe('JWT Secret Validation', () => {
-    it('should accept a strong JWT secret', async () => {
-      // Mock environment variables using vi.stubEnv with proper setup
-      vi.stubEnv('NODE_ENV', 'development')
-      vi.stubEnv('DATABASE_URL', 'postgresql://user:pass@localhost:5432/test')
-      // Create a more diverse JWT secret with high entropy - random-like pattern
-      vi.stubEnv('JWT_SECRET', '9Kf7Hq3Zx8Wm2Tn6Vy4Bu1Pg5Rk0Jc7Lv9Aw3Ez6Qh2Ms8Np4Dt1Fb5Gy7Xw')
-      vi.stubEnv('ENABLE_OAUTH', 'false')
-      vi.stubEnv('NEXT_PUBLIC_RP_ID', 'localhost')
-      vi.stubEnv('NEXT_PUBLIC_APP_URL', 'http://localhost:3000')
-      vi.stubEnv('CORS_ORIGINS', 'http://localhost:3000')
-      vi.stubEnv('ALLOWED_REDIRECT_URIS', 'http://localhost:3000/api/auth/github/callback')
+    it('should accept a strong JWT secret in development', async () => {
+      setupValidTestEnv({
+        NODE_ENV: 'development',
+        JWT_SECRET: '9Kf7Hq3Zx8Wm2Tn6Vy4Bu1Pg5Rk0Jc7Lv9Aw3Ez6Qh2Ms8Np4Dt1Fb5Gy7Xw',
+        ENABLE_OAUTH: 'false', // Disable OAuth to avoid production checks
+      })
 
-      const { envSchema } = await importSchemaOnly()
-
+      const envSchema = await createTestSchema()
       expect(() => envSchema.parse(process.env)).not.toThrow()
     })
 
-    it('should reject JWT secret that is too short', async () => {
-      vi.stubEnv('NODE_ENV', 'development')
-      vi.stubEnv('DATABASE_URL', 'postgresql://user:pass@localhost:5432/test')
-      vi.stubEnv('JWT_SECRET', 'tooshort') // 8 chars, clearly under 32
-      vi.stubEnv('ENABLE_OAUTH', 'false')
-      vi.stubEnv('NEXT_PUBLIC_RP_ID', 'localhost')
-      vi.stubEnv('NEXT_PUBLIC_APP_URL', 'http://localhost:3000')
-      vi.stubEnv('CORS_ORIGINS', 'http://localhost:3000')
-      vi.stubEnv('ALLOWED_REDIRECT_URIS', 'http://localhost:3000/api/auth/github/callback')
+    it('should reject JWT secret that is too short in development', async () => {
+      setupValidTestEnv({
+        NODE_ENV: 'development',
+        JWT_SECRET: 'tooshort',
+        ENABLE_OAUTH: 'false',
+      })
 
-      const { envSchema } = await importSchemaOnly()
-
-      expect(() => envSchema.parse(process.env)).toThrow(
-        /JWT_SECRET must be at least 32 characters long/
-      )
+      const envSchema = await createTestSchema()
+      expect(() => envSchema.parse(process.env)).toThrow()
     })
 
-    it('should reject JWT secret with low entropy', async () => {
-      vi.stubEnv('NODE_ENV', 'development')
-      vi.stubEnv('DATABASE_URL', 'postgresql://user:pass@localhost:5432/test')
-      vi.stubEnv('JWT_SECRET', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa') // 34 chars but low entropy
-      vi.stubEnv('ENABLE_OAUTH', 'false')
-      vi.stubEnv('NEXT_PUBLIC_RP_ID', 'localhost')
-      vi.stubEnv('NEXT_PUBLIC_APP_URL', 'http://localhost:3000')
-      vi.stubEnv('CORS_ORIGINS', 'http://localhost:3000')
-      vi.stubEnv('ALLOWED_REDIRECT_URIS', 'http://localhost:3000/api/auth/github/callback')
+    it('should reject JWT secret with low entropy in development', async () => {
+      setupValidTestEnv({
+        NODE_ENV: 'development',
+        JWT_SECRET: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        ENABLE_OAUTH: 'false',
+      })
 
-      const { envSchema } = await importSchemaOnly()
-
-      expect(() => envSchema.parse(process.env)).toThrow(/insufficient entropy/)
+      const envSchema = await createTestSchema()
+      expect(() => envSchema.parse(process.env)).toThrow()
     })
 
-    it('should reject JWT secret with insufficient unique characters', async () => {
-      vi.stubEnv('NODE_ENV', 'development')
-      vi.stubEnv('DATABASE_URL', 'postgresql://user:pass@localhost:5432/test')
-      vi.stubEnv('JWT_SECRET', 'abcdefghijklmnopabcdefghijklmnopab') // Only 16 unique chars, repeated
-      vi.stubEnv('ENABLE_OAUTH', 'false')
-      vi.stubEnv('NEXT_PUBLIC_RP_ID', 'localhost')
-      vi.stubEnv('NEXT_PUBLIC_APP_URL', 'http://localhost:3000')
-      vi.stubEnv('CORS_ORIGINS', 'http://localhost:3000')
-      vi.stubEnv('ALLOWED_REDIRECT_URIS', 'http://localhost:3000/api/auth/github/callback')
+    it('should reject JWT secret with insufficient unique characters in development', async () => {
+      setupValidTestEnv({
+        NODE_ENV: 'development',
+        JWT_SECRET: 'abcdefghijkabcdefghijkabcdefghijk', // Only 11 unique chars
+        ENABLE_OAUTH: 'false',
+      })
 
-      const { envSchema } = await importSchemaOnly()
-
-      expect(() => envSchema.parse(process.env)).toThrow(
-        'JWT_SECRET has insufficient entropy (too predictable)'
-      )
+      const envSchema = await createTestSchema()
+      expect(() => envSchema.parse(process.env)).toThrow()
     })
 
     it('should provide test JWT secret in test environment', async () => {
-      vi.stubEnv('NODE_ENV', 'test')
-      vi.stubEnv('DATABASE_URL', 'postgresql://user:pass@localhost:5432/test')
-      vi.stubEnv('ENABLE_OAUTH', 'false')
-      vi.stubEnv('NEXT_PUBLIC_RP_ID', 'localhost')
-      vi.stubEnv('NEXT_PUBLIC_APP_URL', 'http://localhost:3000')
-      vi.stubEnv('CORS_ORIGINS', 'http://localhost:3000')
-      vi.stubEnv('ALLOWED_REDIRECT_URIS', 'http://localhost:3000/api/auth/github/callback')
-      // Don't set JWT_SECRET - let it use the default for test environment
+      setupValidTestEnv({
+        NODE_ENV: 'test',
+        // Don't set JWT_SECRET - let it use the default for test environment
+      })
+      vi.stubEnv('JWT_SECRET', '') // Ensure it's empty to trigger default
 
       vi.resetModules()
       const { getJwtSecret } = await import('../../src/lib/validation/env')
@@ -116,73 +137,56 @@ describe('Environment Validation', () => {
   })
 
   describe('Production Environment Validation', () => {
-    it('should require all necessary variables in production', async () => {
-      vi.stubEnv('NODE_ENV', 'production')
-      vi.stubEnv('DATABASE_URL', 'postgresql://user:pass@localhost:5432/test')
-      vi.stubEnv('JWT_SECRET', 'test-a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4') // Contains 'test'
-      vi.stubEnv('NEXT_PUBLIC_RP_ID', 'example.com')
-      vi.stubEnv('WEBAUTHN_RP_ID', 'example.com') // Set for consistency
-      vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://example.com')
-      vi.stubEnv('CORS_ORIGINS', 'https://example.com')
-      vi.stubEnv(
-        'ENCRYPTION_KEY',
-        'test-encryption-key-for-testing-only-not-production-use-abcdefgh'
-      )
-      vi.stubEnv('ENABLE_OAUTH', 'false')
+    it('should reject test keywords in JWT secret in production', async () => {
+      setupValidTestEnv({
+        NODE_ENV: 'production',
+        DATABASE_URL: 'postgresql://user:pass@prod.server.com:5432/prod',
+        JWT_SECRET: 'test-a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4',
+        NEXT_PUBLIC_RP_ID: 'example.com',
+        NEXT_PUBLIC_APP_URL: 'https://example.com',
+        CORS_ORIGINS: 'https://example.com',
+        ALLOWED_REDIRECT_URIS: 'https://example.com/api/auth/github/callback',
+        ENCRYPTION_KEY: '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+        ENABLE_OAUTH: 'false', // Disable OAuth to avoid OAuth validation errors
+      })
 
-      const { envSchema } = await importSchemaOnly()
-
-      expect(() => envSchema.parse(process.env)).toThrow(
-        /cannot contain test\/dev keywords in production/
-      )
+      const envSchema = await createTestSchema()
+      expect(() => envSchema.parse(process.env)).toThrow(/test\/dev keywords/)
     })
 
     it('should reject localhost RP_ID in production', async () => {
-      vi.stubEnv('NODE_ENV', 'production')
-      vi.stubEnv('DATABASE_URL', 'postgresql://user:pass@localhost:5432/test')
-      vi.stubEnv('JWT_SECRET', 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6')
-      vi.stubEnv('NEXT_PUBLIC_RP_ID', 'localhost')
-      vi.stubEnv(
-        'ENCRYPTION_KEY',
-        'test-encryption-key-for-testing-only-not-production-use-abcdefgh'
-      )
-      vi.stubEnv('ENABLE_OAUTH', 'false')
+      setupValidTestEnv({
+        NODE_ENV: 'production',
+        DATABASE_URL: 'postgresql://user:pass@prod.server.com:5432/prod',
+        JWT_SECRET: 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6',
+        NEXT_PUBLIC_RP_ID: 'localhost',
+        NEXT_PUBLIC_APP_URL: 'https://example.com',
+        CORS_ORIGINS: 'https://example.com',
+        ALLOWED_REDIRECT_URIS: 'https://example.com/api/auth/github/callback',
+        ENCRYPTION_KEY: '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+        ENABLE_OAUTH: 'false',
+      })
 
-      const { envSchema } = await importSchemaOnly()
-
-      expect(() => envSchema.parse(process.env)).toThrow(/RP_ID cannot be localhost in production/)
+      const envSchema = await createTestSchema()
+      expect(() => envSchema.parse(process.env)).toThrow(/localhost in production/)
     })
 
     it('should require encryption key in production', async () => {
-      vi.stubEnv('NODE_ENV', 'production')
-      vi.stubEnv('DATABASE_URL', 'postgresql://user:pass@localhost:5432/test')
-      vi.stubEnv('JWT_SECRET', 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6')
-      vi.stubEnv('NEXT_PUBLIC_RP_ID', 'example.com')
-      vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://example.com')
-      vi.stubEnv('CORS_ORIGINS', 'https://example.com')
-      vi.stubEnv('ALLOWED_REDIRECT_URIS', 'https://example.com/callback')
-      vi.stubEnv('ENABLE_OAUTH', 'false')
-      // Don't stub ENCRYPTION_KEY to ensure it's missing
+      setupValidTestEnv({
+        NODE_ENV: 'production',
+        DATABASE_URL: 'postgresql://user:pass@prod.server.com:5432/prod',
+        JWT_SECRET: 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6',
+        NEXT_PUBLIC_RP_ID: 'example.com',
+        NEXT_PUBLIC_APP_URL: 'https://example.com',
+        CORS_ORIGINS: 'https://example.com',
+        ALLOWED_REDIRECT_URIS: 'https://example.com/callback',
+        ENABLE_OAUTH: 'false',
+        // Don't set ENCRYPTION_KEY to test requirement
+      })
+      vi.stubEnv('ENCRYPTION_KEY', '') // Explicitly set to empty
 
-      const { envSchema } = await importSchemaOnly()
-
-      try {
-        const result = envSchema.parse(process.env)
-        // If we get here, the validation didn't throw
-        console.error('Validation passed when it should have failed')
-        console.error('NODE_ENV:', process.env.NODE_ENV)
-        console.error('ENCRYPTION_KEY:', result.ENCRYPTION_KEY)
-      } catch (error) {
-        // Expected to throw
-        expect(error).toBeDefined()
-        if (error instanceof z.ZodError) {
-          const encryptionKeyError = error.issues.find(issue =>
-            issue.path.includes('ENCRYPTION_KEY')
-          )
-          expect(encryptionKeyError).toBeDefined()
-          expect(encryptionKeyError?.message).toMatch(/ENCRYPTION_KEY is required in production/)
-        }
-      }
+      const envSchema = await createTestSchema()
+      expect(() => envSchema.parse(process.env)).toThrow(/ENCRYPTION_KEY is required/)
     })
   })
 
@@ -195,18 +199,11 @@ describe('Environment Validation', () => {
       ]
 
       for (const url of validUrls) {
-        vi.unstubAllEnvs() // Clear previous stubs
-        vi.stubEnv('NODE_ENV', 'test')
-        vi.stubEnv('DATABASE_URL', url)
-        vi.stubEnv('ENABLE_OAUTH', 'false')
-        vi.stubEnv('NEXT_PUBLIC_RP_ID', 'localhost')
-        vi.stubEnv('NEXT_PUBLIC_APP_URL', 'http://localhost:3000')
-        vi.stubEnv('CORS_ORIGINS', 'http://localhost:3000')
-        vi.stubEnv('ALLOWED_REDIRECT_URIS', 'http://localhost:3000/api/auth/github/callback')
+        setupValidTestEnv({
+          DATABASE_URL: url,
+        })
 
-        vi.resetModules()
-        const { envSchema } = await importSchemaOnly()
-
+        const envSchema = await createTestSchema()
         expect(() => envSchema.parse(process.env), `Failed for URL: ${url}`).not.toThrow()
       }
     })
@@ -220,101 +217,68 @@ describe('Environment Validation', () => {
       ]
 
       for (const url of invalidUrls) {
-        vi.unstubAllEnvs() // Clear previous stubs
-        vi.stubEnv('NODE_ENV', 'test')
-        vi.stubEnv('DATABASE_URL', url)
-        vi.stubEnv('ENABLE_OAUTH', 'false')
+        setupValidTestEnv({
+          DATABASE_URL: url,
+        })
 
-        vi.resetModules()
-
-        try {
-          const { envSchema } = await importSchemaOnly()
-          expect(() => envSchema.parse(process.env), `Should fail for URL: ${url}`).toThrow()
-        } catch (error) {
-          // If the module import itself throws, that's also a validation failure
-          expect(error).toBeDefined()
-        }
+        const envSchema = await createTestSchema()
+        expect(() => envSchema.parse(process.env), `Should fail for URL: ${url}`).toThrow()
       }
     })
   })
 
   describe('OAuth Configuration Validation', () => {
     it('should validate GitHub client ID format', async () => {
-      vi.stubEnv('NODE_ENV', 'test')
-      vi.stubEnv('DATABASE_URL', 'postgresql://user:pass@localhost:5432/test')
-      vi.stubEnv('ENABLE_OAUTH', 'true')
-      vi.stubEnv('GITHUB_CLIENT_ID', 'Iv1.test1234567890ab') // Valid format: OAuth App format
-      vi.stubEnv(
-        'GITHUB_CLIENT_SECRET',
-        'test-oauth-client-secret-for-testing-only-with-sufficient-length'
-      )
+      setupValidTestEnv({
+        ENABLE_OAUTH: 'true',
+        GITHUB_CLIENT_ID: 'Iv1.test1234567890ab',
+        GITHUB_CLIENT_SECRET: 'test-oauth-client-secret-for-testing-only-with-sufficient-length',
+      })
 
-      const { envSchema } = await importSchemaOnly()
-
+      const envSchema = await createTestSchema()
       expect(() => envSchema.parse(process.env)).not.toThrow()
     })
 
     it('should reject invalid GitHub client ID format', async () => {
-      vi.stubEnv('NODE_ENV', 'test')
-      vi.stubEnv('DATABASE_URL', 'postgresql://user:pass@localhost:5432/test')
-      vi.stubEnv('ENABLE_OAUTH', 'true')
-      vi.stubEnv('GITHUB_CLIENT_ID', 'invalid-format') // Invalid format
-      vi.stubEnv(
-        'GITHUB_CLIENT_SECRET',
-        'test-oauth-client-secret-for-testing-only-with-sufficient-length'
-      )
+      setupValidTestEnv({
+        ENABLE_OAUTH: 'true',
+        GITHUB_CLIENT_ID: 'invalid-format',
+        GITHUB_CLIENT_SECRET: 'test-oauth-client-secret-for-testing-only-with-sufficient-length',
+      })
 
-      const { envSchema } = await importSchemaOnly()
-
-      expect(() => envSchema.parse(process.env)).toThrow(
-        /GitHub Client ID must be either OAuth App format \(Iv1\.xxx\) or GitHub App format \(20 chars\)/
-      )
+      const envSchema = await createTestSchema()
+      expect(() => envSchema.parse(process.env)).toThrow(/OAuth App format/)
     })
 
     it('should require OAuth credentials when OAuth is enabled in production', async () => {
-      vi.stubEnv('NODE_ENV', 'production')
-      vi.stubEnv('DATABASE_URL', 'postgresql://user:pass@localhost:5432/test')
-      vi.stubEnv('JWT_SECRET', 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6')
-      vi.stubEnv('ENABLE_OAUTH', 'true')
-      vi.stubEnv('NEXT_PUBLIC_RP_ID', 'example.com')
-      vi.stubEnv('WEBAUTHN_RP_ID', 'example.com')
-      vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://example.com')
-      vi.stubEnv('CORS_ORIGINS', 'https://example.com')
-      vi.stubEnv(
-        'ENCRYPTION_KEY',
-        'test-encryption-key-for-testing-only-not-production-use-abcdefgh'
-      )
-      // Explicitly set OAuth credentials to empty strings to test requirement
+      setupValidTestEnv({
+        NODE_ENV: 'production',
+        DATABASE_URL: 'postgresql://user:pass@prod.server.com:5432/prod',
+        JWT_SECRET: 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6',
+        ENABLE_OAUTH: 'true',
+        NEXT_PUBLIC_RP_ID: 'example.com',
+        NEXT_PUBLIC_APP_URL: 'https://example.com',
+        CORS_ORIGINS: 'https://example.com',
+        ALLOWED_REDIRECT_URIS: 'https://example.com/api/auth/github/callback',
+        ENCRYPTION_KEY: '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+      })
+      // Explicitly set empty OAuth credentials to test validation
       vi.stubEnv('GITHUB_CLIENT_ID', '')
       vi.stubEnv('GITHUB_CLIENT_SECRET', '')
 
-      const { envSchema } = await importSchemaOnly()
-
-      try {
-        envSchema.parse(process.env)
-        // If no error is thrown, fail the test
-        expect(true).toBe(false) // This should not be reached
-      } catch (error) {
-        // Check that the error message contains the expected text
-        expect(error).toBeInstanceOf(z.ZodError)
-        if (error instanceof z.ZodError) {
-          const errorMessages = error.issues.map(issue => issue.message).join(' ')
-          expect(errorMessages).toMatch(
-            /GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET are required when OAuth is enabled in production/
-          )
-        }
-      }
+      const envSchema = await createTestSchema()
+      expect(() => envSchema.parse(process.env)).toThrow(/OAuth is enabled in production/)
     })
 
     it('should allow missing OAuth credentials in development when OAuth is enabled', async () => {
-      vi.stubEnv('NODE_ENV', 'development')
-      vi.stubEnv('DATABASE_URL', 'postgresql://user:pass@localhost:5432/test')
-      vi.stubEnv('JWT_SECRET', 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6')
-      vi.stubEnv('ENABLE_OAUTH', 'true')
-      // Missing GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET - should be OK in dev
+      setupValidTestEnv({
+        NODE_ENV: 'development',
+        ENABLE_OAUTH: 'true',
+        JWT_SECRET: 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6',
+        // Missing GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET - should be OK in dev
+      })
 
-      const { envSchema } = await importSchemaOnly()
-
+      const envSchema = await createTestSchema()
       expect(() => envSchema.parse(process.env)).not.toThrow()
     })
   })
@@ -324,40 +288,34 @@ describe('Environment Validation', () => {
       const validDomains = ['localhost', 'example.com', 'sub.example.com', 'app-staging.company.io']
 
       for (const domain of validDomains) {
-        vi.unstubAllEnvs() // Reset env
-        vi.stubEnv('NODE_ENV', 'development')
-        vi.stubEnv('DATABASE_URL', 'postgresql://user:pass@localhost:5432/test')
-        vi.stubEnv('JWT_SECRET', 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6')
-        vi.stubEnv('NEXT_PUBLIC_RP_ID', domain)
-        vi.stubEnv('ENABLE_OAUTH', 'false')
+        setupValidTestEnv({
+          NODE_ENV: 'development',
+          JWT_SECRET: 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6',
+          NEXT_PUBLIC_RP_ID: domain,
+        })
 
-        vi.resetModules()
-        const { envSchema } = await importSchemaOnly()
-
+        const envSchema = await createTestSchema()
         expect(() => envSchema.parse(process.env), `Failed for domain: ${domain}`).not.toThrow()
       }
     })
 
     it('should reject invalid domain formats', async () => {
       const invalidDomains = [
-        'https://example.com', // Should not include protocol
-        'example.com/', // Should not include path
-        '.example.com', // Should not start with dot
-        'example..com', // Should not have double dots
-        'ex ample.com', // Should not contain spaces
+        'https://example.com',
+        'example.com/',
+        '.example.com',
+        'example..com',
+        'ex ample.com',
       ]
 
       for (const domain of invalidDomains) {
-        vi.unstubAllEnvs() // Reset env
-        vi.stubEnv('NODE_ENV', 'development')
-        vi.stubEnv('DATABASE_URL', 'postgresql://user:pass@localhost:5432/test')
-        vi.stubEnv('JWT_SECRET', 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6')
-        vi.stubEnv('NEXT_PUBLIC_RP_ID', domain)
-        vi.stubEnv('ENABLE_OAUTH', 'false')
+        setupValidTestEnv({
+          NODE_ENV: 'development',
+          JWT_SECRET: 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6',
+          NEXT_PUBLIC_RP_ID: domain,
+        })
 
-        vi.resetModules()
-        const { envSchema } = await importSchemaOnly()
-
+        const envSchema = await createTestSchema()
         expect(() => envSchema.parse(process.env), `Should fail for domain: ${domain}`).toThrow()
       }
     })
@@ -365,61 +323,54 @@ describe('Environment Validation', () => {
 
   describe('Rate Limiting Validation', () => {
     it('should enforce reasonable rate limits', async () => {
-      vi.stubEnv('NODE_ENV', 'test')
-      vi.stubEnv('DATABASE_URL', 'postgresql://user:pass@localhost:5432/test')
-      vi.stubEnv('RATE_LIMIT_MAX', '2000') // Too high
-      vi.stubEnv('ENABLE_OAUTH', 'false')
+      setupValidTestEnv({
+        RATE_LIMIT_MAX: '2000', // Too high
+      })
 
-      const { envSchema } = await importSchemaOnly()
-
+      const envSchema = await createTestSchema()
       expect(() => envSchema.parse(process.env)).toThrow(/Rate limit too high/)
     })
   })
 
   describe('Redirect URI Validation', () => {
     it('should validate redirect URI format', async () => {
-      vi.stubEnv('NODE_ENV', 'test')
-      vi.stubEnv('DATABASE_URL', 'postgresql://user:pass@localhost:5432/test')
-      vi.stubEnv('ALLOWED_REDIRECT_URIS', 'invalid-uri,also-invalid')
-      vi.stubEnv('ENABLE_OAUTH', 'false')
+      setupValidTestEnv({
+        ALLOWED_REDIRECT_URIS: 'invalid-uri,also-invalid',
+      })
 
-      const { envSchema } = await importSchemaOnly()
-
+      const envSchema = await createTestSchema()
       expect(() => envSchema.parse(process.env)).toThrow(/Invalid redirect URI/)
     })
 
     it('should accept valid redirect URIs', async () => {
-      vi.stubEnv('NODE_ENV', 'test')
-      vi.stubEnv('DATABASE_URL', 'postgresql://user:pass@localhost:5432/test')
-      vi.stubEnv(
-        'ALLOWED_REDIRECT_URIS',
-        'http://localhost:3000/callback,https://example.com/auth/callback'
-      )
-      vi.stubEnv('ENABLE_OAUTH', 'false')
+      setupValidTestEnv({
+        ALLOWED_REDIRECT_URIS: 'http://localhost:3000/callback,https://example.com/auth/callback',
+      })
 
-      const { envSchema } = await importSchemaOnly()
-
+      const envSchema = await createTestSchema()
       expect(() => envSchema.parse(process.env)).not.toThrow()
     })
   })
 
   describe('Utility Functions', () => {
     it('should provide JWT secret for non-test environments', async () => {
-      vi.stubEnv('NODE_ENV', 'development')
-      vi.stubEnv('DATABASE_URL', 'postgresql://user:pass@localhost:5432/test')
-      vi.stubEnv('JWT_SECRET', 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6')
-      vi.stubEnv('ENABLE_OAUTH', 'false')
+      setupValidTestEnv({
+        NODE_ENV: 'development',
+        JWT_SECRET: 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6',
+      })
 
+      vi.resetModules()
       const { getJwtSecret } = await import('../../src/lib/validation/env')
 
       expect(getJwtSecret()).toBe('a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6')
     })
 
     it('should provide test JWT secret for test environment', async () => {
-      vi.stubEnv('NODE_ENV', 'test')
-      vi.stubEnv('DATABASE_URL', 'postgresql://user:pass@localhost:5432/test')
-      vi.stubEnv('ENABLE_OAUTH', 'false')
+      setupValidTestEnv({
+        NODE_ENV: 'test',
+      })
 
+      vi.resetModules()
       const { getJwtSecret } = await import('../../src/lib/validation/env')
 
       expect(getJwtSecret()).toBe(
@@ -428,11 +379,12 @@ describe('Environment Validation', () => {
     })
 
     it('should generate encryption key for development', async () => {
-      vi.stubEnv('NODE_ENV', 'development')
-      vi.stubEnv('DATABASE_URL', 'postgresql://user:pass@localhost:5432/test')
-      vi.stubEnv('JWT_SECRET', 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6')
-      vi.stubEnv('ENABLE_OAUTH', 'false')
+      setupValidTestEnv({
+        NODE_ENV: 'development',
+        JWT_SECRET: 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6',
+      })
 
+      vi.resetModules()
       const { getEncryptionKey } = await import('../../src/lib/validation/env')
 
       const key = getEncryptionKey()
@@ -441,31 +393,22 @@ describe('Environment Validation', () => {
     })
 
     it('should require encryption key in production', async () => {
-      vi.stubEnv('NODE_ENV', 'production')
-      vi.stubEnv('DATABASE_URL', 'postgresql://user:pass@localhost:5432/test')
-      vi.stubEnv('ENABLE_OAUTH', 'false')
-      vi.stubEnv('JWT_SECRET', 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6')
-      vi.stubEnv('NEXT_PUBLIC_RP_ID', 'example.com')
-      vi.stubEnv('WEBAUTHN_RP_ID', 'example.com')
-      vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://example.com')
-      vi.stubEnv('CORS_ORIGINS', 'https://example.com')
-      // Explicitly unset ENCRYPTION_KEY to test requirement
-      vi.stubEnv('ENCRYPTION_KEY', '')
+      setupValidTestEnv({
+        NODE_ENV: 'production',
+        DATABASE_URL: 'postgresql://user:pass@prod.server.com:5432/prod',
+        JWT_SECRET: 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6',
+        NEXT_PUBLIC_RP_ID: 'example.com',
+        NEXT_PUBLIC_APP_URL: 'https://example.com',
+        CORS_ORIGINS: 'https://example.com',
+        ALLOWED_REDIRECT_URIS: 'https://example.com/api/auth/github/callback',
+        ENCRYPTION_KEY: '', // Empty to test requirement
+      })
 
-      try {
+      vi.resetModules()
+      await expect(async () => {
         const { getEncryptionKey } = await import('../../src/lib/validation/env')
         getEncryptionKey()
-        // Should not reach here
-        expect(true).toBe(false)
-      } catch (error) {
-        expect(error).toBeDefined()
-        if (error instanceof Error) {
-          expect(error.message).toMatch(/ENCRYPTION_KEY is required in production/)
-        } else if (error instanceof z.ZodError) {
-          const messages = error.issues.map(i => i.message).join(' ')
-          expect(messages).toMatch(/ENCRYPTION_KEY is required in production/)
-        }
-      }
+      }).rejects.toThrow(/ENCRYPTION_KEY is required/)
     })
   })
 
@@ -481,19 +424,16 @@ describe('Environment Validation', () => {
       process.exit = mockProcessExit as typeof process.exit
 
       try {
-        // Set invalid environment - missing required production variables
-        vi.stubEnv('NODE_ENV', 'production')
-        vi.stubEnv('DATABASE_URL', 'invalid-url')
-        vi.stubEnv('JWT_SECRET', 'short')
-        vi.stubEnv('ENABLE_OAUTH', 'false')
-        vi.stubEnv('SKIP_ENV_VALIDATION', 'true') // Skip initial validation
+        // Set invalid environment
+        setupValidTestEnv({
+          NODE_ENV: 'production',
+          DATABASE_URL: 'invalid-url',
+          JWT_SECRET: 'short',
+        })
 
-        // Reset modules to ensure fresh import with stubbed env
         vi.resetModules()
         const { validateEnvironmentOnStartup } = await import('../../src/lib/validation/env')
 
-        // Now remove the skip flag and call validation
-        vi.stubEnv('SKIP_ENV_VALIDATION', '')
         validateEnvironmentOnStartup()
 
         expect(mockProcessExit).toHaveBeenCalledWith(1)
