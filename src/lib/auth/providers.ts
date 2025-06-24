@@ -4,6 +4,7 @@
  */
 
 import { z } from 'zod'
+import type { GitHubProfile, GoogleProfile, LinkedInProfile, MicrosoftProfile } from '@/types/oauth'
 
 // Provider metadata interface
 export interface ProviderMetadata {
@@ -300,56 +301,77 @@ export interface NormalizedUserData {
   email: string
   name: string
   username: string
-  avatarUrl?: string
-  profileUrl?: string
+  avatarUrl?: string | undefined
+  profileUrl?: string | undefined
 }
 
-export function normalizeUserData(provider: string, userData: any): NormalizedUserData {
+export function normalizeUserData(provider: string, userData: unknown): NormalizedUserData {
+  // Import the parseOAuthProfile function at runtime to avoid circular dependency
+  const { parseOAuthProfile } = require('@/types/oauth')
+  const parsedProfile = parseOAuthProfile(provider, userData)
+
+  if (!parsedProfile) {
+    throw new Error(`Invalid profile data for provider: ${provider}`)
+  }
+
   switch (provider) {
-    case 'github':
+    case 'github': {
+      const profile = parsedProfile as GitHubProfile
       return {
         provider,
-        providerId: userData.id.toString(),
-        email: userData.email,
-        name: userData.name || userData.login,
-        username: userData.login,
-        avatarUrl: userData.avatar_url,
-        profileUrl: userData.html_url,
+        providerId: profile.id.toString(),
+        email: profile.email || '',
+        name: profile.name || profile.login,
+        username: profile.login,
+        avatarUrl: profile.avatar_url || undefined,
+        profileUrl: profile.html_url || undefined,
       }
+    }
 
-    case 'google':
+    case 'google': {
+      const profile = parsedProfile as GoogleProfile
       return {
         provider,
-        providerId: userData.id,
-        email: userData.email,
-        name: userData.name,
-        username: userData.email.split('@')[0], // Use email prefix as username
-        avatarUrl: userData.picture,
-        profileUrl: userData.link,
+        providerId: profile.id,
+        email: profile.email,
+        name: profile.name,
+        username: profile.email.split('@')[0] || profile.id, // Use email prefix as username, fallback to ID
+        avatarUrl: profile.picture || undefined,
+        profileUrl: profile.link || undefined,
       }
+    }
 
-    case 'linkedin':
+    case 'linkedin': {
+      const profile = parsedProfile as LinkedInProfile
+      const firstName = profile.localizedFirstName || ''
+      const lastName = profile.localizedLastName || ''
       return {
         provider,
-        providerId: userData.id,
-        email: userData.emailAddress?.emailAddress,
-        name: `${userData.localizedFirstName} ${userData.localizedLastName}`,
-        username: userData.localizedFirstName?.toLowerCase() || userData.id,
+        providerId: profile.id,
+        email: '', // LinkedIn email requires separate API call
+        name: `${firstName} ${lastName}`.trim(),
+        username: firstName.toLowerCase() || profile.id,
         avatarUrl:
-          userData.profilePicture?.['displayImage~']?.elements?.[0]?.identifiers?.[0]?.identifier,
+          profile.profilePicture?.['displayImage~']?.elements?.[0]?.identifiers?.[0]?.identifier ||
+          undefined,
+        profileUrl: undefined,
       }
+    }
 
-    case 'microsoft':
+    case 'microsoft': {
+      const profile = parsedProfile as MicrosoftProfile
       return {
         provider,
-        providerId: userData.id,
-        email: userData.mail || userData.userPrincipalName,
-        name: userData.displayName,
-        username: userData.userPrincipalName?.split('@')[0] || userData.displayName?.toLowerCase(),
-        avatarUrl: userData.photo?.['@odata.mediaContentType']
-          ? `data:${userData.photo['@odata.mediaContentType']};base64,${userData.photo}`
-          : undefined,
+        providerId: profile.id,
+        email: profile.mail || profile.userPrincipalName || '',
+        name: profile.displayName || '',
+        username:
+          profile.userPrincipalName?.split('@')[0] || profile.displayName?.toLowerCase() || '',
+        ...(profile.photo?.['@odata.mediaContentType'] && {
+          avatarUrl: `data:${profile.photo['@odata.mediaContentType']};base64,${profile.photo}`,
+        }),
       }
+    }
 
     default:
       throw new Error(`Unsupported provider for user data normalization: ${provider}`)

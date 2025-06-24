@@ -1,9 +1,12 @@
-import type { Account, NextAuthConfig, Profile } from 'next-auth'
+import type { Account, NextAuthConfig, Profile, User } from 'next-auth'
 import GitHub from 'next-auth/providers/github'
 import Google from 'next-auth/providers/google'
 import { sql } from '@/lib/db/config'
 import { env } from '@/lib/validation/env'
 import type { User as AuthUser } from '@/types/auth'
+import type { UUID } from '@/types/base'
+import type { GitHubProfile, GoogleProfile } from '@/types/oauth'
+import { extractGitHubUserData, extractGoogleUserData, parseOAuthProfile } from '@/types/oauth'
 
 /**
  * NextAuth.js configuration for multi-provider OAuth authentication
@@ -72,18 +75,22 @@ export const authConfig: NextAuthConfig = {
 
     async session({ session, token }) {
       if (token.sub) {
-        session.user.id = token.sub
-
         // Fetch fresh user data with provider information
         const userResult = await sql`
-          SELECT u.*, 
+          SELECT u.id, u.email, u.display_name, u.username, 
+                 u.github_username, u.email_verified, u.two_factor_enabled,
+                 u.recovery_email, u.locked_at, u.failed_login_attempts, u.last_login_at,
+                 u.created_at, u.updated_at,
                  array_agg(DISTINCT oa.provider) FILTER (WHERE oa.provider IS NOT NULL) as connected_providers,
                  oa_primary.provider as primary_provider
           FROM users u
           LEFT JOIN oauth_accounts oa ON u.id = oa.user_id
           LEFT JOIN oauth_accounts oa_primary ON u.id = oa_primary.user_id AND oa_primary.is_primary = true
           WHERE u.id = ${token.sub}
-          GROUP BY u.id, oa_primary.provider
+          GROUP BY u.id, u.email, u.display_name, u.username, u.github_username, 
+                   u.email_verified, u.two_factor_enabled, u.recovery_email, u.locked_at, 
+                   u.failed_login_attempts, u.last_login_at, u.created_at, u.updated_at, 
+                   oa_primary.provider
           LIMIT 1
         `
 
@@ -92,11 +99,19 @@ export const authConfig: NextAuthConfig = {
             connected_providers: string[]
             primary_provider: string
           }
-          session.user.email = user.email
-          session.user.githubUsername = user.github_username
-          // Add provider information to session for client-side access
-          session.user.connectedProviders = user.connected_providers || []
-          session.user.primaryProvider = user.primary_provider
+
+          // Return new session object since properties are readonly
+          return {
+            ...session,
+            user: {
+              ...session.user,
+              id: token.sub as UUID,
+              email: user.email,
+              githubUsername: user.githubUsername,
+              connectedProviders: user.connected_providers || [],
+              primaryProvider: user.primary_provider,
+            },
+          }
         }
       }
 
@@ -121,7 +136,13 @@ export const authConfig: NextAuthConfig = {
       }
 
       // Access token has expired, try to update it
-      return refreshAccessToken(token)
+      const refreshableToken: RefreshableToken = {
+        accessToken: token.accessToken as string,
+        refreshToken: token.refreshToken as string,
+        expiresAt: token.expiresAt as number,
+        provider: token.provider as string,
+      }
+      return refreshAccessToken(refreshableToken)
     },
   },
   pages: {
@@ -155,7 +176,7 @@ export const authConfig: NextAuthConfig = {
  * Account linking scenarios and resolution strategies
  */
 interface SignInParams {
-  user: any
+  user: User
   account: Account
   profile?: Profile | undefined
 }
@@ -284,7 +305,7 @@ async function linkAccountToExistingUser(
  * Create new user with OAuth account
  */
 async function createNewUserWithOAuth(
-  user: any,
+  user: SignInParams['user'],
   account: Account,
   profile?: Profile
 ): Promise<SignInResult> {
@@ -352,9 +373,13 @@ async function createNewUserWithOAuth(
 }
 
 /**
- * Extract user data from OAuth profile
+ * Extract user data from OAuth profile with proper typing
  */
-function extractUserDataFromProfile(provider: string, user: any, profile?: Profile) {
+function extractUserDataFromProfile(
+  provider: string,
+  user: SignInParams['user'],
+  profile?: Profile
+) {
   const baseData = {
     email: user.email,
     emailVerified: true,
@@ -363,22 +388,43 @@ function extractUserDataFromProfile(provider: string, user: any, profile?: Profi
     githubUsername: null as string | null,
   }
 
-  switch (provider) {
-    case 'github':
-      return {
-        ...baseData,
-        displayName: (profile as any)?.name || (profile as any)?.login || user.name,
-        username: (profile as any)?.login || user.name?.toLowerCase().replace(/\s+/g, '') || '',
-        githubUsername: (profile as any)?.login || null,
-      }
+  if (!profile) {
+    return {
+      ...baseData,
+      username: user.email?.split('@')[0] || user.name?.toLowerCase().replace(/\s+/g, '') || '',
+    }
+  }
 
-    case 'google':
+  const parsedProfile = parseOAuthProfile(provider, profile)
+  if (!parsedProfile) {
+    return {
+      ...baseData,
+      username: user.email?.split('@')[0] || user.name?.toLowerCase().replace(/\s+/g, '') || '',
+    }
+  }
+
+  switch (provider) {
+    case 'github': {
+      const githubData = extractGitHubUserData(parsedProfile as GitHubProfile)
       return {
-        ...baseData,
-        displayName: user.name || '',
-        username: user.email?.split('@')[0] || user.name?.toLowerCase().replace(/\s+/g, '') || '',
+        email: githubData.email,
+        emailVerified: githubData.emailVerified,
+        displayName: githubData.name,
+        username: githubData.username,
+        githubUsername: githubData.githubUsername,
+      }
+    }
+
+    case 'google': {
+      const googleData = extractGoogleUserData(parsedProfile as GoogleProfile)
+      return {
+        email: googleData.email,
+        emailVerified: googleData.emailVerified,
+        displayName: googleData.name,
+        username: googleData.username,
         githubUsername: null,
       }
+    }
 
     default:
       return {
@@ -408,18 +454,31 @@ async function updateOAuthTokens(userId: string, account: Account) {
 }
 
 /**
- * Update user profile from OAuth provider data
+ * Update user profile from OAuth provider data with proper typing
  */
 async function updateUserProfileFromProvider(userId: string, provider: string, profile?: Profile) {
   if (!profile) return
 
   try {
+    const parsedProfile = parseOAuthProfile(provider, profile)
+    if (!parsedProfile) return
+
     if (provider === 'github') {
+      const githubProfile = parsedProfile as GitHubProfile
       await sql`
         UPDATE users
         SET 
-          github_username = ${(profile as any)?.login},
-          display_name = COALESCE(${(profile as any)?.name}, display_name),
+          github_username = ${githubProfile.login},
+          display_name = COALESCE(${githubProfile.name}, display_name),
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${userId}
+      `
+    } else if (provider === 'google') {
+      const googleProfile = parsedProfile as GoogleProfile
+      await sql`
+        UPDATE users
+        SET 
+          display_name = COALESCE(${googleProfile.name}, display_name),
           updated_at = CURRENT_TIMESTAMP
         WHERE id = ${userId}
       `
@@ -428,6 +487,16 @@ async function updateUserProfileFromProvider(userId: string, provider: string, p
   } catch (error) {
     console.error('Error updating user profile:', error)
   }
+}
+
+/**
+ * Token interface for refresh operations
+ */
+interface RefreshableToken {
+  accessToken?: string
+  refreshToken?: string
+  expiresAt?: number
+  provider?: string
 }
 
 /**
@@ -460,7 +529,7 @@ async function logSecurityEvent(event: {
 /**
  * Refresh access token based on provider
  */
-async function refreshAccessToken(token: any) {
+async function refreshAccessToken(token: RefreshableToken) {
   try {
     const provider = token.provider || 'github' // Default to GitHub for backwards compatibility
 
@@ -488,7 +557,11 @@ async function refreshAccessToken(token: any) {
 /**
  * Refresh GitHub access token
  */
-async function refreshGitHubToken(token: any) {
+async function refreshGitHubToken(token: RefreshableToken) {
+  if (!token.refreshToken) {
+    throw new Error('No refresh token available')
+  }
+
   const response = await fetch('https://github.com/login/oauth/access_token', {
     method: 'POST',
     headers: {
@@ -520,7 +593,11 @@ async function refreshGitHubToken(token: any) {
 /**
  * Refresh Google access token
  */
-async function refreshGoogleToken(token: any) {
+async function refreshGoogleToken(token: RefreshableToken) {
+  if (!token.refreshToken) {
+    throw new Error('No refresh token available')
+  }
+
   const response = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: {
