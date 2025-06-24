@@ -5,6 +5,7 @@ Take control of your Contribux experience by customizing preferences, notificati
 ## Overview
 
 Your preferences control:
+
 - 🎯 **Opportunity Matching** - What types of contributions you see
 - 🔔 **Notifications** - When and how you're alerted
 - 🎨 **Interface** - How the platform looks and behaves
@@ -24,11 +25,11 @@ graph TD
     A[Language Selection] --> B[Proficient]
     A --> C[Learning]
     A --> D[Want to Learn]
-    
+
     B --> B1[Daily work languages<br/>High confidence]
     C --> C1[Actively studying<br/>Medium confidence]
     D --> D1[Future interests<br/>Low confidence]
-    
+
     B1 --> E[Recommendation Weight]
     C1 --> E
     D1 --> E
@@ -37,24 +38,28 @@ graph TD
 #### **Proficiency Levels**
 
 **Expert (8-10/10):**
+
 - Professional experience (2+ years)
 - Can mentor others
 - Complex architecture decisions
 - **Recommendation Weight:** 40%
 
 **Proficient (6-7/10):**
+
 - Comfortable for most projects
 - Independent problem solving
 - Some mentoring capability
 - **Recommendation Weight:** 35%
 
 **Intermediate (4-5/10):**
+
 - Can read and modify existing code
 - Requires guidance for complex tasks
 - Learning advanced patterns
 - **Recommendation Weight:** 20%
 
 **Beginner (1-3/10):**
+
 - Basic syntax knowledge
 - Needs significant support
 - Good first issues only
@@ -63,6 +68,7 @@ graph TD
 #### **Language Categories**
 
 **Primary Languages** (Select 2-4):
+
 ```text
 Languages you use regularly:
 ☑ JavaScript/TypeScript
@@ -74,6 +80,7 @@ Languages you use regularly:
 ```
 
 **Secondary Languages** (Select 2-6):
+
 ```text
 Languages you know but use less frequently:
 ☐ PHP
@@ -85,6 +92,7 @@ Languages you know but use less frequently:
 ```
 
 **Learning Goals** (Select 1-3):
+
 ```text
 Languages you want to master:
 ☑ Rust
@@ -104,7 +112,7 @@ Specify what kinds of work you enjoy:
 ```text
 Preference Settings:
 Bug Fixes: ████████░░ (80%) - Enjoy debugging
-New Features: ██████░░░░ (60%) - Moderate interest  
+New Features: ██████░░░░ (60%) - Moderate interest
 Refactoring: ████░░░░░░ (40%) - When necessary
 Performance: ██░░░░░░░░ (20%) - Not preferred
 Security: ░░░░░░░░░░ (0%) - Avoid for now
@@ -240,7 +248,7 @@ Timezone: Pacific Standard Time (PST)
 
 Preferred Delivery Times:
 Morning (6-12 PM): ☐
-Afternoon (12-6 PM): ☑ Primary window  
+Afternoon (12-6 PM): ☑ Primary window
 Evening (6-10 PM): ☑ Secondary window
 Late night (10 PM-6 AM): ☐ Avoid
 
@@ -321,7 +329,7 @@ Theme Selection:
 
 Custom Colors:
 Primary accent: #7C3AED (Purple)
-Success color: #10B981 (Green)  
+Success color: #10B981 (Green)
 Warning color: #F59E0B (Amber)
 Error color: #EF4444 (Red)
 ```
@@ -546,7 +554,7 @@ Quick Filter Presets:
 ├─ Type: Feature, Documentation
 └─ Time: ≤ 8 hours
 
-"Weekend Projects"  
+"Weekend Projects"
 ├─ Time estimate: ≤ 4 hours
 ├─ Complexity: ≤ 5/10
 ├─ Type: Bug fix, Documentation
@@ -676,7 +684,7 @@ Description: Focus on machine learning and data science projects
 
 Languages:
 ├─ Python (Expert)
-├─ R (Intermediate)  
+├─ R (Intermediate)
 ├─ Julia (Learning)
 └─ SQL (Proficient)
 
@@ -720,7 +728,7 @@ Time Investment:
 
 ```text
 ☐ Analyze contribution patterns and success rates
-☐ Reassess learning goals and priorities  
+☐ Reassess learning goals and priorities
 ☐ Update experience levels significantly
 ☐ Review and optimize notification rules
 ☐ Evaluate and adjust AI matching weights
@@ -770,8 +778,9 @@ Career Pivot (Backend → Frontend):
 **Problem:** Recommendations don't match expectations
 
 **Solutions:**
+
 1. **Review Profile Completeness** (aim for 90%+)
-2. **Broaden Language Selection** (include 4-6 languages)  
+2. **Broaden Language Selection** (include 4-6 languages)
 3. **Adjust Difficulty Range** (span 3-4 levels)
 4. **Provide More Feedback** (rate 10+ opportunities)
 5. **Update Learning Goals** (be specific)
@@ -781,6 +790,7 @@ Career Pivot (Backend → Frontend):
 **Problem:** Notification volume isn't right
 
 **Solutions:**
+
 1. **Adjust Frequency Limits** (daily max)
 2. **Refine Matching Thresholds** (95% vs 80%)
 3. **Use Digest Mode** (batch notifications)
@@ -792,6 +802,7 @@ Career Pivot (Backend → Frontend):
 **Problem:** Changes don't persist
 
 **Solutions:**
+
 1. **Clear Browser Cache** and retry
 2. **Check Internet Connection** during saves
 3. **Disable Browser Extensions** temporarily
@@ -801,6 +812,7 @@ Career Pivot (Backend → Frontend):
 ### Getting Help
 
 **Preference Support:**
+
 - 📚 [Feature Guides](./features/README.md)
 - 💬 [Discord Community](https://discord.gg/contribux)
 - 📧 [Support Email](mailto:support@contribux.ai)
@@ -811,6 +823,7 @@ Career Pivot (Backend → Frontend):
 **Remember:** Great preferences lead to great recommendations. Invest time in setting up your preferences thoughtfully, and update them regularly as you grow and learn.
 
 **Next Steps:**
+
 - [Dashboard Overview](./features/dashboard-overview.md)
 - [Smart Notifications](./features/smart-notifications.md)
 - [Contribution Tracking](./features/contribution-tracking.md)

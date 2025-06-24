@@ -21,6 +21,7 @@ Time-bound: "Complete one contribution per week for 8 weeks"
 #### **Goal Categories**
 
 **Skill Development Goals:**
+
 ```text
 Technical Skills:
 └─ "Master TypeScript through real-world contributions"
@@ -34,6 +35,7 @@ Soft Skills:
 ```
 
 **Career Advancement Goals:**
+
 ```text
 Portfolio Building:
 └─ "Contribute to 10 repositories this year"
@@ -57,17 +59,18 @@ graph TD
     C --> D[Monday-Friday: Execute]
     D --> E[Weekend: Reflect & Adjust]
     E --> A
-    
+
     D --> D1[Daily: 30-60min focused work]
     D --> D2[Check notifications 2x/day]
     D --> D3[Respond to reviews promptly]
 ```
 
 **Sample Weekly Schedule:**
+
 ```text
 Sunday (30 min):
 ├─ Review last week's progress
-├─ Plan upcoming contributions  
+├─ Plan upcoming contributions
 ├─ Update Contribux preferences
 └─ Set weekly contribution goal
 
@@ -100,7 +103,7 @@ Purpose: Deep focus work
 Best for: Complex bug fixes, new features
 Energy: High, minimal distractions
 
-🌇 Evening (6-8 PM):  
+🌇 Evening (6-8 PM):
 Purpose: Learning and exploration
 Best for: Documentation, code review
 Energy: Moderate, relaxed
@@ -120,6 +123,7 @@ Energy: Variable, flexible schedule
 Use the **RIPE Framework**:
 
 **Repository Health (R):**
+
 ```text
 ✅ Green Flags:
 ├─ Recent commits (within 30 days)
@@ -137,6 +141,7 @@ Use the **RIPE Framework**:
 ```
 
 **Issue Quality (I):**
+
 ```text
 ✅ High-Quality Issues:
 ├─ Clear problem description
@@ -154,6 +159,7 @@ Use the **RIPE Framework**:
 ```
 
 **Personal Fit (P):**
+
 ```text
 ✅ Good Fit Indicators:
 ├─ Matches your skill level (80-120% of comfort zone)
@@ -171,6 +177,7 @@ Use the **RIPE Framework**:
 ```
 
 **Expected Impact (E):**
+
 ```text
 ✅ High-Impact Contributions:
 ├─ Fixes user-affecting bugs
@@ -201,7 +208,7 @@ Allocate your contribution effort strategically:
 
 20% - Learning Stretch:
 ├─ New technologies or patterns
-├─ Moderate challenge level  
+├─ Moderate challenge level
 ├─ Significant learning potential
 ├─ Expand your skill set
 └─ Discover new interests
@@ -269,6 +276,7 @@ graph TD
 ```
 
 **Environment Setup:**
+
 ```bash
 # Standard setup for most projects
 git clone <repository-url>
@@ -291,6 +299,7 @@ git checkout -b feature/issue-123-fix-validation
 #### **Writing Quality Code**
 
 **Code Style Principles:**
+
 ```text
 Readability First:
 ├─ Use descriptive variable names
@@ -353,6 +362,7 @@ Before submitting a PR:
 #### **PR Title and Description**
 
 **Good PR Title Examples:**
+
 ```text
 ✅ "Fix validation error in user registration form"
 ✅ "Add TypeScript support for API client"
@@ -366,28 +376,35 @@ Before submitting a PR:
 ```
 
 **PR Description Template:**
+
 ```markdown
 ## Summary
+
 Brief description of what this PR does and why.
 
 ## Changes
+
 - Specific change 1
-- Specific change 2  
+- Specific change 2
 - Specific change 3
 
 ## Testing
+
 - [ ] Unit tests pass
 - [ ] Integration tests pass
 - [ ] Manual testing completed
 - [ ] Edge cases verified
 
 ## Breaking Changes
+
 None / List any breaking changes
 
 ## Screenshots
+
 Include before/after screenshots for UI changes
 
 ## Notes for Reviewers
+
 Any specific areas you'd like reviewers to focus on
 
 Fixes #123
@@ -396,6 +413,7 @@ Fixes #123
 #### **PR Best Practices**
 
 **Size and Scope:**
+
 ```text
 Ideal PR Characteristics:
 ├─ Single, focused change
@@ -413,6 +431,7 @@ When to Split PRs:
 ```
 
 **Commit Strategy:**
+
 ```bash
 # Good commit message format
 git commit -m "feat: add user authentication middleware
@@ -438,6 +457,7 @@ git commit -m "docs: update API documentation"
 #### **Effective Issue Communication**
 
 **Claiming an Issue:**
+
 ```text
 ❌ "I'll take this"
 ❌ "Can I work on this?"
@@ -448,6 +468,7 @@ git commit -m "docs: update API documentation"
 ```
 
 **Asking for Help:**
+
 ```text
 ❌ "This doesn't work, please help"
 ❌ "I'm stuck"
@@ -460,6 +481,7 @@ git commit -m "docs: update API documentation"
 #### **Code Review Participation**
 
 **Receiving Feedback:**
+
 ```text
 ✅ Positive Responses:
 ├─ "Thank you for the feedback! I'll address these points."
@@ -477,6 +499,7 @@ git commit -m "docs: update API documentation"
 ```
 
 **Providing Feedback:**
+
 ```text
 ✅ Constructive Feedback:
 ├─ "Consider using a Map here for O(1) lookup instead of Array.find()"
@@ -497,6 +520,7 @@ git commit -m "docs: update API documentation"
 #### **Maintainer Relationships**
 
 **Building Trust:**
+
 ```text
 Early Interactions:
 ├─ Follow project guidelines meticulously
@@ -514,6 +538,7 @@ Ongoing Relationships:
 ```
 
 **Becoming a Trusted Contributor:**
+
 ```mermaid
 graph TD
     A[First Contribution] --> B[Follow Guidelines]
@@ -521,7 +546,7 @@ graph TD
     C --> D[Consistent Engagement]
     D --> E[Help Others]
     E --> F[Trusted Contributor]
-    
+
     F --> G[Code Review Privileges]
     F --> H[Issue Triage Access]
     F --> I[Mentorship Opportunities]
@@ -531,6 +556,7 @@ graph TD
 #### **Community Contribution**
 
 **Beyond Code:**
+
 ```text
 Documentation:
 ├─ Improve README clarity
@@ -586,6 +612,7 @@ Advanced → Expert:
 #### **Learning Through Contribution**
 
 **Deliberate Learning:**
+
 ```text
 Choose Contributions for Learning:
 ├─ New technology patterns
@@ -607,6 +634,7 @@ Document Your Learning:
 #### **Portfolio Building**
 
 **Strategic Contributions:**
+
 ```text
 Showcase Projects:
 ├─ Contribute to well-known projects
@@ -626,6 +654,7 @@ Portfolio Presentation:
 #### **Professional Development**
 
 **Networking Opportunities:**
+
 ```text
 Conference Participation:
 ├─ Apply for speaking opportunities
@@ -873,6 +902,7 @@ Following these best practices will help you build a successful and sustainable 
 Your contributions to open source can transform both your career and the software that millions of people use every day. Embrace the journey, learn from every experience, and enjoy being part of the global developer community.
 
 **Related Resources:**
+
 - [Getting Started Guide](./getting-started.md)
 - [Feature Walkthroughs](./features/README.md)
 - [Troubleshooting Guide](./troubleshooting.md)

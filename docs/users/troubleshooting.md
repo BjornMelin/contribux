@@ -30,6 +30,7 @@ If everything seems broken:
 #### Problem: "Can't sign in with GitHub"
 
 **Symptoms:**
+
 - Redirect loop after GitHub authorization
 - "Authentication failed" error
 - Blank page after login attempt
@@ -37,6 +38,7 @@ If everything seems broken:
 **Solutions:**
 
 1. **Check GitHub Authorization**
+
    ```text
    1. Go to GitHub → Settings → Applications
    2. Find "Contribux" in Authorized OAuth Apps
@@ -44,6 +46,7 @@ If everything seems broken:
    ```
 
 2. **Browser Issues**
+
    - Disable ad blockers temporarily
    - Clear cookies for both github.com and contribux.ai
    - Try different browser or incognito mode
@@ -56,6 +59,7 @@ If everything seems broken:
 #### Problem: "Session expired" frequently
 
 **Symptoms:**
+
 - Need to log in repeatedly
 - Features stop working after short time
 - "Please log in again" messages
@@ -63,6 +67,7 @@ If everything seems broken:
 **Solutions:**
 
 1. **Browser Settings**
+
    - Allow cookies for contribux.ai
    - Don't use "Clear cookies on exit"
    - Add contribux.ai to allowed sites
@@ -77,6 +82,7 @@ If everything seems broken:
 #### Problem: Empty or broken dashboard
 
 **Symptoms:**
+
 - No opportunities showing
 - "No recommendations found"
 - Blank dashboard sections
@@ -85,6 +91,7 @@ If everything seems broken:
 **Solutions:**
 
 1. **Profile Completeness**
+
    ```mermaid
    graph TD
        A[Check Profile] --> B{Complete?}
@@ -98,12 +105,14 @@ If everything seems broken:
    ```
 
 2. **Preference Issues**
+
    - Go to Settings → Preferences
    - Ensure at least 3 programming languages selected
    - Set realistic difficulty levels (not just "Expert")
    - Include multiple contribution types
 
 3. **Cache and Data Issues**
+
    ```bash
    # Force refresh dashboard data
    1. Go to Settings → Advanced
@@ -115,6 +124,7 @@ If everything seems broken:
 #### Problem: Slow loading or timeouts
 
 **Symptoms:**
+
 - Pages take >10 seconds to load
 - Frequent timeout errors
 - Images don't load
@@ -123,12 +133,14 @@ If everything seems broken:
 **Solutions:**
 
 1. **Browser Optimization**
+
    - Close unused tabs (keep <20 tabs open)
    - Disable heavy browser extensions
    - Clear browser cache and cookies
    - Update to latest browser version
 
 2. **Connection Issues**
+
    - Test internet speed (minimum 5 Mbps recommended)
    - Switch to wired connection if using WiFi
    - Try different DNS servers (8.8.8.8, 1.1.1.1)
@@ -143,6 +155,7 @@ If everything seems broken:
 #### Problem: Poor quality recommendations
 
 **Symptoms:**
+
 - Opportunities don't match skills
 - Too easy or too difficult issues
 - Irrelevant project suggestions
@@ -151,6 +164,7 @@ If everything seems broken:
 **Solutions:**
 
 1. **Profile Tuning**
+
    ```text
    Update Your Profile:
    ✓ Add recently learned skills
@@ -161,12 +175,14 @@ If everything seems broken:
    ```
 
 2. **Feedback Loop**
+
    - Mark recommendations as "Helpful" or "Not Helpful"
    - Use the "Why this recommendation?" feature
    - Complete post-contribution surveys
    - Update interests based on new experiences
 
 3. **Advanced Filters**
+
    ```text
    Refine Recommendations:
    • Difficulty range: Beginner to Intermediate
@@ -178,6 +194,7 @@ If everything seems broken:
 #### Problem: No search results
 
 **Symptoms:**
+
 - Search returns "No opportunities found"
 - Filters produce empty results
 - Specific queries don't work
@@ -185,13 +202,14 @@ If everything seems broken:
 **Solutions:**
 
 1. **Search Query Optimization**
+
    ```text
    Good Search Terms:
    ✓ "React hooks" (specific technology)
    ✓ "documentation Python" (type + language)
    ✓ "beginner friendly" (difficulty level)
    ✓ "API testing" (domain expertise)
-   
+
    Avoid:
    ✗ Very specific library names
    ✗ Complex boolean queries
@@ -209,6 +227,7 @@ If everything seems broken:
 #### Problem: Not receiving notifications
 
 **Symptoms:**
+
 - No email notifications
 - Missing mobile alerts
 - Important opportunities not flagged
@@ -216,6 +235,7 @@ If everything seems broken:
 **Solutions:**
 
 1. **Email Settings**
+
    ```text
    Check Email Configuration:
    1. Settings → Notifications → Email
@@ -226,12 +246,14 @@ If everything seems broken:
    ```
 
 2. **Notification Preferences**
+
    - Ensure notification types are enabled
    - Check frequency settings (not set to "Never")
    - Verify timezone is correct
    - Test with "Send test notification"
 
 3. **Technical Issues**
+
    ```bash
    # Mobile app notifications
    1. Check device notification settings
@@ -243,6 +265,7 @@ If everything seems broken:
 #### Problem: Too many notifications
 
 **Symptoms:**
+
 - Notification fatigue
 - Irrelevant alerts
 - Multiple emails per day
@@ -250,6 +273,7 @@ If everything seems broken:
 **Solutions:**
 
 1. **Smart Filtering**
+
    ```text
    Optimize Notification Rules:
    • Set minimum match score: 80%+
@@ -269,6 +293,7 @@ If everything seems broken:
 #### Problem: Missing contribution data
 
 **Symptoms:**
+
 - Contributions not showing in analytics
 - Outdated statistics
 - Missing repository connections
@@ -276,16 +301,18 @@ If everything seems broken:
 **Solutions:**
 
 1. **GitHub Sync Issues**
+
    ```text
    Refresh GitHub Connection:
    1. Settings → Integrations → GitHub
-   2. Click "Reconnect Account"  
+   2. Click "Reconnect Account"
    3. Authorize all requested permissions
    4. Wait 5-10 minutes for sync
    5. Check "Last Sync" timestamp
    ```
 
 2. **Manual Tracking**
+
    - Add contributions manually via "Add Contribution"
    - Link existing PRs through repository URLs
    - Update contribution status when PRs are merged
@@ -298,6 +325,7 @@ If everything seems broken:
 #### Problem: Incorrect statistics
 
 **Symptoms:**
+
 - Wrong contribution counts
 - Inaccurate success rates
 - Missing skill improvements
@@ -305,6 +333,7 @@ If everything seems broken:
 **Solutions:**
 
 1. **Data Validation**
+
    ```text
    Check Data Sources:
    • GitHub API rate limits
@@ -325,11 +354,13 @@ If everything seems broken:
 #### Chrome/Chromium Issues
 
 **Common Problems:**
+
 - Extensions blocking features
 - Memory usage causing slowdowns
 - Cache corruption
 
 **Solutions:**
+
 ```bash
 # Reset Chrome for Contribux
 1. Type chrome://settings/content/all in address bar
@@ -341,11 +372,13 @@ If everything seems broken:
 #### Firefox Issues
 
 **Common Problems:**
+
 - Strict privacy settings blocking features
 - Add-on conflicts
 - Container tabs issues
 
 **Solutions:**
+
 ```text
 Firefox Configuration:
 1. Disable Enhanced Tracking Protection for contribux.ai
@@ -357,11 +390,13 @@ Firefox Configuration:
 #### Safari Issues
 
 **Common Problems:**
+
 - Intelligent Tracking Prevention blocking features
 - Cross-origin restrictions
 - Cookie limitations
 
 **Solutions:**
+
 ```text
 Safari Settings:
 1. Safari → Preferences → Privacy
@@ -375,11 +410,13 @@ Safari Settings:
 #### iOS Issues
 
 **Common Problems:**
+
 - PWA installation fails
 - Touch interactions don't work
 - Notifications not appearing
 
 **Solutions:**
+
 ```text
 iOS Troubleshooting:
 1. Update to iOS 14+ for full PWA support
@@ -391,11 +428,13 @@ iOS Troubleshooting:
 #### Android Issues
 
 **Common Problems:**
+
 - App crashes on certain devices
 - Performance issues
 - Installation problems
 
 **Solutions:**
+
 ```text
 Android Optimization:
 1. Clear Chrome app cache
@@ -421,7 +460,7 @@ For technical users who want to diagnose issues:
 
 // Common errors and meanings:
 "Failed to fetch" → Network connectivity issue
-"401 Unauthorized" → Authentication problem  
+"401 Unauthorized" → Authentication problem
 "CORS error" → Browser security restriction
 "TypeError" → JavaScript compatibility issue
 ```
@@ -452,11 +491,13 @@ Check Network Tab:
 #### Corporate Networks
 
 **Common Restrictions:**
+
 - OAuth redirects blocked
 - API endpoints filtered
 - WebSocket connections disabled
 
 **Solutions:**
+
 ```text
 Corporate Network Setup:
 1. Whitelist *.contribux.ai domains
@@ -468,11 +509,13 @@ Corporate Network Setup:
 #### VPN Issues
 
 **Problems:**
+
 - Geographic restrictions
 - IP address changes
 - Connection instability
 
 **Solutions:**
+
 - Try connecting from different VPN locations
 - Disable VPN temporarily to test
 - Use VPN with stable IP addresses
@@ -485,11 +528,13 @@ Corporate Network Setup:
 #### Self-Service Options
 
 1. **📚 Documentation**
+
    - [Feature Guides](./features/README.md)
    - [User Guide](./README.md)
    - [API Documentation](../api/README.md)
 
 2. **🤖 AI Assistant**
+
    - Chat widget in bottom-right corner
    - Provides instant answers to common questions
    - Can escalate to human support
@@ -504,6 +549,7 @@ Corporate Network Setup:
 **📧 Email Support:** [support@contribux.ai](mailto:support@contribux.ai)
 
 **Include in Support Requests:**
+
 ```text
 Subject: [ISSUE TYPE] Brief description
 
@@ -531,8 +577,9 @@ Additional Context:
 ```
 
 **Response Times:**
+
 - 🟢 Critical issues: 2-4 hours
-- 🟡 General support: 24-48 hours  
+- 🟡 General support: 24-48 hours
 - 🔵 Feature requests: 1-2 weeks
 
 #### Bug Reports
@@ -540,11 +587,13 @@ Additional Context:
 **🐛 Report Bugs:** [github.com/contribux/contribux/issues](https://github.com/contribux/contribux/issues)
 
 **Bug Report Template:**
+
 ```markdown
 **Bug Description**
 Clear description of the issue
 
 **Steps to Reproduce**
+
 1. Go to...
 2. Click on...
 3. See error
@@ -556,6 +605,7 @@ What should have happened
 If applicable, add screenshots
 
 **Environment**
+
 - Browser: [e.g. Chrome, Firefox]
 - Version: [e.g. 95.0]
 - OS: [e.g. Windows, macOS, Linux]
@@ -566,6 +616,7 @@ If applicable, add screenshots
 ### 🛡️ Account Security
 
 **Best Practices:**
+
 - Use strong, unique passwords
 - Enable 2FA on GitHub account
 - Review connected applications regularly
@@ -574,12 +625,14 @@ If applicable, add screenshots
 ### 🔄 Regular Maintenance
 
 **Weekly Tasks:**
+
 - Clear browser cache if experiencing slowdowns
 - Update profile with new skills or interests
 - Review and adjust notification preferences
 - Check for browser updates
 
 **Monthly Tasks:**
+
 - Review contribution analytics for accuracy
 - Update learning goals and objectives
 - Clean up saved opportunities list
@@ -588,12 +641,14 @@ If applicable, add screenshots
 ### 📱 Performance Optimization
 
 **Device Optimization:**
+
 - Keep browsers updated
 - Maintain adequate free storage (>1GB)
 - Close unnecessary browser tabs
 - Restart browser weekly
 
 **Network Optimization:**
+
 - Use stable internet connection for important activities
 - Avoid peak usage times if experiencing slowdowns
 - Consider upgrading internet plan if consistently slow
@@ -612,6 +667,7 @@ If this guide doesn't solve your problem:
 We're committed to providing a smooth experience for all users. Don't hesitate to reach out if you need assistance!
 
 **Related Guides:**
+
 - [Getting Started](./getting-started.md) - Basic setup help
 - [Profile Setup](./profile-setup.md) - Optimization tips
 - [Feature Guides](./features/README.md) - Detailed feature help

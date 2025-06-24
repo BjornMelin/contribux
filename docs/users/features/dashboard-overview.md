@@ -10,13 +10,13 @@ graph TB
         A[Header Navigation] --> B[Quick Stats Bar]
         B --> C[Main Content Area]
         C --> D[Sidebar Widgets]
-        
+
         subgraph "Main Content"
             E[Opportunity Feed]
             F[Activity Timeline]
             G[Analytics Cards]
         end
-        
+
         subgraph "Sidebar"
             H[Quick Actions]
             I[Recent Activity]
@@ -28,6 +28,7 @@ graph TB
 ## Header Navigation
 
 ### Primary Navigation
+
 - **🏠 Dashboard** - Your main feed (current page)
 - **🔍 Discover** - Browse and search opportunities
 - **📊 Analytics** - Detailed contribution statistics
@@ -35,16 +36,19 @@ graph TB
 - **🎯 Goals** - Learning objectives and milestones
 
 ### Quick Actions
+
 - **🔔 Notifications** (badge shows unread count)
 - **👤 Profile Menu** - Account options and sign out
 - **❓ Help** - Documentation and support
 
 ### Search Bar
+
 ```text
 🔍 Search opportunities, repositories, or skills...
 ```
 
 **Search Examples:**
+
 - `React hooks` - Find React-related opportunities
 - `good first issue` - Beginner-friendly tasks
 - `documentation` - Writing and editing opportunities
@@ -61,6 +65,7 @@ Get an instant overview of your contribution activity:
 ```
 
 ### Key Metrics
+
 - **PRs This Week** - Recent contribution activity
 - **Success Rate** - Percentage of merged contributions
 - **Impact Points** - Weighted score based on contribution significance
@@ -97,6 +102,7 @@ Your personalized feed shows AI-matched opportunities:
 #### Feed Customization
 
 **Filter Options:**
+
 ```text
 📊 Difficulty: [All] [Beginner] [Intermediate] [Advanced]
 💻 Languages: [All] [JavaScript] [Python] [Go] [Rust]
@@ -105,6 +111,7 @@ Your personalized feed shows AI-matched opportunities:
 ```
 
 **Sort Options:**
+
 - **Smart Ranking** (default) - AI-optimized recommendations
 - **Best Match** - Highest compatibility scores
 - **Impact** - Highest potential impact
@@ -121,7 +128,7 @@ Track your recent contributions and milestones:
 ├─ 💬 Commented on issue in react-utils/hooks
 └─ 👀 Viewed 3 new opportunities
 
-🕐 Yesterday  
+🕐 Yesterday
 ├─ 🚀 Opened PR #5678 in typescript-lib/core
 ├─ ⭐ Starred 2 interesting repositories
 └─ 📊 Completed weekly learning goal
@@ -137,6 +144,7 @@ Track your recent contributions and milestones:
 Quick insights into your contribution patterns:
 
 #### **Contribution Velocity**
+
 ```text
 ┌─────────────────────┐
 │ Weekly Contributions │
@@ -150,6 +158,7 @@ Quick insights into your contribution patterns:
 ```
 
 #### **Skill Development**
+
 ```text
 ┌─────────────────────┐
 │ Skills This Month   │
@@ -163,6 +172,7 @@ Quick insights into your contribution patterns:
 ```
 
 #### **Success Metrics**
+
 ```text
 ┌─────────────────────┐
 │ Contribution Health │
@@ -177,7 +187,7 @@ Quick insights into your contribution patterns:
 
 ## Sidebar Widgets
 
-### Quick Actions
+### Quick Actions - Sidebar
 
 Fast access to common tasks:
 
@@ -243,6 +253,7 @@ Track your skill development:
 ### Layout Options
 
 **Compact View:**
+
 ```text
 Opportunity cards show essential info only
 ├─ Title and repository
@@ -251,6 +262,7 @@ Opportunity cards show essential info only
 ```
 
 **Detailed View:**
+
 ```text
 Opportunity cards include full information
 ├─ Complete description
@@ -261,6 +273,7 @@ Opportunity cards include full information
 ```
 
 **List View:**
+
 ```text
 Table format for power users
 ├─ Sortable columns
@@ -276,7 +289,7 @@ Customize your sidebar widgets:
 ```text
 Available Widgets:
 ☑ Quick Actions
-☑ Recent Activity  
+☑ Recent Activity
 ☑ Learning Progress
 ☑ Trending Repos
 ☐ Community Feed
@@ -290,16 +303,19 @@ Available Widgets:
 ### Theme Options
 
 **Light Theme** (default)
+
 - Clean, bright interface
 - Optimal for daytime use
 - High contrast for readability
 
-**Dark Theme**
+#### **Dark Theme**
+
 - Reduced eye strain
 - Perfect for evening coding
 - Sleek, modern appearance
 
-**Auto Theme**
+#### **Auto Theme**
+
 - Follows system preference
 - Switches automatically
 - Consistent with OS settings
@@ -311,12 +327,14 @@ Available Widgets:
 The dashboard adapts seamlessly to mobile devices:
 
 **Mobile-First Features:**
+
 - Swipe navigation between sections
 - Touch-optimized opportunity cards
 - Simplified filtering interface
 - Quick action buttons
 
 **Mobile-Specific Views:**
+
 - **📱 Cards** - Swipeable opportunity cards
 - **📋 List** - Condensed list view
 - **📊 Stats** - Key metrics overview
@@ -333,6 +351,7 @@ The dashboard adapts seamlessly to mobile devices:
 ## Dashboard Keyboard Shortcuts
 
 ### Navigation
+
 - `G + H` - Go to Dashboard (Home)
 - `G + D` - Go to Discover
 - `G + A` - Go to Analytics
@@ -340,12 +359,14 @@ The dashboard adapts seamlessly to mobile devices:
 - `G + P` - Go to Profile
 
 ### Actions
+
 - `R` - Refresh feed
 - `F` - Focus search bar
 - `N` - View notifications
 - `?` - Show all shortcuts
 
 ### Opportunity Actions
+
 - `J` / `K` - Navigate up/down through opportunities
 - `Enter` - Open selected opportunity
 - `I` - Mark as "Interested"
@@ -359,12 +380,14 @@ The dashboard adapts seamlessly to mobile devices:
 The dashboard learns from your behavior:
 
 **Interaction Tracking:**
+
 - Opportunities you view vs. skip
 - Projects you star or follow
 - Skills you're actively developing
 - Time of day you're most active
 
 **Adaptive Recommendations:**
+
 - More accurate matching over time
 - Personalized difficulty progression
 - Seasonal and trending project suggestions
@@ -375,7 +398,7 @@ The dashboard learns from your behavior:
 Green indicators show optimal conditions:
 
 - **🟢 Active Repository** - Recent commits and responsiveness
-- **🟢 Skill Match** - Strong alignment with your abilities  
+- **🟢 Skill Match** - Strong alignment with your abilities
 - **🟢 Learning Opportunity** - Develops your target skills
 - **🟢 Time Fit** - Matches your availability
 - **🟢 Community Welcome** - Beginner-friendly maintainers
@@ -385,12 +408,14 @@ Green indicators show optimal conditions:
 ### Loading Optimization
 
 **Fast Initial Load:**
+
 - Critical content renders first
 - Progressive enhancement
 - Cached user preferences
 - Optimized API calls
 
 **Smart Pagination:**
+
 - Infinite scroll for opportunities
 - Lazy loading of images and details
 - Background prefetching
@@ -399,6 +424,7 @@ Green indicators show optimal conditions:
 ### Real-time Updates
 
 **Live Data Sync:**
+
 - New opportunities appear automatically
 - Contribution status updates instantly
 - Real-time notification badges
@@ -409,12 +435,14 @@ Green indicators show optimal conditions:
 ### Dashboard Issues
 
 **Common Problems:**
+
 - **Empty Feed** - Check your [profile preferences](../profile-setup.md)
 - **Slow Loading** - Try refreshing or clearing browser cache
 - **Missing Features** - Ensure JavaScript is enabled
 - **Mobile Issues** - Update to latest app version
 
 **Support Options:**
+
 - **📚 Documentation** - Complete feature guides
 - **💬 Community** - Ask in our Discord
 - **📧 Support** - Contact [support@contribux.ai](mailto:support@contribux.ai)
@@ -423,6 +451,7 @@ Green indicators show optimal conditions:
 ### Dashboard Tips
 
 **Maximize Effectiveness:**
+
 1. **Complete Your Profile** - Better matching requires good data
 2. **Set Learning Goals** - Guide the AI recommendations
 3. **Provide Feedback** - Like/dislike opportunities to improve suggestions
@@ -434,6 +463,7 @@ Green indicators show optimal conditions:
 Your dashboard is designed to evolve with you. The more you use Contribux, the smarter your recommendations become. Start with the basics and gradually explore advanced features as you grow your open source presence.
 
 **Next Steps:**
+
 - [Understanding Opportunity Cards](./opportunity-cards.md)
 - [Smart Notifications Setup](./smart-notifications.md)
 - [Contribution Tracking](./contribution-tracking.md)

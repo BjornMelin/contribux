@@ -11,19 +11,19 @@ Learn from real Contribux users who have transformed their careers, built meanin
 ```mermaid
 timeline
     title Sarah's 18-Month Journey
-    
+
     section Starting Out
         Month 1    : Joined Contribux after bootcamp
                    : First documentation contribution
         Month 2    : Fixed first bug in React component library
         Month 3    : Contributing to 3 different projects
-        
-    section Building Momentum  
+
+    section Building Momentum
         Month 6    : Became regular contributor to 2 major projects
                    : Learned TypeScript through contributions
         Month 9    : Led implementation of accessibility features
                    : Started mentoring new contributors
-        
+
     section Career Breakthrough
         Month 12   : Invited to speak at React conference
                    : Offered senior role at current company
@@ -36,28 +36,32 @@ Sarah graduated from a coding bootcamp with basic JavaScript and React knowledge
 
 **How Contribux Helped:**
 
-*Smart Matching:* Contribux identified beginner-friendly React issues that matched her skill level perfectly. Instead of being overwhelmed by complex projects, she started with documentation improvements and simple bug fixes.
+_Smart Matching:_ Contribux identified beginner-friendly React issues that matched her skill level perfectly. Instead of being overwhelmed by complex projects, she started with documentation improvements and simple bug fixes.
 
-*Skill Progression:* The platform's AI gradually introduced more challenging opportunities as her skills improved, helping her learn TypeScript, testing frameworks, and accessibility practices through real-world applications.
+_Skill Progression:_ The platform's AI gradually introduced more challenging opportunities as her skills improved, helping her learn TypeScript, testing frameworks, and accessibility practices through real-world applications.
 
-*Community Connections:* Through consistent contributions, Sarah built relationships with maintainers at prominent React libraries, who eventually recommended her for speaking opportunities and job interviews.
+_Community Connections:_ Through consistent contributions, Sarah built relationships with maintainers at prominent React libraries, who eventually recommended her for speaking opportunities and job interviews.
 
 **Key Contributions:**
+
 - **20+ merged PRs** across 8 React-related projects
 - **Accessibility improvements** that benefited thousands of users
 - **Documentation overhauls** for 3 major component libraries
 - **TypeScript migration** for a popular UI toolkit
 
 **Career Impact:**
+
 - Landed first developer job within 4 months
 - Promoted to senior role in 18 months (typically takes 3-5 years)
 - Speaking at major conferences
 - Earning $95k+ salary (40% above bootcamp average)
 
 **Sarah's Advice:**
+
 > "Don't try to contribute to everything. Contribux helped me focus on React ecosystem projects where I could build deep expertise. The AI recommendations were spot-on for my skill level, and the gradual difficulty increase kept me challenged but not overwhelmed. Most importantly, the maintainer relationships I built through quality contributions opened doors I never expected."
 
 **Metrics:**
+
 ```text
 Time Investment: 5-8 hours/week
 Success Rate: 87% (PRs merged/submitted)
@@ -76,6 +80,7 @@ Career ROI: 40% salary increase in 18 months
 Marcus worked as a data scientist for 5 years but felt burnt out on machine learning projects. He was interested in infrastructure and automation but had minimal experience with DevOps tools and practices.
 
 **The Challenge:**
+
 - No professional DevOps experience
 - Limited knowledge of containerization, CI/CD
 - Concerned about starting over in a new field
@@ -83,7 +88,8 @@ Marcus worked as a data scientist for 5 years but felt burnt out on machine lear
 
 **Contribux Strategy:**
 
-*Phase 1 (Months 1-3): Foundation Building*
+> _Phase 1 (Months 1-3): Foundation Building_
+
 ```text
 Focus Areas: Docker, Kubernetes, CI/CD
 Contribution Types: Documentation, small automation scripts
@@ -91,7 +97,8 @@ Projects: 5 infrastructure-related open source tools
 Learning Goals: Container orchestration, deployment pipelines
 ```
 
-*Phase 2 (Months 4-8): Skill Expansion*
+> _Phase 2 (Months 4-8): Skill Expansion_
+
 ```text
 Focus Areas: Monitoring, security, infrastructure as code
 Contribution Types: Feature additions, performance improvements
@@ -99,7 +106,8 @@ Projects: Prometheus, Grafana, Terraform modules
 Learning Goals: Observability, security best practices
 ```
 
-*Phase 3 (Months 9-12): Leadership*
+> _Phase 3 (Months 9-12): Leadership_
+
 ```text
 Focus Areas: Cloud-native technologies, platform engineering
 Contribution Types: Architecture improvements, new features
@@ -108,12 +116,14 @@ Learning Goals: Distributed systems, platform design
 ```
 
 **Key Achievements:**
+
 - **35+ contributions** to major DevOps tools
 - **Lead maintainer** of a Terraform provider (500+ stars)
 - **Conference speaker** at KubeCon and DevOps Days
 - **Technical blog** with 10k+ monthly readers
 
 **Career Transformation:**
+
 ```text
 Timeline: 12 months to land DevOps role
 Salary Change: +25% from data science role
@@ -123,9 +133,11 @@ Impact: Reduced deployment time by 70% company-wide
 ```
 
 **Marcus's Strategy Tips:**
+
 > "I used Contribux to map out a learning path through contributions. Instead of just reading about DevOps, I was solving real problems for real users. The platform helped me find projects that needed exactly the level of help I could provide at each stage. By month 6, maintainers were asking me to take on bigger challenges because they trusted my work quality."
 
 **Unique Approach:**
+
 - **Data Science Bridge:** Applied statistical analysis to infrastructure monitoring
 - **Documentation Focus:** Rewrote complex setup guides using data science communication skills
 - **Community Building:** Organized virtual DevOps study groups
@@ -140,6 +152,7 @@ Impact: Reduced deployment time by 70% company-wide
 Priya was an international student studying computer science in the US. She needed to build a strong portfolio to compete for top tech jobs and obtain visa sponsorship.
 
 **Challenges:**
+
 - Limited internship opportunities due to visa restrictions
 - Needed to demonstrate exceptional skills for sponsorship
 - Competition with domestic students who had more internship experience
@@ -147,7 +160,8 @@ Priya was an international student studying computer science in the US. She need
 
 **Strategic Approach:**
 
-*Reputation Building Strategy:*
+_Reputation Building Strategy:_
+
 ```text
 Goal: Become recognized contributor in JavaScript ecosystem
 Focus: React, Node.js, and developer tooling
@@ -155,7 +169,8 @@ Time Investment: 10-12 hours/week (optimized around classes)
 Success Metrics: 50+ contributions, 3+ maintainer recommendations
 ```
 
-*Contribux Optimization:*
+_Contribux Optimization:_
+
 ```text
 Profile Setup:
 ├─ Skills: JavaScript, React, Python, algorithms
@@ -174,7 +189,8 @@ Smart Filtering:
 
 **Breakthrough Moments:**
 
-*Month 4:* Discovered performance issue in popular React library
+> _Month 4:_ Discovered performance issue in popular React library
+
 ```text
 Impact: Fixed memory leak affecting 10M+ downloads/month
 Recognition: Featured in project release notes
@@ -182,7 +198,8 @@ Network: Connected with React core team member
 Learning: Deep performance debugging, memory profiling
 ```
 
-*Month 7:* Led internationalization effort for developer tool
+> _Month 7:_ Led internationalization effort for developer tool
+
 ```text
 Impact: Added support for 15+ languages
 Recognition: Speaking opportunity at local meetup
@@ -190,7 +207,8 @@ Network: Connected with Google i18n team
 Learning: Globalization, accessibility, project management
 ```
 
-*Month 10:* Created widely-adopted developer utility
+> _Month 10:_ Created widely-adopted developer utility
+
 ```text
 Impact: Open sourced tool gained 2k+ GitHub stars
 Recognition: Featured in JavaScript Weekly newsletter
@@ -199,15 +217,18 @@ Learning: Open source project maintenance, community building
 ```
 
 **Results:**
+
 - **60+ merged contributions** across 15 projects
 - **Job offers** from Google, Meta, and 3 startups
 - **H1-B visa** approved on first attempt
 - **Starting salary** $165k (top 10% for new grads)
 
 **Priya's Success Framework:**
+
 > "Contribux was crucial for finding opportunities that matched my available time slots. As an international student, I couldn't do traditional internships, but open source contributions proved my abilities even better. The platform helped me focus on high-impact projects where my contributions would be noticed by potential employers."
 
 **Key Strategies:**
+
 1. **Time Zone Optimization:** Focused on projects with maintainers in compatible time zones
 2. **Documentation Excellence:** Leveraged strong English skills for technical writing
 3. **Algorithm Expertise:** Applied CS knowledge to performance and optimization issues
@@ -224,6 +245,7 @@ Learning: Open source project maintenance, community building
 James had 12 years of enterprise development experience but felt stagnant in his role. He was considering leaving tech entirely due to burnout and lack of growth opportunities.
 
 **The Problem:**
+
 - Stuck in legacy technology stack at work
 - No time for learning during business hours
 - Feeling disconnected from modern development practices
@@ -231,7 +253,8 @@ James had 12 years of enterprise development experience but felt stagnant in his
 
 **Renewal Through Open Source:**
 
-*Rediscovering Joy in Coding:*
+_Rediscovering Joy in Coding:_
+
 ```text
 Week 1-4: Started with small documentation fixes
 ├─ Low pressure, immediate impact
@@ -253,12 +276,14 @@ Month 5-8: Became trusted contributor
 ```
 
 **Career Reinvention:**
+
 - **Skills Update:** Learned React, TypeScript, GraphQL, Docker
 - **Network Expansion:** Connected with modern tech leaders
 - **Confidence Boost:** Proved ability to learn and adapt
 - **Passion Recovery:** Remembered love for problem-solving
 
 **Professional Impact:**
+
 ```text
 At Work:
 ├─ Introduced modern practices to legacy systems
@@ -276,9 +301,11 @@ In Community:
 ```
 
 **James's Perspective:**
+
 > "I was about to quit programming entirely when I started using Contribux. The platform helped me find projects that rekindled my passion for coding. Working on modern, well-architected open source projects reminded me why I became a developer in the first place. The best part was seeing my contributions actually being used by thousands of developers worldwide."
 
 **Burnout Recovery Framework:**
+
 1. **Start Small:** Documentation and minor fixes to build momentum
 2. **Choose Passion Projects:** Work on tools you personally want to use
 3. **Set Boundaries:** Limit time investment to prevent additional burnout
@@ -345,7 +372,7 @@ graph TD
     B --> C[Month 6-8: Network Building]
     C --> D[Month 9-12: Recognition]
     D --> E[Month 12+: Career Opportunities]
-    
+
     A --> A1[Documentation fixes, small bugs]
     B --> B1[Feature implementations, learning new tech]
     C --> C1[Regular contributor status, mentoring]
@@ -377,7 +404,8 @@ Top Performer Metrics (12-month mark):
 
 ### New Graduates
 
-**Strategy: Portfolio Building**
+#### **Strategy: Portfolio Building**
+
 ```text
 Focus Areas:
 ├─ Demonstrate code quality and best practices
@@ -403,7 +431,8 @@ Timeline Expectations:
 
 ### Mid-Career Transitions
 
-**Strategy: Skill Pivoting**
+#### **Strategy: Skill Pivoting**
+
 ```text
 Approach:
 ├─ Leverage existing experience in new domain
@@ -429,7 +458,8 @@ Success Factors:
 
 ### Senior Professionals
 
-**Strategy: Leadership and Influence**
+#### **Strategy: Leadership and Influence**
+
 ```text
 Objectives:
 ├─ Establish thought leadership in field
