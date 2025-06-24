@@ -23,7 +23,7 @@ const ALLOWED_REDIRECT_URIS = env.ALLOWED_REDIRECT_URIS?.split(',') || [
 
 // Validation schemas
 const GenerateOAuthUrlSchema = z.object({
-  provider: z.enum(['github']),
+  provider: z.enum(['github', 'google', 'linkedin', 'microsoft']),
   redirectUri: z.string().url(),
   scopes: z.array(z.string()),
   userId: z.string().uuid().optional(),
@@ -318,7 +318,7 @@ export async function exchangeCodeForTokens(
 // Refresh OAuth tokens
 export async function refreshOAuthTokens(params: {
   userId: string
-  provider: 'github'
+  provider: string
 }): Promise<OAuthTokens> {
   // Get OAuth account with refresh token
   const accountResult = await sql`
@@ -398,7 +398,7 @@ export async function refreshOAuthTokens(params: {
 // Unlink OAuth account
 export async function unlinkOAuthAccount(params: {
   userId: string
-  provider: 'github'
+  provider: string
 }): Promise<void> {
   // Check if account exists
   const accountResult = await sql`
@@ -412,13 +412,7 @@ export async function unlinkOAuthAccount(params: {
     throw new Error('OAuth account not found')
   }
 
-  // Check if user has other auth methods
-  const webauthnCountResult = await sql`
-    SELECT COUNT(*) as count
-    FROM webauthn_credentials
-    WHERE user_id = ${params.userId}
-  `
-
+  // Check if user has other OAuth accounts
   const otherOAuthCountResult = await sql`
     SELECT COUNT(*) as count
     FROM oauth_accounts
@@ -426,10 +420,9 @@ export async function unlinkOAuthAccount(params: {
     AND provider != ${params.provider}
   `
 
-  const webauthnCount = Number(webauthnCountResult[0]?.count || 0)
   const otherOAuthCount = Number(otherOAuthCountResult[0]?.count || 0)
 
-  if (webauthnCount === 0 && otherOAuthCount === 0) {
+  if (otherOAuthCount === 0) {
     throw new Error('Cannot unlink last authentication method')
   }
 

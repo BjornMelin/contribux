@@ -1,7 +1,24 @@
+import type { DefaultSession } from 'next-auth'
+
+// Extend NextAuth types
+declare module 'next-auth' {
+  interface Session extends DefaultSession {
+    user: {
+      id: string
+      email: string
+      githubUsername: string | null
+      connectedProviders: string[]
+      primaryProvider: string
+    } & DefaultSession['user']
+  }
+}
+
 // User types
 export interface User {
   id: string
   email: string
+  display_name: string
+  username: string
   github_username: string | null
   email_verified: boolean
   two_factor_enabled: boolean
@@ -11,21 +28,6 @@ export interface User {
   last_login_at: Date | null
   created_at: Date
   updated_at: Date
-}
-
-// WebAuthn credential types
-export interface WebAuthnCredential {
-  id: string
-  user_id: string
-  credential_id: string
-  public_key: string
-  counter: number
-  credential_device_type: string
-  credential_backed_up: boolean
-  transports: string[] | null
-  created_at: Date
-  last_used_at: Date | null
-  name: string | null
 }
 
 // OAuth account types
@@ -39,6 +41,8 @@ export interface OAuthAccount {
   expires_at: Date | null
   token_type: string | null
   scope: string | null
+  is_primary: boolean
+  linked_at: Date
   created_at: Date
   updated_at: Date
 }
@@ -48,7 +52,7 @@ export interface UserSession {
   id: string
   user_id: string
   expires_at: Date
-  auth_method: 'webauthn' | 'oauth'
+  auth_method: 'oauth'
   ip_address: string | null
   user_agent: string | null
   created_at: Date
@@ -73,10 +77,6 @@ export type AuthEventType =
   | 'login_success'
   | 'login_failure'
   | 'logout'
-  | 'password_reset_request'
-  | 'password_reset_success'
-  | 'webauthn_registration'
-  | 'webauthn_authentication'
   | 'oauth_link'
   | 'oauth_unlink'
   | 'session_created'
@@ -161,23 +161,12 @@ export interface UserConsent {
   user_agent: string | null
 }
 
-// Auth challenge types
-export interface AuthChallenge {
-  id: string
-  challenge: string
-  user_id: string | null
-  type: 'registration' | 'authentication'
-  created_at: Date
-  expires_at: Date
-  used: boolean
-}
-
 // JWT token payloads
 export interface AccessTokenPayload {
   sub: string // user id
   email: string
   github_username?: string
-  auth_method: 'webauthn' | 'oauth'
+  auth_method: 'oauth'
   session_id: string
   iat: number
   exp: number
@@ -199,7 +188,6 @@ export interface RefreshTokenPayload {
 export interface UserDataExport {
   user: User
   oauth_accounts: OAuthAccount[]
-  webauthn_credentials: Omit<WebAuthnCredential, 'public_key'>[]
   sessions: UserSession[]
   consents: UserConsent[]
   audit_logs: SecurityAuditLog[]
@@ -238,6 +226,28 @@ export interface OAuthState {
   codeVerifier: string
   redirectUri: string
   createdAt: number
+}
+
+// Account linking request types
+export interface AccountLinkingRequest {
+  id: string
+  user_id: string
+  provider: string
+  provider_account_id: string
+  email: string
+  verification_token: string
+  expires_at: Date
+  verified_at: Date | null
+  created_at: Date
+}
+
+// Multi-provider user data
+export interface MultiProviderUserData {
+  email: string
+  displayName: string
+  username: string
+  githubUsername: string | null
+  emailVerified: boolean
 }
 
 // OAuth callback parameters

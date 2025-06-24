@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import type React from 'react'
 import type { OpportunityCardProps } from '@/types/search'
 
 export function OpportunityCard({ opportunity, onSelect, className = '' }: OpportunityCardProps) {

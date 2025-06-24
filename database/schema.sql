@@ -16,12 +16,14 @@ CREATE TYPE contribution_type AS ENUM ('bug_fix', 'feature', 'documentation', 't
 CREATE TYPE notification_type AS ENUM ('email', 'webhook', 'in_app', 'slack', 'discord');
 CREATE TYPE outcome_status AS ENUM ('pending', 'accepted', 'rejected', 'merged', 'abandoned');
 
--- Users table with GitHub integration and AI profile embeddings
+-- Users table with multi-provider OAuth integration and AI profile embeddings
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    github_id INTEGER UNIQUE NOT NULL,
-    github_username VARCHAR(255) UNIQUE NOT NULL,
+    github_id INTEGER UNIQUE,
+    github_username VARCHAR(255) UNIQUE,
     github_name VARCHAR(255),
+    display_name VARCHAR(255) NOT NULL,
+    username VARCHAR(255) UNIQUE NOT NULL,
     email VARCHAR(255) UNIQUE,
     avatar_url TEXT,
     bio TEXT,
@@ -53,7 +55,7 @@ CREATE TABLE users (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
     -- Constraints
-    CONSTRAINT valid_github_id CHECK (github_id > 0),
+    CONSTRAINT valid_github_id CHECK (github_id IS NULL OR github_id > 0),
     CONSTRAINT valid_availability CHECK (availability_hours >= 0 AND availability_hours <= 168),
     CONSTRAINT valid_streak CHECK (streak_days >= 0)
 );
@@ -351,11 +353,14 @@ CREATE TABLE user_repository_interactions (
 -- User indexes
 CREATE INDEX idx_users_github_id ON users(github_id);
 CREATE INDEX idx_users_github_username ON users(github_username);
+CREATE INDEX idx_users_display_name ON users(display_name);
+CREATE INDEX idx_users_username ON users(username);
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_role ON users(role);
 CREATE INDEX idx_users_skill_level ON users(skill_level);
 CREATE INDEX idx_users_last_active ON users(last_active);
 CREATE INDEX idx_users_preferred_languages ON users USING GIN(preferred_languages);
+CREATE INDEX idx_users_display_name_trgm ON users USING GIN(display_name gin_trgm_ops);
 
 -- HNSW index for user profile embeddings (vector similarity search)
 CREATE INDEX idx_users_profile_embedding_hnsw ON users 

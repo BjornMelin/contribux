@@ -49,9 +49,15 @@ export const EDGE_SECURITY_CONFIG = {
 
 // Edge storage using global variables (persists for edge function lifetime)
 const edgeCache = new Map<string, any>()
-const rateLimitCache = new Map<string, { count: number; reset: number; burst: number; lastRequest: number }>()
+const rateLimitCache = new Map<
+  string,
+  { count: number; reset: number; burst: number; lastRequest: number }
+>()
 const threatIntelCache = new Map<string, { risk: number; expires: number; reason: string }>()
-const botDetectionCache = new Map<string, { fingerprints: Set<string>; firstSeen: number; suspiciousCount: number }>()
+const botDetectionCache = new Map<
+  string,
+  { fingerprints: Set<string>; firstSeen: number; suspiciousCount: number }
+>()
 
 // Types
 interface SecurityAnalysis {
@@ -91,38 +97,40 @@ interface EdgeSecurityDecision {
 /**
  * Main edge security middleware function
  */
-export async function enhancedEdgeMiddleware(request: NextRequest): Promise<NextResponse | undefined> {
+export async function enhancedEdgeMiddleware(
+  request: NextRequest
+): Promise<NextResponse | undefined> {
   const startTime = Date.now()
-  
+
   try {
     // Extract client information
     const clientInfo = await extractClientInfo(request)
-    
+
     // Perform security analysis
     const securityAnalysis = await performSecurityAnalysis(request, clientInfo)
-    
+
     // Check rate limits
     const rateLimitResult = await checkRateLimits(request, clientInfo)
-    
+
     // Make security decision
     const decision = await makeSecurityDecision(securityAnalysis, rateLimitResult, request)
-    
+
     // Apply decision
     const response = await applySecurityDecision(decision, request, clientInfo)
-    
+
     // Add security headers
     if (response) {
       addSecurityHeaders(response, decision, Date.now() - startTime)
     }
-    
+
     return response
   } catch (error) {
     console.error('Edge security middleware error:', error)
-    
+
     // Fail open with basic rate limiting
     const basicLimit = await basicRateLimit(request)
     if (!basicLimit.allowed) {
-      return new NextResponse('Rate limit exceeded', { 
+      return new NextResponse('Rate limit exceeded', {
         status: 429,
         headers: {
           'Retry-After': basicLimit.retryAfter?.toString() || '60',
@@ -131,7 +139,7 @@ export async function enhancedEdgeMiddleware(request: NextRequest): Promise<Next
         },
       })
     }
-    
+
     return undefined
   }
 }
@@ -142,23 +150,23 @@ export async function enhancedEdgeMiddleware(request: NextRequest): Promise<Next
 async function extractClientInfo(request: NextRequest): Promise<ClientInfo> {
   const ip = getClientIp(request)
   const userAgent = request.headers.get('user-agent') || ''
-  
+
   // Generate client fingerprint
   const fingerprint = await generateClientFingerprint(request)
-  
+
   // Get geolocation info (in production, use edge geo API)
   const country = getCountryFromHeaders(request)
-  
+
   // Detect bots and automation
   const isBot = detectBot(userAgent, request)
-  
+
   // Detect Tor/VPN (simplified - use threat intel in production)
   const isTor = detectTor(ip, request)
   const isVpn = detectVpn(ip, request)
-  
+
   // Calculate IP reputation
   const reputation = await calculateIpReputation(ip)
-  
+
   return {
     ip,
     userAgent,
@@ -174,54 +182,60 @@ async function extractClientInfo(request: NextRequest): Promise<ClientInfo> {
 /**
  * Perform comprehensive security analysis
  */
-async function performSecurityAnalysis(request: NextRequest, clientInfo: ClientInfo): Promise<SecurityAnalysis> {
+async function performSecurityAnalysis(
+  request: NextRequest,
+  clientInfo: ClientInfo
+): Promise<SecurityAnalysis> {
   const threats: string[] = []
   let riskScore = 0
-  
+
   // Analyze IP reputation
   if (clientInfo.reputation < 0.3) {
     threats.push('low_ip_reputation')
     riskScore += 0.4
   }
-  
+
   // Check for Tor/VPN usage
   if (clientInfo.isTor) {
     threats.push('tor_usage')
     riskScore += 0.6
   }
-  
+
   if (clientInfo.isVpn) {
     threats.push('vpn_usage')
     riskScore += 0.3
   }
-  
+
   // Bot detection
   if (clientInfo.isBot) {
     threats.push('automated_client')
     riskScore += 0.5
   }
-  
+
   // Geo-blocking analysis
-  if (clientInfo.country && EDGE_SECURITY_CONFIG.geoBlocking.blockedCountries.includes(clientInfo.country)) {
+  if (
+    clientInfo.country &&
+    EDGE_SECURITY_CONFIG.geoBlocking.blockedCountries.includes(clientInfo.country)
+  ) {
     threats.push('blocked_geography')
     riskScore += 0.7
   }
-  
+
   // Analyze request patterns
   const patternAnalysis = await analyzeRequestPatterns(request, clientInfo)
   threats.push(...patternAnalysis.threats)
   riskScore += patternAnalysis.riskIncrease
-  
+
   // DDoS detection
   const ddosRisk = await detectDDoSPatterns(clientInfo.ip)
   if (ddosRisk > 0.5) {
     threats.push('ddos_pattern')
     riskScore += ddosRisk
   }
-  
+
   // Generate recommendations
   const recommendations = generateSecurityRecommendations(threats, riskScore)
-  
+
   return {
     riskScore: Math.min(1, riskScore),
     threats,
@@ -233,23 +247,34 @@ async function performSecurityAnalysis(request: NextRequest, clientInfo: ClientI
 /**
  * Advanced rate limiting with multiple tiers
  */
-async function checkRateLimits(request: NextRequest, clientInfo: ClientInfo): Promise<RateLimitResult> {
+async function checkRateLimits(
+  request: NextRequest,
+  clientInfo: ClientInfo
+): Promise<RateLimitResult> {
   const now = Date.now()
   const ip = clientInfo.ip
   const endpoint = request.nextUrl.pathname
-  
+
   // Check global rate limit first
-  const globalResult = await checkSingleRateLimit('global', EDGE_SECURITY_CONFIG.rateLimiting.global, now)
+  const globalResult = await checkSingleRateLimit(
+    'global',
+    EDGE_SECURITY_CONFIG.rateLimiting.global,
+    now
+  )
   if (!globalResult.allowed) {
     return globalResult
   }
-  
+
   // Check per-IP rate limit
-  const ipResult = await checkSingleRateLimit(`ip:${ip}`, EDGE_SECURITY_CONFIG.rateLimiting.perIp, now)
+  const ipResult = await checkSingleRateLimit(
+    `ip:${ip}`,
+    EDGE_SECURITY_CONFIG.rateLimiting.perIp,
+    now
+  )
   if (!ipResult.allowed) {
     return ipResult
   }
-  
+
   // Check per-endpoint rate limit for sensitive endpoints
   if (isSensitiveEndpoint(endpoint)) {
     const endpointResult = await checkSingleRateLimit(
@@ -261,13 +286,13 @@ async function checkRateLimits(request: NextRequest, clientInfo: ClientInfo): Pr
       return endpointResult
     }
   }
-  
+
   // Check burst protection
   const burstResult = await checkBurstProtection(ip, now)
   if (!burstResult.allowed) {
     return burstResult
   }
-  
+
   return globalResult // Return the most permissive result
 }
 
@@ -282,7 +307,7 @@ async function makeSecurityDecision(
   let action: EdgeSecurityDecision['action'] = 'allow'
   const reasons: string[] = []
   const headers: Record<string, string> = {}
-  
+
   // Rate limiting decision
   if (!rateLimitResult.allowed) {
     action = 'block'
@@ -291,34 +316,30 @@ async function makeSecurityDecision(
     headers['X-RateLimit-Limit'] = rateLimitResult.limit.toString()
     headers['X-RateLimit-Remaining'] = rateLimitResult.remaining.toString()
   }
-  
+
   // Risk-based decision
   else if (analysis.riskScore >= EDGE_SECURITY_CONFIG.challenges.blockThreshold) {
     action = 'block'
     reasons.push('high_risk_score', ...analysis.threats)
-  }
-  
-  else if (analysis.riskScore >= EDGE_SECURITY_CONFIG.challenges.captchaThreshold) {
+  } else if (analysis.riskScore >= EDGE_SECURITY_CONFIG.challenges.captchaThreshold) {
     action = 'captcha'
     reasons.push('medium_risk_score', ...analysis.threats)
-  }
-  
-  else if (analysis.riskScore >= EDGE_SECURITY_CONFIG.challenges.jsChallenge) {
+  } else if (analysis.riskScore >= EDGE_SECURITY_CONFIG.challenges.jsChallenge) {
     action = 'challenge'
     reasons.push('elevated_risk_score', ...analysis.threats)
   }
-  
+
   // Override for specific threats
   if (analysis.threats.includes('ddos_pattern')) {
     action = 'block'
     reasons.push('ddos_protection')
   }
-  
+
   if (analysis.threats.includes('blocked_geography')) {
     action = 'block'
     reasons.push('geo_blocking')
   }
-  
+
   return {
     action,
     riskScore: analysis.riskScore,
@@ -338,11 +359,11 @@ async function applySecurityDecision(
 ): Promise<NextResponse | undefined> {
   // Log security decision
   await logSecurityDecision(decision, request, clientInfo)
-  
+
   switch (decision.action) {
     case 'allow':
       return undefined // Continue to next middleware
-      
+
     case 'block':
       return new NextResponse('Access Denied', {
         status: 403,
@@ -351,13 +372,13 @@ async function applySecurityDecision(
           ...decision.headers,
         },
       })
-      
+
     case 'captcha':
       return await serveCaptchaChallenge(request, decision)
-      
+
     case 'challenge':
       return await serveJavaScriptChallenge(request, decision)
-      
+
     default:
       return undefined
   }
@@ -376,16 +397,19 @@ function addSecurityHeaders(
   response.headers.set('X-Frame-Options', 'DENY')
   response.headers.set('X-XSS-Protection', '1; mode=block')
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
-  
+
   // Edge security specific headers
   response.headers.set('X-Edge-Security-Score', decision.riskScore.toString())
   response.headers.set('X-Edge-Processing-Time', `${processingTime}ms`)
   response.headers.set('X-Edge-Decision', decision.action)
-  
+
   if (decision.cacheTtl) {
-    response.headers.set('Cache-Control', `private, max-age=${Math.floor(decision.cacheTtl / 1000)}`)
+    response.headers.set(
+      'Cache-Control',
+      `private, max-age=${Math.floor(decision.cacheTtl / 1000)}`
+    )
   }
-  
+
   // Add custom headers from decision
   Object.entries(decision.headers).forEach(([key, value]) => {
     response.headers.set(key, value)
@@ -400,23 +424,23 @@ function getClientIp(request: NextRequest): string {
   if (forwarded) {
     return forwarded.split(',')[0].trim()
   }
-  
+
   const realIp = request.headers.get('x-real-ip')
   if (realIp) {
     return realIp
   }
-  
+
   // Fallback to CF-Connecting-IP (Cloudflare) or Vercel headers
   const cfIp = request.headers.get('cf-connecting-ip')
   if (cfIp) {
     return cfIp
   }
-  
+
   const vercelIp = request.headers.get('x-vercel-forwarded-for')
   if (vercelIp) {
     return vercelIp
   }
-  
+
   return 'unknown'
 }
 
@@ -428,16 +452,18 @@ async function generateClientFingerprint(request: NextRequest): Promise<string> 
     request.headers.get('accept-encoding') || '',
     getClientIp(request),
   ]
-  
+
   return await createSecureHash(components.join('|'))
 }
 
 function getCountryFromHeaders(request: NextRequest): string | undefined {
   // Try various geo headers
-  return request.headers.get('cf-ipcountry') || 
-         request.headers.get('x-vercel-ip-country') ||
-         request.headers.get('x-country-code') ||
-         undefined
+  return (
+    request.headers.get('cf-ipcountry') ||
+    request.headers.get('x-vercel-ip-country') ||
+    request.headers.get('x-country-code') ||
+    undefined
+  )
 }
 
 function detectBot(userAgent: string, request: NextRequest): boolean {
@@ -447,24 +473,22 @@ function detectBot(userAgent: string, request: NextRequest): boolean {
       return true
     }
   }
-  
+
   // Check for missing common headers
   const commonHeaders = ['accept', 'accept-language', 'accept-encoding']
   const missingHeaders = commonHeaders.filter(header => !request.headers.get(header))
-  
+
   return missingHeaders.length >= 2
 }
 
 function detectTor(ip: string, request: NextRequest): boolean {
   // Simplified Tor detection - in production, use threat intelligence
-  return request.headers.get('x-tor-exit-node') === '1' ||
-         ip.startsWith('127.') // Placeholder for Tor exit node detection
+  return request.headers.get('x-tor-exit-node') === '1' || ip.startsWith('127.') // Placeholder for Tor exit node detection
 }
 
 function detectVpn(ip: string, request: NextRequest): boolean {
   // Simplified VPN detection - in production, use threat intelligence
-  return request.headers.get('x-vpn-detected') === '1' ||
-         false // Placeholder for VPN detection
+  return request.headers.get('x-vpn-detected') === '1' || false // Placeholder for VPN detection
 }
 
 async function calculateIpReputation(ip: string): Promise<number> {
@@ -473,18 +497,18 @@ async function calculateIpReputation(ip: string): Promise<number> {
   if (cached && cached.expires > Date.now()) {
     return 1 - cached.risk // Convert risk to reputation
   }
-  
+
   // In production, query threat intelligence APIs
   // For now, return neutral reputation
   const reputation = 0.5
-  
+
   // Cache result
   threatIntelCache.set(ip, {
     risk: 1 - reputation,
     expires: Date.now() + 60 * 60 * 1000, // 1 hour
     reason: 'default',
   })
-  
+
   return reputation
 }
 
@@ -494,22 +518,22 @@ async function analyzeRequestPatterns(
 ): Promise<{ threats: string[]; riskIncrease: number }> {
   const threats: string[] = []
   let riskIncrease = 0
-  
+
   // Check for suspicious paths
   const path = request.nextUrl.pathname
   const suspiciousPaths = ['/admin', '/.env', '/config', '/backup', '/.git']
-  
+
   if (suspiciousPaths.some(p => path.includes(p))) {
     threats.push('suspicious_path')
     riskIncrease += 0.3
   }
-  
+
   // Check request method
   if (['TRACE', 'TRACK', 'CONNECT'].includes(request.method)) {
     threats.push('suspicious_method')
     riskIncrease += 0.4
   }
-  
+
   // Check for SQL injection patterns in query parameters
   const query = request.nextUrl.search
   const sqlPatterns = /(\bselect\b|\bunion\b|\binsert\b|\bdelete\b|\bdrop\b)/i
@@ -517,7 +541,7 @@ async function analyzeRequestPatterns(
     threats.push('sql_injection_attempt')
     riskIncrease += 0.6
   }
-  
+
   return { threats, riskIncrease }
 }
 
@@ -525,7 +549,7 @@ async function detectDDoSPatterns(ip: string): Promise<number> {
   const now = Date.now()
   const key = `ddos:${ip}`
   const record = rateLimitCache.get(key)
-  
+
   if (!record) {
     rateLimitCache.set(key, {
       count: 1,
@@ -535,21 +559,22 @@ async function detectDDoSPatterns(ip: string): Promise<number> {
     })
     return 0
   }
-  
+
   // Check burst rate
   const timeSinceLastRequest = now - record.lastRequest
-  if (timeSinceLastRequest < 100) { // Less than 100ms between requests
+  if (timeSinceLastRequest < 100) {
+    // Less than 100ms between requests
     record.burst++
   } else {
     record.burst = Math.max(1, record.burst - 1) // Decay burst counter
   }
-  
+
   record.lastRequest = now
   record.count++
-  
+
   // Calculate DDoS risk based on burst rate
   const burstRisk = Math.min(1, record.burst / EDGE_SECURITY_CONFIG.ddos.burstThreshold)
-  
+
   return burstRisk
 }
 
@@ -559,7 +584,7 @@ async function checkSingleRateLimit(
   now: number
 ): Promise<RateLimitResult> {
   const record = rateLimitCache.get(key)
-  
+
   if (!record || record.reset < now) {
     // Create new record
     const reset = now + config.window
@@ -569,7 +594,7 @@ async function checkSingleRateLimit(
       burst: 0,
       lastRequest: now,
     })
-    
+
     return {
       allowed: true,
       limit: config.requests,
@@ -577,7 +602,7 @@ async function checkSingleRateLimit(
       reset,
     }
   }
-  
+
   // Check if limit exceeded
   if (record.count >= config.requests) {
     return {
@@ -588,11 +613,11 @@ async function checkSingleRateLimit(
       retryAfter: Math.ceil((record.reset - now) / 1000),
     }
   }
-  
+
   // Increment count
   record.count++
   rateLimitCache.set(key, record)
-  
+
   return {
     allowed: true,
     limit: config.requests,
@@ -619,23 +644,23 @@ function isSensitiveEndpoint(path: string): boolean {
 
 function generateSecurityRecommendations(threats: string[], riskScore: number): string[] {
   const recommendations: string[] = []
-  
+
   if (threats.includes('low_ip_reputation')) {
     recommendations.push('ip_reputation_check')
   }
-  
+
   if (threats.includes('automated_client')) {
     recommendations.push('bot_challenge')
   }
-  
+
   if (threats.includes('ddos_pattern')) {
     recommendations.push('rate_limiting', 'connection_throttling')
   }
-  
+
   if (riskScore > 0.7) {
     recommendations.push('enhanced_monitoring', 'manual_review')
   }
-  
+
   return recommendations
 }
 
@@ -689,7 +714,7 @@ async function serveCaptchaChallenge(
     </body>
     </html>
   `
-  
+
   return new NextResponse(challengeHtml, {
     status: 403,
     headers: {
@@ -704,7 +729,7 @@ async function serveJavaScriptChallenge(
   decision: EdgeSecurityDecision
 ): Promise<NextResponse> {
   const challengeToken = generateSecureToken(16)
-  
+
   const challengeHtml = `
     <!DOCTYPE html>
     <html>
@@ -724,7 +749,7 @@ async function serveJavaScriptChallenge(
     </body>
     </html>
   `
-  
+
   return new NextResponse(challengeHtml, {
     status: 403,
     headers: {
@@ -737,7 +762,7 @@ async function serveJavaScriptChallenge(
 async function basicRateLimit(request: NextRequest): Promise<RateLimitResult> {
   const ip = getClientIp(request)
   const now = Date.now()
-  
+
   return await checkSingleRateLimit(
     `basic:${ip}`,
     { requests: 60, window: 60 * 1000 }, // 60 requests per minute

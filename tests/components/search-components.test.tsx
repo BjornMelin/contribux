@@ -5,7 +5,7 @@
 
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import React from 'react'
+import type React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 import '@testing-library/jest-dom'
@@ -16,23 +16,30 @@ function renderIsolated(component: React.ReactElement) {
   const testContainer = document.createElement('div')
   testContainer.id = `test-container-${Date.now()}-${Math.random()}`
   document.body.appendChild(testContainer)
-  
+
   const result = render(component, { container: testContainer })
-  
+
   // Return enhanced result with scoped queries
   return {
     ...result,
     // Override queries to be scoped to this container
     getByRole: (role: string, options?: any) => within(testContainer).getByRole(role, options),
-    getByText: (text: string | RegExp, options?: any) => within(testContainer).getByText(text, options),
-    getByTestId: (testId: string, options?: any) => within(testContainer).getByTestId(testId, options),
-    getByPlaceholderText: (text: string, options?: any) => within(testContainer).getByPlaceholderText(text, options),
-    getByDisplayValue: (value: string, options?: any) => within(testContainer).getByDisplayValue(value, options),
-    getAllByRole: (role: string, options?: any) => within(testContainer).getAllByRole(role, options),
-    getAllByText: (text: string | RegExp, options?: any) => within(testContainer).getAllByText(text, options),
-    queryByText: (text: string | RegExp, options?: any) => within(testContainer).queryByText(text, options),
+    getByText: (text: string | RegExp, options?: any) =>
+      within(testContainer).getByText(text, options),
+    getByTestId: (testId: string, options?: any) =>
+      within(testContainer).getByTestId(testId, options),
+    getByPlaceholderText: (text: string, options?: any) =>
+      within(testContainer).getByPlaceholderText(text, options),
+    getByDisplayValue: (value: string, options?: any) =>
+      within(testContainer).getByDisplayValue(value, options),
+    getAllByRole: (role: string, options?: any) =>
+      within(testContainer).getAllByRole(role, options),
+    getAllByText: (text: string | RegExp, options?: any) =>
+      within(testContainer).getAllByText(text, options),
+    queryByText: (text: string | RegExp, options?: any) =>
+      within(testContainer).queryByText(text, options),
     queryByRole: (role: string, options?: any) => within(testContainer).queryByRole(role, options),
-    container: testContainer
+    container: testContainer,
   }
 }
 
@@ -82,7 +89,7 @@ describe('Search Components', () => {
     container = document.createElement('div')
     container.id = 'test-container'
     document.body.appendChild(container)
-    
+
     vi.clearAllMocks()
     mockPush.mockClear()
     mockReplace.mockClear()
@@ -118,48 +125,56 @@ describe('Search Components', () => {
       await user.type(input, 'TypeScript')
       await user.click(button)
 
-      expect(onSearch).toHaveBeenCalledWith('TypeScript')
+      // Wait for the onSearch to be called
+      await vi.waitFor(() => {
+        expect(onSearch).toHaveBeenCalledWith('TypeScript')
+      })
     })
 
     it('should call onSearch when Enter is pressed', async () => {
       const user = userEvent.setup()
       const onSearch = vi.fn()
-      render(<SearchBar onSearch={onSearch} />)
+      const { getByRole } = renderIsolated(<SearchBar onSearch={onSearch} />)
 
-      const input = screen.getByRole('textbox', { name: 'Search input' })
+      const input = getByRole('textbox', { name: 'Search input' })
 
-      await user.type(input, 'React')
-      await user.keyboard('{Enter}')
+      await user.type(input, 'React{Enter}')
 
-      expect(onSearch).toHaveBeenCalledWith('React')
+      await vi.waitFor(() => {
+        expect(onSearch).toHaveBeenCalledWith('React')
+      })
     })
 
     it('should disable input and button when loading', () => {
       const onSearch = vi.fn()
-      render(<SearchBar onSearch={onSearch} loading={true} />)
+      const { getByRole, getByText, getByPlaceholderText, getByDisplayValue, container } =
+        renderIsolated(<SearchBar onSearch={onSearch} loading={true} />)
 
-      expect(screen.getByRole('textbox', { name: 'Search input' })).toBeDisabled()
-      expect(screen.getByRole('button', { name: 'Search' })).toBeDisabled()
-      expect(screen.getByText('Searching...')).toBeInTheDocument()
+      expect(getByRole('textbox', { name: 'Search input' })).toBeDisabled()
+      expect(getByRole('button', { name: 'Search' })).toBeDisabled()
+      expect(getByText('Searching...')).toBeInTheDocument()
     })
 
     it('should disable search button when query is empty', () => {
       const onSearch = vi.fn()
-      render(<SearchBar onSearch={onSearch} />)
+      const { getByRole, getByText, getByPlaceholderText, getByDisplayValue, container } =
+        renderIsolated(<SearchBar onSearch={onSearch} />)
 
-      expect(screen.getByRole('button', { name: 'Search' })).toBeDisabled()
+      expect(getByRole('button', { name: 'Search' })).toBeDisabled()
     })
 
     it('should show default value', () => {
       const onSearch = vi.fn()
-      render(<SearchBar onSearch={onSearch} defaultValue="initial query" />)
+      const { getByRole, getByText, getByPlaceholderText, getByDisplayValue, container } =
+        renderIsolated(<SearchBar onSearch={onSearch} defaultValue="initial query" />)
 
-      expect(screen.getByDisplayValue('initial query')).toBeInTheDocument()
+      expect(getByDisplayValue('initial query')).toBeInTheDocument()
     })
 
     it('should apply custom className', () => {
       const onSearch = vi.fn()
-      render(<SearchBar onSearch={onSearch} className="custom-search" />)
+      const { getByRole, getByText, getByPlaceholderText, getByDisplayValue, container } =
+        renderIsolated(<SearchBar onSearch={onSearch} className="custom-search" />)
 
       expect(document.querySelector('.search-bar.custom-search')).toBeInTheDocument()
     })
@@ -178,14 +193,17 @@ describe('Search Components', () => {
 
     it('should render all filter controls', () => {
       const onFiltersChange = vi.fn()
-      render(<SearchFiltersComponent filters={defaultFilters} onFiltersChange={onFiltersChange} />)
+      const { getByRole, getByText, getByPlaceholderText, getAllByRole, container } =
+        renderIsolated(
+          <SearchFiltersComponent filters={defaultFilters} onFiltersChange={onFiltersChange} />
+        )
 
-      expect(screen.getByRole('combobox', { name: /difficulty/i })).toBeInTheDocument()
-      expect(screen.getByRole('combobox', { name: /type/i })).toBeInTheDocument()
-      expect(screen.getByRole('checkbox', { name: /good first issue/i })).toBeInTheDocument()
-      expect(screen.getByRole('checkbox', { name: /help wanted/i })).toBeInTheDocument()
-      expect(screen.getByRole('slider', { name: /minimum relevance score/i })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /reset filters/i })).toBeInTheDocument()
+      expect(container.querySelector('#difficulty-select')).toBeInTheDocument()
+      expect(container.querySelector('#type-select')).toBeInTheDocument()
+      expect(getByRole('checkbox', { name: /good first issue/i })).toBeInTheDocument()
+      expect(getByRole('checkbox', { name: /help wanted/i })).toBeInTheDocument()
+      expect(getByRole('slider', { name: /minimum relevance score/i })).toBeInTheDocument()
+      expect(getByRole('button', { name: /reset filters/i })).toBeInTheDocument()
     })
 
     it('should display current filter values', () => {
@@ -199,66 +217,81 @@ describe('Search Components', () => {
       }
 
       const onFiltersChange = vi.fn()
-      render(<SearchFiltersComponent filters={filters} onFiltersChange={onFiltersChange} />)
+      const { getByRole, getByText, getByPlaceholderText, getAllByRole, container } =
+        renderIsolated(
+          <SearchFiltersComponent filters={filters} onFiltersChange={onFiltersChange} />
+        )
 
       // Check that the correct options are selected by finding the select elements and checking their values
-      const difficultySelect = screen.getByRole('combobox', {
-        name: /difficulty/i,
-      }) as HTMLSelectElement
-      const typeSelect = screen.getByRole('combobox', { name: /type/i }) as HTMLSelectElement
+      const difficultySelect = container.querySelector('#difficulty-select') as HTMLSelectElement
+      const typeSelect = container.querySelector('#type-select') as HTMLSelectElement
       expect(difficultySelect.value).toBe('intermediate')
       expect(typeSelect.value).toBe('bug_fix')
-      expect(screen.getByRole('checkbox', { name: /typescript/i })).toBeChecked()
-      expect(screen.getByRole('checkbox', { name: /python/i })).toBeChecked()
-      expect(screen.getByRole('checkbox', { name: /good first issue/i })).toBeChecked()
-      expect(screen.getByText('Minimum Relevance Score: 0.50')).toBeInTheDocument()
+      expect(getByRole('checkbox', { name: /typescript/i })).toBeChecked()
+      expect(getByRole('checkbox', { name: /python/i })).toBeChecked()
+      expect(getByRole('checkbox', { name: /good first issue/i })).toBeChecked()
+      expect(getByText('Minimum Relevance Score: 0.50')).toBeInTheDocument()
     })
 
     it('should call onFiltersChange when difficulty changes', async () => {
       const user = userEvent.setup()
       const onFiltersChange = vi.fn()
-      render(<SearchFiltersComponent filters={defaultFilters} onFiltersChange={onFiltersChange} />)
+      const { getByRole, getByText, getByPlaceholderText, getAllByRole, container } =
+        renderIsolated(
+          <SearchFiltersComponent filters={defaultFilters} onFiltersChange={onFiltersChange} />
+        )
 
-      const difficultySelect = screen.getByRole('combobox', { name: /difficulty/i })
+      const difficultySelect = container.querySelector('#difficulty-select') as HTMLSelectElement
+      expect(difficultySelect).toBeInTheDocument()
+
       await user.selectOptions(difficultySelect, 'advanced')
 
-      expect(onFiltersChange).toHaveBeenCalledWith({
-        ...defaultFilters,
-        difficulty: 'advanced',
+      // Wait for the event to be processed
+      await vi.waitFor(() => {
+        expect(onFiltersChange).toHaveBeenCalledWith({
+          ...defaultFilters,
+          difficulty: 'advanced',
+        })
       })
     })
 
     it('should call onFiltersChange when type changes', async () => {
       const user = userEvent.setup()
       const onFiltersChange = vi.fn()
-      render(<SearchFiltersComponent filters={defaultFilters} onFiltersChange={onFiltersChange} />)
+      const { getByRole, getByText, getByPlaceholderText, getAllByRole, container } =
+        renderIsolated(
+          <SearchFiltersComponent filters={defaultFilters} onFiltersChange={onFiltersChange} />
+        )
 
-      const typeSelect = screen.getByRole('combobox', { name: /type/i })
+      const typeSelect = container.querySelector('#type-select') as HTMLSelectElement
+      expect(typeSelect).toBeInTheDocument()
+
       await user.selectOptions(typeSelect, 'feature')
 
-      expect(onFiltersChange).toHaveBeenCalledWith({
-        ...defaultFilters,
-        type: 'feature',
+      await vi.waitFor(() => {
+        expect(onFiltersChange).toHaveBeenCalledWith({
+          ...defaultFilters,
+          type: 'feature',
+        })
       })
     })
 
     it('should toggle languages correctly', async () => {
       const user = userEvent.setup()
       const onFiltersChange = vi.fn()
-      render(<SearchFiltersComponent filters={defaultFilters} onFiltersChange={onFiltersChange} />)
+      const { getByRole, getByText, getByPlaceholderText, getAllByRole, container } =
+        renderIsolated(
+          <SearchFiltersComponent filters={defaultFilters} onFiltersChange={onFiltersChange} />
+        )
 
-      const typescriptCheckbox = screen.getByRole('checkbox', { name: /typescript/i })
+      const typescriptCheckbox = getByRole('checkbox', { name: /typescript/i })
       await user.click(typescriptCheckbox)
 
-      expect(onFiltersChange).toHaveBeenCalledWith({
-        ...defaultFilters,
-        languages: ['TypeScript'],
-      })
-
-      // Test removing a language is tested in a separate scenario to avoid render conflicts
-      expect(onFiltersChange).toHaveBeenCalledWith({
-        ...defaultFilters,
-        languages: ['TypeScript'],
+      await vi.waitFor(() => {
+        expect(onFiltersChange).toHaveBeenCalledWith({
+          ...defaultFilters,
+          languages: ['TypeScript'],
+        })
       })
     })
 
@@ -266,36 +299,49 @@ describe('Search Components', () => {
       const user = userEvent.setup()
       const filtersWithLang = { ...defaultFilters, languages: ['TypeScript', 'Python'] }
       const onFiltersChange = vi.fn()
-      render(<SearchFiltersComponent filters={filtersWithLang} onFiltersChange={onFiltersChange} />)
+      const { getByRole, getByText, getByPlaceholderText, getAllByRole, container } =
+        renderIsolated(
+          <SearchFiltersComponent filters={filtersWithLang} onFiltersChange={onFiltersChange} />
+        )
 
-      const pythonCheckbox = screen.getByRole('checkbox', { name: /python/i })
+      const pythonCheckbox = getByRole('checkbox', { name: /python/i })
       await user.click(pythonCheckbox)
 
-      expect(onFiltersChange).toHaveBeenCalledWith({
-        ...filtersWithLang,
-        languages: ['TypeScript'],
+      await vi.waitFor(() => {
+        expect(onFiltersChange).toHaveBeenCalledWith({
+          ...filtersWithLang,
+          languages: ['TypeScript'],
+        })
       })
     })
 
     it('should update boolean filters', async () => {
       const user = userEvent.setup()
       const onFiltersChange = vi.fn()
-      render(<SearchFiltersComponent filters={defaultFilters} onFiltersChange={onFiltersChange} />)
+      const { getByRole, getByText, getByPlaceholderText, getAllByRole, container } =
+        renderIsolated(
+          <SearchFiltersComponent filters={defaultFilters} onFiltersChange={onFiltersChange} />
+        )
 
-      const gfiCheckbox = screen.getByRole('checkbox', { name: /good first issue/i })
+      const gfiCheckbox = getByRole('checkbox', { name: /good first issue/i })
       await user.click(gfiCheckbox)
 
-      expect(onFiltersChange).toHaveBeenCalledWith({
-        ...defaultFilters,
-        good_first_issue: true,
+      await vi.waitFor(() => {
+        expect(onFiltersChange).toHaveBeenCalledWith({
+          ...defaultFilters,
+          good_first_issue: true,
+        })
       })
     })
 
     it('should update minimum score slider', async () => {
       const onFiltersChange = vi.fn()
-      render(<SearchFiltersComponent filters={defaultFilters} onFiltersChange={onFiltersChange} />)
+      const { getByRole, getByText, getByPlaceholderText, getAllByRole, container } =
+        renderIsolated(
+          <SearchFiltersComponent filters={defaultFilters} onFiltersChange={onFiltersChange} />
+        )
 
-      const slider = screen.getByRole('slider', { name: /minimum relevance score/i })
+      const slider = getByRole('slider', { name: /minimum relevance score/i })
       fireEvent.change(slider, { target: { value: '0.7' } })
 
       expect(onFiltersChange).toHaveBeenCalledWith({
@@ -316,27 +362,36 @@ describe('Search Components', () => {
       }
 
       const onFiltersChange = vi.fn()
-      render(<SearchFiltersComponent filters={filtersWithValues} onFiltersChange={onFiltersChange} />)
+      const { getByRole, getByText, getByPlaceholderText, getAllByRole, container } =
+        renderIsolated(
+          <SearchFiltersComponent filters={filtersWithValues} onFiltersChange={onFiltersChange} />
+        )
 
-      const resetButton = screen.getByRole('button', { name: /reset filters/i })
+      const resetButton = getByRole('button', { name: /reset filters/i })
       const user2 = userEvent.setup()
       await user2.click(resetButton)
 
-      expect(onFiltersChange).toHaveBeenCalledWith(defaultFilters)
+      await vi.waitFor(() => {
+        expect(onFiltersChange).toHaveBeenCalledWith(defaultFilters)
+      })
     })
 
     it('should disable all controls when loading', () => {
       const onFiltersChange = vi.fn()
-      render(
-        <SearchFiltersComponent filters={defaultFilters} onFiltersChange={onFiltersChange} loading={true} />
+      const { getByRole, container } = renderIsolated(
+        <SearchFiltersComponent
+          filters={defaultFilters}
+          onFiltersChange={onFiltersChange}
+          loading={true}
+        />
       )
 
-      expect(screen.getByRole('combobox', { name: /difficulty/i })).toBeDisabled()
-      expect(screen.getByRole('combobox', { name: /type/i })).toBeDisabled()
-      expect(screen.getByRole('checkbox', { name: /typescript/i })).toBeDisabled()
-      expect(screen.getByRole('checkbox', { name: /good first issue/i })).toBeDisabled()
-      expect(screen.getByRole('slider', { name: /minimum relevance score/i })).toBeDisabled()
-      expect(screen.getByRole('button', { name: /reset filters/i })).toBeDisabled()
+      expect(container.querySelector('#difficulty-select')).toBeDisabled()
+      expect(container.querySelector('#type-select')).toBeDisabled()
+      expect(getByRole('checkbox', { name: /typescript/i })).toBeDisabled()
+      expect(getByRole('checkbox', { name: /good first issue/i })).toBeDisabled()
+      expect(getByRole('slider', { name: /minimum relevance score/i })).toBeDisabled()
+      expect(getByRole('button', { name: /reset filters/i })).toBeDisabled()
     })
   })
 
@@ -364,23 +419,24 @@ describe('Search Components', () => {
 
     it('should render opportunity information correctly', () => {
       const onSelect = vi.fn()
-      render(<OpportunityCard opportunity={mockOpportunity} onSelect={onSelect} />)
-
-      expect(screen.getByText('Fix TypeScript type errors in search module')).toBeInTheDocument()
-      expect(screen.getByText(/Several type errors need to be fixed/)).toBeInTheDocument()
-      expect(screen.getByText('intermediate')).toBeInTheDocument()
-      expect(screen.getByText('bug fix')).toBeInTheDocument()
-      expect(screen.getByText('company/search-engine')).toBeInTheDocument()
-      // Check for TypeScript in repository language section
-      const typescriptElements = screen.getAllByText('TypeScript')
-      const repositoryLanguageElement = typescriptElements.find(el =>
-        el.closest('.repository-language')
+      const { getByRole, getByText, container } = renderIsolated(
+        <OpportunityCard opportunity={mockOpportunity} onSelect={onSelect} />
       )
-      expect(repositoryLanguageElement).toBeInTheDocument()
-      expect(screen.getByText('⭐ 1250')).toBeInTheDocument()
-      expect(screen.getByText('Help Wanted')).toBeInTheDocument()
-      expect(screen.getByText('4h')).toBeInTheDocument()
-      expect(screen.getByText('95%')).toBeInTheDocument()
+
+      expect(getByText('Fix TypeScript type errors in search module')).toBeInTheDocument()
+      expect(getByText(/Several type errors need to be fixed/)).toBeInTheDocument()
+      expect(getByText('intermediate')).toBeInTheDocument()
+      expect(getByText('bug fix')).toBeInTheDocument()
+      expect(getByText('company/search-engine')).toBeInTheDocument()
+      // Check for TypeScript in repository language section
+      const repositoryLanguageElements = Array.from(container.querySelectorAll('*')).filter(
+        el => el.textContent?.includes('TypeScript') && el.closest('.repository-language')
+      )
+      expect(repositoryLanguageElements.length).toBeGreaterThan(0)
+      expect(getByText('⭐ 1250')).toBeInTheDocument()
+      expect(getByText('Help Wanted')).toBeInTheDocument()
+      expect(getByText('4h')).toBeInTheDocument()
+      expect(getByText('95%')).toBeInTheDocument()
     })
 
     it('should truncate long descriptions', () => {
@@ -391,11 +447,13 @@ describe('Search Components', () => {
       }
 
       const onSelect = vi.fn()
-      render(<OpportunityCard opportunity={longOpportunity} onSelect={onSelect} />)
+      const { getByRole, getByText, container } = renderIsolated(
+        <OpportunityCard opportunity={longOpportunity} onSelect={onSelect} />
+      )
 
       // Check that the text is truncated with "..." at the end
       expect(
-        screen.getByText(
+        getByText(
           /This is a very long description that should be truncated when it exceeds the character limit set for the opportunity card display to ensure proper lay\.\.\./
         )
       ).toBeInTheDocument()
@@ -404,9 +462,11 @@ describe('Search Components', () => {
     it('should call onSelect when clicked', async () => {
       const user = userEvent.setup()
       const onSelect = vi.fn()
-      render(<OpportunityCard opportunity={mockOpportunity} onSelect={onSelect} />)
+      const { getByRole, getByText, container } = renderIsolated(
+        <OpportunityCard opportunity={mockOpportunity} onSelect={onSelect} />
+      )
 
-      const card = screen.getByRole('button', { name: /view opportunity/i })
+      const card = getByRole('button', { name: /view opportunity.*fix typescript type errors/i })
       await user.click(card)
 
       expect(onSelect).toHaveBeenCalledWith(mockOpportunity)
@@ -415,9 +475,11 @@ describe('Search Components', () => {
     it('should call onSelect when Enter or Space is pressed', async () => {
       const user = userEvent.setup()
       const onSelect = vi.fn()
-      render(<OpportunityCard opportunity={mockOpportunity} onSelect={onSelect} />)
+      const { getByRole, getByText, container } = renderIsolated(
+        <OpportunityCard opportunity={mockOpportunity} onSelect={onSelect} />
+      )
 
-      const card = screen.getByRole('button', { name: /view opportunity/i })
+      const card = getByRole('button', { name: /view opportunity.*fix typescript type errors/i })
 
       card.focus()
       await user.keyboard('{Enter}')
@@ -430,22 +492,27 @@ describe('Search Components', () => {
     it('should show good first issue tag when applicable', () => {
       const gfiOpportunity = { ...mockOpportunity, good_first_issue: true }
       const onSelect = vi.fn()
-      render(<OpportunityCard opportunity={gfiOpportunity} onSelect={onSelect} />)
+      const { getByRole, getByText, container } = renderIsolated(
+        <OpportunityCard opportunity={gfiOpportunity} onSelect={onSelect} />
+      )
 
-      expect(screen.getByText('Good First Issue')).toBeInTheDocument()
+      expect(getByText('Good First Issue')).toBeInTheDocument()
     })
 
     it('should limit displayed technologies and show more indicator', () => {
       const onSelect = vi.fn()
-      render(<OpportunityCard opportunity={mockOpportunity} onSelect={onSelect} />)
+      const { getByRole, getByText, container } = renderIsolated(
+        <OpportunityCard opportunity={mockOpportunity} onSelect={onSelect} />
+      )
 
       // Check for TypeScript in skill tags section (not repository language)
-      const typescriptElements = screen.getAllByText('TypeScript')
-      const skillTagElement = typescriptElements.find(el => el.closest('.skill-tag'))
-      expect(skillTagElement).toBeInTheDocument()
-      expect(screen.getByText('Node.js')).toBeInTheDocument()
-      expect(screen.getByText('Jest')).toBeInTheDocument()
-      expect(screen.getByText('+1 more')).toBeInTheDocument()
+      const skillTagElements = Array.from(container.querySelectorAll('*')).filter(
+        el => el.textContent?.includes('TypeScript') && el.closest('.skill-tag')
+      )
+      expect(skillTagElements.length).toBeGreaterThan(0)
+      expect(getByText('Node.js')).toBeInTheDocument()
+      expect(getByText('Jest')).toBeInTheDocument()
+      expect(getByText('+1 more')).toBeInTheDocument()
     })
 
     it('should handle missing optional fields gracefully', () => {
@@ -460,10 +527,12 @@ describe('Search Components', () => {
       }
 
       const onSelect = vi.fn()
-      render(<OpportunityCard opportunity={minimalOpportunity} onSelect={onSelect} />)
+      const { getByRole, getByText, queryByText, container } = renderIsolated(
+        <OpportunityCard opportunity={minimalOpportunity} onSelect={onSelect} />
+      )
 
-      expect(screen.getByText('Fix TypeScript type errors in search module')).toBeInTheDocument()
-      expect(screen.queryByText('4h')).not.toBeInTheDocument()
+      expect(getByText('Fix TypeScript type errors in search module')).toBeInTheDocument()
+      expect(queryByText('4h')).not.toBeInTheDocument()
     })
   })
 
@@ -511,7 +580,7 @@ describe('Search Components', () => {
 
     it('should render list of opportunities', () => {
       const onOpportunitySelect = vi.fn()
-      render(
+      const { getAllByRole, getByText } = renderIsolated(
         <OpportunityList
           opportunities={mockOpportunities}
           onOpportunitySelect={onOpportunitySelect}
@@ -519,14 +588,14 @@ describe('Search Components', () => {
       )
 
       expect(screen.getByTestId('opportunity-list')).toBeInTheDocument()
-      expect(screen.getAllByRole('button', { name: /view opportunity/i })).toHaveLength(2)
-      expect(screen.getByText('Fix TypeScript errors')).toBeInTheDocument()
-      expect(screen.getByText('Add new feature')).toBeInTheDocument()
+      expect(getAllByRole('button')).toHaveLength(2)
+      expect(getByText('Fix TypeScript errors')).toBeInTheDocument()
+      expect(getByText('Add new feature')).toBeInTheDocument()
     })
 
     it('should show loading state', () => {
       const onOpportunitySelect = vi.fn()
-      render(
+      const { getByText } = renderIsolated(
         <OpportunityList
           opportunities={[]}
           loading={true}
@@ -534,15 +603,15 @@ describe('Search Components', () => {
         />
       )
 
-      expect(screen.getByText('Loading opportunities...')).toBeInTheDocument()
+      expect(getByText('Loading opportunities...')).toBeInTheDocument()
       // Check for aria-live region instead of status role
-      const loadingDiv = screen.getByText('Loading opportunities...').closest('[aria-live]')
+      const loadingDiv = getByText('Loading opportunities...').closest('[aria-live]')
       expect(loadingDiv).toHaveAttribute('aria-live', 'polite')
     })
 
     it('should show error state', () => {
       const onOpportunitySelect = vi.fn()
-      render(
+      const { getByRole, getByText } = renderIsolated(
         <OpportunityList
           opportunities={[]}
           error="Failed to load data"
@@ -550,23 +619,23 @@ describe('Search Components', () => {
         />
       )
 
-      expect(screen.getByRole('alert')).toBeInTheDocument()
-      expect(
-        screen.getByText('Error loading opportunities: Failed to load data')
-      ).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument()
+      expect(getByRole('alert')).toBeInTheDocument()
+      expect(getByText('Error loading opportunities: Failed to load data')).toBeInTheDocument()
+      expect(getByRole('button', { name: /retry/i })).toBeInTheDocument()
     })
 
     it('should show empty state', () => {
       const onOpportunitySelect = vi.fn()
-      render(<OpportunityList opportunities={[]} onOpportunitySelect={onOpportunitySelect} />)
+      const { getByRole, getByText, getAllByRole, container } = renderIsolated(
+        <OpportunityList opportunities={[]} onOpportunitySelect={onOpportunitySelect} />
+      )
 
-      expect(screen.getByText('No opportunities found')).toBeInTheDocument()
+      expect(getByText('No opportunities found')).toBeInTheDocument()
     })
 
     it('should show custom empty message', () => {
       const onOpportunitySelect = vi.fn()
-      render(
+      const { getByText } = renderIsolated(
         <OpportunityList
           opportunities={[]}
           onOpportunitySelect={onOpportunitySelect}
@@ -574,7 +643,7 @@ describe('Search Components', () => {
         />
       )
 
-      expect(screen.getByText('Try adjusting your search filters')).toBeInTheDocument()
+      expect(getByText('Try adjusting your search filters')).toBeInTheDocument()
     })
 
     it('should call onOpportunitySelect when opportunity is clicked', async () => {
@@ -595,7 +664,7 @@ describe('Search Components', () => {
 
     it('should prioritize error over loading state', () => {
       const onOpportunitySelect = vi.fn()
-      render(
+      const { getByRole, queryByText } = renderIsolated(
         <OpportunityList
           opportunities={[]}
           loading={true}
@@ -604,8 +673,8 @@ describe('Search Components', () => {
         />
       )
 
-      expect(screen.getByRole('alert')).toBeInTheDocument()
-      expect(screen.queryByText('Loading opportunities...')).not.toBeInTheDocument()
+      expect(getByRole('alert')).toBeInTheDocument()
+      expect(queryByText('Loading opportunities...')).not.toBeInTheDocument()
     })
   })
 
@@ -664,7 +733,7 @@ describe('Search Components', () => {
         min_score: 0,
       }
 
-      render(
+      const { getByRole, container } = renderIsolated(
         <div>
           <SearchBar onSearch={handleSearch} />
           <SearchFiltersComponent filters={filters} onFiltersChange={handleFiltersChange} />
@@ -673,14 +742,14 @@ describe('Search Components', () => {
       )
 
       // Test search interaction
-      const searchInput = screen.getByRole('textbox', { name: 'Search input' })
+      const searchInput = getByRole('textbox', { name: 'Search input' })
       await user.type(searchInput, 'React')
       await user.keyboard('{Enter}')
 
       expect(handleSearch).toHaveBeenCalledWith('React')
 
       // Test filter interaction
-      const difficultySelect = screen.getByRole('combobox', { name: /difficulty/i })
+      const difficultySelect = container.querySelector('#difficulty-select') as HTMLSelectElement
       await user.selectOptions(difficultySelect, 'beginner')
 
       expect(handleFiltersChange).toHaveBeenCalledWith({

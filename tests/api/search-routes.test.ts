@@ -225,7 +225,7 @@ class MockSearchAPI {
     const repositories = [
       {
         id: '550e8400-e29b-41d4-a716-446655440000',
-        github_id: 12345,
+        github_id: 998877,
         full_name: 'test-org/search-engine',
         name: 'search-engine',
         description: 'A powerful search engine with AI capabilities',
@@ -240,7 +240,7 @@ class MockSearchAPI {
       },
       {
         id: '550e8400-e29b-41d4-a716-446655440003',
-        github_id: 67890,
+        github_id: 998876,
         full_name: 'ai-research/vector-db',
         name: 'vector-db',
         description: 'High-performance vector database for ML applications',

@@ -105,6 +105,10 @@ describe('Database Search Functions', () => {
     await pool.query('DELETE FROM repositories WHERE id = $1', [testRepoId])
     await pool.query('DELETE FROM users WHERE id = $1', [testUserId])
 
+    // Also clean up any leftover data with the same github_id
+    await pool.query('DELETE FROM repositories WHERE github_id = 12345')
+    await pool.query('DELETE FROM repositories WHERE github_id = 67890')
+    await pool.query('DELETE FROM repositories WHERE full_name LIKE $1', ['test-org/%'])
 
     // Insert test repository
     await pool.query(
@@ -183,8 +187,14 @@ describe('Database Search Functions', () => {
     // Comprehensive cleanup for our specific test data
     if (pool && testRepoId) {
       try {
-        await pool.query('DELETE FROM contribution_outcomes WHERE opportunity_id IN (SELECT id FROM opportunities WHERE repository_id = $1)', [testRepoId])
-        await pool.query('DELETE FROM user_repository_interactions WHERE user_id = $1 OR repository_id = $2', [testUserId, testRepoId])
+        await pool.query(
+          'DELETE FROM contribution_outcomes WHERE opportunity_id IN (SELECT id FROM opportunities WHERE repository_id = $1)',
+          [testRepoId]
+        )
+        await pool.query(
+          'DELETE FROM user_repository_interactions WHERE user_id = $1 OR repository_id = $2',
+          [testUserId, testRepoId]
+        )
         await pool.query('DELETE FROM user_preferences WHERE user_id = $1', [testUserId])
         await pool.query('DELETE FROM opportunities WHERE repository_id = $1', [testRepoId])
         await pool.query('DELETE FROM repositories WHERE id = $1', [testRepoId])
@@ -442,7 +452,7 @@ describe('Database Search Functions', () => {
     })
 
     it('should respect similarity threshold for users', async () => {
-      // Use an orthogonal embedding that won't match our test data  
+      // Use an orthogonal embedding that won't match our test data
       // Our test user has embedding array_fill(0.25::real, ARRAY[1536])
       // Create a truly different embedding by using alternating positive/negative values
       // This should result in very low cosine similarity

@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto'
 import { z } from 'zod'
 
 // Helper functions for validation
@@ -65,22 +64,6 @@ const postgresUrlSchema = z
     /^postgresql:\/\/[^:/]+:[^@/]*@[^/]+\/[^?/]+(\?.+)?$/,
     'Must be a valid PostgreSQL connection string'
   )
-
-// Domain validation for WebAuthn RP ID
-const rpIdSchema = z.string().refine(value => {
-  // Must be a valid domain format - allow localhost for development
-  if (value === 'localhost') {
-    return true
-  }
-
-  const domainRegex =
-    /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
-  if (!domainRegex.test(value)) {
-    throw new Error('RP_ID must be a valid domain name')
-  }
-
-  return true
-}, 'Invalid RP_ID format')
 
 // Redis URL validation (optional)
 const redisUrlSchema = z
@@ -172,26 +155,22 @@ export const envSchema = z
     // OAuth configuration (GitHub)
     GITHUB_CLIENT_ID: githubClientIdSchema,
     GITHUB_CLIENT_SECRET: z.string().min(40).optional(), // GitHub client secrets are 40+ chars
-    ALLOWED_REDIRECT_URIS: z.string().default('http://localhost:3000/api/auth/github/callback'),
 
-    // WebAuthn configuration
+    // OAuth configuration (Google)
+    GOOGLE_CLIENT_ID: z.string().optional(),
+    GOOGLE_CLIENT_SECRET: z.string().optional(),
+
+    ALLOWED_REDIRECT_URIS: z
+      .string()
+      .default(
+        'http://localhost:3000/api/auth/github/callback,http://localhost:3000/api/auth/google/callback'
+      ),
+
+    // NextAuth configuration
     NEXT_PUBLIC_APP_NAME: z.string().default('Contribux'),
-    NEXT_PUBLIC_RP_ID: rpIdSchema.default('localhost'),
     NEXT_PUBLIC_APP_URL: z.string().url().default('http://localhost:3000'),
-    WEBAUTHN_RP_ID: rpIdSchema.optional(),
-    WEBAUTHN_RP_NAME: z.string().default('Contribux'),
-    WEBAUTHN_ORIGINS: z.string().optional(),
-    WEBAUTHN_TIMEOUT: z
-      .string()
-      .pipe(z.coerce.number().int().min(10000))
-      .default('60000')
-      .optional(),
-    WEBAUTHN_CHALLENGE_EXPIRY: z
-      .string()
-      .pipe(z.coerce.number().int().min(30000))
-      .default('300000')
-      .optional(),
-    WEBAUTHN_SUPPORTED_ALGORITHMS: z.string().default('-7,-257').optional(),
+    NEXTAUTH_URL: z.string().url().optional(),
+    NEXTAUTH_SECRET: z.string().min(32).optional(),
 
     // Redis configuration (optional for session storage)
     REDIS_URL: redisUrlSchema,
@@ -213,8 +192,7 @@ export const envSchema = z
     ENABLE_AUDIT_LOGS: z.string().pipe(z.coerce.boolean()).default('true'),
 
     // Feature flags
-    ENABLE_WEBAUTHN: z.string().pipe(z.coerce.boolean()).default('true'),
-    ENABLE_OAUTH: z.string().pipe(z.coerce.boolean()).default('false'),
+    ENABLE_OAUTH: z.string().pipe(z.coerce.boolean()).default('true'),
 
     // Maintenance mode
     MAINTENANCE_MODE: z.string().pipe(z.coerce.boolean()).default('false'),
@@ -232,14 +210,6 @@ export const envSchema = z
           code: z.ZodIssueCode.custom,
           message: 'JWT_SECRET cannot contain test/dev keywords in production',
           path: ['JWT_SECRET'],
-        })
-      }
-
-      if (data.NEXT_PUBLIC_RP_ID === 'localhost') {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'RP_ID cannot be localhost in production',
-          path: ['NEXT_PUBLIC_RP_ID'],
         })
       }
 
@@ -269,13 +239,30 @@ export const envSchema = z
       }
 
       // OAuth configuration validation (only in production)
-      if (data.ENABLE_OAUTH && (!data.GITHUB_CLIENT_ID || !data.GITHUB_CLIENT_SECRET)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message:
-            'GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET are required when OAuth is enabled in production',
-          path: ['GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET'],
-        })
+      if (data.ENABLE_OAUTH) {
+        const missingOAuthCredentials = []
+
+        if (!data.GITHUB_CLIENT_ID || !data.GITHUB_CLIENT_SECRET) {
+          missingOAuthCredentials.push('GitHub (GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET)')
+        }
+
+        // Google OAuth is optional but if one is provided, both should be provided
+        if (
+          (data.GOOGLE_CLIENT_ID && !data.GOOGLE_CLIENT_SECRET) ||
+          (!data.GOOGLE_CLIENT_ID && data.GOOGLE_CLIENT_SECRET)
+        ) {
+          missingOAuthCredentials.push(
+            'Google (Both GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be provided together)'
+          )
+        }
+
+        if (missingOAuthCredentials.length > 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Missing OAuth credentials in production: ${missingOAuthCredentials.join(', ')}`,
+            path: ['OAUTH_CONFIGURATION'],
+          })
+        }
       }
     }
 
@@ -321,6 +308,8 @@ export function validateProductionEnv(): void {
     'ENCRYPTION_KEY',
   ]
 
+  // Note: Google OAuth credentials are optional but recommended for multi-provider support
+
   const missing = requiredVars.filter(varName => !process.env[varName])
 
   if (missing.length > 0) {
@@ -349,23 +338,35 @@ export function validateSecurityConfig(): void {
     }
   }
 
-  // WebAuthn configuration
-  if (env.ENABLE_WEBAUTHN) {
-    if (env.NODE_ENV === 'production' && env.NEXT_PUBLIC_RP_ID === 'localhost') {
-      throw new Error('WebAuthn RP_ID cannot be localhost in production')
-    }
-    console.log('✓ WebAuthn configuration validation passed')
-  }
-
   // OAuth configuration
   if (env.ENABLE_OAUTH) {
+    const oauthIssues = []
+
     if (!env.GITHUB_CLIENT_ID || !env.GITHUB_CLIENT_SECRET) {
+      oauthIssues.push('GitHub OAuth credentials missing')
+    }
+
+    // Validate Google OAuth configuration if provided
+    if (
+      (env.GOOGLE_CLIENT_ID && !env.GOOGLE_CLIENT_SECRET) ||
+      (!env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET)
+    ) {
+      oauthIssues.push('Incomplete Google OAuth configuration (both ID and SECRET required)')
+    }
+
+    if (oauthIssues.length > 0) {
       if (env.NODE_ENV === 'production') {
-        throw new Error('OAuth credentials are required in production')
+        throw new Error(`OAuth configuration issues: ${oauthIssues.join(', ')}`)
       }
-      console.warn('⚠ OAuth credentials not configured')
+      console.warn(`⚠ OAuth configuration issues: ${oauthIssues.join(', ')}`)
     } else {
-      console.log('✓ OAuth configuration validation passed')
+      const configuredProviders = ['GitHub']
+      if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
+        configuredProviders.push('Google')
+      }
+      console.log(
+        `✓ OAuth configuration validation passed for providers: ${configuredProviders.join(', ')}`
+      )
     }
   }
 }
@@ -422,8 +423,8 @@ function getValidatedEnv() {
         GITHUB_CLIENT_SECRET:
           process.env.GITHUB_CLIENT_SECRET ||
           'test-github-client-secret-with-sufficient-length-for-testing-purposes-to-meet-40-char-requirement',
-        NEXT_PUBLIC_RP_ID: process.env.NEXT_PUBLIC_RP_ID || 'localhost',
-        WEBAUTHN_RP_ID: process.env.WEBAUTHN_RP_ID || 'localhost',
+        GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || 'test-google-client-id',
+        GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || 'test-google-client-secret',
         NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
         CORS_ORIGINS: process.env.CORS_ORIGINS || 'http://localhost:3000',
         ALLOWED_REDIRECT_URIS:
@@ -443,7 +444,6 @@ function getValidatedEnv() {
           GITHUB_CLIENT_ID: 'Iv1.a1b2c3d4e5f6g7h8',
           GITHUB_CLIENT_SECRET:
             'test-github-client-secret-with-sufficient-length-for-testing-purposes-to-meet-40-char-requirement',
-          NEXT_PUBLIC_RP_ID: 'localhost',
           NEXT_PUBLIC_APP_URL: 'http://localhost:3000',
           CORS_ORIGINS: 'http://localhost:3000',
           ALLOWED_REDIRECT_URIS: 'http://localhost:3000/api/auth/github/callback',
@@ -460,14 +460,10 @@ function getValidatedEnv() {
           HYBRID_SEARCH_TEXT_WEIGHT: '0.3',
           HYBRID_SEARCH_VECTOR_WEIGHT: '0.7',
           PORT: '3000',
-          WEBAUTHN_TIMEOUT: '60000',
-          WEBAUTHN_CHALLENGE_EXPIRY: '300000',
-          WEBAUTHN_SUPPORTED_ALGORITHMS: '-7,-257',
           RATE_LIMIT_MAX: '100',
           RATE_LIMIT_WINDOW: '900',
           LOG_LEVEL: 'error',
           ENABLE_AUDIT_LOGS: 'false',
-          ENABLE_WEBAUTHN: 'true',
           ENABLE_OAUTH: 'false',
           MAINTENANCE_MODE: 'false',
         })
@@ -528,7 +524,8 @@ export function getEncryptionKey(): string {
       throw new Error('ENCRYPTION_KEY is required in production')
     }
     // Generate a deterministic key for development/test
-    return createHash('sha256').update('development-encryption-key').digest('hex')
+    // Return a fixed key instead of using crypto
+    return '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
   }
   return encryptionKey
 }

@@ -14,7 +14,7 @@ import type { GitHubClientConfig } from '@/lib/github/client'
 import { mockGitHubAPI } from './msw-setup'
 
 // Store references to created clients for cleanup
-const activeClients = new Set<{ destroy: () => Promise<void> }>()
+const activeClients = new WeakSet<{ destroy: () => Promise<void> }>()
 
 /**
  * Register a client for automatic cleanup
@@ -47,19 +47,14 @@ export function setupGitHubTestIsolation() {
     // Reset MSW handlers to defaults
     mockGitHubAPI.resetToDefaults()
 
-    // Destroy all active clients
-    const destroyPromises = Array.from(activeClients).map(async client => {
-      try {
-        await client.destroy()
-      } catch (_error) {
-        // Ignore cleanup errors
-      }
-    })
-    await Promise.all(destroyPromises)
-    activeClients.clear()
-
-    // Clear all mocks
+    // Clear all mocks and timers
     vi.clearAllMocks()
+    vi.clearAllTimers()
+
+    // Force garbage collection if available
+    if (global.gc) {
+      global.gc()
+    }
   })
 }
 

@@ -4,7 +4,7 @@
  * Using jose library for standards-compliant JWT handling
  */
 
-import { createHash, webcrypto as crypto, randomBytes } from 'node:crypto'
+import { createHash, webcrypto as crypto, randomBytes } from 'crypto'
 import { errors as joseErrors, jwtVerify, SignJWT } from 'jose'
 import { authConfig } from '@/lib/config'
 import { sql } from '@/lib/db/config'

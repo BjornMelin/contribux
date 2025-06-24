@@ -86,6 +86,7 @@ export function SearchFilters({ filters, onFiltersChange, loading = false }: Sea
                 checked={filters.languages.includes(language)}
                 onChange={() => handleLanguageToggle(language)}
                 disabled={loading}
+                aria-label={language.toLowerCase()}
                 className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
               />
               <span className="text-gray-700">{language}</span>
@@ -102,6 +103,7 @@ export function SearchFilters({ filters, onFiltersChange, loading = false }: Sea
             checked={filters.good_first_issue}
             onChange={e => handleFilterChange('good_first_issue', e.target.checked)}
             disabled={loading}
+            aria-label="Good first issue"
             className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
           />
           <span className="text-gray-700">Good First Issue</span>
@@ -115,6 +117,7 @@ export function SearchFilters({ filters, onFiltersChange, loading = false }: Sea
             checked={filters.help_wanted}
             onChange={e => handleFilterChange('help_wanted', e.target.checked)}
             disabled={loading}
+            aria-label="Help wanted"
             className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
           />
           <span className="text-gray-700">Help Wanted</span>
@@ -135,6 +138,7 @@ export function SearchFilters({ filters, onFiltersChange, loading = false }: Sea
           value={filters.min_score}
           onChange={e => handleFilterChange('min_score', Number.parseFloat(e.target.value))}
           disabled={loading}
+          aria-label="Minimum relevance score"
           className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         />
         <div className="flex justify-between text-xs text-gray-500 mt-1">
@@ -147,6 +151,7 @@ export function SearchFilters({ filters, onFiltersChange, loading = false }: Sea
         type="button"
         onClick={resetFilters}
         disabled={loading}
+        aria-label="Reset filters"
         className="reset-filters-button w-full px-4 py-2 text-sm text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         Reset Filters

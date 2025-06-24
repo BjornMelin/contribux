@@ -4,7 +4,7 @@
  * digital signatures, and cryptographic operations for zero-trust architecture
  */
 
-import { timingSafeEqual } from 'node:crypto'
+import { timingSafeEqual } from 'crypto'
 import { z } from 'zod'
 
 // Re-export existing crypto utilities for backward compatibility
@@ -116,7 +116,7 @@ export async function generateSignatureKeyPair(): Promise<SecureKeyPair> {
   )
 
   const keyId = await generateSecureKeyId(keyPair.publicKey)
-  
+
   const metadata: KeyMetadata = {
     keyId,
     algorithm: ENHANCED_CRYPTO_CONFIG.signature.algorithm,
@@ -147,7 +147,7 @@ export async function generateKeyExchangePair(): Promise<SecureKeyPair> {
   )
 
   const keyId = await generateSecureKeyId(keyPair.publicKey)
-  
+
   const metadata: KeyMetadata = {
     keyId,
     algorithm: ENHANCED_CRYPTO_CONFIG.keyExchange.algorithm,
@@ -174,7 +174,8 @@ export async function deriveKeyFromPassword(
   salt?: Uint8Array,
   iterations?: number
 ): Promise<DerivedKeyInfo> {
-  const actualSalt = salt || crypto.getRandomValues(new Uint8Array(ENHANCED_CRYPTO_CONFIG.pbkdf2.saltLength))
+  const actualSalt =
+    salt || crypto.getRandomValues(new Uint8Array(ENHANCED_CRYPTO_CONFIG.pbkdf2.saltLength))
   const actualIterations = iterations || ENHANCED_CRYPTO_CONFIG.pbkdf2.iterations
 
   // Import password as key material
@@ -244,7 +245,7 @@ export async function createDigitalSignature(
   keyId: string
 ): Promise<DigitalSignature> {
   const dataBuffer = typeof data === 'string' ? new TextEncoder().encode(data) : data
-  
+
   const signature = await crypto.subtle.sign(
     {
       name: ENHANCED_CRYPTO_CONFIG.signature.algorithm,
@@ -327,7 +328,9 @@ export function generateSecureToken(length?: number): string {
  * Generate secure session ID
  */
 export function generateSessionId(): string {
-  const randomBytes = crypto.getRandomValues(new Uint8Array(ENHANCED_CRYPTO_CONFIG.random.sessionIdLength))
+  const randomBytes = crypto.getRandomValues(
+    new Uint8Array(ENHANCED_CRYPTO_CONFIG.random.sessionIdLength)
+  )
   return base64Encode(randomBytes).replace(/[+/=]/g, '')
 }
 
@@ -343,17 +346,10 @@ export function generateNonce(): Uint8Array {
 /**
  * Create HMAC for message authentication
  */
-export async function createHMAC(
-  message: string | Uint8Array,
-  key: CryptoKey
-): Promise<string> {
+export async function createHMAC(message: string | Uint8Array, key: CryptoKey): Promise<string> {
   const messageBuffer = typeof message === 'string' ? new TextEncoder().encode(message) : message
-  
-  const signature = await crypto.subtle.sign(
-    'HMAC',
-    key,
-    messageBuffer
-  )
+
+  const signature = await crypto.subtle.sign('HMAC', key, messageBuffer)
 
   return base64Encode(new Uint8Array(signature))
 }
@@ -370,7 +366,7 @@ export async function verifyHMAC(
     const computedHmac = await createHMAC(message, key)
     const expectedBuffer = Buffer.from(expectedHmac)
     const computedBuffer = Buffer.from(computedHmac)
-    
+
     return timingSafeEqual(expectedBuffer, computedBuffer)
   } catch {
     return false
@@ -397,7 +393,10 @@ export async function generateHMACKey(): Promise<CryptoKey> {
  */
 export async function createSecureHash(data: string | Uint8Array): Promise<string> {
   const dataBuffer = typeof data === 'string' ? new TextEncoder().encode(data) : data
-  const hashBuffer = await crypto.subtle.digest(ENHANCED_CRYPTO_CONFIG.hashing.algorithm, dataBuffer)
+  const hashBuffer = await crypto.subtle.digest(
+    ENHANCED_CRYPTO_CONFIG.hashing.algorithm,
+    dataBuffer
+  )
   return base64Encode(new Uint8Array(hashBuffer))
 }
 
@@ -413,13 +412,13 @@ export async function initiateKeyExchange(participantId: string): Promise<{
 }> {
   const keyPair = await generateKeyExchangePair()
   const exchangeToken = generateSecureToken()
-  
+
   // Export public key for transmission
   const exportedPublicKey = await crypto.subtle.exportKey('spki', keyPair.publicKey)
-  
+
   // Store private key securely (in production, use secure storage)
   await storeKeyPairSecurely(keyPair, exchangeToken)
-  
+
   return {
     publicKey: base64Encode(new Uint8Array(exportedPublicKey)),
     keyId: keyPair.keyId,
@@ -437,7 +436,7 @@ export async function completeKeyExchange(
 ): Promise<CryptoKey> {
   // Retrieve our private key
   const ourKeyPair = await retrieveKeyPairSecurely(ourExchangeToken)
-  
+
   // Import their public key
   const theirPublicKeyBuffer = base64Decode(theirPublicKeyData)
   const theirPublicKey = await crypto.subtle.importKey(
@@ -450,13 +449,13 @@ export async function completeKeyExchange(
     false,
     []
   )
-  
+
   // Derive shared secret
   const sharedSecret = await deriveSharedSecret(ourKeyPair.privateKey, theirPublicKey)
-  
+
   // Clean up temporary keys
   await cleanupKeyExchange(ourExchangeToken)
-  
+
   return sharedSecret
 }
 
@@ -474,7 +473,7 @@ export async function generateDeviceFingerprint(
     timestamp: Math.floor(Date.now() / (1000 * 60 * 60)), // Hour-based to allow some variance
     ...additionalData,
   }
-  
+
   return await createSecureHash(JSON.stringify(fingerprintData))
 }
 
@@ -485,7 +484,7 @@ export async function createSecurityToken(
   payload: Record<string, unknown>,
   privateKey: CryptoKey,
   keyId: string,
-  expirationMs: number = 3600000 // 1 hour default
+  expirationMs = 3600000 // 1 hour default
 ): Promise<SecurityToken> {
   const now = Date.now()
   const tokenData = {
@@ -493,18 +492,18 @@ export async function createSecurityToken(
     issuedAt: now,
     expiresAt: now + expirationMs,
   }
-  
+
   const dataString = JSON.stringify(tokenData)
   const signature = await createDigitalSignature(dataString, privateKey, keyId)
   const fingerprint = await createSecureHash(dataString)
-  
+
   const token = {
     data: base64Encode(new TextEncoder().encode(dataString)),
     signature: signature.signature,
     keyId: signature.keyId,
     publicKey: signature.publicKey,
   }
-  
+
   return {
     value: base64Encode(new TextEncoder().encode(JSON.stringify(token))),
     algorithm: ENHANCED_CRYPTO_CONFIG.signature.algorithm,
@@ -526,22 +525,22 @@ export async function verifySecurityToken(
     if (Date.now() > token.expiresAt) {
       return { valid: false }
     }
-    
+
     // Check age if specified
     if (maxAge && Date.now() - token.issuedAt > maxAge) {
       return { valid: false }
     }
-    
+
     // Decode token
     const tokenBuffer = base64Decode(token.value)
     const tokenString = new TextDecoder().decode(tokenBuffer)
     const tokenObj = JSON.parse(tokenString)
-    
+
     // Verify signature
     const dataBuffer = base64Decode(tokenObj.data)
     const dataString = new TextDecoder().decode(dataBuffer)
     const payload = JSON.parse(dataString)
-    
+
     const signature: DigitalSignature = {
       signature: tokenObj.signature,
       algorithm: token.algorithm,
@@ -549,19 +548,19 @@ export async function verifySecurityToken(
       timestamp: token.issuedAt,
       publicKey: tokenObj.publicKey,
     }
-    
+
     const isValid = await verifyDigitalSignature(dataString, signature, maxAge)
-    
+
     if (!isValid) {
       return { valid: false }
     }
-    
+
     // Verify fingerprint
     const computedFingerprint = await createSecureHash(dataString)
     if (computedFingerprint !== token.fingerprint) {
       return { valid: false }
     }
-    
+
     return { valid: true, payload }
   } catch {
     return { valid: false }

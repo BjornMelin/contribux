@@ -4,7 +4,7 @@
  * replay attack prevention, payload integrity checks, and delivery retry mechanisms
  */
 
-import { timingSafeEqual } from 'node:crypto'
+import { timingSafeEqual } from 'crypto'
 import { z } from 'zod'
 import { createHMAC, generateHMACKey, generateSecureToken, verifyHMAC } from './crypto'
 
@@ -66,15 +66,19 @@ export const WebhookSourceSchema = z.object({
   secret: z.string(),
   events: z.array(z.string()),
   isActive: z.boolean(),
-  rateLimit: z.object({
-    requests: z.number(),
-    window: z.number(),
-  }).optional(),
-  retryConfig: z.object({
-    maxAttempts: z.number(),
-    initialDelayMs: z.number(),
-    maxDelayMs: z.number(),
-  }).optional(),
+  rateLimit: z
+    .object({
+      requests: z.number(),
+      window: z.number(),
+    })
+    .optional(),
+  retryConfig: z
+    .object({
+      maxAttempts: z.number(),
+      initialDelayMs: z.number(),
+      maxDelayMs: z.number(),
+    })
+    .optional(),
 })
 
 export const WebhookDeliverySchema = z.object({
@@ -139,64 +143,64 @@ export async function verifyWebhookSignature(
   const startTime = Date.now()
   const errors: string[] = []
   const warnings: string[] = []
-  
+
   try {
     // Extract headers with normalization
     const normalizedHeaders = normalizeHeaders(headers)
-    
+
     // Validate required headers
     const headerValidation = validateRequiredHeaders(normalizedHeaders)
     if (!headerValidation.valid) {
       errors.push(...headerValidation.errors)
     }
-    
+
     // Extract signature information
     const signatureHeader = normalizedHeaders[WEBHOOK_CONFIG.security.signatureHeader.toLowerCase()]
     if (!signatureHeader) {
       errors.push('Missing signature header')
       return createVerificationResult(false, undefined, undefined, errors, warnings, startTime)
     }
-    
+
     const signature = parseSignatureHeader(signatureHeader)
     if (!signature) {
       errors.push('Invalid signature format')
       return createVerificationResult(false, undefined, undefined, errors, warnings, startTime)
     }
-    
+
     // Validate timestamp
     const timestampValidation = validateTimestamp(normalizedHeaders, signature.timestamp)
     if (!timestampValidation.valid) {
       errors.push(...timestampValidation.errors)
       warnings.push(...timestampValidation.warnings)
     }
-    
+
     // Get webhook source configuration
     const source = await getWebhookSource(sourceId, normalizedHeaders)
     if (!source) {
       errors.push('Unknown webhook source')
       return createVerificationResult(false, undefined, undefined, errors, warnings, startTime)
     }
-    
+
     // Check rate limiting
     const rateLimitResult = await checkWebhookRateLimit(source.id, normalizedHeaders)
     if (!rateLimitResult.allowed) {
       errors.push('Rate limit exceeded')
       return createVerificationResult(false, source, undefined, errors, warnings, startTime)
     }
-    
+
     // Verify payload size
     if (Buffer.byteLength(rawPayload) > WEBHOOK_CONFIG.security.maxPayloadSize) {
       errors.push('Payload too large')
       return createVerificationResult(false, source, undefined, errors, warnings, startTime)
     }
-    
+
     // Verify HMAC signature
     const signatureVerification = await verifyHMACSignature(rawPayload, signature, source.secret)
     if (!signatureVerification.valid) {
       errors.push('Invalid signature')
       return createVerificationResult(false, source, undefined, errors, warnings, startTime)
     }
-    
+
     // Parse and validate payload
     let payload: WebhookPayload
     try {
@@ -206,34 +210,35 @@ export async function verifyWebhookSignature(
       errors.push('Invalid payload format')
       return createVerificationResult(false, source, undefined, errors, warnings, startTime)
     }
-    
+
     // Replay attack prevention
     const replayCheck = await checkReplayAttack(payload, signature)
     if (!replayCheck.valid) {
       errors.push('Replay attack detected')
-      return createVerificationResult(false, source, payload, errors, warnings, startTime, { isReplay: true })
+      return createVerificationResult(false, source, payload, errors, warnings, startTime, {
+        isReplay: true,
+      })
     }
-    
+
     // Event type validation
     if (!source.events.includes(payload.event)) {
       warnings.push(`Unexpected event type: ${payload.event}`)
     }
-    
+
     // All validations passed
     if (errors.length === 0) {
       // Store nonce to prevent replay
       if (payload.nonce) {
         await storeNonce(payload.nonce, signature.timestamp)
       }
-      
+
       return createVerificationResult(true, source, payload, errors, warnings, startTime, {
         signatureAlgorithm: signature.algorithm,
         timestampDrift: Math.abs(Date.now() - signature.timestamp),
       })
     }
-    
+
     return createVerificationResult(false, source, payload, errors, warnings, startTime)
-    
   } catch (error) {
     console.error('Webhook verification error:', error)
     errors.push('Internal verification error')
@@ -247,20 +252,20 @@ export async function verifyWebhookSignature(
 export async function generateWebhookSignature(
   payload: string | Buffer,
   secret: string,
-  algorithm: string = 'sha256'
+  algorithm = 'sha256'
 ): Promise<WebhookSignature> {
   const timestamp = Date.now()
   const payloadBuffer = Buffer.isBuffer(payload) ? payload : Buffer.from(payload, 'utf8')
-  
+
   // Create signing string (timestamp + payload)
   const signingString = `${timestamp}.${payloadBuffer.toString()}`
-  
+
   // Generate HMAC key from secret
   const key = await createHMACKeyFromSecret(secret)
-  
+
   // Create signature
   const signature = await createHMAC(signingString, key)
-  
+
   return {
     algorithm,
     signature,
@@ -276,15 +281,15 @@ export async function createWebhookDelivery(
   payload: WebhookPayload
 ): Promise<WebhookDelivery> {
   const deliveryId = generateSecureToken(16)
-  
+
   // Generate signature for delivery
   const source = await getWebhookSourceById(context.sourceId)
   if (!source) {
     throw new Error('Unknown webhook source')
   }
-  
+
   const signature = await generateWebhookSignature(context.payload, source.secret)
-  
+
   const delivery: WebhookDelivery = {
     id: deliveryId,
     sourceId: context.sourceId,
@@ -296,10 +301,10 @@ export async function createWebhookDelivery(
     status: 'pending',
     nextAttemptAt: Date.now(),
   }
-  
+
   // Store delivery for processing
   deliveryQueue.set(deliveryId, delivery)
-  
+
   return delivery
 }
 
@@ -308,26 +313,26 @@ export async function createWebhookDelivery(
  */
 export async function processWebhookDelivery(
   deliveryId: string,
-  attempt: number = 1
+  attempt = 1
 ): Promise<{ success: boolean; shouldRetry: boolean; error?: string }> {
   const delivery = deliveryQueue.get(deliveryId)
   if (!delivery) {
     return { success: false, shouldRetry: false, error: 'Delivery not found' }
   }
-  
+
   const retryConfig = { ...WEBHOOK_CONFIG.retry }
   const source = await getWebhookSourceById(delivery.sourceId)
-  
+
   if (source?.retryConfig) {
     Object.assign(retryConfig, source.retryConfig)
   }
-  
+
   try {
     // Update delivery attempt
     delivery.attempts = attempt
     delivery.lastAttemptAt = Date.now()
     delivery.status = 'pending'
-    
+
     // Prepare delivery headers
     const headers = {
       'Content-Type': 'application/json',
@@ -337,48 +342,48 @@ export async function processWebhookDelivery(
       [WEBHOOK_CONFIG.security.eventTypeHeader]: delivery.event,
       [WEBHOOK_CONFIG.security.deliveryIdHeader]: delivery.id,
     }
-    
+
     // Make HTTP request (implement with your preferred HTTP client)
     const result = await deliverWebhook(source!.url, delivery.payload, headers)
-    
+
     if (result.success) {
       delivery.status = 'delivered'
       delivery.responseCode = result.statusCode
       delivery.responseHeaders = result.headers
       return { success: true, shouldRetry: false }
-    } else {
-      delivery.errorMessage = result.error
-      delivery.responseCode = result.statusCode
-      
-      // Determine if we should retry
-      const shouldRetry = attempt < retryConfig.maxAttempts && isRetryableError(result.statusCode)
-      
-      if (shouldRetry) {
-        // Calculate next attempt time with exponential backoff
-        const baseDelay = retryConfig.initialDelayMs * Math.pow(retryConfig.backoffMultiplier, attempt - 1)
-        const clampedDelay = Math.min(baseDelay, retryConfig.maxDelayMs)
-        const jitter = Math.random() * (WEBHOOK_CONFIG.retry.jitterMaxMs || 1000)
-        const nextAttemptDelay = clampedDelay + jitter
-        
-        delivery.nextAttemptAt = Date.now() + nextAttemptDelay
-        delivery.status = 'pending'
-      } else {
-        delivery.status = 'failed'
-      }
-      
-      return { success: false, shouldRetry, error: result.error }
     }
+    delivery.errorMessage = result.error
+    delivery.responseCode = result.statusCode
+
+    // Determine if we should retry
+    const shouldRetry = attempt < retryConfig.maxAttempts && isRetryableError(result.statusCode)
+
+    if (shouldRetry) {
+      // Calculate next attempt time with exponential backoff
+      const baseDelay = retryConfig.initialDelayMs * retryConfig.backoffMultiplier ** (attempt - 1)
+      const clampedDelay = Math.min(baseDelay, retryConfig.maxDelayMs)
+      const jitter = Math.random() * (WEBHOOK_CONFIG.retry.jitterMaxMs || 1000)
+      const nextAttemptDelay = clampedDelay + jitter
+
+      delivery.nextAttemptAt = Date.now() + nextAttemptDelay
+      delivery.status = 'pending'
+    } else {
+      delivery.status = 'failed'
+    }
+
+    return { success: false, shouldRetry, error: result.error }
   } catch (error) {
     delivery.status = 'failed'
     delivery.errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    
+
     const shouldRetry = attempt < retryConfig.maxAttempts
     if (shouldRetry) {
-      const nextAttemptDelay = retryConfig.initialDelayMs * Math.pow(retryConfig.backoffMultiplier, attempt - 1)
+      const nextAttemptDelay =
+        retryConfig.initialDelayMs * retryConfig.backoffMultiplier ** (attempt - 1)
       delivery.nextAttemptAt = Date.now() + Math.min(nextAttemptDelay, retryConfig.maxDelayMs)
       delivery.status = 'pending'
     }
-    
+
     return { success: false, shouldRetry, error: delivery.errorMessage }
   }
 }
@@ -386,20 +391,22 @@ export async function processWebhookDelivery(
 /**
  * Register a new webhook source
  */
-export async function registerWebhookSource(source: Omit<WebhookSource, 'id'>): Promise<WebhookSource> {
+export async function registerWebhookSource(
+  source: Omit<WebhookSource, 'id'>
+): Promise<WebhookSource> {
   const id = generateSecureToken(12)
-  
+
   const webhookSource: WebhookSource = {
     id,
     ...source,
   }
-  
+
   // Validate source configuration
   WebhookSourceSchema.parse(webhookSource)
-  
+
   // Store source (implement with your preferred storage)
   webhookSources.set(id, webhookSource)
-  
+
   return webhookSource
 }
 
@@ -411,20 +418,20 @@ export async function processPendingDeliveries(): Promise<void> {
   const pendingDeliveries = Array.from(deliveryQueue.values()).filter(
     delivery => delivery.status === 'pending' && delivery.nextAttemptAt! <= now
   )
-  
+
   // Process deliveries in parallel (with concurrency limit)
   const concurrencyLimit = 10
   const batches = []
-  
+
   for (let i = 0; i < pendingDeliveries.length; i += concurrencyLimit) {
     batches.push(pendingDeliveries.slice(i, i + concurrencyLimit))
   }
-  
+
   for (const batch of batches) {
     await Promise.all(
-      batch.map(async (delivery) => {
+      batch.map(async delivery => {
         const result = await processWebhookDelivery(delivery.id, delivery.attempts + 1)
-        
+
         if (!result.shouldRetry) {
           // Clean up completed deliveries after some time
           setTimeout(() => deliveryQueue.delete(delivery.id), 24 * 60 * 60 * 1000) // 24 hours
@@ -436,9 +443,11 @@ export async function processPendingDeliveries(): Promise<void> {
 
 // Helper functions
 
-function normalizeHeaders(headers: Record<string, string | string[] | undefined>): Record<string, string> {
+function normalizeHeaders(
+  headers: Record<string, string | string[] | undefined>
+): Record<string, string> {
   const normalized: Record<string, string> = {}
-  
+
   Object.entries(headers).forEach(([key, value]) => {
     if (value !== undefined) {
       const stringValue = Array.isArray(value) ? value[0] : value
@@ -447,26 +456,29 @@ function normalizeHeaders(headers: Record<string, string | string[] | undefined>
       }
     }
   })
-  
+
   return normalized
 }
 
-function validateRequiredHeaders(headers: Record<string, string>): { valid: boolean; errors: string[] } {
+function validateRequiredHeaders(headers: Record<string, string>): {
+  valid: boolean
+  errors: string[]
+} {
   const errors: string[] = []
-  
+
   WEBHOOK_CONFIG.security.requiredHeaders.forEach(header => {
     if (!headers[header.toLowerCase()]) {
       errors.push(`Missing required header: ${header}`)
     }
   })
-  
+
   return { valid: errors.length === 0, errors }
 }
 
 function parseSignatureHeader(signatureHeader: string): WebhookSignature | null {
   // Support multiple formats: "sha256=abc123" or "algorithm=signature,timestamp=123"
   const parts = signatureHeader.split(',').map(p => p.trim())
-  
+
   if (parts.length === 1 && parts[0].includes('=')) {
     // Simple format: "sha256=signature"
     const [algorithm, signature] = parts[0].split('=', 2)
@@ -476,10 +488,10 @@ function parseSignatureHeader(signatureHeader: string): WebhookSignature | null 
       timestamp: Date.now(), // Use current time if not provided
     }
   }
-  
+
   // Complex format: parse key=value pairs
   const parsed: Partial<WebhookSignature> = {}
-  
+
   for (const part of parts) {
     const [key, value] = part.split('=', 2)
     if (key && value) {
@@ -496,7 +508,7 @@ function parseSignatureHeader(signatureHeader: string): WebhookSignature | null 
           break
         case 'timestamp':
         case 't':
-          parsed.timestamp = parseInt(value, 10)
+          parsed.timestamp = Number.parseInt(value, 10)
           break
         case 'keyid':
           parsed.keyId = value
@@ -504,7 +516,7 @@ function parseSignatureHeader(signatureHeader: string): WebhookSignature | null 
       }
     }
   }
-  
+
   if (parsed.algorithm && parsed.signature) {
     return {
       algorithm: parsed.algorithm,
@@ -513,7 +525,7 @@ function parseSignatureHeader(signatureHeader: string): WebhookSignature | null 
       keyId: parsed.keyId,
     }
   }
-  
+
   return null
 }
 
@@ -523,20 +535,20 @@ function validateTimestamp(
 ): { valid: boolean; errors: string[]; warnings: string[] } {
   const errors: string[] = []
   const warnings: string[] = []
-  
+
   const timestampHeader = headers[WEBHOOK_CONFIG.security.timestampHeader.toLowerCase()]
   let timestamp = signatureTimestamp
-  
+
   if (timestampHeader) {
-    const headerTimestamp = parseInt(timestampHeader, 10)
+    const headerTimestamp = Number.parseInt(timestampHeader, 10)
     if (!isNaN(headerTimestamp)) {
       timestamp = headerTimestamp
     }
   }
-  
+
   const now = Date.now()
   const age = now - timestamp
-  
+
   if (age > WEBHOOK_CONFIG.security.toleranceMs) {
     errors.push('Timestamp too old')
   } else if (age < -WEBHOOK_CONFIG.security.toleranceMs) {
@@ -544,7 +556,7 @@ function validateTimestamp(
   } else if (age > WEBHOOK_CONFIG.security.toleranceMs * 0.5) {
     warnings.push('Timestamp drift detected')
   }
-  
+
   return { valid: errors.length === 0, errors, warnings }
 }
 
@@ -555,7 +567,7 @@ async function getWebhookSource(
   if (sourceId) {
     return webhookSources.get(sourceId) || null
   }
-  
+
   // Try to identify source from headers
   const userAgent = headers['user-agent']
   if (userAgent) {
@@ -566,7 +578,7 @@ async function getWebhookSource(
       }
     }
   }
-  
+
   return null
 }
 
@@ -581,23 +593,28 @@ async function checkWebhookRateLimit(
   const ip = headers['x-forwarded-for'] || headers['x-real-ip'] || 'unknown'
   const key = `webhook:${sourceId}:${ip}`
   const now = Date.now()
-  
+
   const config = WEBHOOK_CONFIG.rateLimiting.perSource
   const record = rateLimitCache.get(key)
-  
+
   if (!record || record.reset < now) {
     const reset = now + config.window
     rateLimitCache.set(key, { count: 1, reset, lastRequest: now })
     return { allowed: true, limit: config.requests, remaining: config.requests - 1, reset }
   }
-  
+
   if (record.count >= config.requests) {
     return { allowed: false, limit: config.requests, remaining: 0, reset: record.reset }
   }
-  
+
   record.count++
   record.lastRequest = now
-  return { allowed: true, limit: config.requests, remaining: config.requests - record.count, reset: record.reset }
+  return {
+    allowed: true,
+    limit: config.requests,
+    remaining: config.requests - record.count,
+    reset: record.reset,
+  }
 }
 
 async function verifyHMACSignature(
@@ -609,10 +626,13 @@ async function verifyHMACSignature(
     const signingString = `${signature.timestamp}.${payload.toString()}`
     const key = await createHMACKeyFromSecret(secret)
     const isValid = await verifyHMAC(signingString, signature.signature, key)
-    
+
     return { valid: isValid }
   } catch (error) {
-    return { valid: false, error: error instanceof Error ? error.message : 'Signature verification error' }
+    return {
+      valid: false,
+      error: error instanceof Error ? error.message : 'Signature verification error',
+    }
   }
 }
 
@@ -625,20 +645,20 @@ async function checkReplayAttack(
   if (deliveryQueue.has(deliveryId)) {
     return { valid: false, error: 'Duplicate delivery ID' }
   }
-  
+
   // Check nonce if provided
   if (payload.nonce) {
     if (nonceCache.has(payload.nonce)) {
       return { valid: false, error: 'Nonce already used' }
     }
   }
-  
+
   return { valid: true }
 }
 
 async function storeNonce(nonce: string, timestamp: number): Promise<void> {
   nonceCache.set(nonce, timestamp)
-  
+
   // Clean up old nonces
   if (nonceCache.size > WEBHOOK_CONFIG.nonce.cacheSize) {
     const cutoff = Date.now() - WEBHOOK_CONFIG.nonce.maxAgeMs
@@ -685,12 +705,12 @@ function createVerificationResult(
 
 function isRetryableError(statusCode?: number): boolean {
   if (!statusCode) return true
-  
+
   // Don't retry client errors (4xx) except specific cases
   if (statusCode >= 400 && statusCode < 500) {
     return [408, 429].includes(statusCode) // Timeout, Rate Limited
   }
-  
+
   // Retry server errors (5xx)
   return statusCode >= 500
 }
@@ -700,10 +720,15 @@ async function deliverWebhook(
   url: string,
   payload: string,
   headers: Record<string, string>
-): Promise<{ success: boolean; statusCode?: number; headers?: Record<string, string>; error?: string }> {
+): Promise<{
+  success: boolean
+  statusCode?: number
+  headers?: Record<string, string>
+  error?: string
+}> {
   // TODO: Implement actual HTTP delivery
   console.log('Webhook delivery:', { url, payload: payload.substring(0, 100), headers })
-  
+
   // Simulate delivery for now
   return {
     success: Math.random() > 0.2, // 80% success rate
@@ -715,7 +740,7 @@ async function deliverWebhook(
 // Cleanup function to run periodically
 export function cleanupWebhookCaches(): void {
   const now = Date.now()
-  
+
   // Clean up old nonces
   const nonceCutoff = now - WEBHOOK_CONFIG.nonce.maxAgeMs
   for (const [nonce, timestamp] of nonceCache.entries()) {
@@ -723,14 +748,14 @@ export function cleanupWebhookCaches(): void {
       nonceCache.delete(nonce)
     }
   }
-  
+
   // Clean up old rate limit records
   for (const [key, record] of rateLimitCache.entries()) {
     if (record.reset < now) {
       rateLimitCache.delete(key)
     }
   }
-  
+
   // Clean up old deliveries
   const deliveryCutoff = now - 7 * 24 * 60 * 60 * 1000 // 7 days
   for (const [id, delivery] of deliveryQueue.entries()) {

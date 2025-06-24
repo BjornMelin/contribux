@@ -9,7 +9,6 @@
  * fail-fast behavior for misconfigured environments.
  */
 
-import { validateWebAuthnConfig } from './auth/webauthn-config'
 import { validateEnvironmentOnStartup } from './validation/env'
 
 /**
@@ -17,7 +16,6 @@ import { validateEnvironmentOnStartup } from './validation/env'
  * - Environment variable schema and format validation
  * - JWT secret entropy and security validation
  * - OAuth configuration validation
- * - WebAuthn domain and origin validation
  * - Production security checks
  * - Database URL format validation
  *
@@ -34,13 +32,7 @@ export function validateApplicationOnStartup(): void {
     // Import env after validation
     const { env } = require('./validation/env')
 
-    // 2. WebAuthn specific validation
-    if (env.ENABLE_WEBAUTHN) {
-      console.log('  Validating WebAuthn configuration...')
-      validateWebAuthnConfig()
-    }
-
-    // 3. Additional authentication service checks
+    // 2. Additional authentication service checks
     console.log('  Validating authentication services...')
     validateAuthenticationServices(env)
 
@@ -68,11 +60,6 @@ function validateAuthenticationServices(env: Record<string, unknown>): void {
     }
   }
 
-  // Check WebAuthn
-  if (env.ENABLE_WEBAUTHN) {
-    enabledServices.push('WebAuthn')
-  }
-
   // Ensure at least one authentication method is available
   if (enabledServices.length === 0) {
     throw new Error('No authentication services are properly configured')
@@ -93,7 +80,6 @@ export function printEnvironmentSummary(): void {
     console.log(`   Database: ${env.DATABASE_URL ? 'Configured' : 'Missing'}`)
     console.log(`   JWT Secret: ${env.JWT_SECRET ? 'Configured' : 'Missing'}`)
     console.log(`   OAuth: ${env.ENABLE_OAUTH ? 'Enabled' : 'Disabled'}`)
-    console.log(`   WebAuthn: ${env.ENABLE_WEBAUTHN ? 'Enabled' : 'Disabled'}`)
     console.log(`   Encryption: ${env.ENCRYPTION_KEY ? 'Configured' : 'Using default'}`)
     console.log(`   Audit Logs: ${env.ENABLE_AUDIT_LOGS ? 'Enabled' : 'Disabled'}`)
     console.log('')
@@ -118,16 +104,6 @@ export function checkAuthenticationReadiness(): {
 
   try {
     const { env } = require('./validation/env')
-
-    // Check WebAuthn
-    if (env.ENABLE_WEBAUTHN) {
-      try {
-        validateWebAuthnConfig()
-        services.push('WebAuthn')
-      } catch (error) {
-        issues.push(`WebAuthn: ${error instanceof Error ? error.message : 'Configuration error'}`)
-      }
-    }
 
     // Check OAuth
     if (env.ENABLE_OAUTH) {

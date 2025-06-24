@@ -15,8 +15,8 @@ export default defineConfig({
     // Only run database tests
     include: ['tests/database/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
 
-    // Use database-specific setup that doesn't mock database clients
-    setupFiles: ['./tests/database/setup.ts'],
+    // Use Neon branching for test isolation instead of Docker
+    setupFiles: ['./tests/database/neon-setup.ts'],
 
     // Disable mocking for database tests
     clearMocks: false,

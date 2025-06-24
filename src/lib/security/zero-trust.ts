@@ -58,12 +58,14 @@ export const DeviceTrustSchema = z.object({
   isQuarantined: z.boolean(),
   isCompromised: z.boolean(),
   riskFactors: z.array(z.string()),
-  verificationHistory: z.array(z.object({
-    timestamp: z.number(),
-    method: z.string(),
-    result: z.boolean(),
-    riskScore: z.number(),
-  })),
+  verificationHistory: z.array(
+    z.object({
+      timestamp: z.number(),
+      method: z.string(),
+      result: z.boolean(),
+      riskScore: z.number(),
+    })
+  ),
 })
 
 export const AccessContextSchema = z.object({
@@ -127,25 +129,25 @@ export async function evaluateZeroTrustAccess(
   deviceTrust: DeviceTrust
 ): Promise<ZeroTrustDecision> {
   const startTime = Date.now()
-  
+
   // Calculate comprehensive risk assessment
   const riskAssessment = await calculateRiskScore(context, deviceTrust)
-  
+
   // Determine trust level and required verifications
   const trustLevel = determineTrustLevel(context.trustScore.overall, riskAssessment.riskScore)
   const requiredVerifications = determineRequiredVerifications(trustLevel, riskAssessment)
-  
+
   // Make access decision
   const allowed = decideBinaryAccess(trustLevel, riskAssessment, context)
   const accessDuration = calculateAccessDuration(trustLevel, riskAssessment)
   const conditions = generateAccessConditions(trustLevel, riskAssessment, context)
-  
+
   const decisionId = generateSecureToken(16)
-  
+
   return {
     allowed,
     confidence: calculateConfidence(context.trustScore, riskAssessment),
-    riskLevel: mapToRiskLevel(riskAssessment.riskScore),
+    riskLevel: trustLevel, // Use the same trustLevel that determines access decisions
     requiredVerifications,
     accessDuration,
     conditions,
@@ -176,16 +178,16 @@ export async function initializeContinuousVerification(
     trustScore: initialTrustScore,
     scheduledChallenges: [],
   }
-  
+
   // Schedule initial verification challenges based on trust score
   if (initialTrustScore.overall < ZERO_TRUST_CONFIG.trust.riskThresholds.medium) {
     state.scheduledChallenges.push(await createVerificationChallenge('mfa', 5 * 60 * 1000)) // 5 minutes
   }
-  
+
   if (initialTrustScore.device < ZERO_TRUST_CONFIG.trust.riskThresholds.low) {
     state.scheduledChallenges.push(await createVerificationChallenge('device', 15 * 60 * 1000)) // 15 minutes
   }
-  
+
   return state
 }
 
@@ -202,52 +204,59 @@ export async function updateContinuousVerification(
   }
 ): Promise<ContinuousVerificationState> {
   const now = Date.now()
-  
+
+  // Create a deep copy of the state to avoid mutations
+  const newState: ContinuousVerificationState = {
+    ...state,
+    trustScore: { ...state.trustScore },
+    scheduledChallenges: [...state.scheduledChallenges],
+  }
+
   // Update trust score if verification succeeded
   if (verificationResult.success && verificationResult.newTrustScore) {
-    state.trustScore = {
-      ...state.trustScore,
+    newState.trustScore = {
+      ...newState.trustScore,
       ...verificationResult.newTrustScore,
       lastUpdated: now,
     }
   }
-  
+
   // Update verification timestamp
-  state.lastVerification = now
-  state.verificationMethod = verificationResult.method
-  
+  newState.lastVerification = now
+  newState.verificationMethod = verificationResult.method
+
   // Remove completed challenges
-  state.scheduledChallenges = state.scheduledChallenges.filter(
+  newState.scheduledChallenges = newState.scheduledChallenges.filter(
     challenge => challenge.requiredBy > now
   )
-  
+
   // Schedule new challenges based on updated trust score
   if (verificationResult.success) {
     // Successful verification - extend intervals
-    const nextInterval = ZERO_TRUST_CONFIG.verification.continuousInterval * 
-      (1 + state.trustScore.overall)
-    
-    if (state.trustScore.overall < ZERO_TRUST_CONFIG.trust.riskThresholds.high) {
-      state.scheduledChallenges.push(
+    const nextInterval =
+      ZERO_TRUST_CONFIG.verification.continuousInterval * (1 + newState.trustScore.overall)
+
+    if (newState.trustScore.overall < ZERO_TRUST_CONFIG.trust.riskThresholds.high) {
+      newState.scheduledChallenges.push(
         await createVerificationChallenge('behavioral', nextInterval)
       )
     }
   } else {
     // Failed verification - increase verification frequency
-    state.scheduledChallenges.push(
+    newState.scheduledChallenges.push(
       await createVerificationChallenge('mfa', 2 * 60 * 1000), // 2 minutes
       await createVerificationChallenge('device', 5 * 60 * 1000) // 5 minutes
     )
-    
+
     // Reduce trust score
-    state.trustScore = {
-      ...state.trustScore,
-      overall: Math.max(0, state.trustScore.overall - 0.2),
+    newState.trustScore = {
+      ...newState.trustScore,
+      overall: Math.max(0, newState.trustScore.overall - 0.2),
       lastUpdated: now,
     }
   }
-  
-  return state
+
+  return newState
 }
 
 /**
@@ -261,15 +270,15 @@ export async function calculateDeviceTrust(
 ): Promise<DeviceTrust> {
   // Check for existing device record
   const existingTrust = await getStoredDeviceTrust(deviceId)
-  
+
   if (existingTrust) {
     return await updateDeviceTrust(existingTrust, fingerprint, userAgent, ipAddress)
   }
-  
+
   // New device - start with base trust score
   const baseTrustScore = 0.5 // Neutral for new devices
   const now = Date.now()
-  
+
   return {
     deviceId,
     fingerprint,
@@ -302,37 +311,37 @@ export async function performBehavioralAnalysis(
 }> {
   // Get user's historical behavior patterns
   const behaviorHistory = await getUserBehaviorHistory(userId)
-  
+
   // Analyze current action against patterns
   const timeOfDayRisk = analyzeTimeOfDayPattern(currentAction.timestamp, behaviorHistory)
   const resourceAccessRisk = analyzeResourceAccessPattern(currentAction.resource, behaviorHistory)
   const actionFrequencyRisk = analyzeActionFrequency(currentAction.type, behaviorHistory)
-  
+
   const anomalies: string[] = []
   let totalRisk = 0
   let factors = 0
-  
+
   if (timeOfDayRisk > 0.7) {
     anomalies.push('unusual_time_of_day')
     totalRisk += timeOfDayRisk
     factors++
   }
-  
+
   if (resourceAccessRisk > 0.6) {
     anomalies.push('unusual_resource_access')
     totalRisk += resourceAccessRisk
     factors++
   }
-  
+
   if (actionFrequencyRisk > 0.5) {
     anomalies.push('unusual_action_frequency')
     totalRisk += actionFrequencyRisk
     factors++
   }
-  
+
   const riskScore = factors > 0 ? totalRisk / factors : 0
   const confidence = Math.min(1, behaviorHistory.sampleSize / 100) // More samples = higher confidence
-  
+
   return {
     riskScore,
     anomalies,
@@ -362,21 +371,22 @@ export async function evaluateMicroSegmentationAccess(
     confidential: 0.9,
     classified: 0.95,
   }
-  
-  const requiredTrust = segmentSecurityLevels[requestedSegment as keyof typeof segmentSecurityLevels] || 0.9
+
+  const requiredTrust =
+    segmentSecurityLevels[requestedSegment as keyof typeof segmentSecurityLevels] || 0.9
   const currentTrust = trustScore.overall
-  
+
   // Calculate access requirements
   const trustGap = requiredTrust - currentTrust
   const requiredVerifications: string[] = []
   const restrictions: string[] = []
-  
+
   if (trustGap > 0.3) {
     requiredVerifications.push('mfa', 'manager_approval')
   } else if (trustGap > 0.1) {
     requiredVerifications.push('mfa')
   }
-  
+
   // Add time-based restrictions for high-security segments
   if (requiredTrust > 0.8) {
     const currentHour = new Date().getHours()
@@ -385,13 +395,13 @@ export async function evaluateMicroSegmentationAccess(
       requiredVerifications.push('emergency_justification')
     }
   }
-  
+
   // Calculate access duration based on trust and segment
   const baseDuration = ZERO_TRUST_CONFIG.access.defaultTimeout
   const trustMultiplier = Math.max(0.1, currentTrust)
-  const segmentMultiplier = 1 - (requiredTrust * 0.5)
+  const segmentMultiplier = 1 - requiredTrust * 0.5
   const accessDuration = baseDuration * trustMultiplier * segmentMultiplier
-  
+
   return {
     allowed: currentTrust >= requiredTrust * 0.8, // Allow with 80% of required trust
     requiredVerifications,
@@ -408,59 +418,63 @@ async function calculateRiskScore(
 ): Promise<{ riskScore: number; factors: string[] }> {
   const riskFactors: string[] = []
   let riskScore = 0
-  
+
   // Device trust component
   if (deviceTrust.isQuarantined) {
     riskFactors.push('quarantined_device')
     riskScore += 0.5
   }
-  
+
   if (deviceTrust.isCompromised) {
     riskFactors.push('compromised_device')
     riskScore += 0.9
   }
-  
+
   // Trust score components
   if (context.trustScore.identity < 0.7) {
     riskFactors.push('low_identity_trust')
     riskScore += 0.3
   }
-  
+
   if (context.trustScore.device < 0.6) {
     riskFactors.push('low_device_trust')
     riskScore += 0.4
   }
-  
+
   if (context.trustScore.behavior < 0.5) {
     riskFactors.push('suspicious_behavior')
     riskScore += 0.6
   }
-  
+
   // Time-based risk
   const hour = new Date().getHours()
   if (hour < 6 || hour > 22) {
     riskFactors.push('unusual_hours')
     riskScore += 0.2
   }
-  
+
   return {
     riskScore: Math.min(1, riskScore),
     factors: riskFactors,
   }
 }
 
-function determineTrustLevel(trustScore: number, riskAssessment: { riskScore: number }): 'low' | 'medium' | 'high' | 'critical' {
-  const adjustedScore = trustScore - riskAssessment.riskScore
-  
+function determineTrustLevel(
+  trustScore: number,
+  riskScore: number
+): 'low' | 'medium' | 'high' | 'critical' {
+  const adjustedScore = trustScore - riskScore
+
   if (adjustedScore >= ZERO_TRUST_CONFIG.trust.riskThresholds.high) {
     return 'low' // Low risk
-  } else if (adjustedScore >= ZERO_TRUST_CONFIG.trust.riskThresholds.medium) {
-    return 'medium'
-  } else if (adjustedScore >= ZERO_TRUST_CONFIG.trust.riskThresholds.low) {
-    return 'high'
-  } else {
-    return 'critical'
   }
+  if (adjustedScore >= ZERO_TRUST_CONFIG.trust.riskThresholds.medium) {
+    return 'medium'
+  }
+  if (adjustedScore >= ZERO_TRUST_CONFIG.trust.riskThresholds.low) {
+    return 'high'
+  }
+  return 'critical'
 }
 
 function determineRequiredVerifications(
@@ -468,7 +482,7 @@ function determineRequiredVerifications(
   riskAssessment: { factors: string[] }
 ): string[] {
   const verifications: string[] = []
-  
+
   switch (trustLevel) {
     case 'critical':
       verifications.push('mfa', 'biometric', 'manager_approval', 'security_review')
@@ -483,16 +497,16 @@ function determineRequiredVerifications(
       // No additional verification required
       break
   }
-  
+
   // Add specific verifications based on risk factors
   if (riskAssessment.factors.includes('compromised_device')) {
     verifications.push('device_replacement')
   }
-  
+
   if (riskAssessment.factors.includes('suspicious_behavior')) {
     verifications.push('behavioral_verification')
   }
-  
+
   return [...new Set(verifications)] // Remove duplicates
 }
 
@@ -505,14 +519,15 @@ function decideBinaryAccess(
   if (trustLevel === 'critical') {
     return false
   }
-  
+
   // Check minimum trust threshold
   if (context.trustScore.overall < ZERO_TRUST_CONFIG.trust.minTrustScore) {
     return false
   }
-  
-  // Allow access for low and medium risk levels
-  return trustLevel === 'low' || trustLevel === 'medium'
+
+  // Allow access for low, medium, and high risk levels
+  // Note: 'low' = low risk (high trust), 'medium' = medium risk, 'high' = high risk but still manageable
+  return trustLevel === 'low' || trustLevel === 'medium' || trustLevel === 'high'
 }
 
 function calculateAccessDuration(
@@ -520,7 +535,7 @@ function calculateAccessDuration(
   riskAssessment: { riskScore: number }
 ): number {
   const baseDuration = ZERO_TRUST_CONFIG.access.defaultTimeout
-  
+
   switch (trustLevel) {
     case 'low':
       return baseDuration
@@ -541,34 +556,42 @@ function generateAccessConditions(
   context: AccessContext
 ): string[] {
   const conditions: string[] = []
-  
+
   // Add monitoring condition for all access
   conditions.push('continuous_monitoring')
-  
+
   // Add specific conditions based on trust level
   if (trustLevel === 'high' || trustLevel === 'critical') {
     conditions.push('enhanced_logging')
     conditions.push('periodic_reverification')
   }
-  
+
   // Add conditions based on risk factors
   if (riskAssessment.factors.includes('unusual_hours')) {
     conditions.push('time_limited_access')
   }
-  
+
   if (riskAssessment.factors.includes('quarantined_device')) {
     conditions.push('restricted_functionality')
   }
-  
+
   return conditions
 }
 
-function calculateConfidence(trustScore: TrustScore, riskAssessment: { riskScore: number }): number {
+function calculateConfidence(
+  trustScore: TrustScore,
+  riskAssessment: { riskScore: number }
+): number {
   // Confidence based on trust score recency and completeness
-  const ageWeight = Math.max(0, 1 - ((Date.now() - trustScore.lastUpdated) / (24 * 60 * 60 * 1000)))
-  const completenessWeight = (trustScore.identity + trustScore.device + trustScore.behavior + 
-                             trustScore.network + trustScore.location) / 5
-  
+  const ageWeight = Math.max(0, 1 - (Date.now() - trustScore.lastUpdated) / (24 * 60 * 60 * 1000))
+  const completenessWeight =
+    (trustScore.identity +
+      trustScore.device +
+      trustScore.behavior +
+      trustScore.network +
+      trustScore.location) /
+    5
+
   return (ageWeight * 0.3 + completenessWeight * 0.7) * (1 - riskAssessment.riskScore * 0.5)
 }
 

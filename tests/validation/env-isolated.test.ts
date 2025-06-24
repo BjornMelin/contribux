@@ -55,14 +55,9 @@ describe('Environment Validation - Schema Tests', () => {
       HYBRID_SEARCH_VECTOR_WEIGHT: '0.7',
       PORT: '3000',
       NEXT_PUBLIC_APP_NAME: 'Contribux',
-      WEBAUTHN_RP_NAME: 'Contribux',
-      WEBAUTHN_TIMEOUT: '60000',
-      WEBAUTHN_CHALLENGE_EXPIRY: '300000',
-      WEBAUTHN_SUPPORTED_ALGORITHMS: '-7,-257',
       RATE_LIMIT_WINDOW: '900',
       LOG_LEVEL: 'error',
       ENABLE_AUDIT_LOGS: 'false',
-      ENABLE_WEBAUTHN: 'true',
       MAINTENANCE_MODE: 'false',
       ...overrides,
     }
@@ -267,42 +262,6 @@ describe('Environment Validation - Schema Tests', () => {
     })
   })
 
-  describe('WebAuthn RP ID Validation', () => {
-    it('should accept valid domain formats', () => {
-      const validDomains = ['localhost', 'example.com', 'sub.example.com', 'app-staging.company.io']
-
-      for (const domain of validDomains) {
-        const testEnv = setupTestEnv({
-          NODE_ENV: 'development',
-          JWT_SECRET: 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6',
-          NEXT_PUBLIC_RP_ID: domain,
-        })
-
-        expect(() => envSchema.parse(testEnv), `Failed for domain: ${domain}`).not.toThrow()
-      }
-    })
-
-    it('should reject invalid domain formats', () => {
-      const invalidDomains = [
-        'https://example.com',
-        'example.com/',
-        '.example.com',
-        'example..com',
-        'ex ample.com',
-      ]
-
-      for (const domain of invalidDomains) {
-        const testEnv = setupTestEnv({
-          NODE_ENV: 'development',
-          JWT_SECRET: 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6',
-          NEXT_PUBLIC_RP_ID: domain,
-        })
-
-        expect(() => envSchema.parse(testEnv), `Should fail for domain: ${domain}`).toThrow()
-      }
-    })
-  })
-
   describe('Rate Limiting Validation', () => {
     it('should enforce reasonable rate limits', () => {
       const testEnv = setupTestEnv({
@@ -347,6 +306,8 @@ describe('Environment Validation - Schema Tests', () => {
       // regardless of whether JWT_SECRET is set or not
       vi.stubEnv('SKIP_ENV_VALIDATION', 'true')
       vi.stubEnv('NODE_ENV', 'test')
+      // Explicitly unset JWT_SECRET to ensure test behavior
+      vi.stubEnv('JWT_SECRET', '')
 
       const { getJwtSecret } = await import('../../src/lib/validation/env')
       const result = getJwtSecret()

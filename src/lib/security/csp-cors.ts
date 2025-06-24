@@ -82,7 +82,7 @@ export const CSPDirectiveSchema = z.object({
   'form-action': z.array(z.string()).optional(),
   'base-uri': z.array(z.string()).optional(),
   'manifest-src': z.array(z.string()).optional(),
-  'sandbox': z.array(z.string()).optional(),
+  sandbox: z.array(z.string()).optional(),
   'require-trusted-types-for': z.array(z.string()).optional(),
   'trusted-types': z.array(z.string()).optional(),
   'upgrade-insecure-requests': z.boolean().optional(),
@@ -118,20 +118,9 @@ export interface PolicyVersionInfo {
 
 // Dynamic CORS origin validation
 const CORS_ORIGINS = {
-  production: [
-    'https://contribux.ai',
-    'https://app.contribux.ai',
-    'https://api.contribux.ai',
-  ],
-  development: [
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'http://127.0.0.1:3000',
-  ],
-  test: [
-    'http://localhost:3000',
-    'http://test.contribux.ai',
-  ],
+  production: ['https://contribux.ai', 'https://app.contribux.ai', 'https://api.contribux.ai'],
+  development: ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000'],
+  test: ['http://localhost:3000', 'http://test.contribux.ai'],
 } as const
 
 // Base CSP directives for different environments
@@ -144,11 +133,7 @@ const BASE_CSP_DIRECTIVES: Record<string, CSPDirectives> = {
       'https://apis.google.com',
       'https://challenges.cloudflare.com',
     ],
-    'script-src-elem': [
-      "'self'",
-      'https://apis.google.com',
-      'https://challenges.cloudflare.com',
-    ],
+    'script-src-elem': ["'self'", 'https://apis.google.com', 'https://challenges.cloudflare.com'],
     'style-src': [
       "'self'",
       "'unsafe-inline'", // Required for Tailwind CSS
@@ -161,10 +146,7 @@ const BASE_CSP_DIRECTIVES: Record<string, CSPDirectives> = {
       'https://avatars.githubusercontent.com',
       'https://github.com',
     ],
-    'font-src': [
-      "'self'",
-      'https://fonts.gstatic.com',
-    ],
+    'font-src': ["'self'", 'https://fonts.gstatic.com'],
     'connect-src': [
       "'self'",
       'https://api.github.com',
@@ -195,21 +177,9 @@ const BASE_CSP_DIRECTIVES: Record<string, CSPDirectives> = {
       'localhost:*',
       '127.0.0.1:*',
     ],
-    'style-src': [
-      "'self'",
-      "'unsafe-inline'",
-      'localhost:*',
-    ],
-    'img-src': [
-      "'self'",
-      'data:',
-      'https:',
-      'http:',
-    ],
-    'font-src': [
-      "'self'",
-      'https://fonts.gstatic.com',
-    ],
+    'style-src': ["'self'", "'unsafe-inline'", 'localhost:*'],
+    'img-src': ["'self'", 'data:', 'https:', 'http:'],
+    'font-src': ["'self'", 'https://fonts.gstatic.com'],
     'connect-src': [
       "'self'",
       'ws:',
@@ -231,16 +201,15 @@ const BASE_CSP_DIRECTIVES: Record<string, CSPDirectives> = {
 export function generateCORSConfig(request: NextRequest): CORSConfig {
   const origin = request.headers.get('origin')
   const environment = process.env.NODE_ENV || 'development'
-  
+
   // Get allowed origins for environment
-  const allowedOrigins = CORS_ORIGINS[environment as keyof typeof CORS_ORIGINS] || CORS_ORIGINS.development
-  
+  const allowedOrigins =
+    CORS_ORIGINS[environment as keyof typeof CORS_ORIGINS] || CORS_ORIGINS.development
+
   // Validate origin
-  const isOriginAllowed = origin && (
-    allowedOrigins.includes(origin) ||
-    isDynamicOriginAllowed(origin, environment)
-  )
-  
+  const isOriginAllowed =
+    origin && (allowedOrigins.includes(origin) || isDynamicOriginAllowed(origin, environment))
+
   return {
     origins: isOriginAllowed ? [origin] : [],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -270,7 +239,10 @@ export function generateCORSConfig(request: NextRequest): CORSConfig {
 /**
  * Generate dynamic CSP policy with nonce support
  */
-export function generateCSPPolicy(request: NextRequest, context?: Partial<CSPContext>): {
+export function generateCSPPolicy(
+  request: NextRequest,
+  context?: Partial<CSPContext>
+): {
   policy: string
   nonce: string
   reportOnly: boolean
@@ -278,23 +250,23 @@ export function generateCSPPolicy(request: NextRequest, context?: Partial<CSPCon
   const environment = process.env.NODE_ENV || 'development'
   const nonce = context?.nonce || generateCSPNonce()
   const reportOnly = context?.reportOnly ?? CSP_CORS_CONFIG.csp.reportOnly
-  
+
   // Get base directives for environment
   const baseDirectives = BASE_CSP_DIRECTIVES[environment] || BASE_CSP_DIRECTIVES.development
-  
+
   // Clone and modify directives
   const directives: CSPDirectives = { ...baseDirectives }
-  
+
   // Add nonce to script-src
   if (directives['script-src']) {
     directives['script-src'] = [...directives['script-src'], `'nonce-${nonce}'`]
   }
-  
+
   // Add nonce to style-src if not in production (production uses strict CSP)
   if (environment !== 'production' && directives['style-src']) {
     directives['style-src'] = [...directives['style-src'], `'nonce-${nonce}'`]
   }
-  
+
   // Add inline hashes if provided
   if (context?.hashes && context.hashes.length > 0) {
     context.hashes.forEach(hash => {
@@ -303,13 +275,13 @@ export function generateCSPPolicy(request: NextRequest, context?: Partial<CSPCon
       }
     })
   }
-  
+
   // Add report endpoint
   const reportEndpoint = context?.violationEndpoint || CSP_CORS_CONFIG.csp.reportUri
-  
+
   // Build policy string
   const policy = buildCSPPolicyString(directives, reportEndpoint, reportOnly)
-  
+
   return {
     policy,
     nonce,
@@ -320,28 +292,32 @@ export function generateCSPPolicy(request: NextRequest, context?: Partial<CSPCon
 /**
  * Apply CORS headers to response
  */
-export function applyCORSHeaders(response: NextResponse, request: NextRequest, config?: CORSConfig): void {
+export function applyCORSHeaders(
+  response: NextResponse,
+  request: NextRequest,
+  config?: CORSConfig
+): void {
   const corsConfig = config || generateCORSConfig(request)
   const origin = request.headers.get('origin')
-  
+
   // Set CORS headers
   if (origin && corsConfig.origins.includes(origin)) {
     response.headers.set('Access-Control-Allow-Origin', origin)
   }
-  
+
   response.headers.set('Access-Control-Allow-Methods', corsConfig.methods.join(', '))
   response.headers.set('Access-Control-Allow-Headers', corsConfig.headers.join(', '))
-  
+
   if (corsConfig.exposedHeaders && corsConfig.exposedHeaders.length > 0) {
     response.headers.set('Access-Control-Expose-Headers', corsConfig.exposedHeaders.join(', '))
   }
-  
+
   if (corsConfig.credentials) {
     response.headers.set('Access-Control-Allow-Credentials', 'true')
   }
-  
+
   response.headers.set('Access-Control-Max-Age', corsConfig.maxAge.toString())
-  
+
   // Add Vary header for proper caching
   const varyHeaders = ['Origin']
   if (corsConfig.credentials) {
@@ -359,22 +335,22 @@ export function applyCSPHeaders(
   context?: Partial<CSPContext>
 ): string {
   const { policy, nonce, reportOnly } = generateCSPPolicy(request, context)
-  
+
   // Set CSP header
   const headerName = reportOnly ? 'Content-Security-Policy-Report-Only' : 'Content-Security-Policy'
   response.headers.set(headerName, policy)
-  
+
   // Add additional security headers
   response.headers.set('X-Content-Type-Options', 'nosniff')
   response.headers.set('X-Frame-Options', 'DENY')
   response.headers.set('X-XSS-Protection', '1; mode=block')
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
-  
+
   // Add Trusted Types header if enabled
   if (CSP_CORS_CONFIG.csp.enableTrustedTypes) {
     response.headers.set('Require-Trusted-Types-For', 'script')
   }
-  
+
   return nonce
 }
 
@@ -385,23 +361,23 @@ export function handlePreflightRequest(request: NextRequest): NextResponse | nul
   if (request.method !== 'OPTIONS') {
     return null
   }
-  
+
   const corsConfig = generateCORSConfig(request)
   const origin = request.headers.get('origin')
-  
+
   // Check if origin is allowed
   if (!origin || !corsConfig.origins.includes(origin)) {
     return new NextResponse(null, { status: 403 })
   }
-  
+
   // Create preflight response
-  const response = new NextResponse(null, { 
-    status: corsConfig.optionsSuccessStatus || 200 
+  const response = new NextResponse(null, {
+    status: corsConfig.optionsSuccessStatus || 200,
   })
-  
+
   // Apply CORS headers
   applyCORSHeaders(response, request, corsConfig)
-  
+
   return response
 }
 
@@ -415,24 +391,24 @@ export async function processCSPViolation(
   try {
     // Validate violation data
     const violation = CSPViolationSchema.parse(violationData)
-    
+
     // Check rate limiting for violation reports
     const isRateLimited = await checkViolationRateLimit(request)
     if (isRateLimited) {
       return { success: false, error: 'Rate limited' }
     }
-    
+
     // Analyze violation
     const analysis = analyzeCSPViolation(violation, request)
-    
+
     // Store violation (implement with your preferred storage)
     await storeCSPViolation(violation, analysis, request)
-    
+
     // Generate alerts for high-severity violations
     if (analysis.severity === 'high' || analysis.severity === 'critical') {
       await generateSecurityAlert(violation, analysis, request)
     }
-    
+
     return { success: true }
   } catch (error) {
     console.error('CSP violation processing error:', error)
@@ -449,17 +425,17 @@ export async function createPolicyVersion(
 ): Promise<PolicyVersionInfo> {
   const version = generatePolicyVersion()
   const now = Date.now()
-  
+
   const policyInfo: PolicyVersionInfo = {
     version,
     createdAt: now,
     active: false,
     reportOnlyUntil: reportOnlyPeriod ? now + reportOnlyPeriod : undefined,
   }
-  
+
   // Store policy version (implement with your preferred storage)
   await storePolicyVersion(policyInfo, directives)
-  
+
   return policyInfo
 }
 
@@ -473,13 +449,13 @@ export async function rollbackPolicyVersion(targetVersion: string): Promise<bool
     if (!policyInfo) {
       return false
     }
-    
+
     // Deactivate current policy
     await deactivateCurrentPolicy()
-    
+
     // Activate target policy
     await activatePolicyVersion(targetVersion)
-    
+
     return true
   } catch (error) {
     console.error('Policy rollback error:', error)
@@ -494,12 +470,12 @@ function isDynamicOriginAllowed(origin: string, environment: string): boolean {
   if (environment === 'development') {
     return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
   }
-  
+
   // Allow preview deployments for Vercel
   if (environment === 'preview') {
     return /^https:\/\/.*-contribux\.vercel\.app$/.test(origin)
   }
-  
+
   return false
 }
 
@@ -513,11 +489,11 @@ function buildCSPPolicyString(
   reportOnly: boolean
 ): string {
   const policyParts: string[] = []
-  
+
   // Build directive strings
   Object.entries(directives).forEach(([directive, values]) => {
     if (!values) return
-    
+
     if (typeof values === 'boolean') {
       if (values) {
         policyParts.push(directive)
@@ -526,34 +502,36 @@ function buildCSPPolicyString(
       policyParts.push(`${directive} ${values.join(' ')}`)
     }
   })
-  
+
   // Add report endpoint
   if (reportEndpoint) {
     const reportDirective = reportOnly ? 'report-uri' : 'report-to'
     policyParts.push(`${reportDirective} ${reportEndpoint}`)
   }
-  
+
   return policyParts.join('; ')
 }
 
 async function checkViolationRateLimit(request: NextRequest): Promise<boolean> {
   const ip = getClientIp(request)
   const key = `csp-violation:${ip}`
-  
+
   // Use a simple in-memory rate limiter for CSP violations
   // In production, use Redis or another persistent store
   const now = Date.now()
   const windowStart = now - 60 * 1000 // 1 minute window
-  
+
   // This is a simplified implementation
   // In production, implement proper rate limiting
   return false // Allow all for now
 }
 
 function getClientIp(request: NextRequest): string {
-  return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-         request.headers.get('x-real-ip') ||
-         'unknown'
+  return (
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    request.headers.get('x-real-ip') ||
+    'unknown'
+  )
 }
 
 function analyzeCSPViolation(
@@ -569,10 +547,10 @@ function analyzeCSPViolation(
   let severity: 'low' | 'medium' | 'high' | 'critical' = 'low'
   let riskScore = 0.1
   const recommendations: string[] = []
-  
+
   // Analyze violated directive
   const violatedDirective = report['violated-directive']
-  
+
   if (violatedDirective.includes('script-src')) {
     severity = 'high'
     riskScore = 0.8
@@ -586,7 +564,7 @@ function analyzeCSPViolation(
     riskScore = 0.5
     recommendations.push('Review API endpoints')
   }
-  
+
   // Analyze blocked URI
   const blockedUri = report['blocked-uri']
   if (blockedUri) {
@@ -596,7 +574,7 @@ function analyzeCSPViolation(
       recommendations.push('Potential XSS attempt detected')
     }
   }
-  
+
   return {
     severity,
     category: 'csp_violation',
@@ -630,7 +608,10 @@ async function generateSecurityAlert(
   console.warn('High-severity CSP violation detected:', analysis)
 }
 
-async function storePolicyVersion(info: PolicyVersionInfo, directives: CSPDirectives): Promise<void> {
+async function storePolicyVersion(
+  info: PolicyVersionInfo,
+  directives: CSPDirectives
+): Promise<void> {
   // TODO: Implement policy version storage
   console.log('Policy version created:', info)
 }

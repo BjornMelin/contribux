@@ -1,8 +1,3 @@
-/**
- * Next.js Middleware Configuration
- * Applies authentication and security middleware to all routes
- */
-
 import type { NextRequest } from 'next/server'
 import { authMiddleware } from '@/lib/auth/middleware'
 
@@ -19,7 +14,6 @@ export async function middleware(request: NextRequest) {
   return
 }
 
-// Configure which routes the middleware runs on
 export const config = {
   matcher: [
     /*

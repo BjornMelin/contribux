@@ -56,6 +56,11 @@ vi.mock('@/lib/auth/crypto', async () => {
 
 // Note: Database and fetch mocks are defined in tests/setup.ts
 
+// Import the sql mock to ensure it's available
+import { sql as mockSql } from '@/lib/db/config'
+
+vi.mocked(mockSql)
+
 describe('OAuth Authentication', () => {
   const mockUser = {
     id: '123e4567-e89b-12d3-a456-426614174000',
@@ -74,6 +79,8 @@ describe('OAuth Authentication', () => {
     vi.clearAllMocks()
     // Reset fetch mock to enable proper mocking in tests
     global.fetch = vi.fn()
+    // Ensure sql mock is properly set up
+    vi.mocked(sql).mockClear()
   })
 
   afterEach(() => {
@@ -510,9 +517,6 @@ describe('OAuth Authentication', () => {
         },
       ])
 
-      // Mock WebAuthn credentials count (user has WebAuthn)
-      mockSql.mockResolvedValueOnce([{ count: '1' }])
-
       // Mock other OAuth accounts count
       mockSql.mockResolvedValueOnce([{ count: '0' }])
 
@@ -544,9 +548,6 @@ describe('OAuth Authentication', () => {
           provider: 'github',
         },
       ])
-
-      // Mock no WebAuthn credentials
-      mockSql.mockResolvedValueOnce([{ count: '0' }])
 
       // Mock no other OAuth accounts
       mockSql.mockResolvedValueOnce([{ count: '0' }])

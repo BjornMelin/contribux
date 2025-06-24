@@ -17,15 +17,76 @@ const withPWA = require('next-pwa')({
   ],
 })
 
+// Webpack bundle analyzer support
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE === 'true',
+})
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: [],
+
+  // Memory optimization settings
+  experimental: {
+    // Reduce memory usage in development
+    webpackMemoryOptimizations: true,
+    // Use built-in CSS optimization
+    optimizeCss: true,
+  },
+
+  // Server external packages (moved from experimental)
+  serverExternalPackages: ['@neondatabase/serverless', 'ioredis', 'pg'],
+
+  // Optimize bundle size by excluding server-only packages from client
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // Don't resolve server-only modules on the client
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+        crypto: false,
+        stream: false,
+        path: false,
+        os: false,
+      }
+    }
+
+    // Enable tree shaking of unused exports
+    config.optimization = {
+      ...config.optimization,
+      usedExports: true,
+      sideEffects: false,
+    }
+
+    return config
+  },
+
+  // Optimize images
   images: {
     formats: ['image/webp', 'image/avif'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
+
+  // Reduce build output size
+  compress: true,
+
+  // Production optimizations
+  poweredByHeader: false,
+  generateEtags: true,
+
+  // Module optimization for barrel files (icon libraries, etc)
+  modularizeImports: {
+    'lucide-react': {
+      transform: 'lucide-react/dist/esm/icons/{{member}}',
+    },
+    '@heroicons/react': {
+      transform: '@heroicons/react/24/outline/{{member}}',
+    },
+  },
 }
 
-module.exports = withPWA(nextConfig)
+module.exports = withBundleAnalyzer(withPWA(nextConfig))
