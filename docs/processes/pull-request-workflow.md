@@ -74,7 +74,7 @@ Break large changes into 3 focused PRs that build on each other:
 
 #### Description Template
 
-```markdown
+~~~markdown
 ## Summary
 
 This PR implements a lightweight, type-safe GitHub API client using Octokit v5.0.3 with essential features for repository and issue management. This is the foundation for the contribux platform's GitHub integration.
@@ -125,17 +125,17 @@ const repo = await client.getRepository({ owner: "vercel", repo: "next.js" });
 // GraphQL API
 const data = await client.graphql(query, variables);
 ```
-````
+~~~
 
 ## Testing
 
-```bash
+~~~bash
 # Run GitHub client tests
 pnpm test tests/github/github-client-*.test.ts
 
 # Run with coverage
 pnpm test:coverage tests/github/
-```
+~~~
 
 ## Checklist
 
@@ -153,7 +153,8 @@ pnpm test:coverage tests/github/
 - 1 modification to `tests/setup.ts`
 
 Total: ~3,500 lines of production-ready code
-```
+
+~~~text
 
 ### Template 2: Authentication Simplification
 
@@ -161,7 +162,8 @@ Total: ~3,500 lines of production-ready code
 `feat: simplify authentication to GitHub OAuth only`
 
 #### Description Template
-```markdown
+
+~~~markdown
 ## Summary
 
 This PR streamlines authentication by implementing GitHub OAuth as the sole authentication method, removing WebAuthn complexity to follow KISS principles for the MVP.
@@ -201,13 +203,13 @@ CREATE TABLE github_sessions (
 
 ## Testing
 
-```bash
+~~~bash
 # Run auth tests
 pnpm test tests/auth/*.test.ts
 
 # Integration tests
 pnpm test tests/integration/github/auth-flows.test.ts
-```
+~~~
 
 ## Security Considerations
 
@@ -229,15 +231,17 @@ For existing users: Would need to re-authenticate
 - Database schema addition
 
 Total: ~2,000 lines focusing on essential auth
-```
+~~~
 
 ### Template 3: Test Infrastructure & CI
 
 #### Title
+
 `test: comprehensive test infrastructure with MSW 2.x`
 
 #### Description Template
-```markdown
+
+~~~markdown
 ## Summary
 
 This PR establishes a robust test infrastructure using MSW 2.x for HTTP mocking, specialized Vitest configurations, and comprehensive CI/CD pipelines.
@@ -259,7 +263,7 @@ This PR establishes a robust test infrastructure using MSW 2.x for HTTP mocking,
 
 ## Running Tests
 
-```bash
+~~~bash
 # All tests
 pnpm test
 
@@ -271,7 +275,7 @@ pnpm test:performance
 
 # With UI
 pnpm test:ui
-```
+~~~
 
 ## Key Improvements
 
@@ -301,14 +305,15 @@ This PR is large but consists primarily of:
 - Configuration files
 
 The actual production code changes are minimal.
-```
+~~~
 
 ## Git Workflow
 
 ### Commands for PR Creation
 
 #### Step 1: Create PR 1 Branch (Core GitHub Client)
-```bash
+
+~~~bash
 # From main branch
 git checkout main
 git pull origin main
@@ -334,11 +339,11 @@ git commit -m "feat: implement core GitHub API client with Octokit v5
 
 # Push and create PR
 git push origin feat/github-client-core
-```
+~~~
 
 #### Step 2: Create PR 2 Branch (Authentication)
 
-```bash
+~~~bash
 # After PR 1 is merged, from updated main
 git checkout main
 git pull origin main
@@ -363,11 +368,11 @@ git commit -m "feat: simplify authentication to GitHub OAuth only
 - Comprehensive auth testing"
 
 git push origin feat/simplified-auth
-```
+~~~
 
 #### Step 3: Create PR 3 Branch (Test Infrastructure)
 
-```bash
+~~~bash
 # After PR 2 is merged, from updated main
 git checkout main
 git pull origin main
@@ -397,7 +402,7 @@ git commit -m "test: comprehensive test infrastructure with MSW 2.x
 - 90%+ test coverage"
 
 git push origin feat/test-infrastructure
-```
+~~~
 
 ## Review Guidelines
 
@@ -436,7 +441,7 @@ git push origin feat/test-infrastructure
 
 Include this in PR description:
 
-```markdown
+~~~markdown
 ## Review Guide
 
 This PR is part of a 3-PR split from a larger feature branch. See [pull-request-workflow.md](./docs/processes/pull-request-workflow.md) for full context.
@@ -452,7 +457,7 @@ This PR is part of a 3-PR split from a larger feature branch. See [pull-request-
 ### Dependencies:
 
 - [Which PRs this depends on]
-```
+~~~
 
 ## Best Practices
 
