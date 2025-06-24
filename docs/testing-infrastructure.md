@@ -1,6 +1,6 @@
-# Modern Database Testing Infrastructure
+# Comprehensive Database Testing Infrastructure
 
-This document describes the complete migration from Docker to modern database testing using PGlite and Neon branching.
+This document provides the complete guide for modern database testing in Contribux, covering the migration from Docker to PGlite and Neon branching strategies, plus comprehensive setup and usage instructions.
 
 ## Overview
 
@@ -337,6 +337,117 @@ const db = await getTestDatabase('debug-test', {
 4. **Performance regression detection** with automated benchmarks
 5. **Multi-tenant testing** with isolated Neon branches
 
+## Neon Branching Setup Guide
+
+### Benefits of Neon Branching
+
+- **No Docker Required**: Tests run without any local database setup
+- **Instant Branch Creation**: Branches create in seconds, not minutes
+- **Perfect Isolation**: Each test suite runs in its own database branch
+- **Automatic Cleanup**: Branches are automatically deleted after tests
+- **Cost Effective**: Branches pause when idle, minimizing costs
+- **Production-Like**: Tests run against real Postgres, not mocks
+
+### Setup Instructions
+
+#### 1. Get Neon Credentials
+
+1. Sign up for a free account at [console.neon.tech](https://console.neon.tech)
+2. Create a project or use an existing one
+3. Get your API key from Account Settings → API Keys
+4. Note your project ID from the project URL or settings
+
+#### 2. Configure Environment
+
+Create a `.env.test` file:
+
+```bash
+# Copy from .env.test.example
+cp .env.test.example .env.test
+```
+
+Fill in your Neon credentials:
+
+```env
+NEON_API_KEY=your-api-key-here
+NEON_PROJECT_ID=your-project-id-here
+DATABASE_URL=postgresql://user:pass@host.neon.tech/dbname
+```
+
+### Branch Naming Convention
+
+Test branches follow this naming pattern:
+- `test-{suite-name}-{timestamp}` - For test suites
+- `ci-{run-id}-{attempt}` - For CI/CD runs
+- `e2e-{run-id}-{attempt}` - For E2E tests
+
+### CI/CD Integration
+
+The project includes GitHub Actions workflows that:
+
+1. Create a Neon branch for each CI run
+2. Run all tests against the isolated branch
+3. Automatically clean up branches after tests
+4. Support parallel test jobs with separate branches
+
+Required GitHub Secrets:
+- `NEON_API_KEY`: Your Neon API key
+- `NEON_PROJECT_ID`: Your Neon project ID
+
+### Costs & Performance
+
+Neon pricing for branching:
+- **Free Tier**: Includes 10 branches, perfect for development
+- **Compute**: Only charged when branches are active
+- **Storage**: Minimal due to copy-on-write technology
+- **Idle Branches**: Automatically pause after 5 minutes of inactivity
+
+For solo developers, the free tier is typically sufficient for all testing needs.
+
+## Troubleshooting
+
+### Common Issues
+
+**PGlite not working in CI:**
+```bash
+# Add to CI environment
+TEST_DB_STRATEGY=pglite
+NODE_ENV=test
+```
+
+**Neon API rate limits:**
+```typescript
+// Use sequential execution
+maxConcurrency: 1
+fileParallelism: false
+```
+
+**Vector search not working:**
+```typescript
+// Ensure vector extension is enabled
+await sql`CREATE EXTENSION IF NOT EXISTS "vector"`
+```
+
+**Branch Creation Fails:**
+- Check your API key and project ID
+- Ensure you haven't hit branch limits for your plan
+- Verify network connectivity to Neon
+
+**Tests Can't Connect:**
+- Ensure `DATABASE_URL` is set correctly
+- Check if the branch was created successfully
+- Verify SSL is enabled (`?sslmode=require`)
+
+### Debug Mode
+
+Enable verbose logging:
+
+```typescript
+const db = await getTestDatabase('debug-test', {
+  verbose: true  // Shows strategy selection and performance metrics
+})
+```
+
 ## Resources
 
 - [PGlite Documentation](https://github.com/electric-sql/pglite)
@@ -349,10 +460,10 @@ const db = await getTestDatabase('debug-test', {
 **Migration Status: ✅ Complete**
 
 The migration from Docker to modern database testing is complete with:
-- ✅ PGlite in-memory PostgreSQL
-- ✅ Neon branching integration  
-- ✅ Intelligent strategy selection
-- ✅ Realistic test data factories
-- ✅ Performance benchmarking
-- ✅ Vector search testing
-- ✅ Comprehensive documentation
+- ✅ PGlite in-memory PostgreSQL (10x faster than Docker)
+- ✅ Neon branching integration with complete setup guide
+- ✅ Intelligent strategy selection for optimal performance
+- ✅ Realistic test data factories with Faker.js
+- ✅ Performance benchmarking and optimization
+- ✅ Vector search testing for AI features
+- ✅ Comprehensive documentation and troubleshooting
