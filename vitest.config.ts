@@ -6,15 +6,15 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
+    extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
+  },
+  define: {
+    'import.meta.vitest': undefined,
   },
   test: {
     // Global test configuration - modern Vitest 3.2+ patterns
     globals: true,
     environment: 'jsdom',
-
-    // Test file patterns
-    include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-    exclude: [...configDefaults.exclude, 'packages/template/*'],
 
     // Setup files
     setupFiles: ['./tests/setup.ts'],
@@ -55,23 +55,6 @@ export default defineConfig({
       skipFull: false, // Include files with 100% coverage in reports
     },
 
-    // Modern pool configuration for Vitest 3.2+ with aggressive memory optimization
-    pool: 'forks',
-    poolOptions: {
-      forks: {
-        singleFork: false, // Enable parallel testing for better performance
-        isolate: true, // Full isolation between tests for memory safety
-        maxForks: process.env.CI ? 1 : 2, // Reduce forks for memory optimization
-        minForks: 1, // Minimum number of worker processes
-        execArgv: [
-          '--max-old-space-size=2048', // Reduce heap size for memory optimization
-          '--expose-gc', // Enable garbage collection
-          '--gc-interval=100', // More frequent GC
-          '--optimize-for-size', // Optimize for memory usage over speed
-        ],
-      },
-    },
-
     // Enable concurrency for faster test execution in Vitest 3.2+ with memory constraints
     maxConcurrency: process.env.CI ? 1 : 2, // Further reduce concurrency for memory optimization
     fileParallelism: true,
@@ -80,11 +63,59 @@ export default defineConfig({
     teardownTimeout: 15000, // Extended teardown for thorough cleanup
     forceRerunTriggers: ['**/test-utils/**'], // Restart workers when test utils change
 
-    // Enhanced memory management
-    poolMatchGlobs: [
-      // Heavy tests run in separate pool with lower memory
-      ['**/integration/**', { pool: 'forks', poolOptions: { forks: { maxForks: 1 } } }],
-      ['**/github/load-testing**', { pool: 'forks', poolOptions: { forks: { maxForks: 1 } } }],
+    // Enhanced memory management with projects-based approach (Vitest 3.2+ pattern)
+    projects: [
+      {
+        test: {
+          name: 'integration',
+          include: ['**/integration/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+          pool: 'forks',
+          poolOptions: {
+            forks: {
+              singleFork: false,
+              isolate: true,
+            },
+          },
+        },
+      },
+      {
+        test: {
+          name: 'github-load',
+          include: ['**/github/load-testing**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+          pool: 'forks',
+          poolOptions: {
+            forks: {
+              singleFork: true,
+            },
+          },
+        },
+      },
+      {
+        test: {
+          name: 'default',
+          include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+          exclude: [
+            ...configDefaults.exclude,
+            'packages/template/*',
+            '**/integration/**',
+            '**/github/load-testing**',
+          ],
+          pool: 'forks',
+          poolOptions: {
+            forks: {
+              singleFork: !!process.env.CI,
+              isolate: true,
+              // @ts-expect-error - execArgv is supported in Vitest 3.2+ but TypeScript types haven't been updated
+              execArgv: [
+                '--max-old-space-size=2048',
+                '--expose-gc',
+                '--gc-interval=100',
+                '--optimize-for-size',
+              ],
+            },
+          },
+        },
+      },
     ],
 
     // Modern fake timers configuration
