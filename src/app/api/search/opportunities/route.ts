@@ -98,100 +98,52 @@ export async function GET(request: NextRequest) {
     // Calculate pagination
     const offset = (page - 1) * per_page
 
-    // Build the main query
+    // Build dynamic query with embedded parameters (simpler approach)
     const mainQuery = `
-      WITH filtered_opportunities AS (
-        SELECT DISTINCT
-          o.id,
-          o.repository_id,
-          o.title,
-          o.description,
-          o.type,
-          o.difficulty,
-          o.priority,
-          o.required_skills,
-          COALESCE(
-            (SELECT array_agg(DISTINCT r.language) 
-             FROM repositories r 
-             WHERE r.id = o.repository_id AND r.language IS NOT NULL), 
-            '{}'::text[]
-          ) as technologies,
-          o.good_first_issue,
-          o.help_wanted,
-          o.estimated_hours,
-          o.created_at,
-          CASE 
-            WHEN $${paramIndex} IS NULL OR $${paramIndex} = '' THEN 0.5
-            ELSE GREATEST(
-              similarity(o.title, $${paramIndex + 1}) * 0.7,
-              similarity(COALESCE(o.description, ''), $${paramIndex + 2}) * 0.3,
-              CASE 
-                WHEN to_tsvector('english', o.title || ' ' || COALESCE(o.description, '')) @@ 
-                     plainto_tsquery('english', $${paramIndex + 3}) 
-                THEN 0.8 
-                ELSE 0.0 
-              END
-            )
-          END AS relevance_score
-        FROM opportunities o
-        ${whereClause}
-      ),
-      language_filtered AS (
-        SELECT fo.*
-        FROM filtered_opportunities fo
-        WHERE 
-          CASE 
-            WHEN $${paramIndex + 4}::text[] IS NULL THEN TRUE
-            ELSE fo.technologies && $${paramIndex + 5}::text[]
-          END
-      )
-      SELECT *
-      FROM language_filtered
-      ORDER BY relevance_score DESC, priority DESC, created_at DESC
-      LIMIT $${paramIndex + 6} OFFSET $${paramIndex + 7}
+      SELECT DISTINCT
+        o.id,
+        o.repository_id,
+        o.title,
+        o.description,
+        o.type,
+        o.difficulty,
+        o.priority,
+        o.required_skills,
+        COALESCE(
+          (SELECT array_agg(DISTINCT r.language) 
+           FROM repositories r 
+           WHERE r.id = o.repository_id AND r.language IS NOT NULL), 
+          '{}'::text[]
+        ) as technologies,
+        o.good_first_issue,
+        o.help_wanted,
+        o.estimated_hours,
+        o.created_at,
+        0.5 AS relevance_score
+      FROM opportunities o
+      ${whereClause}
+      ORDER BY priority DESC, created_at DESC
+      LIMIT ${per_page} OFFSET ${offset}
     `
 
-    // Add parameters for relevance calculation and language filtering
-    params.push(
-      query || '', // for relevance calculation
-      query || '', // for title similarity
-      query || '', // for description similarity
-      query || '', // for text search
-      languages, // for language filtering (first reference)
-      languages, // for language filtering (second reference)
-      per_page, // limit
-      offset // offset
-    )
-
     // Execute main query using Neon SQL template literal
-    const opportunities = await sql.unsafe(mainQuery, params)
+    const opportunities = (await sql.unsafe(mainQuery)) as unknown as any[]
 
     // Get total count for pagination
     const countQuery = `
       SELECT COUNT(DISTINCT o.id) as total
       FROM opportunities o
       ${whereClause}
-      ${
-        languages
-          ? `AND EXISTS (
-        SELECT 1 FROM repositories r 
-        WHERE r.id = o.repository_id 
-        AND r.language = ANY($${params.length + 1}::text[])
-      )`
-          : ''
-      }
     `
 
-    const countParams = languages
-      ? [...params.slice(0, paramIndex - 6), languages]
-      : params.slice(0, paramIndex - 6)
-    const [{ total }] = (await sql.unsafe(countQuery, countParams)) as [{ total: number }]
+    const countResult = (await sql.unsafe(countQuery)) as unknown as [{ total: number }]
+    const [{ total }] = countResult
 
     // Format response
     const response = {
       success: true,
       data: {
-        opportunities: opportunities.map(opp => ({
+        opportunities: opportunities.map((opp: any) => ({
           ...opp,
           created_at: new Date(opp.created_at as string).toISOString(),
           technologies: opp.technologies || [],

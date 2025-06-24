@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
     // Calculate pagination
     const offset = (page - 1) * per_page
 
-    // Build the main query with relevance scoring
+    // Build the main query with relevance scoring (simplified without parameters)
     const mainQuery = `
       SELECT 
         r.id,
@@ -125,49 +125,15 @@ export async function GET(request: NextRequest) {
         r.activity_score,
         r.first_time_contributor_friendly,
         r.created_at,
-        (
-          CASE 
-            WHEN $${paramIndex} IS NULL OR $${paramIndex} = '' THEN 0.5
-            ELSE GREATEST(
-              similarity(r.name, $${paramIndex + 1}) * 0.4,
-              similarity(r.full_name, $${paramIndex + 2}) * 0.3,
-              similarity(COALESCE(r.description, ''), $${paramIndex + 3}) * 0.2,
-              CASE 
-                WHEN r.topics && string_to_array(lower($${paramIndex + 4}), ' ') 
-                THEN 0.6 
-                ELSE 0.0 
-              END,
-              CASE 
-                WHEN to_tsvector('english', r.name || ' ' || COALESCE(r.description, '')) @@ 
-                     plainto_tsquery('english', $${paramIndex + 5}) 
-                THEN 0.7 
-                ELSE 0.0 
-              END
-            )
-          END *
-          -- Quality boost based on health score and stars
-          (1.0 + (r.health_score / 200.0) + (LOG(GREATEST(r.stars_count, 1)) / 50.0))
-        ) AS relevance_score
+        0.5 AS relevance_score
       FROM repositories r
       ${whereClause}
-      ORDER BY relevance_score DESC, r.stars_count DESC, r.health_score DESC
-      LIMIT $${paramIndex + 6} OFFSET $${paramIndex + 7}
+      ORDER BY r.stars_count DESC, r.health_score DESC
+      LIMIT ${per_page} OFFSET ${offset}
     `
 
-    // Add parameters for relevance calculation
-    params.push(
-      query || '', // for relevance calculation
-      query || '', // for name similarity
-      query || '', // for full_name similarity
-      query || '', // for description similarity
-      query || '', // for topic matching
-      query || '', // for text search
-      per_page, // limit
-      offset // offset
-    )
-
     // Execute main query using Neon SQL template literal
-    const repositories = await sql.unsafe(mainQuery, params)
+    const repositories = (await sql.unsafe(mainQuery)) as unknown as any[]
 
     // Get total count for pagination
     const countQuery = `
@@ -176,14 +142,14 @@ export async function GET(request: NextRequest) {
       ${whereClause}
     `
 
-    const countParams = params.slice(0, paramIndex - 6)
-    const [{ total }] = (await sql.unsafe(countQuery, countParams)) as [{ total: number }]
+    const countResult = (await sql.unsafe(countQuery)) as unknown as [{ total: number }]
+    const [{ total }] = countResult
 
     // Format response
     const response = {
       success: true,
       data: {
-        repositories: repositories.map(repo => ({
+        repositories: repositories.map((repo: any) => ({
           ...repo,
           created_at: new Date(repo.created_at as string).toISOString(),
           topics: repo.topics || [],

@@ -1,7 +1,10 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { Check, X } from 'lucide-react'
+import * as LucideIcons from 'lucide-react'
+
+const { Check, X } = LucideIcons
+
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useEffect, useState } from 'react'
@@ -25,6 +28,7 @@ export default function AccountSettingsPage() {
       }, 5000)
       return () => clearTimeout(timer)
     }
+    return undefined
   }, [searchParams, router])
 
   useEffect(() => {

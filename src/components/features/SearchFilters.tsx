@@ -1,10 +1,12 @@
 'use client'
 
-import React from 'react'
 import type { SearchFilters, SearchFiltersProps } from '@/types/search'
 
 export function SearchFilters({ filters, onFiltersChange, loading = false }: SearchFiltersProps) {
-  const handleFilterChange = (key: keyof SearchFilters, value: string | boolean | string[]) => {
+  const handleFilterChange = (
+    key: keyof SearchFilters,
+    value: SearchFilters[keyof SearchFilters]
+  ) => {
     onFiltersChange({ ...filters, [key]: value })
   }
 

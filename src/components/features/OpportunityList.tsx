@@ -1,6 +1,5 @@
 'use client'
 
-import React from 'react'
 import type { OpportunityListProps } from '@/types/search'
 import { OpportunityCard } from './OpportunityCard'
 
