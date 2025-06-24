@@ -4,20 +4,13 @@
  * and intelligent response automation capabilities
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   SecurityIncident,
   ThreatDetection,
   Vulnerability,
 } from '@/lib/security/automated-scanner'
-import {
-  createSOAREngine,
-  type Playbook,
-  type PlaybookExecution,
-  type ResponseAction,
-  type SOARConfig,
-  SOAREngine,
-} from '@/lib/security/soar'
+import { createSOAREngine, type SOARConfig, SOAREngine } from '@/lib/security/soar'
 
 // Mock crypto module
 vi.mock('@/lib/security/crypto', () => ({
@@ -149,7 +142,7 @@ describe('SOAR Engine', () => {
   afterEach(async () => {
     try {
       await soarEngine.shutdown()
-    } catch (error) {
+    } catch (_error) {
       // Ignore shutdown errors in tests
     }
   })
@@ -322,7 +315,7 @@ describe('SOAR Engine', () => {
       expect(actions.length).toBeGreaterThan(0)
 
       // Check that at least one action was automated
-      const automatedActions = actions.filter(a => a.automated)
+      const automatedActions = actions.filter((a: any) => a.automated)
       expect(automatedActions.length).toBeGreaterThan(0)
     })
 
@@ -456,7 +449,7 @@ describe('SOAR Engine', () => {
         expect(execution.executedSteps.length).toBeGreaterThan(0)
 
         // Check that steps have proper execution data
-        execution.executedSteps.forEach(step => {
+        execution.executedSteps.forEach((step: any) => {
           expect(step).toHaveProperty('stepId')
           expect(step).toHaveProperty('status')
           expect(step).toHaveProperty('startedAt')
@@ -584,7 +577,7 @@ describe('SOAR Engine', () => {
         })
 
         // Validate steps
-        playbook.steps.forEach(step => {
+        playbook.steps.forEach((step: any) => {
           expect(step).toHaveProperty('stepId')
           expect(step).toHaveProperty('name')
           expect(step).toHaveProperty('description')
@@ -737,7 +730,7 @@ describe('SOAR Engine', () => {
       const results = await Promise.all(processPromises)
 
       expect(results).toHaveLength(3)
-      results.forEach(executions => {
+      results.forEach((executions: any) => {
         expect(Array.isArray(executions)).toBe(true)
       })
     })
@@ -773,7 +766,7 @@ describe('SOAR Engine', () => {
       await disabledEngine.processIncident({ ...mockIncident, severity: 'critical' as const })
 
       const actions = disabledEngine.getResponseActions()
-      const automatedActions = actions.filter(a => a.automated)
+      const automatedActions = actions.filter((a: any) => a.automated)
 
       // Should have fewer or no automated actions
       expect(automatedActions.length).toBe(0)

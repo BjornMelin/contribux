@@ -197,7 +197,7 @@ describe('Zero-Trust Security Architecture', () => {
       )
 
       expect(state.scheduledChallenges.length).toBeGreaterThan(0)
-      expect(state.scheduledChallenges[0].type).toBe('mfa')
+      expect(state.scheduledChallenges[0]?.type).toBe('mfa')
     })
 
     it('should update verification state after successful verification', async () => {

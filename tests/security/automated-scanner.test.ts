@@ -4,12 +4,11 @@
  * threat detection, and incident response capabilities
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   AutomatedSecurityScanner,
   createSecurityScanner,
   OWASPScanner,
-  type SecurityIncident,
   type SecurityScannerConfig,
   type ThreatDetection,
   type Vulnerability,
