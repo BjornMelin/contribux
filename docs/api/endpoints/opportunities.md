@@ -12,6 +12,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Query Parameters:**
+
 - `repository_id`: Filter by repository
 - `languages`: Comma-separated programming languages
 - `difficulty`: Difficulty level (`beginner`, `intermediate`, `advanced`)
@@ -23,6 +24,7 @@ Authorization: Bearer {access_token}
 - `sort`: Sort by (`created_at`, `updated_at`, `difficulty`, `estimated_hours`, `match_score`)
 
 **Response:**
+
 ```json
 {
   "opportunities": [
@@ -91,6 +93,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "id": "opp_123",
@@ -156,7 +159,7 @@ Authorization: Bearer {access_token}
     ],
     "complexity_factors": [
       "CSS theming system",
-      "React context management", 
+      "React context management",
       "Accessibility considerations",
       "Component testing"
     ]
@@ -215,7 +218,7 @@ Authorization: Bearer {access_token}
     ],
     "contributors": [
       {
-        "login": "contributor1", 
+        "login": "contributor1",
         "contributions": 15,
         "last_active": "2024-01-14T16:00:00Z"
       }
@@ -255,6 +258,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Request Body:**
+
 ```json
 {
   "preferences": {
@@ -281,6 +285,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "matches": [
@@ -351,11 +356,13 @@ Authorization: Bearer {access_token}
 ```
 
 **Query Parameters:**
+
 - `type`: Recommendation type (`trending`, `skill_match`, `learning`, `quick_wins`)
 - `limit`: Number of recommendations (default: 10, max: 50)
 - `refresh`: Force refresh of recommendations (true/false)
 
 **Response:**
+
 ```json
 {
   "recommendations": [
@@ -397,6 +404,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Request Body:**
+
 ```json
 {
   "estimated_completion": "2024-01-25T00:00:00Z",
@@ -406,6 +414,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "tracking_id": "track_123",
@@ -421,7 +430,7 @@ Authorization: Bearer {access_token}
     },
     {
       "name": "Implement theme toggle component",
-      "due_date": "2024-01-22T00:00:00Z", 
+      "due_date": "2024-01-22T00:00:00Z",
       "completed": false
     },
     {
@@ -442,6 +451,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Request Body:**
+
 ```json
 {
   "status": "in_progress",
@@ -460,6 +470,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "tracking_id": "track_123",
@@ -499,6 +510,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Request Body:**
+
 ```json
 {
   "pull_request_url": "https://github.com/awesome/ui-library/pull/156",
@@ -516,6 +528,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "tracking_id": "track_123",
@@ -549,12 +562,14 @@ Authorization: Bearer {access_token}
 ```
 
 **Query Parameters:**
+
 - `status`: Filter by tracking status
 - `repository_id`: Filter by repository
 - `time_period`: Time period (`week`, `month`, `quarter`, `year`)
 - `limit`: Number of tracking records
 
 **Response:**
+
 ```json
 {
   "tracking_records": [
@@ -611,10 +626,12 @@ Authorization: Bearer {access_token}
 ```
 
 **Query Parameters:**
+
 - `period`: Time period (`week`, `month`, `quarter`, `year`, `all`)
 - `group_by`: Group results by (`type`, `difficulty`, `repository`, `language`)
 
 **Response:**
+
 ```json
 {
   "period": "quarter",
@@ -641,8 +658,8 @@ Authorization: Bearer {access_token}
     "frameworks_learned": ["React", "Vue.js", "FastAPI"],
     "new_concepts": ["Accessibility", "Performance", "Testing"],
     "skill_progression": {
-      "JavaScript": {"from": "intermediate", "to": "advanced"},
-      "TypeScript": {"from": "beginner", "to": "intermediate"}
+      "JavaScript": { "from": "intermediate", "to": "advanced" },
+      "TypeScript": { "from": "beginner", "to": "intermediate" }
     }
   },
   "impact_metrics": {
@@ -664,6 +681,7 @@ Authorization: Bearer {access_token}
 ## Error Responses
 
 ### Opportunity Not Found (404)
+
 ```json
 {
   "error": {
@@ -677,6 +695,7 @@ Authorization: Bearer {access_token}
 ```
 
 ### Already Tracking (409)
+
 ```json
 {
   "error": {
@@ -691,6 +710,7 @@ Authorization: Bearer {access_token}
 ```
 
 ### Invalid Match Criteria (422)
+
 ```json
 {
   "error": {
@@ -708,28 +728,31 @@ Authorization: Bearer {access_token}
 
 ## Rate Limits
 
-| Endpoint Category | Limit | Window |
-|------------------|-------|--------|
+| Endpoint Category     | Limit        | Window   |
+| --------------------- | ------------ | -------- |
 | Opportunity discovery | 200 requests | Per hour |
-| Matching operations | 50 requests | Per hour |
-| Tracking operations | 100 requests | Per hour |
-| Analytics | 100 requests | Per hour |
+| Matching operations   | 50 requests  | Per hour |
+| Tracking operations   | 100 requests | Per hour |
+| Analytics             | 100 requests | Per hour |
 
 ## Best Practices
 
 ### Effective Opportunity Discovery
+
 - Use AI matching for personalized recommendations
 - Set realistic time commitments based on your schedule
 - Filter by repository health to ensure good experiences
 - Start with good-first-issue tagged opportunities
 
 ### Successful Contribution Tracking
+
 - Start tracking when you begin work, not when you finish
 - Update progress regularly to get better insights
 - Be honest about time spent for accurate future estimates
 - Document blockers and learnings for the community
 
 ### Continuous Learning
+
 - Review analytics regularly to understand your growth
 - Try different types of contributions to expand skills
 - Seek opportunities that stretch your comfort zone

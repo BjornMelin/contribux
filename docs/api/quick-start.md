@@ -13,41 +13,51 @@ Get up and running with the Contribux API in under 10 minutes.
 ### Option A: OAuth Integration (Recommended for User-Facing Apps)
 
 1. **Get GitHub OAuth Credentials**
+
    ```bash
    # Set up GitHub OAuth app at https://github.com/settings/applications/new
    # Authorization callback URL: https://yourapp.com/auth/callback
    ```
 
 2. **Create OAuth Flow**
+
    ```javascript
    // Frontend: Redirect to GitHub
-   const authUrl = new URL('https://github.com/login/oauth/authorize')
-   authUrl.searchParams.set('client_id', 'your_github_client_id')
-   authUrl.searchParams.set('redirect_uri', 'https://yourapp.com/auth/callback')
-   authUrl.searchParams.set('scope', 'user:email')
-   
-   window.location.href = authUrl.toString()
+   const authUrl = new URL("https://github.com/login/oauth/authorize");
+   authUrl.searchParams.set("client_id", "your_github_client_id");
+   authUrl.searchParams.set(
+     "redirect_uri",
+     "https://yourapp.com/auth/callback"
+   );
+   authUrl.searchParams.set("scope", "user:email");
+
+   window.location.href = authUrl.toString();
    ```
 
 3. **Exchange Code for Contribux Token**
+
    ```javascript
    // Backend: Handle callback
-   const response = await fetch('https://contribux.ai/api/v1/auth/oauth/github', {
-     method: 'POST',
-     headers: { 'Content-Type': 'application/json' },
-     body: JSON.stringify({
-       code: req.query.code,
-       redirect_uri: 'https://yourapp.com/auth/callback'
-     })
-   })
-   
-   const { access_token } = await response.json()
+   const response = await fetch(
+     "https://contribux.ai/api/v1/auth/oauth/github",
+     {
+       method: "POST",
+       headers: { "Content-Type": "application/json" },
+       body: JSON.stringify({
+         code: req.query.code,
+         redirect_uri: "https://yourapp.com/auth/callback",
+       }),
+     }
+   );
+
+   const { access_token } = await response.json();
    ```
 
 ### Option B: API Key (For Server-to-Server)
 
 1. **Get API Key** from [Developer Dashboard](https://contribux.ai/dashboard/developers)
 2. **Set Environment Variable**
+
    ```bash
    export CONTRIBUX_API_KEY="ck_live_your_api_key_here"
    ```
@@ -57,18 +67,19 @@ Get up and running with the Contribux API in under 10 minutes.
 ### Get User Profile
 
 ```javascript
-const response = await fetch('https://contribux.ai/api/v1/users/me', {
+const response = await fetch("https://contribux.ai/api/v1/users/me", {
   headers: {
-    'Authorization': `Bearer ${access_token}`,
-    'Content-Type': 'application/json'
-  }
-})
+    Authorization: `Bearer ${access_token}`,
+    "Content-Type": "application/json",
+  },
+});
 
-const user = await response.json()
-console.log('User:', user)
+const user = await response.json();
+console.log("User:", user);
 ```
 
 **Expected Response:**
+
 ```json
 {
   "id": "user_123",
@@ -88,18 +99,22 @@ console.log('User:', user)
 ### Get Personalized Recommendations
 
 ```javascript
-const response = await fetch('https://contribux.ai/api/v1/repositories/recommendations', {
-  headers: {
-    'Authorization': `Bearer ${access_token}`,
-    'Content-Type': 'application/json'
+const response = await fetch(
+  "https://contribux.ai/api/v1/repositories/recommendations",
+  {
+    headers: {
+      Authorization: `Bearer ${access_token}`,
+      "Content-Type": "application/json",
+    },
   }
-})
+);
 
-const recommendations = await response.json()
-console.log('Recommended repositories:', recommendations)
+const recommendations = await response.json();
+console.log("Recommended repositories:", recommendations);
 ```
 
 **Expected Response:**
+
 ```json
 {
   "repositories": [
@@ -131,25 +146,29 @@ console.log('Recommended repositories:', recommendations)
 ### Search for Specific Opportunities
 
 ```javascript
-const response = await fetch('https://contribux.ai/api/v1/opportunities/search', {
-  method: 'POST',
-  headers: {
-    'Authorization': `Bearer ${access_token}`,
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({
-    languages: ['JavaScript'],
-    difficulty: 'beginner',
-    types: ['bug', 'feature'],
-    time_commitment: '1-3 hours'
-  })
-})
+const response = await fetch(
+  "https://contribux.ai/api/v1/opportunities/search",
+  {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${access_token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      languages: ["JavaScript"],
+      difficulty: "beginner",
+      types: ["bug", "feature"],
+      time_commitment: "1-3 hours",
+    }),
+  }
+);
 
-const opportunities = await response.json()
-console.log('Opportunities:', opportunities)
+const opportunities = await response.json();
+console.log("Opportunities:", opportunities);
 ```
 
 **Expected Response:**
+
 ```json
 {
   "opportunities": [
@@ -183,23 +202,26 @@ console.log('Opportunities:', opportunities)
 ### Submit Contribution Event
 
 ```javascript
-const response = await fetch('https://contribux.ai/api/v1/analytics/contributions', {
-  method: 'POST',
-  headers: {
-    'Authorization': `Bearer ${access_token}`,
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({
-    opportunity_id: 'opp_789',
-    action: 'started',
-    repository: 'company/web-app',
-    pr_url: 'https://github.com/company/web-app/pull/456',
-    estimated_time: '3 hours'
-  })
-})
+const response = await fetch(
+  "https://contribux.ai/api/v1/analytics/contributions",
+  {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${access_token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      opportunity_id: "opp_789",
+      action: "started",
+      repository: "company/web-app",
+      pr_url: "https://github.com/company/web-app/pull/456",
+      estimated_time: "3 hours",
+    }),
+  }
+);
 
-const result = await response.json()
-console.log('Contribution tracked:', result)
+const result = await response.json();
+console.log("Contribution tracked:", result);
 ```
 
 ## Complete Example
@@ -209,94 +231,97 @@ Here's a complete example that puts it all together:
 ```javascript
 class ContribuxClient {
   constructor(accessToken) {
-    this.accessToken = accessToken
-    this.baseURL = 'https://contribux.ai/api/v1'
+    this.accessToken = accessToken;
+    this.baseURL = "https://contribux.ai/api/v1";
   }
 
   async request(endpoint, options = {}) {
     const response = await fetch(`${this.baseURL}${endpoint}`, {
       ...options,
       headers: {
-        'Authorization': `Bearer ${this.accessToken}`,
-        'Content-Type': 'application/json',
-        ...options.headers
-      }
-    })
+        Authorization: `Bearer ${this.accessToken}`,
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(`API Error: ${error.message}`)
+      const error = await response.json();
+      throw new Error(`API Error: ${error.message}`);
     }
 
-    return response.json()
+    return response.json();
   }
 
   // Get user profile
   async getProfile() {
-    return this.request('/users/me')
+    return this.request("/users/me");
   }
 
   // Get personalized repository recommendations
   async getRecommendations(params = {}) {
-    const query = new URLSearchParams(params).toString()
-    return this.request(`/repositories/recommendations?${query}`)
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/repositories/recommendations?${query}`);
   }
 
   // Search for contribution opportunities
   async searchOpportunities(criteria) {
-    return this.request('/opportunities/search', {
-      method: 'POST',
-      body: JSON.stringify(criteria)
-    })
+    return this.request("/opportunities/search", {
+      method: "POST",
+      body: JSON.stringify(criteria),
+    });
   }
 
   // Track contribution activity
   async trackContribution(data) {
-    return this.request('/analytics/contributions', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    })
+    return this.request("/analytics/contributions", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
   }
 }
 
 // Usage example
 async function main() {
   try {
-    const client = new ContribuxClient(process.env.CONTRIBUX_ACCESS_TOKEN)
-    
+    const client = new ContribuxClient(process.env.CONTRIBUX_ACCESS_TOKEN);
+
     // Get user profile
-    const user = await client.getProfile()
-    console.log('👤 User:', user.github_username)
-    
+    const user = await client.getProfile();
+    console.log("👤 User:", user.github_username);
+
     // Get recommendations
     const recommendations = await client.getRecommendations({
       limit: 5,
-      difficulty: 'beginner'
-    })
-    console.log('📁 Found', recommendations.repositories.length, 'recommendations')
-    
+      difficulty: "beginner",
+    });
+    console.log(
+      "📁 Found",
+      recommendations.repositories.length,
+      "recommendations"
+    );
+
     // Search for specific opportunities
     const opportunities = await client.searchOpportunities({
       languages: user.preferences.languages,
-      difficulty: 'beginner',
-      time_commitment: '1-3 hours'
-    })
-    console.log('🎯 Found', opportunities.total_count, 'opportunities')
-    
+      difficulty: "beginner",
+      time_commitment: "1-3 hours",
+    });
+    console.log("🎯 Found", opportunities.total_count, "opportunities");
+
     // Show first opportunity
     if (opportunities.opportunities.length > 0) {
-      const opp = opportunities.opportunities[0]
-      console.log('💡 First opportunity:', opp.title)
-      console.log('📊 Difficulty:', opp.difficulty)
-      console.log('⏱️  Estimated time:', opp.estimated_effort)
+      const opp = opportunities.opportunities[0];
+      console.log("💡 First opportunity:", opp.title);
+      console.log("📊 Difficulty:", opp.difficulty);
+      console.log("⏱️  Estimated time:", opp.estimated_effort);
     }
-    
   } catch (error) {
-    console.error('Error:', error.message)
+    console.error("Error:", error.message);
   }
 }
 
-main()
+main();
 ```
 
 ## Next Steps
@@ -313,22 +338,22 @@ main()
 
 ```javascript
 async function getAllRecommendations(client) {
-  let page = 1
-  let allRepos = []
-  
+  let page = 1;
+  let allRepos = [];
+
   while (true) {
     const response = await client.getRecommendations({
       page,
-      per_page: 50
-    })
-    
-    allRepos.push(...response.repositories)
-    
-    if (response.repositories.length < 50) break
-    page++
+      per_page: 50,
+    });
+
+    allRepos.push(...response.repositories);
+
+    if (response.repositories.length < 50) break;
+    page++;
   }
-  
-  return allRepos
+
+  return allRepos;
 }
 ```
 
@@ -338,14 +363,15 @@ async function getAllRecommendations(client) {
 async function makeRequestWithRetry(fn, maxRetries = 3) {
   for (let i = 0; i < maxRetries; i++) {
     try {
-      return await fn()
+      return await fn();
     } catch (error) {
-      if (error.status === 429) { // Rate limited
-        const retryAfter = parseInt(error.headers['retry-after']) || 60
-        await new Promise(resolve => setTimeout(resolve, retryAfter * 1000))
-        continue
+      if (error.status === 429) {
+        // Rate limited
+        const retryAfter = parseInt(error.headers["retry-after"]) || 60;
+        await new Promise((resolve) => setTimeout(resolve, retryAfter * 1000));
+        continue;
       }
-      if (i === maxRetries - 1) throw error
+      if (i === maxRetries - 1) throw error;
     }
   }
 }
@@ -356,32 +382,32 @@ async function makeRequestWithRetry(fn, maxRetries = 3) {
 ```javascript
 class AuthenticatedClient {
   constructor(accessToken, refreshToken) {
-    this.accessToken = accessToken
-    this.refreshToken = refreshToken
+    this.accessToken = accessToken;
+    this.refreshToken = refreshToken;
   }
 
   async request(endpoint, options = {}) {
     try {
-      return await this.makeRequest(endpoint, options)
+      return await this.makeRequest(endpoint, options);
     } catch (error) {
       if (error.status === 401) {
-        await this.refreshAccessToken()
-        return this.makeRequest(endpoint, options)
+        await this.refreshAccessToken();
+        return this.makeRequest(endpoint, options);
       }
-      throw error
+      throw error;
     }
   }
 
   async refreshAccessToken() {
-    const response = await fetch('https://contribux.ai/api/v1/auth/refresh', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh_token: this.refreshToken })
-    })
-    
-    const data = await response.json()
-    this.accessToken = data.access_token
-    this.refreshToken = data.refresh_token
+    const response = await fetch("https://contribux.ai/api/v1/auth/refresh", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: this.refreshToken }),
+    });
+
+    const data = await response.json();
+    this.accessToken = data.access_token;
+    this.refreshToken = data.refresh_token;
   }
 }
 ```

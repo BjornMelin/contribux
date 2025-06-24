@@ -47,12 +47,12 @@ graph TB
 
 ### Environment Configuration
 
-| Environment | Purpose             | Database          | AI Services | Monitoring |
-| ----------- | ------------------- | ----------------- | ----------- | ---------- |
-| Development | Local development   | Local PostgreSQL  | OpenAI Dev  | Basic      |
-| Preview     | PR testing          | Neon Branch       | OpenAI Dev  | Basic      |
-| Staging     | Pre-prod validation | Neon Staging      | OpenAI Prod | Full       |
-| Production  | Live system         | Neon Production   | OpenAI Prod | Full       |
+| Environment | Purpose             | Database         | AI Services | Monitoring |
+| ----------- | ------------------- | ---------------- | ----------- | ---------- |
+| Development | Local development   | Local PostgreSQL | OpenAI Dev  | Basic      |
+| Preview     | PR testing          | Neon Branch      | OpenAI Dev  | Basic      |
+| Staging     | Pre-prod validation | Neon Staging     | OpenAI Prod | Full       |
+| Production  | Live system         | Neon Production  | OpenAI Prod | Full       |
 
 ## CI/CD Pipeline
 
@@ -82,28 +82,28 @@ jobs:
           version: 10.11.1
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'pnpm'
-      
+          node-version: "20"
+          cache: "pnpm"
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      
+
       - name: Type check
         run: pnpm type-check
-      
+
       - name: Lint and format
         run: |
           pnpm lint
           pnpm format:check
-      
+
       - name: Run tests
         run: pnpm test:ci
         env:
           DATABASE_URL_TEST: ${{ secrets.DATABASE_URL_TEST }}
-      
+
       - name: Build application
         run: pnpm build
-      
+
       - name: Run E2E tests
         run: pnpm test:e2e
         env:
@@ -115,7 +115,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run security audit
         run: pnpm audit --audit-level moderate
-      
+
       - name: Scan for secrets
         uses: trufflesecurity/trufflehog@main
         with:
@@ -132,7 +132,7 @@ jobs:
       - uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-args: '--prebuilt'
+          vercel-args: "--prebuilt"
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           scope: ${{ secrets.VERCEL_ORG_ID }}
@@ -147,7 +147,7 @@ jobs:
       - uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-args: '--prebuilt --prod'
+          vercel-args: "--prebuilt --prod"
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           alias: staging.contribux.dev
@@ -162,7 +162,7 @@ jobs:
       - uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-args: '--prebuilt --prod'
+          vercel-args: "--prebuilt --prod"
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           alias: contribux.dev
@@ -253,16 +253,16 @@ graph TB
 BEGIN;
 
 -- Add new column
-ALTER TABLE opportunities 
+ALTER TABLE opportunities
 ADD COLUMN content_embedding vector(384);
 
 -- Create index (can be built concurrently in production)
-CREATE INDEX CONCURRENTLY idx_opportunities_content_embedding 
+CREATE INDEX CONCURRENTLY idx_opportunities_content_embedding
 ON opportunities USING hnsw (content_embedding vector_cosine_ops)
 WITH (m = 16, ef_construction = 64);
 
 -- Update migration tracking
-INSERT INTO schema_migrations (version, applied_at) 
+INSERT INTO schema_migrations (version, applied_at)
 VALUES ('2025-01-20-add-opportunity-embeddings', NOW());
 
 COMMIT;
@@ -345,12 +345,12 @@ curl -s -o /dev/null -w "%{http_code}" \
 
 ### Recovery Time Objectives (RTO)
 
-| Scenario             | RTO Target | RPO Target | Procedure               |
-| -------------------- | ---------- | ---------- | ----------------------- |
-| Application Failure  | < 5 min    | 0          | Automatic rollback      |
-| Database Corruption  | < 30 min   | < 1 hour   | Point-in-time restore   |
-| Regional Outage      | < 2 hours  | < 1 hour   | Multi-region failover   |
-| Complete Data Loss   | < 4 hours  | < 24 hours | Full backup restoration |
+| Scenario            | RTO Target | RPO Target | Procedure               |
+| ------------------- | ---------- | ---------- | ----------------------- |
+| Application Failure | < 5 min    | 0          | Automatic rollback      |
+| Database Corruption | < 30 min   | < 1 hour   | Point-in-time restore   |
+| Regional Outage     | < 2 hours  | < 1 hour   | Multi-region failover   |
+| Complete Data Loss  | < 4 hours  | < 24 hours | Full backup restoration |
 
 ## Performance Optimization
 
@@ -364,21 +364,21 @@ export const cacheConfig = {
     maxAge: 31536000, // 1 year for static assets
     staleWhileRevalidate: 86400, // 1 day
   },
-  
+
   // API response caching
   api: {
     opportunities: {
       maxAge: 300, // 5 minutes
       staleWhileRevalidate: 600, // 10 minutes
-      tags: ['opportunities', 'repositories'],
+      tags: ["opportunities", "repositories"],
     },
     userProfile: {
       maxAge: 1800, // 30 minutes
       staleWhileRevalidate: 3600, // 1 hour
-      tags: ['user', 'preferences'],
+      tags: ["user", "preferences"],
     },
   },
-  
+
   // Database query caching
   database: {
     repositories: {
@@ -397,31 +397,35 @@ export const cacheConfig = {
 
 ```typescript
 // Performance tracking middleware
-export function performanceMiddleware(req: Request, res: Response, next: NextFunction) {
+export function performanceMiddleware(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
   const startTime = Date.now();
-  
-  res.on('finish', () => {
+
+  res.on("finish", () => {
     const duration = Date.now() - startTime;
-    
+
     // Track API performance
-    analytics.track('api_request', {
+    analytics.track("api_request", {
       path: req.path,
       method: req.method,
       duration,
       statusCode: res.statusCode,
-      userAgent: req.headers['user-agent'],
+      userAgent: req.headers["user-agent"],
     });
-    
+
     // Alert on slow requests
     if (duration > 1000) {
-      logger.warn('Slow API request', {
+      logger.warn("Slow API request", {
         path: req.path,
         duration,
         ip: req.ip,
       });
     }
   });
-  
+
   next();
 }
 ```
@@ -463,26 +467,26 @@ export default {
   async headers() {
     return [
       {
-        source: '/(.*)',
+        source: "/(.*)",
         headers: [
           {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
+            key: "X-Content-Type-Options",
+            value: "nosniff",
           },
           {
-            key: 'X-Frame-Options',
-            value: 'DENY',
+            key: "X-Frame-Options",
+            value: "DENY",
           },
           {
-            key: 'X-XSS-Protection',
-            value: '1; mode=block',
+            key: "X-XSS-Protection",
+            value: "1; mode=block",
           },
           {
-            key: 'Strict-Transport-Security',
-            value: 'max-age=31536000; includeSubDomains',
+            key: "Strict-Transport-Security",
+            value: "max-age=31536000; includeSubDomains",
           },
           {
-            key: 'Content-Security-Policy',
+            key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
               "script-src 'self' 'unsafe-eval' 'unsafe-inline' va.vercel-scripts.com",
@@ -490,7 +494,7 @@ export default {
               "img-src 'self' data: https:",
               "connect-src 'self' *.vercel.com *.sentry.io",
               "font-src 'self' data:",
-            ].join('; '),
+            ].join("; "),
           },
         ],
       },
@@ -512,44 +516,44 @@ export async function GET() {
     openai: false,
     github: false,
   };
-  
+
   try {
     // Database health
     await sql`SELECT 1`;
     checks.database = true;
   } catch (error) {
-    logger.error('Database health check failed', error);
+    logger.error("Database health check failed", error);
   }
-  
+
   try {
     // Redis health
     await redis.ping();
     checks.redis = true;
   } catch (error) {
-    logger.error('Redis health check failed', error);
+    logger.error("Redis health check failed", error);
   }
-  
+
   try {
     // OpenAI API health
     await openai.models.list();
     checks.openai = true;
   } catch (error) {
-    logger.error('OpenAI health check failed', error);
+    logger.error("OpenAI health check failed", error);
   }
-  
+
   try {
     // GitHub API health
     await octokit.rest.meta.get();
     checks.github = true;
   } catch (error) {
-    logger.error('GitHub health check failed', error);
+    logger.error("GitHub health check failed", error);
   }
-  
+
   const allHealthy = Object.values(checks).every(Boolean);
-  
+
   return Response.json(
     {
-      status: allHealthy ? 'healthy' : 'degraded',
+      status: allHealthy ? "healthy" : "degraded",
       timestamp: new Date().toISOString(),
       checks,
       version: process.env.VERCEL_GIT_COMMIT_SHA,
@@ -569,34 +573,34 @@ alerts:
     condition: error_rate > 1%
     severity: high
     channels: [slack, email]
-    
+
   - name: Slow response time
     condition: p95_response_time > 1000ms
     severity: medium
     channels: [slack]
-    
+
   - name: Low availability
     condition: uptime < 99.5%
     severity: critical
     channels: [slack, email, sms]
-  
+
   # Business alerts
   - name: Low user engagement
     condition: daily_active_users < 50% of 7_day_average
     severity: medium
     channels: [email]
-    
+
   - name: AI analysis failure rate
     condition: ai_analysis_failure_rate > 5%
     severity: high
     channels: [slack, email]
-  
+
   # Cost alerts
   - name: High OpenAI usage
     condition: daily_openai_cost > $100
     severity: medium
     channels: [email]
-    
+
   - name: Database usage spike
     condition: database_cost > 150% of monthly_budget
     severity: high
@@ -647,27 +651,27 @@ export class CostOptimizer {
       neon: await this.getNeonUsage(),
       upstash: await this.getUpstashUsage(),
     };
-    
+
     const recommendations = [];
-    
+
     // OpenAI optimization
     if (usage.openai.costPerRequest > 0.05) {
       recommendations.push({
-        service: 'OpenAI',
-        action: 'Optimize prompts or use smaller model',
+        service: "OpenAI",
+        action: "Optimize prompts or use smaller model",
         potential_savings: usage.openai.costPerRequest * 0.3,
       });
     }
-    
+
     // Database optimization
     if (usage.neon.slowQueries > 10) {
       recommendations.push({
-        service: 'Neon',
-        action: 'Add database indexes or optimize queries',
+        service: "Neon",
+        action: "Add database indexes or optimize queries",
         potential_savings: usage.neon.monthlyCost * 0.2,
       });
     }
-    
+
     return {
       current_usage: usage,
       recommendations,

@@ -6,24 +6,24 @@ The Contribux API implements rate limiting to ensure fair usage and maintain ser
 
 ### Authentication Type Limits
 
-| Authentication Method | Requests per Hour | Burst Limit |
-|----------------------|------------------|-------------|
-| **JWT (Personal)** | 1,000 | 100 per minute |
-| **API Key (Free)** | 500 | 50 per minute |
-| **API Key (Pro)** | 5,000 | 200 per minute |
-| **API Key (Enterprise)** | 25,000 | 500 per minute |
-| **Unauthenticated** | 100 | 10 per minute |
+| Authentication Method    | Requests per Hour | Burst Limit    |
+| ------------------------ | ----------------- | -------------- |
+| **JWT (Personal)**       | 1,000             | 100 per minute |
+| **API Key (Free)**       | 500               | 50 per minute  |
+| **API Key (Pro)**        | 5,000             | 200 per minute |
+| **API Key (Enterprise)** | 25,000            | 500 per minute |
+| **Unauthenticated**      | 100               | 10 per minute  |
 
 ### Endpoint-Specific Limits
 
 Some endpoints have additional rate limits:
 
-| Endpoint Category | Additional Limit |
-|------------------|------------------|
-| **Search APIs** | 200 requests per hour |
-| **Analytics** | 1,000 events per hour |
-| **WebAuthn** | 20 attempts per hour per IP |
-| **OAuth** | 50 attempts per hour per IP |
+| Endpoint Category | Additional Limit            |
+| ----------------- | --------------------------- |
+| **Search APIs**   | 200 requests per hour       |
+| **Analytics**     | 1,000 events per hour       |
+| **WebAuthn**      | 20 attempts per hour per IP |
+| **OAuth**         | 50 attempts per hour per IP |
 
 ## Rate Limit Headers
 
@@ -81,60 +81,60 @@ Always check the rate limit headers and adjust your request frequency accordingl
 ```javascript
 class RateLimitAwareClient {
   constructor(apiKey) {
-    this.apiKey = apiKey
-    this.lastRequestTime = 0
-    this.minRequestInterval = 0
+    this.apiKey = apiKey;
+    this.lastRequestTime = 0;
+    this.minRequestInterval = 0;
   }
 
   async makeRequest(endpoint, options = {}) {
     // Respect minimum interval between requests
-    const now = Date.now()
-    const timeSinceLastRequest = now - this.lastRequestTime
+    const now = Date.now();
+    const timeSinceLastRequest = now - this.lastRequestTime;
     if (timeSinceLastRequest < this.minRequestInterval) {
-      await new Promise(resolve => 
+      await new Promise((resolve) =>
         setTimeout(resolve, this.minRequestInterval - timeSinceLastRequest)
-      )
+      );
     }
 
     const response = await fetch(`https://contribux.ai/api/v1${endpoint}`, {
       ...options,
       headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-        ...options.headers
-      }
-    })
+        Authorization: `Bearer ${this.apiKey}`,
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
 
     // Update rate limit tracking
-    this.updateRateLimit(response.headers)
-    this.lastRequestTime = Date.now()
+    this.updateRateLimit(response.headers);
+    this.lastRequestTime = Date.now();
 
     if (response.status === 429) {
-      const retryAfter = parseInt(response.headers.get('retry-after'))
-      throw new RateLimitError('Rate limit exceeded', retryAfter)
+      const retryAfter = parseInt(response.headers.get("retry-after"));
+      throw new RateLimitError("Rate limit exceeded", retryAfter);
     }
 
-    return response
+    return response;
   }
 
   updateRateLimit(headers) {
-    const remaining = parseInt(headers.get('x-ratelimit-remaining'))
-    const resetAfter = parseInt(headers.get('x-ratelimit-reset-after'))
-    
+    const remaining = parseInt(headers.get("x-ratelimit-remaining"));
+    const resetAfter = parseInt(headers.get("x-ratelimit-reset-after"));
+
     if (remaining < 10) {
       // Slow down when approaching limit
-      this.minRequestInterval = Math.max(1000, resetAfter * 1000 / remaining)
+      this.minRequestInterval = Math.max(1000, (resetAfter * 1000) / remaining);
     } else {
-      this.minRequestInterval = 0
+      this.minRequestInterval = 0;
     }
   }
 }
 
 class RateLimitError extends Error {
   constructor(message, retryAfter) {
-    super(message)
-    this.name = 'RateLimitError'
-    this.retryAfter = retryAfter
+    super(message);
+    this.name = "RateLimitError";
+    this.retryAfter = retryAfter;
   }
 }
 ```
@@ -147,22 +147,22 @@ When you hit rate limits, implement exponential backoff:
 async function makeRequestWithBackoff(requestFn, maxRetries = 3) {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      return await requestFn()
+      return await requestFn();
     } catch (error) {
       if (error instanceof RateLimitError) {
         const backoffTime = Math.min(
           error.retryAfter * 1000,
           Math.pow(2, attempt) * 1000
-        )
-        
-        console.log(`Rate limited. Retrying in ${backoffTime}ms`)
-        await new Promise(resolve => setTimeout(resolve, backoffTime))
-        continue
+        );
+
+        console.log(`Rate limited. Retrying in ${backoffTime}ms`);
+        await new Promise((resolve) => setTimeout(resolve, backoffTime));
+        continue;
       }
-      throw error
+      throw error;
     }
   }
-  throw new Error('Max retries exceeded')
+  throw new Error("Max retries exceeded");
 }
 ```
 
@@ -172,62 +172,63 @@ Implement a request queue to control the rate of API calls:
 
 ```javascript
 class RequestQueue {
-  constructor(rateLimit = 1000, timeWindow = 3600000) { // 1000 req/hour
-    this.rateLimit = rateLimit
-    this.timeWindow = timeWindow
-    this.queue = []
-    this.requestTimes = []
+  constructor(rateLimit = 1000, timeWindow = 3600000) {
+    // 1000 req/hour
+    this.rateLimit = rateLimit;
+    this.timeWindow = timeWindow;
+    this.queue = [];
+    this.requestTimes = [];
   }
 
   async enqueue(requestFn) {
     return new Promise((resolve, reject) => {
-      this.queue.push({ requestFn, resolve, reject })
-      this.processQueue()
-    })
+      this.queue.push({ requestFn, resolve, reject });
+      this.processQueue();
+    });
   }
 
   processQueue() {
-    if (this.queue.length === 0) return
+    if (this.queue.length === 0) return;
 
-    const now = Date.now()
-    
+    const now = Date.now();
+
     // Remove old request timestamps
     this.requestTimes = this.requestTimes.filter(
-      time => now - time < this.timeWindow
-    )
+      (time) => now - time < this.timeWindow
+    );
 
     // Check if we can make another request
     if (this.requestTimes.length < this.rateLimit) {
-      const { requestFn, resolve, reject } = this.queue.shift()
-      this.requestTimes.push(now)
-      
+      const { requestFn, resolve, reject } = this.queue.shift();
+      this.requestTimes.push(now);
+
       requestFn()
         .then(resolve)
         .catch(reject)
         .finally(() => {
           // Process next request after a small delay
-          setTimeout(() => this.processQueue(), 100)
-        })
+          setTimeout(() => this.processQueue(), 100);
+        });
     } else {
       // Wait until we can make the next request
-      const oldestRequest = Math.min(...this.requestTimes)
-      const nextAvailableTime = oldestRequest + this.timeWindow
-      const waitTime = nextAvailableTime - now
-      
-      setTimeout(() => this.processQueue(), waitTime)
+      const oldestRequest = Math.min(...this.requestTimes);
+      const nextAvailableTime = oldestRequest + this.timeWindow;
+      const waitTime = nextAvailableTime - now;
+
+      setTimeout(() => this.processQueue(), waitTime);
     }
   }
 }
 
 // Usage
-const queue = new RequestQueue(1000, 3600000) // 1000 requests per hour
+const queue = new RequestQueue(1000, 3600000); // 1000 requests per hour
 
 async function queuedRequest(endpoint) {
-  return queue.enqueue(() => 
+  return queue.enqueue(() =>
     fetch(`https://contribux.ai/api/v1${endpoint}`, {
-      headers: { 'Authorization': `Bearer ${apiKey}` }
+      headers: { Authorization: `Bearer ${apiKey}` },
     })
-  )
+  );
 }
 ```
 
@@ -237,17 +238,17 @@ Some endpoints support batch operations to reduce API calls:
 
 ```javascript
 // Instead of multiple individual requests
-const repos = []
+const repos = [];
 for (const id of repositoryIds) {
-  const repo = await client.getRepository(id)
-  repos.push(repo)
+  const repo = await client.getRepository(id);
+  repos.push(repo);
 }
 
 // Use batch endpoint
 const repos = await client.getRepositories({
   ids: repositoryIds,
-  include: ['issues', 'contributors']
-})
+  include: ["issues", "contributors"],
+});
 ```
 
 ### 5. Cache Responses
@@ -256,33 +257,34 @@ Implement caching to reduce redundant API calls:
 
 ```javascript
 class CachedClient {
-  constructor(apiKey, cacheTTL = 300000) { // 5 minute cache
-    this.apiKey = apiKey
-    this.cache = new Map()
-    this.cacheTTL = cacheTTL
+  constructor(apiKey, cacheTTL = 300000) {
+    // 5 minute cache
+    this.apiKey = apiKey;
+    this.cache = new Map();
+    this.cacheTTL = cacheTTL;
   }
 
   getCacheKey(endpoint, options) {
-    return `${endpoint}:${JSON.stringify(options)}`
+    return `${endpoint}:${JSON.stringify(options)}`;
   }
 
   async get(endpoint, options = {}) {
-    const cacheKey = this.getCacheKey(endpoint, options)
-    const cached = this.cache.get(cacheKey)
-    
+    const cacheKey = this.getCacheKey(endpoint, options);
+    const cached = this.cache.get(cacheKey);
+
     if (cached && Date.now() - cached.timestamp < this.cacheTTL) {
-      return cached.data
+      return cached.data;
     }
 
-    const response = await this.makeRequest(endpoint, options)
-    const data = await response.json()
-    
+    const response = await this.makeRequest(endpoint, options);
+    const data = await response.json();
+
     this.cache.set(cacheKey, {
       data,
-      timestamp: Date.now()
-    })
-    
-    return data
+      timestamp: Date.now(),
+    });
+
+    return data;
   }
 }
 ```
@@ -323,14 +325,14 @@ Monitor your API usage in the [Developer Dashboard](https://contribux.ai/dashboa
 Query your usage statistics via API:
 
 ```javascript
-const usage = await fetch('https://contribux.ai/api/v1/usage/current', {
-  headers: { 'Authorization': `Bearer ${apiKey}` }
-})
+const usage = await fetch("https://contribux.ai/api/v1/usage/current", {
+  headers: { Authorization: `Bearer ${apiKey}` },
+});
 
-const stats = await usage.json()
-console.log('Current usage:', stats.requests_this_hour)
-console.log('Limit:', stats.hourly_limit)
-console.log('Usage percentage:', stats.usage_percentage)
+const stats = await usage.json();
+console.log("Current usage:", stats.requests_this_hour);
+console.log("Limit:", stats.hourly_limit);
+console.log("Usage percentage:", stats.usage_percentage);
 ```
 
 ## Rate Limit Strategies by Use Case
@@ -342,14 +344,14 @@ For applications requiring real-time updates:
 ```javascript
 // Use Server-Sent Events for real-time updates
 const eventSource = new EventSource(
-  'https://contribux.ai/api/v1/stream/opportunities',
-  { headers: { 'Authorization': `Bearer ${apiKey}` } }
-)
+  "https://contribux.ai/api/v1/stream/opportunities",
+  { headers: { Authorization: `Bearer ${apiKey}` } }
+);
 
 eventSource.onmessage = (event) => {
-  const opportunity = JSON.parse(event.data)
+  const opportunity = JSON.parse(event.data);
   // Handle new opportunity
-}
+};
 ```
 
 ### Batch Processing
@@ -360,16 +362,14 @@ For batch data processing:
 // Process in smaller chunks with delays
 async function processBatch(items, batchSize = 10) {
   for (let i = 0; i < items.length; i += batchSize) {
-    const batch = items.slice(i, i + batchSize)
-    
+    const batch = items.slice(i, i + batchSize);
+
     // Process batch in parallel
-    await Promise.all(
-      batch.map(item => processItem(item))
-    )
-    
+    await Promise.all(batch.map((item) => processItem(item)));
+
     // Wait between batches to respect rate limits
     if (i + batchSize < items.length) {
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
   }
 }
@@ -383,37 +383,37 @@ For analytics workloads:
 // Use background job processing
 class AnalyticsProcessor {
   constructor() {
-    this.queue = []
-    this.processing = false
+    this.queue = [];
+    this.processing = false;
   }
 
   addJob(job) {
-    this.queue.push(job)
+    this.queue.push(job);
     if (!this.processing) {
-      this.processQueue()
+      this.processQueue();
     }
   }
 
   async processQueue() {
-    this.processing = true
-    
+    this.processing = true;
+
     while (this.queue.length > 0) {
-      const job = this.queue.shift()
-      
+      const job = this.queue.shift();
+
       try {
-        await this.processJob(job)
+        await this.processJob(job);
       } catch (error) {
         if (error instanceof RateLimitError) {
           // Re-queue the job and wait
-          this.queue.unshift(job)
-          await new Promise(resolve => 
+          this.queue.unshift(job);
+          await new Promise((resolve) =>
             setTimeout(resolve, error.retryAfter * 1000)
-          )
+          );
         }
       }
     }
-    
-    this.processing = false
+
+    this.processing = false;
   }
 }
 ```
@@ -422,17 +422,20 @@ class AnalyticsProcessor {
 
 ### Common Issues
 
-**Sudden Rate Limit Increase**
+#### **Sudden Rate Limit Increase**
+
 - Check for request loops in your code
 - Verify pagination is working correctly
 - Monitor for duplicate requests
 
-**Inconsistent Rate Limiting**
+#### **Inconsistent Rate Limiting**
+
 - Different endpoints have different limits
 - Burst limits vs. sustained limits
 - Multiple API keys from same organization share limits
 
-**Rate Limit Resets**
+#### **Rate Limit Resets**
+
 - Limits reset on the hour (UTC)
 - Individual endpoint limits may reset differently
 - Burst limits reset every minute
@@ -442,7 +445,7 @@ class AnalyticsProcessor {
 Enable debug mode to see detailed rate limit information:
 
 ```javascript
-const client = new ContribuxClient(apiKey, { debug: true })
+const client = new ContribuxClient(apiKey, { debug: true });
 
 // Logs will include:
 // - Rate limit headers

@@ -6,33 +6,33 @@ The Contribux API uses conventional HTTP response codes to indicate the success 
 
 ### Success Codes (2xx)
 
-| Code | Status | Description |
-|------|--------|-------------|
-| 200 | OK | Request successful |
-| 201 | Created | Resource created successfully |
-| 202 | Accepted | Request accepted for processing |
-| 204 | No Content | Request successful, no content returned |
+| Code | Status     | Description                             |
+| ---- | ---------- | --------------------------------------- |
+| 200  | OK         | Request successful                      |
+| 201  | Created    | Resource created successfully           |
+| 202  | Accepted   | Request accepted for processing         |
+| 204  | No Content | Request successful, no content returned |
 
 ### Client Error Codes (4xx)
 
-| Code | Status | Description |
-|------|--------|-------------|
-| 400 | Bad Request | Invalid request syntax or parameters |
-| 401 | Unauthorized | Authentication required or invalid |
-| 403 | Forbidden | Request forbidden, insufficient permissions |
-| 404 | Not Found | Resource not found |
-| 409 | Conflict | Request conflicts with current state |
-| 422 | Unprocessable Entity | Valid syntax but semantic errors |
-| 429 | Too Many Requests | Rate limit exceeded |
+| Code | Status               | Description                                 |
+| ---- | -------------------- | ------------------------------------------- |
+| 400  | Bad Request          | Invalid request syntax or parameters        |
+| 401  | Unauthorized         | Authentication required or invalid          |
+| 403  | Forbidden            | Request forbidden, insufficient permissions |
+| 404  | Not Found            | Resource not found                          |
+| 409  | Conflict             | Request conflicts with current state        |
+| 422  | Unprocessable Entity | Valid syntax but semantic errors            |
+| 429  | Too Many Requests    | Rate limit exceeded                         |
 
 ### Server Error Codes (5xx)
 
-| Code | Status | Description |
-|------|--------|-------------|
-| 500 | Internal Server Error | Unexpected server error |
-| 502 | Bad Gateway | Invalid response from upstream server |
-| 503 | Service Unavailable | Service temporarily unavailable |
-| 504 | Gateway Timeout | Upstream server timeout |
+| Code | Status                | Description                           |
+| ---- | --------------------- | ------------------------------------- |
+| 500  | Internal Server Error | Unexpected server error               |
+| 502  | Bad Gateway           | Invalid response from upstream server |
+| 503  | Service Unavailable   | Service temporarily unavailable       |
+| 504  | Gateway Timeout       | Upstream server timeout               |
 
 ## Error Response Format
 
@@ -63,9 +63,10 @@ All error responses follow a consistent JSON structure:
 
 ## Error Codes Reference
 
-### Authentication Errors (AUTH_*)
+### Authentication Errors (AUTH\_\*)
 
 #### AUTH_REQUIRED
+
 ```json
 {
   "error": {
@@ -80,6 +81,7 @@ All error responses follow a consistent JSON structure:
 ```
 
 #### TOKEN_EXPIRED
+
 ```json
 {
   "error": {
@@ -94,10 +96,11 @@ All error responses follow a consistent JSON structure:
 ```
 
 #### TOKEN_INVALID
+
 ```json
 {
   "error": {
-    "code": "TOKEN_INVALID", 
+    "code": "TOKEN_INVALID",
     "message": "The provided token is invalid or malformed",
     "details": {
       "suggestion": "Ensure the token is properly formatted and hasn't been tampered with"
@@ -107,6 +110,7 @@ All error responses follow a consistent JSON structure:
 ```
 
 #### SCOPE_INSUFFICIENT
+
 ```json
 {
   "error": {
@@ -121,9 +125,10 @@ All error responses follow a consistent JSON structure:
 }
 ```
 
-### Validation Errors (VALIDATION_*)
+### Validation Errors (VALIDATION\_\*)
 
 #### VALIDATION_FAILED
+
 ```json
 {
   "error": {
@@ -140,6 +145,7 @@ All error responses follow a consistent JSON structure:
 ```
 
 #### MISSING_PARAMETER
+
 ```json
 {
   "error": {
@@ -155,6 +161,7 @@ All error responses follow a consistent JSON structure:
 ```
 
 #### INVALID_PARAMETER
+
 ```json
 {
   "error": {
@@ -169,9 +176,10 @@ All error responses follow a consistent JSON structure:
 }
 ```
 
-### Resource Errors (RESOURCE_*)
+### Resource Errors (RESOURCE\_\*)
 
 #### RESOURCE_NOT_FOUND
+
 ```json
 {
   "error": {
@@ -187,6 +195,7 @@ All error responses follow a consistent JSON structure:
 ```
 
 #### RESOURCE_CONFLICT
+
 ```json
 {
   "error": {
@@ -201,9 +210,10 @@ All error responses follow a consistent JSON structure:
 }
 ```
 
-### Rate Limiting Errors (RATE_*)
+### Rate Limiting Errors (RATE\_\*)
 
 #### RATE_LIMIT_EXCEEDED
+
 ```json
 {
   "error": {
@@ -220,9 +230,10 @@ All error responses follow a consistent JSON structure:
 }
 ```
 
-### Service Errors (SERVICE_*)
+### Service Errors (SERVICE\_\*)
 
 #### SERVICE_UNAVAILABLE
+
 ```json
 {
   "error": {
@@ -238,6 +249,7 @@ All error responses follow a consistent JSON structure:
 ```
 
 #### EXTERNAL_SERVICE_ERROR
+
 ```json
 {
   "error": {
@@ -259,15 +271,15 @@ All error responses follow a consistent JSON structure:
 ```javascript
 class ContribuxError extends Error {
   constructor(response, body) {
-    const error = body.error || {}
-    super(error.message || 'Unknown API error')
-    
-    this.name = 'ContribuxError'
-    this.code = error.code
-    this.status = response.status
-    this.details = error.details
-    this.requestId = error.request_id
-    this.timestamp = error.timestamp
+    const error = body.error || {};
+    super(error.message || "Unknown API error");
+
+    this.name = "ContribuxError";
+    this.code = error.code;
+    this.status = response.status;
+    this.details = error.details;
+    this.requestId = error.request_id;
+    this.timestamp = error.timestamp;
   }
 }
 
@@ -276,19 +288,19 @@ class ContribuxClient {
     const response = await fetch(`https://contribux.ai/api/v1${endpoint}`, {
       ...options,
       headers: {
-        'Authorization': `Bearer ${this.token}`,
-        'Content-Type': 'application/json',
-        ...options.headers
-      }
-    })
+        Authorization: `Bearer ${this.token}`,
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
 
-    const body = await response.json()
+    const body = await response.json();
 
     if (!response.ok) {
-      throw new ContribuxError(response, body)
+      throw new ContribuxError(response, body);
     }
 
-    return body
+    return body;
   }
 }
 ```
@@ -298,45 +310,47 @@ class ContribuxClient {
 ```javascript
 async function handleApiCall(apiCall) {
   try {
-    return await apiCall()
+    return await apiCall();
   } catch (error) {
     if (error instanceof ContribuxError) {
       switch (error.code) {
-        case 'TOKEN_EXPIRED':
+        case "TOKEN_EXPIRED":
           // Attempt token refresh
-          await refreshToken()
-          return apiCall() // Retry with new token
-          
-        case 'RATE_LIMIT_EXCEEDED':
+          await refreshToken();
+          return apiCall(); // Retry with new token
+
+        case "RATE_LIMIT_EXCEEDED":
           // Wait and retry
-          const retryAfter = error.details?.retry_after || 60
-          await new Promise(resolve => setTimeout(resolve, retryAfter * 1000))
-          return apiCall()
-          
-        case 'RESOURCE_NOT_FOUND':
+          const retryAfter = error.details?.retry_after || 60;
+          await new Promise((resolve) =>
+            setTimeout(resolve, retryAfter * 1000)
+          );
+          return apiCall();
+
+        case "RESOURCE_NOT_FOUND":
           // Handle missing resource gracefully
-          console.warn(`Resource not found: ${error.details?.resource_id}`)
-          return null
-          
-        case 'VALIDATION_FAILED':
+          console.warn(`Resource not found: ${error.details?.resource_id}`);
+          return null;
+
+        case "VALIDATION_FAILED":
           // Log validation errors for debugging
-          console.error('Validation errors:', error.details?.field_errors)
-          throw new Error('Invalid request data')
-          
-        case 'SCOPE_INSUFFICIENT':
+          console.error("Validation errors:", error.details?.field_errors);
+          throw new Error("Invalid request data");
+
+        case "SCOPE_INSUFFICIENT":
           // Redirect to upgrade flow
-          window.location.href = error.details?.upgrade_url
-          return
-          
+          window.location.href = error.details?.upgrade_url;
+          return;
+
         default:
           // Handle unexpected errors
-          console.error('Unexpected API error:', error)
-          throw error
+          console.error("Unexpected API error:", error);
+          throw error;
       }
     }
-    
+
     // Handle non-API errors
-    throw error
+    throw error;
   }
 }
 ```
@@ -344,36 +358,38 @@ async function handleApiCall(apiCall) {
 ### 3. Retry Logic with Exponential Backoff
 
 ```javascript
-async function retryWithBackoff(
-  apiCall, 
-  maxRetries = 3, 
-  baseDelay = 1000
-) {
+async function retryWithBackoff(apiCall, maxRetries = 3, baseDelay = 1000) {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      return await apiCall()
+      return await apiCall();
     } catch (error) {
       if (error instanceof ContribuxError) {
         // Don't retry client errors (4xx) except rate limits
-        if (error.status >= 400 && error.status < 500 && 
-            error.code !== 'RATE_LIMIT_EXCEEDED') {
-          throw error
+        if (
+          error.status >= 400 &&
+          error.status < 500 &&
+          error.code !== "RATE_LIMIT_EXCEEDED"
+        ) {
+          throw error;
         }
-        
+
         // Don't retry on last attempt
         if (attempt === maxRetries - 1) {
-          throw error
+          throw error;
         }
-        
+
         // Calculate delay with exponential backoff
-        const delay = error.code === 'RATE_LIMIT_EXCEEDED' 
-          ? (error.details?.retry_after || 60) * 1000
-          : baseDelay * Math.pow(2, attempt)
-        
-        console.log(`Retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`)
-        await new Promise(resolve => setTimeout(resolve, delay))
+        const delay =
+          error.code === "RATE_LIMIT_EXCEEDED"
+            ? (error.details?.retry_after || 60) * 1000
+            : baseDelay * Math.pow(2, attempt);
+
+        console.log(
+          `Retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
       } else {
-        throw error
+        throw error;
       }
     }
   }
@@ -385,42 +401,47 @@ async function retryWithBackoff(
 ```javascript
 function getErrorMessage(error) {
   if (!(error instanceof ContribuxError)) {
-    return 'An unexpected error occurred. Please try again.'
+    return "An unexpected error occurred. Please try again.";
   }
 
   const userFriendlyMessages = {
-    'AUTH_REQUIRED': 'Please sign in to continue.',
-    'TOKEN_EXPIRED': 'Your session has expired. Please sign in again.',
-    'SCOPE_INSUFFICIENT': 'You don\'t have permission to perform this action.',
-    'RESOURCE_NOT_FOUND': 'The requested item could not be found.',
-    'VALIDATION_FAILED': 'Please check your input and try again.',
-    'RATE_LIMIT_EXCEEDED': 'Too many requests. Please wait a moment and try again.',
-    'SERVICE_UNAVAILABLE': 'Service is temporarily unavailable. Please try again later.',
-    'EXTERNAL_SERVICE_ERROR': 'External service is experiencing issues. Please try again later.'
-  }
+    AUTH_REQUIRED: "Please sign in to continue.",
+    TOKEN_EXPIRED: "Your session has expired. Please sign in again.",
+    SCOPE_INSUFFICIENT: "You don't have permission to perform this action.",
+    RESOURCE_NOT_FOUND: "The requested item could not be found.",
+    VALIDATION_FAILED: "Please check your input and try again.",
+    RATE_LIMIT_EXCEEDED:
+      "Too many requests. Please wait a moment and try again.",
+    SERVICE_UNAVAILABLE:
+      "Service is temporarily unavailable. Please try again later.",
+    EXTERNAL_SERVICE_ERROR:
+      "External service is experiencing issues. Please try again later.",
+  };
 
-  return userFriendlyMessages[error.code] || error.message || 'An error occurred.'
+  return (
+    userFriendlyMessages[error.code] || error.message || "An error occurred."
+  );
 }
 
 // Usage in React component
 function MyComponent() {
-  const [error, setError] = useState(null)
-  
+  const [error, setError] = useState(null);
+
   const handleAction = async () => {
     try {
-      setError(null)
-      await apiCall()
+      setError(null);
+      await apiCall();
     } catch (err) {
-      setError(getErrorMessage(err))
+      setError(getErrorMessage(err));
     }
-  }
-  
+  };
+
   return (
     <div>
       {error && <div className="error">{error}</div>}
       <button onClick={handleAction}>Perform Action</button>
     </div>
-  )
+  );
 }
 ```
 
@@ -439,32 +460,32 @@ class ErrorReporter {
           code: error.code,
           status: error.status,
           request_id: error.requestId,
-          details: error.details
-        }
-      })
-    }
+          details: error.details,
+        },
+      }),
+    };
 
     // Send to monitoring service
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV === "production") {
       // Example: Sentry, LogRocket, etc.
-      console.error('API Error:', errorData)
+      console.error("API Error:", errorData);
     } else {
-      console.error('API Error:', errorData)
+      console.error("API Error:", errorData);
     }
   }
 }
 
 // Usage
 try {
-  await client.getRepositories()
+  await client.getRepositories();
 } catch (error) {
   ErrorReporter.report(error, {
     user_id: currentUser?.id,
-    endpoint: '/repositories',
-    action: 'fetch_repositories'
-  })
-  
-  setError(getErrorMessage(error))
+    endpoint: "/repositories",
+    action: "fetch_repositories",
+  });
+
+  setError(getErrorMessage(error));
 }
 ```
 
@@ -477,7 +498,10 @@ Every error response includes a `request_id` that can be used for debugging:
 ```javascript
 // Include request ID in error reports
 if (error instanceof ContribuxError) {
-  console.log(`Error occurred (Request ID: ${error.requestId}):`, error.message)
+  console.log(
+    `Error occurred (Request ID: ${error.requestId}):`,
+    error.message
+  );
 }
 ```
 
@@ -488,9 +512,9 @@ When contacting support, include the request ID for faster resolution.
 Enable debug mode to see additional error information:
 
 ```javascript
-const client = new ContribuxClient(token, { 
-  debug: process.env.NODE_ENV === 'development' 
-})
+const client = new ContribuxClient(token, {
+  debug: process.env.NODE_ENV === "development",
+});
 
 // Debug mode will log:
 // - Request/response headers
@@ -503,29 +527,29 @@ const client = new ContribuxClient(token, {
 For webhook endpoints, return appropriate status codes:
 
 ```javascript
-app.post('/webhooks/contribux', (req, res) => {
+app.post("/webhooks/contribux", (req, res) => {
   try {
     // Verify webhook signature
-    if (!verifySignature(req.body, req.headers['x-signature'])) {
-      return res.status(401).json({ error: 'Invalid signature' })
+    if (!verifySignature(req.body, req.headers["x-signature"])) {
+      return res.status(401).json({ error: "Invalid signature" });
     }
-    
+
     // Process webhook
-    processWebhook(req.body)
-    
-    res.status(200).json({ received: true })
+    processWebhook(req.body);
+
+    res.status(200).json({ received: true });
   } catch (error) {
-    console.error('Webhook error:', error)
-    
+    console.error("Webhook error:", error);
+
     // Return 5xx for temporary failures (will retry)
     // Return 4xx for permanent failures (won't retry)
-    const status = error.temporary ? 503 : 400
-    res.status(status).json({ 
-      error: 'Webhook processing failed',
-      temporary: error.temporary 
-    })
+    const status = error.temporary ? 503 : 400;
+    res.status(status).json({
+      error: "Webhook processing failed",
+      temporary: error.temporary,
+    });
   }
-})
+});
 ```
 
 ## Common Scenarios
@@ -535,19 +559,21 @@ app.post('/webhooks/contribux', (req, res) => {
 ```javascript
 async function handleNetworkError(apiCall) {
   try {
-    return await apiCall()
+    return await apiCall();
   } catch (error) {
-    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+    if (error.name === "TypeError" && error.message.includes("fetch")) {
       // Network error
-      throw new Error('Network connection failed. Please check your internet connection.')
+      throw new Error(
+        "Network connection failed. Please check your internet connection."
+      );
     }
-    
-    if (error.name === 'AbortError') {
+
+    if (error.name === "AbortError") {
       // Request timeout
-      throw new Error('Request timed out. Please try again.')
+      throw new Error("Request timed out. Please try again.");
     }
-    
-    throw error
+
+    throw error;
   }
 }
 ```
@@ -557,34 +583,34 @@ async function handleNetworkError(apiCall) {
 ```javascript
 class ConcurrencyLimiter {
   constructor(maxConcurrent = 5) {
-    this.maxConcurrent = maxConcurrent
-    this.running = 0
-    this.queue = []
+    this.maxConcurrent = maxConcurrent;
+    this.running = 0;
+    this.queue = [];
   }
 
   async execute(apiCall) {
     return new Promise((resolve, reject) => {
-      this.queue.push({ apiCall, resolve, reject })
-      this.process()
-    })
+      this.queue.push({ apiCall, resolve, reject });
+      this.process();
+    });
   }
 
   async process() {
     if (this.running >= this.maxConcurrent || this.queue.length === 0) {
-      return
+      return;
     }
 
-    this.running++
-    const { apiCall, resolve, reject } = this.queue.shift()
+    this.running++;
+    const { apiCall, resolve, reject } = this.queue.shift();
 
     try {
-      const result = await apiCall()
-      resolve(result)
+      const result = await apiCall();
+      resolve(result);
     } catch (error) {
-      reject(error)
+      reject(error);
     } finally {
-      this.running--
-      this.process()
+      this.running--;
+      this.process();
     }
   }
 }
@@ -596,14 +622,14 @@ class ConcurrencyLimiter {
 async function getRepositoriesWithFallback(criteria) {
   try {
     // Try AI-powered recommendations
-    return await client.getAIRecommendations(criteria)
+    return await client.getAIRecommendations(criteria);
   } catch (error) {
-    if (error.code === 'SERVICE_UNAVAILABLE') {
-      console.warn('AI service unavailable, falling back to basic search')
+    if (error.code === "SERVICE_UNAVAILABLE") {
+      console.warn("AI service unavailable, falling back to basic search");
       // Fallback to basic search
-      return await client.searchRepositories(criteria)
+      return await client.searchRepositories(criteria);
     }
-    throw error
+    throw error;
   }
 }
 ```
@@ -614,18 +640,21 @@ async function getRepositoriesWithFallback(criteria) {
 
 ```javascript
 function validateSearchCriteria(criteria) {
-  const errors = {}
-  
+  const errors = {};
+
   if (!criteria.languages || criteria.languages.length === 0) {
-    errors.languages = 'At least one programming language is required'
+    errors.languages = "At least one programming language is required";
   }
-  
-  if (criteria.difficulty && !['beginner', 'intermediate', 'advanced'].includes(criteria.difficulty)) {
-    errors.difficulty = 'Invalid difficulty level'
+
+  if (
+    criteria.difficulty &&
+    !["beginner", "intermediate", "advanced"].includes(criteria.difficulty)
+  ) {
+    errors.difficulty = "Invalid difficulty level";
   }
-  
+
   if (Object.keys(errors).length > 0) {
-    throw new ValidationError('Invalid search criteria', errors)
+    throw new ValidationError("Invalid search criteria", errors);
   }
 }
 ```
@@ -634,24 +663,24 @@ function validateSearchCriteria(criteria) {
 
 ```javascript
 function sanitizeInput(input) {
-  if (typeof input === 'string') {
+  if (typeof input === "string") {
     // Remove potentially harmful characters
-    return input.replace(/[<>\"'&]/g, '')
+    return input.replace(/[<>\"'&]/g, "");
   }
-  
+
   if (Array.isArray(input)) {
-    return input.map(sanitizeInput)
+    return input.map(sanitizeInput);
   }
-  
-  if (typeof input === 'object' && input !== null) {
-    const sanitized = {}
+
+  if (typeof input === "object" && input !== null) {
+    const sanitized = {};
     for (const [key, value] of Object.entries(input)) {
-      sanitized[key] = sanitizeInput(value)
+      sanitized[key] = sanitizeInput(value);
     }
-    return sanitized
+    return sanitized;
   }
-  
-  return input
+
+  return input;
 }
 ```
 
@@ -666,7 +695,7 @@ When you encounter errors:
 
 ### Support Request Template
 
-```
+```text
 Subject: API Error - [ERROR_CODE] - Request ID: [REQUEST_ID]
 
 Environment: [Production/Staging/Development]
@@ -697,62 +726,59 @@ Additional Context:
 ```javascript
 class ApiErrorBoundary extends React.Component {
   constructor(props) {
-    super(props)
-    this.state = { hasError: false, error: null }
+    super(props);
+    this.state = { hasError: false, error: null };
   }
 
   static getDerivedStateFromError(error) {
-    return { hasError: true, error }
+    return { hasError: true, error };
   }
 
   componentDidCatch(error, errorInfo) {
     // Log error to monitoring service
     ErrorReporter.report(error, {
       component_stack: errorInfo.componentStack,
-      error_boundary: true
-    })
+      error_boundary: true,
+    });
   }
 
   render() {
     if (this.state.hasError) {
-      const { error } = this.state
-      
-      if (error instanceof ContribuxError && error.code === 'AUTH_REQUIRED') {
-        return <RedirectToLogin />
+      const { error } = this.state;
+
+      if (error instanceof ContribuxError && error.code === "AUTH_REQUIRED") {
+        return <RedirectToLogin />;
       }
-      
+
       return (
         <div className="error-fallback">
           <h2>Something went wrong</h2>
           <p>{getErrorMessage(error)}</p>
-          <button onClick={() => window.location.reload()}>
-            Try Again
-          </button>
+          <button onClick={() => window.location.reload()}>Try Again</button>
         </div>
-      )
+      );
     }
 
-    return this.props.children
+    return this.props.children;
   }
 }
 
 // Usage with React Query
 function useRepositories(filters) {
   return useQuery({
-    queryKey: ['repositories', filters],
+    queryKey: ["repositories", filters],
     queryFn: () => client.getRepositories(filters),
     retry: (failureCount, error) => {
       // Don't retry auth errors
-      if (error instanceof ContribuxError && 
-          error.code.startsWith('AUTH_')) {
-        return false
+      if (error instanceof ContribuxError && error.code.startsWith("AUTH_")) {
+        return false;
       }
-      
+
       // Retry up to 3 times for server errors
-      return failureCount < 3 && error.status >= 500
+      return failureCount < 3 && error.status >= 500;
     },
-    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000)
-  })
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+  });
 }
 ```
 
@@ -760,49 +786,49 @@ function useRepositories(filters) {
 
 ```javascript
 // Global error handler
-const app = createApp(App)
+const app = createApp(App);
 
 app.config.errorHandler = (error, instance, info) => {
   if (error instanceof ContribuxError) {
     // Handle API errors gracefully
-    if (error.code === 'TOKEN_EXPIRED') {
-      store.dispatch('auth/refreshToken')
-      return
+    if (error.code === "TOKEN_EXPIRED") {
+      store.dispatch("auth/refreshToken");
+      return;
     }
-    
-    if (error.code === 'RATE_LIMIT_EXCEEDED') {
-      store.commit('ui/showRateLimitWarning', error.details)
-      return
+
+    if (error.code === "RATE_LIMIT_EXCEEDED") {
+      store.commit("ui/showRateLimitWarning", error.details);
+      return;
     }
   }
-  
-  ErrorReporter.report(error, { vue_info: info })
-}
+
+  ErrorReporter.report(error, { vue_info: info });
+};
 
 // Composable for error handling
 export function useApiErrorHandler() {
-  const { notify } = useNotifications()
-  const router = useRouter()
-  
+  const { notify } = useNotifications();
+  const router = useRouter();
+
   const handleError = (error) => {
     if (!(error instanceof ContribuxError)) {
-      notify('An unexpected error occurred', 'error')
-      return
+      notify("An unexpected error occurred", "error");
+      return;
     }
-    
+
     switch (error.code) {
-      case 'AUTH_REQUIRED':
-        router.push('/login')
-        break
-      case 'SCOPE_INSUFFICIENT':
-        notify('You need additional permissions for this action', 'warning')
-        break
+      case "AUTH_REQUIRED":
+        router.push("/login");
+        break;
+      case "SCOPE_INSUFFICIENT":
+        notify("You need additional permissions for this action", "warning");
+        break;
       default:
-        notify(getErrorMessage(error), 'error')
+        notify(getErrorMessage(error), "error");
     }
-  }
-  
-  return { handleError }
+  };
+
+  return { handleError };
 }
 ```
 
@@ -812,16 +838,16 @@ export function useApiErrorHandler() {
 // Error handling middleware
 function apiErrorHandler(err, req, res, next) {
   // Log error with request context
-  console.error('API Error:', {
+  console.error("API Error:", {
     error: err.message,
     code: err.code,
     status: err.status,
     url: req.url,
     method: req.method,
     user_id: req.user?.id,
-    request_id: req.id
-  })
-  
+    request_id: req.id,
+  });
+
   if (err instanceof ContribuxError) {
     // Return structured error response
     return res.status(err.status || 500).json({
@@ -830,40 +856,43 @@ function apiErrorHandler(err, req, res, next) {
         message: err.message,
         details: err.details,
         request_id: req.id,
-        timestamp: new Date().toISOString()
-      }
-    })
+        timestamp: new Date().toISOString(),
+      },
+    });
   }
-  
+
   // Handle non-API errors
   res.status(500).json({
     error: {
-      code: 'INTERNAL_ERROR',
-      message: 'An internal error occurred',
+      code: "INTERNAL_ERROR",
+      message: "An internal error occurred",
       request_id: req.id,
-      timestamp: new Date().toISOString()
-    }
-  })
+      timestamp: new Date().toISOString(),
+    },
+  });
 }
 
 // Async route wrapper
 function asyncHandler(fn) {
   return (req, res, next) => {
-    Promise.resolve(fn(req, res, next)).catch(next)
-  }
+    Promise.resolve(fn(req, res, next)).catch(next);
+  };
 }
 
 // Usage
-app.get('/api/repositories', asyncHandler(async (req, res) => {
-  try {
-    const repositories = await client.getRepositories(req.query)
-    res.json(repositories)
-  } catch (error) {
-    throw error // Will be caught by error handler
-  }
-}))
+app.get(
+  "/api/repositories",
+  asyncHandler(async (req, res) => {
+    try {
+      const repositories = await client.getRepositories(req.query);
+      res.json(repositories);
+    } catch (error) {
+      throw error; // Will be caught by error handler
+    }
+  })
+);
 
-app.use(apiErrorHandler)
+app.use(apiErrorHandler);
 ```
 
 ## Advanced Error Scenarios
@@ -873,49 +902,49 @@ app.use(apiErrorHandler)
 ```javascript
 class CircuitBreaker {
   constructor(options = {}) {
-    this.failureThreshold = options.failureThreshold || 5
-    this.resetTimeout = options.resetTimeout || 60000
-    this.monitoringPeriod = options.monitoringPeriod || 10000
-    
-    this.state = 'CLOSED'
-    this.failureCount = 0
-    this.lastFailureTime = null
-    this.recentRequests = []
+    this.failureThreshold = options.failureThreshold || 5;
+    this.resetTimeout = options.resetTimeout || 60000;
+    this.monitoringPeriod = options.monitoringPeriod || 10000;
+
+    this.state = "CLOSED";
+    this.failureCount = 0;
+    this.lastFailureTime = null;
+    this.recentRequests = [];
   }
-  
+
   async call(fn) {
-    if (this.state === 'OPEN') {
+    if (this.state === "OPEN") {
       if (Date.now() - this.lastFailureTime < this.resetTimeout) {
-        throw new Error('Circuit breaker is OPEN')
+        throw new Error("Circuit breaker is OPEN");
       }
-      
+
       // Try to reset
-      this.state = 'HALF_OPEN'
+      this.state = "HALF_OPEN";
     }
-    
+
     try {
-      const result = await fn()
-      this.onSuccess()
-      return result
+      const result = await fn();
+      this.onSuccess();
+      return result;
     } catch (error) {
-      this.onFailure()
-      throw error
+      this.onFailure();
+      throw error;
     }
   }
-  
+
   onSuccess() {
-    this.failureCount = 0
-    if (this.state === 'HALF_OPEN') {
-      this.state = 'CLOSED'
+    this.failureCount = 0;
+    if (this.state === "HALF_OPEN") {
+      this.state = "CLOSED";
     }
   }
-  
+
   onFailure() {
-    this.failureCount++
-    this.lastFailureTime = Date.now()
-    
+    this.failureCount++;
+    this.lastFailureTime = Date.now();
+
     if (this.failureCount >= this.failureThreshold) {
-      this.state = 'OPEN'
+      this.state = "OPEN";
     }
   }
 }
@@ -923,18 +952,18 @@ class CircuitBreaker {
 // Usage
 const apiCircuitBreaker = new CircuitBreaker({
   failureThreshold: 3,
-  resetTimeout: 30000
-})
+  resetTimeout: 30000,
+});
 
 async function resilientApiCall(fn) {
   try {
-    return await apiCircuitBreaker.call(fn)
+    return await apiCircuitBreaker.call(fn);
   } catch (error) {
-    if (error.message === 'Circuit breaker is OPEN') {
+    if (error.message === "Circuit breaker is OPEN") {
       // Use cached data or show friendly message
-      return getCachedData() || { error: 'Service temporarily unavailable' }
+      return getCachedData() || { error: "Service temporarily unavailable" };
     }
-    throw error
+    throw error;
   }
 }
 ```
@@ -944,66 +973,66 @@ async function resilientApiCall(fn) {
 ```javascript
 class BulkOperationHandler {
   constructor(batchSize = 10, maxConcurrency = 3) {
-    this.batchSize = batchSize
-    this.limiter = new ConcurrencyLimiter(maxConcurrency)
+    this.batchSize = batchSize;
+    this.limiter = new ConcurrencyLimiter(maxConcurrency);
   }
-  
+
   async processAll(items, processor) {
-    const batches = this.createBatches(items)
-    const results = []
-    const errors = []
-    
+    const batches = this.createBatches(items);
+    const results = [];
+    const errors = [];
+
     for (const batch of batches) {
-      const batchPromises = batch.map(item => 
+      const batchPromises = batch.map((item) =>
         this.limiter.execute(async () => {
           try {
-            return await processor(item)
+            return await processor(item);
           } catch (error) {
-            return { error, item }
+            return { error, item };
           }
         })
-      )
-      
-      const batchResults = await Promise.all(batchPromises)
-      
+      );
+
+      const batchResults = await Promise.all(batchPromises);
+
       for (const result of batchResults) {
         if (result.error) {
-          errors.push(result)
+          errors.push(result);
         } else {
-          results.push(result)
+          results.push(result);
         }
       }
     }
-    
-    return { results, errors, successCount: results.length }
+
+    return { results, errors, successCount: results.length };
   }
-  
+
   createBatches(items) {
-    const batches = []
+    const batches = [];
     for (let i = 0; i < items.length; i += this.batchSize) {
-      batches.push(items.slice(i, i + this.batchSize))
+      batches.push(items.slice(i, i + this.batchSize));
     }
-    return batches
+    return batches;
   }
 }
 
 // Usage
-const bulkHandler = new BulkOperationHandler()
+const bulkHandler = new BulkOperationHandler();
 
 async function syncRepositories(repositoryIds) {
   const { results, errors } = await bulkHandler.processAll(
     repositoryIds,
     async (id) => await client.syncRepository(id)
-  )
-  
+  );
+
   if (errors.length > 0) {
-    console.warn(`${errors.length} repositories failed to sync:`)
+    console.warn(`${errors.length} repositories failed to sync:`);
     errors.forEach(({ error, item }) => {
-      console.warn(`Repository ${item}: ${error.message}`)
-    })
+      console.warn(`Repository ${item}: ${error.message}`);
+    });
   }
-  
-  return results
+
+  return results;
 }
 ```
 
@@ -1019,69 +1048,70 @@ class ApiMetrics {
       errors: 0,
       errorsByCode: {},
       responseTimeTotal: 0,
-      slowRequests: 0
-    }
+      slowRequests: 0,
+    };
   }
-  
+
   recordRequest(duration, error = null) {
-    this.metrics.requests++
-    this.metrics.responseTimeTotal += duration
-    
+    this.metrics.requests++;
+    this.metrics.responseTimeTotal += duration;
+
     if (duration > 5000) {
-      this.metrics.slowRequests++
+      this.metrics.slowRequests++;
     }
-    
+
     if (error) {
-      this.metrics.errors++
-      const code = error.code || 'UNKNOWN'
-      this.metrics.errorsByCode[code] = (this.metrics.errorsByCode[code] || 0) + 1
+      this.metrics.errors++;
+      const code = error.code || "UNKNOWN";
+      this.metrics.errorsByCode[code] =
+        (this.metrics.errorsByCode[code] || 0) + 1;
     }
   }
-  
+
   getStats() {
-    const { requests, errors, responseTimeTotal } = this.metrics
-    
+    const { requests, errors, responseTimeTotal } = this.metrics;
+
     return {
       ...this.metrics,
       errorRate: requests > 0 ? errors / requests : 0,
       averageResponseTime: requests > 0 ? responseTimeTotal / requests : 0,
-      successRate: requests > 0 ? (requests - errors) / requests : 1
-    }
+      successRate: requests > 0 ? (requests - errors) / requests : 1,
+    };
   }
-  
+
   reset() {
     this.metrics = {
       requests: 0,
       errors: 0,
       errorsByCode: {},
       responseTimeTotal: 0,
-      slowRequests: 0
-    }
+      slowRequests: 0,
+    };
   }
 }
 
 // Enhanced client with metrics
 class MonitoredContribuxClient extends ContribuxClient {
   constructor(token, options = {}) {
-    super(token, options)
-    this.metrics = new ApiMetrics()
+    super(token, options);
+    this.metrics = new ApiMetrics();
   }
-  
+
   async request(endpoint, options = {}) {
-    const startTime = Date.now()
-    
+    const startTime = Date.now();
+
     try {
-      const result = await super.request(endpoint, options)
-      this.metrics.recordRequest(Date.now() - startTime)
-      return result
+      const result = await super.request(endpoint, options);
+      this.metrics.recordRequest(Date.now() - startTime);
+      return result;
     } catch (error) {
-      this.metrics.recordRequest(Date.now() - startTime, error)
-      throw error
+      this.metrics.recordRequest(Date.now() - startTime, error);
+      throw error;
     }
   }
-  
+
   getMetrics() {
-    return this.metrics.getStats()
+    return this.metrics.getStats();
   }
 }
 ```
@@ -1091,55 +1121,57 @@ class MonitoredContribuxClient extends ContribuxClient {
 ```javascript
 class ApiHealthChecker {
   constructor(client) {
-    this.client = client
-    this.lastCheck = null
-    this.checkInterval = 60000 // 1 minute
+    this.client = client;
+    this.lastCheck = null;
+    this.checkInterval = 60000; // 1 minute
   }
-  
+
   async checkHealth() {
-    const startTime = Date.now()
+    const startTime = Date.now();
     const checks = {
       api_reachable: false,
       authentication: false,
       database: false,
       external_services: false,
-      response_time: null
-    }
-    
+      response_time: null,
+    };
+
     try {
       // Basic connectivity
-      await this.client.request('/health')
-      checks.api_reachable = true
-      
+      await this.client.request("/health");
+      checks.api_reachable = true;
+
       // Authentication check
-      await this.client.getProfile()
-      checks.authentication = true
-      
+      await this.client.getProfile();
+      checks.authentication = true;
+
       // Database check (implicit in profile call)
-      checks.database = true
-      
+      checks.database = true;
+
       // External services (try a simple repository search)
-      await this.client.searchRepositories({ languages: ['JavaScript'], limit: 1 })
-      checks.external_services = true
-      
+      await this.client.searchRepositories({
+        languages: ["JavaScript"],
+        limit: 1,
+      });
+      checks.external_services = true;
     } catch (error) {
-      console.warn('Health check failed:', error.message)
+      console.warn("Health check failed:", error.message);
     }
-    
-    checks.response_time = Date.now() - startTime
-    this.lastCheck = { timestamp: new Date(), checks }
-    
-    return this.lastCheck
+
+    checks.response_time = Date.now() - startTime;
+    this.lastCheck = { timestamp: new Date(), checks };
+
+    return this.lastCheck;
   }
-  
+
   startMonitoring() {
-    this.checkHealth() // Initial check
-    this.interval = setInterval(() => this.checkHealth(), this.checkInterval)
+    this.checkHealth(); // Initial check
+    this.interval = setInterval(() => this.checkHealth(), this.checkInterval);
   }
-  
+
   stopMonitoring() {
     if (this.interval) {
-      clearInterval(this.interval)
+      clearInterval(this.interval);
     }
   }
 }
@@ -1152,83 +1184,98 @@ class ApiHealthChecker {
 ```javascript
 class MockContribuxClient {
   constructor(scenarioConfig = {}) {
-    this.scenarios = scenarioConfig
-    this.callCount = 0
+    this.scenarios = scenarioConfig;
+    this.callCount = 0;
   }
-  
+
   async request(endpoint, options = {}) {
-    this.callCount++
-    
+    this.callCount++;
+
     // Check for configured scenarios
-    const scenario = this.scenarios[endpoint]
+    const scenario = this.scenarios[endpoint];
     if (scenario) {
-      if (typeof scenario.failAfter === 'number' && this.callCount >= scenario.failAfter) {
+      if (
+        typeof scenario.failAfter === "number" &&
+        this.callCount >= scenario.failAfter
+      ) {
         throw new ContribuxError(
           { status: scenario.status || 500 },
-          { error: { code: scenario.code || 'TEST_ERROR', message: scenario.message || 'Test error' } }
-        )
+          {
+            error: {
+              code: scenario.code || "TEST_ERROR",
+              message: scenario.message || "Test error",
+            },
+          }
+        );
       }
-      
+
       if (scenario.alwaysFail) {
         throw new ContribuxError(
           { status: scenario.status || 500 },
-          { error: { code: scenario.code || 'TEST_ERROR', message: scenario.message || 'Test error' } }
-        )
+          {
+            error: {
+              code: scenario.code || "TEST_ERROR",
+              message: scenario.message || "Test error",
+            },
+          }
+        );
       }
-      
+
       if (scenario.delay) {
-        await new Promise(resolve => setTimeout(resolve, scenario.delay))
+        await new Promise((resolve) => setTimeout(resolve, scenario.delay));
       }
     }
-    
+
     // Return mock response
-    return { success: true, endpoint, callCount: this.callCount }
+    return { success: true, endpoint, callCount: this.callCount };
   }
 }
 
 // Test scenarios
-describe('Error Handling', () => {
-  test('handles rate limiting with retry', async () => {
+describe("Error Handling", () => {
+  test("handles rate limiting with retry", async () => {
     const mockClient = new MockContribuxClient({
-      '/repositories': {
+      "/repositories": {
         failAfter: 1,
         status: 429,
-        code: 'RATE_LIMIT_EXCEEDED',
-        message: 'Rate limit exceeded'
-      }
-    })
-    
+        code: "RATE_LIMIT_EXCEEDED",
+        message: "Rate limit exceeded",
+      },
+    });
+
     const result = await retryWithBackoff(
-      () => mockClient.request('/repositories'),
+      () => mockClient.request("/repositories"),
       3,
       100
-    )
-    
-    expect(result.callCount).toBeGreaterThan(1)
-  })
-  
-  test('handles token expiration', async () => {
+    );
+
+    expect(result.callCount).toBeGreaterThan(1);
+  });
+
+  test("handles token expiration", async () => {
     const mockClient = new MockContribuxClient({
-      '/user/profile': {
+      "/user/profile": {
         alwaysFail: true,
         status: 401,
-        code: 'TOKEN_EXPIRED',
-        message: 'Token has expired'
-      }
-    })
-    
-    let refreshCalled = false
-    const mockRefreshToken = () => { refreshCalled = true }
-    
+        code: "TOKEN_EXPIRED",
+        message: "Token has expired",
+      },
+    });
+
+    let refreshCalled = false;
+    const mockRefreshToken = () => {
+      refreshCalled = true;
+    };
+
     try {
-      await handleApiCall(() => mockClient.request('/user/profile'))
+      await handleApiCall(() => mockClient.request("/user/profile"));
     } catch (error) {
       // Should attempt refresh and retry
     }
-    
-    expect(refreshCalled).toBe(true)
-  })
-})
+
+    expect(refreshCalled).toBe(true);
+  });
+});
 ```
 
 ### Integration Test Helpers
@@ -1236,58 +1283,58 @@ describe('Error Handling', () => {
 ```javascript
 class ErrorTestHelper {
   static createNetworkError() {
-    const error = new TypeError('Failed to fetch')
-    error.name = 'TypeError'
-    return error
+    const error = new TypeError("Failed to fetch");
+    error.name = "TypeError";
+    return error;
   }
-  
+
   static createTimeoutError() {
-    const error = new Error('Request timeout')
-    error.name = 'AbortError'
-    return error
+    const error = new Error("Request timeout");
+    error.name = "AbortError";
+    return error;
   }
-  
+
   static createValidationError(fieldErrors) {
     return new ContribuxError(
       { status: 422 },
       {
         error: {
-          code: 'VALIDATION_FAILED',
-          message: 'Validation failed',
-          details: { field_errors: fieldErrors }
-        }
+          code: "VALIDATION_FAILED",
+          message: "Validation failed",
+          details: { field_errors: fieldErrors },
+        },
       }
-    )
+    );
   }
-  
+
   static createRateLimitError(retryAfter = 60) {
     return new ContribuxError(
       { status: 429 },
       {
         error: {
-          code: 'RATE_LIMIT_EXCEEDED',
-          message: 'Rate limit exceeded',
-          details: { retry_after: retryAfter }
-        }
+          code: "RATE_LIMIT_EXCEEDED",
+          message: "Rate limit exceeded",
+          details: { retry_after: retryAfter },
+        },
       }
-    )
+    );
   }
 }
 
 // Usage in tests
-test('error boundary catches API errors', () => {
+test("error boundary catches API errors", () => {
   const ThrowError = () => {
-    throw ErrorTestHelper.createValidationError({ email: 'Invalid format' })
-  }
-  
+    throw ErrorTestHelper.createValidationError({ email: "Invalid format" });
+  };
+
   render(
     <ApiErrorBoundary>
       <ThrowError />
     </ApiErrorBoundary>
-  )
-  
-  expect(screen.getByText(/check your input/i)).toBeInTheDocument()
-})
+  );
+
+  expect(screen.getByText(/check your input/i)).toBeInTheDocument();
+});
 ```
 
 ## Error Recovery Strategies
@@ -1297,73 +1344,73 @@ test('error boundary catches API errors', () => {
 ```javascript
 class OfflineAwareClient extends ContribuxClient {
   constructor(token, options = {}) {
-    super(token, options)
-    this.cache = new Map()
-    this.pendingRequests = []
-    this.isOnline = navigator.onLine
-    
-    window.addEventListener('online', () => this.handleOnline())
-    window.addEventListener('offline', () => this.handleOffline())
+    super(token, options);
+    this.cache = new Map();
+    this.pendingRequests = [];
+    this.isOnline = navigator.onLine;
+
+    window.addEventListener("online", () => this.handleOnline());
+    window.addEventListener("offline", () => this.handleOffline());
   }
-  
+
   async request(endpoint, options = {}) {
-    if (!this.isOnline && options.method === 'GET') {
+    if (!this.isOnline && options.method === "GET") {
       // Return cached data when offline
-      const cacheKey = `${endpoint}:${JSON.stringify(options)}`
+      const cacheKey = `${endpoint}:${JSON.stringify(options)}`;
       if (this.cache.has(cacheKey)) {
-        return this.cache.get(cacheKey)
+        return this.cache.get(cacheKey);
       }
-      
-      throw new Error('No cached data available while offline')
+
+      throw new Error("No cached data available while offline");
     }
-    
-    if (!this.isOnline && options.method !== 'GET') {
+
+    if (!this.isOnline && options.method !== "GET") {
       // Queue non-GET requests for when back online
       return new Promise((resolve, reject) => {
-        this.pendingRequests.push({ endpoint, options, resolve, reject })
-      })
+        this.pendingRequests.push({ endpoint, options, resolve, reject });
+      });
     }
-    
+
     try {
-      const result = await super.request(endpoint, options)
-      
+      const result = await super.request(endpoint, options);
+
       // Cache GET responses
-      if (options.method === 'GET' || !options.method) {
-        const cacheKey = `${endpoint}:${JSON.stringify(options)}`
-        this.cache.set(cacheKey, result)
+      if (options.method === "GET" || !options.method) {
+        const cacheKey = `${endpoint}:${JSON.stringify(options)}`;
+        this.cache.set(cacheKey, result);
       }
-      
-      return result
+
+      return result;
     } catch (error) {
-      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      if (error.name === "TypeError" && error.message.includes("fetch")) {
         // Network error - might be offline
-        this.handleOffline()
+        this.handleOffline();
       }
-      throw error
+      throw error;
     }
   }
-  
+
   handleOnline() {
-    this.isOnline = true
-    console.log('Back online, processing pending requests...')
-    
+    this.isOnline = true;
+    console.log("Back online, processing pending requests...");
+
     // Process pending requests
-    const pending = [...this.pendingRequests]
-    this.pendingRequests = []
-    
+    const pending = [...this.pendingRequests];
+    this.pendingRequests = [];
+
     pending.forEach(async ({ endpoint, options, resolve, reject }) => {
       try {
-        const result = await super.request(endpoint, options)
-        resolve(result)
+        const result = await super.request(endpoint, options);
+        resolve(result);
       } catch (error) {
-        reject(error)
+        reject(error);
       }
-    })
+    });
   }
-  
+
   handleOffline() {
-    this.isOnline = false
-    console.log('Gone offline, switching to cached mode...')
+    this.isOnline = false;
+    console.log("Gone offline, switching to cached mode...");
   }
 }
 ```
@@ -1373,70 +1420,72 @@ class OfflineAwareClient extends ContribuxClient {
 ```javascript
 class ProgressiveRecoveryClient extends ContribuxClient {
   constructor(token, options = {}) {
-    super(token, options)
-    this.degradationLevel = 0 // 0 = full features, 3 = minimal features
+    super(token, options);
+    this.degradationLevel = 0; // 0 = full features, 3 = minimal features
   }
-  
+
   async request(endpoint, options = {}) {
     try {
-      const result = await super.request(endpoint, options)
-      this.improveService()
-      return result
+      const result = await super.request(endpoint, options);
+      this.improveService();
+      return result;
     } catch (error) {
       if (this.shouldDegrade(error)) {
-        this.degradeService()
-        return this.getAlternativeResponse(endpoint, options, error)
+        this.degradeService();
+        return this.getAlternativeResponse(endpoint, options, error);
       }
-      throw error
+      throw error;
     }
   }
-  
+
   shouldDegrade(error) {
-    return error.status >= 500 || 
-           error.code === 'SERVICE_UNAVAILABLE' ||
-           error.code === 'EXTERNAL_SERVICE_ERROR'
+    return (
+      error.status >= 500 ||
+      error.code === "SERVICE_UNAVAILABLE" ||
+      error.code === "EXTERNAL_SERVICE_ERROR"
+    );
   }
-  
+
   degradeService() {
     if (this.degradationLevel < 3) {
-      this.degradationLevel++
-      console.warn(`Service degraded to level ${this.degradationLevel}`)
+      this.degradationLevel++;
+      console.warn(`Service degraded to level ${this.degradationLevel}`);
     }
   }
-  
+
   improveService() {
     if (this.degradationLevel > 0) {
-      this.degradationLevel--
-      console.info(`Service improved to level ${this.degradationLevel}`)
+      this.degradationLevel--;
+      console.info(`Service improved to level ${this.degradationLevel}`);
     }
   }
-  
+
   getAlternativeResponse(endpoint, options, error) {
     switch (this.degradationLevel) {
       case 1:
         // Reduce data complexity
-        if (endpoint.includes('/recommendations')) {
-          return this.getBasicRecommendations(options)
+        if (endpoint.includes("/recommendations")) {
+          return this.getBasicRecommendations(options);
         }
-        break
-        
+        break;
+
       case 2:
         // Use cached or simplified data
-        if (endpoint.includes('/search')) {
-          return this.getCachedSearchResults(options)
+        if (endpoint.includes("/search")) {
+          return this.getCachedSearchResults(options);
         }
-        break
-        
+        break;
+
       case 3:
         // Minimal functionality only
         return {
-          error: 'Service temporarily degraded',
-          message: 'Please try again later',
-          degradation_level: this.degradationLevel
-        }
+          error: "Service temporarily degraded",
+          message: "Please try again later",
+          degradation_level: this.degradationLevel,
+        };
     }
-    
-    throw error
+
+    throw error;
   }
 }
 ```

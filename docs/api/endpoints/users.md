@@ -12,6 +12,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "id": "user_123",
@@ -56,6 +57,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Request Body:**
+
 ```json
 {
   "profile": {
@@ -68,6 +70,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "id": "user_123",
@@ -90,6 +93,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "id": "user_123",
@@ -118,6 +122,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "languages": ["JavaScript", "Python", "Go"],
@@ -159,6 +164,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Request Body:**
+
 ```json
 {
   "languages": ["JavaScript", "TypeScript", "Python"],
@@ -179,6 +185,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "updated": true,
@@ -216,12 +223,14 @@ Authorization: Bearer {access_token}
 ```
 
 **Query Parameters:**
+
 - `type`: Activity type filter (`contribution`, `star`, `follow`, `comment`)
 - `limit`: Number of activities (default: 20, max: 100)
 - `offset`: Pagination offset
 - `since`: ISO 8601 datetime to filter activities after
 
 **Response:**
+
 ```json
 {
   "activities": [
@@ -275,12 +284,14 @@ Authorization: Bearer {access_token}
 ```
 
 **Query Parameters:**
+
 - `status`: Filter by status (`started`, `submitted`, `merged`, `closed`)
 - `timeframe`: Time period (`week`, `month`, `quarter`, `year`)
 - `repository`: Filter by repository ID
 - `limit`: Number of contributions (default: 50, max: 100)
 
 **Response:**
+
 ```json
 {
   "contributions": [
@@ -321,7 +332,7 @@ Authorization: Bearer {access_token}
     "total_lines_added": 5420,
     "total_lines_removed": 1230,
     "average_completion_time": "2.5 days",
-    "success_rate": 0.90
+    "success_rate": 0.9
   },
   "pagination": {
     "total_count": 42,
@@ -341,9 +352,11 @@ Authorization: Bearer {access_token}
 ```
 
 **Query Parameters:**
+
 - `period`: Time period (`week`, `month`, `quarter`, `year`, `all`)
 
 **Response:**
+
 ```json
 {
   "period": "month",
@@ -412,6 +425,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "user": {
@@ -439,6 +453,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Query Parameters:**
+
 - `q`: Search query (username, display name, or bio)
 - `languages`: Comma-separated programming languages
 - `location`: User location
@@ -447,6 +462,7 @@ Authorization: Bearer {access_token}
 - `sort`: Sort order (`relevance`, `contributions`, `joined`)
 
 **Response:**
+
 ```json
 {
   "users": [
@@ -487,6 +503,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Request Body:**
+
 ```json
 {
   "email": "newemail@example.com"
@@ -494,6 +511,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "email": "newemail@example.com",
@@ -511,6 +529,7 @@ Content-Type: application/json
 ```
 
 **Request Body:**
+
 ```json
 {
   "token": "email_verification_token"
@@ -518,6 +537,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "email_verified": true,
@@ -534,6 +554,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Request Body:**
+
 ```json
 {
   "confirmation": "DELETE",
@@ -542,6 +563,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "deleted": true,
@@ -563,6 +585,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "followers": [
@@ -595,6 +618,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "following": true,
@@ -615,6 +639,7 @@ Authorization: Bearer {access_token}
 ## Error Responses
 
 ### User Not Found (404)
+
 ```json
 {
   "error": {
@@ -628,6 +653,7 @@ Authorization: Bearer {access_token}
 ```
 
 ### Invalid Preferences (422)
+
 ```json
 {
   "error": {
@@ -645,28 +671,31 @@ Authorization: Bearer {access_token}
 
 ## Rate Limits
 
-| Endpoint Category | Limit | Window |
-|------------------|-------|--------|
+| Endpoint Category  | Limit        | Window   |
+| ------------------ | ------------ | -------- |
 | Profile operations | 100 requests | Per hour |
-| Search operations | 200 requests | Per hour |
-| Follow operations | 50 requests | Per hour |
-| Statistics | 500 requests | Per hour |
+| Search operations  | 200 requests | Per hour |
+| Follow operations  | 50 requests  | Per hour |
+| Statistics         | 500 requests | Per hour |
 
 ## Field Validation
 
 ### Profile Fields
+
 - `display_name`: 1-50 characters
 - `bio`: Up to 500 characters
 - `location`: Up to 100 characters
 - `website`: Valid URL format
 
 ### Preference Fields
+
 - `languages`: Array of valid programming language names
 - `experience_level`: `beginner`, `intermediate`, or `advanced`
 - `time_commitment`: Valid time range format
 - `interests`: Array of predefined interest categories
 
 ### Privacy Levels
+
 - `public`: Visible to all users
 - `followers`: Visible to followers only
 - `private`: Visible to user only

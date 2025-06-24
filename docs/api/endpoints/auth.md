@@ -14,6 +14,7 @@ Content-Type: application/json
 ```
 
 **Request Body:**
+
 ```json
 {
   "redirect_uri": "https://yourapp.com/auth/callback",
@@ -23,6 +24,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "authorization_url": "https://github.com/login/oauth/authorize?...",
@@ -39,6 +41,7 @@ Content-Type: application/json
 ```
 
 **Request Body:**
+
 ```json
 {
   "code": "authorization_code_from_github",
@@ -48,6 +51,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "access_token": "eyJhbGciOiJIUzI1NiIs...",
@@ -77,6 +81,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Request Body:**
+
 ```json
 {
   "user_id": "user_123",
@@ -86,6 +91,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "challenge": "base64url_encoded_challenge",
@@ -104,7 +110,7 @@ Authorization: Bearer {access_token}
       "alg": -7
     },
     {
-      "type": "public-key", 
+      "type": "public-key",
       "alg": -257
     }
   ],
@@ -126,6 +132,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Request Body:**
+
 ```json
 {
   "user_id": "user_123",
@@ -143,6 +150,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "verified": true,
@@ -161,6 +169,7 @@ Content-Type: application/json
 ```
 
 **Request Body:**
+
 ```json
 {
   "username": "user@example.com",
@@ -169,6 +178,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "challenge": "base64url_encoded_challenge",
@@ -193,12 +203,13 @@ Content-Type: application/json
 ```
 
 **Request Body:**
+
 ```json
 {
   "expected_challenge": "base64url_encoded_challenge",
   "credential": {
     "id": "credential_id",
-    "rawId": "base64_credential_id", 
+    "rawId": "base64_credential_id",
     "response": {
       "authenticatorData": "base64_authenticator_data",
       "clientDataJSON": "base64_client_data",
@@ -211,6 +222,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "verified": true,
@@ -235,6 +247,7 @@ Content-Type: application/json
 ```
 
 **Request Body:**
+
 ```json
 {
   "refresh_token": "eyJhbGciOiJIUzI1NiIs..."
@@ -242,6 +255,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "access_token": "eyJhbGciOiJIUzI1NiIs...",
@@ -262,6 +276,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Request Body:**
+
 ```json
 {
   "refresh_token": "eyJhbGciOiJIUzI1NiIs..."
@@ -277,6 +292,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Request Body:**
+
 ```json
 {
   "terminate_sessions": true
@@ -284,6 +300,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "revoked": true,
@@ -301,6 +318,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "valid": true,
@@ -320,6 +338,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "id": "session_789",
@@ -346,6 +365,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "sessions": [
@@ -379,6 +399,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "terminated": true,
@@ -396,11 +417,13 @@ Authorization: Bearer {access_token}
 ```
 
 **Query Parameters:**
+
 - `event_type`: Filter by event type (optional)
 - `limit`: Number of events to return (default: 50, max: 100)
 - `offset`: Pagination offset
 
 **Response:**
+
 ```json
 {
   "events": [
@@ -437,6 +460,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Request Body:**
+
 ```json
 {
   "code": "authorization_code_from_github",
@@ -445,6 +469,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "linked": true,
@@ -462,6 +487,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "unlinked": true,
@@ -478,6 +504,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "accounts": [
@@ -497,7 +524,8 @@ Authorization: Bearer {access_token}
 
 ### Common Authentication Errors
 
-**Invalid Credentials (401)**
+#### **Invalid Credentials (401)**
+
 ```json
 {
   "error": {
@@ -511,7 +539,8 @@ Authorization: Bearer {access_token}
 }
 ```
 
-**WebAuthn Error (422)**
+#### **WebAuthn Error (422)**
+
 ```json
 {
   "error": {
@@ -525,7 +554,8 @@ Authorization: Bearer {access_token}
 }
 ```
 
-**OAuth Error (400)**
+#### **OAuth Error (400)**
+
 ```json
 {
   "error": {
@@ -543,34 +573,37 @@ Authorization: Bearer {access_token}
 
 Authentication endpoints have specific rate limits:
 
-| Endpoint | Limit | Window |
-|----------|-------|--------|
-| OAuth flows | 50 requests | Per hour per IP |
-| WebAuthn operations | 20 attempts | Per hour per IP |
-| Token refresh | 100 requests | Per hour per user |
-| Session operations | 200 requests | Per hour per user |
+| Endpoint            | Limit        | Window            |
+| ------------------- | ------------ | ----------------- |
+| OAuth flows         | 50 requests  | Per hour per IP   |
+| WebAuthn operations | 20 attempts  | Per hour per IP   |
+| Token refresh       | 100 requests | Per hour per user |
+| Session operations  | 200 requests | Per hour per user |
 
 ## Security Best Practices
 
 ### Token Storage
+
 - Store access tokens in memory only
 - Use secure HttpOnly cookies for refresh tokens
 - Never expose tokens in URLs or logs
 
 ### PKCE Implementation
+
 ```javascript
 // Generate PKCE parameters
 function generatePKCE() {
-  const codeVerifier = base64URLEncode(crypto.randomBytes(32))
+  const codeVerifier = base64URLEncode(crypto.randomBytes(32));
   const codeChallenge = base64URLEncode(
-    crypto.createHash('sha256').update(codeVerifier).digest()
-  )
-  
-  return { codeVerifier, codeChallenge }
+    crypto.createHash("sha256").update(codeVerifier).digest()
+  );
+
+  return { codeVerifier, codeChallenge };
 }
 ```
 
 ### WebAuthn Integration
+
 ```javascript
 // Browser-side WebAuthn registration
 async function registerWebAuthn(options) {
@@ -580,24 +613,25 @@ async function registerWebAuthn(options) {
       challenge: base64URLDecode(options.challenge),
       user: {
         ...options.user,
-        id: base64URLDecode(options.user.id)
-      }
-    }
-  })
-  
+        id: base64URLDecode(options.user.id),
+      },
+    },
+  });
+
   return {
     id: credential.id,
     rawId: base64URLEncode(credential.rawId),
     response: {
       attestationObject: base64URLEncode(credential.response.attestationObject),
-      clientDataJSON: base64URLEncode(credential.response.clientDataJSON)
+      clientDataJSON: base64URLEncode(credential.response.clientDataJSON),
     },
-    type: credential.type
-  }
+    type: credential.type,
+  };
 }
 ```
 
 ### Session Security
+
 - Implement session timeout
 - Monitor for concurrent sessions
 - Log security events

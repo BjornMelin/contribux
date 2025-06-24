@@ -12,6 +12,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Query Parameters:**
+
 - `language`: Filter by programming language
 - `topic`: Filter by repository topics
 - `min_stars`: Minimum star count (default: 1)
@@ -24,6 +25,7 @@ Authorization: Bearer {access_token}
 - `order`: Sort order (`asc`, `desc`)
 
 **Response:**
+
 ```json
 {
   "repositories": [
@@ -95,6 +97,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "id": "repo_123",
@@ -159,7 +162,7 @@ Authorization: Bearer {access_token}
       "avatar_url": "https://avatars.githubusercontent.com/u/12345"
     },
     {
-      "login": "maintainer2", 
+      "login": "maintainer2",
       "role": "admin",
       "avatar_url": "https://avatars.githubusercontent.com/u/54321"
     }
@@ -188,6 +191,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Request Body:**
+
 ```json
 {
   "query": "machine learning python data science",
@@ -213,6 +217,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "repositories": [
@@ -276,6 +281,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Query Parameters:**
+
 - `q`: Search query (required)
 - `language`: Filter by programming language
 - `sort`: Sort by (`stars`, `forks`, `updated`, `relevance`)
@@ -283,6 +289,7 @@ Authorization: Bearer {access_token}
 - `limit`: Number of results (default: 20, max: 100)
 
 **Response:**
+
 ```json
 {
   "repositories": [
@@ -313,6 +320,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "repository_id": "repo_123",
@@ -364,10 +372,12 @@ Authorization: Bearer {access_token}
 ```
 
 **Query Parameters:**
+
 - `period`: Time period (`week`, `month`, `quarter`, `year`)
 - `metrics`: Comma-separated metrics to include
 
 **Response:**
+
 ```json
 {
   "repository_id": "repo_123",
@@ -427,6 +437,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Request Body:**
+
 ```json
 {
   "github_url": "https://github.com/org/new-project",
@@ -437,6 +448,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "id": "repo_new_123",
@@ -458,6 +470,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Request Body:**
+
 ```json
 {
   "auto_sync": false,
@@ -475,6 +488,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "sync_id": "sync_789",
@@ -491,6 +505,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "sync_id": "sync_789",
@@ -518,10 +533,12 @@ Authorization: Bearer {access_token}
 ```
 
 **Query Parameters:**
+
 - `reason`: Recommendation reason (`trending`, `matched_skills`, `similar_interests`, `beginner_friendly`)
 - `limit`: Number of recommendations (default: 10, max: 50)
 
 **Response:**
+
 ```json
 {
   "recommendations": [
@@ -551,6 +568,7 @@ Authorization: Bearer {access_token}
 ## Error Responses
 
 ### Repository Not Found (404)
+
 ```json
 {
   "error": {
@@ -564,6 +582,7 @@ Authorization: Bearer {access_token}
 ```
 
 ### Invalid Search Query (422)
+
 ```json
 {
   "error": {
@@ -580,6 +599,7 @@ Authorization: Bearer {access_token}
 ```
 
 ### Sync Failed (500)
+
 ```json
 {
   "error": {
@@ -596,28 +616,31 @@ Authorization: Bearer {access_token}
 
 ## Rate Limits
 
-| Endpoint Category | Limit | Window |
-|------------------|-------|--------|
-| Repository search | 100 requests | Per hour |
-| Repository details | 500 requests | Per hour |
-| Health & analytics | 200 requests | Per hour |
-| Management operations | 50 requests | Per hour |
-| Sync operations | 20 requests | Per hour |
+| Endpoint Category     | Limit        | Window   |
+| --------------------- | ------------ | -------- |
+| Repository search     | 100 requests | Per hour |
+| Repository details    | 500 requests | Per hour |
+| Health & analytics    | 200 requests | Per hour |
+| Management operations | 50 requests  | Per hour |
+| Sync operations       | 20 requests  | Per hour |
 
 ## Best Practices
 
 ### Search Optimization
+
 - Use semantic search for discovery and exploration
 - Use text search for specific repository names
 - Combine filters to narrow results effectively
 - Enable personalization for better recommendations
 
 ### Health Monitoring
+
 - Monitor health scores for repositories you contribute to
 - Use analytics to understand repository trends
 - Set up notifications for significant health changes
 
 ### Sync Management
+
 - Use auto-sync for active repositories
 - Force sync sparingly to avoid rate limits
 - Monitor sync status for large repositories

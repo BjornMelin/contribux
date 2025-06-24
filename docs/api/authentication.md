@@ -18,19 +18,21 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 #### Token Types
 
-**Access Tokens**
+##### **Access Tokens**
+
 - **Lifetime**: 15 minutes
 - **Usage**: All API requests
 - **Scope**: Full account access
 
-**Refresh Tokens**
+##### **Refresh Tokens**
+
 - **Lifetime**: 7 days
 - **Usage**: Token renewal only
 - **Security**: Automatic rotation on use
 
 #### Obtaining Tokens
 
-**OAuth Flow (Recommended)**
+##### **OAuth Flow (Recommended)**
 
 ```http
 POST /api/v1/auth/oauth/github
@@ -44,6 +46,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "access_token": "eyJhbGciOiJIUzI1NiIs...",
@@ -86,6 +89,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "challenge": "base64url_encoded_challenge",
@@ -117,7 +121,7 @@ POST /api/v1/auth/webauthn/authentication/options
 
 For server-to-server integrations, use API keys with specific scopes.
 
-#### Request Format
+#### Request Format - API Keys
 
 ```http
 X-API-Key: ck_live_1234567890abcdef
@@ -139,87 +143,92 @@ API keys are managed through the [Developer Dashboard](https://contribux.ai/dash
 ### GitHub OAuth Setup
 
 1. **Create GitHub OAuth App**
+
    - Navigate to GitHub Settings > Developer settings > OAuth Apps
    - Set Authorization callback URL: `https://yourdomain.com/auth/callback`
 
 2. **Initiate OAuth Flow**
 
-```javascript
-// Frontend JavaScript
-const params = new URLSearchParams({
-  client_id: 'your_github_client_id',
-  redirect_uri: 'https://yourdomain.com/auth/callback',
-  scope: 'user:email',
-  state: 'random_state_string',
-  code_challenge: 'base64url_code_challenge',
-  code_challenge_method: 'S256'
-})
+   ```javascript
+   // Frontend JavaScript
+   const params = new URLSearchParams({
+     client_id: "your_github_client_id",
+     redirect_uri: "https://yourdomain.com/auth/callback",
+     scope: "user:email",
+     state: "random_state_string",
+     code_challenge: "base64url_code_challenge",
+     code_challenge_method: "S256",
+   });
 
-window.location.href = `https://github.com/login/oauth/authorize?${params}`
-```
+   window.location.href = `https://github.com/login/oauth/authorize?${params}`;
+   ```
 
 3. **Exchange Code for Token**
 
-```javascript
-// Backend handling callback
-const response = await fetch('/api/v1/auth/oauth/github', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    code: authorizationCode,
-    redirect_uri: 'https://yourdomain.com/auth/callback',
-    code_verifier: pkceCodeVerifier
-  })
-})
+   ```javascript
+   // Backend handling callback
+   const response = await fetch("/api/v1/auth/oauth/github", {
+     method: "POST",
+     headers: { "Content-Type": "application/json" },
+     body: JSON.stringify({
+       code: authorizationCode,
+       redirect_uri: "https://yourdomain.com/auth/callback",
+       code_verifier: pkceCodeVerifier,
+     }),
+   });
 
-const { access_token, refresh_token } = await response.json()
-```
+   const { access_token, refresh_token } = await response.json();
+   ```
 
 ## Security Best Practices
 
 ### Token Storage
 
-**Frontend Applications**
+#### **Frontend Applications**
+
 - Store access tokens in memory (JavaScript variables)
 - Store refresh tokens in secure HttpOnly cookies
 - Never store tokens in localStorage for security reasons
 
-**Backend Applications**
+#### **Backend Applications**
+
 - Use secure environment variables
 - Implement token encryption at rest
 - Rotate API keys regularly
 
 ### Token Validation
 
-**Server-Side Validation**
+#### **Server-Side Validation**
+
 ```javascript
 // Validate JWT token structure
-const payload = jwt.verify(token, process.env.JWT_SECRET)
+const payload = jwt.verify(token, process.env.JWT_SECRET);
 
 // Check token expiration
 if (payload.exp < Date.now() / 1000) {
-  throw new Error('Token expired')
+  throw new Error("Token expired");
 }
 
 // Validate token scope for endpoint
-if (!payload.scope.includes('required_scope')) {
-  throw new Error('Insufficient permissions')
+if (!payload.scope.includes("required_scope")) {
+  throw new Error("Insufficient permissions");
 }
 ```
 
 ### Error Handling
 
-**Common Authentication Errors**
+#### **Common Authentication Errors**
 
-| Status Code | Error Code | Description |
-|-------------|------------|-------------|
-| 401 | `AUTH_REQUIRED` | No authentication provided |
-| 401 | `TOKEN_EXPIRED` | Access token has expired |
-| 401 | `TOKEN_INVALID` | Token is malformed or invalid |
-| 403 | `SCOPE_INSUFFICIENT` | Token lacks required permissions |
-| 403 | `RATE_LIMITED` | Authentication rate limit exceeded |
+| Status Code | Error Code           | Description                        |
+| ----------- | -------------------- | ---------------------------------- |
+| 401         | `AUTH_REQUIRED`      | No authentication provided         |
+| 401         | `TOKEN_EXPIRED`      | Access token has expired           |
+| 401         | `TOKEN_INVALID`      | Token is malformed or invalid      |
+| 403         | `SCOPE_INSUFFICIENT` | Token lacks required permissions   |
+| 403         | `RATE_LIMITED`       | Authentication rate limit exceeded |
 
-**Error Response Format**
+#### **Error Response Format**
+
 ```json
 {
   "error": {
@@ -248,36 +257,36 @@ export CONTRIBUX_API_KEY="ck_test_1234567890abcdef"
 ```javascript
 class ContribuxClient {
   constructor(apiKey) {
-    this.apiKey = apiKey
-    this.baseURL = 'https://contribux.ai/api/v1'
+    this.apiKey = apiKey;
+    this.baseURL = "https://contribux.ai/api/v1";
   }
 
   async makeRequest(endpoint, options = {}) {
     const response = await fetch(`${this.baseURL}${endpoint}`, {
       ...options,
       headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-        ...options.headers
-      }
-    })
+        Authorization: `Bearer ${this.apiKey}`,
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(`API Error: ${error.message}`)
+      const error = await response.json();
+      throw new Error(`API Error: ${error.message}`);
     }
 
-    return response.json()
+    return response.json();
   }
 
   async getCurrentUser() {
-    return this.makeRequest('/users/me')
+    return this.makeRequest("/users/me");
   }
 }
 
 // Usage
-const client = new ContribuxClient(process.env.CONTRIBUX_API_KEY)
-const user = await client.getCurrentUser()
+const client = new ContribuxClient(process.env.CONTRIBUX_API_KEY);
+const user = await client.getCurrentUser();
 ```
 
 ## Migration Guide
@@ -287,11 +296,13 @@ const user = await client.getCurrentUser()
 If you're currently using API keys and want to migrate to JWT authentication:
 
 1. **Update Authentication Flow**
+
    - Implement OAuth or WebAuthn registration
    - Store refresh tokens securely
    - Implement automatic token refresh
 
 2. **Update API Requests**
+
    - Replace `X-API-Key` header with `Authorization: Bearer`
    - Handle token expiration and refresh
 
@@ -305,18 +316,18 @@ If you're currently using API keys and want to migrate to JWT authentication:
 For webhook endpoints, verify the request signature:
 
 ```javascript
-const crypto = require('crypto')
+const crypto = require("crypto");
 
 function verifyWebhookSignature(payload, signature, secret) {
   const expectedSignature = crypto
-    .createHmac('sha256', secret)
+    .createHmac("sha256", secret)
     .update(payload)
-    .digest('hex')
-  
+    .digest("hex");
+
   return crypto.timingSafeEqual(
-    Buffer.from(signature, 'hex'),
-    Buffer.from(expectedSignature, 'hex')
-  )
+    Buffer.from(signature, "hex"),
+    Buffer.from(expectedSignature, "hex")
+  );
 }
 ```
 

@@ -5,6 +5,7 @@ Notification webhooks enable real-time delivery of user-relevant events to exter
 ## Overview
 
 Contribux can send webhook notifications for various user events:
+
 - New opportunity matches based on user preferences
 - Contribution milestone achievements
 - Repository health changes for tracked repos
@@ -22,6 +23,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Request Body:**
+
 ```json
 {
   "url": "https://your-app.com/webhooks/contribux",
@@ -43,6 +45,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "webhook_id": "webhook_user_123",
@@ -50,7 +53,7 @@ Authorization: Bearer {access_token}
   "events": [
     "opportunity.matched",
     "contribution.milestone",
-    "contribution.completed", 
+    "contribution.completed",
     "achievement.earned",
     "repository.health_changed"
   ],
@@ -72,6 +75,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "webhooks": [
@@ -102,6 +106,7 @@ Authorization: Bearer {access_token}
 Triggered when a new opportunity matches the user's skills and preferences.
 
 **Webhook Payload:**
+
 ```json
 {
   "event": "opportunity.matched",
@@ -159,9 +164,10 @@ Triggered when a new opportunity matches the user's skills and preferences.
 Triggered when a tracked opportunity is updated (status change, new information, etc.).
 
 **Webhook Payload:**
+
 ```json
 {
-  "event": "opportunity.updated", 
+  "event": "opportunity.updated",
   "timestamp": "2024-01-20T14:15:00Z",
   "user_id": "user_123",
   "data": {
@@ -192,10 +198,11 @@ Triggered when a tracked opportunity is updated (status change, new information,
 Triggered when a user starts tracking a contribution.
 
 **Webhook Payload:**
+
 ```json
 {
   "event": "contribution.started",
-  "timestamp": "2024-01-20T15:00:00Z", 
+  "timestamp": "2024-01-20T15:00:00Z",
   "user_id": "user_123",
   "data": {
     "tracking_id": "track_789",
@@ -226,11 +233,12 @@ Triggered when a user starts tracking a contribution.
 Triggered when a user reaches a milestone in their contribution.
 
 **Webhook Payload:**
+
 ```json
 {
   "event": "contribution.milestone",
   "timestamp": "2024-01-22T16:30:00Z",
-  "user_id": "user_123", 
+  "user_id": "user_123",
   "data": {
     "tracking_id": "track_789",
     "milestone": {
@@ -255,6 +263,7 @@ Triggered when a user reaches a milestone in their contribution.
 Triggered when a user completes a contribution.
 
 **Webhook Payload:**
+
 ```json
 {
   "event": "contribution.completed",
@@ -263,7 +272,7 @@ Triggered when a user completes a contribution.
   "data": {
     "tracking_id": "track_789",
     "opportunity": {
-      "id": "opp_456", 
+      "id": "opp_456",
       "title": "Add TypeScript support to React components",
       "repository": {
         "full_name": "awesome/ui-library"
@@ -310,6 +319,7 @@ Triggered when a user completes a contribution.
 Triggered when a user earns an achievement or badge.
 
 **Webhook Payload:**
+
 ```json
 {
   "event": "achievement.earned",
@@ -348,6 +358,7 @@ Triggered when a user earns an achievement or badge.
 Triggered when a tracked repository's health score changes significantly.
 
 **Webhook Payload:**
+
 ```json
 {
   "event": "repository.health_changed",
@@ -388,6 +399,7 @@ Triggered when a tracked repository's health score changes significantly.
 Triggered when significant skill development is detected.
 
 **Webhook Payload:**
+
 ```json
 {
   "event": "skill.progress",
@@ -426,42 +438,50 @@ Triggered when significant skill development is detected.
 All webhook payloads are signed with HMAC-SHA256 using your configured secret.
 
 **Verification Example:**
+
 ```javascript
-const crypto = require('crypto')
+const crypto = require("crypto");
 
 function verifyWebhookSignature(payload, signature, secret) {
-  const expectedSignature = 'sha256=' + crypto
-    .createHmac('sha256', secret)
-    .update(payload, 'utf8')
-    .digest('hex')
-  
+  const expectedSignature =
+    "sha256=" +
+    crypto.createHmac("sha256", secret).update(payload, "utf8").digest("hex");
+
   return crypto.timingSafeEqual(
     Buffer.from(signature),
     Buffer.from(expectedSignature)
-  )
+  );
 }
 
 // Express.js webhook handler
-app.post('/webhooks/contribux', express.raw({type: 'application/json'}), (req, res) => {
-  const signature = req.headers['x-contribux-signature']
-  const isValid = verifyWebhookSignature(req.body, signature, process.env.CONTRIBUX_WEBHOOK_SECRET)
-  
-  if (!isValid) {
-    return res.status(401).send('Invalid signature')
+app.post(
+  "/webhooks/contribux",
+  express.raw({ type: "application/json" }),
+  (req, res) => {
+    const signature = req.headers["x-contribux-signature"];
+    const isValid = verifyWebhookSignature(
+      req.body,
+      signature,
+      process.env.CONTRIBUX_WEBHOOK_SECRET
+    );
+
+    if (!isValid) {
+      return res.status(401).send("Invalid signature");
+    }
+
+    const event = JSON.parse(req.body);
+    handleContribuxEvent(event);
+
+    res.status(200).send("OK");
   }
-  
-  const event = JSON.parse(req.body)
-  handleContribuxEvent(event)
-  
-  res.status(200).send('OK')
-})
+);
 ```
 
 ### Headers
 
 All webhook requests include these headers:
 
-```
+```text
 Content-Type: application/json
 X-Contribux-Event: opportunity.matched
 X-Contribux-Signature: sha256=...
@@ -477,9 +497,9 @@ Send opportunity notifications to Slack:
 
 ```javascript
 function handleOpportunityMatched(event) {
-  const opportunity = event.data.opportunity
-  const match = event.data.match_analysis
-  
+  const opportunity = event.data.opportunity;
+  const match = event.data.match_analysis;
+
   const slackPayload = {
     text: "🎯 New Opportunity Match!",
     attachments: [
@@ -491,44 +511,44 @@ function handleOpportunityMatched(event) {
           {
             title: "Repository",
             value: opportunity.repository.full_name,
-            short: true
+            short: true,
           },
           {
             title: "Match Score",
             value: `${Math.round(match.overall_score * 100)}%`,
-            short: true
+            short: true,
           },
           {
             title: "Difficulty",
             value: opportunity.difficulty,
-            short: true
+            short: true,
           },
           {
-            title: "Estimated Time", 
+            title: "Estimated Time",
             value: `${opportunity.estimated_hours} hours`,
-            short: true
-          }
+            short: true,
+          },
         ],
-        text: match.reasons.join('\n'),
+        text: match.reasons.join("\n"),
         actions: [
           {
             type: "button",
             text: "View Opportunity",
             url: event.action_urls.view_opportunity,
-            style: "primary"
+            style: "primary",
           },
           {
-            type: "button", 
+            type: "button",
             text: "Start Working",
-            url: event.action_urls.start_tracking
-          }
-        ]
-      }
-    ]
-  }
-  
+            url: event.action_urls.start_tracking,
+          },
+        ],
+      },
+    ],
+  };
+
   // Send to Slack webhook
-  sendToSlack(slackPayload)
+  sendToSlack(slackPayload);
 }
 ```
 
@@ -538,9 +558,9 @@ Send achievement notifications to Discord:
 
 ```javascript
 function handleAchievementEarned(event) {
-  const achievement = event.data.achievement
-  const celebration = event.data.celebration
-  
+  const achievement = event.data.achievement;
+  const celebration = event.data.celebration;
+
   const discordPayload = {
     embeds: [
       {
@@ -551,29 +571,29 @@ function handleAchievementEarned(event) {
           {
             name: achievement.name,
             value: achievement.description,
-            inline: false
+            inline: false,
           },
           {
             name: "Rarity",
             value: achievement.rarity,
-            inline: true
+            inline: true,
           },
           {
-            name: "Category", 
+            name: "Category",
             value: achievement.category,
-            inline: true
-          }
+            inline: true,
+          },
         ],
         thumbnail: {
-          url: achievement.badge_url
+          url: achievement.badge_url,
         },
-        timestamp: event.timestamp
-      }
-    ]
-  }
-  
+        timestamp: event.timestamp,
+      },
+    ],
+  };
+
   // Send to Discord webhook
-  sendToDiscord(discordPayload)
+  sendToDiscord(discordPayload);
 }
 ```
 
@@ -583,14 +603,14 @@ Send digest emails using notification data:
 
 ```javascript
 function handleContributionCompleted(event) {
-  const completion = event.data.completion
-  const impact = event.data.impact
-  const learning = event.data.learning
-  
+  const completion = event.data.completion;
+  const impact = event.data.impact;
+  const learning = event.data.learning;
+
   const emailData = {
     to: getUserEmail(event.user_id),
     subject: `🎉 Contribution Merged: ${event.data.opportunity.title}`,
-    template: 'contribution-completed',
+    template: "contribution-completed",
     data: {
       opportunityTitle: event.data.opportunity.title,
       repositoryName: event.data.opportunity.repository.full_name,
@@ -598,11 +618,11 @@ function handleContributionCompleted(event) {
       timeSpent: completion.total_time_hours,
       filesChanged: impact.files_changed,
       newSkills: learning.new_skills,
-      nextRecommendations: learning.next_recommendations
-    }
-  }
-  
-  sendEmail(emailData)
+      nextRecommendations: learning.next_recommendations,
+    },
+  };
+
+  sendEmail(emailData);
 }
 ```
 
@@ -613,29 +633,29 @@ Track user progress in your own app:
 ```javascript
 class ContribuxWebhookHandler {
   constructor(database) {
-    this.db = database
+    this.db = database;
   }
-  
+
   async handleEvent(event) {
     switch (event.event) {
-      case 'opportunity.matched':
-        await this.trackOpportunityMatch(event)
-        break
-      case 'contribution.completed':
-        await this.updateUserProgress(event)
-        break
-      case 'achievement.earned':
-        await this.recordAchievement(event)
-        break
-      case 'skill.progress':
-        await this.updateSkillProfile(event)
-        break
+      case "opportunity.matched":
+        await this.trackOpportunityMatch(event);
+        break;
+      case "contribution.completed":
+        await this.updateUserProgress(event);
+        break;
+      case "achievement.earned":
+        await this.recordAchievement(event);
+        break;
+      case "skill.progress":
+        await this.updateSkillProfile(event);
+        break;
     }
   }
-  
+
   async trackOpportunityMatch(event) {
-    const match = event.data
-    
+    const match = event.data;
+
     await this.db.opportunities.create({
       userId: event.user_id,
       opportunityId: match.opportunity.id,
@@ -643,30 +663,30 @@ class ContribuxWebhookHandler {
       repository: match.opportunity.repository.full_name,
       difficulty: match.opportunity.difficulty,
       estimatedHours: match.opportunity.estimated_hours,
-      matchedAt: event.timestamp
-    })
+      matchedAt: event.timestamp,
+    });
   }
-  
+
   async updateUserProgress(event) {
-    const completion = event.data
-    
+    const completion = event.data;
+
     await this.db.contributions.create({
       userId: event.user_id,
       opportunityId: completion.opportunity.id,
       pullRequestUrl: completion.completion.pull_request.url,
       timeSpent: completion.completion.total_time_hours,
       skillsLearned: completion.learning.new_skills,
-      completedAt: event.timestamp
-    })
-    
+      completedAt: event.timestamp,
+    });
+
     // Update user's skill levels
     for (const skill of completion.learning.confidence_gained) {
       await this.db.userSkills.upsert({
         userId: event.user_id,
         skill: skill,
-        confidenceLevel: 'increased',
-        lastUpdated: event.timestamp
-      })
+        confidenceLevel: "increased",
+        lastUpdated: event.timestamp,
+      });
     }
   }
 }
@@ -682,6 +702,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Request Body:**
+
 ```json
 {
   "event_type": "opportunity.matched"
@@ -689,6 +710,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "test_delivery_id": "test_123",
@@ -714,6 +736,7 @@ Authorization: Bearer {access_token}
 ```
 
 **Response:**
+
 ```json
 {
   "deliveries": [
@@ -729,7 +752,7 @@ Authorization: Bearer {access_token}
     {
       "delivery_id": "del_124",
       "event_type": "contribution.completed",
-      "delivered_at": "2024-01-20T11:00:00Z", 
+      "delivered_at": "2024-01-20T11:00:00Z",
       "status": "failed",
       "response_code": 500,
       "response_time_ms": 5000,
@@ -748,15 +771,16 @@ Authorization: Bearer {access_token}
 
 ## Rate Limits
 
-| Operation | Limit | Window |
-|-----------|-------|--------|
-| Webhook management | 20 operations | Per hour |
-| Test deliveries | 10 tests | Per hour |
-| Delivery log access | 100 requests | Per hour |
+| Operation           | Limit         | Window   |
+| ------------------- | ------------- | -------- |
+| Webhook management  | 20 operations | Per hour |
+| Test deliveries     | 10 tests      | Per hour |
+| Delivery log access | 100 requests  | Per hour |
 
 ## Best Practices
 
 ### Webhook Implementation
+
 - Always verify webhook signatures
 - Respond with 200 status quickly (< 10 seconds)
 - Process webhook data asynchronously
@@ -764,18 +788,21 @@ Authorization: Bearer {access_token}
 - Log webhook events for debugging
 
 ### Event Filtering
+
 - Configure specific events you need to avoid noise
 - Use filters to receive only relevant notifications
 - Set appropriate match score thresholds
 - Consider user preferences and notification settings
 
 ### Error Handling
+
 - Implement graceful error handling for failed deliveries
 - Monitor webhook delivery success rates
 - Set up alerts for webhook failures
 - Test webhook endpoints regularly
 
 ### Security
+
 - Keep webhook secrets secure and rotate regularly
 - Validate webhook signatures before processing
 - Use HTTPS endpoints for webhook URLs
