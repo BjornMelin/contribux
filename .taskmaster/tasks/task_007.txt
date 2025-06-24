@@ -3,12 +3,12 @@
 # Status: pending
 # Dependencies: 6
 # Priority: high
-# Description: Set up OpenAI Agents SDK v1.0 for intelligent analysis of contribution opportunities with advanced features and comprehensive monitoring
+# Description: Set up OpenAI Agents SDK v1.0 for intelligent analysis of contribution opportunities with advanced features and comprehensive monitoring. Integration will work seamlessly with the multi-provider OAuth system (GitHub + Google) using NextAuth.js v5 to provide personalized AI analysis based on user authentication context.
 # Details:
-Install and configure OpenAI Agents SDK v1.0 with GPT-4o-mini-2025-06 model. Create specialized agents: ContribuxAnalyzer for issue complexity analysis, ContribuxStrategist for implementation suggestions. Implement comprehensive cost tracking with budget controls and usage analytics. Add sophisticated guardrails including content filtering, rate limiting, and human oversight. Implement retry logic with exponential backoff and circuit breaker patterns. Add AI agent performance monitoring, health checks, and prompt versioning with A/B testing capabilities. Create structured JSON output schemas using comprehensive Zod validation.
+Install and configure OpenAI Agents SDK v1.0 with GPT-4o-mini-2025-06 model. Create specialized agents: ContribuxAnalyzer for issue complexity analysis, ContribuxStrategist for implementation suggestions. Implement comprehensive cost tracking with budget controls and usage analytics. Add sophisticated guardrails including content filtering, rate limiting, and human oversight. Implement retry logic with exponential backoff and circuit breaker patterns. Add AI agent performance monitoring, health checks, and prompt versioning with A/B testing capabilities. Create structured JSON output schemas using comprehensive Zod validation. Integrate with NextAuth.js v5 multi-provider OAuth (GitHub + Google) to provide user-specific analysis and maintain session context for personalized AI interactions.
 
 # Test Strategy:
-Verify OpenAI API integration works with latest SDK features, agents produce structured JSON output with Zod validation, comprehensive cost tracking and budget controls function correctly, sophisticated guardrails and rate limiting work properly, retry logic and circuit breakers handle failures gracefully, performance monitoring and health checks operate effectively, prompt versioning and A/B testing work as expected, and comprehensive AI integration testing covers mock responses and edge cases
+Verify OpenAI API integration works with latest SDK features, agents produce structured JSON output with Zod validation, comprehensive cost tracking and budget controls function correctly, sophisticated guardrails and rate limiting work properly, retry logic and circuit breakers handle failures gracefully, performance monitoring and health checks operate effectively, prompt versioning and A/B testing work as expected, integration with NextAuth.js v5 multi-provider OAuth maintains proper user context, and comprehensive AI integration testing covers mock responses and edge cases with authenticated user sessions
 
 # Subtasks:
 ## 1. Advanced SDK Setup and Configuration [pending]
@@ -58,4 +58,10 @@ Create performance monitoring dashboards for agent response times and quality, i
 ### Description: Implement prompt versioning system and A/B testing capabilities for continuous agent optimization
 ### Details:
 Create prompt versioning system with rollback capabilities, implement A/B testing framework for prompt optimization, design experiment tracking and statistical analysis, add performance comparison tools, implement gradual rollout mechanisms for new prompts, create prompt performance analytics, and add automated optimization recommendations based on test results
+
+## 9. NextAuth.js v5 Multi-Provider OAuth Integration [pending]
+### Dependencies: 7.2, 7.5
+### Description: Integrate AI agents with NextAuth.js v5 multi-provider OAuth system to provide user-specific analysis and maintain authenticated session context
+### Details:
+Integrate AI agents with NextAuth.js v5 session management, implement user context awareness for personalized analysis, create user-specific prompt customization based on GitHub/Google profile data, implement session-aware cost tracking and rate limiting, add user preference storage for AI interaction settings, create authenticated API endpoints for AI services, and implement user-specific analysis history and caching
 

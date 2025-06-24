@@ -1,0 +1,11 @@
+# Task ID: 30
+# Title: Implement Runtime Configuration Validation for GitHub API Client
+# Status: pending
+# Dependencies: 3, 19
+# Priority: high
+# Description: Add comprehensive runtime validation for GitHub API client configuration including environment variables, token formats, webhook secrets, and critical dependencies to ensure security and reliability at startup.
+# Details:
+Create a robust configuration validation system that runs at application startup to verify all GitHub API client settings. Implement validation for environment variables (GITHUB_TOKEN, GITHUB_APP_ID, GITHUB_PRIVATE_KEY, GITHUB_WEBHOOK_SECRET) with proper format checking including token prefix validation (ghp_, ghs_, gho_), base64 encoding verification for private keys, and HMAC-SHA256 compatible webhook secrets. Add dependency checks for required packages (@octokit/rest, @octokit/graphql, @octokit/webhooks) and their versions. Create configuration schema using Zod for type-safe validation with detailed error messages. Implement startup health checks that verify GitHub API connectivity, token permissions (repo, issues, webhooks), and rate limit status. Add configuration hot-reloading capabilities for non-sensitive settings and comprehensive logging for configuration issues. Include fallback mechanisms for optional configurations and graceful degradation strategies. Create configuration documentation generator that outputs current settings and validation status.
+
+# Test Strategy:
+Verify configuration validation catches invalid tokens, malformed environment variables, and missing dependencies with specific error messages. Test startup health checks successfully validate GitHub API connectivity and token permissions. Validate schema enforcement prevents invalid configurations from being accepted. Test hot-reloading updates non-sensitive settings without restart. Verify graceful degradation works when optional configurations are missing. Test configuration documentation generator produces accurate status reports. Validate error handling provides actionable feedback for configuration issues.
