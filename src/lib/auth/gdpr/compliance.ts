@@ -95,16 +95,11 @@ export async function generateComplianceReport(
 
   const complianceScore = calculateComplianceScore({
     consentMetrics: {
-      totalRequests: Number(consentMetricsData.total_requests),
-      granted: Number(consentMetricsData.granted),
-      withdrawn: Number(consentMetricsData.withdrawn),
-      expired: Number(consentMetricsData.expired),
+      total_requests: consentMetricsData.total_requests,
+      granted: consentMetricsData.granted,
     },
     dataRequestMetrics: {
-      exportRequests: Number(dataRequestMetricsData.export_requests),
-      deletionRequests: Number(dataRequestMetricsData.deletion_requests),
-      rectificationRequests: Number(dataRequestMetricsData.rectification_requests),
-      averageResponseTime: Number(dataRequestMetricsData.avg_response_time),
+      export_requests: dataRequestMetricsData.export_requests,
     },
     breachIncidents: Number.parseInt(breachIncidents?.[0]?.count || '0'),
   })
