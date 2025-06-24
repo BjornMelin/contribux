@@ -13,6 +13,7 @@
  */
 
 import { config } from 'dotenv'
+import { afterEach, beforeEach, expect } from 'vitest'
 
 // Load environment variables
 config({ path: '.env.test' })
