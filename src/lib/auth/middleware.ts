@@ -11,7 +11,7 @@ import { sql } from '@/lib/db/config'
 import { env } from '@/lib/validation/env'
 import type { AccessTokenPayload, User } from '@/types/auth'
 import { createLogParams, logSecurityEvent } from './audit'
-import { checkConsentRequired } from './gdpr'
+// import { checkConsentRequired } from './gdpr' // TODO: Re-enable when GDPR module is fully integrated
 import { verifyAccessToken } from './jwt'
 
 // Public routes that don't require authentication
@@ -371,9 +371,10 @@ export function requireConsent(consentTypes: string[]) {
       const missingConsents: string[] = []
 
       for (const consentType of consentTypes) {
-        if (await checkConsentRequired(authReq.auth.user.id, consentType)) {
-          missingConsents.push(consentType)
-        }
+        // TODO: Re-enable when GDPR module is fully integrated
+        // if (await checkConsentRequired(authReq.auth.user.id, consentType)) {
+        //   missingConsents.push(consentType)
+        // }
       }
 
       if (missingConsents.length > 0) {

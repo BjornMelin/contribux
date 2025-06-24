@@ -114,7 +114,7 @@ export async function getDataRetentionPolicy() {
 function fieldBelongsToCategory(field: string, category: DataCategory): boolean {
   // Implement field categorization logic
   const allowedFields = DATA_MINIMIZATION_RULES[category as keyof typeof DATA_MINIMIZATION_RULES]
-  return allowedFields ? allowedFields.includes(field) : false
+  return allowedFields ? (allowedFields as string[]).includes(field) : false
 }
 
 async function checkConsentForDataCategory(
