@@ -53,7 +53,7 @@ export function validateJwtSecret(secret: string): boolean {
 }
 
 // Custom Zod schema for JWT secret validation
-const jwtSecretSchema = z.string().refine(validateJwtSecret, {
+const _jwtSecretSchema = z.string().refine(validateJwtSecret, {
   message: 'JWT_SECRET validation failed',
 })
 
@@ -132,7 +132,7 @@ export const envSchema = z
         return value || ''
       })
       .refine(
-        (value, ctx) => {
+        (value, _ctx) => {
           const nodeEnv = process.env.NODE_ENV
 
           // Skip validation in test environment
@@ -143,7 +143,7 @@ export const envSchema = z
           // For non-test environments, validate the JWT secret
           try {
             return validateJwtSecret(value)
-          } catch (error) {
+          } catch (_error) {
             return false
           }
         },
