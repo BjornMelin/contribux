@@ -135,11 +135,11 @@ Examples:
 
 ## ADR Index
 
-| ADR                                               | Title                         | Status   | Date       | Tags                  |
-| ------------------------------------------------- | ----------------------------- | -------- | ---------- | --------------------- |
-| [001](./adr-001-database-technology-selection.md) | Database Technology Selection | Accepted | 2025-01-15 | database, performance |
-| [002](./adr-002-ai-agent-architecture.md)         | AI Agent Architecture         | Accepted | 2025-01-16 | ai, architecture      |
-| [003](./adr-003-authentication-strategy.md)       | Authentication Strategy       | Accepted | 2025-01-17 | security, auth        |
+| ADR                                               | Title                         | Status   | Date       | Tags                        |
+| ------------------------------------------------- | ----------------------------- | -------- | ---------- | --------------------------- |
+| [001](./adr-001-database-technology-selection.md) | Database Technology Selection | Accepted | 2025-01-15 | database, performance       |
+| [002](./adr-002-ai-agent-architecture.md)         | AI Agent Architecture         | Accepted | 2025-01-16 | ai, architecture, agents    |
+| [003](./adr-003-authentication-strategy.md)       | Authentication Strategy       | Accepted | 2025-01-17 | security, auth, github      |
 
 ## Writing Guidelines
 
@@ -248,7 +248,7 @@ Before submitting an ADR, ensure:
 - [System Design](../architecture/system-design.md)
 - [Technology Stack](../architecture/technology-stack.md)
 - [Data Architecture](../architecture/data-architecture.md)
-- [Contributing Guidelines](../../CONTRIBUTORS.md)
+- [Contributing Guidelines](../developers/CONTRIBUTING.md)
 
 ---
 

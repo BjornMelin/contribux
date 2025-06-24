@@ -522,7 +522,7 @@ POST /api/webhooks/notifications # Delivery status updates
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTORS.md) for details.
+We welcome contributions! Please see our [Contributing Guide](docs/developers/CONTRIBUTING.md) for details.
 
 ### **Quick Contribution Setup**
 

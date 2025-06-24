@@ -270,7 +270,7 @@ Comprehensive maintenance strategy including:
 - [Database Documentation](../database/) - Database-specific guides and procedures
 - [User Documentation](../users/) - End-user guides and help documentation
 - [Development Documentation](../../CLAUDE.md) - Development standards and practices
-- [Configuration Guide](../../CONFIGURATION.md) - Detailed configuration documentation
+- [Configuration Guide](./configuration.md) - Detailed configuration documentation
 
 ### External Resources
 
