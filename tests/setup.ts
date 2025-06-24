@@ -8,6 +8,9 @@ import { resetTestState } from './test-utils/cleanup'
 // Import MSW for modern HTTP mocking
 import 'msw/node'
 
+// Import jest-dom matchers for better assertions
+import '@testing-library/jest-dom'
+
 // Load test environment variables first
 config({ path: '.env.test' })
 

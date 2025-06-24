@@ -3,7 +3,7 @@
 import { animate, motion, Transition, useMotionTemplate, useMotionValue } from 'framer-motion'
 import { Eye, EyeOff, Github, Loader2, Mail } from 'lucide-react'
 import { signIn } from 'next-auth/react'
-import type * as React from 'react'
+import * as React from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
