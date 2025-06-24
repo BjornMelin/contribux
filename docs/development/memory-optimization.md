@@ -10,7 +10,7 @@ This is the complete guide for memory optimization in the Contribux platform, co
 - [Monitoring Tools & Scripts](#monitoring-tools--scripts)
 - [Best Practices](#best-practices)
 - [Performance Metrics](#performance-metrics)
-- [Ongoing Maintenance](#ongoing-maintenance)
+- [Monitoring in Production](#monitoring-in-production)
 
 ## Executive Summary
 
@@ -25,6 +25,7 @@ The memory optimization initiative successfully reduced heap usage from a 50MB+ 
 ### Why 20MB Target Was Unrealistic
 
 The original 20MB target was unrealistic due to inherent platform requirements:
+
 1. **Node.js/V8 baseline**: ~15-20MB minimum runtime footprint
 2. **Test framework (Vitest)**: ~5-8MB for test execution
 3. **Module system & TypeScript**: ~5-7MB for compilation
@@ -33,6 +34,7 @@ The original 20MB target was unrealistic due to inherent platform requirements:
 ## Optimization Results
 
 ### Before Optimization
+
 - Heap usage: ~50MB sustained during operation
 - Large middleware files with all dependencies loaded upfront
 - No code splitting for heavy modules
@@ -40,8 +42,9 @@ The original 20MB target was unrealistic due to inherent platform requirements:
 - Memory leaks in GitHub client operations
 
 ### After Optimization
+
 - **Reduced initial bundle size** by 30-40% through dynamic imports
-- **Lower memory footprint** with lazy-loaded modules  
+- **Lower memory footprint** with lazy-loaded modules
 - **Faster initial page loads** with optimized middleware
 - **Better tree shaking** with sideEffects configuration
 - **Optimized icon imports** preventing full library bundles
@@ -109,7 +112,7 @@ The original 20MB target was unrealistic due to inherent platform requirements:
 
 - Real-time heap usage monitoring
 - V8 heap statistics
-- Memory optimization recommendations  
+- Memory optimization recommendations
 - Heap snapshot generation
 - Watch mode for continuous monitoring
 

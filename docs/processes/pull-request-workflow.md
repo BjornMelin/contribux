@@ -74,7 +74,7 @@ Break large changes into 3 focused PRs that build on each other:
 
 #### Description Template
 
-````markdown
+```markdown
 ## Summary
 
 This PR implements a lightweight, type-safe GitHub API client using Octokit v5.0.3 with essential features for repository and issue management. This is the foundation for the contribux platform's GitHub integration.
@@ -153,8 +153,7 @@ pnpm test:coverage tests/github/
 - 1 modification to `tests/setup.ts`
 
 Total: ~3,500 lines of production-ready code
-
-````
+```
 
 ### Template 2: Authentication Simplification
 
@@ -198,7 +197,7 @@ CREATE TABLE github_sessions (
   expires_at TIMESTAMPTZ NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
-````
+```
 
 ## Testing
 
@@ -230,8 +229,7 @@ For existing users: Would need to re-authenticate
 - Database schema addition
 
 Total: ~2,000 lines focusing on essential auth
-
-````
+```
 
 ### Template 3: Test Infrastructure & CI
 
@@ -273,7 +271,7 @@ pnpm test:performance
 
 # With UI
 pnpm test:ui
-````
+```
 
 ## Key Improvements
 
@@ -303,8 +301,7 @@ This PR is large but consists primarily of:
 - Configuration files
 
 The actual production code changes are minimal.
-
-````
+```
 
 ## Git Workflow
 
@@ -337,7 +334,7 @@ git commit -m "feat: implement core GitHub API client with Octokit v5
 
 # Push and create PR
 git push origin feat/github-client-core
-````
+```
 
 #### Step 2: Create PR 2 Branch (Authentication)
 
