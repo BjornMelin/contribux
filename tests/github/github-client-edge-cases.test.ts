@@ -1,7 +1,7 @@
 /**
  * GitHub Client Edge Cases - Consolidated Test Suite
  *
- * This comprehensive test suite covers realistic edge cases, error scenarios, and boundary 
+ * This comprehensive test suite covers realistic edge cases, error scenarios, and boundary
  * conditions for the GitHubClient, consolidating coverage from multiple test files.
  *
  * Key improvements made:
@@ -13,7 +13,7 @@
  *
  * Test organization:
  * - Network Failures & API Errors
- * - Rate Limiting Edge Cases  
+ * - Rate Limiting Edge Cases
  * - Authentication Edge Cases
  * - Cache Behavior Edge Cases
  * - Async Operations & Concurrency
@@ -71,12 +71,14 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
         })
       )
 
-      const client = createClient({ 
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' },
-        retry: { retries: 0 }
+        retry: { retries: 0 },
       })
 
-      await expect(client.getRepository({ owner: 'malformed-test', repo: 'malformed-repo-unique' })).rejects.toThrow()
+      await expect(
+        client.getRepository({ owner: 'malformed-test', repo: 'malformed-repo-unique' })
+      ).rejects.toThrow()
     })
 
     it('should handle 500 server errors', async () => {
@@ -86,42 +88,47 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
         })
       )
 
-      const client = createClient({ 
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' },
-        retry: { retries: 0 }
+        retry: { retries: 0 },
       })
 
-      await expect(client.getRepository({ owner: 'server-error-test', repo: 'server-error-repo-unique' })).rejects.toThrow(GitHubError)
+      await expect(
+        client.getRepository({ owner: 'server-error-test', repo: 'server-error-repo-unique' })
+      ).rejects.toThrow(GitHubError)
     })
 
     it('should handle 422 validation errors with detailed messages', async () => {
       mswServer.use(
-        http.get('https://api.github.com/repos/validation-test/validation-error-repo-unique', () => {
-          return HttpResponse.json(
-            {
-              message: 'Validation Failed',
-              errors: [
-                {
-                  resource: 'Repository',
-                  field: 'name',
-                  code: 'invalid',
-                  message: 'name is invalid',
-                },
-              ],
-            },
-            { status: 422 }
-          )
-        })
+        http.get(
+          'https://api.github.com/repos/validation-test/validation-error-repo-unique',
+          () => {
+            return HttpResponse.json(
+              {
+                message: 'Validation Failed',
+                errors: [
+                  {
+                    resource: 'Repository',
+                    field: 'name',
+                    code: 'invalid',
+                    message: 'name is invalid',
+                  },
+                ],
+              },
+              { status: 422 }
+            )
+          }
+        )
       )
 
-      const client = createClient({ 
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' },
-        retry: { retries: 0 }
+        retry: { retries: 0 },
       })
 
-      await expect(client.getRepository({ owner: 'validation-test', repo: 'validation-error-repo-unique' })).rejects.toThrow(
-        GitHubError
-      )
+      await expect(
+        client.getRepository({ owner: 'validation-test', repo: 'validation-error-repo-unique' })
+      ).rejects.toThrow(GitHubError)
     })
 
     it('should handle network disconnection errors', async () => {
@@ -158,12 +165,14 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
         })
       )
 
-      const client = createClient({ 
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' },
-        retry: { retries: 0 } // Disable retries to avoid timeouts
+        retry: { retries: 0 }, // Disable retries to avoid timeouts
       })
 
-      await expect(client.getRepository({ owner: 'test', repo: 'rate-limited-unique' })).rejects.toThrow(GitHubError)
+      await expect(
+        client.getRepository({ owner: 'test', repo: 'rate-limited-unique' })
+      ).rejects.toThrow(GitHubError)
     })
 
     it('should handle rate limit information with edge case values', async () => {
@@ -215,12 +224,14 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
         })
       )
 
-      const client = createClient({ 
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' },
-        retry: { retries: 0 } // Disable retries to avoid timeouts
+        retry: { retries: 0 }, // Disable retries to avoid timeouts
       })
 
-      await expect(client.getRepository({ owner: 'test', repo: 'secondary-limit-unique' })).rejects.toThrow(GitHubError)
+      await expect(
+        client.getRepository({ owner: 'test', repo: 'secondary-limit-unique' })
+      ).rejects.toThrow(GitHubError)
     })
   })
 
@@ -237,19 +248,18 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
     it('should handle invalid token format', async () => {
       mswServer.use(
         http.get('https://api.github.com/repos/test/bad-credentials-unique', () => {
-          return HttpResponse.json(
-            { message: 'Bad credentials' },
-            { status: 401 }
-          )
+          return HttpResponse.json({ message: 'Bad credentials' }, { status: 401 })
         })
       )
 
-      const client = createClient({ 
+      const client = createClient({
         auth: { type: 'token', token: 'invalid_token_format' },
-        retry: { retries: 0 }
+        retry: { retries: 0 },
       })
 
-      await expect(client.getRepository({ owner: 'test', repo: 'bad-credentials-unique' })).rejects.toThrow(GitHubError)
+      await expect(
+        client.getRepository({ owner: 'test', repo: 'bad-credentials-unique' })
+      ).rejects.toThrow(GitHubError)
     })
 
     it('should handle invalid app private key format', () => {
@@ -350,9 +360,9 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
 
   describe('Async Operations & Concurrency', () => {
     it('should handle multiple concurrent API calls without interference', async () => {
-      const client = createClient({ 
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' },
-        retry: { retries: 0 }
+        retry: { retries: 0 },
       })
 
       // Make concurrent requests to different endpoints
@@ -373,9 +383,9 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
     })
 
     it('should handle mixed success and failure concurrent operations', async () => {
-      const client = createClient({ 
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' },
-        retry: { retries: 0 }
+        retry: { retries: 0 },
       })
 
       // Mock one of the requests to fail
@@ -404,9 +414,9 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
     })
 
     it('should maintain client state after error recovery', async () => {
-      const client = createClient({ 
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' },
-        retry: { retries: 0 }
+        retry: { retries: 0 },
       })
 
       // Mock a temporary failure
@@ -434,9 +444,9 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
     })
 
     it('should properly propagate async errors with error information', async () => {
-      const client = createClient({ 
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' },
-        retry: { retries: 0 }
+        retry: { retries: 0 },
       })
 
       // Mock an error with GitHub error structure
@@ -611,7 +621,7 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
         http.get('https://api.github.com/search/repositories', ({ request }) => {
           const url = new URL(request.url)
           const query = url.searchParams.get('q')
-          
+
           // Only return zero results for our specific test query
           if (query === 'nonexistentquery12345unique') {
             return HttpResponse.json({
@@ -620,15 +630,15 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
               items: [],
             })
           }
-          
+
           // Let default handler handle other queries
           return new HttpResponse(null, { status: 404 })
         })
       )
 
-      const client = createClient({ 
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' },
-        retry: { retries: 0 }
+        retry: { retries: 0 },
       })
       const result = await client.searchRepositories({ q: 'nonexistentquery12345unique' })
 
@@ -741,7 +751,7 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
           const url = new URL(request.url)
           const query = url.searchParams.get('q')
           const perPage = url.searchParams.get('per_page')
-          
+
           // Only return large results for our specific test query
           if (query === 'javascriptlargepage' && perPage === '100') {
             return HttpResponse.json({
@@ -750,15 +760,15 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
               items,
             })
           }
-          
+
           // Let default handler handle other queries
           return new HttpResponse(null, { status: 404 })
         })
       )
 
-      const client = createClient({ 
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' },
-        retry: { retries: 0 }
+        retry: { retries: 0 },
       })
       const result = await client.searchRepositories({ q: 'javascriptlargepage', per_page: 100 })
 
@@ -829,9 +839,9 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
     })
 
     it('should handle search queries with special syntax', async () => {
-      const client = createClient({ 
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' },
-        retry: { retries: 0 }
+        retry: { retries: 0 },
       })
 
       const specialQueries = [

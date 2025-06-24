@@ -1,10 +1,10 @@
 /**
  * Consolidated GitHub Client Integration Tests
- * 
+ *
  * This file combines all integration testing scenarios:
  * - Real API integration testing with actual GitHub tokens
  * - Authentication flows (PAT, OAuth, GitHub App)
- * - End-to-end API usage patterns 
+ * - End-to-end API usage patterns
  * - Modern test patterns with MSW mocking
  * - Multi-service integration scenarios
  * - Performance and caching integration
@@ -163,7 +163,7 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('GitHub Client - Real API Integration', 
 
       expect(page1.items).toHaveLength(10)
       expect(page2.items).toHaveLength(10)
-      
+
       // Items should be different between pages
       const page1Ids = page1.items.map(item => item.id)
       const page2Ids = page2.items.map(item => item.id)
@@ -183,7 +183,7 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('GitHub Client - Real API Integration', 
 
       // Make an API call and verify rate limit changes
       await client.getAuthenticatedUser()
-      
+
       const newRateLimit = await client.getRateLimit()
       expect(newRateLimit.core.remaining).toBeLessThanOrEqual(rateLimit.core.remaining)
     }, 10000)
@@ -328,16 +328,17 @@ describe.sequential('Authentication Integration Flows', () => {
     })
 
     // Property-based testing for token validation
-    fcTest.prop([
-      fc.stringMatching(/^ghp_[a-zA-Z0-9]{36}$/),
-    ])('should handle various PAT token formats', async (token) => {
-      const client = new GitHubClient({
-        auth: { type: 'token', token },
-      })
+    fcTest.prop([fc.stringMatching(/^ghp_[a-zA-Z0-9]{36}$/)])(
+      'should handle various PAT token formats',
+      async token => {
+        const client = new GitHubClient({
+          auth: { type: 'token', token },
+        })
 
-      // Should not throw during client creation
-      expect(client).toBeInstanceOf(GitHubClient)
-    })
+        // Should not throw during client creation
+        expect(client).toBeInstanceOf(GitHubClient)
+      }
+    )
   })
 
   describe('OAuth Token Integration', () => {

@@ -13,8 +13,8 @@
 
 import { describe, expect, it } from 'vitest'
 import { GitHubClient } from '@/lib/github'
-import { createGitHubClient } from '@/lib/github/client'
 import type { GitHubClientConfig } from '@/lib/github/client'
+import { createGitHubClient } from '@/lib/github/client'
 import { setupMSW } from './msw-setup'
 import { createTrackedClient, setupGitHubTestIsolation } from './test-helpers'
 
@@ -99,7 +99,9 @@ describe('GitHub Client Core', () => {
           clientSecret: 'dummy',
         },
       } as GitHubClientConfig
-      expect(() => new GitHubClient(config)).toThrow('Invalid authentication type. Must be "token" or "app"')
+      expect(() => new GitHubClient(config)).toThrow(
+        'Invalid authentication type. Must be "token" or "app"'
+      )
     })
 
     it('should apply throttle configuration', () => {

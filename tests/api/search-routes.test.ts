@@ -310,11 +310,14 @@ class MockSearchAPI {
   }
 }
 
+// Base URL for testing
+const BASE_URL = 'http://localhost:3000'
+
 // MSW Server setup
 const mockAPI = new MockSearchAPI()
 const server = setupServer(
   // Search opportunities endpoint
-  http.get('/api/search/opportunities', async ({ request }) => {
+  http.get(`${BASE_URL}/api/search/opportunities`, async ({ request }) => {
     const url = new URL(request.url)
     const params: {
       query?: string
@@ -348,7 +351,7 @@ const server = setupServer(
     if (minScore) params.min_score = Number(minScore)
 
     // Simulate validation errors
-    if (params.page && params.page < 1) {
+    if (params.page !== undefined && params.page < 1) {
       return HttpResponse.json(
         {
           success: false,
@@ -379,7 +382,7 @@ const server = setupServer(
   }),
 
   // Search repositories endpoint
-  http.get('/api/search/repositories', async ({ request }) => {
+  http.get(`${BASE_URL}/api/search/repositories`, async ({ request }) => {
     const url = new URL(request.url)
     const params: {
       query?: string
@@ -428,7 +431,7 @@ const server = setupServer(
   }),
 
   // Health check endpoint
-  http.get('/api/health', () => {
+  http.get(`${BASE_URL}/api/health`, () => {
     return HttpResponse.json({
       status: 'healthy',
       timestamp: new Date().toISOString(),
@@ -437,7 +440,7 @@ const server = setupServer(
   }),
 
   // Error simulation endpoint
-  http.get('/api/search/error', () => {
+  http.get(`${BASE_URL}/api/search/error`, () => {
     return HttpResponse.json(
       {
         success: false,
@@ -455,6 +458,8 @@ const server = setupServer(
 
 describe('Search API Routes', () => {
   beforeAll(() => {
+    // Restore original fetch for MSW to work properly
+    global.fetch = (global as any).__originalFetch
     server.listen({ onUnhandledRequest: 'error' })
   })
 
@@ -465,11 +470,15 @@ describe('Search API Routes', () => {
 
   afterAll(() => {
     server.close()
+    // Restore mock fetch for other tests
+    global.fetch = (global as any).__mockFetch
   })
 
   describe('GET /api/search/opportunities', () => {
     it('should search opportunities successfully', async () => {
-      const response = await fetch('/api/search/opportunities?q=TypeScript&page=1&per_page=10')
+      const response = await fetch(
+        `${BASE_URL}/api/search/opportunities?q=TypeScript&page=1&per_page=10`
+      )
       const data = await response.json()
 
       expect(response.status).toBe(200)
@@ -483,7 +492,7 @@ describe('Search API Routes', () => {
     })
 
     it('should handle pagination correctly', async () => {
-      const response = await fetch('/api/search/opportunities?page=2&per_page=1')
+      const response = await fetch(`${BASE_URL}/api/search/opportunities?page=2&per_page=1`)
       const data = await response.json()
 
       expect(response.status).toBe(200)
@@ -495,7 +504,7 @@ describe('Search API Routes', () => {
     })
 
     it('should filter by difficulty', async () => {
-      const response = await fetch('/api/search/opportunities?difficulty=intermediate')
+      const response = await fetch(`${BASE_URL}/api/search/opportunities?difficulty=intermediate`)
       const data = await response.json()
 
       expect(response.status).toBe(200)
@@ -505,7 +514,7 @@ describe('Search API Routes', () => {
     })
 
     it('should filter by type', async () => {
-      const response = await fetch('/api/search/opportunities?type=bug_fix')
+      const response = await fetch(`${BASE_URL}/api/search/opportunities?type=bug_fix`)
       const data = await response.json()
 
       expect(response.status).toBe(200)
@@ -515,7 +524,9 @@ describe('Search API Routes', () => {
     })
 
     it('should filter by languages', async () => {
-      const response = await fetch('/api/search/opportunities?languages=TypeScript,Python')
+      const response = await fetch(
+        `${BASE_URL}/api/search/opportunities?languages=TypeScript,Python`
+      )
       const data = await response.json()
 
       expect(response.status).toBe(200)
@@ -524,7 +535,7 @@ describe('Search API Routes', () => {
     })
 
     it('should filter by minimum relevance score', async () => {
-      const response = await fetch('/api/search/opportunities?min_score=0.9')
+      const response = await fetch(`${BASE_URL}/api/search/opportunities?min_score=0.9`)
       const data = await response.json()
 
       expect(response.status).toBe(200)
@@ -534,7 +545,7 @@ describe('Search API Routes', () => {
     })
 
     it('should return empty results for no matches', async () => {
-      const response = await fetch('/api/search/opportunities?q=nonexistent')
+      const response = await fetch(`${BASE_URL}/api/search/opportunities?q=nonexistent`)
       const data = await response.json()
 
       expect(response.status).toBe(200)
@@ -544,7 +555,7 @@ describe('Search API Routes', () => {
     })
 
     it('should validate page parameter', async () => {
-      const response = await fetch('/api/search/opportunities?page=0')
+      const response = await fetch(`${BASE_URL}/api/search/opportunities?page=0`)
       const data = await response.json()
 
       expect(response.status).toBe(400)
@@ -555,7 +566,7 @@ describe('Search API Routes', () => {
     })
 
     it('should validate per_page parameter', async () => {
-      const response = await fetch('/api/search/opportunities?per_page=150')
+      const response = await fetch(`${BASE_URL}/api/search/opportunities?per_page=150`)
       const data = await response.json()
 
       expect(response.status).toBe(400)
@@ -565,7 +576,7 @@ describe('Search API Routes', () => {
     })
 
     it('should include execution metadata', async () => {
-      const response = await fetch('/api/search/opportunities?q=test')
+      const response = await fetch(`${BASE_URL}/api/search/opportunities?q=test`)
       const data = await response.json()
 
       expect(response.status).toBe(200)
@@ -578,7 +589,7 @@ describe('Search API Routes', () => {
 
   describe('GET /api/search/repositories', () => {
     it('should require authentication', async () => {
-      const response = await fetch('/api/search/repositories?q=search')
+      const response = await fetch(`${BASE_URL}/api/search/repositories?q=search`)
       const data = await response.json()
 
       expect(response.status).toBe(401)
@@ -588,7 +599,7 @@ describe('Search API Routes', () => {
     })
 
     it('should search repositories with authentication', async () => {
-      const response = await fetch('/api/search/repositories?q=search', {
+      const response = await fetch(`${BASE_URL}/api/search/repositories?q=search`, {
         headers: {
           authorization: 'Bearer test-token',
         },
@@ -605,7 +616,7 @@ describe('Search API Routes', () => {
     })
 
     it('should filter by language', async () => {
-      const response = await fetch('/api/search/repositories?language=TypeScript', {
+      const response = await fetch(`${BASE_URL}/api/search/repositories?language=TypeScript`, {
         headers: {
           authorization: 'Bearer test-token',
         },
@@ -619,7 +630,7 @@ describe('Search API Routes', () => {
     })
 
     it('should filter by minimum stars', async () => {
-      const response = await fetch('/api/search/repositories?min_stars=2000', {
+      const response = await fetch(`${BASE_URL}/api/search/repositories?min_stars=2000`, {
         headers: {
           authorization: 'Bearer test-token',
         },
@@ -633,7 +644,7 @@ describe('Search API Routes', () => {
     })
 
     it('should filter by minimum health score', async () => {
-      const response = await fetch('/api/search/repositories?min_health_score=90', {
+      const response = await fetch(`${BASE_URL}/api/search/repositories?min_health_score=90`, {
         headers: {
           authorization: 'Bearer test-token',
         },
@@ -648,7 +659,7 @@ describe('Search API Routes', () => {
 
     it('should handle complex queries', async () => {
       const response = await fetch(
-        '/api/search/repositories?q=database&language=Python&min_stars=1000&page=1&per_page=5',
+        `${BASE_URL}/api/search/repositories?q=database&language=Python&min_stars=1000&page=1&per_page=5`,
         {
           headers: {
             authorization: 'Bearer test-token',
@@ -666,7 +677,7 @@ describe('Search API Routes', () => {
 
   describe('Error Handling', () => {
     it('should handle internal server errors gracefully', async () => {
-      const response = await fetch('/api/search/error')
+      const response = await fetch(`${BASE_URL}/api/search/error`)
       const data = await response.json()
 
       expect(response.status).toBe(500)
@@ -678,7 +689,7 @@ describe('Search API Routes', () => {
     })
 
     it('should include proper error context', async () => {
-      const response = await fetch('/api/search/opportunities?page=-1')
+      const response = await fetch(`${BASE_URL}/api/search/opportunities?page=-1`)
       const data = await response.json()
 
       expect(response.status).toBe(400)
@@ -690,7 +701,9 @@ describe('Search API Routes', () => {
 
   describe('Performance and Reliability', () => {
     it('should handle concurrent requests', async () => {
-      const requests = Array.from({ length: 5 }, () => fetch('/api/search/opportunities?q=test'))
+      const requests = Array.from({ length: 5 }, () =>
+        fetch(`${BASE_URL}/api/search/opportunities?q=test`)
+      )
 
       const responses = await Promise.all(requests)
 
@@ -706,7 +719,7 @@ describe('Search API Routes', () => {
     })
 
     it('should include performance metrics', async () => {
-      const response = await fetch('/api/search/opportunities?q=TypeScript')
+      const response = await fetch(`${BASE_URL}/api/search/opportunities?q=TypeScript`)
       const data = await response.json()
 
       expect(response.status).toBe(200)
@@ -715,7 +728,7 @@ describe('Search API Routes', () => {
     })
 
     it('should handle malformed query parameters gracefully', async () => {
-      const response = await fetch('/api/search/opportunities?page=invalid&per_page=abc')
+      const response = await fetch(`${BASE_URL}/api/search/opportunities?page=invalid&per_page=abc`)
 
       // Should either handle gracefully or return 400
       expect([200, 400]).toContain(response.status)
@@ -730,7 +743,7 @@ describe('Search API Routes', () => {
 
   describe('Health Check', () => {
     it('should return health status', async () => {
-      const response = await fetch('/api/health')
+      const response = await fetch(`${BASE_URL}/api/health`)
       const data = await response.json()
 
       expect(response.status).toBe(200)
