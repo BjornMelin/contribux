@@ -17,7 +17,9 @@ Comprehensive documentation for the Contribux authentication system using GitHub
 
 ## Overview
 
-The Contribux platform uses a simplified authentication system focused on GitHub OAuth for seamless integration with the developer ecosystem. The implementation has been streamlined to remove complexity while maintaining security best practices.
+The Contribux platform uses a simplified authentication system focused on GitHub OAuth for seamless
+integration with the developer ecosystem. The implementation has been streamlined to remove complexity
+while maintaining security best practices.
 
 ## Multi-Provider OAuth Implementation
 
@@ -450,4 +452,5 @@ pnpm test:coverage tests/auth/
 - Monitor for security updates in NextAuth
 - Review audit logs for security patterns
 
-This implementation provides a production-ready, secure, and extensible authentication system that follows NextAuth.js v5 best practices and modern OAuth security standards.
+This implementation provides a production-ready, secure, and extensible authentication system that
+follows NextAuth.js v5 best practices and modern OAuth security standards.

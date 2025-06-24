@@ -7,12 +7,14 @@ This guide provides comprehensive instructions for maintaining the contribux pla
 ## 📋 Daily Maintenance Checklist
 
 ### Morning Check (5 minutes)
+
 - [ ] Review overnight error alerts
 - [ ] Check system health metrics
 - [ ] Verify backup completion
 - [ ] Review memory usage trends
 
 ### Weekly Tasks (30 minutes)
+
 - [ ] Review performance metrics
 - [ ] Update dependencies (automated)
 - [ ] Clean up test artifacts
@@ -20,6 +22,7 @@ This guide provides comprehensive instructions for maintaining the contribux pla
 - [ ] Check security alerts
 
 ### Monthly Tasks (2 hours)
+
 - [ ] Full security audit
 - [ ] Performance optimization review
 - [ ] Dependency vulnerability assessment
@@ -33,6 +36,7 @@ This guide provides comprehensive instructions for maintaining the contribux pla
 All automation is configured in `.github/workflows/` with the following key workflows:
 
 #### CI/CD Pipeline (`ci.yml`)
+
 ```yaml
 # Automated testing, building, and deployment
 - Runs on every push and PR
@@ -43,6 +47,7 @@ All automation is configured in `.github/workflows/` with the following key work
 ```
 
 #### Dependency Updates (`update-deps.yml`)
+
 ```yaml
 # Weekly dependency updates
 - Automated security updates
@@ -52,6 +57,7 @@ All automation is configured in `.github/workflows/` with the following key work
 ```
 
 #### Health Monitoring (`health-check.yml`)
+
 ```yaml
 # Daily health checks
 - Database connectivity
@@ -92,16 +98,19 @@ pnpm lint:fix             # Auto-fix linting issues
 Monitor these key metrics daily:
 
 1. **Memory Usage**
+
    - Target: < 35MB heap usage
    - Alert: > 50MB sustained usage
    - Check: `pnpm memory:check`
 
 2. **Test Performance**
+
    - Target: < 30 seconds total test time
    - Alert: > 45 seconds or memory > 100MB during tests
    - Check: `time pnpm test:ci`
 
 3. **Database Performance**
+
    - Target: < 100ms average query time
    - Alert: > 500ms queries or connection errors
    - Check: `pnpm db:performance-report`
@@ -114,6 +123,7 @@ Monitor these key metrics daily:
 ### Alerting Channels
 
 1. **Email Alerts** (Critical issues)
+
    - Database connection failures
    - Security vulnerabilities
    - Build failures
@@ -130,6 +140,7 @@ Monitor these key metrics daily:
 ### Memory Issues
 
 **Symptom**: High memory usage (> 50MB)
+
 ```bash
 # Diagnosis
 node scripts/performance/memory-optimizer.js --current
@@ -143,6 +154,7 @@ pnpm memory:snapshot
 ```
 
 **Symptom**: Test failures due to memory
+
 ```bash
 # Diagnosis
 pnpm test:watch # Watch memory during tests
@@ -157,6 +169,7 @@ pnpm test:watch # Watch memory during tests
 ### Performance Issues
 
 **Symptom**: Slow test execution (> 30s)
+
 ```bash
 # Diagnosis
 time pnpm test:ci --reporter=verbose
@@ -169,6 +182,7 @@ time pnpm test:ci --reporter=verbose
 ```
 
 **Symptom**: High database response times
+
 ```bash
 # Diagnosis
 pnpm db:slow-queries
@@ -184,6 +198,7 @@ pnpm db:performance-report
 ### Build Issues
 
 **Symptom**: Build failures or timeouts
+
 ```bash
 # Diagnosis
 pnpm build --verbose
@@ -201,63 +216,67 @@ pnpm type-check
 ### Memory Optimization
 
 1. **Component Lazy Loading**
+
    ```typescript
    // Use lazy loading for heavy components
-   import { withLazyLoading } from '@/components/lazy-components'
-   
-   const LazyDashboard = withLazyLoading(
-     lazy(() => import('./dashboard'))
-   )
+   import { withLazyLoading } from "@/components/lazy-components";
+
+   const LazyDashboard = withLazyLoading(lazy(() => import("./dashboard")));
    ```
 
 2. **Database Connection Pooling**
+
    ```typescript
    // Use memory-optimized pool
-   import { getOptimizedConnection } from '@/lib/db/memory-optimized-pool'
-   
-   const sql = getOptimizedConnection(databaseUrl)
+   import { getOptimizedConnection } from "@/lib/db/memory-optimized-pool";
+
+   const sql = getOptimizedConnection(databaseUrl);
    ```
 
 3. **Test Memory Management**
+
    ```typescript
    // Force cleanup after heavy tests
    afterEach(async () => {
-     if (global.gc) global.gc()
-   })
+     if (global.gc) global.gc();
+   });
    ```
 
 ### Performance Optimization
 
 1. **Bundle Size Optimization**
+
    ```bash
    # Analyze bundle size
    pnpm analyze
-   
+
    # Optimize imports
    # Use dynamic imports for heavy libraries
    const heavyLib = await import('heavy-library')
    ```
 
 2. **Database Query Optimization**
+
    ```sql
    -- Add indexes for common queries
-   CREATE INDEX CONCURRENTLY idx_opportunities_user_score 
+   CREATE INDEX CONCURRENTLY idx_opportunities_user_score
    ON opportunities(user_id, score DESC);
-   
+
    -- Use explain analyze for slow queries
    EXPLAIN ANALYZE SELECT * FROM opportunities WHERE...;
    ```
 
 3. **Caching Strategy**
+
    ```typescript
    // Implement aggressive caching
-   const cached = await cache.get(key)
+   const cached = await cache.get(key);
    if (!cached) {
-     const result = await expensiveOperation()
-     await cache.set(key, result, ttl)
-     return result
+     const result = await expensiveOperation();
+     await cache.set(key, result, ttl);
+     return result;
    }
-   return cached
+   return cached;
    ```
 
 ## 🔒 Security Maintenance
@@ -265,18 +284,21 @@ pnpm type-check
 ### Weekly Security Tasks
 
 1. **Dependency Security Scan**
+
    ```bash
    pnpm audit
    pnpm audit --fix
    ```
 
 2. **Environment Security Check**
+
    ```bash
    # Verify environment variables
    node -e "console.log(Object.keys(process.env).filter(k => k.includes('SECRET')).length + ' secrets configured')"
    ```
 
 3. **Database Security Review**
+
    ```bash
    pnpm db:health
    # Review security advisors in database
@@ -285,10 +307,11 @@ pnpm type-check
 ### Monthly Security Audit
 
 1. **Full Vulnerability Assessment**
+
    ```bash
    # Use npm audit for comprehensive check
    npm audit --audit-level=moderate
-   
+
    # Review GitHub security alerts
    # Check Vercel security dashboard
    ```
@@ -331,7 +354,7 @@ node scripts/performance/cleanup-optimizer.js --deep
 
 ### File Structure Reference
 
-```
+```text
 /contribux
 ├── src/
 │   ├── lib/
@@ -359,6 +382,7 @@ node scripts/performance/cleanup-optimizer.js --deep
 ### Production Issues
 
 1. **Application Down**
+
    ```bash
    # Check Vercel deployment status
    # Review error logs
@@ -367,21 +391,23 @@ node scripts/performance/cleanup-optimizer.js --deep
    ```
 
 2. **Database Issues**
+
    ```bash
    # Check database connectivity
    pnpm db:test-connection
-   
+
    # Review slow queries
    pnpm db:slow-queries
-   
+
    # Contact Neon support if needed
    ```
 
 3. **Memory Leaks**
+
    ```bash
    # Generate heap snapshot
    pnpm memory:snapshot
-   
+
    # Force garbage collection
    # Restart application if needed
    ```
@@ -389,6 +415,7 @@ node scripts/performance/cleanup-optimizer.js --deep
 ### Recovery Steps
 
 1. **Backup Recovery**
+
    - Neon automatic backups (Point-in-time recovery)
    - Manual backup verification
    - Data integrity checks
@@ -423,12 +450,14 @@ node scripts/performance/cleanup-optimizer.js --deep
 ## 📞 Support Resources
 
 ### Internal Resources
+
 - Performance monitoring dashboard
 - Automated alert system
 - Comprehensive test suite
 - Memory analysis tools
 
 ### External Resources
+
 - **Vercel Support**: Deployment and hosting issues
 - **Neon Support**: Database issues and optimization
 - **GitHub Support**: Repository and CI/CD issues
@@ -444,21 +473,25 @@ Use this template for documenting maintenance activities:
 ## Maintenance Session - [Date]
 
 ### Issues Addressed
+
 - [ ] Issue 1: Description and resolution
 - [ ] Issue 2: Description and resolution
 
 ### Performance Metrics
+
 - Memory usage: [X]MB (target: <35MB)
 - Test execution: [X]s (target: <30s)
 - Build time: [X]min (target: <2min)
 
 ### Actions Taken
+
 - [ ] Dependencies updated
 - [ ] Security scan completed
 - [ ] Performance optimization applied
 - [ ] Cleanup performed
 
 ### Next Steps
+
 - [ ] Monitor metric improvements
 - [ ] Schedule follow-up tasks
 - [ ] Update documentation

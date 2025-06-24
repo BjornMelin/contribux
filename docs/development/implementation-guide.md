@@ -1,6 +1,7 @@
 # Implementation Guide
 
-Comprehensive guide for implementing features in the Contribux platform following KISS principles and modern development practices.
+Comprehensive guide for implementing features in the Contribux platform following KISS principles and
+modern development practices.
 
 ## Table of Contents
 
@@ -361,4 +362,5 @@ GOOGLE_CLIENT_SECRET=your_google_client_secret
 - Monitor for security updates in NextAuth
 - Review audit logs for security patterns
 
-This implementation provides a production-ready, secure, and extensible foundation that follows NextAuth.js v5 best practices and modern development standards.
+This implementation provides a production-ready, secure, and extensible foundation that follows
+NextAuth.js v5 best practices and modern development standards.

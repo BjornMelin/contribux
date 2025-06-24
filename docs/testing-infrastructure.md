@@ -1,13 +1,14 @@
 # Comprehensive Database Testing Infrastructure
 
-This document provides the complete guide for modern database testing in Contribux, covering the migration from Docker to PGlite and Neon branching strategies, plus comprehensive setup and usage instructions.
+This document provides the complete guide for modern database testing in Contribux, covering the migration
+from Docker to PGlite and Neon branching strategies, plus comprehensive setup and usage instructions.
 
 ## Overview
 
 The new testing infrastructure provides three database strategies optimized for different use cases:
 
 1. **PGlite** - Ultra-fast in-memory PostgreSQL for development and CI
-2. **Neon Branching** - Production-like isolated branches for staging tests  
+2. **Neon Branching** - Production-like isolated branches for staging tests
 3. **Transaction Rollback** - Fast cleanup using database transactions
 
 ## Quick Start
@@ -46,106 +47,107 @@ The system automatically chooses the optimal database strategy:
 
 ```typescript
 // Automatic strategy selection
-const db = await getTestDatabase('my-test')
+const db = await getTestDatabase("my-test");
 
 // Explicit strategy selection
-const db = await getTestDatabase('my-test', {
-  strategy: 'pglite',     // Force PGlite
-  cleanup: 'truncate',    // Cleanup method
-  verbose: true           // Debug output
-})
+const db = await getTestDatabase("my-test", {
+  strategy: "pglite", // Force PGlite
+  cleanup: "truncate", // Cleanup method
+  verbose: true, // Debug output
+});
 ```
 
 **Strategy Selection Logic:**
+
 - CI environment → PGlite for maximum speed
 - Local development with Neon credentials → Neon branching for production-like testing
 - Fallback → PGlite for zero-dependency testing
 
 ### Performance Comparison
 
-| Strategy | Speed | Isolation | Production-Like | Setup |
-|----------|-------|-----------|-----------------|-------|
-| PGlite | 🚀 Ultra-fast | ✅ Perfect | ⚠️ Close | Zero |
-| Neon Branching | 🏃 Fast | ✅ Perfect | ✅ Exact | API keys |
-| Transaction Rollback | 🏃 Fast | ✅ Good | ✅ Exact | Database |
+| Strategy             | Speed         | Isolation  | Production-Like | Setup    |
+| -------------------- | ------------- | ---------- | --------------- | -------- |
+| PGlite               | 🚀 Ultra-fast | ✅ Perfect | ⚠️ Close        | Zero     |
+| Neon Branching       | 🏃 Fast       | ✅ Perfect | ✅ Exact        | API keys |
+| Transaction Rollback | 🏃 Fast       | ✅ Good    | ✅ Exact        | Database |
 
 ## Usage Examples
 
 ### Basic Database Testing
 
 ```typescript
-import { getTestDatabase } from '@/lib/test-utils/test-database-manager'
-import { createTestFactories } from '@/lib/test-utils/database-factories'
+import { getTestDatabase } from "@/lib/test-utils/test-database-manager";
+import { createTestFactories } from "@/lib/test-utils/database-factories";
 
-describe('User Management', () => {
-  let db: DatabaseConnection
-  let factories: ReturnType<typeof createTestFactories>
+describe("User Management", () => {
+  let db: DatabaseConnection;
+  let factories: ReturnType<typeof createTestFactories>;
 
   beforeEach(async () => {
-    db = await getTestDatabase('user-test')
-    factories = createTestFactories(db.sql)
-  })
+    db = await getTestDatabase("user-test");
+    factories = createTestFactories(db.sql);
+  });
 
-  it('should create and query users', async () => {
+  it("should create and query users", async () => {
     // Create realistic test data
     const user = await factories.users.create({
-      github_username: 'test-user',
-      email: 'test@example.com',
+      github_username: "test-user",
+      email: "test@example.com",
       preferences: {
-        languages: ['TypeScript', 'Python'],
-        difficulty: 'intermediate'
-      }
-    })
+        languages: ["TypeScript", "Python"],
+        difficulty: "intermediate",
+      },
+    });
 
     // Query with Neon-compatible SQL
     const [foundUser] = await db.sql`
       SELECT * FROM users WHERE id = ${user.id}
-    `
+    `;
 
-    expect(foundUser.github_username).toBe('test-user')
-  })
-})
+    expect(foundUser.github_username).toBe("test-user");
+  });
+});
 ```
 
 ### Vector Search Testing
 
 ```typescript
-it('should perform semantic similarity search', async () => {
-  const { sql } = db
+it("should perform semantic similarity search", async () => {
+  const { sql } = db;
 
   // Create opportunities with embeddings
   const opportunities = await Promise.all([
     factories.opportunities.create({
-      title: 'Add TypeScript types',
-      embedding: Array.from({ length: 1536 }, () => 0.5)
+      title: "Add TypeScript types",
+      embedding: Array.from({ length: 1536 }, () => 0.5),
     }),
     factories.opportunities.create({
-      title: 'Fix Python bug',
-      embedding: Array.from({ length: 1536 }, () => -0.5)
-    })
-  ])
+      title: "Fix Python bug",
+      embedding: Array.from({ length: 1536 }, () => -0.5),
+    }),
+  ]);
 
   // Search for similar opportunities
-  const searchVector = Array.from({ length: 1536 }, () => 0.55)
+  const searchVector = Array.from({ length: 1536 }, () => 0.55);
   const results = await sql`
     SELECT title, embedding <=> ${JSON.stringify(searchVector)} as distance
     FROM opportunities
     ORDER BY distance ASC
     LIMIT 1
-  `
+  `;
 
-  expect(results[0].title).toContain('TypeScript')
-})
+  expect(results[0].title).toContain("TypeScript");
+});
 ```
 
 ### Performance Benchmarking
 
 ```typescript
-import { testPerformance } from '@/lib/test-utils/pglite-setup'
+import { testPerformance } from "@/lib/test-utils/pglite-setup";
 
-it('should benchmark query performance', async () => {
+it("should benchmark query performance", async () => {
   const { result, duration } = await testPerformance.measureQuery(
-    'Complex JOIN query',
+    "Complex JOIN query",
     async () => {
       return db.sql`
         SELECT o.*, r.name 
@@ -154,15 +156,15 @@ it('should benchmark query performance', async () => {
         WHERE r.stars > 1000
         ORDER BY o.score DESC
         LIMIT 10
-      `
+      `;
     }
-  )
+  );
 
-  expect(result.length).toBeLessThanOrEqual(10)
-  if (db.strategy === 'pglite') {
-    expect(duration).toBeLessThan(50) // Ultra-fast with PGlite
+  expect(result.length).toBeLessThanOrEqual(10);
+  if (db.strategy === "pglite") {
+    expect(duration).toBeLessThan(50); // Ultra-fast with PGlite
   }
-})
+});
 ```
 
 ## Test Data Factories
@@ -174,48 +176,48 @@ The factory system creates realistic test data using Faker.js:
 ```typescript
 // Create users with realistic data
 const user = await factories.users.create({
-  github_username: 'senior-dev-2024',
-  email: 'senior@company.com',
+  github_username: "senior-dev-2024",
+  email: "senior@company.com",
   preferences: {
-    languages: ['TypeScript', 'Go'],
-    difficulty: 'advanced',
-    timeCommitment: 'weekends'
-  }
-})
+    languages: ["TypeScript", "Go"],
+    difficulty: "advanced",
+    timeCommitment: "weekends",
+  },
+});
 
 // Create repositories
 const repo = await factories.repositories.createPopular({
-  language: 'TypeScript',
+  language: "TypeScript",
   stars: 50000,
-  health_score: 0.95
-})
+  health_score: 0.95,
+});
 
 // Create opportunities with AI analysis
 const opportunity = await factories.opportunities.create({
   repository_id: repo.id,
-  difficulty: 'intermediate',
-  skills_required: ['TypeScript', 'React', 'Testing'],
+  difficulty: "intermediate",
+  skills_required: ["TypeScript", "React", "Testing"],
   ai_analysis: {
     complexity_score: 0.7,
     learning_potential: 0.9,
-    business_impact: 0.8
-  }
-})
+    business_impact: 0.8,
+  },
+});
 ```
 
 ### Complex Test Scenarios
 
 ```typescript
 // Create complete test scenario
-const scenario = await factories.createCompleteScenario()
+const scenario = await factories.createCompleteScenario();
 // Returns: { users: User[], repositories: Repository[], opportunities: Opportunity[] }
 
 // Create vector similarity test data
-const vectorScenario = await factories.createVectorTestScenario()
+const vectorScenario = await factories.createVectorTestScenario();
 // Returns opportunities with designed embedding relationships
 
 // Create performance test dataset
-const perfScenario = await factories.createPerformanceTestScenario()
+const perfScenario = await factories.createPerformanceTestScenario();
 // Returns: 20 repositories with 50 opportunities each (1000 total)
 ```
 
@@ -240,7 +242,7 @@ DATABASE_URL_TEST=postgresql://user:pass@host/test_db
 ### Test Configuration Files
 
 - `vitest.pglite.config.ts` - Ultra-fast PGlite configuration
-- `vitest.neon.config.ts` - Production-like Neon configuration  
+- `vitest.neon.config.ts` - Production-like Neon configuration
 - `vitest.database.config.ts` - Backwards-compatible configuration
 
 ## Migration Guide
@@ -253,21 +255,21 @@ DATABASE_URL_TEST=postgresql://user:pass@host/test_db
 
 ```typescript
 // Old pattern (mocked database)
-vi.mock('@/lib/db/config', () => ({
-  sql: vi.fn().mockResolvedValue([])
-}))
+vi.mock("@/lib/db/config", () => ({
+  sql: vi.fn().mockResolvedValue([]),
+}));
 
 // New pattern (real database)
-import { getTestDatabase } from '@/lib/test-utils/test-database-manager'
+import { getTestDatabase } from "@/lib/test-utils/test-database-manager";
 
-const db = await getTestDatabase('test-name')
-const result = await db.sql`SELECT * FROM users`
+const db = await getTestDatabase("test-name");
+const result = await db.sql`SELECT * FROM users`;
 ```
 
 ### Updating Existing Tests
 
 1. Replace mocked database calls with real database connections
-2. Use test factories for realistic data generation  
+2. Use test factories for realistic data generation
 3. Add proper cleanup and isolation
 4. Leverage vector search capabilities for AI features
 
@@ -290,7 +292,7 @@ const result = await db.sql`SELECT * FROM users`
 ### Best Practices
 
 1. **Use PGlite for unit/integration tests** - Maximum speed for development
-2. **Use Neon branching for staging tests** - Production validation  
+2. **Use Neon branching for staging tests** - Production validation
 3. **Use factories for realistic data** - Better test coverage and debugging
 4. **Benchmark performance** - Ensure database operations meet requirements
 5. **Test vector operations** - Validate AI/ML functionality
@@ -300,6 +302,7 @@ const result = await db.sql`SELECT * FROM users`
 ### Common Issues
 
 **PGlite not working in CI:**
+
 ```bash
 # Add to CI environment
 TEST_DB_STRATEGY=pglite
@@ -307,16 +310,18 @@ NODE_ENV=test
 ```
 
 **Neon API rate limits:**
+
 ```typescript
 // Use sequential execution
-maxConcurrency: 1
-fileParallelism: false
+maxConcurrency: 1;
+fileParallelism: false;
 ```
 
 **Vector search not working:**
+
 ```typescript
 // Ensure vector extension is enabled
-await sql`CREATE EXTENSION IF NOT EXISTS "vector"`
+await sql`CREATE EXTENSION IF NOT EXISTS "vector"`;
 ```
 
 ### Debug Mode
@@ -324,9 +329,9 @@ await sql`CREATE EXTENSION IF NOT EXISTS "vector"`
 Enable verbose logging:
 
 ```typescript
-const db = await getTestDatabase('debug-test', {
-  verbose: true  // Shows strategy selection and performance metrics
-})
+const db = await getTestDatabase("debug-test", {
+  verbose: true, // Shows strategy selection and performance metrics
+});
 ```
 
 ## Future Enhancements
@@ -377,6 +382,7 @@ DATABASE_URL=postgresql://user:pass@host.neon.tech/dbname
 ### Branch Naming Convention
 
 Test branches follow this naming pattern:
+
 - `test-{suite-name}-{timestamp}` - For test suites
 - `ci-{run-id}-{attempt}` - For CI/CD runs
 - `e2e-{run-id}-{attempt}` - For E2E tests
@@ -391,12 +397,14 @@ The project includes GitHub Actions workflows that:
 4. Support parallel test jobs with separate branches
 
 Required GitHub Secrets:
+
 - `NEON_API_KEY`: Your Neon API key
 - `NEON_PROJECT_ID`: Your Neon project ID
 
 ### Costs & Performance
 
 Neon pricing for branching:
+
 - **Free Tier**: Includes 10 branches, perfect for development
 - **Compute**: Only charged when branches are active
 - **Storage**: Minimal due to copy-on-write technology
@@ -404,11 +412,12 @@ Neon pricing for branching:
 
 For solo developers, the free tier is typically sufficient for all testing needs.
 
-## Troubleshooting
+## Troubleshooting - Neon Branching
 
-### Common Issues
+### Common Issues - Neon Branching
 
 **PGlite not working in CI:**
+
 ```bash
 # Add to CI environment
 TEST_DB_STRATEGY=pglite
@@ -416,36 +425,40 @@ NODE_ENV=test
 ```
 
 **Neon API rate limits:**
+
 ```typescript
 // Use sequential execution
-maxConcurrency: 1
-fileParallelism: false
+maxConcurrency: 1;
+fileParallelism: false;
 ```
 
 **Vector search not working:**
+
 ```typescript
 // Ensure vector extension is enabled
-await sql`CREATE EXTENSION IF NOT EXISTS "vector"`
+await sql`CREATE EXTENSION IF NOT EXISTS "vector"`;
 ```
 
 **Branch Creation Fails:**
+
 - Check your API key and project ID
 - Ensure you haven't hit branch limits for your plan
 - Verify network connectivity to Neon
 
 **Tests Can't Connect:**
+
 - Ensure `DATABASE_URL` is set correctly
 - Check if the branch was created successfully
 - Verify SSL is enabled (`?sslmode=require`)
 
-### Debug Mode
+### Debug Mode - Neon Branching
 
 Enable verbose logging:
 
 ```typescript
-const db = await getTestDatabase('debug-test', {
-  verbose: true  // Shows strategy selection and performance metrics
-})
+const db = await getTestDatabase("debug-test", {
+  verbose: true, // Shows strategy selection and performance metrics
+});
 ```
 
 ## Resources
@@ -457,9 +470,10 @@ const db = await getTestDatabase('debug-test', {
 
 ---
 
-**Migration Status: ✅ Complete**
+### **Migration Status: ✅ Complete**
 
 The migration from Docker to modern database testing is complete with:
+
 - ✅ PGlite in-memory PostgreSQL (10x faster than Docker)
 - ✅ Neon branching integration with complete setup guide
 - ✅ Intelligent strategy selection for optimal performance

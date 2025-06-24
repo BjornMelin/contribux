@@ -1,6 +1,7 @@
 # Pull Request Workflow & Strategy
 
-Comprehensive guide for managing pull requests in the Contribux project, including splitting strategies, templates, and best practices.
+Comprehensive guide for managing pull requests in the Contribux project, including splitting strategies,
+templates, and best practices.
 
 ## Table of Contents
 
@@ -13,7 +14,8 @@ Comprehensive guide for managing pull requests in the Contribux project, includi
 
 ## Overview
 
-This document outlines the strategy for managing large pull requests by splitting them into focused, reviewable chunks. The approach prioritizes reviewer efficiency while maintaining logical dependency chains.
+This document outlines the strategy for managing large pull requests by splitting them into focused,
+reviewable chunks. The approach prioritizes reviewer efficiency while maintaining logical dependency chains.
 
 ## PR Split Strategy
 
@@ -74,7 +76,7 @@ Break large changes into 3 focused PRs that build on each other:
 
 #### Description Template
 
-~~~markdown
+````markdown
 ## Summary
 
 This PR implements a lightweight, type-safe GitHub API client using Octokit v5.0.3 with essential features for repository and issue management. This is the foundation for the contribux platform's GitHub integration.
@@ -125,17 +127,17 @@ const repo = await client.getRepository({ owner: "vercel", repo: "next.js" });
 // GraphQL API
 const data = await client.graphql(query, variables);
 ```
-~~~
+````
 
 ## Testing
 
-~~~bash
+```bash
 # Run GitHub client tests
 pnpm test tests/github/github-client-*.test.ts
 
 # Run with coverage
 pnpm test:coverage tests/github/
-~~~
+```
 
 ## Checklist
 
@@ -154,7 +156,7 @@ pnpm test:coverage tests/github/
 
 Total: ~3,500 lines of production-ready code
 
-~~~text
+````text
 
 ### Template 2: Authentication Simplification
 
@@ -209,7 +211,7 @@ pnpm test tests/auth/*.test.ts
 
 # Integration tests
 pnpm test tests/integration/github/auth-flows.test.ts
-~~~
+````
 
 ## Security Considerations
 
@@ -231,7 +233,8 @@ For existing users: Would need to re-authenticate
 - Database schema addition
 
 Total: ~2,000 lines focusing on essential auth
-~~~
+
+````text
 
 ### Template 3: Test Infrastructure & CI
 
@@ -263,7 +266,7 @@ This PR establishes a robust test infrastructure using MSW 2.x for HTTP mocking,
 
 ## Running Tests
 
-~~~bash
+```bash
 # All tests
 pnpm test
 
@@ -275,7 +278,7 @@ pnpm test:performance
 
 # With UI
 pnpm test:ui
-~~~
+```
 
 ## Key Improvements
 
@@ -305,7 +308,8 @@ This PR is large but consists primarily of:
 - Configuration files
 
 The actual production code changes are minimal.
-~~~
+
+~~~text
 
 ## Git Workflow
 
@@ -339,11 +343,11 @@ git commit -m "feat: implement core GitHub API client with Octokit v5
 
 # Push and create PR
 git push origin feat/github-client-core
-~~~
+````
 
 #### Step 2: Create PR 2 Branch (Authentication)
 
-~~~bash
+```bash
 # After PR 1 is merged, from updated main
 git checkout main
 git pull origin main
@@ -368,11 +372,11 @@ git commit -m "feat: simplify authentication to GitHub OAuth only
 - Comprehensive auth testing"
 
 git push origin feat/simplified-auth
-~~~
+```
 
 #### Step 3: Create PR 3 Branch (Test Infrastructure)
 
-~~~bash
+```bash
 # After PR 2 is merged, from updated main
 git checkout main
 git pull origin main
@@ -402,7 +406,7 @@ git commit -m "test: comprehensive test infrastructure with MSW 2.x
 - 90%+ test coverage"
 
 git push origin feat/test-infrastructure
-~~~
+```
 
 ## Review Guidelines
 
@@ -441,7 +445,7 @@ git push origin feat/test-infrastructure
 
 Include this in PR description:
 
-~~~markdown
+```markdown
 ## Review Guide
 
 This PR is part of a 3-PR split from a larger feature branch. See [pull-request-workflow.md](./docs/processes/pull-request-workflow.md) for full context.
@@ -457,7 +461,7 @@ This PR is part of a 3-PR split from a larger feature branch. See [pull-request-
 ### Dependencies:
 
 - [Which PRs this depends on]
-~~~
+```
 
 ## Best Practices
 
