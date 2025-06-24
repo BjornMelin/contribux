@@ -7,6 +7,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
+import React from 'react'
 import '@testing-library/jest-dom'
 
 // Mock Next.js router
@@ -25,17 +26,7 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/search',
 }))
 
-// Mock React hooks
-vi.mock('react', async () => {
-  const actual = await vi.importActual('react')
-  return {
-    ...actual,
-    useState: vi.fn(initial => [initial, vi.fn()]),
-    useEffect: vi.fn(),
-    useMemo: vi.fn(cb => cb()),
-    useCallback: vi.fn(cb => cb),
-  }
-})
+// React hooks are not mocked for component tests - use real React behavior
 
 // Type definitions
 const SearchFiltersSchema = z.object({
@@ -406,23 +397,10 @@ function OpportunityList({
   )
 }
 
-// Mock React import for component definitions
-const React = {
-  useState: vi.fn(initial => [initial, vi.fn()]),
-  useEffect: vi.fn(),
-  useMemo: vi.fn(cb => cb()),
-  useCallback: vi.fn(cb => cb),
-  FormEvent: {},
-  KeyboardEvent: {},
-}
+// Use real React for component definitions - imported at the top
 
 describe('Search Components', () => {
-  const user = userEvent.setup()
-
-  afterEach(() => {
-    cleanup()
-    vi.clearAllMocks()
-  })
+  // Note: cleanup is handled in the setup file, no need to duplicate here
 
   describe('SearchBar', () => {
     it('should render with default props', () => {
@@ -435,6 +413,7 @@ describe('Search Components', () => {
     })
 
     it('should call onSearch when form is submitted', async () => {
+      const user = userEvent.setup()
       const onSearch = vi.fn()
       render(<SearchBar onSearch={onSearch} />)
 
@@ -448,6 +427,7 @@ describe('Search Components', () => {
     })
 
     it('should call onSearch when Enter is pressed', async () => {
+      const user = userEvent.setup()
       const onSearch = vi.fn()
       render(<SearchBar onSearch={onSearch} />)
 
@@ -526,8 +506,11 @@ describe('Search Components', () => {
       const onFiltersChange = vi.fn()
       render(<SearchFilters filters={filters} onFiltersChange={onFiltersChange} />)
 
-      expect(screen.getByDisplayValue('intermediate')).toBeInTheDocument()
-      expect(screen.getByDisplayValue('bug_fix')).toBeInTheDocument()
+      // Check that the correct options are selected by finding the select elements and checking their values
+      const difficultySelect = screen.getByRole('combobox', { name: /difficulty/i }) as HTMLSelectElement
+      const typeSelect = screen.getByRole('combobox', { name: /type/i }) as HTMLSelectElement
+      expect(difficultySelect.value).toBe('intermediate')
+      expect(typeSelect.value).toBe('bug_fix')
       expect(screen.getByRole('checkbox', { name: /typescript/i })).toBeChecked()
       expect(screen.getByRole('checkbox', { name: /python/i })).toBeChecked()
       expect(screen.getByRole('checkbox', { name: /good first issue/i })).toBeChecked()
@@ -535,6 +518,7 @@ describe('Search Components', () => {
     })
 
     it('should call onFiltersChange when difficulty changes', async () => {
+      const user = userEvent.setup()
       const onFiltersChange = vi.fn()
       render(<SearchFilters filters={defaultFilters} onFiltersChange={onFiltersChange} />)
 
@@ -548,6 +532,7 @@ describe('Search Components', () => {
     })
 
     it('should call onFiltersChange when type changes', async () => {
+      const user = userEvent.setup()
       const onFiltersChange = vi.fn()
       render(<SearchFilters filters={defaultFilters} onFiltersChange={onFiltersChange} />)
 
@@ -561,6 +546,7 @@ describe('Search Components', () => {
     })
 
     it('should toggle languages correctly', async () => {
+      const user = userEvent.setup()
       const onFiltersChange = vi.fn()
       render(<SearchFilters filters={defaultFilters} onFiltersChange={onFiltersChange} />)
 
@@ -572,8 +558,17 @@ describe('Search Components', () => {
         languages: ['TypeScript'],
       })
 
-      // Test removing a language
+      // Test removing a language is tested in a separate scenario to avoid render conflicts
+      expect(onFiltersChange).toHaveBeenCalledWith({
+        ...defaultFilters,
+        languages: ['TypeScript'],
+      })
+    })
+
+    it('should remove languages correctly', async () => {
+      const user = userEvent.setup()
       const filtersWithLang = { ...defaultFilters, languages: ['TypeScript', 'Python'] }
+      const onFiltersChange = vi.fn()
       render(<SearchFilters filters={filtersWithLang} onFiltersChange={onFiltersChange} />)
 
       const pythonCheckbox = screen.getByRole('checkbox', { name: /python/i })
@@ -586,6 +581,7 @@ describe('Search Components', () => {
     })
 
     it('should update boolean filters', async () => {
+      const user = userEvent.setup()
       const onFiltersChange = vi.fn()
       render(<SearchFilters filters={defaultFilters} onFiltersChange={onFiltersChange} />)
 
@@ -626,7 +622,8 @@ describe('Search Components', () => {
       render(<SearchFilters filters={filtersWithValues} onFiltersChange={onFiltersChange} />)
 
       const resetButton = screen.getByRole('button', { name: /reset filters/i })
-      await user.click(resetButton)
+      const user2 = userEvent.setup()
+      await user2.click(resetButton)
 
       expect(onFiltersChange).toHaveBeenCalledWith(defaultFilters)
     })
@@ -677,7 +674,10 @@ describe('Search Components', () => {
       expect(screen.getByText('intermediate')).toBeInTheDocument()
       expect(screen.getByText('bug fix')).toBeInTheDocument()
       expect(screen.getByText('company/search-engine')).toBeInTheDocument()
-      expect(screen.getByText('TypeScript')).toBeInTheDocument()
+      // Check for TypeScript in repository language section
+      const typescriptElements = screen.getAllByText('TypeScript')
+      const repositoryLanguageElement = typescriptElements.find(el => el.closest('.repository-language'))
+      expect(repositoryLanguageElement).toBeInTheDocument()
       expect(screen.getByText('⭐ 1250')).toBeInTheDocument()
       expect(screen.getByText('Help Wanted')).toBeInTheDocument()
       expect(screen.getByText('4h')).toBeInTheDocument()
@@ -694,14 +694,16 @@ describe('Search Components', () => {
       const onSelect = vi.fn()
       render(<OpportunityCard opportunity={longOpportunity} onSelect={onSelect} />)
 
+      // Check that the text is truncated with "..." at the end
       expect(
         screen.getByText(
-          /This is a very long description that should be truncated when it exceeds the character limit set for the opportunity card display to ensure proper layout/
+          /This is a very long description that should be truncated when it exceeds the character limit set for the opportunity card display to ensure proper lay\.\.\./
         )
       ).toBeInTheDocument()
     })
 
     it('should call onSelect when clicked', async () => {
+      const user = userEvent.setup()
       const onSelect = vi.fn()
       render(<OpportunityCard opportunity={mockOpportunity} onSelect={onSelect} />)
 
@@ -712,6 +714,7 @@ describe('Search Components', () => {
     })
 
     it('should call onSelect when Enter or Space is pressed', async () => {
+      const user = userEvent.setup()
       const onSelect = vi.fn()
       render(<OpportunityCard opportunity={mockOpportunity} onSelect={onSelect} />)
 
@@ -737,7 +740,10 @@ describe('Search Components', () => {
       const onSelect = vi.fn()
       render(<OpportunityCard opportunity={mockOpportunity} onSelect={onSelect} />)
 
-      expect(screen.getByText('TypeScript')).toBeInTheDocument()
+      // Check for TypeScript in skill tags section (not repository language)
+      const typescriptElements = screen.getAllByText('TypeScript')
+      const skillTagElement = typescriptElements.find(el => el.closest('.skill-tag'))
+      expect(skillTagElement).toBeInTheDocument()
       expect(screen.getByText('Node.js')).toBeInTheDocument()
       expect(screen.getByText('Jest')).toBeInTheDocument()
       expect(screen.getByText('+1 more')).toBeInTheDocument()
@@ -830,7 +836,9 @@ describe('Search Components', () => {
       )
 
       expect(screen.getByText('Loading opportunities...')).toBeInTheDocument()
-      expect(screen.getByRole('status', { name: /loading opportunities/i })).toBeInTheDocument()
+      // Check for aria-live region instead of status role
+      const loadingDiv = screen.getByText('Loading opportunities...').closest('[aria-live]')
+      expect(loadingDiv).toHaveAttribute('aria-live', 'polite')
     })
 
     it('should show error state', () => {
@@ -871,6 +879,7 @@ describe('Search Components', () => {
     })
 
     it('should call onOpportunitySelect when opportunity is clicked', async () => {
+      const user = userEvent.setup()
       const onOpportunitySelect = vi.fn()
       render(
         <OpportunityList
@@ -941,6 +950,7 @@ describe('Search Components', () => {
     })
 
     it('should handle search flow integration', async () => {
+      const user = userEvent.setup()
       const handleSearch = vi.fn()
       const handleFiltersChange = vi.fn()
       const handleOpportunitySelect = vi.fn()

@@ -1,0 +1,98 @@
+// Component test setup for React Testing Library and JSDOM
+
+import '@testing-library/jest-dom'
+import { cleanup } from '@testing-library/react'
+import { afterEach, beforeEach, vi } from 'vitest'
+
+// Enable global testing-library extensions
+import type { TestingLibraryMatchers } from '@testing-library/jest-dom/matchers'
+
+declare module 'vitest' {
+  interface Assertion<T = any> extends jest.Matchers<void>, TestingLibraryMatchers<T, void> {}
+}
+
+// Clean up after each test
+afterEach(() => {
+  // Clean up Testing Library rendered components
+  cleanup()
+  
+  // Force clear the document body
+  document.body.innerHTML = ''
+  document.head.innerHTML = ''
+  
+  // Clear all mocks
+  vi.clearAllMocks()
+  vi.resetAllMocks()
+})
+
+// Setup before each test  
+beforeEach(() => {
+  // Ensure clean document state
+  document.body.innerHTML = ''
+  document.head.innerHTML = ''
+  
+  // Clear all mocks
+  vi.clearAllMocks()
+})
+
+// Mock Next.js router by default for all component tests
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    refresh: vi.fn(),
+    back: vi.fn(),
+    forward: vi.fn(),
+    prefetch: vi.fn(),
+  }),
+  useSearchParams: () => ({
+    get: vi.fn().mockReturnValue(null),
+    toString: vi.fn().mockReturnValue(''),
+    has: vi.fn().mockReturnValue(false),
+    getAll: vi.fn().mockReturnValue([]),
+    entries: vi.fn().mockReturnValue([]),
+    forEach: vi.fn(),
+    keys: vi.fn().mockReturnValue([]),
+    values: vi.fn().mockReturnValue([]),
+  }),
+  usePathname: () => '/',
+  useParams: () => ({}),
+}))
+
+// Mock window.location.reload for retry buttons
+Object.defineProperty(window, 'location', {
+  value: {
+    reload: vi.fn(),
+    href: 'http://localhost:3000',
+    origin: 'http://localhost:3000',
+    pathname: '/',
+    search: '',
+    hash: '',
+  },
+  writable: true,
+})
+
+// Mock ResizeObserver for components that might use it
+global.ResizeObserver = vi.fn().mockImplementation(() => ({
+  observe: vi.fn(),
+  unobserve: vi.fn(),
+  disconnect: vi.fn(),
+}))
+
+// Mock IntersectionObserver for components that might use it
+global.IntersectionObserver = vi.fn().mockImplementation(() => ({
+  observe: vi.fn(),
+  unobserve: vi.fn(),
+  disconnect: vi.fn(),
+}))
+
+// Suppress console output in tests unless debugging
+if (!process.env.DEBUG_TESTS) {
+  global.console = {
+    ...console,
+    log: vi.fn(),
+    debug: vi.fn(),
+    info: vi.fn(),
+    // Keep warn and error for debugging test issues
+  }
+}
