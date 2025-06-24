@@ -1,0 +1,527 @@
+{
+  "timestamp": "2025-06-24T17:52:48.116Z",
+  "baseline": {
+    "timestamp": 1750787568108,
+    "heap": {
+      "used": 4601144,
+      "total": 5820416,
+      "efficiency": 79.0518066062632
+    },
+    "v8": {
+      "totalHeapSize": 5820416,
+      "usedHeapSize": 4583080,
+      "totalAvailableSize": 4341621328,
+      "heapSizeLimit": 4345298944
+    },
+    "process": {
+      "rss": 46006272,
+      "external": 1629000,
+      "arrayBuffers": 10691
+    },
+    "heapSpaces": [
+      {
+        "name": "read_only_space",
+        "size": 0,
+        "used": 0,
+        "available": 0,
+        "efficiency": null
+      },
+      {
+        "name": "new_space",
+        "size": 1048576,
+        "used": 567128,
+        "available": 463784,
+        "efficiency": 54.085540771484375
+      },
+      {
+        "name": "old_space",
+        "size": 3166208,
+        "used": 2870392,
+        "available": 238272,
+        "efficiency": 90.65708885834411
+      },
+      {
+        "name": "code_space",
+        "size": 262144,
+        "used": 17024,
+        "available": 228704,
+        "efficiency": 6.494140625
+      },
+      {
+        "name": "shared_space",
+        "size": 0,
+        "used": 0,
+        "available": 0,
+        "efficiency": null
+      },
+      {
+        "name": "trusted_space",
+        "size": 1073152,
+        "used": 891024,
+        "available": 156480,
+        "efficiency": 83.02868559160305
+      },
+      {
+        "name": "new_large_object_space",
+        "size": 0,
+        "used": 0,
+        "available": 1030912,
+        "efficiency": null
+      },
+      {
+        "name": "large_object_space",
+        "size": 270336,
+        "used": 262160,
+        "available": 0,
+        "efficiency": 96.97561553030303
+      },
+      {
+        "name": "code_large_object_space",
+        "size": 0,
+        "used": 0,
+        "available": 0,
+        "efficiency": null
+      },
+      {
+        "name": "shared_large_object_space",
+        "size": 0,
+        "used": 0,
+        "available": 0,
+        "efficiency": null
+      },
+      {
+        "name": "trusted_large_object_space",
+        "size": 0,
+        "used": 0,
+        "available": 0,
+        "efficiency": null
+      }
+    ]
+  },
+  "snapshots": [
+    {
+      "label": "initial",
+      "stats": {
+        "timestamp": 1750787568108,
+        "heap": {
+          "used": 4630008,
+          "total": 5820416,
+          "efficiency": 79.54771617698803
+        },
+        "v8": {
+          "totalHeapSize": 5820416,
+          "usedHeapSize": 4629424,
+          "totalAvailableSize": 4341574984,
+          "heapSizeLimit": 4345298944
+        },
+        "process": {
+          "rss": 46006272,
+          "external": 1629040,
+          "arrayBuffers": 10691
+        },
+        "heapSpaces": [
+          {
+            "name": "read_only_space",
+            "size": 0,
+            "used": 0,
+            "available": 0,
+            "efficiency": null
+          },
+          {
+            "name": "new_space",
+            "size": 1048576,
+            "used": 582288,
+            "available": 448624,
+            "efficiency": 55.53131103515625
+          },
+          {
+            "name": "old_space",
+            "size": 3166208,
+            "used": 2876944,
+            "available": 231720,
+            "efficiency": 90.86402409443726
+          },
+          {
+            "name": "code_space",
+            "size": 262144,
+            "used": 17024,
+            "available": 228704,
+            "efficiency": 6.494140625
+          },
+          {
+            "name": "shared_space",
+            "size": 0,
+            "used": 0,
+            "available": 0,
+            "efficiency": null
+          },
+          {
+            "name": "trusted_space",
+            "size": 1073152,
+            "used": 892280,
+            "available": 155224,
+            "efficiency": 83.1457239980916
+          },
+          {
+            "name": "new_large_object_space",
+            "size": 0,
+            "used": 0,
+            "available": 1030912,
+            "efficiency": null
+          },
+          {
+            "name": "large_object_space",
+            "size": 270336,
+            "used": 262160,
+            "available": 0,
+            "efficiency": 96.97561553030303
+          },
+          {
+            "name": "code_large_object_space",
+            "size": 0,
+            "used": 0,
+            "available": 0,
+            "efficiency": null
+          },
+          {
+            "name": "shared_large_object_space",
+            "size": 0,
+            "used": 0,
+            "available": 0,
+            "efficiency": null
+          },
+          {
+            "name": "trusted_large_object_space",
+            "size": 0,
+            "used": 0,
+            "available": 0,
+            "efficiency": null
+          }
+        ]
+      }
+    },
+    {
+      "label": "after-allocation",
+      "stats": {
+        "timestamp": 1750787568116,
+        "heap": {
+          "used": 13675320,
+          "total": 28889088,
+          "efficiency": 47.33731989047214
+        },
+        "v8": {
+          "totalHeapSize": 28889088,
+          "usedHeapSize": 13674736,
+          "totalAvailableSize": 4331251352,
+          "heapSizeLimit": 4345298944
+        },
+        "process": {
+          "rss": 66650112,
+          "external": 1629040,
+          "arrayBuffers": 10691
+        },
+        "heapSpaces": [
+          {
+            "name": "read_only_space",
+            "size": 0,
+            "used": 0,
+            "available": 0,
+            "efficiency": null
+          },
+          {
+            "name": "new_space",
+            "size": 16777216,
+            "used": 2670000,
+            "available": 5577296,
+            "efficiency": 15.914440155029297
+          },
+          {
+            "name": "old_space",
+            "size": 10506240,
+            "used": 9790736,
+            "available": 534200,
+            "efficiency": 93.18972344054582
+          },
+          {
+            "name": "code_space",
+            "size": 262144,
+            "used": 53632,
+            "available": 192096,
+            "efficiency": 20.458984375
+          },
+          {
+            "name": "shared_space",
+            "size": 0,
+            "used": 0,
+            "available": 0,
+            "efficiency": null
+          },
+          {
+            "name": "trusted_space",
+            "size": 1073152,
+            "used": 899360,
+            "available": 148144,
+            "efficiency": 83.80546278625954
+          },
+          {
+            "name": "new_large_object_space",
+            "size": 0,
+            "used": 0,
+            "available": 8388608,
+            "efficiency": null
+          },
+          {
+            "name": "large_object_space",
+            "size": 270336,
+            "used": 262160,
+            "available": 0,
+            "efficiency": 96.97561553030303
+          },
+          {
+            "name": "code_large_object_space",
+            "size": 0,
+            "used": 0,
+            "available": 0,
+            "efficiency": null
+          },
+          {
+            "name": "shared_large_object_space",
+            "size": 0,
+            "used": 0,
+            "available": 0,
+            "efficiency": null
+          },
+          {
+            "name": "trusted_large_object_space",
+            "size": 0,
+            "used": 0,
+            "available": 0,
+            "efficiency": null
+          }
+        ]
+      }
+    },
+    {
+      "label": "after-gc",
+      "stats": {
+        "timestamp": 1750787568116,
+        "heap": {
+          "used": 13691504,
+          "total": 28889088,
+          "efficiency": 47.39334104281866
+        },
+        "v8": {
+          "totalHeapSize": 28889088,
+          "usedHeapSize": 13690920,
+          "totalAvailableSize": 4331235168,
+          "heapSizeLimit": 4345298944
+        },
+        "process": {
+          "rss": 66650112,
+          "external": 1629040,
+          "arrayBuffers": 10691
+        },
+        "heapSpaces": [
+          {
+            "name": "read_only_space",
+            "size": 0,
+            "used": 0,
+            "available": 0,
+            "efficiency": null
+          },
+          {
+            "name": "new_space",
+            "size": 16777216,
+            "used": 2685096,
+            "available": 5562200,
+            "efficiency": 16.004419326782227
+          },
+          {
+            "name": "old_space",
+            "size": 10506240,
+            "used": 9791464,
+            "available": 533472,
+            "efficiency": 93.19665265594543
+          },
+          {
+            "name": "code_space",
+            "size": 262144,
+            "used": 53632,
+            "available": 192096,
+            "efficiency": 20.458984375
+          },
+          {
+            "name": "shared_space",
+            "size": 0,
+            "used": 0,
+            "available": 0,
+            "efficiency": null
+          },
+          {
+            "name": "trusted_space",
+            "size": 1073152,
+            "used": 899720,
+            "available": 147784,
+            "efficiency": 83.83900882633588
+          },
+          {
+            "name": "new_large_object_space",
+            "size": 0,
+            "used": 0,
+            "available": 8388608,
+            "efficiency": null
+          },
+          {
+            "name": "large_object_space",
+            "size": 270336,
+            "used": 262160,
+            "available": 0,
+            "efficiency": 96.97561553030303
+          },
+          {
+            "name": "code_large_object_space",
+            "size": 0,
+            "used": 0,
+            "available": 0,
+            "efficiency": null
+          },
+          {
+            "name": "shared_large_object_space",
+            "size": 0,
+            "used": 0,
+            "available": 0,
+            "efficiency": null
+          },
+          {
+            "name": "trusted_large_object_space",
+            "size": 0,
+            "used": 0,
+            "available": 0,
+            "efficiency": null
+          }
+        ]
+      }
+    },
+    {
+      "label": "after-cleanup",
+      "stats": {
+        "timestamp": 1750787568116,
+        "heap": {
+          "used": 13706576,
+          "total": 28889088,
+          "efficiency": 47.44551299092585
+        },
+        "v8": {
+          "totalHeapSize": 28889088,
+          "usedHeapSize": 13705992,
+          "totalAvailableSize": 4331220096,
+          "heapSizeLimit": 4345298944
+        },
+        "process": {
+          "rss": 66650112,
+          "external": 1629040,
+          "arrayBuffers": 10691
+        },
+        "heapSpaces": [
+          {
+            "name": "read_only_space",
+            "size": 0,
+            "used": 0,
+            "available": 0,
+            "efficiency": null
+          },
+          {
+            "name": "new_space",
+            "size": 16777216,
+            "used": 2700168,
+            "available": 5547128,
+            "efficiency": 16.094255447387695
+          },
+          {
+            "name": "old_space",
+            "size": 10506240,
+            "used": 9791464,
+            "available": 533472,
+            "efficiency": 93.19665265594543
+          },
+          {
+            "name": "code_space",
+            "size": 262144,
+            "used": 53632,
+            "available": 192096,
+            "efficiency": 20.458984375
+          },
+          {
+            "name": "shared_space",
+            "size": 0,
+            "used": 0,
+            "available": 0,
+            "efficiency": null
+          },
+          {
+            "name": "trusted_space",
+            "size": 1073152,
+            "used": 899720,
+            "available": 147784,
+            "efficiency": 83.83900882633588
+          },
+          {
+            "name": "new_large_object_space",
+            "size": 0,
+            "used": 0,
+            "available": 8388608,
+            "efficiency": null
+          },
+          {
+            "name": "large_object_space",
+            "size": 270336,
+            "used": 262160,
+            "available": 0,
+            "efficiency": 96.97561553030303
+          },
+          {
+            "name": "code_large_object_space",
+            "size": 0,
+            "used": 0,
+            "available": 0,
+            "efficiency": null
+          },
+          {
+            "name": "shared_large_object_space",
+            "size": 0,
+            "used": 0,
+            "available": 0,
+            "efficiency": null
+          },
+          {
+            "name": "trusted_large_object_space",
+            "size": 0,
+            "used": 0,
+            "available": 0,
+            "efficiency": null
+          }
+        ]
+      }
+    }
+  ],
+  "recommendations": [
+    {
+      "type": "heap-efficiency",
+      "severity": "medium",
+      "message": "Low heap efficiency detected",
+      "action": "Consider forcing garbage collection or reducing heap allocations"
+    },
+    {
+      "type": "heap-space-pressure",
+      "severity": "medium",
+      "message": "High pressure in old_space heap space",
+      "action": "Consider optimizing object allocations in this space"
+    }
+  ],
+  "summary": {
+    "totalSnapshots": 4,
+    "currentHeapUsage": 13759504,
+    "currentRSSUsage": 67829760,
+    "optimizationsSuggested": 2
+  }
+}
