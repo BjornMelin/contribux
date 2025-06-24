@@ -62,7 +62,7 @@ const jwtSecretSchema = z.string().refine(validateJwtSecret, {
 const postgresUrlSchema = z
   .string()
   .regex(
-    /^postgresql:\/\/[^:\/]+:[^@\/]*@[^\/]+\/[^?\/]+(\?.+)?$/,
+    /^postgresql:\/\/[^:/]+:[^@/]*@[^/]+\/[^?/]+(\?.+)?$/,
     'Must be a valid PostgreSQL connection string'
   )
 
@@ -140,23 +140,23 @@ export const envSchema = z
       .transform(value => {
         // Get the actual NODE_ENV from process.env at runtime
         const nodeEnv = process.env.NODE_ENV
-        
+
         // In test environment, provide default if not set
         if (nodeEnv === 'test' && !value) {
           return 'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only'
         }
-        
+
         return value || ''
       })
       .refine(
         (value, ctx) => {
           const nodeEnv = process.env.NODE_ENV
-          
+
           // Skip validation in test environment
           if (nodeEnv === 'test') {
             return true
           }
-          
+
           // For non-test environments, validate the JWT secret
           try {
             return validateJwtSecret(value)

@@ -3,12 +3,38 @@
  * Tests for critical search-related UI components
  */
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { z } from 'zod'
 import React from 'react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { z } from 'zod'
 import '@testing-library/jest-dom'
+
+// Create isolated render helper
+function renderIsolated(component: React.ReactElement) {
+  // Create a fresh container for this render
+  const testContainer = document.createElement('div')
+  testContainer.id = `test-container-${Date.now()}-${Math.random()}`
+  document.body.appendChild(testContainer)
+  
+  const result = render(component, { container: testContainer })
+  
+  // Return enhanced result with scoped queries
+  return {
+    ...result,
+    // Override queries to be scoped to this container
+    getByRole: (role: string, options?: any) => within(testContainer).getByRole(role, options),
+    getByText: (text: string | RegExp, options?: any) => within(testContainer).getByText(text, options),
+    getByTestId: (testId: string, options?: any) => within(testContainer).getByTestId(testId, options),
+    getByPlaceholderText: (text: string, options?: any) => within(testContainer).getByPlaceholderText(text, options),
+    getByDisplayValue: (value: string, options?: any) => within(testContainer).getByDisplayValue(value, options),
+    getAllByRole: (role: string, options?: any) => within(testContainer).getAllByRole(role, options),
+    getAllByText: (text: string | RegExp, options?: any) => within(testContainer).getAllByText(text, options),
+    queryByText: (text: string | RegExp, options?: any) => within(testContainer).queryByText(text, options),
+    queryByRole: (role: string, options?: any) => within(testContainer).queryByRole(role, options),
+    container: testContainer
+  }
+}
 
 // Mock Next.js router
 const mockPush = vi.fn()
@@ -28,397 +54,66 @@ vi.mock('next/navigation', () => ({
 
 // React hooks are not mocked for component tests - use real React behavior
 
-// Type definitions
-const SearchFiltersSchema = z.object({
-  query: z.string(),
-  difficulty: z.enum(['', 'beginner', 'intermediate', 'advanced', 'expert']),
-  type: z.enum(['', 'bug_fix', 'feature', 'documentation', 'testing', 'refactoring', 'other']),
-  languages: z.array(z.string()),
-  good_first_issue: z.boolean(),
-  help_wanted: z.boolean(),
-  min_score: z.number().min(0).max(1),
-})
-
-const OpportunitySchema = z.object({
-  id: z.string().uuid(),
-  title: z.string(),
-  description: z.string().nullable(),
-  type: z.string(),
-  difficulty: z.string(),
-  required_skills: z.array(z.string()),
-  technologies: z.array(z.string()),
-  good_first_issue: z.boolean(),
-  help_wanted: z.boolean(),
-  estimated_hours: z.number().nullable(),
-  relevance_score: z.number(),
-  repository: z.object({
-    name: z.string(),
-    full_name: z.string(),
-    language: z.string().nullable(),
-    stars_count: z.number(),
-  }),
-})
-
-type SearchFilters = z.infer<typeof SearchFiltersSchema>
-type Opportunity = z.infer<typeof OpportunitySchema>
-
-// Mock Components (simulating the actual components)
-interface SearchBarProps {
-  onSearch: (query: string) => void
-  placeholder?: string
-  defaultValue?: string
-  loading?: boolean
-  className?: string
-}
-
-function SearchBar({
-  onSearch,
-  placeholder = 'Search opportunities...',
-  defaultValue = '',
-  loading = false,
-  className = '',
-}: SearchBarProps) {
-  const [query, setQuery] = React.useState(defaultValue)
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    onSearch(query)
-  }
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      onSearch(query)
-    }
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className={`search-bar ${className}`}>
-      <input
-        type="text"
-        placeholder={placeholder}
-        value={query}
-        onChange={e => setQuery(e.target.value)}
-        onKeyDown={handleKeyDown}
-        disabled={loading}
-        className="search-input"
-        aria-label="Search input"
-      />
-      <button
-        type="submit"
-        disabled={loading || !query.trim()}
-        className="search-button"
-        aria-label="Search"
-      >
-        {loading ? 'Searching...' : 'Search'}
-      </button>
-    </form>
-  )
-}
-
-interface SearchFiltersProps {
-  filters: SearchFilters
-  onFiltersChange: (filters: SearchFilters) => void
-  loading?: boolean
-}
-
-function SearchFilters({ filters, onFiltersChange, loading = false }: SearchFiltersProps) {
-  const handleFilterChange = (key: keyof SearchFilters, value: string | boolean | string[]) => {
-    onFiltersChange({ ...filters, [key]: value })
-  }
-
-  const handleLanguageToggle = (language: string) => {
-    const newLanguages = filters.languages.includes(language)
-      ? filters.languages.filter(lang => lang !== language)
-      : [...filters.languages, language]
-
-    handleFilterChange('languages', newLanguages)
-  }
-
-  const resetFilters = () => {
-    onFiltersChange({
-      query: '',
-      difficulty: '',
-      type: '',
-      languages: [],
-      good_first_issue: false,
-      help_wanted: false,
-      min_score: 0,
-    })
-  }
-
-  return (
-    <div className="search-filters" data-testid="search-filters">
-      {/* Difficulty Filter */}
-      <div className="filter-group">
-        <label htmlFor="difficulty-select">Difficulty</label>
-        <select
-          id="difficulty-select"
-          value={filters.difficulty}
-          onChange={e => handleFilterChange('difficulty', e.target.value)}
-          disabled={loading}
-        >
-          <option value="">All Difficulties</option>
-          <option value="beginner">Beginner</option>
-          <option value="intermediate">Intermediate</option>
-          <option value="advanced">Advanced</option>
-          <option value="expert">Expert</option>
-        </select>
-      </div>
-
-      {/* Type Filter */}
-      <div className="filter-group">
-        <label htmlFor="type-select">Type</label>
-        <select
-          id="type-select"
-          value={filters.type}
-          onChange={e => handleFilterChange('type', e.target.value)}
-          disabled={loading}
-        >
-          <option value="">All Types</option>
-          <option value="bug_fix">Bug Fix</option>
-          <option value="feature">Feature</option>
-          <option value="documentation">Documentation</option>
-          <option value="testing">Testing</option>
-          <option value="refactoring">Refactoring</option>
-          <option value="other">Other</option>
-        </select>
-      </div>
-
-      {/* Language Checkboxes */}
-      <div className="filter-group">
-        <label>Languages</label>
-        <div className="language-checkboxes">
-          {['TypeScript', 'Python', 'JavaScript', 'Java', 'Go', 'Rust'].map(language => (
-            <label key={language} className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={filters.languages.includes(language)}
-                onChange={() => handleLanguageToggle(language)}
-                disabled={loading}
-              />
-              {language}
-            </label>
-          ))}
-        </div>
-      </div>
-
-      {/* Boolean Filters */}
-      <div className="filter-group">
-        <label className="checkbox-label">
-          <input
-            type="checkbox"
-            checked={filters.good_first_issue}
-            onChange={e => handleFilterChange('good_first_issue', e.target.checked)}
-            disabled={loading}
-          />
-          Good First Issue
-        </label>
-      </div>
-
-      <div className="filter-group">
-        <label className="checkbox-label">
-          <input
-            type="checkbox"
-            checked={filters.help_wanted}
-            onChange={e => handleFilterChange('help_wanted', e.target.checked)}
-            disabled={loading}
-          />
-          Help Wanted
-        </label>
-      </div>
-
-      {/* Minimum Score Slider */}
-      <div className="filter-group">
-        <label htmlFor="min-score-slider">
-          Minimum Relevance Score: {filters.min_score.toFixed(2)}
-        </label>
-        <input
-          id="min-score-slider"
-          type="range"
-          min="0"
-          max="1"
-          step="0.1"
-          value={filters.min_score}
-          onChange={e => handleFilterChange('min_score', Number.parseFloat(e.target.value))}
-          disabled={loading}
-        />
-      </div>
-
-      <button
-        type="button"
-        onClick={resetFilters}
-        disabled={loading}
-        className="reset-filters-button"
-      >
-        Reset Filters
-      </button>
-    </div>
-  )
-}
-
-interface OpportunityCardProps {
-  opportunity: Opportunity
-  onSelect: (opportunity: Opportunity) => void
-  className?: string
-}
-
-function OpportunityCard({ opportunity, onSelect, className = '' }: OpportunityCardProps) {
-  const handleClick = () => {
-    onSelect(opportunity)
-  }
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault()
-      onSelect(opportunity)
-    }
-  }
-
-  return (
-    <div
-      className={`opportunity-card ${className}`}
-      onClick={handleClick}
-      onKeyDown={handleKeyDown}
-      tabIndex={0}
-      role="button"
-      aria-label={`View opportunity: ${opportunity.title}`}
-      data-testid={`opportunity-${opportunity.id}`}
-    >
-      <div className="opportunity-header">
-        <h3 className="opportunity-title">{opportunity.title}</h3>
-        <div className="opportunity-meta">
-          <span className={`difficulty-badge ${opportunity.difficulty}`}>
-            {opportunity.difficulty}
-          </span>
-          <span className={`type-badge ${opportunity.type}`}>
-            {opportunity.type.replace('_', ' ')}
-          </span>
-        </div>
-      </div>
-
-      {opportunity.description && (
-        <p className="opportunity-description">
-          {opportunity.description.length > 150
-            ? `${opportunity.description.substring(0, 150)}...`
-            : opportunity.description}
-        </p>
-      )}
-
-      <div className="opportunity-details">
-        <div className="repository-info">
-          <span className="repository-name">{opportunity.repository.full_name}</span>
-          {opportunity.repository.language && (
-            <span className="repository-language">{opportunity.repository.language}</span>
-          )}
-          <span className="repository-stars">⭐ {opportunity.repository.stars_count}</span>
-        </div>
-
-        <div className="opportunity-tags">
-          {opportunity.good_first_issue && (
-            <span className="tag good-first-issue">Good First Issue</span>
-          )}
-          {opportunity.help_wanted && <span className="tag help-wanted">Help Wanted</span>}
-          {opportunity.estimated_hours && (
-            <span className="tag estimated-time">{opportunity.estimated_hours}h</span>
-          )}
-        </div>
-
-        <div className="opportunity-skills">
-          {opportunity.technologies.slice(0, 3).map(tech => (
-            <span key={tech} className="skill-tag">
-              {tech}
-            </span>
-          ))}
-          {opportunity.technologies.length > 3 && (
-            <span className="skill-tag more">+{opportunity.technologies.length - 3} more</span>
-          )}
-        </div>
-
-        <div className="relevance-score">
-          <span className="score-label">Relevance:</span>
-          <span className="score-value">{(opportunity.relevance_score * 100).toFixed(0)}%</span>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-interface OpportunityListProps {
-  opportunities: Opportunity[]
-  loading?: boolean
-  error?: string | null
-  onOpportunitySelect: (opportunity: Opportunity) => void
-  emptyMessage?: string
-}
-
-function OpportunityList({
-  opportunities,
-  loading = false,
-  error = null,
-  onOpportunitySelect,
-  emptyMessage = 'No opportunities found',
-}: OpportunityListProps) {
-  if (error) {
-    return (
-      <div className="opportunity-list-error" role="alert">
-        <p>Error loading opportunities: {error}</p>
-        <button onClick={() => window.location.reload()}>Retry</button>
-      </div>
-    )
-  }
-
-  if (loading) {
-    return (
-      <div className="opportunity-list-loading" aria-live="polite">
-        <div className="loading-spinner" />
-        <p>Loading opportunities...</p>
-      </div>
-    )
-  }
-
-  if (opportunities.length === 0) {
-    return (
-      <div className="opportunity-list-empty">
-        <p>{emptyMessage}</p>
-      </div>
-    )
-  }
-
-  return (
-    <div className="opportunity-list" data-testid="opportunity-list">
-      {opportunities.map(opportunity => (
-        <OpportunityCard
-          key={opportunity.id}
-          opportunity={opportunity}
-          onSelect={onOpportunitySelect}
-        />
-      ))}
-    </div>
-  )
-}
+// Import actual components (rename SearchFilters component to avoid name conflict)
+import {
+  OpportunityCard,
+  OpportunityList,
+  SearchBar,
+  SearchFilters as SearchFiltersComponent,
+} from '@/components/features'
+// Import types and schemas
+import {
+  type Opportunity,
+  OpportunitySchema,
+  type SearchFilters,
+  SearchFiltersSchema,
+} from '@/types/search'
 
 // Use real React for component definitions - imported at the top
 
 describe('Search Components', () => {
-  // Note: cleanup is handled in the setup file, no need to duplicate here
+  // Use container approach for better test isolation
+  let container: HTMLElement
+
+  beforeEach(() => {
+    // Create a fresh container for each test
+    cleanup()
+    document.body.innerHTML = ''
+    container = document.createElement('div')
+    container.id = 'test-container'
+    document.body.appendChild(container)
+    
+    vi.clearAllMocks()
+    mockPush.mockClear()
+    mockReplace.mockClear()
+  })
+
+  afterEach(() => {
+    // Remove the container completely
+    cleanup()
+    if (container && container.parentNode) {
+      container.parentNode.removeChild(container)
+    }
+    document.body.innerHTML = ''
+  })
 
   describe('SearchBar', () => {
     it('should render with default props', () => {
       const onSearch = vi.fn()
-      render(<SearchBar onSearch={onSearch} />)
+      const { getByRole, getByPlaceholderText } = renderIsolated(<SearchBar onSearch={onSearch} />)
 
-      expect(screen.getByRole('textbox', { name: 'Search input' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Search' })).toBeInTheDocument()
-      expect(screen.getByPlaceholderText('Search opportunities...')).toBeInTheDocument()
+      expect(getByRole('textbox', { name: 'Search input' })).toBeInTheDocument()
+      expect(getByRole('button', { name: 'Search' })).toBeInTheDocument()
+      expect(getByPlaceholderText('Search opportunities...')).toBeInTheDocument()
     })
 
     it('should call onSearch when form is submitted', async () => {
       const user = userEvent.setup()
       const onSearch = vi.fn()
-      render(<SearchBar onSearch={onSearch} />)
+      const { getByRole } = renderIsolated(<SearchBar onSearch={onSearch} />)
 
-      const input = screen.getByRole('textbox', { name: 'Search input' })
-      const button = screen.getByRole('button', { name: 'Search' })
+      const input = getByRole('textbox', { name: 'Search input' })
+      const button = getByRole('button', { name: 'Search' })
 
       await user.type(input, 'TypeScript')
       await user.click(button)
@@ -483,7 +178,7 @@ describe('Search Components', () => {
 
     it('should render all filter controls', () => {
       const onFiltersChange = vi.fn()
-      render(<SearchFilters filters={defaultFilters} onFiltersChange={onFiltersChange} />)
+      render(<SearchFiltersComponent filters={defaultFilters} onFiltersChange={onFiltersChange} />)
 
       expect(screen.getByRole('combobox', { name: /difficulty/i })).toBeInTheDocument()
       expect(screen.getByRole('combobox', { name: /type/i })).toBeInTheDocument()
@@ -504,10 +199,12 @@ describe('Search Components', () => {
       }
 
       const onFiltersChange = vi.fn()
-      render(<SearchFilters filters={filters} onFiltersChange={onFiltersChange} />)
+      render(<SearchFiltersComponent filters={filters} onFiltersChange={onFiltersChange} />)
 
       // Check that the correct options are selected by finding the select elements and checking their values
-      const difficultySelect = screen.getByRole('combobox', { name: /difficulty/i }) as HTMLSelectElement
+      const difficultySelect = screen.getByRole('combobox', {
+        name: /difficulty/i,
+      }) as HTMLSelectElement
       const typeSelect = screen.getByRole('combobox', { name: /type/i }) as HTMLSelectElement
       expect(difficultySelect.value).toBe('intermediate')
       expect(typeSelect.value).toBe('bug_fix')
@@ -520,7 +217,7 @@ describe('Search Components', () => {
     it('should call onFiltersChange when difficulty changes', async () => {
       const user = userEvent.setup()
       const onFiltersChange = vi.fn()
-      render(<SearchFilters filters={defaultFilters} onFiltersChange={onFiltersChange} />)
+      render(<SearchFiltersComponent filters={defaultFilters} onFiltersChange={onFiltersChange} />)
 
       const difficultySelect = screen.getByRole('combobox', { name: /difficulty/i })
       await user.selectOptions(difficultySelect, 'advanced')
@@ -534,7 +231,7 @@ describe('Search Components', () => {
     it('should call onFiltersChange when type changes', async () => {
       const user = userEvent.setup()
       const onFiltersChange = vi.fn()
-      render(<SearchFilters filters={defaultFilters} onFiltersChange={onFiltersChange} />)
+      render(<SearchFiltersComponent filters={defaultFilters} onFiltersChange={onFiltersChange} />)
 
       const typeSelect = screen.getByRole('combobox', { name: /type/i })
       await user.selectOptions(typeSelect, 'feature')
@@ -548,7 +245,7 @@ describe('Search Components', () => {
     it('should toggle languages correctly', async () => {
       const user = userEvent.setup()
       const onFiltersChange = vi.fn()
-      render(<SearchFilters filters={defaultFilters} onFiltersChange={onFiltersChange} />)
+      render(<SearchFiltersComponent filters={defaultFilters} onFiltersChange={onFiltersChange} />)
 
       const typescriptCheckbox = screen.getByRole('checkbox', { name: /typescript/i })
       await user.click(typescriptCheckbox)
@@ -569,7 +266,7 @@ describe('Search Components', () => {
       const user = userEvent.setup()
       const filtersWithLang = { ...defaultFilters, languages: ['TypeScript', 'Python'] }
       const onFiltersChange = vi.fn()
-      render(<SearchFilters filters={filtersWithLang} onFiltersChange={onFiltersChange} />)
+      render(<SearchFiltersComponent filters={filtersWithLang} onFiltersChange={onFiltersChange} />)
 
       const pythonCheckbox = screen.getByRole('checkbox', { name: /python/i })
       await user.click(pythonCheckbox)
@@ -583,7 +280,7 @@ describe('Search Components', () => {
     it('should update boolean filters', async () => {
       const user = userEvent.setup()
       const onFiltersChange = vi.fn()
-      render(<SearchFilters filters={defaultFilters} onFiltersChange={onFiltersChange} />)
+      render(<SearchFiltersComponent filters={defaultFilters} onFiltersChange={onFiltersChange} />)
 
       const gfiCheckbox = screen.getByRole('checkbox', { name: /good first issue/i })
       await user.click(gfiCheckbox)
@@ -596,7 +293,7 @@ describe('Search Components', () => {
 
     it('should update minimum score slider', async () => {
       const onFiltersChange = vi.fn()
-      render(<SearchFilters filters={defaultFilters} onFiltersChange={onFiltersChange} />)
+      render(<SearchFiltersComponent filters={defaultFilters} onFiltersChange={onFiltersChange} />)
 
       const slider = screen.getByRole('slider', { name: /minimum relevance score/i })
       fireEvent.change(slider, { target: { value: '0.7' } })
@@ -619,7 +316,7 @@ describe('Search Components', () => {
       }
 
       const onFiltersChange = vi.fn()
-      render(<SearchFilters filters={filtersWithValues} onFiltersChange={onFiltersChange} />)
+      render(<SearchFiltersComponent filters={filtersWithValues} onFiltersChange={onFiltersChange} />)
 
       const resetButton = screen.getByRole('button', { name: /reset filters/i })
       const user2 = userEvent.setup()
@@ -631,7 +328,7 @@ describe('Search Components', () => {
     it('should disable all controls when loading', () => {
       const onFiltersChange = vi.fn()
       render(
-        <SearchFilters filters={defaultFilters} onFiltersChange={onFiltersChange} loading={true} />
+        <SearchFiltersComponent filters={defaultFilters} onFiltersChange={onFiltersChange} loading={true} />
       )
 
       expect(screen.getByRole('combobox', { name: /difficulty/i })).toBeDisabled()
@@ -676,7 +373,9 @@ describe('Search Components', () => {
       expect(screen.getByText('company/search-engine')).toBeInTheDocument()
       // Check for TypeScript in repository language section
       const typescriptElements = screen.getAllByText('TypeScript')
-      const repositoryLanguageElement = typescriptElements.find(el => el.closest('.repository-language'))
+      const repositoryLanguageElement = typescriptElements.find(el =>
+        el.closest('.repository-language')
+      )
       expect(repositoryLanguageElement).toBeInTheDocument()
       expect(screen.getByText('⭐ 1250')).toBeInTheDocument()
       expect(screen.getByText('Help Wanted')).toBeInTheDocument()
@@ -968,7 +667,7 @@ describe('Search Components', () => {
       render(
         <div>
           <SearchBar onSearch={handleSearch} />
-          <SearchFilters filters={filters} onFiltersChange={handleFiltersChange} />
+          <SearchFiltersComponent filters={filters} onFiltersChange={handleFiltersChange} />
           <OpportunityList opportunities={[]} onOpportunitySelect={handleOpportunitySelect} />
         </div>
       )

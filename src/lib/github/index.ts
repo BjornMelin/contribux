@@ -15,9 +15,8 @@ export { createGitHubClient, GitHubClient } from './client'
 export * from './constants'
 // Error classes
 export * from './errors'
+// Re-export specific types for load testing
+export type { TokenInfo } from './types'
 export * from './types'
 // Core utilities
 export * from './utils'
-
-// Re-export specific types for load testing
-export type { TokenInfo } from './types'

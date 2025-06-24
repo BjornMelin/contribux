@@ -1,6 +1,6 @@
 /**
  * Simplified Environment Validation Tests
- * 
+ *
  * Testing the core validation logic with direct schema invocation
  */
 
@@ -48,7 +48,7 @@ describe('Environment Validation Core Logic', () => {
   })
 
   describe('PostgreSQL URL Validation', () => {
-    const postgresUrlRegex = /^postgresql:\/\/[^:\/]+:[^@\/]*@[^\/]+\/[^?\/]+(\?.+)?$/
+    const postgresUrlRegex = /^postgresql:\/\/[^:/]+:[^@/]*@[^/]+\/[^?/]+(\?.+)?$/
 
     it('should accept valid PostgreSQL URLs', () => {
       const validUrls = [
@@ -77,7 +77,8 @@ describe('Environment Validation Core Logic', () => {
   })
 
   describe('Domain Validation for RP ID', () => {
-    const domainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
+    const domainRegex =
+      /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
 
     it('should accept valid domain formats', () => {
       const validDomains = ['example.com', 'sub.example.com', 'app-staging.company.io']
@@ -124,11 +125,7 @@ describe('Environment Validation Core Logic', () => {
     })
 
     it('should reject invalid GitHub client ID formats', () => {
-      const invalidIds = [
-        'invalid-format',
-        'Iv1.short',
-        'toolongforgithubappformat',
-      ]
+      const invalidIds = ['invalid-format', 'Iv1.short', 'toolongforgithubappformat']
 
       for (const id of invalidIds) {
         expect(githubClientIdRegex.test(id), `Should reject ID: ${id}`).toBe(false)
@@ -139,7 +136,7 @@ describe('Environment Validation Core Logic', () => {
   describe('Rate Limiting Validation', () => {
     it('should enforce reasonable rate limits', () => {
       const maxReasonableLimit = 1000
-      
+
       expect(500).toBeLessThanOrEqual(maxReasonableLimit)
       expect(1000).toBeLessThanOrEqual(maxReasonableLimit)
       expect(2000).toBeGreaterThan(maxReasonableLimit)
@@ -148,10 +145,7 @@ describe('Environment Validation Core Logic', () => {
 
   describe('Redirect URI Validation', () => {
     it('should validate redirect URI format', () => {
-      const validUris = [
-        'http://localhost:3000/callback',
-        'https://example.com/auth/callback',
-      ]
+      const validUris = ['http://localhost:3000/callback', 'https://example.com/auth/callback']
 
       for (const uri of validUris) {
         expect(() => new URL(uri)).not.toThrow()
@@ -159,10 +153,7 @@ describe('Environment Validation Core Logic', () => {
     })
 
     it('should reject invalid redirect URIs', () => {
-      const invalidUris = [
-        'invalid-uri',
-        'not-a-url',
-      ]
+      const invalidUris = ['invalid-uri', 'not-a-url']
 
       for (const uri of invalidUris) {
         expect(() => new URL(uri)).toThrow()

@@ -123,9 +123,9 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
     })
 
     it('should handle rate limit information with edge case values', async () => {
-      const client = createClient({ 
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' },
-        userAgent: 'edge-case-test/1.0.0'
+        userAgent: 'edge-case-test/1.0.0',
       })
       const rateLimit = await client.getRateLimit()
 
@@ -391,7 +391,11 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
 
     it('should handle null user in issues', async () => {
       const client = createClient({ auth: { type: 'token', token: 'test_token' } })
-      const issue = await client.getIssue({ owner: 'null-user-test', repo: 'null-user-repo', issueNumber: 1 })
+      const issue = await client.getIssue({
+        owner: 'null-user-test',
+        repo: 'null-user-repo',
+        issueNumber: 1,
+      })
 
       expect(issue.user).toBeNull()
       expect(issue.body).toBeNull()
@@ -568,7 +572,7 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
     })
 
     it('should handle GraphQL errors in response', async () => {
-      const client = createClient({ 
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' },
         retry: { retries: 0 },
       })
@@ -600,7 +604,7 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
     })
 
     it('should handle concurrent GraphQL queries', async () => {
-      const client = createClient({ 
+      const client = createClient({
         auth: { type: 'token', token: 'test_token' },
         retry: { retries: 0 }, // Disable retries to avoid timeouts
         throttle: {

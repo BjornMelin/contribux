@@ -56,13 +56,13 @@ describe('GitHub Client Load Testing', () => {
           requestCount++
           return [
             200,
-            { 
-              login: `user_${requestCount}`, 
+            {
+              login: `user_${requestCount}`,
               id: requestCount,
               avatar_url: `https://github.com/images/user_${requestCount}.png`,
               html_url: `https://github.com/user_${requestCount}`,
               type: 'User',
-              site_admin: false
+              site_admin: false,
             },
             createRateLimitHeaders({ remaining: 5000 - requestCount }),
           ]
@@ -168,13 +168,13 @@ describe('GitHub Client Load Testing', () => {
           restCount++
           return [
             200,
-            { 
-              login: `rest_user_${restCount}`, 
+            {
+              login: `rest_user_${restCount}`,
               id: restCount,
               avatar_url: `https://github.com/images/rest_user_${restCount}.png`,
               html_url: `https://github.com/rest_user_${restCount}`,
               type: 'User',
-              site_admin: false
+              site_admin: false,
             },
             createRateLimitHeaders({ remaining: 5000 - restCount }),
           ]
@@ -343,13 +343,13 @@ describe('GitHub Client Load Testing', () => {
           requestCount++
           return [
             200,
-            { 
-              login: `user_${requestCount}`, 
+            {
+              login: `user_${requestCount}`,
               id: requestCount,
               avatar_url: `https://github.com/images/user_${requestCount}.png`,
               html_url: `https://github.com/user_${requestCount}`,
               type: 'User',
-              site_admin: false
+              site_admin: false,
             },
             createRateLimitHeaders({ remaining: 5000 - requestCount }),
           ]
@@ -401,13 +401,13 @@ describe('GitHub Client Load Testing', () => {
           jwtGenerationCount++
           return [
             200,
-            { 
-              login: `user_${jwtGenerationCount}`, 
+            {
+              login: `user_${jwtGenerationCount}`,
               id: jwtGenerationCount,
               avatar_url: `https://github.com/images/user_${jwtGenerationCount}.png`,
               html_url: `https://github.com/user_${jwtGenerationCount}`,
               type: 'User',
-              site_admin: false
+              site_admin: false,
             },
             createRateLimitHeaders({ remaining: 5000 - jwtGenerationCount }),
           ]
@@ -464,13 +464,13 @@ describe('GitHub Client Load Testing', () => {
             // First 7 requests succeed
             return [
               200,
-              { 
-                login: `user_${requestCount}`, 
+              {
+                login: `user_${requestCount}`,
                 id: requestCount,
                 avatar_url: `https://github.com/images/user_${requestCount}.png`,
                 html_url: `https://github.com/user_${requestCount}`,
                 type: 'User',
-                site_admin: false
+                site_admin: false,
               },
               createRateLimitHeaders({ remaining: 5000 - requestCount }),
             ]
@@ -544,13 +544,13 @@ describe('GitHub Client Load Testing', () => {
 
           return [
             200,
-            { 
-              login: `user_${requestCount}`, 
+            {
+              login: `user_${requestCount}`,
               id: requestCount,
               avatar_url: `https://github.com/images/user_${requestCount}.png`,
               html_url: `https://github.com/user_${requestCount}`,
               type: 'User',
-              site_admin: false
+              site_admin: false,
             },
             createRateLimitHeaders({ remaining: 5000 - requestCount }),
           ]
@@ -611,13 +611,13 @@ describe('GitHub Client Load Testing', () => {
           connectionTimes.push(Date.now())
           return [
             200,
-            { 
-              login: `user_${connectionCount}`, 
+            {
+              login: `user_${connectionCount}`,
               id: connectionCount,
               avatar_url: `https://github.com/images/user_${connectionCount}.png`,
               html_url: `https://github.com/user_${connectionCount}`,
               type: 'User',
-              site_admin: false
+              site_admin: false,
             },
             createRateLimitHeaders({ remaining: 5000 - connectionCount }),
           ]
@@ -675,13 +675,13 @@ describe('GitHub Client Load Testing', () => {
           totalRequests++
           return [
             200,
-            { 
-              login: `user_${totalRequests}`, 
+            {
+              login: `user_${totalRequests}`,
               id: totalRequests,
               avatar_url: `https://github.com/images/user_${totalRequests}.png`,
               html_url: `https://github.com/user_${totalRequests}`,
               type: 'User',
-              site_admin: false
+              site_admin: false,
             },
             createRateLimitHeaders({ remaining: 5000 - totalRequests }),
           ]
@@ -725,7 +725,8 @@ describe('GitHub Client Load Testing', () => {
       const avgBatchTime = batchResults.reduce((sum, time) => sum + time, 0) / batchResults.length
       const maxBatchTime = Math.max(...batchResults)
       const minBatchTime = Math.min(...batchResults)
-      const performanceVariance = avgBatchTime > 0 ? ((maxBatchTime - minBatchTime) / avgBatchTime) * 100 : 0
+      const performanceVariance =
+        avgBatchTime > 0 ? ((maxBatchTime - minBatchTime) / avgBatchTime) * 100 : 0
 
       // Performance variance should be reasonable (more lenient)
       expect(performanceVariance).toBeLessThan(100)
@@ -816,13 +817,13 @@ describe('GitHub Client Load Testing', () => {
           requestCount++
           return [
             200,
-            { 
-              login: `user_${requestCount}`, 
+            {
+              login: `user_${requestCount}`,
               id: requestCount,
               avatar_url: `https://github.com/images/user_${requestCount}.png`,
               html_url: `https://github.com/user_${requestCount}`,
               type: 'User',
-              site_admin: false
+              site_admin: false,
             },
             createRateLimitHeaders({ remaining: 5000 - requestCount }),
           ]
@@ -904,7 +905,7 @@ describe('GitHub Client Load Testing', () => {
     }, 20000)
 
     it('should validate system limits and thresholds', async () => {
-      const maxConcurrency = 40 // Reduced for reliability  
+      const maxConcurrency = 40 // Reduced for reliability
       const incrementSize = 10
       const results: Array<{
         concurrency: number
@@ -930,13 +931,13 @@ describe('GitHub Client Load Testing', () => {
             requestCount++
             return [
               200,
-              { 
-                login: `user_${requestCount}`, 
+              {
+                login: `user_${requestCount}`,
                 id: requestCount,
                 avatar_url: `https://github.com/images/user_${requestCount}.png`,
                 html_url: `https://github.com/user_${requestCount}`,
                 type: 'User',
-                site_admin: false
+                site_admin: false,
               },
               createRateLimitHeaders({ remaining: 5000 - requestCount }),
             ]
@@ -965,7 +966,8 @@ describe('GitHub Client Load Testing', () => {
         // Calculate metrics for this concurrency level
         const successes = testResults.filter(r => r.success)
         const durations = testResults.map(r => r.duration)
-        const avgLatency = durations.length > 0 ? durations.reduce((sum, d) => sum + d, 0) / durations.length : 0
+        const avgLatency =
+          durations.length > 0 ? durations.reduce((sum, d) => sum + d, 0) / durations.length : 0
 
         const levelResult = {
           concurrency,

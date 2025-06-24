@@ -246,9 +246,12 @@ const defaultHandlers = [
   http.get(`${GITHUB_API_BASE}/rate_limit`, ({ request }) => {
     const url = new URL(request.url)
     const userAgent = request.headers.get('user-agent') || ''
-    
+
     // Check if this is from an edge case test (look for specific test markers)
-    if (userAgent.includes('edge-case-test') || request.headers.get('x-test-scenario') === 'edge-case-rate-limits') {
+    if (
+      userAgent.includes('edge-case-test') ||
+      request.headers.get('x-test-scenario') === 'edge-case-rate-limits'
+    ) {
       return HttpResponse.json({
         core: {
           limit: 0, // Edge case: zero limit
@@ -267,7 +270,7 @@ const defaultHandlers = [
         },
       })
     }
-    
+
     return HttpResponse.json(defaultMockResponses.rateLimit)
   }),
 
@@ -276,7 +279,7 @@ const defaultHandlers = [
     const { owner, repo } = params as { owner: string; repo: string }
     const url = new URL(request.url)
     const pathname = url.pathname
-    
+
     // Let test-specific error handlers take precedence
     if (pathname.includes('malformed-test/malformed-repo-unique')) {
       // Return malformed JSON for the malformed JSON test
@@ -285,12 +288,12 @@ const defaultHandlers = [
         headers: { 'Content-Type': 'application/json' },
       })
     }
-    
+
     if (pathname.includes('server-error-test/server-error-repo-unique')) {
       // Return 500 error for server error test
       return HttpResponse.json({ message: 'Internal Server Error' }, { status: 500 })
     }
-    
+
     if (pathname.includes('validation-test/validation-error-repo-unique')) {
       // Return 422 validation error for validation test
       return HttpResponse.json(
@@ -308,7 +311,7 @@ const defaultHandlers = [
         { status: 422 }
       )
     }
-    
+
     if (pathname.includes('rate-limited-unique')) {
       // Return rate limit error
       return HttpResponse.json(
@@ -327,7 +330,7 @@ const defaultHandlers = [
         }
       )
     }
-    
+
     if (pathname.includes('secondary-limit-unique')) {
       // Return secondary rate limit error
       return HttpResponse.json(
@@ -343,7 +346,7 @@ const defaultHandlers = [
         }
       )
     }
-    
+
     if (pathname.includes('bad-credentials-unique')) {
       // Return bad credentials error
       return HttpResponse.json({ message: 'Bad credentials' }, { status: 401 })
@@ -488,7 +491,7 @@ const defaultHandlers = [
         default_branch: 'main',
       })
     }
-    
+
     return HttpResponse.json({
       ...defaultMockResponses.repository,
       owner: {

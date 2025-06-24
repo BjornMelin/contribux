@@ -10,7 +10,7 @@ export default defineConfig({
   test: {
     // Global test configuration - modern Vitest 3.2+ patterns
     globals: true,
-    environment: 'node',
+    environment: 'jsdom',
 
     // Test file patterns
     include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],

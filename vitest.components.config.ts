@@ -55,13 +55,7 @@ export default defineConfig({
 
     // Fake timers for testing UI interactions
     fakeTimers: {
-      toFake: [
-        'setTimeout',
-        'clearTimeout',
-        'setInterval',
-        'clearInterval',
-        'Date',
-      ],
+      toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'],
       loopLimit: 1000,
       shouldAdvanceTime: true,
       advanceTimeDelta: 20,

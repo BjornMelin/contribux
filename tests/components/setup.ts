@@ -1,11 +1,11 @@
 // Component test setup for React Testing Library and JSDOM
 
 import '@testing-library/jest-dom'
-import { cleanup } from '@testing-library/react'
-import { afterEach, beforeEach, vi } from 'vitest'
 
 // Enable global testing-library extensions
 import type { TestingLibraryMatchers } from '@testing-library/jest-dom/matchers'
+import { cleanup } from '@testing-library/react'
+import { afterEach, beforeEach, vi } from 'vitest'
 
 declare module 'vitest' {
   interface Assertion<T = any> extends jest.Matchers<void>, TestingLibraryMatchers<T, void> {}
@@ -15,22 +15,22 @@ declare module 'vitest' {
 afterEach(() => {
   // Clean up Testing Library rendered components
   cleanup()
-  
+
   // Force clear the document body
   document.body.innerHTML = ''
   document.head.innerHTML = ''
-  
+
   // Clear all mocks
   vi.clearAllMocks()
   vi.resetAllMocks()
 })
 
-// Setup before each test  
+// Setup before each test
 beforeEach(() => {
   // Ensure clean document state
   document.body.innerHTML = ''
   document.head.innerHTML = ''
-  
+
   // Clear all mocks
   vi.clearAllMocks()
 })

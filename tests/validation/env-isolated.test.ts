@@ -2,12 +2,12 @@
  * Isolated Environment Validation Tests
  *
  * Testing the environment validation schema directly without module-level side effects.
- * This approach tests the core validation logic without being affected by module 
+ * This approach tests the core validation logic without being affected by module
  * import-time evaluation of the env constant.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { z } from 'zod'
+import type { z } from 'zod'
 
 describe('Environment Validation - Schema Tests', () => {
   let envSchema: z.ZodEffects<any, any, any>
@@ -16,10 +16,10 @@ describe('Environment Validation - Schema Tests', () => {
     // Clean slate for each test
     vi.resetModules()
     vi.unstubAllEnvs()
-    
+
     // Set a safe base environment to avoid side effects
     vi.stubEnv('SKIP_ENV_VALIDATION', 'true')
-    
+
     // Import fresh schema
     const module = await import('../../src/lib/validation/env')
     envSchema = module.envSchema
@@ -84,7 +84,7 @@ describe('Environment Validation - Schema Tests', () => {
     it('should reject JWT secret that is too short in development', () => {
       // Set NODE_ENV in process.env since JWT validation reads from there
       vi.stubEnv('NODE_ENV', 'development')
-      
+
       const testEnv = setupTestEnv({
         NODE_ENV: 'development',
         JWT_SECRET: 'tooshort',
@@ -95,7 +95,7 @@ describe('Environment Validation - Schema Tests', () => {
 
     it('should reject JWT secret with low entropy in development', () => {
       vi.stubEnv('NODE_ENV', 'development')
-      
+
       const testEnv = setupTestEnv({
         NODE_ENV: 'development',
         JWT_SECRET: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
@@ -106,7 +106,7 @@ describe('Environment Validation - Schema Tests', () => {
 
     it('should reject JWT secret with insufficient unique characters in development', () => {
       vi.stubEnv('NODE_ENV', 'development')
-      
+
       const testEnv = setupTestEnv({
         NODE_ENV: 'development',
         JWT_SECRET: 'abcdefghijkabcdefghijkabcdefghijk', // Only 11 unique chars
@@ -347,10 +347,10 @@ describe('Environment Validation - Schema Tests', () => {
       // regardless of whether JWT_SECRET is set or not
       vi.stubEnv('SKIP_ENV_VALIDATION', 'true')
       vi.stubEnv('NODE_ENV', 'test')
-      
+
       const { getJwtSecret } = await import('../../src/lib/validation/env')
       const result = getJwtSecret()
-      
+
       // When NODE_ENV is test, always return test default (this is the designed behavior)
       expect(result).toBe(
         'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only'
@@ -378,7 +378,7 @@ describe('Environment Validation - Schema Tests', () => {
 
     it('should validate startup validation function exists', async () => {
       vi.stubEnv('SKIP_ENV_VALIDATION', 'true')
-      
+
       const { validateEnvironmentOnStartup } = await import('../../src/lib/validation/env')
       expect(typeof validateEnvironmentOnStartup).toBe('function')
     })

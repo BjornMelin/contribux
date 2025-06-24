@@ -21,8 +21,8 @@ import type {
   PaginationOptions,
   RepositoryIdentifier,
   SearchOptions,
-  GitHubClientConfig as TypesGitHubClientConfig,
   TokenInfo,
+  GitHubClientConfig as TypesGitHubClientConfig,
 } from './types'
 
 // Zod schemas for GitHub API response validation
@@ -766,7 +766,15 @@ export class GitHubClient {
         },
       },
       issues: {
-        get: async ({ owner, repo, issue_number }: { owner: string; repo: string; issue_number: number }) => {
+        get: async ({
+          owner,
+          repo,
+          issue_number,
+        }: {
+          owner: string
+          repo: string
+          issue_number: number
+        }) => {
           const data = await this.getIssue({ owner, repo, issueNumber: issue_number })
           return { data }
         },
