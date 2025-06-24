@@ -8,9 +8,11 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 
-> 🎯 **AI-powered GitHub contribution discovery platform that intelligently surfaces high-impact open source opportunities for senior developers transitioning to AI Engineering roles**
+> 🎯 **AI-powered GitHub contribution discovery platform that intelligently surfaces high-impact open source
+> opportunities for senior developers transitioning to AI Engineering roles**
 
-Transform how you strategically build your open source reputation by intelligently surfacing contribution opportunities that align with your expertise and career goals.
+Transform how you strategically build your open source reputation by intelligently surfacing
+contribution opportunities that align with your expertise and career goals.
 
 ---
 
@@ -72,34 +74,34 @@ graph TB
         A[Next.js 15 PWA] --> B[React Server Components]
         B --> C[SWR v3 Cache]
     end
-    
+
     subgraph "🔌 API Layer"
         D[Vercel Edge Functions] --> E[tRPC v11 Router]
         E --> F[Auth Middleware]
     end
-    
+
     subgraph "🤖 Intelligence Layer"
         G[Repository Scanner] --> H[AI Analyzer]
         H --> I[Scoring Engine]
         I --> J[Notification Engine]
     end
-    
+
     subgraph "💾 Data Layer"
         K[Neon PostgreSQL 16] --> L[pgvector 0.7]
         M[Upstash Redis] --> N[QStash v3]
     end
-    
+
     subgraph "🌐 External Services"
         O[GitHub API v4] --> P[OpenAI Agents SDK v1.0]
         Q[Resend v4] --> R[Telnyx SMS]
     end
-    
+
     A --> D
     D --> G
     G --> K
     H --> P
     J --> Q
-    
+
     style A fill:#7C3AED,color:#fff
     style H fill:#10B981,color:#fff
     style K fill:#F59E0B,color:#fff
@@ -114,7 +116,7 @@ sequenceDiagram
     participant AI as AI Analyzer
     participant DB as Database
     participant N as Notifier
-    
+
     S->>GitHub: Fetch trending repos
     S->>AI: Analyze opportunities
     AI-->>AI: Score complexity & impact
@@ -222,38 +224,38 @@ Visit [http://localhost:3000](http://localhost:3000) to see your application.
 
 ### **Frontend Stack**
 
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| [Next.js](https://nextjs.org/) | 15.0+ | React framework with App Router |
-| [TypeScript](https://www.typescriptlang.org/) | 5.7+ | Type safety and developer experience |
-| [Tailwind CSS](https://tailwindcss.com/) | 4.0+ | Utility-first styling framework |
-| [shadcn/ui](https://ui.shadcn.com/) | 2.0+ | Component library with accessibility |
-| [SWR](https://swr.vercel.app/) | 3.0+ | Data fetching with caching |
+| Technology                                    | Version | Purpose                              |
+| --------------------------------------------- | ------- | ------------------------------------ |
+| [Next.js](https://nextjs.org/)                | 15.0+   | React framework with App Router      |
+| [TypeScript](https://www.typescriptlang.org/) | 5.7+    | Type safety and developer experience |
+| [Tailwind CSS](https://tailwindcss.com/)      | 4.0+    | Utility-first styling framework      |
+| [shadcn/ui](https://ui.shadcn.com/)           | 2.0+    | Component library with accessibility |
+| [SWR](https://swr.vercel.app/)                | 3.0+    | Data fetching with caching           |
 
 ### **Backend Stack**
 
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| [Neon PostgreSQL](https://neon.tech/) | 16+ | Serverless database with auto-scaling |
-| [pgvector](https://github.com/pgvector/pgvector) | 0.7+ | Vector similarity search |
-| [tRPC](https://trpc.io/) | 11.0+ | End-to-end typesafe APIs |
-| [Upstash QStash](https://upstash.com/qstash) | 3.0+ | Serverless message queuing |
+| Technology                                       | Version | Purpose                               |
+| ------------------------------------------------ | ------- | ------------------------------------- |
+| [Neon PostgreSQL](https://neon.tech/)            | 16+     | Serverless database with auto-scaling |
+| [pgvector](https://github.com/pgvector/pgvector) | 0.7+    | Vector similarity search              |
+| [tRPC](https://trpc.io/)                         | 11.0+   | End-to-end typesafe APIs              |
+| [Upstash QStash](https://upstash.com/qstash)     | 3.0+    | Serverless message queuing            |
 
 ### **AI & Analysis**
 
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| [OpenAI Agents SDK](https://platform.openai.com/) | 1.0+ | AI agent orchestration |
-| [Vercel AI SDK](https://sdk.vercel.ai/) | Latest | LLM integration and streaming |
-| GPT-4o-mini-2025-06 | Latest | Cost-effective AI analysis |
+| Technology                                        | Version | Purpose                       |
+| ------------------------------------------------- | ------- | ----------------------------- |
+| [OpenAI Agents SDK](https://platform.openai.com/) | 1.0+    | AI agent orchestration        |
+| [Vercel AI SDK](https://sdk.vercel.ai/)           | Latest  | LLM integration and streaming |
+| GPT-4o-mini-2025-06                               | Latest  | Cost-effective AI analysis    |
 
 ### **Infrastructure**
 
-| Service | Tier | Purpose |
-|---------|------|---------|
-| [Vercel](https://vercel.com/) | Pro | Serverless hosting and edge functions |
-| [Resend](https://resend.com/) | Free | Transactional email delivery |
-| [Telnyx](https://telnyx.com/) | Pay-as-go | SMS notifications |
+| Service                       | Tier      | Purpose                               |
+| ----------------------------- | --------- | ------------------------------------- |
+| [Vercel](https://vercel.com/) | Pro       | Serverless hosting and edge functions |
+| [Resend](https://resend.com/) | Free      | Transactional email delivery          |
+| [Telnyx](https://telnyx.com/) | Pay-as-go | SMS notifications                     |
 
 ---
 
@@ -265,29 +267,29 @@ contribux employs a **multi-agent architecture** with specialized roles for opti
 graph LR
     subgraph "🎯 Agent Orchestration"
         A[ContribuxOrchestrator] --> B[ContribuxScanner]
-        A --> C[ContribuxAnalyzer] 
+        A --> C[ContribuxAnalyzer]
         A --> D[ContribuxStrategist]
         A --> E[SuccessTracker]
     end
-    
+
     subgraph "🔍 Discovery Agents"
         B --> F[Repository Health Check]
         B --> G[Issue Discovery]
         B --> H[Trend Analysis]
     end
-    
+
     subgraph "🧠 Analysis Agents"
         C --> I[Complexity Estimator]
         C --> J[Skill Detector]
         C --> K[Acceptance Predictor]
     end
-    
+
     subgraph "💡 Strategy Agents"
         D --> L[Implementation Planner]
         D --> M[Risk Assessor]
         D --> N[Success Predictor]
     end
-    
+
     style A fill:#7C3AED,color:#fff
     style C fill:#10B981,color:#fff
     style D fill:#F59E0B,color:#fff
@@ -295,13 +297,13 @@ graph LR
 
 ### Agent Capabilities
 
-| Agent | Primary Function | Key Outputs |
-|-------|------------------|-------------|
-| **ContribuxOrchestrator** | Workflow coordination | Task routing, state management |
-| **ContribuxScanner** | Repository discovery | Health scores, issue candidates |
-| **ContribuxAnalyzer** | Opportunity analysis | Complexity scores, skill requirements |
-| **ContribuxStrategist** | Implementation guidance | Success strategies, risk assessment |
-| **SuccessTracker** | Outcome monitoring | Learning patterns, optimization |
+| Agent                     | Primary Function        | Key Outputs                           |
+| ------------------------- | ----------------------- | ------------------------------------- |
+| **ContribuxOrchestrator** | Workflow coordination   | Task routing, state management        |
+| **ContribuxScanner**      | Repository discovery    | Health scores, issue candidates       |
+| **ContribuxAnalyzer**     | Opportunity analysis    | Complexity scores, skill requirements |
+| **ContribuxStrategist**   | Implementation guidance | Success strategies, risk assessment   |
+| **SuccessTracker**        | Outcome monitoring      | Learning patterns, optimization       |
 
 ---
 
@@ -316,14 +318,14 @@ erDiagram
     repositories ||--o{ opportunities : contains
     opportunities ||--o{ notifications : triggers
     opportunities ||--o{ contribution_outcomes : results_in
-    
+
     users {
         uuid id PK
         text github_username
         text email
         timestamptz created_at
     }
-    
+
     repositories {
         uuid id PK
         bigint github_id
@@ -332,7 +334,7 @@ erDiagram
         vector description_embedding
         timestamptz last_scanned_at
     }
-    
+
     opportunities {
         uuid id PK
         uuid repository_id FK
@@ -343,7 +345,7 @@ erDiagram
         jsonb ai_analysis
         text[] required_skills
     }
-    
+
     user_preferences {
         uuid id PK
         uuid user_id FK
@@ -371,7 +373,6 @@ erDiagram
 contribux/
 ├── 📱 src/
 │   ├── app/                 # Next.js App Router pages
-│   ├── components/          # React components
 │   │   ├── features/       # Feature-specific components
 │   │   └── ui/            # Reusable UI components
 │   ├── lib/                # Utilities and configurations
@@ -429,13 +430,13 @@ pnpm type-check           # TypeScript validation
 
 ### **Targets & Metrics**
 
-| Metric | Target | Critical Threshold |
-|--------|--------|--------------------|
-| 🚀 **Initial Page Load** | <2s | <3s |
-| ⚡ **API Response (p95)** | <500ms | <1s |
-| 🎯 **Time to Interactive** | <3s | <5s |
-| 🔄 **Background Jobs** | <5min | <10min |
-| 💾 **Database Queries** | <100ms | <500ms |
+| Metric                     | Target | Critical Threshold |
+| -------------------------- | ------ | ------------------ |
+| 🚀 **Initial Page Load**   | <2s    | <3s                |
+| ⚡ **API Response (p95)**  | <500ms | <1s                |
+| 🎯 **Time to Interactive** | <3s    | <5s                |
+| 🔄 **Background Jobs**     | <5min  | <10min             |
+| 💾 **Database Queries**    | <100ms | <500ms             |
 
 ### **Optimization Strategies**
 
@@ -477,7 +478,8 @@ pnpm type-check           # TypeScript validation
 
 ### **Testing Infrastructure**
 
-This project uses **Neon's database branching** for test isolation - no Docker required! Each test suite runs in its own isolated database branch, providing:
+This project uses **Neon's database branching** for test isolation - no Docker required! Each test
+suite runs in its own isolated database branch, providing:
 
 - ✅ **Zero Setup**: No local database or Docker installation needed
 - ⚡ **Fast Isolation**: Branches create in 1-3 seconds (vs 30-60s for Docker)
@@ -494,7 +496,7 @@ graph TD
         B --> C[E2E Tests<br/>Critical Workflows<br/>Playwright]
         C --> D[Performance Tests<br/>Database Queries<br/>Custom Monitoring]
     end
-    
+
     style A fill:#10B981,color:#fff
     style B fill:#F59E0B,color:#fff
     style C fill:#EF4444,color:#fff
@@ -503,12 +505,12 @@ graph TD
 
 ### **Test Coverage Goals**
 
-| Layer | Coverage | Framework |
-|-------|----------|-----------|
-| **Unit Tests** | 90% | Vitest + Testing Library |
-| **Integration** | 85% | Vitest + Neon Branches |
-| **Database Tests** | 90% | Vitest + Neon Isolation |
-| **Performance** | Key queries | Custom monitoring |
+| Layer              | Coverage    | Framework                |
+| ------------------ | ----------- | ------------------------ |
+| **Unit Tests**     | 90%         | Vitest + Testing Library |
+| **Integration**    | 85%         | Vitest + Neon Branches   |
+| **Database Tests** | 90%         | Vitest + Neon Isolation  |
+| **Performance**    | Key queries | Custom monitoring        |
 
 ### **Running Tests**
 
@@ -571,16 +573,19 @@ POST   /webhooks/notifications  # Delivery updates
 ### Vercel Deployment (Recommended)
 
 1. **Fork and Import**
+
    ```bash
    # Fork the repository, then:
    vercel import contribux
    ```
 
 2. **Configure Environment Variables**
+
    - Add all variables from `.env.local` to Vercel dashboard
    - Set appropriate values for production
 
 3. **Deploy**
+
    ```bash
    vercel --prod
    ```
@@ -631,7 +636,8 @@ We welcome contributions! Here's how to get started:
 
 ### Common Issues
 
-**Database Connection Failed**
+#### Database Connection Failed
+
 ```bash
 # Test connections
 pnpm db:test-connection
@@ -641,7 +647,8 @@ pnpm db:test-dev
 postgresql://[user]:[password]@[host]/[database]?sslmode=require
 ```
 
-**Type Errors**
+#### Type Errors
+
 ```bash
 # Regenerate types
 pnpm type-check
@@ -652,7 +659,8 @@ rm -rf node_modules
 pnpm install
 ```
 
-**Test Failures**
+#### Test Failures
+
 ```bash
 # Run specific test file
 pnpm test path/to/test.spec.ts
@@ -661,7 +669,8 @@ pnpm test path/to/test.spec.ts
 pnpm test:ui
 ```
 
-**Build Errors**
+#### Build Errors
+
 ```bash
 # Clean build
 pnpm clean
@@ -696,9 +705,10 @@ If you use contribux in your research or reference it in academic work, please c
 
 ### **Academic References**
 
-1. Chen, L., et al. (2024). "AI-Assisted Software Development: A Systematic Review." *IEEE Software*, 41(3), 45-58.
-2. Kumar, R., & Patel, S. (2024). "Machine Learning in Open Source Development." *ACM Computing Surveys*, 57(2), 1-34.
-3. Zhang, W., et al. (2023). "Automated Contribution Discovery in Large-Scale Software Repositories." *ICSE 2023 Proceedings*, 12-24.
+1. Chen, L., et al. (2024). "AI-Assisted Software Development: A Systematic Review." _IEEE Software_, 41(3), 45-58.
+2. Kumar, R., & Patel, S. (2024). "Machine Learning in Open Source Development." _ACM Computing Surveys_, 57(2), 1-34.
+3. Zhang, W., et al. (2023). "Automated Contribution Discovery in Large-Scale Software Repositories."
+   _ICSE 2023 Proceedings_, 12-24.
 
 ---
 
@@ -716,10 +726,12 @@ If you use contribux in your research or reference it in academic work, please c
 
 **⭐ Star this repository if you find it useful!**
 
-[Report Bug](https://github.com/BjornMelin/contribux/issues) · [Request Feature](https://github.com/BjornMelin/contribux/issues) · [Join Discussions](https://github.com/BjornMelin/contribux/discussions)
+[Report Bug](https://github.com/BjornMelin/contribux/issues) ·
+[Request Feature](https://github.com/BjornMelin/contribux/issues) ·
+[Join Discussions](https://github.com/BjornMelin/contribux/discussions)
 
 ---
 
-*Built with ❤️ by developers, for developers*
+> _Built with ❤️ by developers, for developers_
 
 </div>
