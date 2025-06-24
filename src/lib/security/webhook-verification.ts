@@ -4,9 +4,8 @@
  * replay attack prevention, payload integrity checks, and delivery retry mechanisms
  */
 
-import { timingSafeEqual } from 'crypto'
 import { z } from 'zod'
-import { createHMAC, generateHMACKey, generateSecureToken, verifyHMAC } from './crypto'
+import { createHMAC, generateSecureToken, verifyHMAC } from './crypto'
 
 // Webhook verification configuration
 export const WEBHOOK_CONFIG = {
@@ -206,7 +205,7 @@ export async function verifyWebhookSignature(
     try {
       const parsedPayload = JSON.parse(rawPayload.toString())
       payload = WebhookPayloadSchema.parse(parsedPayload)
-    } catch (error) {
+    } catch (_error) {
       errors.push('Invalid payload format')
       return createVerificationResult(false, source, undefined, errors, warnings, startTime)
     }
@@ -344,7 +343,7 @@ export async function processWebhookDelivery(
     }
 
     // Make HTTP request (implement with your preferred HTTP client)
-    const result = await deliverWebhook(source!.url, delivery.payload, headers)
+    const result = await deliverWebhook(source?.url, delivery.payload, headers)
 
     if (result.success) {
       delivery.status = 'delivered'
@@ -541,7 +540,7 @@ function validateTimestamp(
 
   if (timestampHeader) {
     const headerTimestamp = Number.parseInt(timestampHeader, 10)
-    if (!isNaN(headerTimestamp)) {
+    if (!Number.isNaN(headerTimestamp)) {
       timestamp = headerTimestamp
     }
   }
@@ -638,7 +637,7 @@ async function verifyHMACSignature(
 
 async function checkReplayAttack(
   payload: WebhookPayload,
-  signature: WebhookSignature
+  _signature: WebhookSignature
 ): Promise<{ valid: boolean; error?: string }> {
   // Check delivery ID uniqueness
   const deliveryId = payload.delivery_id

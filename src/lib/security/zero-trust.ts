@@ -5,7 +5,7 @@
  */
 
 import { z } from 'zod'
-import { createSecureHash, generateDeviceFingerprint, generateSecureToken } from './crypto'
+import { generateSecureToken } from './crypto'
 
 // Zero-trust configuration
 export const ZERO_TRUST_CONFIG = {
@@ -166,7 +166,7 @@ export async function evaluateZeroTrustAccess(
 export async function initializeContinuousVerification(
   userId: string,
   sessionId: string,
-  deviceId: string,
+  _deviceId: string,
   initialTrustScore: TrustScore
 ): Promise<ContinuousVerificationState> {
   const state: ContinuousVerificationState = {
@@ -297,7 +297,7 @@ export async function calculateDeviceTrust(
  */
 export async function performBehavioralAnalysis(
   userId: string,
-  sessionId: string,
+  _sessionId: string,
   currentAction: {
     type: string
     resource: string
@@ -353,9 +353,9 @@ export async function performBehavioralAnalysis(
  * Implement micro-segmentation for network access
  */
 export async function evaluateMicroSegmentationAccess(
-  userId: string,
+  _userId: string,
   requestedSegment: string,
-  currentSegment: string,
+  _currentSegment: string,
   trustScore: TrustScore
 ): Promise<{
   allowed: boolean
@@ -512,7 +512,7 @@ function determineRequiredVerifications(
 
 function decideBinaryAccess(
   trustLevel: 'low' | 'medium' | 'high' | 'critical',
-  riskAssessment: { riskScore: number },
+  _riskAssessment: { riskScore: number },
   context: AccessContext
 ): boolean {
   // Never allow access for critical risk without additional verification
@@ -532,7 +532,7 @@ function decideBinaryAccess(
 
 function calculateAccessDuration(
   trustLevel: 'low' | 'medium' | 'high' | 'critical',
-  riskAssessment: { riskScore: number }
+  _riskAssessment: { riskScore: number }
 ): number {
   const baseDuration = ZERO_TRUST_CONFIG.access.defaultTimeout
 
@@ -553,7 +553,7 @@ function calculateAccessDuration(
 function generateAccessConditions(
   trustLevel: 'low' | 'medium' | 'high' | 'critical',
   riskAssessment: { factors: string[] },
-  context: AccessContext
+  _context: AccessContext
 ): string[] {
   const conditions: string[] = []
 
@@ -595,7 +595,7 @@ function calculateConfidence(
   return (ageWeight * 0.3 + completenessWeight * 0.7) * (1 - riskAssessment.riskScore * 0.5)
 }
 
-function mapToRiskLevel(riskScore: number): 'low' | 'medium' | 'high' | 'critical' {
+function _mapToRiskLevel(riskScore: number): 'low' | 'medium' | 'high' | 'critical' {
   if (riskScore >= 0.8) return 'critical'
   if (riskScore >= 0.6) return 'high'
   if (riskScore >= 0.3) return 'medium'
@@ -617,22 +617,22 @@ async function createVerificationChallenge(
 }
 
 // Placeholder functions for data persistence (implement with actual storage)
-async function getStoredDeviceTrust(deviceId: string): Promise<DeviceTrust | null> {
+async function getStoredDeviceTrust(_deviceId: string): Promise<DeviceTrust | null> {
   // TODO: Implement database lookup
   return null
 }
 
 async function updateDeviceTrust(
   existingTrust: DeviceTrust,
-  fingerprint: string,
-  userAgent: string,
-  ipAddress?: string
+  _fingerprint: string,
+  _userAgent: string,
+  _ipAddress?: string
 ): Promise<DeviceTrust> {
   // TODO: Implement device trust update logic
   return existingTrust
 }
 
-async function getUserBehaviorHistory(userId: string): Promise<{
+async function getUserBehaviorHistory(_userId: string): Promise<{
   sampleSize: number
   timeOfDayPatterns: Record<number, number>
   resourcePatterns: Record<string, number>
@@ -647,17 +647,17 @@ async function getUserBehaviorHistory(userId: string): Promise<{
   }
 }
 
-function analyzeTimeOfDayPattern(timestamp: number, history: any): number {
+function analyzeTimeOfDayPattern(_timestamp: number, _history: any): number {
   // TODO: Implement time pattern analysis
   return 0
 }
 
-function analyzeResourceAccessPattern(resource: string, history: any): number {
+function analyzeResourceAccessPattern(_resource: string, _history: any): number {
   // TODO: Implement resource pattern analysis
   return 0
 }
 
-function analyzeActionFrequency(actionType: string, history: any): number {
+function analyzeActionFrequency(_actionType: string, _history: any): number {
   // TODO: Implement action frequency analysis
   return 0
 }

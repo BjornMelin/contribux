@@ -5,7 +5,7 @@
  */
 
 import { z } from 'zod'
-import { createSecureHash, generateSecureToken } from './crypto'
+import { generateSecureToken } from './crypto'
 
 // Configuration schema
 export const SecurityScannerConfigSchema = z.object({

@@ -4,7 +4,7 @@
  * digital signatures, and cryptographic operations for zero-trust architecture
  */
 
-import { timingSafeEqual } from 'crypto'
+import { timingSafeEqual } from 'node:crypto'
 import { z } from 'zod'
 
 // Re-export existing crypto utilities for backward compatibility
@@ -405,7 +405,7 @@ export async function createSecureHash(data: string | Uint8Array): Promise<strin
 /**
  * Initialize secure key exchange
  */
-export async function initiateKeyExchange(participantId: string): Promise<{
+export async function initiateKeyExchange(_participantId: string): Promise<{
   publicKey: string
   keyId: string
   exchangeToken: string
@@ -432,7 +432,7 @@ export async function initiateKeyExchange(participantId: string): Promise<{
 export async function completeKeyExchange(
   theirPublicKeyData: string,
   ourExchangeToken: string,
-  participantId: string
+  _participantId: string
 ): Promise<CryptoKey> {
   // Retrieve our private key
   const ourKeyPair = await retrieveKeyPairSecurely(ourExchangeToken)
@@ -591,23 +591,23 @@ async function generateSecureKeyId(publicKey: CryptoKey): Promise<string> {
   return `ztsec_${hashBase64.replace(/[+/=]/g, '')}`
 }
 
-async function getCorrespondingPublicKey(privateKey: CryptoKey): Promise<CryptoKey> {
+async function getCorrespondingPublicKey(_privateKey: CryptoKey): Promise<CryptoKey> {
   // This is a simplified version - in production, you'd maintain the key pair relationship
   throw new Error('Public key retrieval not implemented - maintain key pair relationships')
 }
 
 // Temporary key storage functions (implement with secure storage in production)
-async function storeKeyPairSecurely(keyPair: SecureKeyPair, token: string): Promise<void> {
+async function storeKeyPairSecurely(_keyPair: SecureKeyPair, _token: string): Promise<void> {
   // TODO: Implement secure key storage
   console.warn('Temporary key storage not implemented for production use')
 }
 
-async function retrieveKeyPairSecurely(token: string): Promise<SecureKeyPair> {
+async function retrieveKeyPairSecurely(_token: string): Promise<SecureKeyPair> {
   // TODO: Implement secure key retrieval
   throw new Error('Secure key retrieval not implemented')
 }
 
-async function cleanupKeyExchange(token: string): Promise<void> {
+async function cleanupKeyExchange(_token: string): Promise<void> {
   // TODO: Implement key cleanup
   console.warn('Key cleanup not implemented')
 }

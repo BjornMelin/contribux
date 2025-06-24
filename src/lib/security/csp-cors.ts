@@ -240,7 +240,7 @@ export function generateCORSConfig(request: NextRequest): CORSConfig {
  * Generate dynamic CSP policy with nonce support
  */
 export function generateCSPPolicy(
-  request: NextRequest,
+  _request: NextRequest,
   context?: Partial<CSPContext>
 ): {
   policy: string
@@ -514,12 +514,12 @@ function buildCSPPolicyString(
 
 async function checkViolationRateLimit(request: NextRequest): Promise<boolean> {
   const ip = getClientIp(request)
-  const key = `csp-violation:${ip}`
+  const _key = `csp-violation:${ip}`
 
   // Use a simple in-memory rate limiter for CSP violations
   // In production, use Redis or another persistent store
   const now = Date.now()
-  const windowStart = now - 60 * 1000 // 1 minute window
+  const _windowStart = now - 60 * 1000 // 1 minute window
 
   // This is a simplified implementation
   // In production, implement proper rate limiting
@@ -536,7 +536,7 @@ function getClientIp(request: NextRequest): string {
 
 function analyzeCSPViolation(
   violation: CSPViolation,
-  request: NextRequest
+  _request: NextRequest
 ): {
   severity: 'low' | 'medium' | 'high' | 'critical'
   category: string
@@ -600,9 +600,9 @@ async function storeCSPViolation(
 }
 
 async function generateSecurityAlert(
-  violation: CSPViolation,
+  _violation: CSPViolation,
   analysis: any,
-  request: NextRequest
+  _request: NextRequest
 ): Promise<void> {
   // TODO: Implement security alerting
   console.warn('High-severity CSP violation detected:', analysis)
@@ -610,13 +610,13 @@ async function generateSecurityAlert(
 
 async function storePolicyVersion(
   info: PolicyVersionInfo,
-  directives: CSPDirectives
+  _directives: CSPDirectives
 ): Promise<void> {
   // TODO: Implement policy version storage
   console.log('Policy version created:', info)
 }
 
-async function getPolicyVersion(version: string): Promise<PolicyVersionInfo | null> {
+async function getPolicyVersion(_version: string): Promise<PolicyVersionInfo | null> {
   // TODO: Implement policy version retrieval
   return null
 }
@@ -625,6 +625,6 @@ async function deactivateCurrentPolicy(): Promise<void> {
   // TODO: Implement policy deactivation
 }
 
-async function activatePolicyVersion(version: string): Promise<void> {
+async function activatePolicyVersion(_version: string): Promise<void> {
   // TODO: Implement policy activation
 }

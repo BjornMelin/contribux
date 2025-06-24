@@ -48,13 +48,13 @@ export const EDGE_SECURITY_CONFIG = {
 } as const
 
 // Edge storage using global variables (persists for edge function lifetime)
-const edgeCache = new Map<string, any>()
+const _edgeCache = new Map<string, any>()
 const rateLimitCache = new Map<
   string,
   { count: number; reset: number; burst: number; lastRequest: number }
 >()
 const threatIntelCache = new Map<string, { risk: number; expires: number; reason: string }>()
-const botDetectionCache = new Map<
+const _botDetectionCache = new Map<
   string,
   { fingerprints: Set<string>; firstSeen: number; suspiciousCount: number }
 >()
@@ -302,7 +302,7 @@ async function checkRateLimits(
 async function makeSecurityDecision(
   analysis: SecurityAnalysis,
   rateLimitResult: RateLimitResult,
-  request: NextRequest
+  _request: NextRequest
 ): Promise<EdgeSecurityDecision> {
   let action: EdgeSecurityDecision['action'] = 'allow'
   const reasons: string[] = []
@@ -486,7 +486,7 @@ function detectTor(ip: string, request: NextRequest): boolean {
   return request.headers.get('x-tor-exit-node') === '1' || ip.startsWith('127.') // Placeholder for Tor exit node detection
 }
 
-function detectVpn(ip: string, request: NextRequest): boolean {
+function detectVpn(_ip: string, request: NextRequest): boolean {
   // Simplified VPN detection - in production, use threat intelligence
   return request.headers.get('x-vpn-detected') === '1' || false // Placeholder for VPN detection
 }
@@ -514,7 +514,7 @@ async function calculateIpReputation(ip: string): Promise<number> {
 
 async function analyzeRequestPatterns(
   request: NextRequest,
-  clientInfo: ClientInfo
+  _clientInfo: ClientInfo
 ): Promise<{ threats: string[]; riskIncrease: number }> {
   const threats: string[] = []
   let riskIncrease = 0
@@ -695,7 +695,7 @@ async function logSecurityDecision(
 }
 
 async function serveCaptchaChallenge(
-  request: NextRequest,
+  _request: NextRequest,
   decision: EdgeSecurityDecision
 ): Promise<NextResponse> {
   // In production, integrate with CAPTCHA service
@@ -725,7 +725,7 @@ async function serveCaptchaChallenge(
 }
 
 async function serveJavaScriptChallenge(
-  request: NextRequest,
+  _request: NextRequest,
   decision: EdgeSecurityDecision
 ): Promise<NextResponse> {
   const challengeToken = generateSecureToken(16)
