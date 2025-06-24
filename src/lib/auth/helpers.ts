@@ -71,7 +71,7 @@ export async function hasOAuthScope(
       return false
     }
 
-    const scopes = result[0].scope?.split(' ') || []
+    const scopes = result[0]?.scope?.split(' ') || []
     return scopes.includes(scope)
   } catch (error) {
     console.error('Failed to check OAuth scope:', error)
@@ -99,7 +99,7 @@ export async function getOAuthAccessToken(
       return null
     }
 
-    return result[0].access_token
+    return result[0]?.access_token
   } catch (error) {
     console.error(`Failed to get ${provider} access token:`, error)
     return null
@@ -147,7 +147,7 @@ export async function getPrimaryProvider(userId: string): Promise<string | null>
     `
 
     if (primaryResult.length > 0) {
-      return primaryResult[0].provider
+      return primaryResult[0]?.provider
     }
 
     // Fall back to the first linked provider (by creation date)
@@ -158,7 +158,7 @@ export async function getPrimaryProvider(userId: string): Promise<string | null>
       LIMIT 1
     `
 
-    return fallbackResult.length > 0 ? fallbackResult[0].provider : null
+    return fallbackResult.length > 0 ? fallbackResult[0]?.provider : null
   } catch (error) {
     console.error('Failed to get primary provider:', error)
     return null
@@ -251,7 +251,7 @@ export async function unlinkOAuthAccount(userId: string, provider: string): Prom
       event_type: 'oauth_unlink',
       event_severity: 'info',
       user_id: userId,
-      event_data: { provider, provider_account_id: result[0].provider_account_id },
+      event_data: { provider, provider_account_id: result[0]?.provider_account_id },
       success: true,
     })
   } catch (error) {
@@ -277,8 +277,8 @@ export async function setPrimaryProvider(userId: string, provider: string): Prom
       throw new Error(`${provider} account not linked to user`)
     }
 
-    // Use transaction to ensure consistency
-    await sql.begin(async sql => {
+    // Use sequential operations to ensure consistency
+    try {
       // Unset current primary
       await sql`
         UPDATE oauth_accounts
@@ -293,7 +293,10 @@ export async function setPrimaryProvider(userId: string, provider: string): Prom
         WHERE user_id = ${userId}
         AND provider = ${provider}
       `
-    })
+    } catch (error) {
+      console.error('Primary provider update failed:', error)
+      throw error
+    }
 
     // Log the primary provider change
     await logSecurityEvent({

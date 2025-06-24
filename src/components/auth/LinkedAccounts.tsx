@@ -1,7 +1,10 @@
 'use client'
 
-import { AnimatePresence, motion } from 'framer-motion'
-import { AlertTriangle, Check, Github, Link2, Mail, Shield, Star, Unlink2, X } from 'lucide-react'
+import { motion } from 'framer-motion'
+import * as LucideIcons from 'lucide-react'
+
+const { AlertTriangle, Check, Github, Link2, Mail, Shield, Star, Unlink2 } = LucideIcons
+
 import { signIn } from 'next-auth/react'
 import { useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
@@ -62,10 +65,6 @@ export function LinkedAccounts({ userId, className }: LinkedAccountsProps) {
   const [isLoading, setIsLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    loadProviders()
-  }, [userId])
-
   const loadProviders = async () => {
     try {
       // For demo purposes, simulate linked providers based on session data
@@ -92,7 +91,11 @@ export function LinkedAccounts({ userId, className }: LinkedAccountsProps) {
     }
   }
 
-  const formatDate = (date: Date | string) => {
+  useEffect(() => {
+    loadProviders()
+  }, [])
+
+  const _formatDate = (date: Date | string) => {
     const d = new Date(date)
     const now = new Date()
     const diffMs = now.getTime() - d.getTime()

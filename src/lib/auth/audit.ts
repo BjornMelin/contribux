@@ -3,7 +3,7 @@
  * Provides comprehensive event logging, monitoring, and compliance features
  */
 
-import { createHash, timingSafeEqual } from 'crypto'
+import { createHash, timingSafeEqual } from 'node:crypto'
 import { authConfig } from '@/lib/config'
 import { sql } from '@/lib/db/config'
 import type {

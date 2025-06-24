@@ -1,10 +1,13 @@
 'use client'
 
-import { animate, motion, Transition, useMotionTemplate, useMotionValue } from 'framer-motion'
-import { Eye, EyeOff, Github, Loader2, Mail } from 'lucide-react'
+import { motion, useMotionTemplate, useMotionValue } from 'framer-motion'
+import * as LucideIcons from 'lucide-react'
+
+const { Eye, EyeOff, Github, Loader2, Mail } = LucideIcons
+
 import { signIn } from 'next-auth/react'
-import * as React from 'react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import type * as React from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -36,7 +39,7 @@ const AuroraButton = ({ children, className, onClick, disabled }: AuroraButtonPr
       style={{
         background: useMotionTemplate`
           radial-gradient(
-            ${visible ? radius + 'px' : '0px'} circle at ${mouseX}px ${mouseY}px,
+            ${visible ? `${radius}px` : '0px'} circle at ${mouseX}px ${mouseY}px,
             var(--blue-500),
             transparent 80%
           )
@@ -125,6 +128,7 @@ const FloatingParticles = () => {
       window.addEventListener('resize', handleResize)
       return () => window.removeEventListener('resize', handleResize)
     }
+    return undefined
   }, [])
 
   return (
@@ -184,7 +188,7 @@ const OAuthSignIn = () => {
     }
   }
 
-  const handleEmailSignIn = (email: string, password: string) => {
+  const handleEmailSignIn = (_email: string, _password: string) => {
     alert('Email authentication is not currently set up. Please use GitHub or Google to sign in.')
   }
 

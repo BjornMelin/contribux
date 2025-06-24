@@ -1,6 +1,9 @@
 'use client'
 
-import { Github, Loader2, Mail } from 'lucide-react'
+import * as LucideIcons from 'lucide-react'
+
+const { Github, Loader2, Mail } = LucideIcons
+
 import { signIn } from 'next-auth/react'
 import type React from 'react'
 import { useState } from 'react'

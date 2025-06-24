@@ -1,6 +1,5 @@
 'use client'
 
-import React from 'react'
 import { PROVIDER_CONFIGS, ProviderButton } from '@/components/auth/ProviderButton'
 
 interface SignInButtonProps {
