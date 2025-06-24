@@ -53,6 +53,7 @@ graph LR
 
 - **[Testing Strategy](./testing/testing-strategy.md)** - TDD approach with Vitest
 - **[Writing Tests](./testing/writing-tests.md)** - Best practices and patterns
+- **[Security Scanning](./security-scanning.md)** - GitGuardian configuration and automated security scanning
 - **[CI/CD Pipeline](./testing/ci-cd-pipeline.md)** - Automated testing and deployment
 
 ### 🏗️ Technical Deep Dives

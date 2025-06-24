@@ -1,6 +1,6 @@
-# GitGuardian Configuration Guide
+# Security Scanning with GitGuardian
 
-This document explains the GitGuardian setup for the contribux project to prevent false positives while maintaining security.
+This guide covers the GitGuardian configuration for automated security scanning, including setup, false positive prevention, and best practices for secure development.
 
 ## Overview
 
