@@ -41,7 +41,28 @@ export class TestDatabaseManager {
   private connections = new Map<string, DatabaseConnection>()
   private branchManager?: NeonBranchManager
 
+  // Allowlist of valid table names for truncation operations
+  private readonly ALLOWED_TABLES = new Set([
+    'users',
+    'repositories', 
+    'opportunities',
+    'user_skills',
+    'user_repository_interactions',
+    'notifications',
+    'contribution_outcomes',
+    'user_preferences'
+  ] as const)
+
   private constructor() {}
+
+  /**
+   * Validate table name against allowlist to prevent SQL injection
+   */
+  private validateTableName(tableName: string): void {
+    if (!this.ALLOWED_TABLES.has(tableName as any)) {
+      throw new Error(`Invalid table name: ${tableName}. Only predefined tables are allowed for truncation.`)
+    }
+  }
 
   static getInstance(): TestDatabaseManager {
     if (!TestDatabaseManager.instance) {
@@ -363,14 +384,35 @@ export class TestDatabaseManager {
   }
 
   /**
-   * Truncate all tables for cleanup
+   * Truncate all tables for cleanup - works with both Neon and PGlite
    */
   private async truncateAllTables(sql: NeonQueryFunction<false, false>): Promise<void> {
     const tables = ['user_skills', 'opportunities', 'repositories', 'users']
 
     for (const table of tables) {
       try {
-        await sql`TRUNCATE TABLE ${table} CASCADE`
+        // Validate table name against allowlist to prevent SQL injection
+        this.validateTableName(table)
+        
+        // Create individual queries for each table to avoid parameter issues
+        // with table names (which cannot be parameterized in SQL)
+        switch (table) {
+          case 'user_skills':
+            await sql`TRUNCATE TABLE user_skills CASCADE`
+            break
+          case 'opportunities':
+            await sql`TRUNCATE TABLE opportunities CASCADE`
+            break
+          case 'repositories':
+            await sql`TRUNCATE TABLE repositories CASCADE`
+            break
+          case 'users':
+            await sql`TRUNCATE TABLE users CASCADE`
+            break
+          default:
+            // This should never happen due to validation, but included for safety
+            throw new Error(`Unexpected table name after validation: ${table}`)
+        }
       } catch (error) {
         // Table might not exist, continue
         console.warn(`Failed to truncate ${table}:`, error)
@@ -451,7 +493,27 @@ export class TestDatabaseManager {
 
     for (const table of tables) {
       try {
-        await db.query(`TRUNCATE TABLE ${table} CASCADE`)
+        // Validate table name against allowlist to prevent SQL injection
+        this.validateTableName(table)
+        
+        // Use explicit switch statement to avoid any parameter confusion
+        switch (table) {
+          case 'user_skills':
+            await db.query('TRUNCATE TABLE user_skills CASCADE')
+            break
+          case 'opportunities':
+            await db.query('TRUNCATE TABLE opportunities CASCADE')
+            break
+          case 'repositories':
+            await db.query('TRUNCATE TABLE repositories CASCADE')
+            break
+          case 'users':
+            await db.query('TRUNCATE TABLE users CASCADE')
+            break
+          default:
+            // This should never happen due to validation, but included for safety
+            throw new Error(`Unexpected table name after validation: ${table}`)
+        }
       } catch (error) {
         // Table might not exist, continue
         console.warn(`Failed to truncate ${table} in PGlite:`, error)

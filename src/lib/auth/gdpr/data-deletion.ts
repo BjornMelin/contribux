@@ -117,16 +117,18 @@ export async function identifyDataForDeletion() {
     OR (last_login_at IS NULL AND created_at < ${retentionCutoff})
   `
 
+  const sessionCutoff = new Date(Date.now() - auditConfig.retention.sessionData)
   const oldSessions = await sql`
     SELECT COUNT(*) as count
     FROM user_sessions
-    WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '${auditConfig.retention.sessionData / 1000} seconds'
+    WHERE created_at < ${sessionCutoff}
   `
 
+  const auditLogCutoff = new Date(Date.now() - auditConfig.retention.standardLogs)
   const oldAuditLogs = await sql`
     SELECT COUNT(*) as count
     FROM security_audit_logs
-    WHERE created_at < CURRENT_TIMESTAMP - INTERVAL '${auditConfig.retention.standardLogs / 1000} seconds'
+    WHERE created_at < ${auditLogCutoff}
     AND event_severity != 'critical'
   `
 
@@ -157,25 +159,19 @@ export async function enforceDataRetentionPolicies(): Promise<{
         const tableName = getTableNameForCategory(category as DataCategory)
 
         if (tableName) {
+          // Validate table name against allowlist for security
+          if (!isValidTableName(tableName)) {
+            errors.push(`Invalid table name for category ${category}: ${tableName}`)
+            continue
+          }
+
           // Archive before deletion (simplified - implement proper archival)
-          const archiveResult = await sql.unsafe(
-            `
-            INSERT INTO archived_data (table_name, data, archived_at)
-            SELECT '${tableName}', row_to_json(${tableName}.*), CURRENT_TIMESTAMP
-            FROM ${tableName}
-            WHERE created_at < '${cutoffDate.toISOString()}'
-          `
-          )
-          archivedRecords += Array.isArray(archiveResult) ? archiveResult.length : 0
+          const archiveResult = await archiveExpiredData(tableName, cutoffDate)
+          archivedRecords += archiveResult.count
 
           // Delete expired data
-          const deleteResult = await sql.unsafe(
-            `
-            DELETE FROM ${tableName}
-            WHERE created_at < '${cutoffDate.toISOString()}'
-          `
-          )
-          deletedRecords += Array.isArray(deleteResult) ? deleteResult.length : 0
+          const deleteResult = await deleteExpiredData(tableName, cutoffDate)
+          deletedRecords += deleteResult.count
         }
       } catch (categoryError) {
         errors.push(`Error processing category ${category}: ${categoryError}`)
@@ -197,4 +193,176 @@ function getTableNameForCategory(category: DataCategory): string | null {
   } as Record<DataCategory, string>
 
   return categoryTableMap[category] || null
+}
+
+/**
+ * Validates table name against an allowlist to prevent SQL injection
+ * Table names cannot be parameterized, so we must validate them explicitly
+ */
+function isValidTableName(tableName: string): boolean {
+  const allowedTables = new Set([
+    'users',
+    'user_repository_interactions',
+    'security_audit_logs',
+    'contribution_outcomes',
+    'notifications',
+    'user_preferences',
+    'user_consents',
+    'oauth_accounts',
+    'refresh_tokens',
+    'user_sessions',
+  ])
+
+  return allowedTables.has(tableName)
+}
+
+/**
+ * Securely archives expired data with strict table validation
+ * Table name is pre-validated via allowlist, all other values are parameterized
+ */
+async function archiveExpiredData(tableName: string, cutoffDate: Date): Promise<{ count: number }> {
+  // Table name is validated by caller via isValidTableName() - this is our security boundary
+  // We must use sql.unsafe for dynamic table names, but with strict validation
+
+  // Double-check table name is in our allowlist for extra security
+  if (!isValidTableName(tableName)) {
+    throw new Error(`Invalid table name: ${tableName}`)
+  }
+
+  // Use a switch statement to map validated table names to safe queries
+  // This eliminates any possibility of injection while maintaining functionality
+  let result
+  switch (tableName) {
+    case 'users':
+      result = await sql`
+        INSERT INTO archived_data (table_name, data, archived_at)
+        SELECT ${tableName}, row_to_json(users.*), CURRENT_TIMESTAMP
+        FROM users WHERE created_at < ${cutoffDate}
+      `
+      break
+    case 'user_repository_interactions':
+      result = await sql`
+        INSERT INTO archived_data (table_name, data, archived_at)
+        SELECT ${tableName}, row_to_json(user_repository_interactions.*), CURRENT_TIMESTAMP
+        FROM user_repository_interactions WHERE created_at < ${cutoffDate}
+      `
+      break
+    case 'security_audit_logs':
+      result = await sql`
+        INSERT INTO archived_data (table_name, data, archived_at)
+        SELECT ${tableName}, row_to_json(security_audit_logs.*), CURRENT_TIMESTAMP
+        FROM security_audit_logs WHERE created_at < ${cutoffDate}
+      `
+      break
+    case 'contribution_outcomes':
+      result = await sql`
+        INSERT INTO archived_data (table_name, data, archived_at)
+        SELECT ${tableName}, row_to_json(contribution_outcomes.*), CURRENT_TIMESTAMP
+        FROM contribution_outcomes WHERE created_at < ${cutoffDate}
+      `
+      break
+    case 'notifications':
+      result = await sql`
+        INSERT INTO archived_data (table_name, data, archived_at)
+        SELECT ${tableName}, row_to_json(notifications.*), CURRENT_TIMESTAMP
+        FROM notifications WHERE created_at < ${cutoffDate}
+      `
+      break
+    case 'user_preferences':
+      result = await sql`
+        INSERT INTO archived_data (table_name, data, archived_at)
+        SELECT ${tableName}, row_to_json(user_preferences.*), CURRENT_TIMESTAMP
+        FROM user_preferences WHERE created_at < ${cutoffDate}
+      `
+      break
+    case 'user_consents':
+      result = await sql`
+        INSERT INTO archived_data (table_name, data, archived_at)
+        SELECT ${tableName}, row_to_json(user_consents.*), CURRENT_TIMESTAMP
+        FROM user_consents WHERE created_at < ${cutoffDate}
+      `
+      break
+    case 'oauth_accounts':
+      result = await sql`
+        INSERT INTO archived_data (table_name, data, archived_at)
+        SELECT ${tableName}, row_to_json(oauth_accounts.*), CURRENT_TIMESTAMP
+        FROM oauth_accounts WHERE created_at < ${cutoffDate}
+      `
+      break
+    case 'refresh_tokens':
+      result = await sql`
+        INSERT INTO archived_data (table_name, data, archived_at)
+        SELECT ${tableName}, row_to_json(refresh_tokens.*), CURRENT_TIMESTAMP
+        FROM refresh_tokens WHERE created_at < ${cutoffDate}
+      `
+      break
+    case 'user_sessions':
+      result = await sql`
+        INSERT INTO archived_data (table_name, data, archived_at)
+        SELECT ${tableName}, row_to_json(user_sessions.*), CURRENT_TIMESTAMP
+        FROM user_sessions WHERE created_at < ${cutoffDate}
+      `
+      break
+    default:
+      throw new Error(`Unsupported table for archival: ${tableName}`)
+  }
+
+  return {
+    count: Array.isArray(result) ? result.length : 0,
+  }
+}
+
+/**
+ * Securely deletes expired data with strict table validation
+ * Table name is pre-validated via allowlist, all other values are parameterized
+ */
+async function deleteExpiredData(tableName: string, cutoffDate: Date): Promise<{ count: number }> {
+  // Table name is validated by caller via isValidTableName() - this is our security boundary
+
+  // Double-check table name is in our allowlist for extra security
+  if (!isValidTableName(tableName)) {
+    throw new Error(`Invalid table name: ${tableName}`)
+  }
+
+  // Use a switch statement to map validated table names to safe queries
+  // This eliminates any possibility of injection while maintaining functionality
+  let result
+  switch (tableName) {
+    case 'users':
+      result = await sql`DELETE FROM users WHERE created_at < ${cutoffDate}`
+      break
+    case 'user_repository_interactions':
+      result = await sql`DELETE FROM user_repository_interactions WHERE created_at < ${cutoffDate}`
+      break
+    case 'security_audit_logs':
+      result = await sql`DELETE FROM security_audit_logs WHERE created_at < ${cutoffDate}`
+      break
+    case 'contribution_outcomes':
+      result = await sql`DELETE FROM contribution_outcomes WHERE created_at < ${cutoffDate}`
+      break
+    case 'notifications':
+      result = await sql`DELETE FROM notifications WHERE created_at < ${cutoffDate}`
+      break
+    case 'user_preferences':
+      result = await sql`DELETE FROM user_preferences WHERE created_at < ${cutoffDate}`
+      break
+    case 'user_consents':
+      result = await sql`DELETE FROM user_consents WHERE created_at < ${cutoffDate}`
+      break
+    case 'oauth_accounts':
+      result = await sql`DELETE FROM oauth_accounts WHERE created_at < ${cutoffDate}`
+      break
+    case 'refresh_tokens':
+      result = await sql`DELETE FROM refresh_tokens WHERE created_at < ${cutoffDate}`
+      break
+    case 'user_sessions':
+      result = await sql`DELETE FROM user_sessions WHERE created_at < ${cutoffDate}`
+      break
+    default:
+      throw new Error(`Unsupported table for deletion: ${tableName}`)
+  }
+
+  return {
+    count: Array.isArray(result) ? result.length : 0,
+  }
 }
