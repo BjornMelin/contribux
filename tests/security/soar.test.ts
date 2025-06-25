@@ -585,31 +585,41 @@ describe('SOAR Engine', () => {
         })
 
         // Validate steps
-        playbook.steps.forEach((step: { stepId?: string; name?: string; type?: string }) => {
-          expect(step).toHaveProperty('stepId')
-          expect(step).toHaveProperty('name')
-          expect(step).toHaveProperty('description')
-          expect(step).toHaveProperty('type')
-          expect(step).toHaveProperty('automated')
-          expect(step).toHaveProperty('conditions')
-          expect(step).toHaveProperty('actions')
+        playbook.steps.forEach(
+          (step: {
+            stepId?: string
+            name?: string
+            type?: string
+            description?: string
+            automated?: boolean
+            conditions?: unknown[]
+            actions?: unknown[]
+          }) => {
+            expect(step).toHaveProperty('stepId')
+            expect(step).toHaveProperty('name')
+            expect(step).toHaveProperty('description')
+            expect(step).toHaveProperty('type')
+            expect(step).toHaveProperty('automated')
+            expect(step).toHaveProperty('conditions')
+            expect(step).toHaveProperty('actions')
 
-          expect(typeof step.automated).toBe('boolean')
-          expect(Array.isArray(step.conditions)).toBe(true)
-          expect(Array.isArray(step.actions)).toBe(true)
+            expect(typeof step.automated).toBe('boolean')
+            expect(Array.isArray(step.conditions)).toBe(true)
+            expect(Array.isArray(step.actions)).toBe(true)
 
-          const validStepTypes = [
-            'detection',
-            'analysis',
-            'containment',
-            'eradication',
-            'recovery',
-            'notification',
-            'documentation',
-            'verification',
-          ]
-          expect(validStepTypes).toContain(step.type)
-        })
+            const validStepTypes = [
+              'detection',
+              'analysis',
+              'containment',
+              'eradication',
+              'recovery',
+              'notification',
+              'documentation',
+              'verification',
+            ]
+            expect(validStepTypes).toContain(step.type)
+          }
+        )
       })
     })
   })

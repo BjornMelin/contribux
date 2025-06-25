@@ -59,7 +59,7 @@ export class TestDatabaseManager {
    * Validate table name against allowlist to prevent SQL injection
    */
   private validateTableName(tableName: string): void {
-    if (!this.ALLOWED_TABLES.has(tableName)) {
+    if (tableName == null || !this.ALLOWED_TABLES.has(tableName)) {
       throw new Error(
         `Invalid table name: ${tableName}. Only predefined tables are allowed for truncation.`
       )

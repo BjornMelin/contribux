@@ -15,7 +15,7 @@ describe('Zero-Trust Cryptographic Security', () => {
     process.env.SKIP_ENV_VALIDATION = 'true'
 
     // Set up test environment variables needed for crypto tests
-    process.env.NODE_ENV = 'test'
+    vi.stubEnv('NODE_ENV', 'test')
     process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/testdb'
     process.env.JWT_SECRET =
       'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only'
@@ -39,7 +39,7 @@ describe('Zero-Trust Cryptographic Security', () => {
       const originalEncryptionKey = process.env.ENCRYPTION_KEY
 
       try {
-        process.env.NODE_ENV = 'production'
+        vi.stubEnv('NODE_ENV', 'production')
         process.env.ENCRYPTION_KEY = '' // Set to empty string to ensure it's truly missing
         delete process.env.SKIP_ENV_VALIDATION // Temporarily enable validation for this test
 
@@ -65,7 +65,7 @@ describe('Zero-Trust Cryptographic Security', () => {
       const originalEncryptionKey = process.env.ENCRYPTION_KEY
 
       try {
-        process.env.NODE_ENV = 'production' // Set production to trigger validation
+        vi.stubEnv('NODE_ENV', 'production') // Set production to trigger validation
         process.env.ENCRYPTION_KEY =
           '0000000000000000000000000000000000000000000000000000000000000000' // Weak key
         delete process.env.SKIP_ENV_VALIDATION // Temporarily enable validation for this test
@@ -93,7 +93,7 @@ describe('Zero-Trust Cryptographic Security', () => {
       const originalEncryptionKey = process.env.ENCRYPTION_KEY
 
       try {
-        process.env.NODE_ENV = 'development'
+        vi.stubEnv('NODE_ENV', 'development')
         delete process.env.ENCRYPTION_KEY
 
         // Import and test the real function using ES module syntax
@@ -116,7 +116,7 @@ describe('Zero-Trust Cryptographic Security', () => {
       const originalEncryptionKey = process.env.ENCRYPTION_KEY
 
       try {
-        process.env.NODE_ENV = 'production' // Set production to trigger validation
+        vi.stubEnv('NODE_ENV', 'production') // Set production to trigger validation
         process.env.ENCRYPTION_KEY = 'invalid-key-format-not-hex' // Invalid format
 
         // Import and test the real function using ES module syntax
@@ -139,7 +139,7 @@ describe('Zero-Trust Cryptographic Security', () => {
       const originalEncryptionKey = process.env.ENCRYPTION_KEY
 
       try {
-        process.env.NODE_ENV = 'production' // Set production to trigger validation
+        vi.stubEnv('NODE_ENV', 'production') // Set production to trigger validation
         process.env.ENCRYPTION_KEY = '123456789abcdef' // Too short
 
         // Import and test the real function using ES module syntax

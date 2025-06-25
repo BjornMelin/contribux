@@ -16,7 +16,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 describe('Configuration Validation Security', () => {
   let originalEnv: NodeJS.ProcessEnv
-  let mockExit: ReturnType<typeof vi.spyOn>
+  let mockExit: ReturnType<typeof vi.spyOn> & { lastCallCode?: number | string | null | undefined }
   let mockConsoleError: ReturnType<typeof vi.spyOn>
 
   beforeEach(() => {
@@ -24,18 +24,22 @@ describe('Configuration Validation Security', () => {
 
     // Mock process.exit to prevent actual exit during tests
     // Security functions call process.exit(1) instead of throwing errors
-    mockExit = vi.spyOn(process, 'exit').mockImplementation((code?: number | string) => {
-      // Store the exit code for verification
-      ;(mockExit as typeof mockExit & { lastCallCode?: number | string }).lastCallCode = code
-      // Don't throw - just return to allow test to continue
-      return undefined as never
-    })
+    mockExit = vi
+      .spyOn(process, 'exit')
+      .mockImplementation((code?: number | string | null | undefined) => {
+        // Store the exit code for verification
+        ;(
+          mockExit as typeof mockExit & { lastCallCode?: number | string | null | undefined }
+        ).lastCallCode = code
+        // Don't throw - just return to allow test to continue
+        return undefined as never
+      })
 
     // Mock console.error to capture error output
     mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
 
     // Set base test environment variables to prevent import-time validation failures
-    process.env.NODE_ENV = 'test'
+    vi.stubEnv('NODE_ENV', 'test')
     process.env.DATABASE_URL = 'postgresql://testuser:testpass@localhost:5432/testdb'
     process.env.JWT_SECRET =
       'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only-32chars'
@@ -59,7 +63,7 @@ describe('Configuration Validation Security', () => {
   describe('Application Startup Security', () => {
     it('should fail securely when ENCRYPTION_KEY is missing in production', async () => {
       // Set production environment with missing encryption key
-      process.env.NODE_ENV = 'production'
+      vi.stubEnv('NODE_ENV', 'production')
       process.env.DATABASE_URL = 'postgresql://user:pass@localhost:5432/db'
       process.env.JWT_SECRET = 'secure-jwt-secret-with-sufficient-length-and-entropy-32chars'
       process.env.GITHUB_CLIENT_ID = 'Iv1.a1b2c3d4e5f6g7h8'
@@ -80,7 +84,7 @@ describe('Configuration Validation Security', () => {
 
     it('should fail securely when JWT_SECRET is missing', async () => {
       // Set environment with missing JWT secret
-      process.env.NODE_ENV = 'production'
+      vi.stubEnv('NODE_ENV', 'production')
       process.env.DATABASE_URL = 'postgresql://user:pass@localhost:5432/db'
       process.env.ENCRYPTION_KEY =
         '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
@@ -97,7 +101,7 @@ describe('Configuration Validation Security', () => {
 
     it('should fail securely when DATABASE_URL is missing', async () => {
       // Set environment with missing database URL
-      process.env.NODE_ENV = 'production'
+      vi.stubEnv('NODE_ENV', 'production')
       process.env.JWT_SECRET = 'secure-jwt-secret-with-sufficient-length-and-entropy-32chars'
       process.env.ENCRYPTION_KEY =
         '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
@@ -114,7 +118,7 @@ describe('Configuration Validation Security', () => {
 
     it('should fail securely when GitHub OAuth credentials are incomplete in production', async () => {
       // Set environment with incomplete GitHub OAuth
-      process.env.NODE_ENV = 'production'
+      vi.stubEnv('NODE_ENV', 'production')
       process.env.DATABASE_URL = 'postgresql://user:pass@localhost:5432/db'
       process.env.JWT_SECRET = 'secure-jwt-secret-with-sufficient-length-and-entropy-32chars'
       process.env.ENCRYPTION_KEY =
@@ -130,7 +134,7 @@ describe('Configuration Validation Security', () => {
 
     it('should block startup with weak encryption keys', async () => {
       // Set environment with weak encryption key
-      process.env.NODE_ENV = 'production'
+      vi.stubEnv('NODE_ENV', 'production')
       process.env.DATABASE_URL = 'postgresql://user:pass@localhost:5432/db'
       process.env.JWT_SECRET = 'secure-jwt-secret-with-sufficient-length-and-entropy-32chars'
       process.env.ENCRYPTION_KEY =
@@ -150,7 +154,7 @@ describe('Configuration Validation Security', () => {
 
     it('should block startup with invalid encryption key format', async () => {
       // Set environment with invalid encryption key format
-      process.env.NODE_ENV = 'production'
+      vi.stubEnv('NODE_ENV', 'production')
       process.env.DATABASE_URL = 'postgresql://user:pass@localhost:5432/db'
       process.env.JWT_SECRET = 'secure-jwt-secret-with-sufficient-length-and-entropy-32chars'
       process.env.ENCRYPTION_KEY = 'invalid-key-format-not-hex' // Invalid format
@@ -167,7 +171,7 @@ describe('Configuration Validation Security', () => {
 
     it('should block startup with short encryption key', async () => {
       // Set environment with short encryption key
-      process.env.NODE_ENV = 'production'
+      vi.stubEnv('NODE_ENV', 'production')
       process.env.DATABASE_URL = 'postgresql://user:pass@localhost:5432/db'
       process.env.JWT_SECRET = 'secure-jwt-secret-with-sufficient-length-and-entropy-32chars'
       process.env.ENCRYPTION_KEY = '123456789abcdef' // Too short
@@ -184,7 +188,7 @@ describe('Configuration Validation Security', () => {
 
     it('should block startup with test keywords in production secrets', async () => {
       // Set environment with test keywords in production
-      process.env.NODE_ENV = 'production'
+      vi.stubEnv('NODE_ENV', 'production')
       process.env.DATABASE_URL = 'postgresql://user:pass@localhost:5432/db'
       process.env.JWT_SECRET = 'test-jwt-secret-with-sufficient-length-and-entropy-32chars' // Contains 'test'
       process.env.ENCRYPTION_KEY =
@@ -204,7 +208,7 @@ describe('Configuration Validation Security', () => {
 
     it('should block startup with localhost URLs in production', async () => {
       // Set environment with localhost URLs in production
-      process.env.NODE_ENV = 'production'
+      vi.stubEnv('NODE_ENV', 'production')
       process.env.DATABASE_URL = 'postgresql://user:pass@production.db.com:5432/db'
       process.env.JWT_SECRET = 'secure-jwt-secret-with-sufficient-length-and-entropy-32chars'
       process.env.ENCRYPTION_KEY =
@@ -227,7 +231,7 @@ describe('Configuration Validation Security', () => {
     it('should throw error when getEncryptionKey() is called with missing key', async () => {
       // Clear encryption key
       delete process.env.ENCRYPTION_KEY
-      process.env.NODE_ENV = 'production'
+      vi.stubEnv('NODE_ENV', 'production')
 
       const { getEncryptionKey } = await import('@/lib/validation/env')
 
@@ -279,7 +283,7 @@ describe('Configuration Validation Security', () => {
       const environments = ['development', 'test', 'production']
 
       for (const env of environments) {
-        process.env.NODE_ENV = env
+        vi.stubEnv('NODE_ENV', env)
         delete process.env.ENCRYPTION_KEY
 
         const { getEncryptionKey } = await import('@/lib/validation/env')
@@ -299,7 +303,7 @@ describe('Configuration Validation Security', () => {
       ]
 
       for (const scenario of testScenarios) {
-        process.env.NODE_ENV = scenario.env
+        vi.stubEnv('NODE_ENV', scenario.env)
         delete process.env.ENCRYPTION_KEY
 
         const { getEncryptionKey } = await import('@/lib/validation/env')
@@ -310,7 +314,7 @@ describe('Configuration Validation Security', () => {
         // Verify no common fallback patterns are used
         try {
           getEncryptionKey()
-          expect.fail('Should have thrown an error')
+          throw new Error('Should have thrown an error')
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error)
           // Ensure error message doesn't contain actual key values
@@ -331,7 +335,7 @@ describe('Configuration Validation Security', () => {
       ]
 
       for (const scenario of testScenarios) {
-        process.env.NODE_ENV = scenario.env
+        vi.stubEnv('NODE_ENV', scenario.env)
         delete process.env.JWT_SECRET
 
         const { getJwtSecret } = await import('@/lib/validation/env')
@@ -342,7 +346,7 @@ describe('Configuration Validation Security', () => {
         // Verify no common fallback patterns are used
         try {
           getJwtSecret()
-          fail('Should have thrown an error')
+          throw new Error('Should have thrown an error')
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error)
           // Ensure error message doesn't contain actual secret values
@@ -355,7 +359,7 @@ describe('Configuration Validation Security', () => {
 
     it('should prevent test defaults in production mode', async () => {
       // Set production with potential test values
-      process.env.NODE_ENV = 'production'
+      vi.stubEnv('NODE_ENV', 'production')
 
       // Test various test-like values
       const testValues = [
@@ -377,7 +381,7 @@ describe('Configuration Validation Security', () => {
   describe('Environment Validation Edge Cases', () => {
     it('should reject empty string environment variables', async () => {
       // Set empty strings (not undefined)
-      process.env.NODE_ENV = 'production'
+      vi.stubEnv('NODE_ENV', 'production')
       process.env.DATABASE_URL = 'postgresql://user:pass@localhost:5432/db'
       process.env.JWT_SECRET = '' // Empty string
       process.env.ENCRYPTION_KEY =
@@ -394,7 +398,7 @@ describe('Configuration Validation Security', () => {
 
     it('should reject whitespace-only environment variables', async () => {
       // Set whitespace-only values
-      process.env.NODE_ENV = 'production'
+      vi.stubEnv('NODE_ENV', 'production')
       process.env.DATABASE_URL = 'postgresql://user:pass@localhost:5432/db'
       process.env.JWT_SECRET = '   ' // Whitespace only
       process.env.ENCRYPTION_KEY =
@@ -431,7 +435,7 @@ describe('Configuration Validation Security', () => {
   describe('Production Environment Validation', () => {
     it('should enforce all required production environment variables', async () => {
       // Set minimal production environment
-      process.env.NODE_ENV = 'production'
+      vi.stubEnv('NODE_ENV', 'production')
 
       const { validateProductionEnv } = await import('@/lib/validation/env')
 
@@ -443,7 +447,7 @@ describe('Configuration Validation Security', () => {
 
     it('should succeed with complete production environment', async () => {
       // Set complete production environment
-      process.env.NODE_ENV = 'production'
+      vi.stubEnv('NODE_ENV', 'production')
       process.env.DATABASE_URL = 'postgresql://user:pass@host.com:5432/db'
       process.env.JWT_SECRET = 'secure-jwt-secret-with-sufficient-length-and-entropy-32chars'
       process.env.ENCRYPTION_KEY =
@@ -464,7 +468,7 @@ describe('Configuration Validation Security', () => {
       const environments = ['development', 'test', 'production']
 
       for (const env of environments) {
-        process.env.NODE_ENV = env
+        vi.stubEnv('NODE_ENV', env)
         process.env.ENCRYPTION_KEY = 'invalid-key'
 
         const { validateEnvironment } = await import('@/lib/validation/env')
@@ -475,7 +479,7 @@ describe('Configuration Validation Security', () => {
 
     it('should enforce entropy requirements for all keys', async () => {
       // Test weak encryption key
-      process.env.NODE_ENV = 'production'
+      vi.stubEnv('NODE_ENV', 'production')
       process.env.ENCRYPTION_KEY =
         '1111111111111111111111111111111111111111111111111111111111111111'
 
@@ -487,13 +491,13 @@ describe('Configuration Validation Security', () => {
     it('should provide security guidance in error messages', async () => {
       // Test missing encryption key
       delete process.env.ENCRYPTION_KEY
-      process.env.NODE_ENV = 'production'
+      vi.stubEnv('NODE_ENV', 'production')
 
       const { getEncryptionKey } = await import('@/lib/validation/env')
 
       try {
         getEncryptionKey()
-        fail('Should have thrown an error')
+        expect.fail('Should have thrown an error')
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error)
 

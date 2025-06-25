@@ -241,13 +241,14 @@ export class IntegrationTestReporter implements Reporter {
       message: err.message || 'Unknown error',
       stack: err.stack,
       type: err.name || err.constructor?.name || 'Error',
-      location: err.location
-        ? {
-            file: err.location.file,
-            line: err.location.line,
-            column: err.location.column,
-          }
-        : undefined,
+      location:
+        err.location?.file && err.location.line && err.location.column
+          ? {
+              file: err.location.file,
+              line: err.location.line,
+              column: err.location.column,
+            }
+          : undefined,
     }
   }
 

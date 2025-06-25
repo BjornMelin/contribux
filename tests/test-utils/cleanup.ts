@@ -95,13 +95,14 @@ function clearModuleLevelState() {
 function clearGitHubClientState() {
   // GitHub client instances might cache rate limit info
   // Force module reset to clear these caches
-  if ((global as Record<string, unknown>).__githubClientCache) {
-    ;(global as Record<string, unknown>).__githubClientCache = undefined
+  const globalWithGitHub = global as NodeJS.Global
+  if (globalWithGitHub.__githubClientCache) {
+    globalWithGitHub.__githubClientCache = undefined
   }
 
   // Clear any rate limit trackers
-  if ((global as Record<string, unknown>).__githubRateLimitState) {
-    ;(global as Record<string, unknown>).__githubRateLimitState = undefined
+  if (globalWithGitHub.__githubRateLimitState) {
+    globalWithGitHub.__githubRateLimitState = undefined
   }
 }
 
@@ -188,18 +189,19 @@ function clearAllActiveTimers() {
   resourceTracker.intervals.clear()
 
   // Clear global timer tracking if available
-  if (global.__activeTimers) {
-    for (const timer of global.__activeTimers) {
+  const globalWithTimers = global as NodeJS.Global
+  if (globalWithTimers.__activeTimers) {
+    for (const timer of globalWithTimers.__activeTimers) {
       clearTimeout(timer)
     }
-    global.__activeTimers.clear()
+    globalWithTimers.__activeTimers.clear()
   }
 
-  if (global.__activeIntervals) {
-    for (const interval of global.__activeIntervals) {
+  if (globalWithTimers.__activeIntervals) {
+    for (const interval of globalWithTimers.__activeIntervals) {
       clearInterval(interval)
     }
-    global.__activeIntervals.clear()
+    globalWithTimers.__activeIntervals.clear()
   }
 }
 
@@ -269,8 +271,9 @@ function clearTrackedResources() {
  * Run cleanup registry for custom cleanup functions
  */
 function runCleanupRegistry() {
-  if (global.__testCleanupRegistry) {
-    for (const cleanupFn of global.__testCleanupRegistry) {
+  const globalWithCleanup = global as NodeJS.Global
+  if (globalWithCleanup.__testCleanupRegistry) {
+    for (const cleanupFn of globalWithCleanup.__testCleanupRegistry) {
       try {
         const result = cleanupFn()
         if (result instanceof Promise) {
@@ -280,7 +283,7 @@ function runCleanupRegistry() {
         console.warn('Cleanup function failed:', error)
       }
     }
-    global.__testCleanupRegistry.clear()
+    globalWithCleanup.__testCleanupRegistry.clear()
   }
 }
 
@@ -329,10 +332,11 @@ export function registerForCleanup(
  * Register a custom cleanup function
  */
 export function registerCleanup(cleanupFn: () => Promise<void> | void) {
-  if (!global.__testCleanupRegistry) {
-    global.__testCleanupRegistry = new Set()
+  const globalWithCleanup = global as NodeJS.Global
+  if (!globalWithCleanup.__testCleanupRegistry) {
+    globalWithCleanup.__testCleanupRegistry = new Set()
   }
-  global.__testCleanupRegistry.add(cleanupFn)
+  globalWithCleanup.__testCleanupRegistry.add(cleanupFn)
 }
 
 /**
@@ -340,8 +344,9 @@ export function registerCleanup(cleanupFn: () => Promise<void> | void) {
  */
 export function setupEnhancedTestIsolation() {
   // Initialize global cleanup registry
-  if (!global.__testCleanupRegistry) {
-    global.__testCleanupRegistry = new Set()
+  const globalWithCleanup = global as NodeJS.Global
+  if (!globalWithCleanup.__testCleanupRegistry) {
+    globalWithCleanup.__testCleanupRegistry = new Set()
   }
 
   beforeEach(() => {

@@ -9,7 +9,6 @@ import type {
   AuthEventType,
   AuthMethod,
   ConsentType,
-  CustomAdapterUser,
   EventSeverity,
   OAuthAccount,
   OAuthProvider,

@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 describe('Environment Startup Validation Security', () => {
   let originalEnv: NodeJS.ProcessEnv
-  let mockExit: ReturnType<typeof vi.spyOn>
+  let mockExit: ReturnType<typeof vi.spyOn> & { lastCallCode?: number | string | null | undefined }
   let mockConsoleError: ReturnType<typeof vi.spyOn>
   let mockConsoleLog: ReturnType<typeof vi.spyOn>
 
@@ -20,12 +20,16 @@ describe('Environment Startup Validation Security', () => {
 
     // Mock process.exit to prevent actual exit during tests
     // Security functions call process.exit(1) instead of throwing errors
-    mockExit = vi.spyOn(process, 'exit').mockImplementation((code?: number | string) => {
-      // Store the exit code for verification
-      ;(mockExit as typeof mockExit & { lastCallCode?: number | string }).lastCallCode = code
-      // Don't throw - just return to allow test to continue
-      return undefined as never
-    })
+    mockExit = vi
+      .spyOn(process, 'exit')
+      .mockImplementation((code?: number | string | null | undefined) => {
+        // Store the exit code for verification
+        ;(
+          mockExit as typeof mockExit & { lastCallCode?: number | string | null | undefined }
+        ).lastCallCode = code
+        // Don't throw - just return to allow test to continue
+        return undefined as never
+      })
 
     // Mock console methods to capture output
     mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -61,7 +65,7 @@ describe('Environment Startup Validation Security', () => {
   describe('Production Startup Scenarios', () => {
     it('should succeed with complete secure production environment', async () => {
       // Set complete, secure production environment
-      process.env.NODE_ENV = 'production'
+      vi.stubEnv('NODE_ENV', 'production')
       process.env.DATABASE_URL =
         'postgresql://neondb_owner:secure_pass@ep-morning-sea-a5b6c7d8.us-east-1.aws.neon.tech/neondb?sslmode=require'
       process.env.JWT_SECRET = 'Kf9Hq3Zx8Wm2Tn6Vy4Bu1Pg5Rk0Jc7Lv9Aw3Ez6Qh2Ms8Np4Dt1Fb5Gy7XwRt' // Strong, unique secret
@@ -85,7 +89,7 @@ describe('Environment Startup Validation Security', () => {
     })
 
     it('should fail when production has incomplete OAuth configuration', async () => {
-      process.env.NODE_ENV = 'production'
+      vi.stubEnv('NODE_ENV', 'production')
       process.env.DATABASE_URL = 'postgresql://user:pass@host.com:5432/db'
       process.env.JWT_SECRET = 'secure-jwt-secret-with-sufficient-length-and-entropy-32chars'
       process.env.ENCRYPTION_KEY =
@@ -106,7 +110,7 @@ describe('Environment Startup Validation Security', () => {
 
     it('should validate complete environment with Google OAuth', async () => {
       // Test with complete Google OAuth configuration
-      process.env.NODE_ENV = 'production'
+      vi.stubEnv('NODE_ENV', 'production')
       process.env.DATABASE_URL = 'postgresql://user:pass@host.com:5432/db'
       process.env.JWT_SECRET = 'secure-jwt-secret-with-sufficient-length-and-entropy-32chars'
       process.env.ENCRYPTION_KEY =
@@ -131,7 +135,7 @@ describe('Environment Startup Validation Security', () => {
     })
 
     it('should fail with incomplete Google OAuth configuration', async () => {
-      process.env.NODE_ENV = 'production'
+      vi.stubEnv('NODE_ENV', 'production')
       process.env.DATABASE_URL = 'postgresql://user:pass@host.com:5432/db'
       process.env.JWT_SECRET = 'secure-jwt-secret-with-sufficient-length-and-entropy-32chars'
       process.env.ENCRYPTION_KEY =
@@ -223,7 +227,7 @@ describe('Environment Startup Validation Security', () => {
 
   describe('Security Configuration Validation', () => {
     it('should validate complete security configuration', async () => {
-      process.env.NODE_ENV = 'production'
+      vi.stubEnv('NODE_ENV', 'production')
       process.env.DATABASE_URL = 'postgresql://user:pass@host.com:5432/db'
       process.env.JWT_SECRET = 'secure-jwt-secret-with-sufficient-length-and-entropy-32chars'
       process.env.ENCRYPTION_KEY =
@@ -266,7 +270,7 @@ describe('Environment Startup Validation Security', () => {
 
   describe('Rate Limiting and CORS Validation', () => {
     it('should validate rate limiting configuration', async () => {
-      process.env.NODE_ENV = 'production'
+      vi.stubEnv('NODE_ENV', 'production')
       process.env.DATABASE_URL = 'postgresql://user:pass@host.com:5432/db'
       process.env.JWT_SECRET = 'secure-jwt-secret-with-sufficient-length-and-entropy-32chars'
       process.env.ENCRYPTION_KEY =
@@ -286,7 +290,7 @@ describe('Environment Startup Validation Security', () => {
     })
 
     it('should validate redirect URI format', async () => {
-      process.env.NODE_ENV = 'production'
+      vi.stubEnv('NODE_ENV', 'production')
       process.env.DATABASE_URL = 'postgresql://user:pass@host.com:5432/db'
       process.env.JWT_SECRET = 'secure-jwt-secret-with-sufficient-length-and-entropy-32chars'
       process.env.ENCRYPTION_KEY =
@@ -315,7 +319,7 @@ describe('Environment Startup Validation Security', () => {
       ]
 
       for (const url of validUrls) {
-        process.env.NODE_ENV = 'test'
+        vi.stubEnv('NODE_ENV', 'test')
         process.env.DATABASE_URL = url
         process.env.JWT_SECRET =
           'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only'
@@ -337,7 +341,7 @@ describe('Environment Startup Validation Security', () => {
       ]
 
       for (const url of invalidUrls) {
-        process.env.NODE_ENV = 'test'
+        vi.stubEnv('NODE_ENV', 'test')
         process.env.DATABASE_URL = url
         process.env.JWT_SECRET =
           'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only'
@@ -360,7 +364,7 @@ describe('Environment Startup Validation Security', () => {
       ]
 
       for (const clientId of validIds) {
-        process.env.NODE_ENV = 'production'
+        vi.stubEnv('NODE_ENV', 'production')
         process.env.DATABASE_URL = 'postgresql://user:pass@host.com:5432/db'
         process.env.JWT_SECRET = 'secure-jwt-secret-with-sufficient-length-and-entropy-32chars'
         process.env.ENCRYPTION_KEY =
@@ -381,7 +385,7 @@ describe('Environment Startup Validation Security', () => {
       const invalidIds = ['invalid-format', 'Iv1.short', 'toolongforgithubappformat1234567890']
 
       for (const clientId of invalidIds) {
-        process.env.NODE_ENV = 'production'
+        vi.stubEnv('NODE_ENV', 'production')
         process.env.DATABASE_URL = 'postgresql://user:pass@host.com:5432/db'
         process.env.JWT_SECRET = 'secure-jwt-secret-with-sufficient-length-and-entropy-32chars'
         process.env.ENCRYPTION_KEY =
@@ -421,7 +425,7 @@ describe('Environment Startup Validation Security', () => {
       const emptyValues = ['', '   ', '\t\t', '\n\n']
 
       for (const emptyValue of emptyValues) {
-        process.env.NODE_ENV = 'production'
+        vi.stubEnv('NODE_ENV', 'production')
         process.env.JWT_SECRET = emptyValue
 
         const { getJwtSecret } = await import('@/lib/validation/env')
@@ -456,7 +460,7 @@ describe('Environment Startup Validation Security', () => {
 
         try {
           fn()
-          fail(`Should have thrown an error for ${testCase.scenario}`)
+          expect.fail(`Should have thrown an error for ${testCase.scenario}`)
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error)
 

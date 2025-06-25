@@ -46,8 +46,7 @@ const TEST_ENV_VARS = {
   DATABASE_URL: 'postgresql://testuser:testpass@localhost:5432/testdb',
   DATABASE_URL_TEST: 'postgresql://testuser:testpass@localhost:5432/testdb',
   DATABASE_URL_DEV: 'postgresql://testuser:testpass@localhost:5432/testdb_dev',
-  JWT_SECRET:
-    'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only-32chars',
+  JWT_SECRET: '8f6be3e6a8bc63ab47bd41db4d11ccdcdff3eb07f04aab983956719007f0e025ab',
   ENCRYPTION_KEY: '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
   GITHUB_CLIENT_ID: 'Iv1.a1b2c3d4e5f6g7h8',
   GITHUB_CLIENT_SECRET:
@@ -93,12 +92,12 @@ const createIntelligentDbClient = () => {
   return new Proxy(
     {},
     {
-      get(target, prop) {
+      get(target, prop: string | symbol) {
         if (prop === 'sql') {
           // Will be replaced by test-specific setup
           return vi.fn().mockResolvedValue([])
         }
-        return (target as Record<string, unknown>)[prop]
+        return (target as Record<string | symbol, unknown>)[prop]
       },
     }
   )
@@ -459,8 +458,8 @@ afterAll(async () => {
   await dbManager.cleanup()
 
   // Clear all global test state
-  if (global.__testCleanupRegistry) {
-    global.__testCleanupRegistry.clear()
+  if ((global as NodeJS.Global).__testCleanupRegistry) {
+    ;(global as NodeJS.Global).__testCleanupRegistry?.clear()
   }
 
   // Force final garbage collection

@@ -16,7 +16,13 @@ import {
   verifyRegistrationResponse,
 } from '../../src/lib/auth/webauthn'
 import { sql } from '../../src/lib/db/config'
-import type { AuthEventType, EventSeverity, User, UserSession } from '../../src/types/auth'
+import type {
+  AuthEventType,
+  EventSeverity,
+  SecurityAuditLog,
+  User,
+  UserSession,
+} from '../../src/types/auth'
 import type { Email, GitHubUsername, UUID } from '../../src/types/base'
 import { createTestUser, createTestUserSession } from '../helpers/auth-test-factories'
 
@@ -573,7 +579,7 @@ describe('Authentication Integration Tests', () => {
           checksum: undefined,
           createdAt: new Date(),
           updatedAt: new Date(),
-        }
+        } as unknown as SecurityAuditLog
       })
 
       // Trigger operations that should generate security events

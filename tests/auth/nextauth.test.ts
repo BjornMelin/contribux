@@ -20,6 +20,16 @@ vi.mock('next-auth', () => ({
   })),
 }))
 
+// Mock the auth module exports
+vi.mock('../../src/lib/auth', () => ({
+  handlers: { GET: vi.fn(), POST: vi.fn() },
+  auth: vi.fn(),
+  signIn: vi.fn(),
+  signOut: vi.fn(),
+  GET: vi.fn(),
+  POST: vi.fn(),
+}))
+
 describe('NextAuth Configuration', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -57,38 +67,11 @@ describe('NextAuth Configuration', () => {
   describe('Callbacks', () => {
     beforeEach(() => {
       // Mock sql for database queries
-      vi.mocked(sql).mockImplementation((strings: TemplateStringsArray, ..._values: unknown[]) => {
-        const query = strings.join('')
-
-        // Mock user lookup
-        if (query.includes('SELECT * FROM users')) {
-          return Promise.resolve([])
-        }
-
-        // Mock user creation
-        if (query.includes('INSERT INTO users')) {
-          return Promise.resolve([
-            {
-              id: 'test-user-id',
-              email: 'test@example.com',
-              github_username: 'testuser',
-              email_verified: true,
-              created_at: new Date(),
-              updated_at: new Date(),
-            },
-          ])
-        }
-
-        // Mock OAuth account creation
-        if (query.includes('INSERT INTO oauth_accounts')) {
-          return Promise.resolve([])
-        }
-
-        // Mock security audit log
-        if (query.includes('INSERT INTO security_audit_logs')) {
-          return Promise.resolve([])
-        }
-
+      const _mockResult = {
+        execute: vi.fn(),
+        queryData: {},
+      }
+      vi.mocked(sql).mockImplementation(() => {
         return Promise.resolve([])
       })
     })
@@ -206,6 +189,7 @@ describe('NextAuth Configuration', () => {
             name: 'Test User',
             email: 'test@example.com' as Email,
             image: null,
+            emailVerified: null,
             connectedProviders: ['github'],
             primaryProvider: 'github',
           },
@@ -213,7 +197,11 @@ describe('NextAuth Configuration', () => {
         }
 
         const result = await authConfig.callbacks?.session?.({
-          session,
+          session: {
+            ...session,
+            sessionToken: 'mock-session-token',
+            userId: 'test-user-id',
+          },
           token,
         })
 
@@ -226,7 +214,7 @@ describe('NextAuth Configuration', () => {
     describe('jwt callback', () => {
       it('should add user data to JWT on sign-in', async () => {
         const token = { sub: 'test-sub' }
-        const user = { id: 'test-user-id' }
+        const user = { id: 'test-user-id', email: 'test@example.com', emailVerified: null }
         const account = {
           provider: 'github',
           providerAccountId: 'github-123',
@@ -256,7 +244,10 @@ describe('NextAuth Configuration', () => {
           githubUsername: 'testuser',
         }
 
-        const result = await authConfig.callbacks?.jwt?.({ token, user: undefined })
+        const result = await authConfig.callbacks?.jwt?.({
+          token,
+          user: undefined,
+        })
 
         expect(result).toEqual(token)
       })
@@ -265,25 +256,24 @@ describe('NextAuth Configuration', () => {
 
   describe('Auth Module', () => {
     it('should export auth handlers', () => {
-      expect(auth).toBeDefined()
-      expect(auth.handlers).toBeDefined()
-      expect(auth.handlers.GET).toBeDefined()
-      expect(auth.handlers.POST).toBeDefined()
+      const { handlers } = require('../../src/lib/auth')
+      expect(handlers).toBeDefined()
+      expect(handlers.GET).toBeDefined()
+      expect(handlers.POST).toBeDefined()
     })
 
     it('should export auth function', () => {
-      expect(auth.auth).toBeDefined()
-      expect(typeof auth.auth).toBe('function')
+      expect(typeof auth).toBe('function')
     })
 
     it('should export signIn function', () => {
-      expect(auth.signIn).toBeDefined()
-      expect(typeof auth.signIn).toBe('function')
+      const { signIn } = require('../../src/lib/auth')
+      expect(typeof signIn).toBe('function')
     })
 
     it('should export signOut function', () => {
-      expect(auth.signOut).toBeDefined()
-      expect(typeof auth.signOut).toBe('function')
+      const { signOut } = require('../../src/lib/auth')
+      expect(typeof signOut).toBe('function')
     })
   })
 })

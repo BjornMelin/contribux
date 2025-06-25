@@ -192,6 +192,7 @@ describe('Session Management', () => {
         email: 'test@example.com',
         name: 'Test User',
         image: null,
+        emailVerified: null,
         connectedProviders: ['github', 'google'],
         primaryProvider: 'github',
       },
@@ -212,7 +213,11 @@ describe('Session Management', () => {
     ])
 
     const result = await authConfig.callbacks?.session?.({
-      session: mockSession,
+      session: {
+        ...mockSession,
+        sessionToken: 'mock-session-token',
+        userId: 'user-123',
+      },
       token: mockToken,
     })
 

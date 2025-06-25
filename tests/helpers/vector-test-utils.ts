@@ -328,7 +328,7 @@ export class VectorTestUtils {
         results[`m${config.m}_ef${config.ef_construction}`] = {
           configuration: config,
           performance: testResult,
-          indexSize: indexSize[0]?.size || 'unknown',
+          indexSize: (indexSize[0] as { size?: string })?.size || 'unknown',
         }
 
         // Drop test index
