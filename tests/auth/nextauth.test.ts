@@ -1,11 +1,12 @@
 import type { Session } from 'next-auth'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { auth } from '@/lib/auth'
-import { authConfig } from '@/lib/auth/config'
-import { sql } from '@/lib/db/config'
+import { auth } from '../../src/lib/auth'
+import { authConfig } from '../../src/lib/auth/config'
+import { sql } from '../../src/lib/db/config'
+import type { Email, UUID } from '../../src/types/base'
 
 // Mock database module
-vi.mock('@/lib/db/config', () => ({
+vi.mock('../../src/lib/db/config', () => ({
   sql: vi.fn(),
 }))
 
@@ -94,7 +95,7 @@ describe('NextAuth Configuration', () => {
 
     describe('signIn callback', () => {
       it('should create a new user on first sign-in', async () => {
-        const result = await authConfig.callbacks.signIn({
+        const result = await authConfig.callbacks?.signIn?.({
           user: {
             id: 'github-123',
             email: 'test@example.com',
@@ -110,7 +111,7 @@ describe('NextAuth Configuration', () => {
           },
           profile: {
             login: 'testuser',
-            id: 123,
+            id: '123',
             email: 'test@example.com',
           },
         })
@@ -135,7 +136,7 @@ describe('NextAuth Configuration', () => {
           ])
         )
 
-        const result = await authConfig.callbacks.signIn({
+        const result = await authConfig.callbacks?.signIn?.({
           user: {
             id: 'github-123',
             email: 'test@example.com',
@@ -151,7 +152,7 @@ describe('NextAuth Configuration', () => {
           },
           profile: {
             login: 'testuser',
-            id: 123,
+            id: '123',
             email: 'test@example.com',
           },
         })
@@ -160,7 +161,7 @@ describe('NextAuth Configuration', () => {
       })
 
       it('should reject sign-in without account data', async () => {
-        const result = await authConfig.callbacks.signIn({
+        const result = await authConfig.callbacks?.signIn?.({
           user: {
             id: 'test-id',
             email: 'test@example.com',
@@ -171,7 +172,7 @@ describe('NextAuth Configuration', () => {
       })
 
       it('should reject non-GitHub providers', async () => {
-        const result = await authConfig.callbacks.signIn({
+        const result = await authConfig.callbacks?.signIn?.({
           user: {
             id: 'test-id',
             email: 'test@example.com',
@@ -197,18 +198,24 @@ describe('NextAuth Configuration', () => {
 
         const session: Session = {
           user: {
+            id: 'test-user-id' as UUID,
             name: 'Test User',
-            email: 'test@example.com',
+            email: 'test@example.com' as Email,
             image: null,
+            connectedProviders: ['github'],
+            primaryProvider: 'github',
           },
           expires: new Date(Date.now() + 86400000).toISOString(),
         }
 
-        const result = await authConfig.callbacks.session({ session, token })
+        const result = await authConfig.callbacks?.session?.({
+          session,
+          token,
+        })
 
-        expect(result.user.id).toBe('test-user-id')
-        expect(result.user.email).toBe('test@example.com')
-        expect(result.user.githubUsername).toBe('testuser')
+        expect(result?.user?.id).toBe('test-user-id')
+        expect(result?.user?.email).toBe('test@example.com')
+        expect(result?.user?.githubUsername).toBe('testuser')
       })
     })
 
@@ -219,9 +226,10 @@ describe('NextAuth Configuration', () => {
         const account = {
           provider: 'github',
           providerAccountId: 'github-123',
+          type: 'oauth' as const,
         }
 
-        const result = await authConfig.callbacks.jwt({
+        const result = await authConfig.callbacks?.jwt?.({
           token,
           user,
           account,
@@ -231,9 +239,9 @@ describe('NextAuth Configuration', () => {
           },
         })
 
-        expect(result.id).toBe('test-user-id')
-        expect(result.githubUsername).toBe('testuser')
-        expect(result.email).toBe('test@example.com')
+        expect(result?.id).toBe('test-user-id')
+        expect(result?.githubUsername).toBe('testuser')
+        expect(result?.email).toBe('test@example.com')
       })
 
       it('should preserve token data on subsequent calls', async () => {
@@ -244,7 +252,7 @@ describe('NextAuth Configuration', () => {
           githubUsername: 'testuser',
         }
 
-        const result = await authConfig.callbacks.jwt({ token })
+        const result = await authConfig.callbacks?.jwt?.({ token, user: undefined })
 
         expect(result).toEqual(token)
       })

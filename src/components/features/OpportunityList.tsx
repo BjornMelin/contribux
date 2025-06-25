@@ -6,7 +6,7 @@ import { OpportunityCard } from './OpportunityCard'
 export function OpportunityList({
   opportunities,
   loading = false,
-  error = null,
+  error = undefined,
   onOpportunitySelect,
   emptyMessage = 'No opportunities found',
 }: OpportunityListProps) {
@@ -20,6 +20,7 @@ export function OpportunityList({
           <p className="font-medium">Error loading opportunities: {error}</p>
         </div>
         <button
+          type="button"
           onClick={() => window.location.reload()}
           className="inline-flex items-center px-4 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
         >
@@ -50,7 +51,9 @@ export function OpportunityList({
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
+            aria-hidden="true"
           >
+            <title>No opportunities available</title>
             <path
               strokeLinecap="round"
               strokeLinejoin="round"

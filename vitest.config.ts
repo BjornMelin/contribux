@@ -6,7 +6,7 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
-    extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
+    extensions: ['.ts', '.tsx', '.js', '.jsx', '.json', '.mts', '.mjs'],
   },
   define: {
     'import.meta.vitest': undefined,
@@ -66,6 +66,12 @@ export default defineConfig({
     // Enhanced memory management with projects-based approach (Vitest 3.2+ pattern)
     projects: [
       {
+        resolve: {
+          alias: {
+            '@': path.resolve(__dirname, './src'),
+          },
+          extensions: ['.ts', '.tsx', '.js', '.jsx', '.json', '.mts', '.mjs'],
+        },
         test: {
           name: 'integration',
           include: ['**/integration/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
@@ -79,6 +85,12 @@ export default defineConfig({
         },
       },
       {
+        resolve: {
+          alias: {
+            '@': path.resolve(__dirname, './src'),
+          },
+          extensions: ['.ts', '.tsx', '.js', '.jsx', '.json', '.mts', '.mjs'],
+        },
         test: {
           name: 'github-load',
           include: ['**/github/load-testing**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
@@ -91,6 +103,12 @@ export default defineConfig({
         },
       },
       {
+        resolve: {
+          alias: {
+            '@': path.resolve(__dirname, './src'),
+          },
+          extensions: ['.ts', '.tsx', '.js', '.jsx', '.json', '.mts', '.mjs'],
+        },
         test: {
           name: 'default',
           include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],

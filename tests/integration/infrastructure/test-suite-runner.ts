@@ -103,7 +103,7 @@ export class TestSuiteRunner {
     }
 
     this.env = loadIntegrationTestEnv()
-    this.outputDir = this.config.outputDir!
+    this.outputDir = this.config.outputDir ?? './integration-test-output'
 
     // Ensure output directory exists
     if (!existsSync(this.outputDir)) {
@@ -527,10 +527,14 @@ export class TestSuiteRunner {
    * Send Slack alert
    */
   private async sendSlackAlert(
-    alert: any,
+    alert: Record<string, unknown>,
     config: NonNullable<TestSuiteConfig['alerting']>['slack']
   ): Promise<void> {
     try {
+      if (!config?.webhook) {
+        throw new Error('Slack webhook URL is required')
+      }
+
       const payload = {
         channel: config.channel || '#alerts',
         text: alert.message,
@@ -573,12 +577,14 @@ export class TestSuiteRunner {
    * Send email alert
    */
   private async sendEmailAlert(
-    _alert: any,
+    _alert: Record<string, unknown>,
     config: NonNullable<TestSuiteConfig['alerting']>['email']
   ): Promise<void> {
     // Email implementation would go here
     // For now, just log that we would send an email
-    console.log('📧 Email alert would be sent to:', config.recipients.join(', '))
+    if (config?.recipients) {
+      console.log('📧 Email alert would be sent to:', config.recipients.join(', '))
+    }
   }
 
   /**

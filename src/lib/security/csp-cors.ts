@@ -203,15 +203,19 @@ export function generateCORSConfig(request: NextRequest): CORSConfig {
   const environment = process.env.NODE_ENV || 'development'
 
   // Get allowed origins for environment
-  const allowedOrigins =
-    CORS_ORIGINS[environment as keyof typeof CORS_ORIGINS] || CORS_ORIGINS.development
+  const allowedOrigins: readonly string[] = (() => {
+    if (environment === 'production') return CORS_ORIGINS.production
+    if (environment === 'test') return CORS_ORIGINS.test
+    return CORS_ORIGINS.development
+  })()
 
   // Validate origin
   const isOriginAllowed =
-    origin && (allowedOrigins.includes(origin) || isDynamicOriginAllowed(origin, environment))
+    origin !== null &&
+    ((allowedOrigins as string[]).includes(origin) || isDynamicOriginAllowed(origin, environment))
 
   return {
-    origins: isOriginAllowed ? [origin] : [],
+    origins: isOriginAllowed && origin ? [origin] : [],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     headers: [
       'Accept',
@@ -430,7 +434,7 @@ export async function createPolicyVersion(
     version,
     createdAt: now,
     active: false,
-    reportOnlyUntil: reportOnlyPeriod ? now + reportOnlyPeriod : undefined,
+    ...(reportOnlyPeriod && { reportOnlyUntil: now + reportOnlyPeriod }),
   }
 
   // Store policy version (implement with your preferred storage)
@@ -589,10 +593,19 @@ function generatePolicyVersion(): string {
   return `v${timestamp}${random}`
 }
 
+// CSP Analysis interface
+interface CSPAnalysis {
+  severity: 'low' | 'medium' | 'high' | 'critical'
+  category: string
+  riskScore: number
+  description?: string
+  recommendations?: string[]
+}
+
 // Placeholder storage functions (implement with your preferred storage)
 async function storeCSPViolation(
   violation: CSPViolation,
-  analysis: any,
+  analysis: CSPAnalysis,
   request: NextRequest
 ): Promise<void> {
   // TODO: Implement violation storage
@@ -601,7 +614,7 @@ async function storeCSPViolation(
 
 async function generateSecurityAlert(
   _violation: CSPViolation,
-  analysis: any,
+  analysis: CSPAnalysis,
   _request: NextRequest
 ): Promise<void> {
   // TODO: Implement security alerting

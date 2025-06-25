@@ -35,8 +35,11 @@ describe('Neon Branching Test Example', () => {
     const items = await sql`SELECT * FROM test_items ORDER BY id`
 
     expect(items).toHaveLength(2)
-    expect(items[0].name).toBe('Test Item 1')
-    expect(items[1].name).toBe('Test Item 2')
+    // Type assertion for query results from Neon SQL
+    const firstItem = items[0] as { name: string }
+    const secondItem = items[1] as { name: string }
+    expect(firstItem.name).toBe('Test Item 1')
+    expect(secondItem.name).toBe('Test Item 2')
   })
 
   it('should not see data from other tests', async () => {
@@ -73,7 +76,9 @@ describe('Neon Branching Test Example', () => {
 
       const data = await subSql`SELECT * FROM sub_branch_data`
       expect(data).toHaveLength(1)
-      expect(data[0].value).toBe('sub-branch-only')
+      // Type assertion for query results from Neon SQL
+      const dataItem = data[0] as { value: string }
+      expect(dataItem.value).toBe('sub-branch-only')
     })
 
     // After the sub-branch is deleted, the main test branch doesn't have this data
@@ -112,8 +117,10 @@ describe('Neon Branching Test Example', () => {
 
     expect(results).toHaveLength(5)
     results.forEach((result, i) => {
-      expect(result.id).toBe(i)
-      expect(result.value).toBe(`value-${i}`)
+      // Type assertion for query results from Neon SQL
+      const typedResult = result as { id: number; value: string }
+      expect(typedResult.id).toBe(i)
+      expect(typedResult.value).toBe(`value-${i}`)
     })
   })
 

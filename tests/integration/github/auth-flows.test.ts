@@ -174,8 +174,8 @@ describeIntegration(
           const client = new GitHubClient({
             auth: {
               type: 'app',
-              appId: Number.parseInt(context.env.GITHUB_APP_ID!),
-              privateKey: context.env.GITHUB_APP_PRIVATE_KEY!,
+              appId: Number.parseInt(context.env.GITHUB_APP_ID || '0'),
+              privateKey: context.env.GITHUB_APP_PRIVATE_KEY || '',
             },
           })
 
@@ -186,7 +186,7 @@ describeIntegration(
             // Verify JWT generation by accessing app details
             const app = await client.rest.apps.getAuthenticated()
             expect(app.data).toBeDefined()
-            expect(app.data.id).toBe(Number.parseInt(context.env.GITHUB_APP_ID!))
+            expect(app.data.id).toBe(Number.parseInt(context.env.GITHUB_APP_ID || '0'))
             expect(app.data.name).toBeTruthy()
 
             // Record metrics
@@ -211,25 +211,25 @@ describeIntegration(
           const client = new GitHubClient({
             auth: {
               type: 'app',
-              appId: Number.parseInt(context.env.GITHUB_APP_ID!),
-              privateKey: context.env.GITHUB_APP_PRIVATE_KEY!,
-              installationId: Number.parseInt(context.env.GITHUB_APP_INSTALLATION_ID!),
+              appId: Number.parseInt(context.env.GITHUB_APP_ID || '0'),
+              privateKey: context.env.GITHUB_APP_PRIVATE_KEY || '',
+              installationId: Number.parseInt(context.env.GITHUB_APP_INSTALLATION_ID || '0'),
             },
           })
 
           try {
             // Authenticate as installation
             await client.authenticateAsInstallation(
-              Number.parseInt(context.env.GITHUB_APP_INSTALLATION_ID!)
+              Number.parseInt(context.env.GITHUB_APP_INSTALLATION_ID || '0')
             )
 
             // Verify installation token works
             const installation = await client.rest.apps.getInstallation({
-              installation_id: Number.parseInt(context.env.GITHUB_APP_INSTALLATION_ID!),
+              installation_id: Number.parseInt(context.env.GITHUB_APP_INSTALLATION_ID || '0'),
             })
             expect(installation.data).toBeDefined()
             expect(installation.data.id).toBe(
-              Number.parseInt(context.env.GITHUB_APP_INSTALLATION_ID!)
+              Number.parseInt(context.env.GITHUB_APP_INSTALLATION_ID || '0')
             )
 
             // Test repository access
@@ -260,8 +260,8 @@ describeIntegration(
           const client = new GitHubClient({
             auth: {
               type: 'app',
-              appId: Number.parseInt(context.env.GITHUB_APP_ID!),
-              privateKey: context.env.GITHUB_APP_PRIVATE_KEY!,
+              appId: Number.parseInt(context.env.GITHUB_APP_ID || '0'),
+              privateKey: context.env.GITHUB_APP_PRIVATE_KEY || '',
             },
           })
 

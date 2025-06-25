@@ -6,4 +6,4 @@
  */
 
 // Re-export everything from the new modular implementation
-export * from './soar'
+export * from './soar/index'

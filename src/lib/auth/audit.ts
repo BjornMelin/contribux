@@ -3,8 +3,8 @@
  * Provides comprehensive event logging, monitoring, and compliance features
  */
 
-import { createHash, timingSafeEqual } from 'crypto'
 import { authConfig } from '@/lib/config'
+import { adaptiveCreateHash, adaptiveTimingSafeEqual } from '@/lib/crypto-utils'
 import { sql } from '@/lib/db/config'
 import type {
   AnomalyDetection,
@@ -14,6 +14,7 @@ import type {
   SecurityAuditLog,
   SecurityMetrics,
 } from '@/types/auth'
+import type { UUID } from '@/types/base'
 
 // Event severity mapping
 const EVENT_SEVERITY_MAP: Record<string, EventSeverity> = {
@@ -139,7 +140,7 @@ export async function logSecurityEvent(params: {
       event_data: params.event_data,
       timestamp: new Date().toISOString(),
     })
-    checksum = createHash('sha256').update(data).digest('hex')
+    checksum = await adaptiveCreateHash(data)
   }
 
   const result = await sql`
@@ -170,9 +171,28 @@ export async function logSecurityEvent(params: {
     RETURNING *
   `
 
+  // Map database result to TypeScript interface
+  const dbResult = result[0]
+  if (!dbResult) {
+    throw new Error('Failed to create security audit log')
+  }
+
+  // TypeScript assertion: dbResult is guaranteed to be defined after null check
+  const row = dbResult as NonNullable<typeof dbResult>
+
   return {
-    ...result[0],
-    user_id: params.user_id || null,
+    id: row.id,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    eventType: row.event_type,
+    eventSeverity: row.event_severity,
+    userId: row.user_id,
+    ipAddress: row.ip_address,
+    userAgent: row.user_agent,
+    eventData: row.event_data,
+    success: row.success,
+    errorMessage: row.error_message,
+    checksum: row.checksum,
   } as SecurityAuditLog
 }
 
@@ -534,6 +554,11 @@ export async function getSecurityMetrics(params: {
   const totalLoginCount = Number.parseInt(totalLogins[0]?.count || '0')
   const failedLoginCount = Number.parseInt(failedLogins[0]?.count || '0')
 
+  const endDate = new Date()
+  const startDate = new Date(
+    endDate.getTime() - (typeof interval === 'string' ? 24 * 60 * 60 * 1000 : interval)
+  )
+
   const metrics: SecurityMetrics = {
     loginSuccessRate:
       totalLoginCount > 0
@@ -542,6 +567,8 @@ export async function getSecurityMetrics(params: {
     failedLoginCount,
     lockedAccountCount: Number.parseInt(lockedAccounts[0]?.count || '0'),
     anomalyCount: Number.parseInt(anomalies[0]?.count || '0'),
+    periodStart: startDate,
+    periodEnd: endDate,
   }
 
   // Get timeline data if groupBy is specified
@@ -648,15 +675,12 @@ export async function detectAnomalies(params: {
 
   const result: AnomalyDetection = {
     detected,
+    type: type,
     confidence: detected ? 0.8 : 0.0,
     details: {
       unusual_time: unusualTime,
       rapid_succession: rapidSuccession,
     },
-  }
-
-  if (type !== undefined) {
-    result.type = type
   }
 
   return result
@@ -697,9 +721,7 @@ export async function exportAuditReport(params: {
   const auditFilters: AuditLogFilters = {
     startDate: params.startDate,
     endDate: params.endDate,
-  }
-  if (params.userId !== undefined) {
-    auditFilters.userId = params.userId
+    ...(params.userId ? { userId: params.userId as UUID } : {}),
   }
   const logs = await getAuditLogs(auditFilters)
 
@@ -744,11 +766,11 @@ export async function exportAuditReport(params: {
       'success',
     ]
     const rows = logs.map(log => [
-      log.event_type,
-      log.event_severity,
-      log.user_id || '',
-      log.ip_address || '',
-      log.created_at.toISOString(),
+      log.eventType,
+      log.eventSeverity,
+      log.userId || '',
+      log.ipAddress || '',
+      log.createdAt.toISOString(),
       log.success.toString(),
     ])
 
@@ -843,13 +865,10 @@ export async function verifyAuditLogIntegrity(logId: string): Promise<boolean> {
     timestamp: auditLog.created_at.toISOString(),
   })
 
-  const expectedChecksum = createHash('sha256').update(data).digest('hex')
+  const expectedChecksum = await adaptiveCreateHash(data)
 
   // Use timing-safe comparison
-  return timingSafeEqual(
-    Buffer.from(auditLog.checksum, 'hex'),
-    Buffer.from(expectedChecksum, 'hex')
-  )
+  return await adaptiveTimingSafeEqual(auditLog.checksum, expectedChecksum)
 }
 
 // Get audit log retention policy

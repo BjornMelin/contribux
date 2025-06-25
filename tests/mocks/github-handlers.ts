@@ -209,7 +209,7 @@ export const githubHandlers = [
   }),
 
   // GET /repos/:owner/:repo/issues - Repository issues
-  http.get(`${GITHUB_API_BASE}/repos/:owner/:repo/issues`, ({ request, params }) => {
+  http.get(`${GITHUB_API_BASE}/repos/:owner/:repo/issues`, ({ request, params: _params }) => {
     const authHeader = request.headers.get('authorization')
 
     // Check for limited scope token

@@ -6,9 +6,9 @@
  */
 
 import { beforeEach, describe, expect, it } from 'vitest'
-import { createTestFactories } from '@/lib/test-utils/database-factories'
-import type { DatabaseConnection } from '@/lib/test-utils/test-database-manager'
-import { getTestDatabase } from '@/lib/test-utils/test-database-manager'
+import { createTestFactories } from '../../src/lib/test-utils/database-factories'
+import type { DatabaseConnection } from '../../src/lib/test-utils/test-database-manager'
+import { getTestDatabase } from '../../src/lib/test-utils/test-database-manager'
 
 describe('Modern Database Testing Infrastructure', () => {
   let db: DatabaseConnection
@@ -17,7 +17,7 @@ describe('Modern Database Testing Infrastructure', () => {
   beforeEach(async () => {
     // Automatically chooses PGlite for speed in CI, Neon branching locally
     db = await getTestDatabase('modern-db-test', {
-      strategy: process.env.CI ? 'pglite' : undefined, // Force PGlite in CI
+      ...(process.env.CI ? { strategy: 'pglite' as const } : {}), // Force PGlite in CI
       cleanup: 'truncate',
       verbose: true,
     })
@@ -45,7 +45,7 @@ describe('Modern Database Testing Infrastructure', () => {
       `
 
       expect(foundUser).toBeDefined()
-      expect(foundUser.email).toBe('test@example.com')
+      expect(foundUser?.email).toBe('test@example.com')
     })
 
     it('should handle vector operations', async () => {
@@ -57,16 +57,19 @@ describe('Modern Database Testing Infrastructure', () => {
         language: 'TypeScript',
       })
 
+      expect(repo.id).toBeDefined()
+      const repoId = repo.id as string
+
       const _opportunities = await Promise.all([
-        factories.opportunities.createForRepository(repo.id!, {
+        factories.opportunities.createForRepository(repoId, {
           title: 'Add TypeScript types',
           embedding: Array.from({ length: 1536 }, () => 0.5),
         }),
-        factories.opportunities.createForRepository(repo.id!, {
+        factories.opportunities.createForRepository(repoId, {
           title: 'Fix TypeScript errors',
           embedding: Array.from({ length: 1536 }, () => 0.6),
         }),
-        factories.opportunities.createForRepository(repo.id!, {
+        factories.opportunities.createForRepository(repoId, {
           title: 'Add Python script',
           embedding: Array.from({ length: 1536 }, () => -0.5),
         }),
@@ -79,14 +82,14 @@ describe('Modern Database Testing Infrastructure', () => {
           title,
           embedding <=> ${JSON.stringify(searchEmbedding)} as distance
         FROM opportunities 
-        WHERE repository_id = ${repo.id}
+        WHERE repository_id = ${repoId}
         ORDER BY distance ASC
         LIMIT 2
       `
 
       expect(similarOpportunities).toHaveLength(2)
-      expect(similarOpportunities[0].title).toContain('TypeScript')
-      expect(similarOpportunities[0].distance).toBeLessThan(similarOpportunities[1].distance)
+      expect(similarOpportunities[0]?.title).toContain('TypeScript')
+      expect(similarOpportunities[0]?.distance).toBeLessThan(similarOpportunities[1]?.distance)
     })
 
     it('should support complex queries and joins', async () => {
@@ -140,7 +143,7 @@ describe('Modern Database Testing Infrastructure', () => {
           name: 'Simple SELECT',
           fn: async () => {
             const results = await sql`SELECT COUNT(*) FROM opportunities`
-            expect(Number(results[0].count)).toBe(1000)
+            expect(Number(results[0]?.count)).toBe(1000)
           },
         },
         {
@@ -169,7 +172,7 @@ describe('Modern Database Testing Infrastructure', () => {
               LIMIT 5
             `
             expect(results).toHaveLength(5)
-            expect(results[0].distance).toBeDefined()
+            expect(results[0]?.distance).toBeDefined()
           },
         },
       ]
@@ -201,7 +204,7 @@ describe('Modern Database Testing Infrastructure', () => {
       })
 
       const initialCount = await sql`SELECT COUNT(*) FROM users`
-      expect(Number(initialCount[0].count)).toBe(1)
+      expect(Number(initialCount[0]?.count)).toBe(1)
 
       // Test transaction rollback (manual for demonstration)
       try {
@@ -212,14 +215,14 @@ describe('Modern Database Testing Infrastructure', () => {
         await factories.users.create({ email: 'temp2@example.com' })
 
         const transactionCount = await sql`SELECT COUNT(*) FROM users`
-        expect(Number(transactionCount[0].count)).toBe(3)
+        expect(Number(transactionCount[0]?.count)).toBe(3)
 
         // Rollback transaction
         await sql`ROLLBACK`
 
         // Should be back to original count
         const finalCount = await sql`SELECT COUNT(*) FROM users`
-        expect(Number(finalCount[0].count)).toBe(1)
+        expect(Number(finalCount[0]?.count)).toBe(1)
       } catch (error) {
         await sql`ROLLBACK`
         throw error
@@ -270,13 +273,13 @@ describe('Modern Database Testing Infrastructure', () => {
       expect(semanticallyRelated).toHaveLength(3)
 
       // First two should be ML-related and closer
-      expect(semanticallyRelated[0].title).toContain('neural network')
-      expect(semanticallyRelated[1].title).toContain('preprocessing')
-      expect(semanticallyRelated[2].title).toContain('visualization')
+      expect(semanticallyRelated[0]?.title).toContain('neural network')
+      expect(semanticallyRelated[1]?.title).toContain('preprocessing')
+      expect(semanticallyRelated[2]?.title).toContain('visualization')
 
       // Similarity scores should make sense
-      expect(semanticallyRelated[0].similarity).toBeLessThan(semanticallyRelated[2].similarity)
-      expect(semanticallyRelated[1].similarity).toBeLessThan(semanticallyRelated[2].similarity)
+      expect(semanticallyRelated[0]?.similarity).toBeLessThan(semanticallyRelated[2]?.similarity)
+      expect(semanticallyRelated[1]?.similarity).toBeLessThan(semanticallyRelated[2]?.similarity)
     })
 
     it('should support user personalization patterns', async () => {
@@ -294,14 +297,17 @@ describe('Modern Database Testing Infrastructure', () => {
 
       // Create opportunities that match user skills
       const repo = await factories.repositories.createWithLanguage('TypeScript')
+      expect(repo.id).toBeDefined()
+      const repoId = repo.id as string
+
       const _opportunities = await Promise.all([
-        factories.opportunities.createForRepository(repo.id!, {
+        factories.opportunities.createForRepository(repoId, {
           title: 'Refactor TypeScript types',
           difficulty: 'advanced',
           skills_required: ['TypeScript', 'React'],
           estimated_hours: 8,
         }),
-        factories.opportunities.createForRepository(repo.id!, {
+        factories.opportunities.createForRepository(repoId, {
           title: 'Add Python data processing',
           difficulty: 'intermediate',
           skills_required: ['Python', 'Pandas'],
@@ -321,7 +327,7 @@ describe('Modern Database Testing Infrastructure', () => {
           END as skill_match
         FROM opportunities o
         JOIN repositories r ON o.repository_id = r.id
-        WHERE r.id = ${repo.id}
+        WHERE r.id = ${repoId}
         ORDER BY 
           CASE 
             WHEN o.skills_required::jsonb ?& ARRAY['TypeScript', 'React', 'Node.js'] THEN 3
@@ -332,9 +338,9 @@ describe('Modern Database Testing Infrastructure', () => {
       `
 
       expect(personalizedOpportunities).toHaveLength(2)
-      expect(personalizedOpportunities[0].skill_match).toBe('high') // TypeScript + React match
-      expect(personalizedOpportunities[1].skill_match).toBe('low') // No skill match
-      expect(personalizedOpportunities[0].title).toContain('TypeScript')
+      expect(personalizedOpportunities[0]?.skill_match).toBe('high') // TypeScript + React match
+      expect(personalizedOpportunities[1]?.skill_match).toBe('low') // No skill match
+      expect(personalizedOpportunities[0]?.title).toContain('TypeScript')
     })
   })
 })

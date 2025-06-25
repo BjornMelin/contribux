@@ -228,7 +228,7 @@ pnpm type-check
 
    ```typescript
    // Use memory-optimized pool
-   import { getOptimizedConnection } from "@/lib/db/memory-optimized-pool";
+   import { getOptimizedConnection } from "@/lib/db/connection-pool";
 
    const sql = getOptimizedConnection(databaseUrl);
    ```
@@ -358,7 +358,7 @@ node scripts/performance/cleanup-optimizer.js --deep
 /contribux
 ├── src/
 │   ├── lib/
-│   │   ├── db/memory-optimized-pool.ts    # Database optimization
+│   │   ├── db/connection-pool.ts    # Database optimization
 │   │   └── monitoring/performance-monitor.ts # Performance tracking
 │   └── components/lazy-components.ts       # Lazy loading setup
 ├── scripts/

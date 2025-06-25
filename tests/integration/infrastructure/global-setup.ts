@@ -133,9 +133,9 @@ export default async function globalSetup({ provide }: GlobalSetupContext) {
     console.log(`  - Cleanup After Tests: ${env.TEST_CLEANUP}`)
 
     // Provide global data to tests
-    provide('integrationEnv', env as any)
-    provide('metricsConfig', metricsConfig as any)
-    provide('startTime', Date.now() as any)
+    provide('integrationEnv', env as unknown)
+    provide('metricsConfig', metricsConfig as unknown)
+    provide('startTime', Date.now() as unknown)
 
     console.log('\n✅ Global setup completed successfully')
     console.log('='.repeat(60))

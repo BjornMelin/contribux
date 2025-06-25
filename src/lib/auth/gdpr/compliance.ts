@@ -22,7 +22,7 @@ export async function checkGDPRCompliance(userId: string) {
   const requiredConsents = ['terms_of_service', 'privacy_policy']
 
   const missingConsents = requiredConsents.filter(type => {
-    const consent = consents.find(c => c.consent_type === type)
+    const consent = consents.find(c => c.consentType === type)
     return !consent || !consent.granted || consent.version !== CURRENT_VERSIONS[type as ConsentType]
   })
 

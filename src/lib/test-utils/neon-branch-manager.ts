@@ -14,6 +14,14 @@
 
 import { config } from 'dotenv'
 import { afterEach, beforeEach, expect } from 'vitest'
+import type {
+  CreateBranchResponse,
+  GetBranchResponse,
+  ListBranchesResponse,
+  NeonBranchData,
+  NeonEndpointData,
+} from '../../types/neon-api'
+import { isValidBranchData, isValidCreateBranchResponse } from '../../types/neon-api'
 
 // Load environment variables
 config({ path: '.env.test' })
@@ -84,13 +92,18 @@ export class NeonBranchManager {
       throw new Error(`Failed to create branch: ${response.status} - ${error}`)
     }
 
-    const data = await response.json()
+    const data: CreateBranchResponse = await response.json()
+
+    if (!isValidCreateBranchResponse(data)) {
+      throw new Error('Invalid response format from Neon API')
+    }
+
     const branch: NeonBranch = {
       id: data.branch.id,
       name: data.branch.name,
       connectionString: this.buildConnectionString(data),
       created_at: data.branch.created_at,
-      parent_id: data.branch.parent_id,
+      ...(data.branch.parent_id && { parent_id: data.branch.parent_id }),
     }
 
     this.activeBranches.set(branch.id, branch)
@@ -143,13 +156,13 @@ export class NeonBranchManager {
       throw new Error(`Failed to get branch: ${response.status} - ${error}`)
     }
 
-    const data = await response.json()
+    const data: GetBranchResponse = await response.json()
     return {
       id: data.branch.id,
       name: data.branch.name,
       connectionString: this.buildConnectionString(data),
       created_at: data.branch.created_at,
-      parent_id: data.branch.parent_id,
+      ...(data.branch.parent_id && { parent_id: data.branch.parent_id }),
     }
   }
 
@@ -170,14 +183,20 @@ export class NeonBranchManager {
       throw new Error(`Failed to list branches: ${response.status} - ${error}`)
     }
 
-    const data = await response.json()
-    return data.branches.map((b: any) => ({
-      id: b.id,
-      name: b.name,
-      connectionString: this.buildConnectionString({ branch: b, endpoints: data.endpoints }),
-      created_at: b.created_at,
-      parent_id: b.parent_id,
-    }))
+    const data: ListBranchesResponse = await response.json()
+    return data.branches.map((b: NeonBranchData) => {
+      if (!isValidBranchData(b)) {
+        throw new Error(`Invalid branch data received: ${JSON.stringify(b)}`)
+      }
+
+      return {
+        id: b.id,
+        name: b.name,
+        connectionString: this.buildConnectionString({ branch: b, endpoints: data.endpoints }),
+        created_at: b.created_at,
+        ...(b.parent_id && { parent_id: b.parent_id }),
+      }
+    })
   }
 
   /**
@@ -217,23 +236,29 @@ export class NeonBranchManager {
   /**
    * Build connection string from API response
    */
-  private buildConnectionString(data: any): string {
-    const endpoint = data.endpoints?.[0] || data.endpoint
+  private buildConnectionString(
+    data:
+      | CreateBranchResponse
+      | GetBranchResponse
+      | { branch: NeonBranchData; endpoints: NeonEndpointData[] }
+  ): string {
+    const endpoint = data.endpoints?.[0]
     if (!endpoint) {
       throw new Error('No endpoint found in branch data')
     }
 
-    const { host, id } = endpoint
+    const { host } = endpoint
     const password =
-      data.connection_uris?.[0]?.connection_parameters?.password ||
-      process.env.NEON_DATABASE_PASSWORD
+      ('connection_uris' in data
+        ? data.connection_uris?.[0]?.connection_parameters?.password
+        : undefined) || process.env.NEON_DATABASE_PASSWORD
 
     if (!password) {
       throw new Error('Database password not found')
     }
 
-    const database = data.databases?.[0]?.name || 'neondb'
-    const role = data.roles?.[0]?.name || 'neondb_owner'
+    const database = ('databases' in data ? data.databases?.[0]?.name : undefined) || 'neondb'
+    const role = ('roles' in data ? data.roles?.[0]?.name : undefined) || 'neondb_owner'
 
     return `postgresql://${role}:${password}@${host}/${database}?sslmode=require&connect_timeout=10&application_name=contribux-tests`
   }
@@ -257,9 +282,16 @@ let branchManager: NeonBranchManager | null = null
  */
 export function getBranchManager(): NeonBranchManager {
   if (!branchManager) {
+    const apiKey = process.env.NEON_API_KEY
+    const projectId = process.env.NEON_PROJECT_ID
+
+    if (!apiKey || !projectId) {
+      throw new Error('NEON_API_KEY and NEON_PROJECT_ID environment variables are required')
+    }
+
     branchManager = new NeonBranchManager({
-      apiKey: process.env.NEON_API_KEY!,
-      projectId: process.env.NEON_PROJECT_ID!,
+      apiKey,
+      projectId,
     })
   }
   return branchManager

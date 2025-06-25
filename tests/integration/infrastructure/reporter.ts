@@ -229,16 +229,23 @@ export class IntegrationTestReporter implements Reporter {
     return errors
   }
 
-  private formatError(error: any): TestError {
+  private formatError(error: unknown): TestError {
+    const err = error as {
+      message?: string
+      stack?: string
+      name?: string
+      constructor?: { name?: string }
+      location?: { file?: string; line?: number; column?: number }
+    }
     return {
-      message: error.message || 'Unknown error',
-      stack: error.stack,
-      type: error.name || error.constructor?.name || 'Error',
-      location: error.location
+      message: err.message || 'Unknown error',
+      stack: err.stack,
+      type: err.name || err.constructor?.name || 'Error',
+      location: err.location
         ? {
-            file: error.location.file,
-            line: error.location.line,
-            column: error.location.column,
+            file: err.location.file,
+            line: err.location.line,
+            column: err.location.column,
           }
         : undefined,
     }

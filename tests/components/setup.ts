@@ -1,15 +1,21 @@
 // Component test setup for React Testing Library and JSDOM
 
-import '@testing-library/jest-dom'
+// Import jest-dom matchers for Vitest
+import * as matchers from '@testing-library/jest-dom/matchers'
+import { expect } from 'vitest'
 
-// Enable global testing-library extensions
-import type { TestingLibraryMatchers } from '@testing-library/jest-dom/matchers'
+// Extend Vitest's expect with jest-dom matchers
+expect.extend(matchers)
+
 import { cleanup } from '@testing-library/react'
+// Make React available globally for JSX transform
+import React from 'react'
 import { afterEach, beforeEach, vi } from 'vitest'
 
-declare module 'vitest' {
-  interface Assertion<T = any> extends jest.Matchers<void>, TestingLibraryMatchers<T, void> {}
-}
+// @ts-ignore
+global.React = React
+
+// Type declarations are available through tests/vitest.d.ts
 
 // Clean up after each test
 afterEach(() => {

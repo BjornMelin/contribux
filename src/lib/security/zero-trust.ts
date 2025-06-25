@@ -340,7 +340,7 @@ export async function performBehavioralAnalysis(
   }
 
   const riskScore = factors > 0 ? totalRisk / factors : 0
-  const confidence = Math.min(1, behaviorHistory.sampleSize / 100) // More samples = higher confidence
+  const confidence = Math.min(1, behaviorHistory.accessTimes.length / 100) // More samples = higher confidence
 
   return {
     riskScore,
@@ -507,7 +507,7 @@ function determineRequiredVerifications(
     verifications.push('behavioral_verification')
   }
 
-  return [...new Set(verifications)] // Remove duplicates
+  return Array.from(new Set(verifications)) // Remove duplicates
 }
 
 function decideBinaryAccess(
@@ -632,32 +632,39 @@ async function updateDeviceTrust(
   return existingTrust
 }
 
-async function getUserBehaviorHistory(_userId: string): Promise<{
-  sampleSize: number
-  timeOfDayPatterns: Record<number, number>
-  resourcePatterns: Record<string, number>
-  actionPatterns: Record<string, number>
-}> {
+async function getUserBehaviorHistory(_userId: string): Promise<BehavioralHistory> {
   // TODO: Implement behavior history lookup
   return {
-    sampleSize: 0,
-    timeOfDayPatterns: {},
-    resourcePatterns: {},
-    actionPatterns: {},
+    accessTimes: [],
+    resourceAccesses: [],
+    actionCounts: {},
+    timePatterns: [],
+    geolocations: [],
+    deviceFingerprints: [],
   }
 }
 
-function analyzeTimeOfDayPattern(_timestamp: number, _history: any): number {
-  // TODO: Implement time pattern analysis
+// Type definition for behavioral history
+interface BehavioralHistory {
+  accessTimes: number[]
+  resourceAccesses: Array<{ resource: string; timestamp: number; action: string }>
+  actionCounts: Record<string, number>
+  timePatterns: Array<{ hour: number; count: number; day?: string }>
+  geolocations: Array<{ location: string; timestamp: number }>
+  deviceFingerprints: Array<{ fingerprint: string; timestamp: number }>
+}
+
+function analyzeTimeOfDayPattern(_timestamp: number, _history: BehavioralHistory): number {
+  // TODO: Implement time pattern analysis using timePatterns and accessTimes
   return 0
 }
 
-function analyzeResourceAccessPattern(_resource: string, _history: any): number {
-  // TODO: Implement resource pattern analysis
+function analyzeResourceAccessPattern(_resource: string, _history: BehavioralHistory): number {
+  // TODO: Implement resource pattern analysis using resourceAccesses
   return 0
 }
 
-function analyzeActionFrequency(_actionType: string, _history: any): number {
-  // TODO: Implement action frequency analysis
+function analyzeActionFrequency(_actionType: string, _history: BehavioralHistory): number {
+  // TODO: Implement action frequency analysis using actionCounts
   return 0
 }

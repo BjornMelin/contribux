@@ -54,7 +54,10 @@ export function createTestPool(): Pool {
 /**
  * SQL template literal function for type-safe queries
  */
-export async function sql<T = any>(strings: TemplateStringsArray, ...values: any[]): Promise<T[]> {
+export async function sql<T = unknown>(
+  strings: TemplateStringsArray,
+  ...values: unknown[]
+): Promise<T[]> {
   const pool = createTestPool()
 
   try {
@@ -77,7 +80,7 @@ export async function sql<T = any>(strings: TemplateStringsArray, ...values: any
 /**
  * Execute SQL with parameters
  */
-export async function executeSql<T = any>(query: string, params: any[] = []): Promise<T[]> {
+export async function executeSql<T = unknown>(query: string, params: unknown[] = []): Promise<T[]> {
   const pool = createTestPool()
 
   try {
@@ -112,7 +115,7 @@ export function formatVectorParam(vector: number[]): string {
  * Type for generic query result row
  */
 export interface QueryRow {
-  [key: string]: any
+  [key: string]: unknown
 }
 
 /**
@@ -131,7 +134,7 @@ export class TestDatabaseHelper {
     })
   }
 
-  async query<T extends QueryRow = QueryRow>(text: string, params?: any[]): Promise<T[]> {
+  async query<T extends QueryRow = QueryRow>(text: string, params?: unknown[]): Promise<T[]> {
     const result = await this.pool.query(text, params)
     return result.rows
   }

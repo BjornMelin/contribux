@@ -4,6 +4,7 @@
  */
 
 import type { SecurityIncident, ThreatDetection, Vulnerability } from '../automated-scanner'
+import type { SecurityEventContext } from '../schemas'
 import { PlaybookManager } from './playbooks'
 import { ResponseActionsManager } from './response-actions'
 import { type PlaybookExecution, type SOARConfig, SOARConfigSchema } from './schemas'
@@ -51,7 +52,12 @@ export class SOAREngine {
     console.log(`🚨 Processing security incident: ${incident.incidentId}`)
 
     const executions: PlaybookExecution[] = []
-    const applicablePlaybooks = this.playbookManager.findApplicablePlaybooks('incident', incident)
+    // Convert SecurityIncident to SecurityEventContext
+    const securityEventContext = this.convertIncidentToSecurityEvent(incident)
+    const applicablePlaybooks = this.playbookManager.findApplicablePlaybooks(
+      'incident',
+      securityEventContext
+    )
 
     for (const playbook of applicablePlaybooks) {
       const execution = await this.playbookManager.executePlaybook(playbook, {
@@ -80,7 +86,12 @@ export class SOAREngine {
     console.log(`🎯 Processing threat detection: ${threat.threatId}`)
 
     const executions: PlaybookExecution[] = []
-    const applicablePlaybooks = this.playbookManager.findApplicablePlaybooks('threat', threat)
+    // Convert ThreatDetection to SecurityEventContext
+    const securityEventContext = this.convertThreatToSecurityEvent(threat)
+    const applicablePlaybooks = this.playbookManager.findApplicablePlaybooks(
+      'threat',
+      securityEventContext
+    )
 
     for (const playbook of applicablePlaybooks) {
       const execution = await this.playbookManager.executePlaybook(playbook, {
@@ -112,9 +123,11 @@ export class SOAREngine {
     console.log(`🔍 Processing vulnerability: ${vulnerability.id}`)
 
     const executions: PlaybookExecution[] = []
+    // Convert Vulnerability to SecurityEventContext
+    const securityEventContext = this.convertVulnerabilityToSecurityEvent(vulnerability)
     const applicablePlaybooks = this.playbookManager.findApplicablePlaybooks(
       'vulnerability',
-      vulnerability
+      securityEventContext
     )
 
     for (const playbook of applicablePlaybooks) {
@@ -216,6 +229,126 @@ export class SOAREngine {
   }
 
   /**
+   * Convert SecurityIncident to SecurityEventContext
+   */
+  private convertIncidentToSecurityEvent(incident: SecurityIncident): SecurityEventContext {
+    return {
+      eventId: incident.incidentId,
+      timestamp: incident.createdAt,
+      source: 'soar_engine',
+      type: incident.type === 'security_breach' ? 'incident' : 'incident',
+      severity: incident.severity,
+      confidence: 0.9, // Default confidence for incidents
+      riskScore:
+        incident.severity === 'critical'
+          ? 95
+          : incident.severity === 'high'
+            ? 80
+            : incident.severity === 'medium'
+              ? 60
+              : 30,
+      affectedSystems: incident.affectedSystems,
+      affectedUsers: [],
+      affectedAssets: incident.affectedSystems,
+      indicators: [],
+      evidenceFiles: [],
+      relatedEvents: [],
+      businessImpact:
+        incident.severity === 'critical'
+          ? 'critical'
+          : incident.severity === 'high'
+            ? 'high'
+            : 'medium',
+      affectedServices: incident.affectedSystems,
+      complianceFrameworks: [],
+      metadata: {},
+    }
+  }
+
+  /**
+   * Convert ThreatDetection to SecurityEventContext
+   */
+  private convertThreatToSecurityEvent(threat: ThreatDetection): SecurityEventContext {
+    return {
+      eventId: threat.threatId,
+      timestamp: threat.detectedAt,
+      source: threat.source.ip,
+      type: 'threat',
+      severity: threat.severity,
+      confidence: threat.confidence,
+      riskScore: threat.mlScore ? threat.mlScore * 100 : threat.severity === 'critical' ? 95 : 80,
+      affectedSystems: [threat.target.endpoint],
+      affectedUsers: [],
+      affectedAssets: [threat.target.endpoint],
+      sourceIp: threat.source.ip,
+      endpoint: threat.target.endpoint,
+      method: threat.target.method as
+        | 'GET'
+        | 'POST'
+        | 'PUT'
+        | 'DELETE'
+        | 'PATCH'
+        | 'OPTIONS'
+        | 'HEAD'
+        | undefined,
+      userAgent: threat.source.userAgent,
+      geolocation: {
+        country: threat.source.location?.country,
+        region: threat.source.location?.region,
+        city: threat.source.location?.city,
+      },
+      detectionMethod: 'machine_learning',
+      indicators: threat.indicators,
+      evidenceFiles: [],
+      relatedEvents: [],
+      businessImpact: threat.severity === 'critical' ? 'critical' : 'medium',
+      affectedServices: [threat.target.endpoint],
+      complianceFrameworks: [],
+      metadata: {
+        threatType: threat.type,
+        mlScore: threat.mlScore,
+        blocked: threat.blocked,
+      },
+    }
+  }
+
+  /**
+   * Convert Vulnerability to SecurityEventContext
+   */
+  private convertVulnerabilityToSecurityEvent(vulnerability: Vulnerability): SecurityEventContext {
+    return {
+      eventId: vulnerability.id,
+      timestamp: vulnerability.detectedAt,
+      source: 'vulnerability_scanner',
+      type: 'vulnerability',
+      severity: vulnerability.severity,
+      confidence: vulnerability.confidence,
+      riskScore:
+        vulnerability.severity === 'critical' ? 95 : vulnerability.severity === 'high' ? 80 : 60,
+      affectedSystems: vulnerability.location.file ? [vulnerability.location.file] : [],
+      affectedUsers: [],
+      affectedAssets: vulnerability.location.file ? [vulnerability.location.file] : [],
+      endpoint: vulnerability.location.endpoint,
+      detectionMethod: 'signature_based',
+      indicators: [],
+      evidenceFiles: vulnerability.evidence,
+      relatedEvents: [],
+      businessImpact: vulnerability.severity === 'critical' ? 'critical' : 'medium',
+      affectedServices: vulnerability.location.endpoint ? [vulnerability.location.endpoint] : [],
+      complianceFrameworks: [],
+      metadata: {
+        vulnerabilityType: vulnerability.type,
+        title: vulnerability.title,
+        description: vulnerability.description,
+        location: vulnerability.location,
+        impact: vulnerability.impact,
+        recommendation: vulnerability.recommendation,
+        mitigated: vulnerability.mitigated,
+      },
+    }
+  }
+
+  /**
    * Get all response actions
    */
   getResponseActions() {
@@ -230,10 +363,33 @@ export class SOAREngine {
   }
 
   /**
+   * Execute a specific playbook by reference
+   */
+  async executePlaybook(
+    playbook: import('./schemas').Playbook,
+    trigger: { type: string; id: string }
+  ): Promise<import('./schemas').PlaybookExecution> {
+    return this.playbookManager.executePlaybook(playbook, trigger)
+  }
+
+  /**
+   * Execute a response action
+   */
+  async executeResponseAction(
+    actionType: string,
+    target: string,
+    automated: boolean
+  ): Promise<import('./schemas').ResponseAction> {
+    return this.responseActionsManager.executeResponseAction(actionType, target, automated)
+  }
+
+  /**
    * Cleanup and shutdown
    */
   async shutdown(): Promise<void> {
     await this.stop()
     this.responseActionsManager.clearResponseActions()
+    this.playbookManager.clearExecutions()
+    this.playbookManager.clearPlaybooks()
   }
 }

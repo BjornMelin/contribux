@@ -4,11 +4,17 @@
  * Using jose library for standards-compliant JWT handling
  */
 
-import { createHash, webcrypto as crypto, randomBytes } from 'crypto'
 import { errors as joseErrors, jwtVerify, SignJWT } from 'jose'
 import { authConfig } from '@/lib/config'
+import {
+  adaptiveCreateHash,
+  base64url,
+  generateRandomToken,
+  generateUUID,
+} from '@/lib/crypto-utils'
 import { sql } from '@/lib/db/config'
 import type { AccessTokenPayload, RefreshTokenPayload, User, UserSession } from '@/types/auth'
+import type { UUID } from '@/types/base'
 
 // Token configuration from centralized config
 const ACCESS_TOKEN_EXPIRY = authConfig.jwt.accessTokenExpiry
@@ -93,23 +99,21 @@ async function verifyJWT(token: string, secret: Uint8Array): Promise<Record<stri
 export async function generateAccessToken(
   user: User,
   session: UserSession | { id: string },
-  authMethod?: string
+  _authMethod?: string
 ): Promise<string> {
   const now = Math.floor(Date.now() / 1000)
 
   const payload: AccessTokenPayload = {
     sub: user.id,
     email: user.email,
-    github_username: user.github_username || '',
-    auth_method: (authMethod || (session as UserSession).auth_method || 'oauth') as
-      | 'webauthn'
-      | 'oauth',
-    session_id: session.id,
+    githubUsername: user.githubUsername,
+    authMethod: 'oauth', // Simplified to OAuth only as per CLAUDE.md guidelines
+    sessionId: session.id as UUID,
     iat: now,
     exp: now + ACCESS_TOKEN_EXPIRY,
     iss: TOKEN_ISSUER,
     aud: TOKEN_AUDIENCE,
-    jti: crypto.randomUUID(), // Add unique JWT ID for replay protection
+    jti: generateUUID() as UUID, // Add unique JWT ID for replay protection
   }
 
   return await signJWT(payload as unknown as Record<string, unknown>, getJwtSecret())
@@ -118,11 +122,10 @@ export async function generateAccessToken(
 // Generate refresh token
 export async function generateRefreshToken(userId: string, sessionId: string): Promise<string> {
   // Generate cryptographically secure random token
-  const tokenBytes = randomBytes(32)
-  const token = base64urlEncode(tokenBytes)
+  const token = generateRandomToken(32)
 
   // Create hash for database storage
-  const tokenHash = createHash('sha256').update(token).digest('hex')
+  const tokenHash = await adaptiveCreateHash(token)
 
   // Store in database
   const result = await sql`
@@ -146,16 +149,16 @@ export async function generateRefreshToken(userId: string, sessionId: string): P
   // Create JWT-like structure for the token
   const now = Math.floor(Date.now() / 1000)
   const payload: RefreshTokenPayload = {
-    jti: result[0]?.id || '',
-    sub: userId,
-    session_id: sessionId,
+    jti: (result[0]?.id as UUID) || (generateUUID() as UUID),
+    sub: userId as UUID,
+    sessionId: sessionId as UUID,
     iat: now,
     exp: now + REFRESH_TOKEN_EXPIRY,
     iss: TOKEN_ISSUER,
   }
 
   // Combine random token with payload for verification
-  const refreshToken = `${token}.${base64urlEncode(JSON.stringify(payload))}`
+  const refreshToken = `${token}.${base64url.encode(new TextEncoder().encode(JSON.stringify(payload)))}`
 
   return refreshToken
 }
@@ -208,7 +211,7 @@ export async function verifyRefreshToken(token: string): Promise<RefreshTokenPay
   if (!tokenPart) {
     throw new Error('Invalid token format')
   }
-  const tokenHash = createHash('sha256').update(tokenPart).digest('hex')
+  const tokenHash = await adaptiveCreateHash(tokenPart)
 
   // Verify token exists and is valid
   const result = await sql`
@@ -250,13 +253,14 @@ export async function verifyRefreshToken(token: string): Promise<RefreshTokenPay
   // Decode and return payload
   if (payloadPart) {
     try {
-      const payload = JSON.parse(base64urlDecode(payloadPart)) as RefreshTokenPayload
+      const payloadBytes = base64url.decode(payloadPart)
+      const payload = JSON.parse(new TextDecoder().decode(payloadBytes)) as RefreshTokenPayload
 
       // Verify payload matches database
       if (
         payload.jti !== tokenData.id ||
         payload.sub !== tokenData.user_id ||
-        payload.session_id !== tokenData.session_id
+        payload.sessionId !== tokenData.session_id
       ) {
         throw new Error('Token payload mismatch')
       }
@@ -271,7 +275,7 @@ export async function verifyRefreshToken(token: string): Promise<RefreshTokenPay
     return {
       jti: tokenData.id,
       sub: tokenData.user_id,
-      session_id: tokenData.session_id,
+      sessionId: tokenData.session_id,
       iat: now - REFRESH_TOKEN_EXPIRY + 7 * 24 * 60 * 60, // Approximate issued at
       exp: Math.floor(new Date(tokenData.expires_at).getTime() / 1000),
       iss: TOKEN_ISSUER,
@@ -293,9 +297,7 @@ export async function rotateRefreshToken(oldToken: string): Promise<{
     if (error instanceof Error && error.message === 'Token reuse detected') {
       // Security: Revoke all user tokens on reuse detection
       const parts = oldToken.split('.')
-      const tokenHash = createHash('sha256')
-        .update(parts[0] || '')
-        .digest('hex')
+      const tokenHash = await adaptiveCreateHash(parts[0] || '')
 
       const tokenResult = await sql`
         SELECT user_id FROM refresh_tokens
@@ -323,7 +325,7 @@ export async function rotateRefreshToken(oldToken: string): Promise<{
 
   const sessionResult = await sql`
     SELECT * FROM user_sessions
-    WHERE id = ${payload.session_id}
+    WHERE id = ${payload.sessionId}
     AND expires_at > CURRENT_TIMESTAMP
     LIMIT 1
   `
@@ -345,13 +347,12 @@ export async function rotateRefreshToken(oldToken: string): Promise<{
   const newTokenParts = newRefreshToken.split('.')
   let newTokenId: string
   if (newTokenParts.length >= 2) {
-    const newPayload = JSON.parse(base64urlDecode(newTokenParts[1] || '')) as RefreshTokenPayload
+    const payloadBytes = base64url.decode(newTokenParts[1] || '')
+    const newPayload = JSON.parse(new TextDecoder().decode(payloadBytes)) as RefreshTokenPayload
     newTokenId = newPayload.jti
   } else {
     // For test environment, extract ID from the database operation
-    const newTokenHash = createHash('sha256')
-      .update(newTokenParts[0] || '')
-      .digest('hex')
+    const newTokenHash = await adaptiveCreateHash(newTokenParts[0] || '')
     const newTokenResult = await sql`
       SELECT id FROM refresh_tokens
       WHERE token_hash = ${newTokenHash}
@@ -362,9 +363,7 @@ export async function rotateRefreshToken(oldToken: string): Promise<{
 
   // Revoke old token and link to new one
   const oldTokenParts = oldToken.split('.')
-  const oldTokenHash = createHash('sha256')
-    .update(oldTokenParts[0] || '')
-    .digest('hex')
+  const oldTokenHash = await adaptiveCreateHash(oldTokenParts[0] || '')
 
   await sql`
     UPDATE refresh_tokens
@@ -388,9 +387,7 @@ export async function revokeRefreshToken(token: string): Promise<void> {
     throw new Error('Invalid token format')
   }
 
-  const tokenHash = createHash('sha256')
-    .update(parts[0] || '')
-    .digest('hex')
+  const tokenHash = await adaptiveCreateHash(parts[0] || '')
 
   await sql`
     UPDATE refresh_tokens
@@ -441,32 +438,37 @@ export async function cleanupExpiredTokens(): Promise<number> {
   return Number.parseInt(result[0]?.count || '0')
 }
 
-// Helper functions
+// Helper functions (maintained for backward compatibility)
 
 export function base64urlEncode(data: string | Buffer | Uint8Array): string {
-  const base64 = Buffer.from(data).toString('base64')
-  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+  let bytes: Uint8Array
+  if (typeof data === 'string') {
+    bytes = new TextEncoder().encode(data)
+  } else if (data instanceof Buffer) {
+    bytes = new Uint8Array(data)
+  } else {
+    bytes = data
+  }
+  return base64url.encode(bytes)
 }
 
-function base64urlDecode(str: string): string {
-  const padded = str + '==='.slice((str.length + 3) % 4)
-  const base64 = padded.replace(/-/g, '+').replace(/_/g, '/')
-
-  return Buffer.from(base64, 'base64').toString()
+function _base64urlDecode(str: string): string {
+  const bytes = base64url.decode(str)
+  return new TextDecoder().decode(bytes)
 }
 
 // Session management helpers
 
 export async function createSession(
   user: User,
-  authMethod: 'webauthn' | 'oauth',
+  authMethod: 'oauth',
   context?: {
     ip_address?: string
     user_agent?: string
   }
 ): Promise<{ session: UserSession; accessToken: string; refreshToken: string }> {
   // Create session
-  const sessionId = randomBytes(16).toString('hex')
+  const sessionId = generateRandomToken(16)
 
   const sessionResult = await sql`
     INSERT INTO user_sessions (

@@ -71,10 +71,10 @@ describe('Vitest 3.2+ Memory Optimization', () => {
 
     // Set a global value
 
-    ;(global as any)[globalKey] = 'test_value'
+    ;(globalThis as Record<string, unknown>)[globalKey] = 'test_value'
 
     // Verify it exists
-    expect((global as any)[globalKey]).toBe('test_value')
+    expect((globalThis as Record<string, unknown>)[globalKey]).toBe('test_value')
 
     console.log('✅ Test isolation verified with unique global:', globalKey)
   })

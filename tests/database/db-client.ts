@@ -224,7 +224,11 @@ export function isLocalPostgres(): boolean {
  * Type guard for checking query results
  */
 export function hasRows<T extends QueryRow>(result: unknown): result is { rows: T[] } {
-  return result && typeof result === 'object' && Array.isArray((result as { rows?: unknown }).rows)
+  return !!(
+    result &&
+    typeof result === 'object' &&
+    Array.isArray((result as { rows?: unknown }).rows)
+  )
 }
 
 export type { NeonQueryFunction } from '@neondatabase/serverless'

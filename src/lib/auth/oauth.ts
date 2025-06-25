@@ -201,16 +201,11 @@ export async function exchangeCodeForTokens(
   const tokens: OAuthTokens = {
     accessToken: tokenData.access_token,
     tokenType: tokenData.token_type,
-  }
-
-  if (tokenData.scope !== undefined) {
-    tokens.scope = tokenData.scope
-  }
-  if (tokenData.refresh_token !== undefined) {
-    tokens.refreshToken = tokenData.refresh_token
-  }
-  if (tokenData.expires_in) {
-    tokens.expiresAt = new Date(Date.now() + tokenData.expires_in * 1000)
+    refreshToken: tokenData.refresh_token,
+    scope: tokenData.scope,
+    expiresAt: tokenData.expires_in
+      ? new Date(Date.now() + tokenData.expires_in * 1000)
+      : undefined,
   }
 
   // Fetch user profile if requested
@@ -380,16 +375,11 @@ export async function refreshOAuthTokens(params: {
   const result: OAuthTokens = {
     accessToken: tokenData.access_token,
     tokenType: tokenData.token_type || 'bearer',
-  }
-
-  if (tokenData.refresh_token !== undefined) {
-    result.refreshToken = tokenData.refresh_token
-  }
-  if (tokenData.scope !== undefined) {
-    result.scope = tokenData.scope
-  }
-  if (tokenData.expires_in) {
-    result.expiresAt = new Date(Date.now() + tokenData.expires_in * 1000)
+    refreshToken: tokenData.refresh_token,
+    scope: tokenData.scope,
+    expiresAt: tokenData.expires_in
+      ? new Date(Date.now() + tokenData.expires_in * 1000)
+      : undefined,
   }
 
   return result

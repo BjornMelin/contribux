@@ -16,12 +16,11 @@ export function OpportunityCard({ opportunity, onSelect, className = '' }: Oppor
   }
 
   return (
-    <div
-      className={`opportunity-card bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md hover:border-gray-300 cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${className}`}
+    <button
+      type="button"
+      className={`opportunity-card bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md hover:border-gray-300 cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 text-left w-full ${className}`}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
-      tabIndex={0}
-      role="button"
       aria-label={`View opportunity: ${opportunity.title}`}
       data-testid={`opportunity-${opportunity.id}`}
     >
@@ -55,33 +54,33 @@ export function OpportunityCard({ opportunity, onSelect, className = '' }: Oppor
         <div className="repository-info">
           <div className="flex items-center justify-between mb-2">
             <span className="repository-name text-sm font-medium text-gray-900">
-              {opportunity.repository.full_name}
+              {opportunity.repository.fullName}
             </span>
             <div className="flex items-center gap-3 text-sm text-gray-500">
               {opportunity.repository.language && (
                 <span className="repository-language">{opportunity.repository.language}</span>
               )}
               <span className="repository-stars flex items-center">
-                ⭐ {opportunity.repository.stars_count}
+                ⭐ {opportunity.repository.starsCount}
               </span>
             </div>
           </div>
         </div>
 
         <div className="opportunity-tags flex flex-wrap gap-2">
-          {opportunity.good_first_issue && (
+          {opportunity.goodFirstIssue && (
             <span className="tag good-first-issue inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-100 text-purple-800">
               Good First Issue
             </span>
           )}
-          {opportunity.help_wanted && (
+          {opportunity.helpWanted && (
             <span className="tag help-wanted inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-orange-100 text-orange-800">
               Help Wanted
             </span>
           )}
-          {opportunity.estimated_hours && (
+          {opportunity.estimatedHours && (
             <span className="tag estimated-time inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-800">
-              {opportunity.estimated_hours}h
+              {opportunity.estimatedHours}h
             </span>
           )}
         </div>
@@ -107,10 +106,10 @@ export function OpportunityCard({ opportunity, onSelect, className = '' }: Oppor
         <div className="relevance-score flex items-center justify-between pt-2 border-t border-gray-100">
           <span className="score-label text-sm text-gray-500">Relevance:</span>
           <span className="score-value text-sm font-medium text-gray-900">
-            {(opportunity.relevance_score * 100).toFixed(0)}%
+            {(opportunity.relevanceScore * 100).toFixed(0)}%
           </span>
         </div>
       </div>
-    </div>
+    </button>
   )
 }

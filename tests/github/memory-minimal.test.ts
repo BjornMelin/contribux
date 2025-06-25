@@ -30,7 +30,7 @@ describe('Minimal Memory Test', () => {
     console.log('Memory before import:', beforeImport)
 
     // Dynamic import to measure impact
-    const { GitHubClient } = await import('@/lib/github')
+    const { GitHubClient } = await import('../../src/lib/github')
 
     const afterImport = getMemoryUsage()
     console.log('Memory after import:', afterImport)

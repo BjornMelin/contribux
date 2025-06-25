@@ -16,6 +16,14 @@ import { PGlite } from '@electric-sql/pglite'
 import type { NeonQueryFunction } from '@neondatabase/serverless'
 import { config } from 'dotenv'
 import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest'
+import type {
+  BenchmarkQuery,
+  PerformanceMeasurement,
+  PGliteResult,
+  QueryParameter,
+  TemplateQueryValues,
+} from '../../types/pglite'
+import { isValidQueryParameter } from '../../types/pglite'
 
 // Load test environment variables
 config({ path: '.env.test' })
@@ -32,12 +40,7 @@ beforeAll(async () => {
 
   try {
     // Create in-memory PostgreSQL with extensions
-    testDb = new PGlite('memory://', {
-      extensions: {
-        vector: true,
-        uuid: true,
-      },
-    })
+    testDb = new PGlite('memory://')
 
     // Create SQL client compatible with Neon
     testSqlClient = createNeonCompatibleClient(testDb)
@@ -142,22 +145,29 @@ async function cleanupTestData(db: PGlite): Promise<void> {
  * Create Neon-compatible SQL client from PGlite instance
  */
 function createNeonCompatibleClient(db: PGlite): NeonQueryFunction<false, false> {
-  return async function sql(strings: TemplateStringsArray, ...values: any[]) {
+  return async function sql(strings: TemplateStringsArray, ...values: TemplateQueryValues) {
     try {
+      // Validate all query parameters
+      for (const value of values) {
+        if (!isValidQueryParameter(value)) {
+          throw new Error(`Invalid query parameter: ${typeof value}`)
+        }
+      }
+
       // Convert template literal to query string and parameters
-      let query = strings[0]
-      const params: any[] = []
+      let query = strings[0] || ''
+      const params: QueryParameter[] = []
 
       for (let i = 0; i < values.length; i++) {
-        query += `$${i + 1}${strings[i + 1]}`
-        params.push(values[i])
+        query += `$${i + 1}${strings[i + 1] || ''}`
+        params.push(values[i] as QueryParameter)
       }
 
       // Execute query
-      const result = await db.query(query, params)
+      const result: PGliteResult = await db.query(query, params)
 
-      // Return rows in Neon format
-      return result.rows as any
+      // Return rows in Neon format (just the rows array)
+      return result.rows
     } catch (error) {
       console.error('SQL query failed:', error)
       throw error
@@ -239,10 +249,7 @@ export async function createTestData(sql: NeonQueryFunction<false, false>) {
  * Performance monitoring utilities
  */
 export const testPerformance = {
-  async measureQuery<T>(
-    name: string,
-    fn: () => Promise<T>
-  ): Promise<{ result: T; duration: number }> {
+  async measureQuery<T>(name: string, fn: () => Promise<T>): Promise<PerformanceMeasurement<T>> {
     const start = performance.now()
     const result = await fn()
     const duration = performance.now() - start
@@ -251,10 +258,7 @@ export const testPerformance = {
     return { result, duration }
   },
 
-  async benchmarkQueries(
-    queries: Array<{ name: string; fn: () => Promise<any> }>,
-    iterations = 10
-  ) {
+  async benchmarkQueries(queries: BenchmarkQuery[], iterations = 10) {
     console.log(`🔄 Running benchmark with ${iterations} iterations...`)
 
     for (const query of queries) {

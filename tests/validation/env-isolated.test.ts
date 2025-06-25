@@ -7,10 +7,9 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { z } from 'zod'
 
 describe('Environment Validation - Schema Tests', () => {
-  let envSchema: z.ZodEffects<any, any, any>
+  let envSchema: { parse: (env: Record<string, string>) => Record<string, unknown> }
 
   beforeEach(async () => {
     // Clean slate for each test
@@ -22,7 +21,9 @@ describe('Environment Validation - Schema Tests', () => {
 
     // Import fresh schema
     const module = await import('../../src/lib/validation/env')
-    envSchema = module.envSchema
+    envSchema = module.envSchema as {
+      parse: (env: Record<string, string>) => Record<string, unknown>
+    }
   })
 
   afterEach(() => {
@@ -115,7 +116,7 @@ describe('Environment Validation - Schema Tests', () => {
         NODE_ENV: 'test',
         // Let JWT_SECRET use default transformation for test environment
       })
-      delete (testEnv as any).JWT_SECRET // Let it use the test default
+      delete (testEnv as Record<string, unknown>).JWT_SECRET // Let it use the test default
 
       const result = envSchema.parse(testEnv)
       expect(result.JWT_SECRET).toBe(
@@ -255,8 +256,8 @@ describe('Environment Validation - Schema Tests', () => {
         JWT_SECRET: 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6',
       })
       // Remove OAuth credentials to test optional behavior in development
-      delete (testEnv as any).GITHUB_CLIENT_ID
-      delete (testEnv as any).GITHUB_CLIENT_SECRET
+      delete (testEnv as Record<string, unknown>).GITHUB_CLIENT_ID
+      delete (testEnv as Record<string, unknown>).GITHUB_CLIENT_SECRET
 
       expect(() => envSchema.parse(testEnv)).not.toThrow()
     })

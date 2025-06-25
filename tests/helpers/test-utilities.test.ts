@@ -5,21 +5,23 @@
 
 import { beforeAll, describe, expect, it } from 'vitest'
 import {
+  createGitHubRepositoryMock,
+  createGitHubUserMock,
+  createOpportunity,
+  createRepository,
+  createUser,
+  createUserWithRepositoryAndOpportunities,
   formatVector,
   formatVectorParam,
-  GitHubRepositoryMockFactory,
-  GitHubUserMockFactory,
   generateTestEmbedding,
-  MSWHandlerFactory,
-  OpportunityFactory,
+  hasValidQueryStructure,
+  isValidEmbedding,
+  isValidSimilarityScore,
   type QueryRow,
-  RepositoryFactory,
   resetFactoryCounters,
   sql,
-  TestAssertions,
-  TestScenarios,
-  UserFactory,
 } from './index'
+import { createRepositoryHandler, createUserHandler } from './msw-setup'
 
 describe('Test Utilities Validation', () => {
   beforeAll(() => {
@@ -28,7 +30,7 @@ describe('Test Utilities Validation', () => {
 
   describe('Test Factories', () => {
     it('should create valid user with proper types', () => {
-      const user = UserFactory.create({
+      const user = createUser({
         github_username: 'testuser',
         skill_level: 'advanced',
         preferred_languages: ['TypeScript', 'Python'],
@@ -43,7 +45,7 @@ describe('Test Utilities Validation', () => {
 
     it('should create valid repository with embedding', () => {
       const embedding = generateTestEmbedding('test-repo')
-      const repository = RepositoryFactory.create({
+      const repository = createRepository({
         full_name: 'testowner/test-repo',
         description_embedding: embedding,
       })
@@ -51,12 +53,14 @@ describe('Test Utilities Validation', () => {
       expect(repository.full_name).toBe('testowner/test-repo')
       expect(repository.description_embedding).toStrictEqual(embedding)
       expect(repository.github_id).toBeTypeOf('number')
-      TestAssertions.isValidEmbedding(repository.description_embedding!)
+      if (repository.description_embedding) {
+        isValidEmbedding(repository.description_embedding)
+      }
     })
 
     it('should create valid opportunity with required fields', () => {
       const repositoryId = '550e8400-e29b-41d4-a716-446655440000'
-      const opportunity = OpportunityFactory.create({
+      const opportunity = createOpportunity({
         repository_id: repositoryId,
         type: 'feature',
         good_first_issue: true,
@@ -70,7 +74,7 @@ describe('Test Utilities Validation', () => {
     })
 
     it('should create test scenarios with related data', () => {
-      const scenario = TestScenarios.createUserWithRepositoryAndOpportunities({
+      const scenario = createUserWithRepositoryAndOpportunities({
         userOverrides: { skill_level: 'expert' },
         opportunityCount: 3,
         opportunityOverrides: { type: 'bug_fix' },
@@ -92,7 +96,7 @@ describe('Test Utilities Validation', () => {
       expect(embedding).toHaveLength(1536)
       expect(embedding.every(v => typeof v === 'number')).toBe(true)
       expect(embedding.every(v => !Number.isNaN(v))).toBe(true)
-      TestAssertions.isValidEmbedding(embedding)
+      isValidEmbedding(embedding)
     })
 
     it('should format vectors correctly for PostgreSQL', () => {
@@ -108,24 +112,24 @@ describe('Test Utilities Validation', () => {
       const formatted = formatVectorParam(embedding)
 
       expect(formatted).toBe(formatVector(embedding))
-      expect(() => TestAssertions.isValidEmbedding(embedding)).not.toThrow()
+      expect(() => isValidEmbedding(embedding)).not.toThrow()
     })
 
     it('should validate similarity scores', () => {
-      expect(() => TestAssertions.isValidSimilarityScore(0.85)).not.toThrow()
-      expect(() => TestAssertions.isValidSimilarityScore(-0.3)).not.toThrow()
-      expect(() => TestAssertions.isValidSimilarityScore(1.0)).not.toThrow()
-      expect(() => TestAssertions.isValidSimilarityScore(-1.0)).not.toThrow()
+      expect(() => isValidSimilarityScore(0.85)).not.toThrow()
+      expect(() => isValidSimilarityScore(-0.3)).not.toThrow()
+      expect(() => isValidSimilarityScore(1.0)).not.toThrow()
+      expect(() => isValidSimilarityScore(-1.0)).not.toThrow()
 
-      expect(() => TestAssertions.isValidSimilarityScore(1.5)).toThrow()
-      expect(() => TestAssertions.isValidSimilarityScore(-1.5)).toThrow()
-      expect(() => TestAssertions.isValidSimilarityScore(Number.NaN)).toThrow()
+      expect(() => isValidSimilarityScore(1.5)).toThrow()
+      expect(() => isValidSimilarityScore(-1.5)).toThrow()
+      expect(() => isValidSimilarityScore(Number.NaN)).toThrow()
     })
   })
 
   describe('MSW Factories', () => {
     it('should create valid GitHub user mock data', () => {
-      const user = GitHubUserMockFactory.create({
+      const user = createGitHubUserMock({
         login: 'testuser',
         public_repos: 15,
       })
@@ -137,7 +141,7 @@ describe('Test Utilities Validation', () => {
     })
 
     it('should create valid GitHub repository mock data', () => {
-      const repository = GitHubRepositoryMockFactory.create({
+      const repository = createGitHubRepositoryMock({
         name: 'test-repo',
         owner: {
           login: 'testowner',
@@ -156,11 +160,11 @@ describe('Test Utilities Validation', () => {
     })
 
     it('should create MSW handlers with proper structure', () => {
-      const userHandler = MSWHandlerFactory.createUserHandler({
+      const userHandler = createUserHandler({
         login: 'testuser',
       })
 
-      const repoHandler = MSWHandlerFactory.createRepositoryHandler('testowner', 'test-repo')
+      const repoHandler = createRepositoryHandler('testowner', 'test-repo')
 
       // Handlers should be functions
       expect(typeof userHandler).toBe('object')
@@ -186,15 +190,15 @@ describe('Test Utilities Validation', () => {
       ]
 
       expect(() => {
-        TestAssertions.hasValidQueryStructure(validResult, ['id', 'name'])
+        hasValidQueryStructure(validResult, ['id', 'name'])
       }).not.toThrow()
 
       expect(() => {
-        TestAssertions.hasValidQueryStructure(validResult, ['id', 'missing_field'])
+        hasValidQueryStructure(validResult, ['id', 'missing_field'])
       }).toThrow()
 
       expect(() => {
-        TestAssertions.hasValidQueryStructure('not an array', ['id'])
+        hasValidQueryStructure('not an array', ['id'])
       }).toThrow()
     })
 
@@ -207,6 +211,7 @@ describe('Test Utilities Validation', () => {
       // Mock the executeSql function behavior
       const mockExecuteSql = async <T extends QueryRow>(
         _query: string,
+        // biome-ignore lint/suspicious/noExplicitAny: Test mock accepts generic parameters, typed at call site
         _params?: any[]
       ): Promise<T[]> => {
         return [{ test: 1 } as T]
@@ -227,7 +232,7 @@ describe('Test Utilities Validation', () => {
         availability_hours: 20,
       }
 
-      const user = UserFactory.create(validUserInput)
+      const user = createUser(validUserInput)
       expect(user.github_username).toBe('testuser')
       expect(user.skill_level).toBe('advanced')
       expect(user.availability_hours).toBe(20)
@@ -236,20 +241,20 @@ describe('Test Utilities Validation', () => {
     it('should validate Zod schemas at runtime', () => {
       // Test that invalid data is caught by Zod
       expect(() => {
-        UserFactory.create({
+        createUser({
           github_username: '', // Invalid: empty string
         })
       }).toThrow()
 
       expect(() => {
-        RepositoryFactory.create({
+        createRepository({
           url: 'not-a-url', // Invalid: not a URL
         })
       }).toThrow()
     })
 
     it('should handle optional fields correctly', () => {
-      const user = UserFactory.create({
+      const user = createUser({
         github_username: 'testuser',
         // bio is optional and not provided
       })
@@ -266,36 +271,37 @@ describe('Test Utilities Validation', () => {
       }).toThrow('Vector must have exactly 1536 dimensions')
 
       expect(() => {
+        // biome-ignore lint/suspicious/noExplicitAny: Test case requires invalid input to test error handling
         formatVector('not an array' as any)
       }).toThrow('Vector must be an array')
     })
 
     it('should handle query structure validation errors', () => {
       expect(() => {
-        TestAssertions.hasValidQueryStructure([], ['required_field'])
+        hasValidQueryStructure([], ['required_field'])
       }).not.toThrow() // Empty array is valid
 
       expect(() => {
-        TestAssertions.hasValidQueryStructure([{}], ['required_field'])
+        hasValidQueryStructure([{}], ['required_field'])
       }).toThrow('Missing expected field: required_field')
     })
   })
 
   describe('Factory Counters', () => {
     it('should increment counters for unique IDs', () => {
-      const user1 = UserFactory.create()
-      const user2 = UserFactory.create()
-      const repo1 = RepositoryFactory.create()
-      const repo2 = RepositoryFactory.create()
+      const user1 = createUser()
+      const user2 = createUser()
+      const repo1 = createRepository()
+      const repo2 = createRepository()
 
       expect(user1.github_id).not.toBe(user2.github_id)
       expect(repo1.github_id).not.toBe(repo2.github_id)
     })
 
     it('should reset counters when requested', () => {
-      const beforeReset = UserFactory.create()
+      const beforeReset = createUser()
       resetFactoryCounters()
-      const afterReset = UserFactory.create()
+      const afterReset = createUser()
 
       // After reset, the IDs should start from the beginning again
       // This is implementation dependent, but ensures counter reset works

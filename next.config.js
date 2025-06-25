@@ -38,7 +38,22 @@ const nextConfig = {
   // Server external packages (moved from experimental)
   serverExternalPackages: ['@neondatabase/serverless', 'ioredis', 'pg'],
 
+  // Turbopack configuration for development builds
+  turbopack: {
+    // Resolve aliases for better module resolution
+    resolveAlias: {
+      // Example: Add aliases if needed in the future
+    },
+    // Custom file extensions if needed
+    resolveExtensions: ['.tsx', '.ts', '.jsx', '.js', '.mjs', '.json'],
+    // Rules for webpack loaders (if any custom loaders are needed)
+    rules: {
+      // Future: Add custom loader rules here if needed
+    },
+  },
+
   // Optimize bundle size by excluding server-only packages from client
+  // Note: This webpack config will only apply to production builds
   webpack: (config, { isServer }) => {
     if (!isServer) {
       // Don't resolve server-only modules on the client

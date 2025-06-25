@@ -3,6 +3,7 @@
     "lib": [
       "dom",
       "dom.iterable",
+      "es2022",
       "esnext"
     ],
     "allowJs": true,
@@ -33,7 +34,7 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": true,
-    "target": "ES2017"
+    "target": "ES2022"
   },
   "include": [
     "next-env.d.ts",

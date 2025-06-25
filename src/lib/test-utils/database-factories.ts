@@ -15,7 +15,7 @@ export interface TestUser {
   email: string
   name: string
   avatar_url: string
-  preferences: Record<string, any>
+  preferences: Record<string, unknown>
   created_at?: Date
   updated_at?: Date
 }
@@ -45,7 +45,7 @@ export interface TestOpportunity {
   difficulty: 'beginner' | 'intermediate' | 'advanced'
   estimated_hours: number
   skills_required: string[]
-  ai_analysis: Record<string, any>
+  ai_analysis: Record<string, unknown>
   score: number
   embedding?: number[]
   created_at?: Date
@@ -332,6 +332,9 @@ export class ScenarioFactory {
     // Create opportunities for each repository
     const opportunities: TestOpportunity[] = []
     for (const repo of repositories) {
+      if (!repo.id) {
+        throw new Error('Repository must have an id after creation')
+      }
       const repoOpportunities = await this.opportunityFactory.createMany(
         faker.number.int({ min: 2, max: 5 }),
         { repository_id: repo.id }
@@ -354,6 +357,10 @@ export class ScenarioFactory {
       name: 'ml-test-repo',
       language: 'Python',
     })
+
+    if (!repo.id) {
+      throw new Error('Repository must have an id after creation')
+    }
 
     // Create opportunities with similar embeddings for testing similarity search
     const similarEmbedding = Array.from({ length: 1536 }, () => 0.5)
@@ -397,6 +404,9 @@ export class ScenarioFactory {
     // Create many opportunities for performance testing
     const opportunities: TestOpportunity[] = []
     for (const repo of repositories) {
+      if (!repo.id) {
+        throw new Error('Repository must have an id after creation')
+      }
       const repoOpportunities = await this.opportunityFactory.createMany(50, {
         repository_id: repo.id,
       })

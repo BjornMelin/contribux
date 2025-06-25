@@ -61,14 +61,16 @@ export async function exportUserData(
     _metadata: { exported_at: Date; export_version: string; user_id: string }
   } = {
     user,
-    oauth_accounts: oauthAccounts as OAuthAccount[],
+    oauthAccounts: oauthAccounts as OAuthAccount[],
     sessions: sessions as UserSession[],
     consents: consents as UserConsent[],
-    audit_logs: auditLogs as SecurityAuditLog[],
+    auditLogs: auditLogs as SecurityAuditLog[],
     preferences: (preferences as Record<string, unknown>[])[0] || {},
     notifications,
     contributions,
     interactions,
+    exportedAt: new Date(),
+    exportVersion: '1.0',
     _metadata: {
       exported_at: new Date(),
       export_version: '1.0',

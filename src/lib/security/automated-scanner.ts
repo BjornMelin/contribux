@@ -180,7 +180,7 @@ export class AutomatedSecurityScanner {
   private incidents = new Map<string, SecurityIncident>()
   private scanHistory: { timestamp: number; type: string; results: number }[] = []
   private isScanning = false
-  private scanInterval?: NodeJS.Timeout
+  private scanInterval: NodeJS.Timeout | undefined = undefined
 
   constructor(config: Partial<SecurityScannerConfig> = {}) {
     this.config = SecurityScannerConfigSchema.parse(config)
@@ -223,7 +223,7 @@ export class AutomatedSecurityScanner {
     }
 
     this.isScanning = false
-    if (this.scanInterval) {
+    if (this.scanInterval !== undefined) {
       clearInterval(this.scanInterval)
       this.scanInterval = undefined
     }
@@ -680,7 +680,9 @@ export class AutomatedSecurityScanner {
           'Multiple critical security vulnerabilities have been detected requiring immediate attention',
         vulnerabilities: criticalVulns.map(v => v.id),
         threats: [],
-        affectedSystems: [...new Set(criticalVulns.map(v => v.location.endpoint || 'unknown'))],
+        affectedSystems: Array.from(
+          new Set(criticalVulns.map(v => v.location.endpoint || 'unknown'))
+        ),
       })
       incidents.push(incident)
     }
@@ -694,7 +696,7 @@ export class AutomatedSecurityScanner {
         description: 'Multiple high-severity vulnerabilities detected across the application',
         vulnerabilities: highVulns.map(v => v.id),
         threats: [],
-        affectedSystems: [...new Set(highVulns.map(v => v.location.endpoint || 'unknown'))],
+        affectedSystems: Array.from(new Set(highVulns.map(v => v.location.endpoint || 'unknown'))),
       })
       incidents.push(incident)
     }
@@ -709,7 +711,7 @@ export class AutomatedSecurityScanner {
         description: 'Critical security threats have been detected and require immediate response',
         vulnerabilities: [],
         threats: criticalThreats.map(t => t.threatId),
-        affectedSystems: [...new Set(criticalThreats.map(t => t.target.endpoint))],
+        affectedSystems: Array.from(new Set(criticalThreats.map(t => t.target.endpoint))),
       })
       incidents.push(incident)
     }
@@ -978,15 +980,47 @@ export class OWASPScanner {
   private scanner: AutomatedSecurityScanner
 
   constructor(config?: Partial<SecurityScannerConfig>) {
-    // Configure for OWASP-only scanning
-    const owaspConfig = {
-      ...config,
+    // Configure for OWASP-only scanning with proper defaults
+    const owaspConfig: Partial<SecurityScannerConfig> = {
       scanner: {
-        ...config?.scanner,
         enableOWASP: true,
         enableDependencyScanning: false,
         enablePenetrationTesting: false,
         enableThreatDetection: false,
+        scanIntervalMs: config?.scanner?.scanIntervalMs ?? 300000,
+        maxConcurrentScans: config?.scanner?.maxConcurrentScans ?? 3,
+      },
+      owasp: {
+        enableInjectionDetection: config?.owasp?.enableInjectionDetection ?? true,
+        enableBrokenAuthDetection: config?.owasp?.enableBrokenAuthDetection ?? true,
+        enableSensitiveDataDetection: config?.owasp?.enableSensitiveDataDetection ?? true,
+        enableXMLExternalEntitiesDetection:
+          config?.owasp?.enableXMLExternalEntitiesDetection ?? true,
+        enableBrokenAccessControlDetection:
+          config?.owasp?.enableBrokenAccessControlDetection ?? true,
+        enableSecurityMisconfigurationDetection:
+          config?.owasp?.enableSecurityMisconfigurationDetection ?? true,
+        enableXSSDetection: config?.owasp?.enableXSSDetection ?? true,
+        enableInsecureDeserializationDetection:
+          config?.owasp?.enableInsecureDeserializationDetection ?? true,
+        enableVulnerableComponentsDetection:
+          config?.owasp?.enableVulnerableComponentsDetection ?? true,
+        enableLoggingMonitoringDetection: config?.owasp?.enableLoggingMonitoringDetection ?? true,
+      },
+      threats: {
+        enableMLDetection: config?.threats?.enableMLDetection ?? false,
+        suspiciousThreshold: config?.threats?.suspiciousThreshold ?? 0.7,
+        criticalThreshold: config?.threats?.criticalThreshold ?? 0.9,
+        enableGeoAnomalyDetection: config?.threats?.enableGeoAnomalyDetection ?? false,
+        enableBehaviorAnomalyDetection: config?.threats?.enableBehaviorAnomalyDetection ?? false,
+        enableRateLimitAnomalyDetection: config?.threats?.enableRateLimitAnomalyDetection ?? false,
+      },
+      response: {
+        enableAutomatedResponse: config?.response?.enableAutomatedResponse ?? false,
+        enableIncidentCreation: config?.response?.enableIncidentCreation ?? true,
+        enableNotifications: config?.response?.enableNotifications ?? true,
+        quarantineSuspiciousRequests: config?.response?.quarantineSuspiciousRequests ?? false,
+        blockCriticalThreats: config?.response?.blockCriticalThreats ?? false,
       },
     }
     this.scanner = new AutomatedSecurityScanner(owaspConfig)

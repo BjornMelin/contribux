@@ -15,7 +15,7 @@
  */
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { GitHubClient } from '@/lib/github/client'
+import { GitHubClient } from '../../../src/lib/github/client'
 
 // Environment validation
 const REQUIRED_ENV_VARS = ['GITHUB_TEST_TOKEN', 'GITHUB_TEST_ORG'] as const
@@ -71,7 +71,7 @@ describe.skipIf(skipRealAPITests)('Real GitHub API Integration Tests', () => {
     client = new GitHubClient({
       auth: {
         type: 'token',
-        token: process.env.GITHUB_TEST_TOKEN!,
+        token: process.env.GITHUB_TEST_TOKEN ?? '',
       },
       throttle: {
         enabled: true,
@@ -237,7 +237,10 @@ describe.skipIf(skipRealAPITests)('Real GitHub API Integration Tests', () => {
     })
 
     it('should handle organization repositories and permissions', async () => {
-      const org = process.env.GITHUB_TEST_ORG!
+      const org = process.env.GITHUB_TEST_ORG
+      if (!org) {
+        throw new Error('GITHUB_TEST_ORG environment variable is required for this test')
+      }
       const startTime = Date.now()
 
       try {
@@ -277,10 +280,11 @@ describe.skipIf(skipRealAPITests)('Real GitHub API Integration Tests', () => {
             `   Detailed repo info: ${repo.full_name} (${repo.language || 'No language'})`
           )
         }
-      } catch (error: any) {
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
         metrics.errors.push({
           endpoint: `/orgs/${org}/repos`,
-          error: error.message,
+          error: errorMessage,
           retryCount: 0,
         })
 
@@ -413,8 +417,17 @@ describe.skipIf(skipRealAPITests)('Real GitHub API Integration Tests', () => {
 
       // Verify rate limit tracking is working
       if (typeof rateLimitInfo === 'object' && rateLimitInfo !== null && 'core' in rateLimitInfo) {
-        const coreInfo = rateLimitInfo.core as any
-        if (coreInfo && typeof coreInfo === 'object' && 'remaining' in coreInfo) {
+        const coreInfo = rateLimitInfo.core as {
+          remaining?: number
+          limit?: number
+          reset?: number
+        }
+        if (
+          coreInfo &&
+          typeof coreInfo === 'object' &&
+          'remaining' in coreInfo &&
+          typeof coreInfo.remaining === 'number'
+        ) {
           expect(coreInfo.remaining).toBeGreaterThanOrEqual(0)
           console.log(`   Client tracking: ${coreInfo.remaining} remaining`)
         }
@@ -486,7 +499,7 @@ describe.skipIf(skipRealAPITests)('Real GitHub API Integration Tests', () => {
       const timeoutClient = new GitHubClient({
         auth: {
           type: 'token',
-          token: process.env.GITHUB_TEST_TOKEN!,
+          token: process.env.GITHUB_TEST_TOKEN ?? '',
         },
         throttle: {
           enabled: true,
@@ -520,9 +533,10 @@ describe.skipIf(skipRealAPITests)('Real GitHub API Integration Tests', () => {
           cached: false,
           rateLimitRemaining: Number.parseInt(result.headers['x-ratelimit-remaining'] || '0'),
         })
-      } catch (error: any) {
+      } catch (error) {
         // Network issues are acceptable for this test
-        console.log(`⚠️  Network timeout/retry test resulted in error: ${error.message}`)
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        console.log(`⚠️  Network timeout/retry test resulted in error: ${errorMessage}`)
 
         metrics.errors.push({
           endpoint: '/user',
@@ -627,7 +641,7 @@ describe.skipIf(skipRealAPITests)('Real GitHub API Integration Tests', () => {
         const testClient = new GitHubClient({
           auth: {
             type: 'token',
-            token: process.env.GITHUB_TEST_TOKEN!,
+            token: process.env.GITHUB_TEST_TOKEN ?? '',
           },
         })
         clients.push(testClient)

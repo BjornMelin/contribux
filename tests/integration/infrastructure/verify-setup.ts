@@ -12,7 +12,7 @@ import { join } from 'node:path'
 import { MetricsCollector } from './metrics-collector'
 import { createPerformanceAnalyzer } from './performance-analyzer'
 import { createIntegrationTestReporter } from './reporter'
-import { loadIntegrationTestEnv } from './test-config'
+import { type IntegrationTestEnv, loadIntegrationTestEnv } from './test-config'
 
 async function verifySetup() {
   console.log('🔍 Verifying Integration Test Setup')
@@ -23,7 +23,7 @@ async function verifySetup() {
   try {
     // Check environment configuration
     console.log('📋 Checking environment configuration...')
-    let env: unknown
+    let env: IntegrationTestEnv | Record<string, unknown>
     try {
       env = loadIntegrationTestEnv()
     } catch (_error) {

@@ -5,12 +5,12 @@ import {
   refreshOAuthTokens,
   unlinkOAuthAccount,
   validateOAuthCallback,
-} from '@/lib/auth/oauth'
-import { sql } from '@/lib/db/config'
-import type { OAuthCallbackParams } from '@/types/auth'
+} from '../../src/lib/auth/oauth'
+import { sql } from '../../src/lib/db/config'
+import type { OAuthCallbackParams } from '../../src/types/auth'
 
 // Mock env validation for this test file
-vi.mock('@/lib/validation/env', () => ({
+vi.mock('../../src/lib/validation/env', () => ({
   env: {
     NODE_ENV: 'test',
     DATABASE_URL: 'postgresql://test:test@localhost:5432/testdb',
@@ -27,7 +27,7 @@ vi.mock('@/lib/validation/env', () => ({
 }))
 
 // Mock PKCE generation
-vi.mock('@/lib/auth/pkce', () => ({
+vi.mock('../../src/lib/auth/pkce', () => ({
   generatePKCEChallenge: vi.fn(() => ({
     codeVerifier: 'test-verifier-123',
     codeChallenge: 'test-challenge-123',
@@ -35,8 +35,9 @@ vi.mock('@/lib/auth/pkce', () => ({
 }))
 
 // Mock crypto functions
-vi.mock('@/lib/auth/crypto', async () => {
-  const actual = await vi.importActual<typeof import('@/lib/auth/crypto')>('@/lib/auth/crypto')
+vi.mock('../../src/lib/auth/crypto', async () => {
+  const actual =
+    await vi.importActual<typeof import('../../src/lib/auth/crypto')>('@/lib/auth/crypto')
   return {
     ...actual,
     encryptOAuthToken: vi.fn(async (token: string) =>
@@ -57,7 +58,7 @@ vi.mock('@/lib/auth/crypto', async () => {
 // Note: Database and fetch mocks are defined in tests/setup.ts
 
 // Import the sql mock to ensure it's available
-import { sql as mockSql } from '@/lib/db/config'
+import { sql as mockSql } from '../../src/lib/db/config'
 
 vi.mocked(mockSql)
 
@@ -166,6 +167,8 @@ describe('OAuth Authentication', () => {
       const params: OAuthCallbackParams = {
         code: 'auth-code-123',
         state: 'test-state-123',
+        error: undefined,
+        errorDescription: undefined,
       }
 
       const result = await validateOAuthCallback(params)
@@ -185,6 +188,8 @@ describe('OAuth Authentication', () => {
       const params: OAuthCallbackParams = {
         code: 'auth-code-123',
         state: 'invalid-state',
+        error: undefined,
+        errorDescription: undefined,
       }
 
       await expect(validateOAuthCallback(params)).rejects.toThrow('Invalid OAuth state')
@@ -205,6 +210,8 @@ describe('OAuth Authentication', () => {
       const params: OAuthCallbackParams = {
         code: 'auth-code-123',
         state: 'test-state-123',
+        error: undefined,
+        errorDescription: undefined,
       }
 
       await expect(validateOAuthCallback(params)).rejects.toThrow('OAuth state expired')
@@ -212,8 +219,9 @@ describe('OAuth Authentication', () => {
 
     it('should reject callback with error parameter', async () => {
       const params: OAuthCallbackParams = {
+        code: undefined,
         error: 'access_denied',
-        error_description: 'User denied access',
+        errorDescription: 'User denied access',
         state: 'test-state-123',
       }
 

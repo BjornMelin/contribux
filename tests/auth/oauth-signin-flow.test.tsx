@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { signIn } from 'next-auth/react'
+import type React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import OAuthSignInPage from '@/app/auth/signin/page'
 
@@ -11,8 +12,10 @@ vi.mock('next-auth/react', () => ({
 // Mock framer-motion to avoid animation issues in tests
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-    span: ({ children, ...props }: any) => <span {...props}>{children}</span>,
+    div: ({ children, ...props }: React.ComponentProps<'div'>) => <div {...props}>{children}</div>,
+    span: ({ children, ...props }: React.ComponentProps<'span'>) => (
+      <span {...props}>{children}</span>
+    ),
   },
   animate: vi.fn(),
   useMotionTemplate: vi.fn(() => ''),
@@ -62,10 +65,10 @@ describe('OAuth Sign-In Flow', () => {
 
       expect(passwordInput).toHaveAttribute('type', 'password')
 
-      fireEvent.click(toggleButton!)
+      if (toggleButton) fireEvent.click(toggleButton)
       expect(passwordInput).toHaveAttribute('type', 'text')
 
-      fireEvent.click(toggleButton!)
+      if (toggleButton) fireEvent.click(toggleButton)
       expect(passwordInput).toHaveAttribute('type', 'password')
     })
   })
@@ -79,7 +82,7 @@ describe('OAuth Sign-In Flow', () => {
 
       const githubButtons = screen.getAllByText('Continue with GitHub')
       const githubButton = githubButtons[0].closest('button')
-      fireEvent.click(githubButton!)
+      if (githubButton) fireEvent.click(githubButton)
 
       await waitFor(() => {
         expect(mockSignIn).toHaveBeenCalledWith('github', { callbackUrl: '/' })
@@ -94,7 +97,7 @@ describe('OAuth Sign-In Flow', () => {
 
       const googleButtons = screen.getAllByText('Continue with Google')
       const googleButton = googleButtons[0].closest('button')
-      fireEvent.click(googleButton!)
+      if (googleButton) fireEvent.click(googleButton)
 
       await waitFor(() => {
         expect(mockSignIn).toHaveBeenCalledWith('google', { callbackUrl: '/' })
@@ -109,7 +112,7 @@ describe('OAuth Sign-In Flow', () => {
 
       const githubButtons = screen.getAllByText('Continue with GitHub')
       const githubButton = githubButtons[0].closest('button')
-      fireEvent.click(githubButton!)
+      if (githubButton) fireEvent.click(githubButton)
 
       // Check that button is disabled during loading
       await waitFor(() => {
@@ -127,7 +130,7 @@ describe('OAuth Sign-In Flow', () => {
 
       const githubButtons = screen.getAllByText('Continue with GitHub')
       const githubButton = githubButtons[0].closest('button')
-      fireEvent.click(githubButton!)
+      if (githubButton) fireEvent.click(githubButton)
 
       await waitFor(() => {
         expect(consoleErrorSpy).toHaveBeenCalledWith('GitHub sign-in failed:', expect.any(Error))

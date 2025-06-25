@@ -6,7 +6,20 @@
  * and other common operations.
  */
 
-import type { GraphQLRateLimitInfo, RateLimitInfo } from './interfaces/rate-limiting'
+// Define rate limiting types locally
+export interface RateLimitInfo {
+  limit: number
+  remaining: number
+  reset: number
+  used: number
+}
+
+export interface GraphQLRateLimitInfo {
+  limit: number
+  remaining: number
+  resetAt: string
+  cost: number
+}
 
 /**
  * Utility types
@@ -83,7 +96,17 @@ export function isApproachingRateLimit(
   threshold = 0.9
 ): boolean {
   if (info.limit === 0) return false
-  const percentageUsed = info.used / info.limit
+
+  // Handle different rate limit info types
+  let percentageUsed: number
+  if ('used' in info) {
+    // RateLimitInfo type
+    percentageUsed = info.used / info.limit
+  } else {
+    // GraphQLRateLimitInfo type - calculate from remaining
+    percentageUsed = (info.limit - info.remaining) / info.limit
+  }
+
   return percentageUsed >= threshold
 }
 
@@ -99,10 +122,22 @@ export function isApproachingRateLimit(
 export function calculateOptimalDelay(info: RateLimitInfo | GraphQLRateLimitInfo): number {
   if (info.remaining === 0) {
     // Already rate limited, wait until reset
-    return Math.max(0, info.reset.getTime() - Date.now())
+    if ('reset' in info) {
+      // RateLimitInfo type - reset is a timestamp
+      return Math.max(0, info.reset * 1000 - Date.now())
+    }
+    // GraphQLRateLimitInfo type - resetAt is ISO string
+    return Math.max(0, new Date(info.resetAt).getTime() - Date.now())
   }
 
-  const timeUntilReset = Math.max(0, info.reset.getTime() - Date.now())
+  let timeUntilReset: number
+  if ('reset' in info) {
+    // RateLimitInfo type - reset is a timestamp
+    timeUntilReset = Math.max(0, info.reset * 1000 - Date.now())
+  } else {
+    // GraphQLRateLimitInfo type - resetAt is ISO string
+    timeUntilReset = Math.max(0, new Date(info.resetAt).getTime() - Date.now())
+  }
   if (timeUntilReset === 0) return 0
 
   // Calculate average time per request to spread requests evenly

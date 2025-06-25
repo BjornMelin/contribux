@@ -12,10 +12,10 @@ import {
   type SecurityScannerConfig,
   type ThreatDetection,
   type Vulnerability,
-} from '@/lib/security/automated-scanner'
+} from '../../src/lib/security/automated-scanner'
 
 // Mock crypto module
-vi.mock('@/lib/security/crypto', () => ({
+vi.mock('../../src/lib/security/crypto', () => ({
   createSecureHash: vi.fn().mockImplementation(() => 'mock-hash'),
   generateDeviceFingerprint: vi.fn().mockImplementation(() => 'mock-fingerprint'),
   generateSecureToken: vi
@@ -25,7 +25,7 @@ vi.mock('@/lib/security/crypto', () => ({
 
 describe('Automated Security Scanner', () => {
   let scanner: AutomatedSecurityScanner
-  let mockConfig: Partial<SecurityScannerConfig>
+  let mockConfig: SecurityScannerConfig
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -170,7 +170,7 @@ describe('Automated Security Scanner', () => {
       expect(history[0]).toHaveProperty('timestamp')
       expect(history[0]).toHaveProperty('type', 'comprehensive')
       expect(history[0]).toHaveProperty('results')
-      expect(typeof history[0].results).toBe('number')
+      expect(typeof history[0]?.results).toBe('number')
 
       await testScanner.shutdown()
     })
@@ -281,7 +281,7 @@ describe('Automated Security Scanner', () => {
 
   describe('Penetration Testing', () => {
     it('should skip penetration testing when disabled', async () => {
-      const disabledConfig = {
+      const disabledConfig: SecurityScannerConfig = {
         ...mockConfig,
         scanner: { ...mockConfig.scanner, enablePenetrationTesting: false },
       }
@@ -299,7 +299,7 @@ describe('Automated Security Scanner', () => {
     })
 
     it('should perform penetration testing when enabled', async () => {
-      const enabledConfig = {
+      const enabledConfig: SecurityScannerConfig = {
         ...mockConfig,
         scanner: { ...mockConfig.scanner, enablePenetrationTesting: true },
       }

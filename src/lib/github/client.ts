@@ -88,8 +88,8 @@ export interface SearchResult<T> {
 
 export type GitHubClientConfig = TypesGitHubClientConfig
 
-// Type for testing internal properties
-interface GitHubClientTest extends GitHubClient {
+// Type for testing internal properties - simplified interface
+export interface GitHubClientTest {
   octokit: {
     throttling?: unknown
     retry?: unknown
@@ -107,7 +107,7 @@ export class GitHubClient {
   constructor(config: Partial<GitHubClientConfig> = {}) {
     // Basic validation for compatibility with tests
     if (config.auth && 'type' in config.auth) {
-      const auth = config.auth as any
+      const auth = config.auth as { type: string; token?: string }
       const authType = auth.type
 
       if (!['token', 'app'].includes(authType)) {
@@ -273,14 +273,14 @@ export class GitHubClient {
       throttle: {
         onRateLimit:
           config.throttle?.onRateLimit ||
-          ((retryAfter, _options, _octokit, retryCount) => {
+          ((retryAfter: number, _options: unknown, _octokit: unknown, retryCount: number) => {
             console.warn(`Rate limit exceeded. Retrying after ${retryAfter} seconds.`)
             // Retry up to 2 times for rate limits
             return retryCount < 2
           }),
         onSecondaryRateLimit:
           config.throttle?.onSecondaryRateLimit ||
-          ((retryAfter, _options, _octokit, retryCount) => {
+          ((retryAfter: number, _options: unknown, _octokit: unknown, retryCount: number) => {
             console.warn(`Secondary rate limit hit. Retrying after ${retryAfter} seconds.`)
             // Retry once for secondary rate limits
             return retryCount < 1
@@ -534,12 +534,13 @@ export class GitHubClient {
         'GRAPHQL_ERROR',
         githubError.status,
         undefined,
-        {
-          method: 'POST',
-          operation: 'graphql',
-          params: { query: `${query.slice(0, 100)}...`, variables },
-          timestamp: new Date(),
-        }
+        createRequestContext(
+          'POST',
+          'graphql',
+          { query: `${query.slice(0, 100)}...`, variables },
+          0,
+          3
+        )
       )
     }
   }
@@ -556,13 +557,17 @@ export class GitHubClient {
       }
     }
     // Fallback for flat response format (used in tests)
+    const fallbackRate = { limit: 5000, remaining: 5000, reset: Date.now() / 1000 + 3600, used: 0 }
+    const flatData = response.data as Record<string, unknown>
     return {
-      core: response.data.core ||
-        response.data.rate || { limit: 5000, remaining: 5000, reset: Date.now() / 1000 + 3600 },
-      search: response.data.search ||
-        response.data.rate || { limit: 30, remaining: 30, reset: Date.now() / 1000 + 3600 },
-      graphql: response.data.graphql ||
-        response.data.rate || { limit: 5000, remaining: 5000, reset: Date.now() / 1000 + 3600 },
+      core: flatData.core || flatData.rate || fallbackRate,
+      search: flatData.search || {
+        limit: 30,
+        remaining: 30,
+        reset: Date.now() / 1000 + 3600,
+        used: 0,
+      },
+      graphql: flatData.graphql || fallbackRate,
     }
   }
 
@@ -582,7 +587,8 @@ export class GitHubClient {
     const maxAge = 60000 // 60 seconds
 
     // Remove expired entries
-    for (const [key, entry] of this.requestCache.entries()) {
+    for (const entryPair of Array.from(this.requestCache.entries())) {
+      const [key, entry] = entryPair
       if (now - entry.timestamp > maxAge) {
         this.requestCache.delete(key)
       }
@@ -659,8 +665,10 @@ export class GitHubClient {
 
     if (Array.isArray(obj)) {
       return obj.map(item =>
-        typeof item === 'object' ? this.sortObjectKeys(item as Record<string, unknown>) : item
-      )
+        typeof item === 'object' && item !== null
+          ? this.sortObjectKeys(item as Record<string, unknown>)
+          : item
+      ) as unknown as Record<string, unknown>
     }
 
     const sorted: Record<string, unknown> = {}
@@ -697,7 +705,7 @@ export class GitHubClient {
 
     // Basic validation for compatibility with tests (same as constructor validation)
     if (config.auth && 'type' in config.auth) {
-      const auth = config.auth as any
+      const auth = config.auth as { type: string; token?: string }
       const authType = auth.type
 
       if (!['token', 'app'].includes(authType)) {

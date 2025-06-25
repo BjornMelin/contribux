@@ -127,7 +127,15 @@ export async function GET(request: NextRequest) {
     `
 
     // Execute main query using Neon SQL template literal
-    const opportunities = (await sql.unsafe(mainQuery)) as unknown as any[]
+    type DatabaseOpportunity = {
+      created_at: string
+      technologies: string[] | null
+      required_skills: string[] | null
+      labels: unknown[]
+      [key: string]: unknown
+    }
+
+    const opportunities = (await sql.unsafe(mainQuery)) as unknown as DatabaseOpportunity[]
 
     // Get total count for pagination
     const countQuery = `
@@ -143,7 +151,7 @@ export async function GET(request: NextRequest) {
     const response = {
       success: true,
       data: {
-        opportunities: opportunities.map((opp: any) => ({
+        opportunities: opportunities.map((opp: DatabaseOpportunity) => ({
           ...opp,
           created_at: new Date(opp.created_at as string).toISOString(),
           technologies: opp.technologies || [],

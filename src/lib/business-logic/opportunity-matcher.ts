@@ -3,19 +3,20 @@
  * AI-powered opportunity recommendation algorithms for contribux
  */
 
-import type { MatchScore, Opportunity, UserProfile } from './types'
+import type { DifficultyLevel } from '@/types/search'
+import type { BusinessOpportunity, MatchScore, UserProfile } from './types'
 
 export class OpportunityMatcher {
   private readonly WEIGHTS = {
-    skill_match: 0.25,
-    language_match: 0.2,
-    interest_match: 0.15,
+    skillMatch: 0.25,
+    languageMatch: 0.2,
+    interestMatch: 0.15,
     difficulty: 0.15,
     availability: 0.15,
     experience: 0.1,
   }
 
-  calculateMatchScore(user: UserProfile, opportunity: Opportunity): MatchScore {
+  calculateMatchScore(user: UserProfile, opportunity: BusinessOpportunity): MatchScore {
     const skillScore = this.calculateSkillMatchScore(user, opportunity)
     const languageScore = this.calculateLanguageMatchScore(user, opportunity)
     const interestScore = this.calculateInterestMatchScore(user, opportunity)
@@ -24,9 +25,9 @@ export class OpportunityMatcher {
     const experienceScore = this.calculateExperienceScore(user, opportunity)
 
     const totalScore =
-      skillScore * this.WEIGHTS.skill_match +
-      languageScore * this.WEIGHTS.language_match +
-      interestScore * this.WEIGHTS.interest_match +
+      skillScore * this.WEIGHTS.skillMatch +
+      languageScore * this.WEIGHTS.languageMatch +
+      interestScore * this.WEIGHTS.interestMatch +
       difficultyScore * this.WEIGHTS.difficulty +
       availabilityScore * this.WEIGHTS.availability +
       experienceScore * this.WEIGHTS.experience
@@ -48,22 +49,22 @@ export class OpportunityMatcher {
     })
 
     return {
-      opportunity_id: opportunity.id,
-      total_score: Math.min(1, Math.max(0, totalScore)),
-      skill_match_score: skillScore,
-      language_match_score: languageScore,
-      interest_match_score: interestScore,
-      difficulty_score: difficultyScore,
-      availability_score: availabilityScore,
-      experience_score: experienceScore,
-      match_reasons: matchReasons,
+      opportunityId: opportunity.id,
+      totalScore: Math.min(1, Math.max(0, totalScore)),
+      skillMatchScore: skillScore,
+      languageMatchScore: languageScore,
+      interestMatchScore: interestScore,
+      difficultyScore: difficultyScore,
+      availabilityScore: availabilityScore,
+      experienceScore: experienceScore,
+      matchReasons,
       warnings,
     }
   }
 
-  private calculateSkillMatchScore(user: UserProfile, opportunity: Opportunity): number {
-    const userSkills = user.preferred_languages
-    const requiredSkills = opportunity.required_skills
+  private calculateSkillMatchScore(user: UserProfile, opportunity: BusinessOpportunity): number {
+    const userSkills = user.preferredLanguages
+    const requiredSkills = opportunity.requiredSkills
 
     if (requiredSkills.length === 0) return 0.5
 
@@ -86,8 +87,8 @@ export class OpportunityMatcher {
     return Math.min(1, baseScore + exactBonus)
   }
 
-  private calculateLanguageMatchScore(user: UserProfile, opportunity: Opportunity): number {
-    const userLanguages = user.preferred_languages.map(lang => lang.toLowerCase())
+  private calculateLanguageMatchScore(user: UserProfile, opportunity: BusinessOpportunity): number {
+    const userLanguages = user.preferredLanguages.map(lang => lang.toLowerCase())
     const oppTechnologies = opportunity.technologies.map(tech => tech.toLowerCase())
 
     if (oppTechnologies.length === 0) return 0.5
@@ -100,10 +101,10 @@ export class OpportunityMatcher {
     return matchedTech.length / oppTechnologies.length
   }
 
-  private calculateInterestMatchScore(user: UserProfile, opportunity: Opportunity): number {
+  private calculateInterestMatchScore(user: UserProfile, opportunity: BusinessOpportunity): number {
     const userInterests = user.interests?.map(interest => interest.toLowerCase()) ?? []
     const oppType = opportunity.type.toLowerCase()
-    const oppDescription = opportunity.description.toLowerCase()
+    const oppDescription = (opportunity.description ?? '').toLowerCase()
 
     if (userInterests.length === 0) return 0.5
 
@@ -124,15 +125,15 @@ export class OpportunityMatcher {
     return Math.min(1, score)
   }
 
-  private calculateDifficultyScore(user: UserProfile, opportunity: Opportunity): number {
-    const difficultyMap = {
+  private calculateDifficultyScore(user: UserProfile, opportunity: BusinessOpportunity): number {
+    const difficultyMap: Record<DifficultyLevel, number> = {
       beginner: 1,
       intermediate: 2,
       advanced: 3,
       expert: 4,
-    }
+    } as const
 
-    const userLevel = difficultyMap[user.skill_level]
+    const userLevel = difficultyMap[user.skillLevel]
     const oppLevel = difficultyMap[opportunity.difficulty]
 
     // Perfect match
@@ -153,10 +154,10 @@ export class OpportunityMatcher {
     return 0.5
   }
 
-  private calculateAvailabilityScore(user: UserProfile, opportunity: Opportunity): number {
-    if (!opportunity.estimated_hours) return 0.8 // Assume reasonable if not specified
+  private calculateAvailabilityScore(user: UserProfile, opportunity: BusinessOpportunity): number {
+    if (!opportunity.estimatedHours) return 0.8 // Assume reasonable if not specified
 
-    const timeRatio = user.availability_hours / opportunity.estimated_hours
+    const timeRatio = user.availabilityHours / opportunity.estimatedHours
 
     if (timeRatio >= 2) return 1.0 // Plenty of time
     if (timeRatio >= 1.5) return 0.9 // Comfortable amount
@@ -166,19 +167,19 @@ export class OpportunityMatcher {
     return 0.2 // Not enough time
   }
 
-  private calculateExperienceScore(user: UserProfile, opportunity: Opportunity): number {
-    const months = user.experience_months
+  private calculateExperienceScore(user: UserProfile, opportunity: BusinessOpportunity): number {
+    const months = user.experienceMonths
 
     // Beginner boost for good first issues
-    if (opportunity.good_first_issue && months < 6) return 1.0
+    if (opportunity.goodFirstIssue && months < 6) return 1.0
 
     // Experience appropriateness
-    const difficultyMap = {
+    const difficultyMap: Record<DifficultyLevel, { min: number; ideal: number; max: number }> = {
       beginner: { min: 0, ideal: 3, max: 12 },
       intermediate: { min: 3, ideal: 12, max: 36 },
       advanced: { min: 12, ideal: 36, max: 72 },
       expert: { min: 24, ideal: 60, max: 120 },
-    }
+    } as const
 
     const range = difficultyMap[opportunity.difficulty]
 
@@ -196,7 +197,7 @@ export class OpportunityMatcher {
 
   private generateMatchReasons(
     user: UserProfile,
-    opportunity: Opportunity,
+    opportunity: BusinessOpportunity,
     scores: Record<string, number>
   ): string[] {
     const reasons: string[] = []
@@ -213,19 +214,19 @@ export class OpportunityMatcher {
       reasons.push('Perfect difficulty level for your experience')
     }
 
-    if (opportunity.good_first_issue && user.skill_level === 'beginner') {
+    if (opportunity.goodFirstIssue && user.skillLevel === 'beginner') {
       reasons.push('Great first issue for beginners')
     }
 
-    if (opportunity.mentorship_available) {
+    if (opportunity.mentorshipAvailable) {
       reasons.push('Mentorship available')
     }
 
-    if (opportunity.help_wanted) {
+    if (opportunity.helpWanted) {
       reasons.push('Project actively seeking help')
     }
 
-    if (scores.availabilityScore > 0.8) {
+    if (scores.availabilityScore && scores.availabilityScore > 0.8) {
       reasons.push('Fits well within your available time')
     }
 
@@ -238,18 +239,23 @@ export class OpportunityMatcher {
 
   private generateWarnings(
     user: UserProfile,
-    opportunity: Opportunity,
+    opportunity: BusinessOpportunity,
     scores: Record<string, number>
   ): string[] {
     const warnings: string[] = []
 
-    if (scores.skillScore < 0.3) {
+    if (scores.skillScore != null && scores.skillScore < 0.3) {
       warnings.push('Limited skill match - consider if this aligns with your learning goals')
     }
 
-    if (scores.difficultyScore < 0.3) {
-      const difficultyMap = { beginner: 1, intermediate: 2, advanced: 3, expert: 4 }
-      const userLevel = difficultyMap[user.skill_level]
+    if (scores.difficultyScore != null && scores.difficultyScore < 0.3) {
+      const difficultyMap: Record<DifficultyLevel, number> = {
+        beginner: 1,
+        intermediate: 2,
+        advanced: 3,
+        expert: 4,
+      } as const
+      const userLevel = difficultyMap[user.skillLevel]
       const oppLevel = difficultyMap[opportunity.difficulty]
 
       if (oppLevel > userLevel + 1) {
@@ -259,27 +265,29 @@ export class OpportunityMatcher {
       }
     }
 
-    if (scores.availabilityScore < 0.5 && opportunity.estimated_hours) {
-      warnings.push(
-        `Time commitment (${opportunity.estimated_hours}h) may exceed your availability`
-      )
+    if (
+      scores.availabilityScore != null &&
+      scores.availabilityScore < 0.5 &&
+      opportunity.estimatedHours
+    ) {
+      warnings.push(`Time commitment (${opportunity.estimatedHours}h) may exceed your availability`)
     }
 
-    if (scores.languageScore < 0.2) {
+    if (scores.languageScore != null && scores.languageScore < 0.2) {
       warnings.push('Uses technologies you may not be familiar with')
     }
 
     return warnings
   }
 
-  rankOpportunities(user: UserProfile, opportunities: Opportunity[]): MatchScore[] {
+  rankOpportunities(user: UserProfile, opportunities: BusinessOpportunity[]): MatchScore[] {
     return opportunities
       .map(opp => this.calculateMatchScore(user, opp))
-      .sort((a, b) => b.total_score - a.total_score)
+      .sort((a, b) => b.totalScore - a.totalScore)
   }
 
   filterByMinimumScore(matches: MatchScore[], minScore = 0.3): MatchScore[] {
-    return matches.filter(match => match.total_score >= minScore)
+    return matches.filter(match => match.totalScore >= minScore)
   }
 
   getTopMatches(matches: MatchScore[], limit = 10): MatchScore[] {

@@ -4,7 +4,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { GitHubClient } from '@/lib/github/client'
+import { GitHubClient } from '../../src/lib/github/client'
 import {
   createMemoryMonitor,
   getMemoryUsage,
@@ -130,7 +130,7 @@ describe('Enhanced Memory Cleanup', () => {
   })
 
   it('should demonstrate proper async cleanup', async () => {
-    const asyncResources: Promise<any>[] = []
+    const asyncResources: Promise<unknown>[] = []
 
     // Create async resources that need cleanup
     for (let i = 0; i < 5; i++) {

@@ -26,16 +26,16 @@
 
 import { HttpResponse, http } from 'msw'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { GitHubClient } from '@/lib/github'
-import type { GitHubClientConfig } from '@/lib/github/client'
-import { GitHubError } from '@/lib/github/errors'
+import { GitHubClient } from '../../src/lib/github'
+import type { GitHubClientConfig } from '../../src/lib/github/client'
+import { GitHubError } from '../../src/lib/github/errors'
 import { mswServer, setupMSW } from './msw-setup'
 import { createTrackedClient, setupGitHubTestIsolation } from './test-helpers'
 
-// Type for testing internal properties
-interface GitHubClientTest extends GitHubClient {
-  safeRequest: unknown
-}
+// Type for testing internal properties (commented out as currently unused)
+// interface GitHubClientTest extends GitHubClient {
+//   safeRequest: unknown
+// }
 
 describe('GitHubClient Edge Cases - Consolidated', () => {
   // Setup MSW server for HTTP mocking

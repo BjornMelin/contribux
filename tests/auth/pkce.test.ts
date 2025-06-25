@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { generatePKCEChallenge } from '@/lib/auth/pkce'
+import { generatePKCEChallenge } from '../../src/lib/auth/pkce'
 
 // Mock crypto.getRandomValues
 vi.stubGlobal('crypto', {

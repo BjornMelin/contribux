@@ -8,6 +8,15 @@
 import { createGitHubClient } from './client'
 import { GitHubError } from './errors'
 
+// Octokit throttling types based on @octokit/plugin-throttling
+interface ThrottlingOptions {
+  method: string
+  url: string
+  request: {
+    retryCount: number
+  }
+}
+
 // Example 1: Basic Usage with Token Authentication
 export async function basicUsageExample() {
   console.log('=== Basic GitHub Client Usage ===')
@@ -50,7 +59,12 @@ export async function basicUsageExample() {
 
     // Check rate limits
     const rateLimit = await client.getRateLimit()
-    console.log(`Rate limit remaining: ${rateLimit.core.remaining}/${rateLimit.core.limit}`)
+    const core = rateLimit.core
+    if (core && typeof core === 'object' && 'remaining' in core && 'limit' in core) {
+      console.log(`Rate limit remaining: ${core.remaining}/${core.limit}`)
+    } else {
+      console.log('Rate limit information not available')
+    }
   } catch (error) {
     if (error instanceof GitHubError) {
       console.error(`GitHub API Error: ${error.message} (${error.code})`)
@@ -77,11 +91,11 @@ export async function advancedUsageExample() {
       maxSize: 500, // Max 500 cached entries
     },
     throttle: {
-      onRateLimit: (retryAfter, options) => {
+      onRateLimit: (retryAfter: number, options: ThrottlingOptions) => {
         console.warn(`Rate limit hit. Retrying after ${retryAfter}s`)
         return options.request.retryCount < 3 // Retry up to 3 times
       },
-      onSecondaryRateLimit: (retryAfter, options) => {
+      onSecondaryRateLimit: (retryAfter: number, options: ThrottlingOptions) => {
         console.warn(`Secondary rate limit hit. Retrying after ${retryAfter}s`)
         return options.request.retryCount < 1 // Retry once
       },
@@ -228,7 +242,7 @@ export async function bulkOperationsExample() {
       token: process.env.GITHUB_TOKEN || 'ghp_your_token_here',
     },
     throttle: {
-      onRateLimit: (retryAfter, options) => {
+      onRateLimit: (retryAfter: number, options: ThrottlingOptions) => {
         console.log(
           `Rate limit reached. Waiting ${retryAfter}s before retry ${options.request.retryCount + 1}`
         )
@@ -260,9 +274,12 @@ export async function bulkOperationsExample() {
 
   // Check final rate limit status
   const rateLimit = await client.getRateLimit()
-  console.log(
-    `Operations completed. Rate limit: ${rateLimit.core.remaining}/${rateLimit.core.limit}`
-  )
+  const core = rateLimit.core
+  if (core && typeof core === 'object' && 'remaining' in core && 'limit' in core) {
+    console.log(`Operations completed. Rate limit: ${core.remaining}/${core.limit}`)
+  } else {
+    console.log('Operations completed. Rate limit information not available')
+  }
 }
 
 // Run all examples

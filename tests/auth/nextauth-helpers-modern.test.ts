@@ -3,18 +3,24 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { getCurrentUser, getOAuthAccessToken, hasOAuthScope, requireAuth } from '@/lib/auth/helpers'
-import type { User } from '@/types/auth'
+import {
+  getCurrentUser,
+  getOAuthAccessToken,
+  hasOAuthScope,
+  requireAuth,
+} from '../../src/lib/auth/helpers'
+import type { User } from '../../src/types/auth'
+import type { Email, GitHubUsername, UUID } from '../../src/types/base'
 
 // Modern Auth.js v5 test patterns - use node environment to avoid JSDOM issues
 
 // Mock the universal auth() function from Auth.js v5
-vi.mock('@/lib/auth', () => ({
+vi.mock('../../src/lib/auth', () => ({
   auth: vi.fn(),
 }))
 
 // Mock the database client
-vi.mock('@/lib/db/config', () => ({
+vi.mock('../../src/lib/db/config', () => ({
   sql: vi.fn(),
 }))
 
@@ -31,17 +37,16 @@ vi.mock('next/headers', () => ({
 
 describe('Auth.js v5 Helper Functions - Modern 2025 Approach', () => {
   const mockUser: User = {
-    id: '123e4567-e89b-12d3-a456-426614174000',
-    email: 'test@example.com',
-    github_username: 'testuser',
-    email_verified: true,
-    two_factor_enabled: false,
-    recovery_email: null,
-    locked_at: null,
-    failed_login_attempts: 0,
-    last_login_at: null,
-    created_at: new Date(),
-    updated_at: new Date(),
+    id: '123e4567-e89b-12d3-a456-426614174000' as UUID,
+    email: 'test@example.com' as Email,
+    displayName: 'Test User',
+    username: 'testuser',
+    githubUsername: 'testuser' as GitHubUsername,
+    emailVerified: true,
+    twoFactorEnabled: false,
+    failedLoginAttempts: 0,
+    createdAt: new Date(),
+    updatedAt: new Date(),
   }
 
   const mockSession = {
@@ -59,10 +64,11 @@ describe('Auth.js v5 Helper Functions - Modern 2025 Approach', () => {
 
   describe('getCurrentUser', () => {
     it('returns user when authenticated with valid session', async () => {
-      const { auth } = await import('@/lib/auth')
-      const { sql } = await import('@/lib/db/config')
+      const { auth } = await import('../../src/lib/auth')
+      const { sql } = await import('../../src/lib/db/config')
 
-      vi.mocked(auth).mockResolvedValue(mockSession)
+      // biome-ignore lint/suspicious/noExplicitAny: Mock session for test scenario
+      vi.mocked(auth).mockResolvedValue(mockSession as any)
       vi.mocked(sql).mockResolvedValue([mockUser])
 
       const user = await getCurrentUser()
@@ -73,9 +79,10 @@ describe('Auth.js v5 Helper Functions - Modern 2025 Approach', () => {
     })
 
     it('returns null when no session exists', async () => {
-      const { auth } = await import('@/lib/auth')
+      const { auth } = await import('../../src/lib/auth')
 
-      vi.mocked(auth).mockResolvedValue(null)
+      // biome-ignore lint/suspicious/noExplicitAny: Mock session for test scenario
+      vi.mocked(auth).mockResolvedValue(null as any)
 
       const user = await getCurrentUser()
 
@@ -84,10 +91,11 @@ describe('Auth.js v5 Helper Functions - Modern 2025 Approach', () => {
     })
 
     it('returns null when session has no user ID', async () => {
-      const { auth } = await import('@/lib/auth')
+      const { auth } = await import('../../src/lib/auth')
 
       const sessionWithoutUserId = { ...mockSession, user: { email: 'test@example.com' } }
-      vi.mocked(auth).mockResolvedValue(sessionWithoutUserId)
+      // biome-ignore lint/suspicious/noExplicitAny: Mock session for test scenario
+      vi.mocked(auth).mockResolvedValue(sessionWithoutUserId as any)
 
       const user = await getCurrentUser()
 
@@ -95,10 +103,11 @@ describe('Auth.js v5 Helper Functions - Modern 2025 Approach', () => {
     })
 
     it('returns null when user not found in database', async () => {
-      const { auth } = await import('@/lib/auth')
-      const { sql } = await import('@/lib/db/config')
+      const { auth } = await import('../../src/lib/auth')
+      const { sql } = await import('../../src/lib/db/config')
 
-      vi.mocked(auth).mockResolvedValue(mockSession)
+      // biome-ignore lint/suspicious/noExplicitAny: Mock session for test scenario
+      vi.mocked(auth).mockResolvedValue(mockSession as any)
       vi.mocked(sql).mockResolvedValue([]) // Empty result
 
       const user = await getCurrentUser()
@@ -107,10 +116,11 @@ describe('Auth.js v5 Helper Functions - Modern 2025 Approach', () => {
     })
 
     it('handles database errors gracefully', async () => {
-      const { auth } = await import('@/lib/auth')
-      const { sql } = await import('@/lib/db/config')
+      const { auth } = await import('../../src/lib/auth')
+      const { sql } = await import('../../src/lib/db/config')
 
-      vi.mocked(auth).mockResolvedValue(mockSession)
+      // biome-ignore lint/suspicious/noExplicitAny: Mock session for test scenario
+      vi.mocked(auth).mockResolvedValue(mockSession as any)
       vi.mocked(sql).mockRejectedValue(new Error('Database error'))
 
       const user = await getCurrentUser()
@@ -121,10 +131,11 @@ describe('Auth.js v5 Helper Functions - Modern 2025 Approach', () => {
 
   describe('requireAuth', () => {
     it('returns user when authenticated', async () => {
-      const { auth } = await import('@/lib/auth')
-      const { sql } = await import('@/lib/db/config')
+      const { auth } = await import('../../src/lib/auth')
+      const { sql } = await import('../../src/lib/db/config')
 
-      vi.mocked(auth).mockResolvedValue(mockSession)
+      // biome-ignore lint/suspicious/noExplicitAny: Mock session for test scenario
+      vi.mocked(auth).mockResolvedValue(mockSession as any)
       vi.mocked(sql).mockResolvedValue([mockUser])
 
       const user = await requireAuth()
@@ -133,18 +144,20 @@ describe('Auth.js v5 Helper Functions - Modern 2025 Approach', () => {
     })
 
     it('throws error when not authenticated', async () => {
-      const { auth } = await import('@/lib/auth')
+      const { auth } = await import('../../src/lib/auth')
 
-      vi.mocked(auth).mockResolvedValue(null)
+      // biome-ignore lint/suspicious/noExplicitAny: Mock session for test scenario
+      vi.mocked(auth).mockResolvedValue(null as any)
 
       await expect(requireAuth()).rejects.toThrow('Unauthorized')
     })
 
     it('throws error when user not found in database', async () => {
-      const { auth } = await import('@/lib/auth')
-      const { sql } = await import('@/lib/db/config')
+      const { auth } = await import('../../src/lib/auth')
+      const { sql } = await import('../../src/lib/db/config')
 
-      vi.mocked(auth).mockResolvedValue(mockSession)
+      // biome-ignore lint/suspicious/noExplicitAny: Mock session for test scenario
+      vi.mocked(auth).mockResolvedValue(mockSession as any)
       vi.mocked(sql).mockResolvedValue([])
 
       await expect(requireAuth()).rejects.toThrow('Unauthorized')
@@ -153,7 +166,7 @@ describe('Auth.js v5 Helper Functions - Modern 2025 Approach', () => {
 
   describe('hasOAuthScope', () => {
     it('returns true when user has required scope', async () => {
-      const { sql } = await import('@/lib/db/config')
+      const { sql } = await import('../../src/lib/db/config')
 
       vi.mocked(sql).mockResolvedValue([{ scope: 'read:user user:email' }])
 
@@ -164,7 +177,7 @@ describe('Auth.js v5 Helper Functions - Modern 2025 Approach', () => {
     })
 
     it('returns false when user does not have required scope', async () => {
-      const { sql } = await import('@/lib/db/config')
+      const { sql } = await import('../../src/lib/db/config')
 
       vi.mocked(sql).mockResolvedValue([{ scope: 'read:user' }])
 
@@ -174,7 +187,7 @@ describe('Auth.js v5 Helper Functions - Modern 2025 Approach', () => {
     })
 
     it('returns false when no OAuth account found', async () => {
-      const { sql } = await import('@/lib/db/config')
+      const { sql } = await import('../../src/lib/db/config')
 
       vi.mocked(sql).mockResolvedValue([])
 
@@ -184,7 +197,7 @@ describe('Auth.js v5 Helper Functions - Modern 2025 Approach', () => {
     })
 
     it('handles database errors gracefully', async () => {
-      const { sql } = await import('@/lib/db/config')
+      const { sql } = await import('../../src/lib/db/config')
 
       vi.mocked(sql).mockRejectedValue(new Error('Database error'))
 
@@ -194,7 +207,7 @@ describe('Auth.js v5 Helper Functions - Modern 2025 Approach', () => {
     })
 
     it('uses github as default provider', async () => {
-      const { sql } = await import('@/lib/db/config')
+      const { sql } = await import('../../src/lib/db/config')
 
       vi.mocked(sql).mockResolvedValue([{ scope: 'read:user' }])
 
@@ -206,7 +219,7 @@ describe('Auth.js v5 Helper Functions - Modern 2025 Approach', () => {
 
   describe('getOAuthAccessToken', () => {
     it('returns access token when found', async () => {
-      const { sql } = await import('@/lib/db/config')
+      const { sql } = await import('../../src/lib/db/config')
 
       const mockToken = 'gho_test_token_123'
       vi.mocked(sql).mockResolvedValue([{ access_token: mockToken }])
@@ -218,7 +231,7 @@ describe('Auth.js v5 Helper Functions - Modern 2025 Approach', () => {
     })
 
     it('returns null when no OAuth account found', async () => {
-      const { sql } = await import('@/lib/db/config')
+      const { sql } = await import('../../src/lib/db/config')
 
       vi.mocked(sql).mockResolvedValue([])
 
@@ -228,7 +241,7 @@ describe('Auth.js v5 Helper Functions - Modern 2025 Approach', () => {
     })
 
     it('handles database errors gracefully', async () => {
-      const { sql } = await import('@/lib/db/config')
+      const { sql } = await import('../../src/lib/db/config')
 
       vi.mocked(sql).mockRejectedValue(new Error('Database error'))
 
@@ -238,7 +251,7 @@ describe('Auth.js v5 Helper Functions - Modern 2025 Approach', () => {
     })
 
     it('works with different providers', async () => {
-      const { sql } = await import('@/lib/db/config')
+      const { sql } = await import('../../src/lib/db/config')
 
       const mockToken = 'google_token_123'
       vi.mocked(sql).mockResolvedValue([{ access_token: mockToken }])
@@ -252,7 +265,7 @@ describe('Auth.js v5 Helper Functions - Modern 2025 Approach', () => {
 
   describe('Auth.js v5 Integration Patterns', () => {
     it('demonstrates universal auth() function usage', async () => {
-      const { auth } = await import('@/lib/auth')
+      const { auth } = await import('../../src/lib/auth')
 
       // In Auth.js v5, auth() replaces all these old methods:
       // - getServerSession()
@@ -261,7 +274,8 @@ describe('Auth.js v5 Helper Functions - Modern 2025 Approach', () => {
       // - getToken()
       // - useSession() (client-side)
 
-      vi.mocked(auth).mockResolvedValue(mockSession)
+      // biome-ignore lint/suspicious/noExplicitAny: Mock session for test scenario
+      vi.mocked(auth).mockResolvedValue(mockSession as any)
 
       const session = await auth()
 
@@ -270,16 +284,17 @@ describe('Auth.js v5 Helper Functions - Modern 2025 Approach', () => {
     })
 
     it('shows proper error handling for auth failures', async () => {
-      const { auth } = await import('@/lib/auth')
+      const { auth } = await import('../../src/lib/auth')
 
-      vi.mocked(auth).mockResolvedValue(null) // Auth fails = null session
+      // biome-ignore lint/suspicious/noExplicitAny: Mock session for test scenario
+      vi.mocked(auth).mockResolvedValue(null as any) // Auth fails = null session
 
       const user = await getCurrentUser()
       expect(user).toBeNull()
     })
 
     it('demonstrates session data structure', async () => {
-      const { auth } = await import('@/lib/auth')
+      const { auth } = await import('../../src/lib/auth')
 
       const extendedSession = {
         ...mockSession,
@@ -290,7 +305,8 @@ describe('Auth.js v5 Helper Functions - Modern 2025 Approach', () => {
         },
       }
 
-      vi.mocked(auth).mockResolvedValue(extendedSession)
+      // biome-ignore lint/suspicious/noExplicitAny: Mock session for test scenario
+      vi.mocked(auth).mockResolvedValue(extendedSession as any)
 
       const session = await auth()
 
@@ -303,7 +319,7 @@ describe('Auth.js v5 Helper Functions - Modern 2025 Approach', () => {
     })
 
     it('handles multiple provider scenarios', async () => {
-      const { sql } = await import('@/lib/db/config')
+      const { sql } = await import('../../src/lib/db/config')
 
       // Mock OAuth accounts query for multiple providers
       vi.mocked(sql).mockResolvedValue([{ access_token: 'github_token' }])
@@ -321,7 +337,7 @@ describe('Auth.js v5 Helper Functions - Modern 2025 Approach', () => {
 
   describe('Edge Cases and Security', () => {
     it('handles empty scope strings', async () => {
-      const { sql } = await import('@/lib/db/config')
+      const { sql } = await import('../../src/lib/db/config')
 
       vi.mocked(sql).mockResolvedValue([{ scope: '' }])
 
@@ -331,7 +347,7 @@ describe('Auth.js v5 Helper Functions - Modern 2025 Approach', () => {
     })
 
     it('handles null scope values', async () => {
-      const { sql } = await import('@/lib/db/config')
+      const { sql } = await import('../../src/lib/db/config')
 
       vi.mocked(sql).mockResolvedValue([{ scope: null }])
 
@@ -341,7 +357,7 @@ describe('Auth.js v5 Helper Functions - Modern 2025 Approach', () => {
     })
 
     it('validates user ID format', async () => {
-      const { sql } = await import('@/lib/db/config')
+      const { sql } = await import('../../src/lib/db/config')
 
       vi.mocked(sql).mockResolvedValue([])
 

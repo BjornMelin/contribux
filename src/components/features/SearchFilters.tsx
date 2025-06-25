@@ -1,11 +1,21 @@
 'use client'
 
-import type { SearchFilters, SearchFiltersProps } from '@/types/search'
+import { useId } from 'react'
+import type {
+  DifficultyLevel,
+  OpportunityType,
+  SearchFiltersProps,
+  SearchFilters as SearchFiltersType,
+} from '@/types/search'
 
 export function SearchFilters({ filters, onFiltersChange, loading = false }: SearchFiltersProps) {
-  const handleFilterChange = (
-    key: keyof SearchFilters,
-    value: SearchFilters[keyof SearchFilters]
+  const difficultyId = useId()
+  const typeId = useId()
+  const scoreId = useId()
+
+  const handleFilterChange = <K extends keyof SearchFiltersType>(
+    key: K,
+    value: SearchFiltersType[K]
   ) => {
     onFiltersChange({ ...filters, [key]: value })
   }
@@ -21,12 +31,29 @@ export function SearchFilters({ filters, onFiltersChange, loading = false }: Sea
   const resetFilters = () => {
     onFiltersChange({
       query: '',
-      difficulty: '',
-      type: '',
+      difficulty: undefined,
+      type: undefined,
       languages: [],
-      good_first_issue: false,
-      help_wanted: false,
-      min_score: 0,
+      goodFirstIssue: false,
+      helpWanted: false,
+      minScore: 0,
+      maxScore: 1,
+      minStars: undefined,
+      maxStars: undefined,
+      createdAfter: undefined,
+      createdBefore: undefined,
+      updatedAfter: undefined,
+      updatedBefore: undefined,
+      repositoryHealthMin: undefined,
+      estimatedHoursMin: undefined,
+      estimatedHoursMax: undefined,
+      requiresMaintainerResponse: undefined,
+      hasLinkedPR: undefined,
+      hasAssignee: undefined,
+      page: 1,
+      limit: 20,
+      sortBy: 'relevance',
+      order: 'desc',
     })
   }
 
@@ -37,13 +64,16 @@ export function SearchFilters({ filters, onFiltersChange, loading = false }: Sea
     >
       {/* Difficulty Filter */}
       <div className="filter-group">
-        <label htmlFor="difficulty-select" className="block text-sm font-medium text-gray-700 mb-2">
+        <label htmlFor={difficultyId} className="block text-sm font-medium text-gray-700 mb-2">
           Difficulty
         </label>
         <select
-          id="difficulty-select"
-          value={filters.difficulty}
-          onChange={e => handleFilterChange('difficulty', e.target.value)}
+          id={difficultyId}
+          value={filters.difficulty || ''}
+          onChange={e => {
+            const value = e.target.value
+            handleFilterChange('difficulty', value === '' ? undefined : (value as DifficultyLevel))
+          }}
           disabled={loading}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
         >
@@ -57,13 +87,16 @@ export function SearchFilters({ filters, onFiltersChange, loading = false }: Sea
 
       {/* Type Filter */}
       <div className="filter-group">
-        <label htmlFor="type-select" className="block text-sm font-medium text-gray-700 mb-2">
+        <label htmlFor={typeId} className="block text-sm font-medium text-gray-700 mb-2">
           Type
         </label>
         <select
-          id="type-select"
-          value={filters.type}
-          onChange={e => handleFilterChange('type', e.target.value)}
+          id={typeId}
+          value={filters.type || ''}
+          onChange={e => {
+            const value = e.target.value
+            handleFilterChange('type', value === '' ? undefined : (value as OpportunityType))
+          }}
           disabled={loading}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
         >
@@ -79,22 +112,24 @@ export function SearchFilters({ filters, onFiltersChange, loading = false }: Sea
 
       {/* Language Checkboxes */}
       <div className="filter-group">
-        <label className="block text-sm font-medium text-gray-700 mb-3">Languages</label>
-        <div className="language-checkboxes grid grid-cols-2 gap-2">
-          {['TypeScript', 'Python', 'JavaScript', 'Java', 'Go', 'Rust'].map(language => (
-            <label key={language} className="checkbox-label flex items-center space-x-2 text-sm">
-              <input
-                type="checkbox"
-                checked={filters.languages.includes(language)}
-                onChange={() => handleLanguageToggle(language)}
-                disabled={loading}
-                aria-label={language.toLowerCase()}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
-              />
-              <span className="text-gray-700">{language}</span>
-            </label>
-          ))}
-        </div>
+        <fieldset>
+          <legend className="block text-sm font-medium text-gray-700 mb-3">Languages</legend>
+          <div className="language-checkboxes grid grid-cols-2 gap-2">
+            {['TypeScript', 'Python', 'JavaScript', 'Java', 'Go', 'Rust'].map(language => (
+              <label key={language} className="checkbox-label flex items-center space-x-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={filters.languages.includes(language)}
+                  onChange={() => handleLanguageToggle(language)}
+                  disabled={loading}
+                  aria-label={language.toLowerCase()}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                />
+                <span className="text-gray-700">{language}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
       </div>
 
       {/* Boolean Filters */}
@@ -102,8 +137,8 @@ export function SearchFilters({ filters, onFiltersChange, loading = false }: Sea
         <label className="checkbox-label flex items-center space-x-2 text-sm">
           <input
             type="checkbox"
-            checked={filters.good_first_issue}
-            onChange={e => handleFilterChange('good_first_issue', e.target.checked)}
+            checked={filters.goodFirstIssue}
+            onChange={e => handleFilterChange('goodFirstIssue', e.target.checked)}
             disabled={loading}
             aria-label="Good first issue"
             className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
@@ -116,8 +151,8 @@ export function SearchFilters({ filters, onFiltersChange, loading = false }: Sea
         <label className="checkbox-label flex items-center space-x-2 text-sm">
           <input
             type="checkbox"
-            checked={filters.help_wanted}
-            onChange={e => handleFilterChange('help_wanted', e.target.checked)}
+            checked={filters.helpWanted}
+            onChange={e => handleFilterChange('helpWanted', e.target.checked)}
             disabled={loading}
             aria-label="Help wanted"
             className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
@@ -128,17 +163,17 @@ export function SearchFilters({ filters, onFiltersChange, loading = false }: Sea
 
       {/* Minimum Score Slider */}
       <div className="filter-group">
-        <label htmlFor="min-score-slider" className="block text-sm font-medium text-gray-700 mb-2">
-          Minimum Relevance Score: {filters.min_score.toFixed(2)}
+        <label htmlFor={scoreId} className="block text-sm font-medium text-gray-700 mb-2">
+          Minimum Relevance Score: {filters.minScore.toFixed(2)}
         </label>
         <input
-          id="min-score-slider"
+          id={scoreId}
           type="range"
           min="0"
           max="1"
           step="0.1"
-          value={filters.min_score}
-          onChange={e => handleFilterChange('min_score', Number.parseFloat(e.target.value))}
+          value={filters.minScore}
+          onChange={e => handleFilterChange('minScore', Number.parseFloat(e.target.value))}
           disabled={loading}
           aria-label="Minimum relevance score"
           className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"

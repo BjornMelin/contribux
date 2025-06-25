@@ -778,8 +778,9 @@ export const mswServer = setupServer(...defaultHandlers)
 export function setupMSW() {
   beforeAll(() => {
     // Restore original fetch for MSW to work properly
-    if ((global as { __originalFetch?: typeof fetch }).__originalFetch) {
-      global.fetch = (global as { __originalFetch: typeof fetch }).__originalFetch
+    const globalWithFetch = global as { __originalFetch?: typeof fetch }
+    if (globalWithFetch.__originalFetch) {
+      global.fetch = globalWithFetch.__originalFetch
     }
     mswServer.listen({ onUnhandledRequest: 'warn' })
   })
@@ -792,8 +793,9 @@ export function setupMSW() {
   afterAll(() => {
     mswServer.close()
     // Restore the mock fetch for other tests
-    if ((global as { __mockFetch?: typeof fetch }).__mockFetch) {
-      global.fetch = (global as { __mockFetch: typeof fetch }).__mockFetch
+    const globalWithMockFetch = global as { __mockFetch?: typeof fetch }
+    if (globalWithMockFetch.__mockFetch) {
+      global.fetch = globalWithMockFetch.__mockFetch
     }
   })
 }
@@ -805,6 +807,7 @@ interface MockGitHubAPIState {
 
 // Helper functions for test-specific mocking
 export const mockGitHubAPI = {
+  _responseDelay: 0,
   /**
    * Mock a successful user response
    */
@@ -971,7 +974,7 @@ export const mockGitHubAPI = {
   /**
    * Mock a specific error response for all endpoints
    */
-  setErrorResponse: (status: number, errorData: unknown) => {
+  setErrorResponse: (status: number, errorData: Record<string, unknown>) => {
     const delay = (mockGitHubAPI as MockGitHubAPIState)._responseDelay || 0
 
     mswServer.use(
@@ -993,7 +996,7 @@ export const mockGitHubAPI = {
   /**
    * Mock a custom response for all endpoints
    */
-  setCustomResponse: (status: number, data: unknown) => {
+  setCustomResponse: (status: number, data: Record<string, unknown>) => {
     const delay = (mockGitHubAPI as MockGitHubAPIState)._responseDelay || 0
 
     mswServer.use(
@@ -1015,7 +1018,7 @@ export const mockGitHubAPI = {
   /**
    * Set a custom handler function
    */
-  setCustomHandler: (handlerFn: () => { status: number; data: unknown }) => {
+  setCustomHandler: (handlerFn: () => { status: number; data: Record<string, unknown> }) => {
     const delay = (mockGitHubAPI as MockGitHubAPIState)._responseDelay || 0
 
     mswServer.use(

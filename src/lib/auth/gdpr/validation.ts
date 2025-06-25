@@ -135,7 +135,7 @@ async function checkConsentForDataCategory(
   }
 
   const consents = await getUserConsents(userId)
-  const relevantConsent = consents.find(c => c.consent_type === consentType)
+  const relevantConsent = consents.find(c => c.consentType === consentType)
 
   return relevantConsent?.granted === true
 }

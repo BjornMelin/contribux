@@ -16,7 +16,7 @@
 import { existsSync, mkdirSync, readFileSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { GitHubClient } from '@/lib/github/client'
+import { GitHubClient } from '../../../src/lib/github/client'
 import { MemoryProfiler, MetricsCollector } from '../infrastructure/metrics-collector'
 
 // Test configuration
@@ -64,7 +64,7 @@ describe.skipIf(skipReportingTests)('Test Reporting and Metrics Collection Syste
     testClient = new GitHubClient({
       auth: {
         type: 'token',
-        token: GITHUB_TEST_TOKEN!,
+        token: GITHUB_TEST_TOKEN ?? '',
       },
       cache: {
         enabled: true,
@@ -110,11 +110,12 @@ describe.skipIf(skipReportingTests)('Test Reporting and Metrics Collection Syste
             metricsCollector.recordApiCall(endpoint, duration, response.status || 200)
 
             return { success: true, duration, endpoint }
-          } catch (error: any) {
+          } catch (error) {
             const duration = Date.now() - startTime
             const endpoint = i % 3 === 0 ? '/user' : i % 3 === 1 ? '/user/repos' : '/graphql'
+            const status = (error as { status?: number }).status ?? 500
 
-            metricsCollector.recordApiCall(endpoint, duration, error.status || 500)
+            metricsCollector.recordApiCall(endpoint, duration, status)
 
             return { success: false, duration, endpoint, error: error.message }
           }
@@ -626,7 +627,19 @@ function generatePerformanceRecommendations(
   return recommendations
 }
 
-function generatePrometheusMetrics(metrics: any): string {
+interface TestMetrics {
+  apiCalls: {
+    total: number
+    byEndpoint: Record<string, number>
+  }
+  cache: {
+    hits: number
+    misses: number
+  }
+  errors?: Array<{ endpoint: string; status: number }>
+}
+
+function generatePrometheusMetrics(metrics: TestMetrics): string {
   const timestamp = Date.now()
   return `
 # HELP github_api_calls_total Total number of GitHub API calls
@@ -647,7 +660,7 @@ github_memory_usage_bytes ${metrics.memory.peak} ${timestamp}
 `.trim()
 }
 
-function generateInfluxMetrics(metrics: any): string {
+function generateInfluxMetrics(metrics: TestMetrics): string {
   const timestamp = Date.now() * 1000000 // InfluxDB uses nanoseconds
   return `
 github_api_performance,service=github api_calls=${metrics.apiCalls.total},response_time=${metrics.apiCalls.averageDuration},error_rate=${metrics.apiCalls.errorRate} ${timestamp}
@@ -680,7 +693,9 @@ function generateDistributionData(buckets: number[]): Array<{ bucket: string; co
   }))
 }
 
-function generateAlerts(metrics: any): Array<{ type: string; message: string; severity: string }> {
+function generateAlerts(
+  metrics: TestMetrics
+): Array<{ type: string; message: string; severity: string }> {
   const alerts = []
 
   if (metrics.apiCalls.errorRate > 0.05) {

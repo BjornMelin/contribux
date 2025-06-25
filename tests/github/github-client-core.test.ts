@@ -12,9 +12,9 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import { GitHubClient } from '@/lib/github'
-import type { GitHubClientConfig } from '@/lib/github/client'
-import { createGitHubClient } from '@/lib/github/client'
+import { GitHubClient } from '../../src/lib/github'
+import type { GitHubClientConfig } from '../../src/lib/github/client'
+import { createGitHubClient } from '../../src/lib/github/client'
 import { setupMSW } from './msw-setup'
 import { createTrackedClient, setupGitHubTestIsolation } from './test-helpers'
 

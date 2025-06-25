@@ -19,7 +19,7 @@ export interface VectorTestResult {
 export interface VectorEmbedding {
   id: string
   embedding: number[]
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 export interface VectorQueryResult extends QueryRow {
@@ -29,7 +29,26 @@ export interface VectorQueryResult extends QueryRow {
 }
 
 export interface ExplainResult extends QueryRow {
-  'QUERY PLAN'?: any
+  'QUERY PLAN'?: unknown
+}
+
+export interface HybridSearchResult extends QueryRow {
+  id: string
+  text_similarity: number
+  vector_similarity: number
+  combined_score: number
+}
+
+export interface DistanceResult extends QueryRow {
+  id: string
+  distance: number
+}
+
+export interface HNSWTestResult {
+  configuration?: { m: number; ef_construction: number }
+  performance?: VectorTestResult
+  indexSize?: string
+  error?: string
 }
 
 export class VectorTestUtils {
@@ -47,7 +66,10 @@ export class VectorTestUtils {
     await this.client.end()
   }
 
-  private async query<T extends QueryRow = QueryRow>(text: string, params?: any[]): Promise<T[]> {
+  private async query<T extends QueryRow = QueryRow>(
+    text: string,
+    params?: unknown[]
+  ): Promise<T[]> {
     const result = await this.client.query<T>(text, params)
     return result.rows
   }
@@ -84,7 +106,7 @@ export class VectorTestUtils {
     for (let i = 0; i < count; i++) {
       const noise = this.generateFakeEmbedding(`noise_${i}`)
       const similar = baseEmbedding.map(
-        (val, idx) => val * similarity + noise[idx] * (1 - similarity)
+        (val, idx) => val * similarity + (noise[idx] ?? 0) * (1 - similarity)
       )
       embeddings.push(this.normalizeVector(similar))
     }
@@ -198,7 +220,7 @@ export class VectorTestUtils {
       LIMIT ${limit}
     `
 
-    const results = await this.query(query, [
+    const results = await this.query<HybridSearchResult>(query, [
       searchTerm,
       this.formatVectorForPostgres(queryEmbedding),
       textWeight,
@@ -206,7 +228,7 @@ export class VectorTestUtils {
     ])
     const endTime = performance.now()
 
-    const scores = results.map((r: any) => r.combined_score)
+    const scores = results.map(r => r.combined_score)
 
     return {
       query,
@@ -248,10 +270,12 @@ export class VectorTestUtils {
         LIMIT ${limit}
       `
 
-      const metricResults = await this.query(query, [this.formatVectorForPostgres(queryEmbedding)])
+      const metricResults = await this.query<DistanceResult>(query, [
+        this.formatVectorForPostgres(queryEmbedding),
+      ])
       const endTime = performance.now()
 
-      const distances = metricResults.map((r: any) => r.distance)
+      const distances = metricResults.map(r => r.distance)
 
       results[metricName] = {
         query,
@@ -273,8 +297,8 @@ export class VectorTestUtils {
     table: string,
     embeddingColumn: string,
     configurations: Array<{ m: number; ef_construction: number }>
-  ): Promise<Record<string, any>> {
-    const results: Record<string, any> = {}
+  ): Promise<Record<string, HNSWTestResult>> {
+    const results: Record<string, HNSWTestResult> = {}
     const testEmbedding = this.generateFakeEmbedding('hnsw_test')
 
     for (const config of configurations) {
@@ -331,7 +355,9 @@ export class VectorTestUtils {
 
     // Check if results are sorted by similarity (descending)
     for (let i = 1; i < results.length; i++) {
-      if (results[i].similarity > results[i - 1].similarity) {
+      const current = results[i]
+      const previous = results[i - 1]
+      if (current && previous && current.similarity > previous.similarity) {
         issues.push(`Results not sorted: item ${i} has higher similarity than item ${i - 1}`)
       }
     }
@@ -385,9 +411,11 @@ export class VectorTestUtils {
       const clusterIndex = i % clusters
       const center = clusterCenters[clusterIndex]
 
+      if (!center) continue
+
       // Add some noise to create variation within clusters
       const noise = this.generateFakeEmbedding(`item_${i}_noise`)
-      const embedding = center.map((val, idx) => val * 0.8 + noise[idx] * 0.2)
+      const embedding = center.map((val, idx) => val * 0.8 + (noise[idx] ?? 0) * 0.2)
 
       embeddings.push({
         id: `test_item_${i}`,
@@ -416,7 +444,7 @@ export class VectorTestUtils {
     const rowCountResult = await this.query(`
       SELECT COUNT(*) as count FROM ${table} WHERE ${embeddingColumn} IS NOT NULL
     `)
-    const rowCount = rowCountResult[0].count
+    const rowCount = rowCountResult[0]?.count ?? 0
 
     // Measure index build time
     const startTime = performance.now()
@@ -434,12 +462,12 @@ export class VectorTestUtils {
     const sizeResult = await this.query(`
       SELECT pg_size_pretty(pg_relation_size('${indexName}')) as size
     `)
-    const indexSize = sizeResult[0]?.size || 'unknown'
+    const indexSize = (sizeResult[0]?.size as string) || 'unknown'
 
     return {
       buildTime,
       indexSize,
-      rowCount: Number.parseInt(rowCount),
+      rowCount: Number.parseInt(String(rowCount)),
     }
   }
 
@@ -476,9 +504,11 @@ export class VectorTestUtils {
     let normB = 0
 
     for (let i = 0; i < a.length; i++) {
-      dotProduct += a[i] * b[i]
-      normA += a[i] * a[i]
-      normB += b[i] * b[i]
+      const aVal = a[i] ?? 0
+      const bVal = b[i] ?? 0
+      dotProduct += aVal * bVal
+      normA += aVal * aVal
+      normB += bVal * bVal
     }
 
     return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB))
@@ -494,7 +524,9 @@ export const vectorTestHelpers = {
    */
   assertSimilarityOrdering: (results: Array<{ similarity: number }>) => {
     for (let i = 1; i < results.length; i++) {
-      if (results[i].similarity > results[i - 1].similarity) {
+      const current = results[i]
+      const previous = results[i - 1]
+      if (current && previous && current.similarity > previous.similarity) {
         throw new Error(`Similarity results not properly ordered at position ${i}`)
       }
     }

@@ -4,8 +4,8 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import { GitHubClient } from '@/lib/github/client'
-import { createRequestContext, GitHubError } from '@/lib/github/errors'
+import { GitHubClient } from '../../src/lib/github/client'
+import { createRequestContext, GitHubError } from '../../src/lib/github/errors'
 
 describe('GitHub Client Retry Context - Modern Octokit Patterns', () => {
   it('should configure Octokit with proper retry settings', async () => {
@@ -19,7 +19,7 @@ describe('GitHub Client Retry Context - Modern Octokit Patterns', () => {
 
     // Test configuration is applied by checking internal properties
     // Modern Octokit stores retry config in plugin data
-    const octokitWithRetry = client.octokit as any
+    const octokitWithRetry = client.octokit as unknown as { retry?: unknown }
     expect(octokitWithRetry.retry).toBeDefined()
   })
 
@@ -55,7 +55,9 @@ describe('GitHub Client Retry Context - Modern Octokit Patterns', () => {
     })
 
     // Test that configuration is stored internally for error context creation
-    const internalRetryConfig = (client as any).retryConfig
+    const internalRetryConfig = (
+      client as unknown as { retryConfig: { retries: number; doNotRetry: string[] } }
+    ).retryConfig
     expect(internalRetryConfig.retries).toBe(3)
     expect(internalRetryConfig.doNotRetry).toEqual(['400', '401'])
   })
@@ -68,7 +70,7 @@ describe('GitHub Client Retry Context - Modern Octokit Patterns', () => {
 
     // Verify Octokit instance has retry plugin loaded
     expect(client.octokit).toBeDefined()
-    const octokitWithRetry = client.octokit as any
+    const octokitWithRetry = client.octokit as unknown as { retry?: unknown }
     expect(octokitWithRetry.retry).toBeDefined()
   })
 
@@ -117,7 +119,8 @@ describe('GitHub Client Retry Context - Modern Octokit Patterns', () => {
       // No retry config provided
     })
 
-    const internalRetryConfig = (client as any).retryConfig
+    const internalRetryConfig = (client as unknown as { retryConfig: { retries: number } })
+      .retryConfig
     expect(internalRetryConfig.retries).toBe(0) // Test environment default
   })
 })

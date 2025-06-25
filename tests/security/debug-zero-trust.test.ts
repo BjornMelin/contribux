@@ -8,10 +8,10 @@ import {
   type DeviceTrust,
   evaluateZeroTrustAccess,
   type TrustScore,
-} from '@/lib/security/zero-trust'
+} from '../../src/lib/security/zero-trust'
 
 // Mock crypto module
-vi.mock('@/lib/security/crypto', () => ({
+vi.mock('../../src/lib/security/crypto', () => ({
   createSecureHash: vi.fn().mockImplementation(() => 'mock-hash'),
   generateDeviceFingerprint: vi.fn().mockImplementation(() => 'mock-fingerprint'),
   generateSecureToken: vi
@@ -55,7 +55,10 @@ describe('Debug Zero-Trust Logic', () => {
     }
 
     // Debug manually to understand the discrepancy
-    const calculateRiskScore = async (context: any, deviceTrust: any) => {
+    const calculateRiskScore = async (
+      context: Record<string, unknown>,
+      deviceTrust: { isQuarantined?: boolean; isCompromised?: boolean; trustScore?: number }
+    ) => {
       const riskFactors: string[] = []
       let riskScore = 0
 

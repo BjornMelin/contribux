@@ -11,7 +11,7 @@ import { PGlite } from '@electric-sql/pglite'
 import type { NeonQueryFunction } from '@neondatabase/serverless'
 import { neon } from '@neondatabase/serverless'
 import { config } from 'dotenv'
-import { afterEach, beforeEach } from 'vitest'
+import { afterAll, afterEach, beforeEach, expect } from 'vitest'
 import { NeonBranchManager } from './neon-branch-manager'
 
 // Load test environment
@@ -64,7 +64,11 @@ export class TestDatabaseManager {
     }
 
     if (this.connections.has(testId)) {
-      return this.connections.get(testId)!
+      const connection = this.connections.get(testId)
+      if (!connection) {
+        throw new Error(`Connection for test ${testId} was unexpectedly undefined`)
+      }
+      return connection
     }
 
     const connection = await this.createConnection(testId, finalConfig)
@@ -94,18 +98,22 @@ export class TestDatabaseManager {
       return envStrategy
     }
 
-    // Default strategy based on test environment
-    if (process.env.CI === 'true') {
-      // CI environment: use fast PGlite for speed
+    // Always default to PGlite for test environment unless explicitly configured for Neon
+    if (process.env.NODE_ENV === 'test') {
+      // Only use Neon if explicitly configured with API key and not in CI
+      if (process.env.NEON_API_KEY && process.env.CI !== 'true') {
+        return 'neon-branch'
+      }
+      // Default to PGlite for all test scenarios
       return 'pglite'
     }
 
-    if (process.env.NODE_ENV === 'test' && process.env.NEON_API_KEY) {
-      // Local development with Neon access: use branching for production-like tests
-      return 'neon-branch'
+    // CI environment: always use fast PGlite for speed and reliability
+    if (process.env.CI === 'true') {
+      return 'pglite'
     }
 
-    // Default to PGlite for maximum speed
+    // Default to PGlite for maximum speed and zero dependencies
     return 'pglite'
   }
 
@@ -135,7 +143,7 @@ export class TestDatabaseManager {
    * Create PGlite in-memory connection
    */
   private async createPGliteConnection(
-    testId: string,
+    _testId: string,
     config: TestDatabaseConfig
   ): Promise<DatabaseConnection> {
     // Create a fresh PGlite instance for each test for better isolation
@@ -171,9 +179,18 @@ export class TestDatabaseManager {
     config: TestDatabaseConfig
   ): Promise<DatabaseConnection> {
     if (!this.branchManager) {
+      const apiKey = process.env.NEON_API_KEY
+      const projectId = process.env.NEON_PROJECT_ID
+
+      if (!apiKey || !projectId) {
+        throw new Error(
+          'NEON_API_KEY and NEON_PROJECT_ID environment variables are required for Neon branch strategy'
+        )
+      }
+
       this.branchManager = new NeonBranchManager({
-        apiKey: process.env.NEON_API_KEY!,
-        projectId: process.env.NEON_PROJECT_ID!,
+        apiKey,
+        projectId,
       })
     }
 
@@ -234,7 +251,7 @@ export class TestDatabaseManager {
    * Setup database schema
    */
   private async setupSchema(
-    db: PGlite | { query: (sql: string, params?: any[]) => Promise<any> }
+    db: PGlite | { query: (sql: string, params?: unknown[]) => Promise<unknown> }
   ): Promise<void> {
     const isPGlite = db instanceof PGlite
 
@@ -365,25 +382,25 @@ export class TestDatabaseManager {
    * Create Neon-compatible SQL client from PGlite
    */
   private createNeonCompatibleClient(db: PGlite): NeonQueryFunction<false, false> {
-    return async function sql(strings: TemplateStringsArray, ...values: any[]) {
+    return async function sql(strings: TemplateStringsArray, ...values: unknown[]) {
       try {
         // Use parameterized queries for PGlite - it supports them natively
         let query = strings[0]
-        const params: any[] = []
+        const params: unknown[] = []
 
         for (let i = 0; i < values.length; i++) {
-          query += `$${i + 1}` + strings[i + 1]
+          query += `$${i + 1}${strings[i + 1] || ''}`
           params.push(values[i])
         }
 
         // Handle vector operations for PGlite compatibility
-        if (query.includes('<=>') || query.includes('<->') || query.includes('#>')) {
+        if (query && (query.includes('<=>') || query.includes('<->') || query.includes('#>'))) {
           // For PGlite, convert vector similarity queries to simple text-based comparisons
           // This is a testing fallback - real vector search requires PostgreSQL + pgvector
 
           // Remove vector comparison parameters that PGlite can't handle
           const vectorParamIndices: number[] = []
-          let vectorReplacedQuery = query
+          let vectorReplacedQuery = query || ''
 
           // Find vector comparison patterns and track parameter indices to remove
           const vectorPatterns = [
@@ -395,7 +412,7 @@ export class TestDatabaseManager {
           for (const pattern of vectorPatterns) {
             vectorReplacedQuery = vectorReplacedQuery.replace(
               pattern,
-              (match, field, paramIndex) => {
+              (_match, _field, paramIndex) => {
                 vectorParamIndices.push(Number.parseInt(paramIndex) - 1)
                 return 'RANDOM()' // Replace with random value for testing
               }
@@ -412,11 +429,13 @@ export class TestDatabaseManager {
 
           // Renumber remaining parameters
           let paramCount = 1
-          query = vectorReplacedQuery.replace(/\$\d+/g, () => `$${paramCount++}`)
+          if (vectorReplacedQuery) {
+            query = vectorReplacedQuery.replace(/\$\d+/g, () => `$${paramCount++}`)
+          }
         }
 
-        const result = await db.query(query, params)
-        return result.rows as any
+        const result = await db.query(query || '', params)
+        return result.rows as unknown[]
       } catch (error) {
         console.error('SQL query failed:', error)
         throw error

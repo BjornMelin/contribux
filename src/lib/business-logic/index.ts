@@ -4,5 +4,10 @@
  */
 
 export { OpportunityMatcher } from './opportunity-matcher'
-export type { MatchScore, Opportunity, UserProfile } from './types'
-export { MatchScoreSchema, OpportunitySchema, UserProfileSchema } from './types'
+export type { BusinessOpportunity, MatchScore, UserProfile } from './types'
+export {
+  adaptSearchOpportunityToBusiness,
+  BusinessOpportunitySchema,
+  MatchScoreSchema,
+  UserProfileSchema,
+} from './types'

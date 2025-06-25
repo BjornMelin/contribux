@@ -84,9 +84,11 @@ class MemoryOptimizedPool {
     }
 
     // Update metadata
-    const metadata = this.connectionMetadata.get(connectionKey)!
-    metadata.lastUsed = Date.now()
-    metadata.useCount++
+    const metadata = this.connectionMetadata.get(connectionKey)
+    if (metadata) {
+      metadata.lastUsed = Date.now()
+      metadata.useCount++
+    }
 
     return this.wrapConnection(connection, connectionKey)
   }
@@ -97,10 +99,11 @@ class MemoryOptimizedPool {
   private createConnection(databaseUrl: string): NeonQueryFunction<false, false> {
     try {
       const connection = neon(databaseUrl, {
-        // Optimize for memory usage
-        cacheSize: process.env.NODE_ENV === 'test' ? 0 : 1024, // Smaller cache for tests
-        connectionTimeoutMillis: 10000,
-        idleTimeoutMillis: this.config.idleTimeout,
+        // Use valid HTTPTransactionOptions for Neon serverless driver
+        fetchOptions: {
+          // Add connection timeout via fetch options
+          signal: AbortSignal.timeout(10000),
+        },
       })
 
       return connection
@@ -117,7 +120,7 @@ class MemoryOptimizedPool {
     connection: NeonQueryFunction<false, false>,
     connectionKey: string
   ): NeonQueryFunction<false, false> {
-    return (async (...args: any[]) => {
+    return (async (...args: Parameters<typeof connection>) => {
       this.metrics.active++
 
       try {
@@ -159,7 +162,8 @@ class MemoryOptimizedPool {
     let oldestKey: string | null = null
     let oldestTime = Date.now()
 
-    for (const [key, metadata] of this.connectionMetadata.entries()) {
+    for (const entry of Array.from(this.connectionMetadata.entries())) {
+      const [key, metadata] = entry
       if (metadata.lastUsed < oldestTime) {
         oldestTime = metadata.lastUsed
         oldestKey = key
@@ -206,7 +210,8 @@ class MemoryOptimizedPool {
     const toDestroy: string[] = []
 
     // Check for idle and expired connections
-    for (const [key, metadata] of this.connectionMetadata.entries()) {
+    for (const entry of Array.from(this.connectionMetadata.entries())) {
+      const [key, metadata] = entry
       const idle = now - metadata.lastUsed
       const lifetime = now - metadata.created
 

@@ -1,22 +1,27 @@
 import { NextRequest } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { getAuditLogs, logSecurityEvent } from '@/lib/auth/audit'
-import { encryptOAuthToken } from '@/lib/auth/crypto'
-import { exportUserData, getUserConsents, recordUserConsent } from '@/lib/auth/gdpr'
+import { getAuditLogs, logSecurityEvent } from '../../src/lib/auth/audit'
+import { encryptOAuthToken } from '../../src/lib/auth/crypto'
+import { exportUserData, getUserConsents, recordUserConsent } from '../../src/lib/auth/gdpr'
 import {
   generateAccessToken,
   generateRefreshToken,
   rotateRefreshToken,
   verifyAccessToken,
-} from '@/lib/auth/jwt'
-import { authMiddleware } from '@/lib/auth/middleware'
-import { generateOAuthUrl, validateOAuthCallback } from '@/lib/auth/oauth'
-import { generateRegistrationOptions, verifyRegistrationResponse } from '@/lib/auth/webauthn'
-import { sql } from '@/lib/db/config'
-import type { User, UserSession } from '@/types/auth'
+} from '../../src/lib/auth/jwt'
+import { authMiddleware } from '../../src/lib/auth/middleware'
+import { generateOAuthUrl, validateOAuthCallback } from '../../src/lib/auth/oauth'
+import {
+  generateRegistrationOptions,
+  verifyRegistrationResponse,
+} from '../../src/lib/auth/webauthn'
+import { sql } from '../../src/lib/db/config'
+import type { AuthEventType, User, UserSession } from '../../src/types/auth'
+import type { Email, GitHubUsername, UUID } from '../../src/types/base'
+import { createTestUser, createTestUserSession } from '../helpers/auth-test-factories'
 
 // Mock env validation for this test file
-vi.mock('@/lib/validation/env', () => ({
+vi.mock('../../src/lib/validation/env', () => ({
   env: {
     NODE_ENV: 'test',
     DATABASE_URL: 'postgresql://test:test@localhost:5432/testdb',
@@ -79,30 +84,17 @@ vi.mock('next/server', () => {
 })
 
 describe('Authentication Integration Tests', () => {
-  const mockUser: User = {
-    id: '123e4567-e89b-12d3-a456-426614174000',
-    email: 'test@example.com',
-    github_username: 'testuser',
-    email_verified: true,
-    two_factor_enabled: false,
-    recovery_email: null,
-    locked_at: null,
-    failed_login_attempts: 0,
-    last_login_at: null,
-    created_at: new Date(),
-    updated_at: new Date(),
-  }
+  const mockUser: User = createTestUser({
+    email: 'test@example.com' as Email,
+    githubUsername: 'testuser' as GitHubUsername,
+  })
 
-  const mockSession: UserSession = {
-    id: 'session-123',
-    user_id: mockUser.id,
-    expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-    auth_method: 'webauthn',
-    ip_address: '192.168.1.1',
-    user_agent: 'Mozilla/5.0',
-    created_at: new Date(),
-    last_active_at: new Date(),
-  }
+  const mockSession: UserSession = createTestUserSession({
+    userId: mockUser.id,
+    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    ipAddress: '192.168.1.1',
+    userAgent: 'Mozilla/5.0',
+  })
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -119,7 +111,7 @@ describe('Authentication Integration Tests', () => {
       const regOptions = await generateRegistrationOptions({
         userId: mockUser.id,
         userEmail: mockUser.email,
-        userName: mockUser.github_username || 'User',
+        userName: mockUser.githubUsername || 'User',
       })
 
       expect(regOptions).toHaveProperty('challenge')
@@ -140,6 +132,10 @@ describe('Authentication Integration Tests', () => {
 
       // Verify registration
       const mockRegistrationResponse = {
+        id: 'mock-credential-id',
+        rawId: new ArrayBuffer(16),
+        type: 'public-key' as const,
+        authenticatorAttachment: 'platform' as AuthenticatorAttachment,
         response: {
           clientDataJSON: Buffer.from(
             JSON.stringify({
@@ -151,7 +147,9 @@ describe('Authentication Integration Tests', () => {
           attestationObject: 'mock-attestation',
           transports: ['internal'],
         },
-      }
+        getClientExtensionResults: () => ({}),
+        toJSON: () => ({}),
+      } as unknown as PublicKeyCredential
 
       // We need to mock the actual verifyRegistrationResponse function call
       // Since this is already mocked in the webauthn test file
@@ -198,6 +196,8 @@ describe('Authentication Integration Tests', () => {
       const callbackResult = await validateOAuthCallback({
         code: 'auth-code-123',
         state,
+        error: undefined,
+        errorDescription: undefined,
       })
 
       expect(callbackResult.valid).toBe(true)
@@ -246,7 +246,7 @@ describe('Authentication Integration Tests', () => {
       const payload = await verifyAccessToken(accessToken)
       expect(payload.sub).toBe(mockUser.id)
       expect(payload.email).toBe(mockUser.email)
-      expect(payload.session_id).toBe(mockSession.id)
+      expect(payload.sessionId).toBe(mockSession.id)
 
       // Generate refresh token
       mockSql.mockResolvedValueOnce([{ id: 'refresh-token-id' }]) // INSERT refresh_tokens
@@ -260,7 +260,7 @@ describe('Authentication Integration Tests', () => {
           // SELECT refresh_tokens
           id: 'refresh-token-id',
           user_id: mockUser.id,
-          session_id: mockSession.id,
+          sessionId: mockSession.id,
           expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         },
       ])
@@ -298,7 +298,7 @@ describe('Authentication Integration Tests', () => {
       mockSql.mockResolvedValueOnce([
         {
           // SELECT user_consents
-          consent_type: 'terms_of_service',
+          consentType: 'terms',
           granted: true,
           version: '1.0',
           created_at: new Date(),
@@ -307,7 +307,7 @@ describe('Authentication Integration Tests', () => {
 
       const consents = await getUserConsents(mockUser.id)
       const termsConsent = Array.isArray(consents)
-        ? consents.find(c => c.consent_type === 'terms_of_service')
+        ? consents.find(c => c.consentType === 'terms')
         : undefined
       expect(termsConsent?.granted).toBe(true)
 
@@ -318,7 +318,7 @@ describe('Authentication Integration Tests', () => {
       mockSql.mockResolvedValueOnce([]) // SELECT webauthn_credentials
       mockSql.mockResolvedValueOnce([
         {
-          consent_type: 'data_processing',
+          consentType: 'functional',
           granted: true,
           created_at: new Date(),
         },
@@ -347,16 +347,16 @@ describe('Authentication Integration Tests', () => {
       // Mock the logSecurityEvent to return expected structure
       const logSecurityEventMock = vi.mocked(logSecurityEvent)
       logSecurityEventMock.mockResolvedValueOnce({
-        id: 'audit-log-id',
-        event_type: 'login_success',
-        event_severity: 'info',
-        user_id: mockUser.id,
-        ip_address: '192.168.1.1',
-        user_agent: 'Mozilla/5.0',
-        event_data: { auth_method: 'webauthn' },
+        id: 'audit-log-id' as UUID,
+        eventType: 'login_success',
+        eventSeverity: 'info',
+        userId: mockUser.id,
+        ipAddress: '192.168.1.1',
+        userAgent: 'Mozilla/5.0',
+        eventData: { authMethod: 'webauthn' },
         success: true,
-        error_message: null,
-        created_at: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
       })
 
       const auditLog = await logSecurityEvent({
@@ -364,12 +364,12 @@ describe('Authentication Integration Tests', () => {
         user_id: mockUser.id,
         ip_address: '192.168.1.1',
         user_agent: 'Mozilla/5.0',
-        event_data: { auth_method: 'webauthn' },
+        event_data: { authMethod: 'webauthn' },
         success: true,
       })
 
       expect(auditLog.id).toBe('audit-log-id')
-      expect(auditLog.event_type).toBe('login_success')
+      expect(auditLog.eventType).toBe('login_success')
 
       // Mock getAuditLogs to return the expected data
       const getAuditLogsMock = vi.mocked(getAuditLogs)
@@ -425,7 +425,7 @@ describe('Authentication Integration Tests', () => {
       mockSql.mockResolvedValueOnce([{ count: '4' }]) // Check failed attempts
 
       await logSecurityEvent({
-        event_type: 'login_failed',
+        event_type: 'login_failure',
         event_severity: 'warning',
         user_id: mockUser.id,
         ip_address: '192.168.1.1',
@@ -442,7 +442,7 @@ describe('Authentication Integration Tests', () => {
       mockSql.mockResolvedValueOnce([]) // Log account locked event
 
       await logSecurityEvent({
-        event_type: 'login_failed',
+        event_type: 'login_failure',
         event_severity: 'warning',
         user_id: mockUser.id,
         ip_address: '192.168.1.1',
@@ -456,7 +456,7 @@ describe('Authentication Integration Tests', () => {
     it('should detect and handle token reuse attacks', async () => {
       // Test token reuse detection by directly testing the verifyRefreshToken function
       const mockSql = vi.mocked(sql)
-      const { verifyRefreshToken } = await import('@/lib/auth/jwt')
+      const { verifyRefreshToken } = await import('../../src/lib/auth/jwt')
 
       const testToken = 'test-refresh-token-12345'
 
@@ -465,7 +465,7 @@ describe('Authentication Integration Tests', () => {
         {
           id: 'refresh-token-1',
           user_id: mockUser.id,
-          session_id: mockSession.id,
+          sessionId: mockSession.id,
           expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
           revoked_at: new Date(), // Token is revoked
           replaced_by: 'refresh-token-2', // And has been replaced (indicating reuse)
@@ -484,7 +484,7 @@ describe('Authentication Integration Tests', () => {
       })
 
       // Import the rate limiting function
-      const middlewareModule = await import('@/lib/auth/middleware')
+      const middlewareModule = await import('../../src/lib/auth/middleware')
 
       // Since the rate limiter behavior can be complex in test environment,
       // let's test that the function returns the expected structure
@@ -513,12 +513,12 @@ describe('Authentication Integration Tests', () => {
       const mockSql = vi.mocked(sql)
 
       // Start with WebAuthn authentication
-      const currentSession = { ...mockSession, auth_method: 'webauthn' as const }
+      const currentSession = { ...mockSession, authMethod: 'webauthn' as const }
       let accessToken = await generateAccessToken(mockUser, currentSession)
 
       // Verify WebAuthn token
       let payload = await verifyAccessToken(accessToken)
-      expect(payload.auth_method).toBe('webauthn')
+      expect(payload.authMethod).toBe('webauthn')
 
       // Switch to OAuth (link GitHub account)
       mockSql.mockResolvedValueOnce([mockUser]) // User lookup
@@ -536,12 +536,12 @@ describe('Authentication Integration Tests', () => {
       mockSql.mockResolvedValueOnce([]) // INSERT oauth_accounts
 
       // Create new session with OAuth
-      const oauthSession: UserSession = { ...mockSession, auth_method: 'oauth' }
+      const oauthSession: UserSession = { ...mockSession, authMethod: 'oauth' }
       accessToken = await generateAccessToken(mockUser, oauthSession)
 
       // Verify OAuth token
       payload = await verifyAccessToken(accessToken)
-      expect(payload.auth_method).toBe('oauth')
+      expect(payload.authMethod).toBe('oauth')
     })
 
     it('should maintain security context across all operations', async () => {
@@ -555,22 +555,24 @@ describe('Authentication Integration Tests', () => {
       const events: string[] = []
 
       // Reset and reconfigure the logSecurityEvent mock to track events
-      const { logSecurityEvent } = await import('@/lib/auth/audit')
+      const { logSecurityEvent } = await import('../../src/lib/auth/audit')
       const logSecurityEventMock = vi.mocked(logSecurityEvent)
       logSecurityEventMock.mockReset()
       logSecurityEventMock.mockImplementation(async params => {
         events.push(params.event_type)
         return {
-          id: 'log-id',
-          event_type: params.event_type,
+          id: 'log-id' as UUID,
+          event_type: params.event_type as AuthEventType,
           event_severity: params.event_severity || 'info',
-          user_id: params.user_id || null,
-          ip_address: params.ip_address || null,
-          user_agent: params.user_agent || null,
-          event_data: params.event_data || null,
+          user_id: params.user_id,
+          ip_address: params.ip_address,
+          user_agent: params.user_agent,
+          event_data: params.event_data,
           success: params.success,
-          error_message: params.error_message || null,
+          error_message: params.error_message,
+          checksum: undefined,
           created_at: new Date(),
+          updated_at: new Date(),
         }
       })
 
@@ -594,11 +596,11 @@ describe('Authentication Integration Tests', () => {
 
       // 3. Manually log a security event to ensure tracking works
       await logSecurityEvent({
-        event_type: 'user_consent_recorded',
+        event_type: 'consent_granted',
         user_id: mockUser.id,
         ip_address: securityContext.ip_address,
         user_agent: securityContext.user_agent,
-        event_data: { consent_type: 'data_processing' },
+        event_data: { consentType: 'functional_cookies' },
         success: true,
       })
 
@@ -606,7 +608,7 @@ describe('Authentication Integration Tests', () => {
       mockSql.mockResolvedValueOnce([]) // Consent record storage
       await recordUserConsent({
         userId: mockUser.id,
-        consentType: 'data_processing',
+        consentType: 'functional_cookies',
         granted: true,
         version: '1.0',
         context: securityContext,

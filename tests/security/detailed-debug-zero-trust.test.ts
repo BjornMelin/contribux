@@ -9,10 +9,10 @@ import {
   evaluateZeroTrustAccess,
   type TrustScore,
   ZERO_TRUST_CONFIG,
-} from '@/lib/security/zero-trust'
+} from '../../src/lib/security/zero-trust'
 
 // Mock crypto module
-vi.mock('@/lib/security/crypto', () => ({
+vi.mock('../../src/lib/security/crypto', () => ({
   createSecureHash: vi.fn().mockImplementation(() => 'mock-hash'),
   generateDeviceFingerprint: vi.fn().mockImplementation(() => 'mock-fingerprint'),
   generateSecureToken: vi

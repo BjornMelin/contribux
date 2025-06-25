@@ -7,4 +7,4 @@
  */
 
 // Re-export everything from the new modular implementation
-export * from './gdpr'
+export * from './gdpr/index'

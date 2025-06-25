@@ -1,15 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   decryptToken,
+  type EncryptedData,
   encryptToken,
   exportKey,
   generateEncryptionKey,
   importKey,
   rotateEncryptionKey,
-} from '@/lib/auth/crypto'
+} from '../../src/lib/auth/crypto'
 
 // Mock database
-vi.mock('@/lib/db/config', () => ({
+vi.mock('../../src/lib/db/config', () => ({
   sql: vi.fn(),
 }))
 
@@ -143,7 +144,7 @@ describe('Web Crypto API Token Encryption', () => {
 
   describe('Key Rotation', () => {
     it('should rotate encryption keys', async () => {
-      const sql = await import('@/lib/db/config').then(m => m.sql)
+      const sql = await import('../../src/lib/db/config').then(m => m.sql)
       const mockSql = vi.mocked(sql)
 
       // Mock current key retrieval
@@ -185,7 +186,7 @@ describe('Web Crypto API Token Encryption', () => {
     })
 
     it('should re-encrypt tokens with new key', async () => {
-      const sql = await import('@/lib/db/config').then(m => m.sql)
+      const sql = await import('../../src/lib/db/config').then(m => m.sql)
       const mockSql = vi.mocked(sql)
 
       const oldKey = await generateEncryptionKey()

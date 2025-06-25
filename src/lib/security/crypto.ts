@@ -4,11 +4,11 @@
  * digital signatures, and cryptographic operations for zero-trust architecture
  */
 
-import { timingSafeEqual } from 'crypto'
+import { timingSafeEqual } from 'node:crypto'
 import { z } from 'zod'
 
-// Re-export existing crypto utilities for backward compatibility
-export * from '@/lib/auth/crypto'
+// Note: This module provides enhanced crypto functions
+// For basic auth crypto functions, import from '@/lib/auth/crypto' directly
 
 // Enhanced crypto configuration
 export const ENHANCED_CRYPTO_CONFIG = {

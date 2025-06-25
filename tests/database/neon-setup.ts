@@ -8,7 +8,7 @@
 import { neon } from '@neondatabase/serverless'
 import { config } from 'dotenv'
 import { afterAll, beforeAll, beforeEach } from 'vitest'
-import { NeonBranchManager } from '@/lib/test-utils/neon-branch-manager'
+import { NeonBranchManager } from '../../src/lib/test-utils/neon-branch-manager'
 
 // Load test environment variables
 config({ path: '.env.test' })
@@ -32,9 +32,13 @@ let testConnectionString: string | null = null
 beforeAll(async () => {
   console.log('🚀 Setting up Neon test branch...')
 
+  if (!process.env.NEON_API_KEY || !process.env.NEON_PROJECT_ID) {
+    throw new Error('NEON_API_KEY and NEON_PROJECT_ID must be set for tests')
+  }
+
   branchManager = new NeonBranchManager({
-    apiKey: process.env.NEON_API_KEY!,
-    projectId: process.env.NEON_PROJECT_ID!,
+    apiKey: process.env.NEON_API_KEY,
+    projectId: process.env.NEON_PROJECT_ID,
   })
 
   // Create a branch for this test suite
@@ -132,7 +136,7 @@ async function cleanupTestData(connectionString: string): Promise<void> {
     `
   } catch (error) {
     // If tables don't exist yet, that's okay
-    if (error.message?.includes('does not exist')) {
+    if (error instanceof Error && error.message?.includes('does not exist')) {
       return
     }
     console.error('Failed to cleanup test data:', error)

@@ -3,6 +3,33 @@
  * Tracks memory usage, performance metrics, and optimization opportunities
  */
 
+// Web Performance API types
+interface MemoryInfo {
+  readonly usedJSHeapSize: number
+  readonly totalJSHeapSize: number
+  readonly jsHeapSizeLimit: number
+}
+
+interface PerformanceMemory {
+  readonly memory?: MemoryInfo
+}
+
+interface LayoutShiftEntry extends PerformanceEntry {
+  readonly value: number
+  readonly hadRecentInput: boolean
+}
+
+interface FirstInputEntry extends PerformanceEntry {
+  readonly processingStart: number
+}
+
+// Extend window and performance interfaces
+declare global {
+  interface Window {
+    performance: Performance & PerformanceMemory
+  }
+}
+
 interface PerformanceMetrics {
   memory: {
     heap: number
@@ -96,7 +123,7 @@ class PerformanceMonitor {
     this.observeResources()
 
     // Memory monitoring (if available)
-    if ('memory' in (window as any).performance) {
+    if (window.performance.memory) {
       this.intervalId = setInterval(() => {
         this.updateClientMetrics()
         this.checkClientAlerts()
@@ -130,7 +157,7 @@ class PerformanceMonitor {
       // First Input Delay
       new PerformanceObserver(list => {
         const entries = list.getEntries()
-        const firstInput = entries[0]
+        const firstInput = entries[0] as FirstInputEntry
         if (firstInput) {
           this.metrics.vitals.fid = firstInput.processingStart - firstInput.startTime
         }
@@ -140,8 +167,9 @@ class PerformanceMonitor {
       let clsValue = 0
       new PerformanceObserver(list => {
         for (const entry of list.getEntries()) {
-          if (!(entry as any).hadRecentInput) {
-            clsValue += (entry as any).value
+          const layoutShiftEntry = entry as LayoutShiftEntry
+          if (!layoutShiftEntry.hadRecentInput) {
+            clsValue += layoutShiftEntry.value
             this.metrics.vitals.cls = clsValue
           }
         }
@@ -157,7 +185,7 @@ class PerformanceMonitor {
   private observeResources(): void {
     try {
       new PerformanceObserver(list => {
-        const entries = list.getEntries()
+        const _entries = list.getEntries()
         // Track resource loading performance
         this.metrics.timing.interactivity = Date.now() - this.startTime
       }).observe({ entryTypes: ['resource'] })
@@ -186,7 +214,7 @@ class PerformanceMonitor {
    */
   private updateClientMetrics(): void {
     if (typeof window !== 'undefined' && 'performance' in window) {
-      const memory = (window as any).performance.memory
+      const memory = window.performance.memory
       if (memory) {
         this.metrics.memory = {
           heap: memory.usedJSHeapSize,

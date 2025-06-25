@@ -133,7 +133,13 @@ export async function GET(request: NextRequest) {
     `
 
     // Execute main query using Neon SQL template literal
-    const repositories = (await sql.unsafe(mainQuery)) as unknown as any[]
+    type DatabaseRepository = {
+      created_at: string
+      topics: string[] | null
+      [key: string]: unknown
+    }
+
+    const repositories = (await sql.unsafe(mainQuery)) as unknown as DatabaseRepository[]
 
     // Get total count for pagination
     const countQuery = `
@@ -149,7 +155,7 @@ export async function GET(request: NextRequest) {
     const response = {
       success: true,
       data: {
-        repositories: repositories.map((repo: any) => ({
+        repositories: repositories.map((repo: DatabaseRepository) => ({
           ...repo,
           created_at: new Date(repo.created_at as string).toISOString(),
           topics: repo.topics || [],

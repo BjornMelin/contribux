@@ -12,7 +12,7 @@ maintaining backwards compatibility with existing GitHub-only authentication.
 - **New Migration File**: Contains all database schema changes for multi-provider OAuth support
 - **Backwards Compatible**: Ensures existing data remains intact
 
-### 2. `/database/auth-schema-simplified.sql`
+### 2. `/database/auth-schema.sql`
 
 - Updated OAuth accounts table with `is_primary` and `linked_at` fields
 - Added `account_linking_requests` table for email verification

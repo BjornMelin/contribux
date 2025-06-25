@@ -43,13 +43,14 @@ export function ProviderButton({ provider, callbackUrl, disabled }: ProviderButt
 
   return (
     <button
+      type="button"
       onClick={handleSignIn}
       disabled={disabled || isLoading}
       className={`
         group relative flex w-full justify-center items-center rounded-md px-3 py-3 sm:py-2.5 text-sm font-semibold
         transition-all duration-200 ease-in-out
         ${provider.bgColor} ${provider.hoverColor} ${provider.textColor}
-        focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900
+        focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900
         disabled:opacity-50 disabled:cursor-not-allowed
         shadow-sm hover:shadow-md active:scale-[0.98]
         min-h-[44px] sm:min-h-[40px]

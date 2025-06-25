@@ -1,6 +1,6 @@
 import { Client } from 'pg'
 import { beforeAll, describe, expect, it } from 'vitest'
-import type { DatabaseColumn, DatabaseTable, SQLFunction } from '@/types/database'
+import type { DatabaseColumn, DatabaseTable, SQLFunction } from '../../src/types/database'
 
 // This test is isolated from global setup to avoid any mocking interference
 // Database URL should be set in environment variables
@@ -22,7 +22,21 @@ describe('Authentication Database Schema (Isolated)', () => {
       sql = async (strings: TemplateStringsArray, ...values: unknown[]) => {
         const query = strings.join('$')
         const result = await client.query(query, values)
-        return result.rows
+        return {
+          rows: result.rows,
+          rowCount: result.rowCount ?? 0,
+          command: result.command,
+          oid: result.oid,
+          fields: result.fields?.map(field => ({
+            name: field.name,
+            tableID: field.tableID,
+            columnID: field.columnID,
+            dataTypeID: field.dataTypeID,
+            dataTypeSize: field.dataTypeSize,
+            dataTypeModifier: field.dataTypeModifier,
+            format: field.format === 'text' ? ('text' as const) : ('binary' as const),
+          })),
+        }
       }
 
       // Store client for cleanup
@@ -30,14 +44,22 @@ describe('Authentication Database Schema (Isolated)', () => {
     } else {
       // Dynamic import to avoid setup file interference
       const { neon } = await import('@neondatabase/serverless')
-      sql = neon(DATABASE_URL_TEST)
+      const neonSql = neon(DATABASE_URL_TEST)
+
+      sql = async <T = unknown>(strings: TemplateStringsArray, ...values: unknown[]) => {
+        const rows = await neonSql(strings, ...values)
+        return {
+          rows: rows as readonly T[],
+          rowCount: rows.length,
+        }
+      }
     }
 
     // Simple connection test
     try {
       const result = await sql`SELECT 1 as test`
-      expect(Array.isArray(result)).toBe(true)
-      expect(result).toHaveLength(1)
+      expect(Array.isArray(result.rows)).toBe(true)
+      expect(result.rows).toHaveLength(1)
     } catch (error) {
       throw new Error(`Failed to connect to test database: ${error}`)
     }
@@ -45,20 +67,20 @@ describe('Authentication Database Schema (Isolated)', () => {
 
   describe('WebAuthn Tables', () => {
     it('should have webauthn_credentials table', async () => {
-      const tables = await sql`
+      const result = await sql`
         SELECT table_name 
         FROM information_schema.tables 
         WHERE table_schema = 'public' 
         AND table_name = 'webauthn_credentials'
       `
 
-      expect(Array.isArray(tables)).toBe(true)
-      expect(tables).toHaveLength(1)
-      expect((tables as DatabaseTable[])[0]?.table_name).toBe('webauthn_credentials')
+      expect(Array.isArray(result.rows)).toBe(true)
+      expect(result.rows).toHaveLength(1)
+      expect((result.rows as DatabaseTable[])[0]?.tableName).toBe('webauthn_credentials')
     })
 
     it('should have correct webauthn_credentials columns', async () => {
-      const columns = await sql`
+      const result = await sql`
         SELECT column_name, data_type, is_nullable
         FROM information_schema.columns 
         WHERE table_name = 'webauthn_credentials'
@@ -79,17 +101,19 @@ describe('Authentication Database Schema (Isolated)', () => {
         { column_name: 'name', data_type: 'text', is_nullable: 'YES' },
       ]
 
-      expect(Array.isArray(columns)).toBe(true)
-      expect((columns as DatabaseColumn[]).length).toBeGreaterThanOrEqual(expectedColumns.length)
+      expect(Array.isArray(result.rows)).toBe(true)
+      expect((result.rows as DatabaseColumn[]).length).toBeGreaterThanOrEqual(
+        expectedColumns.length
+      )
 
       expectedColumns.forEach(expected => {
-        const column = (columns as DatabaseColumn[]).find(
-          (c: DatabaseColumn) => c.column_name === expected.column_name
+        const column = (result.rows as DatabaseColumn[]).find(
+          (c: DatabaseColumn) => c.columnName === expected.column_name
         )
         expect(column).toBeDefined()
         if (column) {
-          expect(column.data_type).toContain(expected.data_type)
-          expect(column.is_nullable).toBe(expected.is_nullable)
+          expect(column.dataType).toContain(expected.data_type)
+          expect(column.isNullable).toBe(expected.is_nullable)
         }
       })
     })
@@ -104,9 +128,9 @@ describe('Authentication Database Schema (Isolated)', () => {
         AND table_name = 'auth_challenges'
       `
 
-      expect(Array.isArray(tables)).toBe(true)
-      expect(tables).toHaveLength(1)
-      expect((tables as DatabaseTable[])[0]?.table_name).toBe('auth_challenges')
+      expect(Array.isArray(tables.rows)).toBe(true)
+      expect(tables.rows).toHaveLength(1)
+      expect((tables.rows as DatabaseTable[])[0]?.tableName).toBe('auth_challenges')
     })
   })
 
@@ -119,9 +143,9 @@ describe('Authentication Database Schema (Isolated)', () => {
         AND table_name = 'user_sessions'
       `
 
-      expect(Array.isArray(tables)).toBe(true)
-      expect(tables).toHaveLength(1)
-      expect((tables as DatabaseTable[])[0]?.table_name).toBe('user_sessions')
+      expect(Array.isArray(tables.rows)).toBe(true)
+      expect(tables.rows).toHaveLength(1)
+      expect((tables.rows as DatabaseTable[])[0]?.tableName).toBe('user_sessions')
     })
   })
 
@@ -134,9 +158,9 @@ describe('Authentication Database Schema (Isolated)', () => {
         AND table_name = 'oauth_accounts'
       `
 
-      expect(Array.isArray(tables)).toBe(true)
-      expect(tables).toHaveLength(1)
-      expect((tables as DatabaseTable[])[0]?.table_name).toBe('oauth_accounts')
+      expect(Array.isArray(tables.rows)).toBe(true)
+      expect(tables.rows).toHaveLength(1)
+      expect((tables.rows as DatabaseTable[])[0]?.tableName).toBe('oauth_accounts')
     })
   })
 
@@ -149,9 +173,9 @@ describe('Authentication Database Schema (Isolated)', () => {
         AND table_name = 'security_audit_logs'
       `
 
-      expect(Array.isArray(tables)).toBe(true)
-      expect(tables).toHaveLength(1)
-      expect((tables as DatabaseTable[])[0]?.table_name).toBe('security_audit_logs')
+      expect(Array.isArray(tables.rows)).toBe(true)
+      expect(tables.rows).toHaveLength(1)
+      expect((tables.rows as DatabaseTable[])[0]?.tableName).toBe('security_audit_logs')
     })
   })
 
@@ -164,9 +188,9 @@ describe('Authentication Database Schema (Isolated)', () => {
         AND table_name = 'user_consents'
       `
 
-      expect(Array.isArray(tables)).toBe(true)
-      expect(tables).toHaveLength(1)
-      expect((tables as DatabaseTable[])[0]?.table_name).toBe('user_consents')
+      expect(Array.isArray(tables.rows)).toBe(true)
+      expect(tables.rows).toHaveLength(1)
+      expect((tables.rows as DatabaseTable[])[0]?.tableName).toBe('user_consents')
     })
   })
 
@@ -179,9 +203,9 @@ describe('Authentication Database Schema (Isolated)', () => {
         AND table_name = 'refresh_tokens'
       `
 
-      expect(Array.isArray(tables)).toBe(true)
-      expect(tables).toHaveLength(1)
-      expect((tables as DatabaseTable[])[0]?.table_name).toBe('refresh_tokens')
+      expect(Array.isArray(tables.rows)).toBe(true)
+      expect(tables.rows).toHaveLength(1)
+      expect((tables.rows as DatabaseTable[])[0]?.tableName).toBe('refresh_tokens')
     })
   })
 
@@ -194,8 +218,8 @@ describe('Authentication Database Schema (Isolated)', () => {
         AND constraint_type = 'FOREIGN KEY'
       `
 
-      expect(Array.isArray(fks)).toBe(true)
-      expect((fks as unknown[]).length).toBeGreaterThan(0)
+      expect(Array.isArray(fks.rows)).toBe(true)
+      expect((fks.rows as unknown[]).length).toBeGreaterThan(0)
     })
 
     it('should have foreign key from oauth_accounts to users', async () => {
@@ -206,8 +230,8 @@ describe('Authentication Database Schema (Isolated)', () => {
         AND constraint_type = 'FOREIGN KEY'
       `
 
-      expect(Array.isArray(fks)).toBe(true)
-      expect((fks as unknown[]).length).toBeGreaterThan(0)
+      expect(Array.isArray(fks.rows)).toBe(true)
+      expect((fks.rows as unknown[]).length).toBeGreaterThan(0)
     })
   })
 })

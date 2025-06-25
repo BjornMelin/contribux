@@ -4,7 +4,7 @@
  */
 
 // Cache for loaded modules
-const moduleCache = new Map<string, any>()
+const moduleCache = new Map<string, unknown>()
 
 /**
  * Dynamically import the GitHub client

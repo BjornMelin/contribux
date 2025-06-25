@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import '../database/setup'
-import type { DatabaseColumn } from '@/types/database'
+import type { DatabaseColumn } from '../../src/types/database'
 import { sql, TEST_DATABASE_URL } from '../database/db-client'
 
 // Skip these tests if no real test database is configured
@@ -67,14 +67,14 @@ describeConditional('Authentication Database Schema', () => {
 
       expectedColumns.forEach(expected => {
         const column = Array.isArray(columns)
-          ? (columns as DatabaseColumn[]).find(
-              (c: DatabaseColumn) => c.column_name === expected.column_name
+          ? (columns as unknown as DatabaseColumn[]).find(
+              (c: DatabaseColumn) => c.columnName === expected.column_name
             )
           : undefined
         expect(column).toBeDefined()
-        if (column && typeof column === 'object' && 'data_type' in column) {
-          expect(column.data_type).toContain(expected.data_type)
-          expect(column.is_nullable).toBe(expected.is_nullable)
+        if (column && typeof column === 'object' && 'dataType' in column) {
+          expect(column.dataType).toContain(expected.data_type)
+          expect(column.isNullable).toBe(expected.is_nullable !== 'NO')
         }
       })
     })
@@ -89,7 +89,9 @@ describeConditional('Authentication Database Schema', () => {
 
       expect(
         Array.isArray(constraints) &&
-          constraints.some(c => c.constraint_name.includes('credential_id'))
+          constraints.some(c =>
+            (c as { constraint_name: string }).constraint_name.includes('credential_id')
+          )
       ).toBe(true)
     })
   })
@@ -126,14 +128,14 @@ describeConditional('Authentication Database Schema', () => {
 
       expectedColumns.forEach(expected => {
         const column = Array.isArray(columns)
-          ? (columns as DatabaseColumn[]).find(
-              (c: DatabaseColumn) => c.column_name === expected.column_name
+          ? (columns as unknown as DatabaseColumn[]).find(
+              (c: DatabaseColumn) => c.columnName === expected.column_name
             )
           : undefined
         expect(column).toBeDefined()
-        if (column && typeof column === 'object' && 'data_type' in column) {
-          expect(column.data_type).toContain(expected.data_type)
-          expect(column.is_nullable).toBe(expected.is_nullable)
+        if (column && typeof column === 'object' && 'dataType' in column) {
+          expect(column.dataType).toContain(expected.data_type)
+          expect(column.isNullable).toBe(expected.is_nullable !== 'NO')
         }
       })
     })
@@ -176,14 +178,14 @@ describeConditional('Authentication Database Schema', () => {
 
       expectedColumns.forEach(expected => {
         const column = Array.isArray(columns)
-          ? (columns as DatabaseColumn[]).find(
-              (c: DatabaseColumn) => c.column_name === expected.column_name
+          ? (columns as unknown as DatabaseColumn[]).find(
+              (c: DatabaseColumn) => c.columnName === expected.column_name
             )
           : undefined
         expect(column).toBeDefined()
-        if (column && typeof column === 'object' && 'data_type' in column) {
-          expect(column.data_type).toContain(expected.data_type)
-          expect(column.is_nullable).toBe(expected.is_nullable)
+        if (column && typeof column === 'object' && 'dataType' in column) {
+          expect(column.dataType).toContain(expected.data_type)
+          expect(column.isNullable).toBe(expected.is_nullable !== 'NO')
         }
       })
     })
@@ -225,14 +227,14 @@ describeConditional('Authentication Database Schema', () => {
 
       expectedColumns.forEach(expected => {
         const column = Array.isArray(columns)
-          ? (columns as DatabaseColumn[]).find(
-              (c: DatabaseColumn) => c.column_name === expected.column_name
+          ? (columns as unknown as DatabaseColumn[]).find(
+              (c: DatabaseColumn) => c.columnName === expected.column_name
             )
           : undefined
         expect(column).toBeDefined()
-        if (column && typeof column === 'object' && 'data_type' in column) {
-          expect(column.data_type).toContain(expected.data_type)
-          expect(column.is_nullable).toBe(expected.is_nullable)
+        if (column && typeof column === 'object' && 'dataType' in column) {
+          expect(column.dataType).toContain(expected.data_type)
+          expect(column.isNullable).toBe(expected.is_nullable !== 'NO')
         }
       })
     })
@@ -284,14 +286,14 @@ describeConditional('Authentication Database Schema', () => {
 
       expectedColumns.forEach(expected => {
         const column = Array.isArray(columns)
-          ? (columns as DatabaseColumn[]).find(
-              (c: DatabaseColumn) => c.column_name === expected.column_name
+          ? (columns as unknown as DatabaseColumn[]).find(
+              (c: DatabaseColumn) => c.columnName === expected.column_name
             )
           : undefined
         expect(column).toBeDefined()
-        if (column && typeof column === 'object' && 'data_type' in column) {
-          expect(column.data_type).toContain(expected.data_type)
-          expect(column.is_nullable).toBe(expected.is_nullable)
+        if (column && typeof column === 'object' && 'dataType' in column) {
+          expect(column.dataType).toContain(expected.data_type)
+          expect(column.isNullable).toBe(expected.is_nullable !== 'NO')
         }
       })
     })
@@ -341,14 +343,14 @@ describeConditional('Authentication Database Schema', () => {
 
       expectedColumns.forEach(expected => {
         const column = Array.isArray(columns)
-          ? (columns as DatabaseColumn[]).find(
-              (c: DatabaseColumn) => c.column_name === expected.column_name
+          ? (columns as unknown as DatabaseColumn[]).find(
+              (c: DatabaseColumn) => c.columnName === expected.column_name
             )
           : undefined
         expect(column).toBeDefined()
-        if (column && typeof column === 'object' && 'data_type' in column) {
-          expect(column.data_type).toContain(expected.data_type)
-          expect(column.is_nullable).toBe(expected.is_nullable)
+        if (column && typeof column === 'object' && 'dataType' in column) {
+          expect(column.dataType).toContain(expected.data_type)
+          expect(column.isNullable).toBe(expected.is_nullable !== 'NO')
         }
       })
     })
@@ -387,14 +389,14 @@ describeConditional('Authentication Database Schema', () => {
 
       expectedColumns.forEach(expected => {
         const column = Array.isArray(columns)
-          ? (columns as DatabaseColumn[]).find(
-              (c: DatabaseColumn) => c.column_name === expected.column_name
+          ? (columns as unknown as DatabaseColumn[]).find(
+              (c: DatabaseColumn) => c.columnName === expected.column_name
             )
           : undefined
         expect(column).toBeDefined()
-        if (column && typeof column === 'object' && 'data_type' in column) {
-          expect(column.data_type).toContain(expected.data_type)
-          expect(column.is_nullable).toBe(expected.is_nullable)
+        if (column && typeof column === 'object' && 'dataType' in column) {
+          expect(column.dataType).toContain(expected.data_type)
+          expect(column.isNullable).toBe(expected.is_nullable !== 'NO')
         }
       })
     })
@@ -409,7 +411,9 @@ describeConditional('Authentication Database Schema', () => {
 
       expect(
         Array.isArray(constraints) &&
-          constraints.some(c => c.constraint_name.includes('token_hash'))
+          constraints.some(c =>
+            (c as { constraint_name: string }).constraint_name.includes('token_hash')
+          )
       ).toBe(true)
     })
   })

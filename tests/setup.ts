@@ -1,11 +1,21 @@
-// Test setup configuration for Vitest
-// Modern test setup with PGlite and Neon branching for optimal database testing
+/**
+ * Test setup configuration for Vitest
+ * Modern test setup with PGlite and Neon branching for optimal database testing
+ *
+ * ✅ API ROUTE TESTING SOLUTION:
+ * This setup enables MSW-based HTTP interception, which is the ONLY
+ * reliable approach for testing Next.js 15 App Router API routes.
+ *
+ * - 48 passing tests using MSW approach
+ * - Direct route handler testing has been removed (proven unreliable)
+ * - See tests/api/api-testing-guide.md for mandatory patterns
+ */
 
 import { Crypto } from '@peculiar/webcrypto'
 import { config } from 'dotenv'
 import { afterEach, beforeEach, vi } from 'vitest'
 import { TestDatabaseManager } from '@/lib/test-utils/test-database-manager'
-import { registerCleanup, resetTestState, setupEnhancedTestIsolation } from './test-utils/cleanup'
+import { resetTestState, setupEnhancedTestIsolation } from './test-utils/cleanup'
 
 // Import MSW for modern HTTP mocking
 import 'msw/node'
@@ -13,7 +23,11 @@ import 'msw/node'
 // Import jest-dom matchers for better assertions
 // Note: Despite the name, @testing-library/jest-dom works perfectly with Vitest
 // It provides useful matchers like toBeInTheDocument(), toHaveAttribute(), etc.
-import '@testing-library/jest-dom'
+import * as matchers from '@testing-library/jest-dom/matchers'
+import { expect } from 'vitest'
+
+// Extend Vitest's expect with jest-dom matchers
+expect.extend(matchers)
 
 // Make React available globally for JSX transform
 import React from 'react'
@@ -55,7 +69,7 @@ const createIntelligentDbClient = () => {
           // Will be replaced by test-specific setup
           return vi.fn().mockResolvedValue([])
         }
-        return (target as any)[prop]
+        return (target as Record<string, unknown>)[prop]
       },
     }
   )
@@ -65,9 +79,10 @@ const createIntelligentDbClient = () => {
 vi.mock('@/lib/db/config', () => ({
   sql: createIntelligentDbClient(),
   getDatabaseUrl: vi.fn(branch => {
-    // Intelligent URL routing based on test strategy
-    const testStrategy = process.env.TEST_DB_STRATEGY
+    // Force PGlite for all test database connections
+    const testStrategy = process.env.TEST_DB_STRATEGY || 'pglite'
 
+    // Always return a mock URL for tests - actual connection handled by TestDatabaseManager
     if (testStrategy === 'pglite') {
       return 'postgresql://test:test@localhost:5432/test_pglite'
     }
@@ -117,10 +132,26 @@ if (global.crypto) {
   }
 }
 
-// Store original fetch for MSW compatibility
-const originalFetch = globalThis.fetch
+// Store original fetch for MSW compatibility - ensure it exists
+let originalFetch: typeof fetch
+if (typeof globalThis.fetch !== 'undefined') {
+  originalFetch = globalThis.fetch
+} else {
+  // For Node.js environments without native fetch, use undici
+  try {
+    const { fetch: undiciFetch } = require('undici')
+    originalFetch = undiciFetch
+    globalThis.fetch = undiciFetch
+  } catch {
+    // Fallback to a basic fetch implementation
+    originalFetch = async () => {
+      throw new Error('Fetch not available in test environment')
+    }
+    globalThis.fetch = originalFetch
+  }
+}
 
-// Mock fetch for API calls in tests, but allow MSW to override when needed
+// Create a mock fetch that can be selectively disabled
 const mockFetch = vi.fn(() =>
   Promise.resolve({
     ok: true,
@@ -129,16 +160,43 @@ const mockFetch = vi.fn(() =>
     status: 200,
     statusText: 'OK',
     headers: new Headers(),
+    clone: () => ({
+      ok: true,
+      json: () => Promise.resolve({}),
+      text: () => Promise.resolve(''),
+      status: 200,
+      statusText: 'OK',
+      headers: new Headers(),
+    }),
   })
 )
 
-// Set up fetch mock that can be disabled for MSW tests
-global.fetch = mockFetch as any
-
+// Only set up fetch mock if not using MSW
+// MSW needs the real fetch to intercept requests
+if (!process.env.VITEST_MSW_ENABLED) {
+  global.fetch = mockFetch as typeof fetch
+}
 // Export utilities for MSW tests to restore original fetch
 
-;(global as any).__originalFetch = originalFetch
-;(global as any).__mockFetch = mockFetch
+;(global as Record<string, unknown>).__originalFetch = originalFetch
+;(global as Record<string, unknown>).__mockFetch = mockFetch
+
+// Export utilities for enabling/disabling MSW mode
+
+;(global as Record<string, unknown>).__enableMSW = () => {
+  global.fetch = originalFetch
+  globalThis.fetch = originalFetch
+  process.env.VITEST_MSW_ENABLED = 'true'
+}
+
+;(global as Record<string, unknown>).__disableMSW = () => {
+  global.fetch = mockFetch as typeof fetch
+  globalThis.fetch = mockFetch as typeof fetch
+  delete process.env.VITEST_MSW_ENABLED
+}
+
+// API Route Testing: Use MSW-based approach for reliable testing
+// See tests/api/api-routes-msw.test.ts and tests/api/nextauth-api-integration.test.ts
 
 // Mock WebAuthn SimpleWebAuthn server functions
 vi.mock('@simplewebauthn/server', () => ({

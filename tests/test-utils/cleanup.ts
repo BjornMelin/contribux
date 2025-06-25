@@ -7,13 +7,13 @@ import { afterEach, beforeEach, vi } from 'vitest'
 
 // Extend global type for test state
 declare global {
-  var __githubClientCache: any
-  var __githubRateLimitState: any
+  var __githubClientCache: Record<string, unknown>
+  var __githubRateLimitState: Record<string, unknown>
   var __testCleanupRegistry: Set<() => Promise<void> | void>
-  var __mswerkerInstances: any[]
+  var __mswerkerInstances: unknown[]
   var __activeTimers: Set<NodeJS.Timeout>
   var __activeIntervals: Set<NodeJS.Timeout>
-  var __eventListeners: Map<string, Function[]>
+  var __eventListeners: Map<string, (() => void)[]>
 }
 
 // Store original environment variables
@@ -31,10 +31,10 @@ const originalConsole = {
 const resourceTracker = {
   timers: new Set<NodeJS.Timeout>(),
   intervals: new Set<NodeJS.Timeout>(),
-  listeners: new Map<string, Function[]>(),
-  openConnections: new Set<any>(),
-  childProcesses: new Set<any>(),
-  fileHandles: new Set<any>(),
+  listeners: new Map<string, (() => void)[]>(),
+  openConnections: new Set<{ close?: () => void; destroy?: () => void; end?: () => void }>(),
+  childProcesses: new Set<{ kill?: () => void }>(),
+  fileHandles: new Set<{ close?: () => void }>(),
 }
 
 /**
@@ -117,7 +117,7 @@ function clearGitHubClientState() {
 /**
  * Get rate limit store if available
  */
-function getRateLimitStore(): Map<string, any> | null {
+function getRateLimitStore(): Map<string, unknown> | null {
   // Rate limit stores are module-level state that need to be cleared
   // Since we can't directly access them, we'll handle this differently
   return null
@@ -260,8 +260,11 @@ function clearTrackedResources() {
   for (const [target, listeners] of resourceTracker.listeners) {
     for (const listener of listeners) {
       try {
-        if (typeof target === 'string' && (global as any)[target]) {
-          ;(global as any)[target].removeEventListener?.('*', listener)
+        if (typeof target === 'string' && (global as Record<string, unknown>)[target]) {
+          const globalTarget = (global as Record<string, unknown>)[target] as {
+            removeEventListener?: (event: string, listener: () => void) => void
+          }
+          globalTarget?.removeEventListener?.('*', listener)
         }
       } catch (error) {
         console.warn('Failed to remove event listener:', error)
@@ -297,7 +300,7 @@ function forceGarbageCollection() {
   if (global.gc && typeof global.gc === 'function') {
     try {
       global.gc()
-    } catch (error) {
+    } catch (_error) {
       // GC might not be available in all environments
     }
   }
@@ -307,7 +310,7 @@ function forceGarbageCollection() {
  * Register a resource for cleanup
  */
 export function registerForCleanup(
-  resource: any,
+  resource: unknown,
   type: 'connection' | 'process' | 'handle' | 'timer' | 'interval'
 ) {
   switch (type) {

@@ -9,11 +9,11 @@ import type {
   SecurityIncident,
   ThreatDetection,
   Vulnerability,
-} from '@/lib/security/automated-scanner'
-import { createSOAREngine, type SOARConfig, SOAREngine } from '@/lib/security/soar'
+} from '../../src/lib/security/automated-scanner'
+import { createSOAREngine, type SOARConfig, SOAREngine } from '../../src/lib/security/soar'
 
 // Mock crypto module
-vi.mock('@/lib/security/crypto', () => ({
+vi.mock('../../src/lib/security/crypto', () => ({
   createSecureHash: vi.fn().mockImplementation(() => 'mock-hash'),
   generateDeviceFingerprint: vi.fn().mockImplementation(() => 'mock-fingerprint'),
   generateSecureToken: vi
@@ -315,7 +315,7 @@ describe('SOAR Engine', () => {
       expect(actions.length).toBeGreaterThan(0)
 
       // Check that at least one action was automated
-      const automatedActions = actions.filter((a: any) => a.automated)
+      const automatedActions = actions.filter((a: { automated?: boolean }) => a.automated)
       expect(automatedActions.length).toBeGreaterThan(0)
     })
 
@@ -400,13 +400,17 @@ describe('SOAR Engine', () => {
       const playbooks = playbookEngine.getPlaybooks()
       const playbook = playbooks[0]
 
+      if (!playbook) {
+        throw new Error('No playbooks available for testing')
+      }
+
       const execution = await playbookEngine.executePlaybook(playbook, {
         type: 'incident',
         id: 'test-incident',
       })
 
       expect(execution).toHaveProperty('executionId')
-      expect(execution).toHaveProperty('playbookId', playbook.playbookId)
+      expect(execution).toHaveProperty('playbookId', playbook?.playbookId)
       expect(execution).toHaveProperty('status')
       expect(['completed', 'failed']).toContain(execution.status)
       expect(execution).toHaveProperty('startedAt')
@@ -417,6 +421,10 @@ describe('SOAR Engine', () => {
     it('should track playbook execution metrics', async () => {
       const playbooks = playbookEngine.getPlaybooks()
       const playbook = playbooks[0]
+
+      if (!playbook) {
+        throw new Error('No playbooks available for testing')
+      }
 
       const execution = await playbookEngine.executePlaybook(playbook, {
         type: 'incident',
@@ -449,7 +457,7 @@ describe('SOAR Engine', () => {
         expect(execution.executedSteps.length).toBeGreaterThan(0)
 
         // Check that steps have proper execution data
-        execution.executedSteps.forEach((step: any) => {
+        execution.executedSteps.forEach((step: { stepId?: string; status?: string }) => {
           expect(step).toHaveProperty('stepId')
           expect(step).toHaveProperty('status')
           expect(step).toHaveProperty('startedAt')
@@ -577,7 +585,7 @@ describe('SOAR Engine', () => {
         })
 
         // Validate steps
-        playbook.steps.forEach((step: any) => {
+        playbook.steps.forEach((step: { stepId?: string; name?: string; type?: string }) => {
           expect(step).toHaveProperty('stepId')
           expect(step).toHaveProperty('name')
           expect(step).toHaveProperty('description')
@@ -730,7 +738,7 @@ describe('SOAR Engine', () => {
       const results = await Promise.all(processPromises)
 
       expect(results).toHaveLength(3)
-      results.forEach((executions: any) => {
+      results.forEach((executions: unknown[]) => {
         expect(Array.isArray(executions)).toBe(true)
       })
     })
@@ -755,10 +763,12 @@ describe('SOAR Engine', () => {
       const disabledConfig = {
         ...mockConfig,
         automation: {
-          ...mockConfig.automation,
           enableAutomatedResponse: false,
+          enablePlaybookExecution: true,
+          enableMLDecisionMaking: true,
+          maxAutomationLevel: 'medium' as const,
         },
-      }
+      } as const
 
       const disabledEngine = new SOAREngine(disabledConfig)
       await disabledEngine.start()
@@ -766,7 +776,7 @@ describe('SOAR Engine', () => {
       await disabledEngine.processIncident({ ...mockIncident, severity: 'critical' as const })
 
       const actions = disabledEngine.getResponseActions()
-      const automatedActions = actions.filter((a: any) => a.automated)
+      const automatedActions = actions.filter((a: { automated?: boolean }) => a.automated)
 
       // Should have fewer or no automated actions
       expect(automatedActions.length).toBe(0)

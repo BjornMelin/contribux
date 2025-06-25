@@ -1,13 +1,20 @@
+import type { Session } from 'next-auth'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { authConfig } from '@/lib/auth/config'
+import { authConfig } from '../../src/lib/auth/config'
+
+interface MockSqlFunction {
+  (template: TemplateStringsArray, ...values: unknown[]): Promise<unknown[]>
+  unsafe?: (query: string) => Promise<unknown[]>
+  mockResolvedValueOnce?: (value: unknown[]) => void
+}
 
 // Mock the database connection
-vi.mock('@/lib/db/config', () => ({
+vi.mock('../../src/lib/db/config', () => ({
   sql: vi.fn(),
 }))
 
 // Mock the environment validation
-vi.mock('@/lib/validation/env', () => ({
+vi.mock('../../src/lib/validation/env', () => ({
   env: {
     GITHUB_CLIENT_ID: 'test-github-id',
     GITHUB_CLIENT_SECRET: 'test-github-secret',
@@ -35,7 +42,9 @@ describe('Multi-Provider Authentication Configuration', () => {
     expect(authConfig.providers).toHaveLength(2)
 
     const providerIds = authConfig.providers?.map(
-      (provider: any) => provider.id || provider.options?.id
+      provider =>
+        (provider as { id?: string; options?: { id?: string } }).id ||
+        (provider as { id?: string; options?: { id?: string } }).options?.id
     )
     expect(providerIds).toContain('github')
     expect(providerIds).toContain('google')
@@ -43,20 +52,24 @@ describe('Multi-Provider Authentication Configuration', () => {
 
   it('should configure GitHub provider with correct scopes', () => {
     const githubProvider = authConfig.providers?.find(
-      (p: any) => p.id === 'github' || p.options?.id === 'github'
+      p =>
+        (p as { id?: string; options?: { id?: string } }).id === 'github' ||
+        (p as { id?: string; options?: { id?: string } }).options?.id === 'github'
     )
 
     expect(githubProvider).toBeDefined()
-    expect(githubProvider.options?.authorization?.params?.scope).toBe('read:user user:email')
+    expect(githubProvider?.options?.authorization?.params?.scope).toBe('read:user user:email')
   })
 
   it('should configure Google provider with PKCE support', () => {
     const googleProvider = authConfig.providers?.find(
-      (p: any) => p.id === 'google' || p.options?.id === 'google'
+      p =>
+        (p as { id?: string; options?: { id?: string } }).id === 'google' ||
+        (p as { id?: string; options?: { id?: string } }).options?.id === 'google'
     )
 
     expect(googleProvider).toBeDefined()
-    const authParams = googleProvider.options?.authorization?.params
+    const authParams = googleProvider?.options?.authorization?.params
     expect(authParams?.prompt).toBe('consent')
     expect(authParams?.access_type).toBe('offline')
     expect(authParams?.response_type).toBe('code')
@@ -93,7 +106,11 @@ describe('Multi-Provider Authentication Configuration', () => {
 describe('Multi-Provider SignIn Logic', () => {
   it('should validate supported providers', async () => {
     const mockUser = { email: 'test@example.com', name: 'Test User' }
-    const mockAccount = { provider: 'unsupported', providerAccountId: '123' }
+    const mockAccount = {
+      provider: 'unsupported',
+      providerAccountId: '123',
+      type: 'oauth' as const,
+    }
 
     // The signIn callback should reject unsupported providers
     const result = await authConfig.callbacks?.signIn?.({
@@ -107,7 +124,7 @@ describe('Multi-Provider SignIn Logic', () => {
 
   it('should handle missing email gracefully', async () => {
     const mockUser = { name: 'Test User' } // Missing email
-    const mockAccount = { provider: 'github', providerAccountId: '123' }
+    const mockAccount = { provider: 'github', providerAccountId: '123', type: 'oauth' as const }
 
     const result = await authConfig.callbacks?.signIn?.({
       user: mockUser,
@@ -125,6 +142,8 @@ describe('Token Management', () => {
     const mockUser = { id: 'user-123', email: 'test@example.com' }
     const mockAccount = {
       provider: 'github',
+      providerAccountId: '123',
+      type: 'oauth' as const,
       access_token: 'access-123',
       refresh_token: 'refresh-123',
       expires_at: Date.now() / 1000 + 3600,
@@ -153,6 +172,7 @@ describe('Token Management', () => {
 
     const result = await authConfig.callbacks?.jwt?.({
       token: mockToken,
+      user: { id: 'user-123' },
     })
 
     expect(result).toEqual(mockToken)
@@ -162,13 +182,23 @@ describe('Token Management', () => {
 describe('Session Management', () => {
   it('should enhance session with provider information', async () => {
     const mockSession = {
-      user: { email: 'test@example.com', name: 'Test User' },
+      user: {
+        id: 'user-123',
+        email: 'test@example.com',
+        name: 'Test User',
+        emailVerified: null,
+        connectedProviders: ['github', 'google'],
+        primaryProvider: 'github',
+      },
+      sessionToken: 'mock-session-token',
+      userId: 'user-123',
+      expires: new Date(Date.now() + 86400000),
     }
     const mockToken = { sub: 'user-123' }
 
     // Mock the SQL query result
-    const { sql } = await import('@/lib/db/config')
-    ;(sql as any).mockResolvedValueOnce([
+    const { sql } = await import('../../src/lib/db/config')
+    ;(sql as unknown as MockSqlFunction).mockResolvedValueOnce?.([
       {
         id: 'user-123',
         email: 'test@example.com',
@@ -183,8 +213,8 @@ describe('Session Management', () => {
       token: mockToken,
     })
 
-    expect(result.user.id).toBe('user-123')
-    expect(result.user.connectedProviders).toEqual(['github', 'google'])
-    expect(result.user.primaryProvider).toBe('github')
+    expect(result?.user?.id).toBe('user-123')
+    expect((result as Session)?.user?.connectedProviders).toEqual(['github', 'google'])
+    expect((result as Session)?.user?.primaryProvider).toBe('github')
   })
 })

@@ -17,7 +17,11 @@ export { ResponseActionsManager } from './response-actions'
 // Re-export all types and schemas
 export * from './schemas'
 
+// Import the engine and schemas
+import { SOAREngine } from './engine'
+import type { SOARConfig } from './schemas'
+
 // Factory function to create SOAR engine
-export function createSOAREngine(config?: Partial<import('./schemas').SOARConfig>) {
+export function createSOAREngine(config?: Partial<SOARConfig>) {
   return new SOAREngine(config)
 }

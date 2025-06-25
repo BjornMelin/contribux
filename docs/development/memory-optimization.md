@@ -97,7 +97,7 @@ The original 20MB target was unrealistic due to inherent platform requirements:
 
 ### 5. Memory-Optimized Database Pool
 
-**File**: `src/lib/db/memory-optimized-pool.ts`
+**File**: `src/lib/db/connection-pool.ts`
 
 - ✅ Intelligent connection pooling with aggressive memory optimization
 - ✅ Automatic connection eviction based on idle time and lifetime

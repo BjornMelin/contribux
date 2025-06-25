@@ -132,7 +132,7 @@ export const envSchema = z
         return value || ''
       })
       .refine(
-        (value, _ctx) => {
+        value => {
           const nodeEnv = process.env.NODE_ENV
 
           // Skip validation in test environment

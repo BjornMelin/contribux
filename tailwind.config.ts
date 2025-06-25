@@ -1,4 +1,14 @@
-import type { Config } from 'tailwindcss'
+interface Config {
+  content: string[]
+  theme?: {
+    extend?: {
+      colors?: Record<string, string>
+      animation?: Record<string, string>
+      keyframes?: Record<string, Record<string, Record<string, string>>>
+    }
+  }
+  plugins?: unknown[]
+}
 
 const config: Config = {
   content: [

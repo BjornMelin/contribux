@@ -48,7 +48,13 @@ export const EDGE_SECURITY_CONFIG = {
 } as const
 
 // Edge storage using global variables (persists for edge function lifetime)
-const _edgeCache = new Map<string, any>()
+interface EdgeCacheEntry {
+  value: unknown
+  expires: number
+  metadata?: Record<string, unknown>
+}
+
+const _edgeCache = new Map<string, EdgeCacheEntry>()
 const rateLimitCache = new Map<
   string,
   { count: number; reset: number; burst: number; lastRequest: number }
@@ -171,7 +177,7 @@ async function extractClientInfo(request: NextRequest): Promise<ClientInfo> {
     ip,
     userAgent,
     fingerprint,
-    country,
+    ...(country && { country }),
     isBot,
     isTor,
     isVpn,
@@ -215,7 +221,9 @@ async function performSecurityAnalysis(
   // Geo-blocking analysis
   if (
     clientInfo.country &&
-    EDGE_SECURITY_CONFIG.geoBlocking.blockedCountries.includes(clientInfo.country)
+    (EDGE_SECURITY_CONFIG.geoBlocking.blockedCountries as readonly string[]).includes(
+      clientInfo.country
+    )
   ) {
     threats.push('blocked_geography')
     riskScore += 0.7
@@ -343,7 +351,7 @@ async function makeSecurityDecision(
   return {
     action,
     riskScore: analysis.riskScore,
-    reasons: [...new Set(reasons)],
+    reasons: Array.from(new Set(reasons)),
     headers,
     cacheTtl: calculateCacheTtl(action, analysis.riskScore),
   }
@@ -422,7 +430,7 @@ function getClientIp(request: NextRequest): string {
   // Check various headers for the real client IP
   const forwarded = request.headers.get('x-forwarded-for')
   if (forwarded) {
-    return forwarded.split(',')[0].trim()
+    return forwarded.split(',')[0]?.trim() || 'unknown'
   }
 
   const realIp = request.headers.get('x-real-ip')
@@ -769,3 +777,36 @@ async function basicRateLimit(request: NextRequest): Promise<RateLimitResult> {
     now
   )
 }
+
+/**
+ * Main edge security middleware function
+ */
+export async function edgeSecurityMiddleware(request: NextRequest): Promise<NextResponse> {
+  const _startTime = Date.now()
+
+  try {
+    // Quick rate limiting check
+    const rateLimitResult = await basicRateLimit(request)
+    if (!rateLimitResult.allowed) {
+      return new NextResponse('Rate limit exceeded', {
+        status: 429,
+        headers: {
+          'Retry-After': rateLimitResult.retryAfter?.toString() || '60',
+          'X-RateLimit-Limit': rateLimitResult.limit.toString(),
+          'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+        },
+      })
+    }
+
+    return NextResponse.next()
+  } catch (error) {
+    console.error('Edge security middleware error:', error)
+    return NextResponse.next()
+  }
+}
+
+// Export individual configuration objects for testing
+export const RATE_LIMIT_CONFIG = EDGE_SECURITY_CONFIG.rateLimiting
+export const DDOS_CONFIG = EDGE_SECURITY_CONFIG.ddos
+export const GEO_BLOCKING_CONFIG = EDGE_SECURITY_CONFIG.geoBlocking
+export const BOT_DETECTION_CONFIG = EDGE_SECURITY_CONFIG.botDetection

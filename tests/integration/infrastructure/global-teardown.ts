@@ -16,7 +16,7 @@ interface GlobalTeardownContext {
 
 import { createPerformanceAnalyzer } from './performance-analyzer'
 
-export default async function globalTeardown({ provide }: GlobalTeardownContext) {
+export default async function globalTeardown({ provide: _provide }: GlobalTeardownContext) {
   console.log('\n🧹 Starting Integration Test Global Teardown')
   console.log('='.repeat(60))
 

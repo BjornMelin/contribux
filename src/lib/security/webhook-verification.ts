@@ -104,15 +104,15 @@ export type WebhookDelivery = z.infer<typeof WebhookDeliverySchema>
 
 export interface WebhookVerificationResult {
   valid: boolean
-  source?: WebhookSource
-  payload?: WebhookPayload
+  source?: WebhookSource | undefined
+  payload?: WebhookPayload | undefined
   errors: string[]
   warnings: string[]
   metadata: {
     verificationTime: number
-    signatureAlgorithm?: string
-    timestampDrift?: number
-    isReplay?: boolean
+    signatureAlgorithm?: string | undefined
+    timestampDrift?: number | undefined
+    isReplay?: boolean | undefined
   }
 }
 
@@ -343,7 +343,10 @@ export async function processWebhookDelivery(
     }
 
     // Make HTTP request (implement with your preferred HTTP client)
-    const result = await deliverWebhook(source?.url, delivery.payload, headers)
+    if (!source?.url) {
+      throw new Error('Source URL not found')
+    }
+    const result = await deliverWebhook(source.url, delivery.payload, headers)
 
     if (result.success) {
       delivery.status = 'delivered'
@@ -370,7 +373,7 @@ export async function processWebhookDelivery(
       delivery.status = 'failed'
     }
 
-    return { success: false, shouldRetry, error: result.error }
+    return { success: false, shouldRetry, error: result.error || 'Unknown error' }
   } catch (error) {
     delivery.status = 'failed'
     delivery.errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -415,7 +418,7 @@ export async function registerWebhookSource(
 export async function processPendingDeliveries(): Promise<void> {
   const now = Date.now()
   const pendingDeliveries = Array.from(deliveryQueue.values()).filter(
-    delivery => delivery.status === 'pending' && delivery.nextAttemptAt! <= now
+    delivery => delivery.status === 'pending' && (delivery.nextAttemptAt ?? 0) <= now
   )
 
   // Process deliveries in parallel (with concurrency limit)
@@ -478,9 +481,16 @@ function parseSignatureHeader(signatureHeader: string): WebhookSignature | null 
   // Support multiple formats: "sha256=abc123" or "algorithm=signature,timestamp=123"
   const parts = signatureHeader.split(',').map(p => p.trim())
 
-  if (parts.length === 1 && parts[0].includes('=')) {
+  if (parts.length === 1 && parts[0] && parts[0].includes('=')) {
     // Simple format: "sha256=signature"
-    const [algorithm, signature] = parts[0].split('=', 2)
+    const signatureParts = parts[0].split('=', 2)
+    const algorithm = signatureParts[0] || ''
+    const signature = signatureParts[1] || ''
+
+    if (!algorithm || !signature) {
+      return null
+    }
+
     return {
       algorithm,
       signature,
@@ -571,7 +581,7 @@ async function getWebhookSource(
   const userAgent = headers['user-agent']
   if (userAgent) {
     // Simple source identification by user agent
-    for (const source of webhookSources.values()) {
+    for (const source of Array.from(webhookSources.values())) {
       if (userAgent.includes(source.name)) {
         return source
       }
@@ -661,7 +671,7 @@ async function storeNonce(nonce: string, timestamp: number): Promise<void> {
   // Clean up old nonces
   if (nonceCache.size > WEBHOOK_CONFIG.nonce.cacheSize) {
     const cutoff = Date.now() - WEBHOOK_CONFIG.nonce.maxAgeMs
-    for (const [storedNonce, storedTimestamp] of nonceCache.entries()) {
+    for (const [storedNonce, storedTimestamp] of Array.from(nonceCache.entries())) {
       if (storedTimestamp < cutoff) {
         nonceCache.delete(storedNonce)
       }
@@ -689,7 +699,7 @@ function createVerificationResult(
   startTime: number,
   additionalMetadata?: Record<string, unknown>
 ): WebhookVerificationResult {
-  return {
+  const result: WebhookVerificationResult = {
     valid,
     source,
     payload,
@@ -700,6 +710,8 @@ function createVerificationResult(
       ...additionalMetadata,
     },
   }
+
+  return result
 }
 
 function isRetryableError(statusCode?: number): boolean {
@@ -742,14 +754,14 @@ export function cleanupWebhookCaches(): void {
 
   // Clean up old nonces
   const nonceCutoff = now - WEBHOOK_CONFIG.nonce.maxAgeMs
-  for (const [nonce, timestamp] of nonceCache.entries()) {
+  for (const [nonce, timestamp] of Array.from(nonceCache.entries())) {
     if (timestamp < nonceCutoff) {
       nonceCache.delete(nonce)
     }
   }
 
   // Clean up old rate limit records
-  for (const [key, record] of rateLimitCache.entries()) {
+  for (const [key, record] of Array.from(rateLimitCache.entries())) {
     if (record.reset < now) {
       rateLimitCache.delete(key)
     }
@@ -757,7 +769,7 @@ export function cleanupWebhookCaches(): void {
 
   // Clean up old deliveries
   const deliveryCutoff = now - 7 * 24 * 60 * 60 * 1000 // 7 days
-  for (const [id, delivery] of deliveryQueue.entries()) {
+  for (const [id, delivery] of Array.from(deliveryQueue.entries())) {
     if (delivery.timestamp < deliveryCutoff && delivery.status !== 'pending') {
       deliveryQueue.delete(id)
     }

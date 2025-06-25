@@ -4,8 +4,8 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { GitHubClient } from '@/lib/github/client'
-import { GitHubError } from '@/lib/github/errors'
+import { GitHubClient } from '../../src/lib/github/client'
+import { GitHubError } from '../../src/lib/github/errors'
 import { mockGitHubAPI, setupMSW } from './msw-setup'
 import { setupGitHubTestIsolation } from './test-helpers'
 
@@ -286,7 +286,6 @@ describe('GitHubClient - Comprehensive Tests', () => {
           }
           // Test just our validation logic, not the full client instantiation
           const client = new GitHubClient({ auth: { type: 'token', token: 'test' } })
-          // @ts-expect-error - accessing private method for testing
           client.validateConfiguration(config)
         }).not.toThrow()
       })

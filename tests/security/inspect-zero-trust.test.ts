@@ -8,10 +8,10 @@ import {
   type DeviceTrust,
   evaluateZeroTrustAccess,
   type TrustScore,
-} from '@/lib/security/zero-trust'
+} from '../../src/lib/security/zero-trust'
 
 // Mock crypto module
-vi.mock('@/lib/security/crypto', () => ({
+vi.mock('../../src/lib/security/crypto', () => ({
   createSecureHash: vi.fn().mockImplementation(() => 'mock-hash'),
   generateDeviceFingerprint: vi.fn().mockImplementation(() => 'mock-fingerprint'),
   generateSecureToken: vi
@@ -66,7 +66,7 @@ describe('Inspect Zero-Trust Function', () => {
     })
 
     // Let's also check the module exports to make sure we're testing the right function
-    const zeroTrustModule = await import('@/lib/security/zero-trust')
+    const zeroTrustModule = await import('../../src/lib/security/zero-trust')
     console.log('Available exports:', Object.keys(zeroTrustModule))
 
     expect(decision).toBeDefined()

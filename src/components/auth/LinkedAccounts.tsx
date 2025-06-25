@@ -6,7 +6,7 @@ import * as LucideIcons from 'lucide-react'
 const { AlertTriangle, Check, Github, Link2, Mail, Shield, Star, Unlink2 } = LucideIcons
 
 import { signIn } from 'next-auth/react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -55,7 +55,7 @@ const PROVIDER_CONFIGS = {
   },
 }
 
-export function LinkedAccounts({ userId, className }: LinkedAccountsProps) {
+export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsProps) {
   const [providers, setProviders] = useState<OAuthProvider[]>([])
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean
@@ -65,7 +65,7 @@ export function LinkedAccounts({ userId, className }: LinkedAccountsProps) {
   const [isLoading, setIsLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const loadProviders = async () => {
+  const loadProviders = useCallback(async () => {
     try {
       // For demo purposes, simulate linked providers based on session data
       // In a real implementation, this would fetch from the API endpoints
@@ -89,11 +89,11 @@ export function LinkedAccounts({ userId, className }: LinkedAccountsProps) {
       console.error('Failed to load providers:', err)
       setError('Failed to load connected accounts')
     }
-  }
+  }, [])
 
   useEffect(() => {
     loadProviders()
-  }, [])
+  }, [loadProviders])
 
   const _formatDate = (date: Date | string) => {
     const d = new Date(date)
@@ -451,7 +451,11 @@ export function LinkedAccounts({ userId, className }: LinkedAccountsProps) {
               {isLoading === confirmDialog.provider?.id ? (
                 <motion.div
                   animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Number.POSITIVE_INFINITY, ease: 'linear' }}
+                  transition={{
+                    duration: 1,
+                    repeat: Number.POSITIVE_INFINITY,
+                    ease: 'linear',
+                  }}
                   className="w-4 h-4 border border-current border-t-transparent rounded-full mr-2"
                 />
               ) : confirmDialog.type === 'unlink' ? (

@@ -4,7 +4,7 @@
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import '@testing-library/jest-dom'
+// jest-dom matchers are available through main setup
 import { SignInButton } from '@/app/auth/signin/signin-button'
 import { PROVIDER_CONFIGS, ProviderButton } from '@/components/auth/ProviderButton'
 
@@ -20,7 +20,7 @@ vi.mock('lucide-react', () => ({
     'aria-hidden': ariaHidden,
   }: {
     className?: string
-    'aria-hidden'?: string
+    'aria-hidden'?: boolean
   }) => (
     <div data-testid="github-icon" className={className} aria-hidden={ariaHidden}>
       GitHub
@@ -31,7 +31,7 @@ vi.mock('lucide-react', () => ({
     'aria-hidden': ariaHidden,
   }: {
     className?: string
-    'aria-hidden'?: string
+    'aria-hidden'?: boolean
   }) => (
     <div data-testid="mail-icon" className={className} aria-hidden={ariaHidden}>
       Mail
@@ -42,7 +42,7 @@ vi.mock('lucide-react', () => ({
     'aria-hidden': ariaHidden,
   }: {
     className?: string
-    'aria-hidden'?: string
+    'aria-hidden'?: boolean
   }) => (
     <div data-testid="loader-icon" className={className} aria-hidden={ariaHidden}>
       Loading
@@ -58,7 +58,10 @@ describe('Multi-Provider Authentication', () => {
 
   describe('ProviderButton', () => {
     it('renders GitHub provider button correctly', () => {
-      render(<ProviderButton provider={PROVIDER_CONFIGS.github} callbackUrl="/dashboard" />)
+      const githubConfig = PROVIDER_CONFIGS.github
+      if (!githubConfig) throw new Error('GitHub config not found')
+
+      render(<ProviderButton provider={githubConfig} callbackUrl="/dashboard" />)
 
       expect(screen.getByLabelText('Sign in with GitHub')).toBeInTheDocument()
       expect(screen.getByText('Continue with GitHub')).toBeInTheDocument()
@@ -66,7 +69,10 @@ describe('Multi-Provider Authentication', () => {
     })
 
     it('renders Google provider button correctly', () => {
-      render(<ProviderButton provider={PROVIDER_CONFIGS.google} callbackUrl="/dashboard" />)
+      const googleConfig = PROVIDER_CONFIGS.google
+      if (!googleConfig) throw new Error('Google config not found')
+
+      render(<ProviderButton provider={googleConfig} callbackUrl="/dashboard" />)
 
       expect(screen.getByLabelText('Sign in with Google')).toBeInTheDocument()
       expect(screen.getByText('Continue with Google')).toBeInTheDocument()
@@ -75,8 +81,10 @@ describe('Multi-Provider Authentication', () => {
 
     it('shows loading state when clicked', async () => {
       const { signIn } = await import('next-auth/react')
+      const githubConfig = PROVIDER_CONFIGS.github
+      if (!githubConfig) throw new Error('GitHub config not found')
 
-      render(<ProviderButton provider={PROVIDER_CONFIGS.github} callbackUrl="/dashboard" />)
+      render(<ProviderButton provider={githubConfig} callbackUrl="/dashboard" />)
 
       const button = screen.getByLabelText('Sign in with GitHub')
       fireEvent.click(button)
@@ -89,7 +97,10 @@ describe('Multi-Provider Authentication', () => {
     })
 
     it('handles disabled state correctly', () => {
-      render(<ProviderButton provider={PROVIDER_CONFIGS.github} disabled={true} />)
+      const githubConfig = PROVIDER_CONFIGS.github
+      if (!githubConfig) throw new Error('GitHub config not found')
+
+      render(<ProviderButton provider={githubConfig} disabled={true} />)
 
       const button = screen.getByLabelText('Sign in with GitHub')
       expect(button).toBeDisabled()
@@ -162,6 +173,7 @@ describe('Multi-Provider Authentication', () => {
   describe('Provider Configurations', () => {
     it('has correct GitHub provider configuration', () => {
       const github = PROVIDER_CONFIGS.github
+      if (!github) throw new Error('GitHub config not found')
 
       expect(github.id).toBe('github')
       expect(github.name).toBe('GitHub')
@@ -171,6 +183,7 @@ describe('Multi-Provider Authentication', () => {
 
     it('has correct Google provider configuration', () => {
       const google = PROVIDER_CONFIGS.google
+      if (!google) throw new Error('Google config not found')
 
       expect(google.id).toBe('google')
       expect(google.name).toBe('Google')
@@ -181,6 +194,8 @@ describe('Multi-Provider Authentication', () => {
     it('includes dark mode support in provider configurations', () => {
       const github = PROVIDER_CONFIGS.github
       const google = PROVIDER_CONFIGS.google
+      if (!github) throw new Error('GitHub config not found')
+      if (!google) throw new Error('Google config not found')
 
       expect(github.bgColor).toContain('dark:')
       expect(github.hoverColor).toContain('dark:')
@@ -192,7 +207,10 @@ describe('Multi-Provider Authentication', () => {
 
   describe('Responsive Design', () => {
     it('applies mobile-specific styling', () => {
-      render(<ProviderButton provider={PROVIDER_CONFIGS.github} />)
+      const githubConfig = PROVIDER_CONFIGS.github
+      if (!githubConfig) throw new Error('GitHub config not found')
+
+      render(<ProviderButton provider={githubConfig} />)
 
       const button = screen.getByLabelText('Sign in with GitHub')
 
@@ -206,20 +224,29 @@ describe('Multi-Provider Authentication', () => {
 
   describe('Accessibility', () => {
     it('has proper ARIA labels', () => {
-      render(<ProviderButton provider={PROVIDER_CONFIGS.github} />)
+      const githubConfig = PROVIDER_CONFIGS.github
+      if (!githubConfig) throw new Error('GitHub config not found')
+
+      render(<ProviderButton provider={githubConfig} />)
 
       expect(screen.getByLabelText('Sign in with GitHub')).toBeInTheDocument()
     })
 
     it('has proper focus management', () => {
-      render(<ProviderButton provider={PROVIDER_CONFIGS.github} />)
+      const githubConfig = PROVIDER_CONFIGS.github
+      if (!githubConfig) throw new Error('GitHub config not found')
+
+      render(<ProviderButton provider={githubConfig} />)
 
       const button = screen.getByLabelText('Sign in with GitHub')
       expect(button.className).toContain('focus-visible:outline')
     })
 
     it('marks icons as hidden from screen readers', () => {
-      render(<ProviderButton provider={PROVIDER_CONFIGS.github} />)
+      const githubConfig = PROVIDER_CONFIGS.github
+      if (!githubConfig) throw new Error('GitHub config not found')
+
+      render(<ProviderButton provider={githubConfig} />)
 
       const icon = screen.getByTestId('github-icon')
       expect(icon).toHaveAttribute('aria-hidden', 'true')

@@ -86,165 +86,168 @@ export interface GitHubIssueMock {
 /**
  * Factory for creating GitHub user mock data
  */
-export class GitHubUserMockFactory {
-  private static counter = 1
+let userMockCounter = 1
 
-  static create(overrides: Partial<GitHubUserMock> = {}): GitHubUserMock {
-    const id = GitHubUserMockFactory.counter++
+export function createGitHubUserMock(overrides: Partial<GitHubUserMock> = {}): GitHubUserMock {
+  const id = userMockCounter++
 
-    return {
-      id: overrides.id ?? 1000000 + id,
-      login: overrides.login ?? `testuser${id}`,
-      avatar_url: overrides.avatar_url ?? `https://github.com/images/error/testuser${id}_happy.gif`,
-      html_url: overrides.html_url ?? `https://github.com/${overrides.login ?? `testuser${id}`}`,
-      type: overrides.type ?? 'User',
-      site_admin: overrides.site_admin ?? false,
-      name: overrides.name ?? `Test User ${id}`,
-      email: overrides.email ?? `test${id}@example.com`,
-      bio: overrides.bio ?? `Bio for test user ${id}`,
-      company: overrides.company ?? `Test Company ${id}`,
-      location: overrides.location ?? `Test City ${id}`,
-      blog: overrides.blog ?? `https://testuser${id}.dev`,
-      twitter_username: overrides.twitter_username ?? `testuser${id}`,
-      public_repos: overrides.public_repos ?? Math.floor(Math.random() * 50),
-      public_gists: overrides.public_gists ?? Math.floor(Math.random() * 20),
-      followers: overrides.followers ?? Math.floor(Math.random() * 1000),
-      following: overrides.following ?? Math.floor(Math.random() * 500),
-      created_at:
-        overrides.created_at ??
-        new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
-      updated_at: overrides.updated_at ?? new Date().toISOString(),
-      ...overrides,
-    }
+  return {
+    id: overrides.id ?? 1000000 + id,
+    login: overrides.login ?? `testuser${id}`,
+    avatar_url: overrides.avatar_url ?? `https://github.com/images/error/testuser${id}_happy.gif`,
+    html_url: overrides.html_url ?? `https://github.com/${overrides.login ?? `testuser${id}`}`,
+    type: overrides.type ?? 'User',
+    site_admin: overrides.site_admin ?? false,
+    name: overrides.name ?? `Test User ${id}`,
+    email: overrides.email ?? `test${id}@example.com`,
+    bio: overrides.bio ?? `Bio for test user ${id}`,
+    company: overrides.company ?? `Test Company ${id}`,
+    location: overrides.location ?? `Test City ${id}`,
+    blog: overrides.blog ?? `https://testuser${id}.dev`,
+    twitter_username: overrides.twitter_username ?? `testuser${id}`,
+    public_repos: overrides.public_repos ?? Math.floor(Math.random() * 50),
+    public_gists: overrides.public_gists ?? Math.floor(Math.random() * 20),
+    followers: overrides.followers ?? Math.floor(Math.random() * 1000),
+    following: overrides.following ?? Math.floor(Math.random() * 500),
+    created_at:
+      overrides.created_at ??
+      new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: overrides.updated_at ?? new Date().toISOString(),
+    ...overrides,
   }
+}
 
-  static createMany(count: number, overrides: Partial<GitHubUserMock> = {}): GitHubUserMock[] {
-    return Array.from({ length: count }, () => GitHubUserMockFactory.create(overrides))
-  }
+export function createManyGitHubUserMocks(
+  count: number,
+  overrides: Partial<GitHubUserMock> = {}
+): GitHubUserMock[] {
+  return Array.from({ length: count }, () => createGitHubUserMock(overrides))
+}
 
-  static reset(): void {
-    GitHubUserMockFactory.counter = 1
-  }
+export function resetGitHubUserMockCounter(): void {
+  userMockCounter = 1
 }
 
 /**
  * Factory for creating GitHub repository mock data
  */
-export class GitHubRepositoryMockFactory {
-  private static counter = 1
+let repositoryMockCounter = 1
 
-  static create(overrides: Partial<GitHubRepositoryMock> = {}): GitHubRepositoryMock {
-    const id = GitHubRepositoryMockFactory.counter++
-    const owner = overrides.owner ?? GitHubUserMockFactory.create()
-    const name = overrides.name ?? `test-repo-${id}`
-    const fullName = `${owner.login}/${name}`
+export function createGitHubRepositoryMock(
+  overrides: Partial<GitHubRepositoryMock> = {}
+): GitHubRepositoryMock {
+  const id = repositoryMockCounter++
+  const owner = overrides.owner ?? createGitHubUserMock()
+  const name = overrides.name ?? `test-repo-${id}`
+  const fullName = `${owner.login}/${name}`
 
-    return {
-      id: overrides.id ?? 2000000 + id,
-      name,
-      full_name: overrides.full_name ?? fullName,
-      description: overrides.description ?? `Test repository ${id} description`,
-      html_url: overrides.html_url ?? `https://github.com/${fullName}`,
-      clone_url: overrides.clone_url ?? `https://github.com/${fullName}.git`,
-      git_url: overrides.git_url ?? `git://github.com/${fullName}.git`,
-      ssh_url: overrides.ssh_url ?? `git@github.com:${fullName}.git`,
-      language: overrides.language ?? 'TypeScript',
-      stargazers_count: overrides.stargazers_count ?? Math.floor(Math.random() * 5000),
-      watchers_count: overrides.watchers_count ?? Math.floor(Math.random() * 100),
-      forks_count: overrides.forks_count ?? Math.floor(Math.random() * 500),
-      open_issues_count: overrides.open_issues_count ?? Math.floor(Math.random() * 50),
-      default_branch: overrides.default_branch ?? 'main',
-      topics: overrides.topics ?? ['test', 'example', 'javascript'],
-      archived: overrides.archived ?? false,
-      disabled: overrides.disabled ?? false,
-      private: overrides.private ?? false,
-      fork: overrides.fork ?? false,
-      created_at:
-        overrides.created_at ??
-        new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
-      updated_at: overrides.updated_at ?? new Date().toISOString(),
-      pushed_at: overrides.pushed_at ?? new Date().toISOString(),
-      owner,
-      license: overrides.license ?? {
-        key: 'mit',
-        name: 'MIT License',
-        spdx_id: 'MIT',
-      },
-      ...overrides,
-    }
+  return {
+    id: overrides.id ?? 2000000 + id,
+    name,
+    full_name: overrides.full_name ?? fullName,
+    description: overrides.description ?? `Test repository ${id} description`,
+    html_url: overrides.html_url ?? `https://github.com/${fullName}`,
+    clone_url: overrides.clone_url ?? `https://github.com/${fullName}.git`,
+    git_url: overrides.git_url ?? `git://github.com/${fullName}.git`,
+    ssh_url: overrides.ssh_url ?? `git@github.com:${fullName}.git`,
+    language: overrides.language ?? 'TypeScript',
+    stargazers_count: overrides.stargazers_count ?? Math.floor(Math.random() * 5000),
+    watchers_count: overrides.watchers_count ?? Math.floor(Math.random() * 100),
+    forks_count: overrides.forks_count ?? Math.floor(Math.random() * 500),
+    open_issues_count: overrides.open_issues_count ?? Math.floor(Math.random() * 50),
+    default_branch: overrides.default_branch ?? 'main',
+    topics: overrides.topics ?? ['test', 'example', 'javascript'],
+    archived: overrides.archived ?? false,
+    disabled: overrides.disabled ?? false,
+    private: overrides.private ?? false,
+    fork: overrides.fork ?? false,
+    created_at:
+      overrides.created_at ??
+      new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: overrides.updated_at ?? new Date().toISOString(),
+    pushed_at: overrides.pushed_at ?? new Date().toISOString(),
+    owner,
+    license: overrides.license ?? {
+      key: 'mit',
+      name: 'MIT License',
+      spdx_id: 'MIT',
+    },
+    ...overrides,
   }
+}
 
-  static createMany(
-    count: number,
-    overrides: Partial<GitHubRepositoryMock> = {}
-  ): GitHubRepositoryMock[] {
-    return Array.from({ length: count }, () => GitHubRepositoryMockFactory.create(overrides))
-  }
+export function createManyGitHubRepositoryMocks(
+  count: number,
+  overrides: Partial<GitHubRepositoryMock> = {}
+): GitHubRepositoryMock[] {
+  return Array.from({ length: count }, () => createGitHubRepositoryMock(overrides))
+}
 
-  static reset(): void {
-    GitHubRepositoryMockFactory.counter = 1
-  }
+export function resetGitHubRepositoryMockCounter(): void {
+  repositoryMockCounter = 1
 }
 
 /**
  * Factory for creating GitHub issue mock data
  */
-export class GitHubIssueMockFactory {
-  private static counter = 1
+let issueMockCounter = 1
 
-  static create(overrides: Partial<GitHubIssueMock> = {}): GitHubIssueMock {
-    const id = GitHubIssueMockFactory.counter++
-    const user = overrides.user ?? GitHubUserMockFactory.create()
+export function createGitHubIssueMock(overrides: Partial<GitHubIssueMock> = {}): GitHubIssueMock {
+  const id = issueMockCounter++
+  const user = overrides.user ?? createGitHubUserMock()
 
-    return {
-      id: overrides.id ?? 3000000 + id,
-      number: overrides.number ?? id,
-      title: overrides.title ?? `Test Issue ${id}`,
-      body: overrides.body ?? `Test issue ${id} description with details`,
-      state: overrides.state ?? 'open',
-      labels: overrides.labels ?? [
-        {
-          id: 1,
-          name: 'bug',
-          color: 'd73a4a',
-          description: "Something isn't working",
-        },
-        {
-          id: 2,
-          name: 'good first issue',
-          color: '7057ff',
-          description: 'Good for newcomers',
-        },
-      ],
-      user,
-      assignee: overrides.assignee ?? null,
-      assignees: overrides.assignees ?? [],
-      milestone: overrides.milestone ?? null,
-      created_at:
-        overrides.created_at ??
-        new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
-      updated_at: overrides.updated_at ?? new Date().toISOString(),
-      closed_at: overrides.closed_at ?? null,
-      html_url: overrides.html_url ?? `https://github.com/testowner/test-repo/issues/${id}`,
-      comments: overrides.comments ?? Math.floor(Math.random() * 10),
-      ...overrides,
-    }
+  const baseIssue: GitHubIssueMock = {
+    id: overrides.id ?? 3000000 + id,
+    number: overrides.number ?? id,
+    title: overrides.title ?? `Test Issue ${id}`,
+    body: overrides.body ?? `Test issue ${id} description with details`,
+    state: overrides.state ?? 'open',
+    labels: overrides.labels ?? [
+      {
+        id: 1,
+        name: 'bug',
+        color: 'd73a4a',
+        description: "Something isn't working",
+      },
+      {
+        id: 2,
+        name: 'good first issue',
+        color: '7057ff',
+        description: 'Good for newcomers',
+      },
+    ],
+    user,
+    assignees: overrides.assignees ?? [],
+    created_at:
+      overrides.created_at ??
+      new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: overrides.updated_at ?? new Date().toISOString(),
+    html_url: overrides.html_url ?? `https://github.com/testowner/test-repo/issues/${id}`,
+    comments: overrides.comments ?? Math.floor(Math.random() * 10),
   }
 
-  static createMany(count: number, overrides: Partial<GitHubIssueMock> = {}): GitHubIssueMock[] {
-    return Array.from({ length: count }, () => GitHubIssueMockFactory.create(overrides))
+  return {
+    ...baseIssue,
+    ...overrides,
   }
+}
 
-  static reset(): void {
-    GitHubIssueMockFactory.counter = 1
-  }
+export function createManyGitHubIssueMocks(
+  count: number,
+  overrides: Partial<GitHubIssueMock> = {}
+): GitHubIssueMock[] {
+  return Array.from({ length: count }, () => createGitHubIssueMock(overrides))
+}
+
+export function resetGitHubIssueMockCounter(): void {
+  issueMockCounter = 1
 }
 
 /**
  * Reset all factory counters
  */
-export function resetGitHubMockFactories(): void {
-  GitHubUserMockFactory.reset()
-  GitHubRepositoryMockFactory.reset()
-  GitHubIssueMockFactory.reset()
+export function resetAllGitHubMockCounters(): void {
+  resetGitHubUserMockCounter()
+  resetGitHubRepositoryMockCounter()
+  resetGitHubIssueMockCounter()
 }

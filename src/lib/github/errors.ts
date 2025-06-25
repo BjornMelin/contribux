@@ -24,9 +24,9 @@ export interface RequestContext {
   /** Current retry attempt number (0 for initial attempt) */
   retryAttempt: number
   /** Maximum number of retries configured */
-  maxRetries?: number
+  maxRetries: number
   /** Request duration in milliseconds (if available) */
-  duration?: number
+  duration?: number | undefined
 }
 
 export class GitHubClientError extends Error {
@@ -38,7 +38,7 @@ export class GitHubClientError extends Error {
 
 // Unified error class for the GitHub client
 export class GitHubError extends Error {
-  public readonly requestContext?: RequestContext
+  public readonly requestContext?: RequestContext | undefined
   public readonly isRetryable: boolean
   public readonly errorCategory: 'client' | 'server' | 'network' | 'validation'
 
@@ -47,7 +47,7 @@ export class GitHubError extends Error {
     public readonly code: string,
     public readonly status?: number,
     public readonly response?: unknown,
-    requestContext?: RequestContext
+    requestContext?: RequestContext | undefined
   ) {
     super(message)
     this.name = 'GitHubError'
@@ -249,7 +249,7 @@ export function createRequestContext(
   operation: string,
   params: Record<string, unknown>,
   retryAttempt = 0,
-  maxRetries?: number,
+  maxRetries = 0,
   startTime?: Date
 ): RequestContext {
   const timestamp = startTime || new Date()
