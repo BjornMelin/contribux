@@ -60,16 +60,29 @@ export async function handleDataRectification(
 
   const updatedFields: string[] = []
 
-  // Validate and update user data
+  // Validate and update user data using parameterized queries
   for (const [field, value] of Object.entries(fieldUpdates)) {
     if (isValidUserField(field)) {
-      await sql.unsafe(
+      // Use parameterized queries to prevent SQL injection
+      if (field === 'email') {
+        await sql`
+          UPDATE users 
+          SET email = ${value}, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ${userId}
         `
-        UPDATE users 
-        SET ${field} = '${value}', updated_at = CURRENT_TIMESTAMP
-        WHERE id = '${userId}'
-      `
-      )
+      } else if (field === 'github_username') {
+        await sql`
+          UPDATE users 
+          SET github_username = ${value}, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ${userId}
+        `
+      } else if (field === 'recovery_email') {
+        await sql`
+          UPDATE users 
+          SET recovery_email = ${value}, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ${userId}
+        `
+      }
       updatedFields.push(field)
     }
   }
