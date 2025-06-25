@@ -7,9 +7,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 describe('Zero-Trust Cryptographic Security', () => {
   let originalEnv: NodeJS.ProcessEnv
+  let processExitSpy: ReturnType<typeof vi.spyOn>
 
   beforeEach(() => {
     originalEnv = { ...process.env }
+
+    // Mock process.exit to prevent test runner termination
+    processExitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('process.exit called')
+    })
 
     // Skip environment validation during test module imports to prevent timing issues
     process.env.SKIP_ENV_VALIDATION = 'true'
@@ -17,8 +23,7 @@ describe('Zero-Trust Cryptographic Security', () => {
     // Set up test environment variables needed for crypto tests
     vi.stubEnv('NODE_ENV', 'test')
     process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/testdb'
-    process.env.JWT_SECRET =
-      'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only'
+    process.env.JWT_SECRET = '8f6be3e6a8bc63ab47bd41db4d11ccdcdff3eb07f04aab983956719007f0e025ab'
     process.env.ENCRYPTION_KEY = '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
     process.env.GITHUB_CLIENT_ID = 'Iv1.a1b2c3d4e5f6g7h8'
     process.env.GITHUB_CLIENT_SECRET =
@@ -29,6 +34,7 @@ describe('Zero-Trust Cryptographic Security', () => {
   })
 
   afterEach(() => {
+    processExitSpy.mockRestore()
     process.env = originalEnv
   })
 
@@ -41,16 +47,15 @@ describe('Zero-Trust Cryptographic Security', () => {
       try {
         vi.stubEnv('NODE_ENV', 'production')
         process.env.ENCRYPTION_KEY = '' // Set to empty string to ensure it's truly missing
-        delete process.env.SKIP_ENV_VALIDATION // Temporarily enable validation for this test
+        // Keep SKIP_ENV_VALIDATION but test individual functions
 
-        // Import and test the real function using ES module syntax
+        // Import the function (module import is safe with SKIP_ENV_VALIDATION='true')
         const { getEncryptionKey } = await import('@/lib/validation/env')
 
         // Should require encryption key in production
         expect(() => getEncryptionKey()).toThrow(/ENCRYPTION_KEY environment variable is required/i)
       } finally {
         process.env.NODE_ENV = originalNodeEnv
-        process.env.SKIP_ENV_VALIDATION = 'true' // Restore test environment
         if (originalEncryptionKey !== undefined) {
           process.env.ENCRYPTION_KEY = originalEncryptionKey
         } else {
@@ -68,16 +73,15 @@ describe('Zero-Trust Cryptographic Security', () => {
         vi.stubEnv('NODE_ENV', 'production') // Set production to trigger validation
         process.env.ENCRYPTION_KEY =
           '0000000000000000000000000000000000000000000000000000000000000000' // Weak key
-        delete process.env.SKIP_ENV_VALIDATION // Temporarily enable validation for this test
+        // Keep SKIP_ENV_VALIDATION but test individual functions
 
-        // Import and test the real function using ES module syntax
+        // Import the function (module import is safe with SKIP_ENV_VALIDATION='true')
         const { getEncryptionKey } = await import('@/lib/validation/env')
 
         // Should validate key strength and reject weak keys
         expect(() => getEncryptionKey()).toThrow(/insufficient entropy/i)
       } finally {
         process.env.NODE_ENV = originalNodeEnv
-        process.env.SKIP_ENV_VALIDATION = 'true' // Restore test environment
         if (originalEncryptionKey !== undefined) {
           process.env.ENCRYPTION_KEY = originalEncryptionKey
         } else {

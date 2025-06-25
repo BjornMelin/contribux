@@ -31,7 +31,7 @@ vi.mock('../../src/lib/validation/env', () => ({
   env: {
     NODE_ENV: 'test',
     DATABASE_URL: 'postgresql://test:test@localhost:5432/testdb',
-    JWT_SECRET: 'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only',
+    JWT_SECRET: '8f6be3e6a8bc63ab47bd41db4d11ccdcdff3eb07f04aab983956719007f0e025ab',
     GITHUB_CLIENT_ID: 'test1234567890123456',
     GITHUB_CLIENT_SECRET: 'test-github-client-secret-with-sufficient-length-for-testing',
     WEBAUTHN_RP_ID: 'localhost',
@@ -43,8 +43,7 @@ vi.mock('../../src/lib/validation/env', () => ({
   isProduction: () => false,
   isDevelopment: () => false,
   isTest: () => true,
-  getJwtSecret: () =>
-    'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only',
+  getJwtSecret: () => '8f6be3e6a8bc63ab47bd41db4d11ccdcdff3eb07f04aab983956719007f0e025ab',
   getEncryptionKey: () => '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
 }))
 

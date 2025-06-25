@@ -130,7 +130,7 @@ describe('Environment Validation', () => {
       const { getJwtSecret } = await import('../../src/lib/validation/env')
 
       expect(getJwtSecret()).toBe(
-        'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only'
+        '8f6be3e6a8bc63ab47bd41db4d11ccdcdff3eb07f04aab983956719007f0e025ab'
       )
     })
   })
@@ -373,7 +373,7 @@ describe('Environment Validation', () => {
       const { getJwtSecret } = await import('../../src/lib/validation/env')
 
       expect(getJwtSecret()).toBe(
-        'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only'
+        '8f6be3e6a8bc63ab47bd41db4d11ccdcdff3eb07f04aab983956719007f0e025ab'
       )
     })
 
@@ -418,17 +418,18 @@ describe('Environment Validation', () => {
       const mockProcessExit = vi.fn()
       const originalConsoleError = console.error
       const originalProcessExit = process.exit
+      const originalNodeEnv = process.env.NODE_ENV
 
       console.error = mockConsoleError
       process.exit = mockProcessExit as unknown as typeof process.exit
 
       try {
-        // Set invalid environment
-        setupValidTestEnv({
-          NODE_ENV: 'production',
-          DATABASE_URL: 'invalid-url',
-          JWT_SECRET: 'short',
-        })
+        // Set invalid environment with production mode
+        // Temporarily override NODE_ENV in process.env to simulate production
+        process.env.NODE_ENV = 'production'
+        process.env.SKIP_ENV_VALIDATION = 'false'
+        process.env.DATABASE_URL = 'invalid-url'
+        process.env.JWT_SECRET = 'short'
 
         vi.resetModules()
         const { validateEnvironmentOnStartup } = await import('../../src/lib/validation/env')
@@ -440,9 +441,10 @@ describe('Environment Validation', () => {
           expect.stringContaining('Environment validation failed')
         )
       } finally {
-        // Restore original methods
+        // Restore original methods and environment
         console.error = originalConsoleError
         process.exit = originalProcessExit
+        process.env.NODE_ENV = originalNodeEnv
       }
     })
   })

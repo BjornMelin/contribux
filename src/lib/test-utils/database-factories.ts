@@ -56,6 +56,8 @@ export interface TestOpportunity {
  */
 export class UserFactory {
   private sql: NeonQueryFunction<false, false>
+  private usedUsernames: Set<string> = new Set()
+  private usedEmails: Set<string> = new Set()
 
   constructor(sql: NeonQueryFunction<false, false>) {
     this.sql = sql
@@ -65,10 +67,32 @@ export class UserFactory {
    * Create a test user with realistic data
    */
   async create(overrides: Partial<TestUser> = {}): Promise<TestUser> {
+    // Generate unique username
+    let github_username = overrides.github_username || faker.internet.username()
+    
+    // If username was explicitly provided, make it unique by adding timestamp suffix if already used
+    if (overrides.github_username && this.usedUsernames.has(github_username)) {
+      github_username = `${overrides.github_username}_${Date.now()}_${faker.number.int({ min: 1, max: 999 })}`
+    }
+    
+    // For generated usernames, use original collision detection
+    while (!overrides.github_username && this.usedUsernames.has(github_username)) {
+      github_username = faker.internet.username() + '_' + faker.number.int({ min: 1, max: 999 })
+    }
+    
+    this.usedUsernames.add(github_username)
+    
+    // Generate unique email
+    let email = overrides.email || faker.internet.email()
+    while (this.usedEmails.has(email)) {
+      email = faker.internet.email()
+    }
+    this.usedEmails.add(email)
+    
     const userData: TestUser = {
       github_id: faker.number.int({ min: 1000000, max: 9999999 }).toString(),
-      github_username: faker.internet.username(),
-      email: faker.internet.email(),
+      github_username,
+      email,
       name: faker.person.fullName(),
       avatar_url: faker.image.avatar(),
       preferences: {
@@ -129,6 +153,7 @@ export class UserFactory {
  */
 export class RepositoryFactory {
   private sql: NeonQueryFunction<false, false>
+  private usedGithubIds: Set<string> = new Set()
 
   constructor(sql: NeonQueryFunction<false, false>) {
     this.sql = sql
@@ -138,8 +163,15 @@ export class RepositoryFactory {
    * Create a test repository with realistic data
    */
   async create(overrides: Partial<TestRepository> = {}): Promise<TestRepository> {
+    // Generate unique github_id
+    let github_id = overrides.github_id || faker.number.int({ min: 100000, max: 999999 }).toString()
+    while (this.usedGithubIds.has(github_id)) {
+      github_id = faker.number.int({ min: 100000, max: 999999 }).toString()
+    }
+    this.usedGithubIds.add(github_id)
+    
     const repoData: TestRepository = {
-      github_id: faker.number.int({ min: 100000, max: 999999 }).toString(),
+      github_id,
       name: faker.lorem.slug(),
       full_name: `${faker.internet.username()}/${faker.lorem.slug()}`,
       description: faker.lorem.sentence(),
@@ -208,6 +240,7 @@ export class RepositoryFactory {
  */
 export class OpportunityFactory {
   private sql: NeonQueryFunction<false, false>
+  private issueNumberCounters: Map<string, number> = new Map()
 
   constructor(sql: NeonQueryFunction<false, false>) {
     this.sql = sql
@@ -217,9 +250,14 @@ export class OpportunityFactory {
    * Create a test opportunity with realistic data
    */
   async create(overrides: Partial<TestOpportunity> = {}): Promise<TestOpportunity> {
+    const repositoryId = overrides.repository_id || (await this.getRandomRepositoryId())
+    
+    // Get next unique issue number for this repository
+    const issueNumber = overrides.issue_number || this.getNextIssueNumber(repositoryId)
+    
     const oppData: TestOpportunity = {
-      repository_id: overrides.repository_id || (await this.getRandomRepositoryId()),
-      issue_number: faker.number.int({ min: 1, max: 1000 }),
+      repository_id: repositoryId,
+      issue_number: issueNumber,
       title: faker.lorem.sentence(),
       description: faker.lorem.paragraphs(2),
       labels: faker.helpers.arrayElements(
@@ -292,6 +330,16 @@ export class OpportunityFactory {
     overrides: Partial<TestOpportunity> = {}
   ): Promise<TestOpportunity> {
     return this.create({ repository_id: repositoryId, ...overrides })
+  }
+
+  /**
+   * Get next unique issue number for repository
+   */
+  private getNextIssueNumber(repositoryId: string): number {
+    const current = this.issueNumberCounters.get(repositoryId) || 0
+    const next = current + 1
+    this.issueNumberCounters.set(repositoryId, next)
+    return next
   }
 
   /**

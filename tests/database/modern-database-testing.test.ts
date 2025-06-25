@@ -31,13 +31,13 @@ describe('Modern Database Testing Infrastructure', () => {
 
       // Create test data
       const user = await factories.users.create({
-        github_username: 'test-user',
+        github_username: `test-user-${Date.now()}`,
         email: 'test@example.com',
         name: 'Test User',
       })
 
       expect(user.id).toBeDefined()
-      expect(user.github_username).toBe('test-user')
+      expect(user.github_username).toMatch(/^test-user-\d+$/)
 
       // Query the data
       const [foundUser] = await sql`
@@ -199,7 +199,7 @@ describe('Modern Database Testing Infrastructure', () => {
 
       // Create initial data
       const _user = await factories.users.create({
-        github_username: 'transaction-user',
+        github_username: `transaction-user-${Date.now()}`,
         email: 'transaction@example.com',
       })
 
@@ -287,7 +287,7 @@ describe('Modern Database Testing Infrastructure', () => {
 
       // Create user with specific skills
       const _user = await factories.users.createWithSkills(['TypeScript', 'React', 'Node.js'], {
-        github_username: 'typescript-expert',
+        github_username: `typescript-expert-${Date.now()}`,
         preferences: {
           difficulty: 'advanced',
           languages: ['TypeScript', 'JavaScript'],

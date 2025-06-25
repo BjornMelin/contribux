@@ -6,19 +6,27 @@
  * pattern detection, and weak key prevention.
  */
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 describe('Entropy Validation Security', () => {
   let originalEnv: NodeJS.ProcessEnv
+  let processExitSpy: ReturnType<typeof vi.spyOn>
 
   beforeEach(() => {
     originalEnv = { ...process.env }
 
-    // Enable environment validation for these tests
-    delete process.env.SKIP_ENV_VALIDATION
+    // Mock process.exit to prevent test runner termination
+    processExitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('process.exit called')
+    })
+
+    // Set up controlled test environment with proper validation flags
+    process.env.NODE_ENV = 'test'
+    process.env.SKIP_ENV_VALIDATION = 'false' // Enable validation but prevent exit
   })
 
   afterEach(() => {
+    processExitSpy.mockRestore()
     process.env = originalEnv
   })
 

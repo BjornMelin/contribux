@@ -202,8 +202,7 @@ describe('Environment Startup Validation Security', () => {
     it('should succeed with test environment setup', async () => {
       process.env.NODE_ENV = 'test'
       process.env.DATABASE_URL = 'postgresql://postgres:postgres@localhost:5432/contribux_test'
-      process.env.JWT_SECRET =
-        'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only'
+      process.env.JWT_SECRET = '8f6be3e6a8bc63ab47bd41db4d11ccdcdff3eb07f04aab983956719007f0e025ab'
       process.env.ENCRYPTION_KEY =
         'test567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12'
 
@@ -215,8 +214,7 @@ describe('Environment Startup Validation Security', () => {
     it('should still require encryption key in test environment', async () => {
       process.env.NODE_ENV = 'test'
       process.env.DATABASE_URL = 'postgresql://postgres:postgres@localhost:5432/contribux_test'
-      process.env.JWT_SECRET =
-        'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only'
+      process.env.JWT_SECRET = '8f6be3e6a8bc63ab47bd41db4d11ccdcdff3eb07f04aab983956719007f0e025ab'
       // Missing ENCRYPTION_KEY
 
       const { getEncryptionKey } = await import('@/lib/validation/env')
@@ -322,7 +320,7 @@ describe('Environment Startup Validation Security', () => {
         vi.stubEnv('NODE_ENV', 'test')
         process.env.DATABASE_URL = url
         process.env.JWT_SECRET =
-          'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only'
+          '8f6be3e6a8bc63ab47bd41db4d11ccdcdff3eb07f04aab983956719007f0e025ab'
         process.env.ENCRYPTION_KEY =
           'test567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12'
 
@@ -344,7 +342,7 @@ describe('Environment Startup Validation Security', () => {
         vi.stubEnv('NODE_ENV', 'test')
         process.env.DATABASE_URL = url
         process.env.JWT_SECRET =
-          'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only'
+          '8f6be3e6a8bc63ab47bd41db4d11ccdcdff3eb07f04aab983956719007f0e025ab'
         process.env.ENCRYPTION_KEY =
           'test567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12'
 

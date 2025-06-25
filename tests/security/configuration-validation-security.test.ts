@@ -41,8 +41,7 @@ describe('Configuration Validation Security', () => {
     // Set base test environment variables to prevent import-time validation failures
     vi.stubEnv('NODE_ENV', 'test')
     process.env.DATABASE_URL = 'postgresql://testuser:testpass@localhost:5432/testdb'
-    process.env.JWT_SECRET =
-      'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only-32chars'
+    process.env.JWT_SECRET = '8f6be3e6a8bc63ab47bd41db4d11ccdcdff3eb07f04aab983956719007f0e025ab'
     process.env.ENCRYPTION_KEY = '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
     process.env.GITHUB_CLIENT_ID = 'Iv1.a1b2c3d4e5f6g7h8'
     process.env.GITHUB_CLIENT_SECRET =
@@ -50,8 +49,8 @@ describe('Configuration Validation Security', () => {
     process.env.NEXT_PUBLIC_APP_URL = 'https://contribux.com'
     process.env.CORS_ORIGINS = 'https://contribux.com'
 
-    // Enable environment validation for these tests (will be overridden in individual tests)
-    delete process.env.SKIP_ENV_VALIDATION
+    // Set environment validation to controlled mode for these tests
+    process.env.SKIP_ENV_VALIDATION = 'false' // Enable validation but with mocked exit
   })
 
   afterEach(() => {
