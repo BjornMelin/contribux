@@ -5,16 +5,7 @@
 
 import { afterEach, beforeEach, vi } from 'vitest'
 
-// Extend global type for test state
-declare global {
-  var __githubClientCache: Record<string, unknown>
-  var __githubRateLimitState: Record<string, unknown>
-  var __testCleanupRegistry: Set<() => Promise<void> | void>
-  var __mswerkerInstances: unknown[]
-  var __activeTimers: Set<NodeJS.Timeout>
-  var __activeIntervals: Set<NodeJS.Timeout>
-  var __eventListeners: Map<string, (() => void)[]>
-}
+// Global test state management - use property access instead of delete operator
 
 // Store original environment variables
 const originalEnv = { ...process.env }
@@ -104,13 +95,13 @@ function clearModuleLevelState() {
 function clearGitHubClientState() {
   // GitHub client instances might cache rate limit info
   // Force module reset to clear these caches
-  if (global.__githubClientCache) {
-    delete global.__githubClientCache
+  if ((global as Record<string, unknown>).__githubClientCache) {
+    ;(global as Record<string, unknown>).__githubClientCache = undefined
   }
 
   // Clear any rate limit trackers
-  if (global.__githubRateLimitState) {
-    delete global.__githubRateLimitState
+  if ((global as Record<string, unknown>).__githubRateLimitState) {
+    ;(global as Record<string, unknown>).__githubRateLimitState = undefined
   }
 }
 
@@ -315,19 +306,21 @@ export function registerForCleanup(
 ) {
   switch (type) {
     case 'connection':
-      resourceTracker.openConnections.add(resource)
+      resourceTracker.openConnections.add(
+        resource as { close?: () => void; destroy?: () => void; end?: () => void }
+      )
       break
     case 'process':
-      resourceTracker.childProcesses.add(resource)
+      resourceTracker.childProcesses.add(resource as { kill?: () => void })
       break
     case 'handle':
-      resourceTracker.fileHandles.add(resource)
+      resourceTracker.fileHandles.add(resource as { close?: () => void })
       break
     case 'timer':
-      resourceTracker.timers.add(resource)
+      resourceTracker.timers.add(resource as NodeJS.Timeout)
       break
     case 'interval':
-      resourceTracker.intervals.add(resource)
+      resourceTracker.intervals.add(resource as NodeJS.Timeout)
       break
   }
 }

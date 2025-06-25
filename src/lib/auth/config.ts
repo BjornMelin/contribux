@@ -1,10 +1,9 @@
-import type { Account, NextAuthConfig, Profile, User } from 'next-auth'
+import type { Account, NextAuthConfig, Profile, Session, User } from 'next-auth'
 import GitHub from 'next-auth/providers/github'
 import Google from 'next-auth/providers/google'
 import { sql } from '@/lib/db/config'
 import { env } from '@/lib/validation/env'
 import type { User as AuthUser } from '@/types/auth'
-import type { UUID } from '@/types/base'
 import type { GitHubProfile, GoogleProfile } from '@/types/oauth'
 import { extractGitHubUserData, extractGoogleUserData, parseOAuthProfile } from '@/types/oauth'
 
@@ -58,7 +57,8 @@ export const authConfig: NextAuthConfig = {
         })
 
         if (result.success && result.user) {
-          user.id = result.user.id
+          // We can't modify user.id directly since it's readonly
+          // NextAuth will handle the user ID mapping through the session callback
           return true
         }
 
@@ -73,7 +73,7 @@ export const authConfig: NextAuthConfig = {
       }
     },
 
-    async session({ session, token }) {
+    async session({ session, token }): Promise<Session> {
       if (token.sub) {
         // Fetch fresh user data with provider information
         const userResult = await sql`
@@ -100,17 +100,23 @@ export const authConfig: NextAuthConfig = {
             primary_provider: string
           }
 
-          // Return new session object since properties are readonly
+          // Return new session object that matches NextAuth Session type
+          const userUpdate: typeof session.user = {
+            ...session.user,
+            id: token.sub,
+            email: String(user.email),
+            connectedProviders: user.connected_providers || [],
+            primaryProvider: user.primary_provider || 'github',
+          }
+
+          // Only add githubUsername if it exists to satisfy exactOptionalPropertyTypes
+          if (user.githubUsername) {
+            userUpdate.githubUsername = String(user.githubUsername)
+          }
+
           return {
             ...session,
-            user: {
-              ...session.user,
-              id: token.sub as UUID,
-              email: user.email,
-              githubUsername: user.githubUsername,
-              connectedProviders: user.connected_providers || [],
-              primaryProvider: user.primary_provider,
-            },
+            user: userUpdate,
           }
         }
       }

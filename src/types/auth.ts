@@ -7,13 +7,54 @@ import { BaseEntitySchema, EmailSchema, GitHubUsernameSchema, UUIDSchema } from 
 declare module 'next-auth' {
   interface Session extends DefaultSession {
     user: {
-      readonly id: UUID
-      readonly email: Email
-      readonly githubUsername?: GitHubUsername
-      readonly connectedProviders: ReadonlyArray<string>
-      readonly primaryProvider: string
+      id: string
+      email: string
+      githubUsername?: string | undefined
+      connectedProviders: string[]
+      primaryProvider: string
     } & DefaultSession['user']
   }
+
+  interface User {
+    id: string
+    email: string
+    emailVerified: Date | null
+    name?: string | null
+    image?: string | null
+    githubUsername?: string
+  }
+}
+
+// Note: NextAuth v5 uses @auth/core/adapters internally
+// We define these interfaces here for type compatibility
+export interface CustomAdapterUser {
+  id: string
+  email: string
+  emailVerified: Date | null
+  name?: string | null
+  image?: string | null
+  githubUsername?: string
+}
+
+export interface CustomAdapterAccount {
+  userId: string
+  type: string
+  provider: string
+  providerAccountId: string
+  refresh_token?: string | null
+  access_token?: string | null
+  expires_at?: number | null
+  token_type?: string | null
+  scope?: string | null
+  id_token?: string | null
+  session_state?: string | null
+}
+
+export interface CustomAdapterSession {
+  id: string
+  sessionToken: string
+  userId: string
+  expires: Date
 }
 
 // ==================== CORE ENUMS ====================

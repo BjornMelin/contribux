@@ -27,7 +27,7 @@ const loadNodeModules = async () => {
   }
 }
 
-import { adaptiveTimingSafeEqual } from '@/lib/crypto-utils'
+import { timingSafeEqual } from '@/lib/crypto-utils'
 import { sql } from '@/lib/db/config'
 import { env } from '@/lib/validation/env'
 import type { AccessTokenPayload, User } from '@/types/auth'
@@ -678,11 +678,11 @@ export async function validateCSRF(request: NextRequest): Promise<boolean> {
 
   // Validate using timing-safe comparison
   if (headerToken) {
-    return await adaptiveTimingSafeEqual(headerToken, cookieToken)
+    return await timingSafeEqual(Buffer.from(headerToken), Buffer.from(cookieToken))
   }
 
   if (doubleSubmitToken) {
-    return await adaptiveTimingSafeEqual(doubleSubmitToken, cookieToken)
+    return await timingSafeEqual(Buffer.from(doubleSubmitToken), Buffer.from(cookieToken))
   }
 
   return false

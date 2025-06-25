@@ -41,6 +41,7 @@ const OpportunitySchema = z.object({
 })
 
 export async function GET(request: NextRequest) {
+  const startTime = Date.now()
   try {
     // Parse and validate query parameters
     const url = new URL(request.url)
@@ -51,55 +52,20 @@ export async function GET(request: NextRequest) {
     // Extract parameters
     const { q: query, page, per_page, difficulty, type, languages, min_score } = validatedParams
 
-    // Build SQL query with filters
-    const whereConditions = ["o.status = 'open'"]
-    const params: unknown[] = []
-    let paramIndex = 1
-
-    // Add text search condition
-    if (query) {
-      whereConditions.push(`(
-        o.title ILIKE $${paramIndex} OR 
-        o.description ILIKE $${paramIndex + 1} OR
-        to_tsvector('english', o.title || ' ' || COALESCE(o.description, '')) @@ plainto_tsquery('english', $${paramIndex + 2})
-      )`)
-      params.push(`%${query}%`, `%${query}%`, query)
-      paramIndex += 3
-    }
-
-    // Add difficulty filter
-    if (difficulty) {
-      whereConditions.push(`o.difficulty = $${paramIndex}`)
-      params.push(difficulty)
-      paramIndex++
-    }
-
-    // Add type filter
-    if (type) {
-      whereConditions.push(`o.type = $${paramIndex}`)
-      params.push(type)
-      paramIndex++
-    }
-
-    // Add minimum relevance score filter
-    if (min_score) {
-      whereConditions.push(`
-        GREATEST(
-          similarity(o.title, $${paramIndex}),
-          similarity(COALESCE(o.description, ''), $${paramIndex + 1})
-        ) >= $${paramIndex + 2}
-      `)
-      params.push(query || '', query || '', min_score)
-      paramIndex += 3
-    }
-
-    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : ''
-
     // Calculate pagination
     const offset = (page - 1) * per_page
 
-    // Build dynamic query with embedded parameters (simpler approach)
-    const mainQuery = `
+    // Execute main query using proper parameterized queries (SQL injection safe)
+    type DatabaseOpportunity = {
+      created_at: string
+      technologies: string[] | null
+      required_skills: string[] | null
+      labels: unknown[]
+      [key: string]: unknown
+    }
+
+    // Use safe parameterized query instead of sql.unsafe()
+    const opportunities = (await sql`
       SELECT DISTINCT
         o.id,
         o.repository_id,
@@ -121,30 +87,55 @@ export async function GET(request: NextRequest) {
         o.created_at,
         0.5 AS relevance_score
       FROM opportunities o
-      ${whereClause}
+      WHERE o.status = 'open'
+      ${
+        query
+          ? sql`AND (
+        o.title ILIKE ${`%${query}%`} OR 
+        o.description ILIKE ${`%${query}%`} OR
+        to_tsvector('english', o.title || ' ' || COALESCE(o.description, '')) @@ plainto_tsquery('english', ${query})
+      )`
+          : sql``
+      }
+      ${difficulty ? sql`AND o.difficulty = ${difficulty}` : sql``}
+      ${type ? sql`AND o.type = ${type}` : sql``}
+      ${
+        min_score
+          ? sql`AND GREATEST(
+        similarity(o.title, ${query || ''}),
+        similarity(COALESCE(o.description, ''), ${query || ''})
+      ) >= ${min_score}`
+          : sql``
+      }
       ORDER BY priority DESC, created_at DESC
       LIMIT ${per_page} OFFSET ${offset}
-    `
+    `) as unknown as DatabaseOpportunity[]
 
-    // Execute main query using Neon SQL template literal
-    type DatabaseOpportunity = {
-      created_at: string
-      technologies: string[] | null
-      required_skills: string[] | null
-      labels: unknown[]
-      [key: string]: unknown
-    }
-
-    const opportunities = (await sql.unsafe(mainQuery)) as unknown as DatabaseOpportunity[]
-
-    // Get total count for pagination
-    const countQuery = `
+    // Get total count for pagination using safe parameterized query
+    const countResult = (await sql`
       SELECT COUNT(DISTINCT o.id) as total
       FROM opportunities o
-      ${whereClause}
-    `
-
-    const countResult = (await sql.unsafe(countQuery)) as unknown as [{ total: number }]
+      WHERE o.status = 'open'
+      ${
+        query
+          ? sql`AND (
+        o.title ILIKE ${`%${query}%`} OR 
+        o.description ILIKE ${`%${query}%`} OR
+        to_tsvector('english', o.title || ' ' || COALESCE(o.description, '')) @@ plainto_tsquery('english', ${query})
+      )`
+          : sql``
+      }
+      ${difficulty ? sql`AND o.difficulty = ${difficulty}` : sql``}
+      ${type ? sql`AND o.type = ${type}` : sql``}
+      ${
+        min_score
+          ? sql`AND GREATEST(
+        similarity(o.title, ${query || ''}),
+        similarity(COALESCE(o.description, ''), ${query || ''})
+      ) >= ${min_score}`
+          : sql``
+      }
+    `) as unknown as [{ total: number }]
     const [{ total }] = countResult
 
     // Format response
@@ -170,7 +161,7 @@ export async function GET(request: NextRequest) {
           languages,
           min_score,
         },
-        execution_time_ms: Math.floor(Math.random() * 100) + 10,
+        execution_time_ms: Date.now() - startTime,
       },
     }
 

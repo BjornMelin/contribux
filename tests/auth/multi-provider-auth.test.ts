@@ -105,7 +105,12 @@ describe('Multi-Provider Authentication Configuration', () => {
 
 describe('Multi-Provider SignIn Logic', () => {
   it('should validate supported providers', async () => {
-    const mockUser = { email: 'test@example.com', name: 'Test User' }
+    const mockUser = {
+      id: 'test-id',
+      email: 'test@example.com',
+      name: 'Test User',
+      emailVerified: null,
+    }
     const mockAccount = {
       provider: 'unsupported',
       providerAccountId: '123',
@@ -123,7 +128,7 @@ describe('Multi-Provider SignIn Logic', () => {
   })
 
   it('should handle missing email gracefully', async () => {
-    const mockUser = { name: 'Test User' } // Missing email
+    const mockUser = { id: 'test-id', name: 'Test User', email: '', emailVerified: null } // Missing email
     const mockAccount = { provider: 'github', providerAccountId: '123', type: 'oauth' as const }
 
     const result = await authConfig.callbacks?.signIn?.({
@@ -139,7 +144,7 @@ describe('Multi-Provider SignIn Logic', () => {
 describe('Token Management', () => {
   it('should handle JWT token creation', async () => {
     const mockToken = { sub: 'user-123' }
-    const mockUser = { id: 'user-123', email: 'test@example.com' }
+    const mockUser = { id: 'user-123', email: 'test@example.com', emailVerified: null }
     const mockAccount = {
       provider: 'github',
       providerAccountId: '123',
@@ -172,7 +177,7 @@ describe('Token Management', () => {
 
     const result = await authConfig.callbacks?.jwt?.({
       token: mockToken,
-      user: { id: 'user-123' },
+      user: { id: 'user-123', email: '', emailVerified: null },
     })
 
     expect(result).toEqual(mockToken)
@@ -186,13 +191,11 @@ describe('Session Management', () => {
         id: 'user-123',
         email: 'test@example.com',
         name: 'Test User',
-        emailVerified: null,
+        image: null,
         connectedProviders: ['github', 'google'],
         primaryProvider: 'github',
       },
-      sessionToken: 'mock-session-token',
-      userId: 'user-123',
-      expires: new Date(Date.now() + 86400000),
+      expires: new Date(Date.now() + 86400000).toISOString(),
     }
     const mockToken = { sub: 'user-123' }
 

@@ -231,7 +231,7 @@ async function archiveExpiredData(tableName: string, cutoffDate: Date): Promise<
 
   // Use a switch statement to map validated table names to safe queries
   // This eliminates any possibility of injection while maintaining functionality
-  let result
+  let result: unknown
   switch (tableName) {
     case 'users':
       result = await sql`
@@ -326,7 +326,7 @@ async function deleteExpiredData(tableName: string, cutoffDate: Date): Promise<{
 
   // Use a switch statement to map validated table names to safe queries
   // This eliminates any possibility of injection while maintaining functionality
-  let result
+  let result: unknown
   switch (tableName) {
     case 'users':
       result = await sql`DELETE FROM users WHERE created_at < ${cutoffDate}`

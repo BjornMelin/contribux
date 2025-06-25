@@ -3,11 +3,13 @@
  * These factories create objects that conform to the auth types schema
  */
 
+import type { AdapterUser } from 'next-auth/adapters'
 import type {
   AccessTokenPayload,
   AuthEventType,
   AuthMethod,
   ConsentType,
+  CustomAdapterUser,
   EventSeverity,
   OAuthAccount,
   OAuthProvider,
@@ -173,6 +175,86 @@ export function createTestUserDataExport(overrides: Partial<UserDataExport> = {}
     interactions: [],
     exportedAt: new Date(),
     exportVersion: '1.0',
+    ...overrides,
+  }
+}
+
+/**
+ * Create a valid NextAuth User object (compatible with signIn callback)
+ */
+export function createTestNextAuthUser(
+  overrides: Partial<{
+    id: string
+    email: string
+    name: string
+    emailVerified: Date | null
+    image?: string | null
+    githubUsername?: string
+  }> = {}
+): {
+  id: string
+  email: string
+  name?: string | null
+  emailVerified: Date | null
+  image?: string | null
+  githubUsername?: string
+} {
+  const id = `user-${userCounter.toString().padStart(3, '0')}-${Date.now()}`
+  userCounter++
+
+  return {
+    id,
+    email: `test-${userCounter}@example.com`,
+    name: `Test User ${userCounter}`,
+    emailVerified: null,
+    image: null,
+    githubUsername: `github-user-${userCounter}`,
+    ...overrides,
+  }
+}
+
+/**
+ * Create a valid NextAuth AdapterUser object
+ */
+export function createTestAdapterUser(overrides: Partial<AdapterUser> = {}): AdapterUser {
+  const id = `user-${userCounter.toString().padStart(3, '0')}-${Date.now()}`
+  userCounter++
+
+  return {
+    id,
+    email: `test-${userCounter}@example.com`,
+    emailVerified: null,
+    name: `Test User ${userCounter}`,
+    image: null,
+    ...overrides,
+  }
+}
+
+/**
+ * Create a valid NextAuth Session object with proper types
+ */
+export function createTestNextAuthSession(
+  overrides: Partial<{
+    user: AdapterUser
+    sessionToken: string
+    userId: string
+    expires: string // Note: NextAuth Session uses string, not Date
+  }> = {}
+): {
+  user: AdapterUser
+  sessionToken: string
+  userId: string
+  expires: string
+} {
+  const userId = `user-${userCounter}`
+  const sessionId = `session-${sessionCounter.toString().padStart(3, '0')}-${Date.now()}`
+  sessionCounter++
+
+  return {
+    user: createTestAdapterUser({ id: userId }),
+    sessionToken: sessionId,
+    userId,
+    expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours from now as string
     ...overrides,
   }
 }

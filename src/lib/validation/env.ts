@@ -116,39 +116,22 @@ export const envSchema = z
     VERCEL_URL: z.string().optional(),
     PORT: z.string().pipe(z.coerce.number().int().min(1).max(65535)).default('3000'),
 
-    // Authentication configuration
+    // Authentication configuration - NO FALLBACKS ALLOWED
     JWT_SECRET: z
       .string()
-      .optional()
-      .transform(value => {
-        // Get the actual NODE_ENV from process.env at runtime
-        const nodeEnv = process.env.NODE_ENV
-
-        // In test environment, provide default if not set
-        if (nodeEnv === 'test' && !value) {
-          return 'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only'
-        }
-
-        return value || ''
-      })
+      .min(32, 'JWT_SECRET must be at least 32 characters long')
       .refine(
         value => {
-          const nodeEnv = process.env.NODE_ENV
-
-          // Skip validation in test environment
-          if (nodeEnv === 'test') {
-            return true
-          }
-
-          // For non-test environments, validate the JWT secret
+          // Always validate JWT secret - no exceptions for test environment
           try {
             return validateJwtSecret(value)
-          } catch (_error) {
+          } catch (error) {
+            console.error('JWT_SECRET validation failed:', error)
             return false
           }
         },
         {
-          message: 'JWT_SECRET validation failed',
+          message: 'JWT_SECRET validation failed - must be cryptographically secure',
         }
       ),
 
@@ -202,7 +185,7 @@ export const envSchema = z
     ALLOWED_ORIGINS: z.string().optional(),
   })
   .superRefine((data, ctx) => {
-    // Environment-specific validation
+    // Environment-specific validation - ONLY apply production checks in production
     if (data.NODE_ENV === 'production') {
       // Production security checks
       if (!data.JWT_SECRET || data.JWT_SECRET.includes('test') || data.JWT_SECRET.includes('dev')) {
@@ -264,6 +247,13 @@ export const envSchema = z
           })
         }
       }
+    }
+
+    // Skip all production checks for test environment
+    if (data.NODE_ENV === 'test') {
+      // In test mode, we intentionally allow localhost URLs, test secrets, etc.
+      // No validation issues should be added for test environment
+      return
     }
 
     // Validate rate limiting configuration (all environments)
@@ -404,77 +394,86 @@ export function validateEnvironmentOnStartup(): void {
   }
 }
 
-// Runtime validation of environment variables with graceful fallbacks
+// Strict runtime validation - NO FALLBACKS ALLOWED
 function getValidatedEnv() {
   try {
-    return envSchema.parse(process.env)
-  } catch (error) {
-    if (process.env.NODE_ENV === 'test') {
-      // In test environment, provide safe defaults with fallbacks
-      const testDefaults = {
-        ...process.env,
-        NODE_ENV: 'test',
-        JWT_SECRET: 'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only',
-        DATABASE_URL:
-          process.env.DATABASE_URL ||
-          process.env.DATABASE_URL_TEST ||
-          'postgresql://test:test@localhost:5432/testdb',
-        GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID || 'Iv1.a1b2c3d4e5f6g7h8',
-        GITHUB_CLIENT_SECRET:
-          process.env.GITHUB_CLIENT_SECRET ||
-          'test-github-client-secret-with-sufficient-length-for-testing-purposes-to-meet-40-char-requirement',
-        GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || 'test-google-client-id',
-        GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || 'test-google-client-secret',
-        NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-        CORS_ORIGINS: process.env.CORS_ORIGINS || 'http://localhost:3000',
-        ALLOWED_REDIRECT_URIS:
-          process.env.ALLOWED_REDIRECT_URIS || 'http://localhost:3000/api/auth/github/callback',
+    const parsed = envSchema.parse(process.env)
+
+    // Additional security validation for all environments
+    const nodeEnv = parsed.NODE_ENV
+    const requiredKeys = ['JWT_SECRET', 'DATABASE_URL']
+
+    if (nodeEnv === 'production') {
+      // Production requires all critical keys
+      requiredKeys.push('GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET', 'ENCRYPTION_KEY')
+    }
+
+    // Verify all required keys are present and non-empty
+    for (const key of requiredKeys) {
+      const value = process.env[key]
+      if (!value || value.trim() === '') {
+        throw new Error(
+          `Required environment variable ${key} is missing or empty in ${nodeEnv} environment`
+        )
       }
 
-      try {
-        return envSchema.parse(testDefaults)
-      } catch (_testError) {
-        // If test defaults still fail, provide minimal working config
-        console.warn('Test environment validation failed, using minimal config')
-        return envSchema.parse({
-          NODE_ENV: 'test',
-          JWT_SECRET:
-            'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only',
-          DATABASE_URL: 'postgresql://test:test@localhost:5432/testdb',
-          GITHUB_CLIENT_ID: 'Iv1.a1b2c3d4e5f6g7h8',
-          GITHUB_CLIENT_SECRET:
-            'test-github-client-secret-with-sufficient-length-for-testing-purposes-to-meet-40-char-requirement',
-          NEXT_PUBLIC_APP_URL: 'http://localhost:3000',
-          CORS_ORIGINS: 'http://localhost:3000',
-          ALLOWED_REDIRECT_URIS: 'http://localhost:3000/api/auth/github/callback',
-          // Include all required defaults for test environment
-          DB_PROJECT_ID: 'test-project',
-          DB_MAIN_BRANCH: 'test-main',
-          DB_DEV_BRANCH: 'test-dev',
-          DB_TEST_BRANCH: 'test-test',
-          DB_POOL_MIN: '2',
-          DB_POOL_MAX: '20',
-          DB_POOL_IDLE_TIMEOUT: '10000',
-          HNSW_EF_SEARCH: '200',
-          VECTOR_SIMILARITY_THRESHOLD: '0.7',
-          HYBRID_SEARCH_TEXT_WEIGHT: '0.3',
-          HYBRID_SEARCH_VECTOR_WEIGHT: '0.7',
-          PORT: '3000',
-          RATE_LIMIT_MAX: '100',
-          RATE_LIMIT_WINDOW: '900',
-          LOG_LEVEL: 'error',
-          ENABLE_AUDIT_LOGS: 'false',
-          ENABLE_OAUTH: 'false',
-          MAINTENANCE_MODE: 'false',
-        })
+      // Ensure no hardcoded test values in production
+      if (nodeEnv === 'production' && value.toLowerCase().includes('test')) {
+        throw new Error(
+          `Environment variable ${key} contains 'test' keyword in production environment`
+        )
       }
     }
-    throw error
+
+    return parsed
+  } catch (error) {
+    console.error('Environment validation failed:')
+    console.error(error instanceof Error ? error.message : 'Unknown error')
+    console.error('\nApplication cannot start without proper environment configuration.')
+    console.error('Please ensure all required environment variables are set with secure values.')
+
+    // Block application startup - no fallbacks allowed
+    process.exit(1)
   }
 }
 
 // Export env only if not in validation test mode
 export const env = process.env.SKIP_ENV_VALIDATION ? ({} as Env) : getValidatedEnv()
+
+// Validation function expected by security tests
+export function validateEnvironment(): { encryptionKey: string } {
+  const envNodeEnv = process.env.NODE_ENV || 'development'
+  const encryptionKey = process.env.ENCRYPTION_KEY
+
+  // For production, encryption key is required
+  if (envNodeEnv === 'production' && !encryptionKey) {
+    throw new Error('ENCRYPTION_KEY is required in production')
+  }
+
+  // Only validate key if it's provided
+  if (encryptionKey) {
+    // First validate format before other validations
+    if (!/^[0-9a-fA-F]{64}$/.test(encryptionKey)) {
+      throw new Error('Invalid encryption key format - must be 64 hex characters')
+    }
+
+    // Then validate length (this should be redundant with format check, but keeping for explicit clarity)
+    if (encryptionKey.length !== 64) {
+      throw new Error('Invalid encryption key length - must be 256 bits (64 hex characters)')
+    }
+
+    // Finally check for weak keys (too simple patterns)
+    const entropy = calculateShannonEntropy(encryptionKey)
+    if (entropy < 3.0) {
+      throw new Error('Weak encryption key - insufficient entropy')
+    }
+  }
+
+  // Return the encryption key for testing purposes
+  return {
+    encryptionKey: getEncryptionKey(),
+  }
+}
 
 // Type inference for TypeScript
 export type Env = z.infer<typeof envSchema>
@@ -486,46 +485,53 @@ export const isTest = () => env.NODE_ENV === 'test'
 
 // Security utilities
 export function getJwtSecret(): string {
-  if (process.env.NODE_ENV === 'test') {
-    return 'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only'
+  // No fallbacks - environment must provide secure JWT secret
+  const jwtSecret = process.env.JWT_SECRET
+
+  if (!jwtSecret || jwtSecret.trim() === '') {
+    throw new Error('JWT_SECRET environment variable is required and cannot be empty')
   }
 
-  // For non-test environments, try to get from env first, then from process.env
+  // Validate the secret meets security requirements
   try {
-    return (
-      env.JWT_SECRET ||
-      process.env.JWT_SECRET ||
-      (() => {
-        throw new Error('JWT_SECRET is required')
-      })()
+    validateJwtSecret(jwtSecret)
+    return jwtSecret
+  } catch (error) {
+    throw new Error(
+      `JWT_SECRET validation failed: ${error instanceof Error ? error.message : 'Invalid secret'}`
     )
-  } catch (_error) {
-    // Fallback if env is not available
-    if (process.env.JWT_SECRET) {
-      return process.env.JWT_SECRET
-    }
-    throw new Error('JWT_SECRET is required')
   }
 }
 
 export function getEncryptionKey(): string {
   const envNodeEnv = process.env.NODE_ENV || 'development'
+  const encryptionKey = process.env.ENCRYPTION_KEY
 
-  // Try to get from env first, then from process.env
-  let encryptionKey: string | undefined
-  try {
-    encryptionKey = env.ENCRYPTION_KEY || process.env.ENCRYPTION_KEY
-  } catch (_error) {
-    encryptionKey = process.env.ENCRYPTION_KEY
+  // No fallbacks allowed - encryption key must always be provided
+  if (!encryptionKey || encryptionKey.trim() === '') {
+    throw new Error(
+      `ENCRYPTION_KEY environment variable is required in ${envNodeEnv} environment. ` +
+        'Please set a secure 64-character hexadecimal encryption key. ' +
+        'Generate one using: openssl rand -hex 32'
+    )
   }
 
-  if (!encryptionKey) {
-    if (envNodeEnv === 'production') {
-      throw new Error('ENCRYPTION_KEY is required in production')
-    }
-    // Generate a deterministic key for development/test
-    // Return a fixed key instead of using crypto
-    return '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+  // Validate the encryption key format and security
+  if (!/^[0-9a-fA-F]{64}$/.test(encryptionKey)) {
+    throw new Error(
+      'ENCRYPTION_KEY must be exactly 64 hexadecimal characters (256 bits). ' +
+        'Generate a secure key using: openssl rand -hex 32'
+    )
   }
+
+  // Check for weak keys (too simple patterns)
+  const entropy = calculateShannonEntropy(encryptionKey)
+  if (entropy < 3.0) {
+    throw new Error(
+      'ENCRYPTION_KEY has insufficient entropy (too predictable). ' +
+        'Generate a secure key using: openssl rand -hex 32'
+    )
+  }
+
   return encryptionKey
 }

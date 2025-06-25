@@ -591,23 +591,51 @@ async function generateSecureKeyId(publicKey: CryptoKey): Promise<string> {
   return `ztsec_${hashBase64.replace(/[+/=]/g, '')}`
 }
 
-async function getCorrespondingPublicKey(_privateKey: CryptoKey): Promise<CryptoKey> {
-  // This is a simplified version - in production, you'd maintain the key pair relationship
-  throw new Error('Public key retrieval not implemented - maintain key pair relationships')
+async function getCorrespondingPublicKey(privateKey: CryptoKey): Promise<CryptoKey> {
+  // For testing and development - derive public key from private key
+  // In production, you'd maintain the key pair relationship in secure storage
+
+  // Get the algorithm info from the private key
+  const keyData = await crypto.subtle.exportKey('jwk', privateKey)
+
+  // Extract the public key from the private key
+  const publicKey = await crypto.subtle.importKey(
+    'jwk',
+    {
+      kty: keyData.kty,
+      crv: keyData.crv,
+      x: keyData.x,
+      y: keyData.y,
+    } as JsonWebKey,
+    {
+      name: privateKey.algorithm.name,
+      namedCurve: (privateKey.algorithm as EcKeyAlgorithm).namedCurve,
+    },
+    true,
+    ['verify']
+  )
+
+  return publicKey
 }
 
-// Temporary key storage functions (implement with secure storage in production)
-async function storeKeyPairSecurely(_keyPair: SecureKeyPair, _token: string): Promise<void> {
-  // TODO: Implement secure key storage
-  console.warn('Temporary key storage not implemented for production use')
+// Temporary key storage for testing (implement with secure storage in production)
+const temporaryKeyStorage = new Map<string, SecureKeyPair>()
+
+async function storeKeyPairSecurely(keyPair: SecureKeyPair, token: string): Promise<void> {
+  // WARNING: This is for testing only - in production use secure storage
+  temporaryKeyStorage.set(token, keyPair)
 }
 
-async function retrieveKeyPairSecurely(_token: string): Promise<SecureKeyPair> {
-  // TODO: Implement secure key retrieval
-  throw new Error('Secure key retrieval not implemented')
+async function retrieveKeyPairSecurely(token: string): Promise<SecureKeyPair> {
+  // WARNING: This is for testing only - in production use secure storage
+  const keyPair = temporaryKeyStorage.get(token)
+  if (!keyPair) {
+    throw new Error('Key pair not found for token')
+  }
+  return keyPair
 }
 
-async function cleanupKeyExchange(_token: string): Promise<void> {
-  // TODO: Implement key cleanup
-  console.warn('Key cleanup not implemented')
+async function cleanupKeyExchange(token: string): Promise<void> {
+  // WARNING: This is for testing only - in production use secure storage
+  temporaryKeyStorage.delete(token)
 }

@@ -2,14 +2,14 @@
  * SQL Injection Prevention Tests
  * Tests to verify all code is protected against SQL injection attacks
  * CRITICAL: These tests validate against REAL vulnerabilities found in the codebase
- * 
+ *
  * This test suite validates the fixes made by the security team:
  * - Subagent A: Fixed data-deletion.ts SQL injection vulnerabilities
- * - Subagent B: Fixed test-database-manager.ts template literal vulnerabilities  
+ * - Subagent B: Fixed test-database-manager.ts template literal vulnerabilities
  * - Validation.ts: Already secured with parameterized queries
  */
 
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import {
   anonymizeUserData,
   deleteUserData,
@@ -76,17 +76,13 @@ describe('SQL Injection Prevention - Critical Security Tests', () => {
         // Should fail with "User not found" or "Error connecting to database", not with SQL syntax error
         expect(error).toBeInstanceOf(Error)
         const errorMessage = (error as Error).message
-        
+
         // Acceptable error messages (either user not found or connection issue)
-        const acceptableErrors = [
-          'User not found', 
-          'Error connecting to database',
-          'fetch failed'
-        ]
-        
+        const acceptableErrors = ['User not found', 'Error connecting to database', 'fetch failed']
+
         const hasAcceptableError = acceptableErrors.some(msg => errorMessage.includes(msg))
         expect(hasAcceptableError).toBe(true)
-        
+
         // Should NOT contain SQL injection error messages
         expect(errorMessage).not.toContain('syntax error')
         expect(errorMessage).not.toContain('unexpected token')
@@ -146,7 +142,7 @@ describe('SQL Injection Prevention - Critical Security Tests', () => {
         expect(result.updatedFields).not.toContain(
           "email = 'hacked@evil.com' WHERE '1'='1'; DROP TABLE users; --"
         )
-        
+
         // Should have empty updated fields since the field name is invalid
         expect(result.updatedFields).toEqual([])
       } catch (error) {
@@ -210,8 +206,8 @@ describe('SQL Injection Prevention - Critical Security Tests', () => {
       // instead of template literal interpolation
 
       // Verify that the TestDatabaseManager's table validation works
-      const manager = TestDatabaseManager.getInstance()
-      
+      const _manager = TestDatabaseManager.getInstance()
+
       // The validation is internal, but we can verify safe operation
       try {
         // This should work fine - normal truncation operation
@@ -228,7 +224,7 @@ describe('SQL Injection Prevention - Critical Security Tests', () => {
     it('should validate table names with allowlist to prevent SQL injection', async () => {
       // Test the fix: table names are now validated against an allowlist
       // and use switch statements instead of template literals
-      
+
       // Verify database operations continue to work safely
       try {
         const testQuery = await testDb.sql`SELECT 1 as test_value`
@@ -285,21 +281,22 @@ describe('SQL Injection Prevention - Critical Security Tests', () => {
     it('should validate data-deletion.ts fixes use parameterized queries', async () => {
       // Test that the archiveExpiredData and deleteExpiredData functions
       // now use switch statements instead of sql.unsafe()
-      
+
       try {
         const result = await enforceDataRetentionPolicies()
-        
+
         // Should complete without SQL injection errors
         expect(result).toHaveProperty('deletedRecords')
         expect(result).toHaveProperty('archivedRecords')
         expect(result).toHaveProperty('errors')
-        
+
         // Should not have any SQL injection-related errors
-        const injectionErrors = result.errors.filter(error => 
-          error.includes('syntax error') || 
-          error.includes('DROP') || 
-          error.includes('DELETE FROM') ||
-          error.includes('unexpected token')
+        const injectionErrors = result.errors.filter(
+          error =>
+            error.includes('syntax error') ||
+            error.includes('DROP') ||
+            error.includes('DELETE FROM') ||
+            error.includes('unexpected token')
         )
         expect(injectionErrors).toHaveLength(0)
       } catch (error) {
@@ -312,7 +309,7 @@ describe('SQL Injection Prevention - Critical Security Tests', () => {
     it('should validate anonymizeUserData uses parameterized queries', async () => {
       // Test that anonymizeUserData function uses parameterized queries
       const testUserId = '550e8400-e29b-41d4-a716-446655440000'
-      
+
       try {
         const result = await anonymizeUserData(testUserId)
         expect(typeof result).toBe('boolean')
@@ -331,7 +328,7 @@ describe('SQL Injection Prevention - Critical Security Tests', () => {
         "'; UPDATE users SET email='hacked@evil.com' WHERE '1'='1'; --",
         "'; INSERT INTO users (email) VALUES ('injected@evil.com'); --",
         "' OR 1=1; DROP SCHEMA public CASCADE; --",
-        "'; SELECT pg_sleep(10); --"
+        "'; SELECT pg_sleep(10); --",
       ]
 
       for (const payload of complexPayloads) {
@@ -351,7 +348,7 @@ describe('SQL Injection Prevention - Critical Security Tests', () => {
     it('should validate table name allowlist implementation', async () => {
       // Test that the table name validation in TestDatabaseManager
       // properly rejects invalid table names
-      
+
       // This is tested indirectly by ensuring normal operations work
       // while malicious table names would be rejected by validation
       try {
@@ -365,20 +362,18 @@ describe('SQL Injection Prevention - Critical Security Tests', () => {
 
     it('should ensure all user input is properly escaped', async () => {
       // Test that all user-controllable inputs are properly escaped
-      const specialCharacters = [
-        "'", '"', ";", "--", "/*", "*/", "\\", "\n", "\r", "\t"
-      ]
+      const specialCharacters = ["'", '"', ';', '--', '/*', '*/', '\\', '\n', '\r', '\t']
 
       for (const char of specialCharacters) {
         const testValue = `test${char}value`
-        
+
         try {
           const result = await handleDataRectification(
             '550e8400-e29b-41d4-a716-446655440000',
             { email: testValue },
             'valid-rectification-token'
           )
-          
+
           // Should process the value as literal text, not SQL
           expect(result.success).toBe(true)
         } catch (error) {

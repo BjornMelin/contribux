@@ -4,8 +4,9 @@
  */
 
 import { authConfig } from '@/lib/config'
-import { adaptiveCreateHash, adaptiveTimingSafeEqual } from '@/lib/crypto-utils'
+import { timingSafeEqual } from '@/lib/crypto-utils'
 import { sql } from '@/lib/db/config'
+import { createSecureHash } from '@/lib/security/crypto'
 import type {
   AnomalyDetection,
   AuditLogFilters,
@@ -140,7 +141,7 @@ export async function logSecurityEvent(params: {
       event_data: params.event_data,
       timestamp: new Date().toISOString(),
     })
-    checksum = await adaptiveCreateHash(data)
+    checksum = await createSecureHash(data)
   }
 
   const result = await sql`
@@ -865,10 +866,10 @@ export async function verifyAuditLogIntegrity(logId: string): Promise<boolean> {
     timestamp: auditLog.created_at.toISOString(),
   })
 
-  const expectedChecksum = await adaptiveCreateHash(data)
+  const expectedChecksum = await createSecureHash(data)
 
   // Use timing-safe comparison
-  return await adaptiveTimingSafeEqual(auditLog.checksum, expectedChecksum)
+  return await timingSafeEqual(Buffer.from(auditLog.checksum), Buffer.from(expectedChecksum))
 }
 
 // Get audit log retention policy

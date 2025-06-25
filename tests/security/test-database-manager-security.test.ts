@@ -1,12 +1,21 @@
 /**
  * Security Test Suite for TestDatabaseManager
- * 
+ *
  * Tests SQL injection prevention in table truncation operations
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { TestDatabaseManager } from '@/lib/test-utils/test-database-manager'
+import type { PGlite } from '@electric-sql/pglite'
+import type { NeonQueryFunction } from '@neondatabase/serverless'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DatabaseConnection } from '@/lib/test-utils/test-database-manager'
+import { TestDatabaseManager } from '@/lib/test-utils/test-database-manager'
+
+// Type-safe interface for accessing private methods in tests
+interface TestDatabaseManagerInternal {
+  truncateAllTables(sql: NeonQueryFunction<false, false>): Promise<void>
+  truncateAllTablesPGlite(db: PGlite): Promise<void>
+  validateTableName(tableName: string): void
+}
 
 describe('TestDatabaseManager Security', () => {
   let manager: TestDatabaseManager
@@ -28,41 +37,43 @@ describe('TestDatabaseManager Security', () => {
     it('should allow valid table names for truncation', async () => {
       connection = await manager.getConnection('test-valid-tables', {
         strategy: 'pglite',
-        cleanup: 'truncate'
+        cleanup: 'truncate',
       })
 
       // Test that cleanup works with valid table names
       expect(async () => {
-        await connection!.cleanup()
+        await connection?.cleanup()
       }).not.toThrow()
     })
 
     it('should reject malicious table names in truncateAllTables', async () => {
       connection = await manager.getConnection('test-malicious-tables', {
         strategy: 'pglite',
-        cleanup: 'truncate'
+        cleanup: 'truncate',
       })
 
       // Access private method through reflection for testing
-      const managerInstance = manager as any
+      const managerInstance = manager as TestDatabaseManagerInternal
       const sql = connection.sql
 
       // Test malicious table names that should be rejected
       const maliciousTableNames = [
         'users; DROP TABLE users; --',
-        'users\'); DROP TABLE users; --',
+        "users'); DROP TABLE users; --",
         'users UNION SELECT * FROM pg_tables',
         '../../../etc/passwd',
         'users/**/OR/**/1=1',
-        'users; INSERT INTO users VALUES (\'hacker\'); --'
+        "users; INSERT INTO users VALUES ('hacker'); --",
       ]
 
       for (const maliciousName of maliciousTableNames) {
         // Mock the tables array to include malicious name
         const originalTruncateMethod = managerInstance.truncateAllTables
-        managerInstance.truncateAllTables = async function(sqlClient: any) {
+        managerInstance.truncateAllTables = async function (
+          sqlClient: NeonQueryFunction<false, false>
+        ) {
           const tables = ['user_skills', 'opportunities', 'repositories', 'users', maliciousName]
-          
+
           for (const table of tables) {
             try {
               // This should throw for malicious table names
@@ -90,31 +101,31 @@ describe('TestDatabaseManager Security', () => {
     it('should reject malicious table names in truncateAllTablesPGlite', async () => {
       connection = await manager.getConnection('test-malicious-pglite', {
         strategy: 'pglite',
-        cleanup: 'truncate'
+        cleanup: 'truncate',
       })
 
       // Access private method through reflection for testing
-      const managerInstance = manager as any
-      
+      const managerInstance = manager as TestDatabaseManagerInternal
+
       // Create a mock PGlite instance
       const mockDb = {
-        query: vi.fn().mockResolvedValue({ rows: [] })
+        query: vi.fn().mockResolvedValue({ rows: [] }),
       }
 
       // Test malicious table names that should be rejected
       const maliciousTableNames = [
         'users; DROP TABLE users; --',
-        'users\'); DROP DATABASE test; --',
+        "users'); DROP DATABASE test; --",
         'users UNION SELECT password FROM admin_users',
-        'users/**/OR/**/1=1/**/--'
+        'users/**/OR/**/1=1/**/--',
       ]
 
       for (const maliciousName of maliciousTableNames) {
         // Mock the tables array to include malicious name
         const originalTruncatePGliteMethod = managerInstance.truncateAllTablesPGlite
-        managerInstance.truncateAllTablesPGlite = async function(db: any) {
+        managerInstance.truncateAllTablesPGlite = async function (db: PGlite) {
           const tables = ['user_skills', 'opportunities', 'repositories', 'users', maliciousName]
-          
+
           for (const table of tables) {
             try {
               // This should throw for malicious table names
@@ -140,18 +151,18 @@ describe('TestDatabaseManager Security', () => {
     })
 
     it('should validate allowed table names correctly', () => {
-      const managerInstance = manager as any
-      
+      const managerInstance = manager as TestDatabaseManagerInternal
+
       // Valid table names should not throw
       const validTableNames = [
         'users',
-        'repositories', 
+        'repositories',
         'opportunities',
         'user_skills',
         'user_repository_interactions',
         'notifications',
         'contribution_outcomes',
-        'user_preferences'
+        'user_preferences',
       ]
 
       for (const tableName of validTableNames) {
@@ -166,15 +177,17 @@ describe('TestDatabaseManager Security', () => {
         'pg_tables',
         'information_schema.tables',
         'users; DROP TABLE users',
-        'users\'); DROP DATABASE',
+        "users'); DROP DATABASE",
         '../../../etc/passwd',
-        'users UNION SELECT * FROM passwords'
+        'users UNION SELECT * FROM passwords',
       ]
 
       for (const tableName of invalidTableNames) {
         expect(() => {
           managerInstance.validateTableName(tableName)
-        }).toThrow(`Invalid table name: ${tableName}. Only predefined tables are allowed for truncation.`)
+        }).toThrow(
+          `Invalid table name: ${tableName}. Only predefined tables are allowed for truncation.`
+        )
       }
     })
   })
@@ -183,7 +196,7 @@ describe('TestDatabaseManager Security', () => {
     it('should maintain cleanup functionality after security fixes', async () => {
       connection = await manager.getConnection('test-cleanup-integrity', {
         strategy: 'pglite',
-        cleanup: 'truncate'
+        cleanup: 'truncate',
       })
 
       // Verify connection is working
@@ -203,7 +216,7 @@ describe('TestDatabaseManager Security', () => {
     it('should handle table truncation for valid tables without errors', async () => {
       connection = await manager.getConnection('test-valid-truncation', {
         strategy: 'pglite',
-        cleanup: 'truncate'
+        cleanup: 'truncate',
       })
 
       // Insert test data
@@ -221,7 +234,7 @@ describe('TestDatabaseManager Security', () => {
 
       // Since PGlite closes the connection during cleanup, we need a fresh connection to verify
       const newConnection = await manager.getConnection('test-post-cleanup', {
-        strategy: 'pglite'
+        strategy: 'pglite',
       })
 
       // Verify tables are empty after cleanup
@@ -234,8 +247,8 @@ describe('TestDatabaseManager Security', () => {
 
   describe('Error Handling', () => {
     it('should handle validation errors gracefully', () => {
-      const managerInstance = manager as any
-      
+      const managerInstance = manager as TestDatabaseManagerInternal
+
       // Null/undefined table names
       expect(() => {
         managerInstance.validateTableName(null)
@@ -243,7 +256,9 @@ describe('TestDatabaseManager Security', () => {
 
       expect(() => {
         managerInstance.validateTableName(undefined)
-      }).toThrow('Invalid table name: undefined. Only predefined tables are allowed for truncation.')
+      }).toThrow(
+        'Invalid table name: undefined. Only predefined tables are allowed for truncation.'
+      )
 
       // Empty string
       expect(() => {
@@ -259,7 +274,7 @@ describe('TestDatabaseManager Security', () => {
     it('should maintain existing error handling for non-existent tables', async () => {
       connection = await manager.getConnection('test-error-handling', {
         strategy: 'pglite',
-        cleanup: 'truncate'
+        cleanup: 'truncate',
       })
 
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})

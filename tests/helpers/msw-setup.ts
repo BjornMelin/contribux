@@ -239,3 +239,234 @@ export function mockGitHubAPI(customHandlers: HttpHandler[] = []) {
 export function resetGitHubMocks() {
   resetAllGitHubMockCounters()
 }
+
+/**
+ * Create JWT authentication handlers for API security testing
+ */
+export function createAuthenticationHandlers() {
+  return [
+    // Simulate authenticated API endpoints
+    http.get('/api/search/repositories', ({ request }) => {
+      const authHeader = request.headers.get('authorization')
+      const sessionCookie = request.headers.get('cookie')
+
+      // Check for authentication
+      if (!authHeader && !sessionCookie?.includes('next-auth.session-token')) {
+        return HttpResponse.json(
+          { error: 'Unauthorized - Authentication required' },
+          { status: 401 }
+        )
+      }
+
+      // Simulate successful authenticated response
+      return HttpResponse.json({
+        repositories: [
+          {
+            id: 1,
+            name: 'test-repo',
+            full_name: 'user/test-repo',
+            description: 'Test repository for security testing',
+            language: 'TypeScript',
+            stars: 100,
+            url: 'https://github.com/user/test-repo',
+          },
+        ],
+        pagination: {
+          page: 1,
+          per_page: 20,
+          total: 1,
+        },
+      })
+    }),
+
+    http.get('/api/search/opportunities', ({ request }) => {
+      const authHeader = request.headers.get('authorization')
+      const sessionCookie = request.headers.get('cookie')
+
+      // Check for authentication
+      if (!authHeader && !sessionCookie?.includes('next-auth.session-token')) {
+        return HttpResponse.json(
+          { error: 'Unauthorized - Authentication required' },
+          { status: 401 }
+        )
+      }
+
+      // Simulate successful authenticated response
+      return HttpResponse.json({
+        opportunities: [
+          {
+            id: 1,
+            title: 'Add TypeScript support',
+            repository: 'user/test-repo',
+            difficulty: 'beginner',
+            type: 'feature',
+            description: 'Add TypeScript support to improve code quality',
+            labels: ['good first issue', 'typescript'],
+          },
+        ],
+        pagination: {
+          page: 1,
+          per_page: 20,
+          total: 1,
+        },
+      })
+    }),
+
+    // Simulate JWT token validation endpoint
+    http.post('/api/auth/verify', async ({ request }) => {
+      const authHeader = request.headers.get('authorization')
+
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return HttpResponse.json({ error: 'Invalid token format' }, { status: 401 })
+      }
+
+      const token = authHeader.substring(7)
+
+      // Simulate token validation logic
+      if (token === 'valid-jwt-token') {
+        return HttpResponse.json({
+          valid: true,
+          user: {
+            id: 'user-123',
+            email: 'test@example.com',
+            name: 'Test User',
+          },
+        })
+      }
+
+      return HttpResponse.json({ error: 'Invalid or expired token' }, { status: 401 })
+    }),
+
+    // Simulate security middleware responses
+    http.all('*', ({ request }) => {
+      const url = new URL(request.url)
+
+      // Add security headers to all responses
+      const headers = new Headers()
+      headers.set('X-Content-Type-Options', 'nosniff')
+      headers.set('X-Frame-Options', 'DENY')
+      headers.set('X-XSS-Protection', '1; mode=block')
+      headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+
+      // Check for suspicious patterns in URL (basic SQL injection detection)
+      const suspiciousPatterns = [
+        /union\s+select/i,
+        /drop\s+table/i,
+        /;\s*--/,
+        /<script>/i,
+        /javascript:/i,
+      ]
+
+      const hasSuspiciousPattern = suspiciousPatterns.some(
+        pattern => pattern.test(url.search) || pattern.test(url.pathname)
+      )
+
+      if (hasSuspiciousPattern) {
+        return HttpResponse.json(
+          { error: 'Invalid request - suspicious patterns detected' },
+          { status: 400, headers }
+        )
+      }
+
+      // Pass through to other handlers
+      return
+    }),
+  ]
+}
+
+/**
+ * Create rate limiting handlers for security testing
+ */
+export function createRateLimitHandlers() {
+  const requestCounts = new Map<string, number>()
+  const RATE_LIMIT = 5
+  const WINDOW_MS = 60000 // 1 minute
+
+  return [
+    http.all('/api/*', ({ request }) => {
+      const clientId = request.headers.get('x-forwarded-for') || 'default-client'
+      const now = Date.now()
+      const key = `${clientId}-${Math.floor(now / WINDOW_MS)}`
+
+      const currentCount = requestCounts.get(key) || 0
+
+      if (currentCount >= RATE_LIMIT) {
+        return HttpResponse.json(
+          {
+            error: 'Rate limit exceeded',
+            resetTime: Math.floor(now / WINDOW_MS + 1) * WINDOW_MS,
+          },
+          {
+            status: 429,
+            headers: {
+              'X-RateLimit-Limit': RATE_LIMIT.toString(),
+              'X-RateLimit-Remaining': '0',
+              'X-RateLimit-Reset': Math.floor(now / WINDOW_MS + 1).toString(),
+            },
+          }
+        )
+      }
+
+      requestCounts.set(key, currentCount + 1)
+
+      // Pass through to other handlers
+      return
+    }),
+  ]
+}
+
+/**
+ * Create input validation handlers for security testing
+ */
+export function createInputValidationHandlers() {
+  return [
+    http.get('/api/search/*', ({ request }) => {
+      const url = new URL(request.url)
+      const query = url.searchParams.get('q') || ''
+
+      // Validate query length
+      if (query.length > 1000) {
+        return HttpResponse.json(
+          { error: 'Query too long - maximum 1000 characters allowed' },
+          { status: 400 }
+        )
+      }
+
+      // Validate for common XSS patterns
+      const xssPatterns = [/<script[^>]*>/i, /javascript:/i, /on\w+\s*=/i, /expression\s*\(/i]
+
+      const hasXssPattern = xssPatterns.some(pattern => pattern.test(query))
+
+      if (hasXssPattern) {
+        return HttpResponse.json(
+          { error: 'Invalid query - contains potentially dangerous content' },
+          { status: 400 }
+        )
+      }
+
+      // Pass through to other handlers
+      return
+    }),
+  ]
+}
+
+/**
+ * Setup comprehensive security-aware MSW server
+ */
+export function setupSecurityMSW() {
+  const securityHandlers = [
+    ...createAuthenticationHandlers(),
+    ...createInputValidationHandlers(),
+    // Note: Rate limiting handlers are separate as they can interfere with normal tests
+  ]
+
+  server.use(...securityHandlers)
+}
+
+/**
+ * Setup MSW with rate limiting for specific tests
+ */
+export function setupRateLimitMSW() {
+  const rateLimitHandlers = createRateLimitHandlers()
+  server.use(...rateLimitHandlers)
+}

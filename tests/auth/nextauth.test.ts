@@ -100,6 +100,7 @@ describe('NextAuth Configuration', () => {
             id: 'github-123',
             email: 'test@example.com',
             name: 'Test User',
+            emailVerified: null,
           },
           account: {
             provider: 'github',
@@ -141,6 +142,7 @@ describe('NextAuth Configuration', () => {
             id: 'github-123',
             email: 'test@example.com',
             name: 'Test User',
+            emailVerified: null,
           },
           account: {
             provider: 'github',
@@ -165,6 +167,7 @@ describe('NextAuth Configuration', () => {
           user: {
             id: 'test-id',
             email: 'test@example.com',
+            emailVerified: null,
           },
         })
 
@@ -176,6 +179,7 @@ describe('NextAuth Configuration', () => {
           user: {
             id: 'test-id',
             email: 'test@example.com',
+            emailVerified: null,
           },
           account: {
             provider: 'google',

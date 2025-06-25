@@ -37,8 +37,8 @@ function uint8ArrayToBase64url(bytes: Uint8Array): string {
 }
 
 /**
- * Creates a SHA-256 hash using Web Crypto API
- * Edge Runtime compatible alternative to createHash('sha256')
+ * Legacy hashing function - use createSecureHash from @/lib/security/crypto instead
+ * @deprecated Use createSecureHash from advanced crypto implementation
  */
 export async function createSHA256Hash(data: string): Promise<string> {
   const dataBytes = encoder.encode(data)
@@ -46,12 +46,6 @@ export async function createSHA256Hash(data: string): Promise<string> {
   const hashArray = new Uint8Array(hashBuffer)
   return uint8ArrayToHex(hashArray)
 }
-
-/**
- * Synchronous SHA-256 hash - removed for Edge Runtime compatibility
- * All callers should use createSHA256Hash (async) instead
- */
-// Note: Removed synchronous version to ensure Edge Runtime compatibility
 
 /**
  * Generates cryptographically secure random bytes
@@ -73,8 +67,8 @@ export function generateRandomToken(length = 32): string {
 }
 
 /**
- * Timing-safe string comparison using Web Crypto API
- * Edge Runtime compatible alternative to timingSafeEqual()
+ * Legacy timing-safe comparison - use timing-safe functions from @/lib/security/crypto instead
+ * @deprecated Use verifyHMAC or appropriate timing-safe functions from advanced crypto
  */
 export async function timingSafeEqual(a: string | Buffer, b: string | Buffer): Promise<boolean> {
   // Convert inputs to Uint8Array
@@ -111,12 +105,6 @@ export async function timingSafeEqual(a: string | Buffer, b: string | Buffer): P
 }
 
 /**
- * Synchronous timing-safe comparison - removed for Edge Runtime compatibility
- * All callers should use timingSafeEqual (async) instead
- */
-// Note: Removed synchronous version to ensure Edge Runtime compatibility
-
-/**
  * Runtime detection utility - Edge Runtime compatible
  * Simplified for Edge Runtime compatibility by avoiding Node.js API checks
  */
@@ -138,8 +126,8 @@ export function isNodeRuntime(): boolean {
 }
 
 /**
- * Adaptive timing-safe comparison that works in both runtimes
- * Always uses async Web Crypto implementation for Edge Runtime compatibility
+ * @deprecated Use verifyHMAC or appropriate timing-safe functions from @/lib/security/crypto
+ * Legacy adaptive timing-safe comparison
  */
 export async function adaptiveTimingSafeEqual(
   a: string | Buffer,
@@ -149,8 +137,8 @@ export async function adaptiveTimingSafeEqual(
 }
 
 /**
- * Adaptive hash creation that works in both runtimes
- * Always uses async Web Crypto implementation for Edge Runtime compatibility
+ * @deprecated Use createSecureHash from @/lib/security/crypto instead
+ * Legacy adaptive hash creation
  */
 export async function adaptiveCreateHash(data: string): Promise<string> {
   return await createSHA256Hash(data)

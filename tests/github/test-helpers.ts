@@ -35,11 +35,11 @@ export function setupGitHubTestIsolation() {
     mockGitHubAPI.resetToDefaults()
 
     // Clear any global GitHub state
-    if (global.__githubClientCache) {
-      delete global.__githubClientCache
+    if ((global as Record<string, unknown>).__githubClientCache) {
+      ;(global as Record<string, unknown>).__githubClientCache = undefined
     }
-    if (global.__githubRateLimitState) {
-      delete global.__githubRateLimitState
+    if ((global as Record<string, unknown>).__githubRateLimitState) {
+      ;(global as Record<string, unknown>).__githubRateLimitState = undefined
     }
   })
 

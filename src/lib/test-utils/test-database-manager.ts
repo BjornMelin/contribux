@@ -42,16 +42,16 @@ export class TestDatabaseManager {
   private branchManager?: NeonBranchManager
 
   // Allowlist of valid table names for truncation operations
-  private readonly ALLOWED_TABLES = new Set([
+  private readonly ALLOWED_TABLES = new Set<string>([
     'users',
-    'repositories', 
+    'repositories',
     'opportunities',
     'user_skills',
     'user_repository_interactions',
     'notifications',
     'contribution_outcomes',
-    'user_preferences'
-  ] as const)
+    'user_preferences',
+  ])
 
   private constructor() {}
 
@@ -59,8 +59,10 @@ export class TestDatabaseManager {
    * Validate table name against allowlist to prevent SQL injection
    */
   private validateTableName(tableName: string): void {
-    if (!this.ALLOWED_TABLES.has(tableName as any)) {
-      throw new Error(`Invalid table name: ${tableName}. Only predefined tables are allowed for truncation.`)
+    if (!this.ALLOWED_TABLES.has(tableName)) {
+      throw new Error(
+        `Invalid table name: ${tableName}. Only predefined tables are allowed for truncation.`
+      )
     }
   }
 
@@ -393,7 +395,7 @@ export class TestDatabaseManager {
       try {
         // Validate table name against allowlist to prevent SQL injection
         this.validateTableName(table)
-        
+
         // Create individual queries for each table to avoid parameter issues
         // with table names (which cannot be parameterized in SQL)
         switch (table) {
@@ -495,7 +497,7 @@ export class TestDatabaseManager {
       try {
         // Validate table name against allowlist to prevent SQL injection
         this.validateTableName(table)
-        
+
         // Use explicit switch statement to avoid any parameter confusion
         switch (table) {
           case 'user_skills':

@@ -16,7 +16,7 @@ import {
   verifyRegistrationResponse,
 } from '../../src/lib/auth/webauthn'
 import { sql } from '../../src/lib/db/config'
-import type { AuthEventType, User, UserSession } from '../../src/types/auth'
+import type { AuthEventType, EventSeverity, User, UserSession } from '../../src/types/auth'
 import type { Email, GitHubUsername, UUID } from '../../src/types/base'
 import { createTestUser, createTestUserSession } from '../helpers/auth-test-factories'
 
@@ -562,17 +562,17 @@ describe('Authentication Integration Tests', () => {
         events.push(params.event_type)
         return {
           id: 'log-id' as UUID,
-          event_type: params.event_type as AuthEventType,
-          event_severity: params.event_severity || 'info',
-          user_id: params.user_id,
-          ip_address: params.ip_address,
-          user_agent: params.user_agent,
-          event_data: params.event_data,
+          eventType: params.event_type as AuthEventType,
+          eventSeverity: (params.event_severity || 'info') as EventSeverity,
+          userId: params.user_id as UUID | undefined,
+          ipAddress: params.ip_address,
+          userAgent: params.user_agent,
+          eventData: params.event_data,
           success: params.success,
-          error_message: params.error_message,
+          errorMessage: params.error_message,
           checksum: undefined,
-          created_at: new Date(),
-          updated_at: new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
         }
       })
 

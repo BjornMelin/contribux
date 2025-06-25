@@ -38,6 +38,35 @@ global.React = React
 // Load test environment variables first
 config({ path: '.env.test' })
 
+// Set up comprehensive test environment variables to prevent validation failures
+// These are set BEFORE any module imports that might trigger validation
+const TEST_ENV_VARS = {
+  NODE_ENV: 'test',
+  SKIP_ENV_VALIDATION: 'true', // Global flag to skip environment validation in tests
+  DATABASE_URL: 'postgresql://testuser:testpass@localhost:5432/testdb',
+  DATABASE_URL_TEST: 'postgresql://testuser:testpass@localhost:5432/testdb',
+  DATABASE_URL_DEV: 'postgresql://testuser:testpass@localhost:5432/testdb_dev',
+  JWT_SECRET:
+    'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only-32chars',
+  ENCRYPTION_KEY: '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+  GITHUB_CLIENT_ID: 'Iv1.a1b2c3d4e5f6g7h8',
+  GITHUB_CLIENT_SECRET:
+    'test-github-client-secret-with-sufficient-length-for-testing-purposes-to-meet-40-char-requirement',
+  NEXT_PUBLIC_APP_URL: 'http://localhost:3000',
+  NEXT_PUBLIC_APP_NAME: 'Contribux Test',
+  NEXTAUTH_SECRET: 'test-nextauth-secret-with-sufficient-length-for-testing',
+  NEXTAUTH_URL: 'http://localhost:3000',
+  CORS_ORIGINS: 'http://localhost:3000',
+  ALLOWED_REDIRECT_URIS: 'http://localhost:3000/api/auth/github/callback',
+}
+
+// Set environment variables if not already set
+for (const [key, value] of Object.entries(TEST_ENV_VARS)) {
+  if (!process.env[key]) {
+    process.env[key] = value
+  }
+}
+
 // Skip env mock setup - let individual test files handle their own env mocking needs
 // This prevents breaking env validation tests while still allowing auth tests to mock as needed
 
@@ -160,6 +189,15 @@ const mockFetch = vi.fn(() =>
     status: 200,
     statusText: 'OK',
     headers: new Headers(),
+    redirected: false,
+    type: 'basic' as ResponseType,
+    url: 'http://localhost:3000',
+    body: null,
+    bodyUsed: false,
+    arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+    blob: () => Promise.resolve(new Blob()),
+    formData: () => Promise.resolve(new FormData()),
+    bytes: () => Promise.resolve(new Uint8Array(0)),
     clone: () => ({
       ok: true,
       json: () => Promise.resolve({}),
@@ -167,6 +205,16 @@ const mockFetch = vi.fn(() =>
       status: 200,
       statusText: 'OK',
       headers: new Headers(),
+      redirected: false,
+      type: 'basic' as ResponseType,
+      url: 'http://localhost:3000',
+      body: null,
+      bodyUsed: false,
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+      blob: () => Promise.resolve(new Blob()),
+      formData: () => Promise.resolve(new FormData()),
+      bytes: () => Promise.resolve(new Uint8Array(0)),
+      clone: () => ({}) as Response,
     }),
   })
 )

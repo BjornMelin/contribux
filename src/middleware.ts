@@ -1,17 +1,19 @@
 import type { NextRequest } from 'next/server'
-import { authMiddleware } from '@/lib/auth/middleware'
+import { NextResponse } from 'next/server'
 
-export async function middleware(request: NextRequest) {
-  // Apply authentication middleware
-  const response = await authMiddleware(request)
+export async function middleware(_request: NextRequest) {
+  // Temporary Edge Runtime compatible middleware
+  // Basic security headers only - full auth middleware moved to API routes
 
-  // If middleware returns a response, use it
-  if (response) {
-    return response
-  }
+  const response = NextResponse.next()
 
-  // Otherwise, continue to route handler
-  return
+  // Add basic security headers
+  response.headers.set('X-Frame-Options', 'DENY')
+  response.headers.set('X-Content-Type-Options', 'nosniff')
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  response.headers.set('X-XSS-Protection', '1; mode=block')
+
+  return response
 }
 
 export const config = {

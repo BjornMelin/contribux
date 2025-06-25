@@ -6,13 +6,9 @@
 
 import { errors as joseErrors, jwtVerify, SignJWT } from 'jose'
 import { authConfig } from '@/lib/config'
-import {
-  adaptiveCreateHash,
-  base64url,
-  generateRandomToken,
-  generateUUID,
-} from '@/lib/crypto-utils'
+import { base64url, generateRandomToken, generateUUID } from '@/lib/crypto-utils'
 import { sql } from '@/lib/db/config'
+import { createSecureHash } from '@/lib/security/crypto'
 import type { AccessTokenPayload, RefreshTokenPayload, User, UserSession } from '@/types/auth'
 import type { UUID } from '@/types/base'
 
@@ -125,7 +121,7 @@ export async function generateRefreshToken(userId: string, sessionId: string): P
   const token = generateRandomToken(32)
 
   // Create hash for database storage
-  const tokenHash = await adaptiveCreateHash(token)
+  const tokenHash = await createSecureHash(token)
 
   // Store in database
   const result = await sql`
@@ -211,7 +207,7 @@ export async function verifyRefreshToken(token: string): Promise<RefreshTokenPay
   if (!tokenPart) {
     throw new Error('Invalid token format')
   }
-  const tokenHash = await adaptiveCreateHash(tokenPart)
+  const tokenHash = await createSecureHash(tokenPart)
 
   // Verify token exists and is valid
   const result = await sql`
@@ -297,7 +293,7 @@ export async function rotateRefreshToken(oldToken: string): Promise<{
     if (error instanceof Error && error.message === 'Token reuse detected') {
       // Security: Revoke all user tokens on reuse detection
       const parts = oldToken.split('.')
-      const tokenHash = await adaptiveCreateHash(parts[0] || '')
+      const tokenHash = await createSecureHash(parts[0] || '')
 
       const tokenResult = await sql`
         SELECT user_id FROM refresh_tokens
@@ -352,7 +348,7 @@ export async function rotateRefreshToken(oldToken: string): Promise<{
     newTokenId = newPayload.jti
   } else {
     // For test environment, extract ID from the database operation
-    const newTokenHash = await adaptiveCreateHash(newTokenParts[0] || '')
+    const newTokenHash = await createSecureHash(newTokenParts[0] || '')
     const newTokenResult = await sql`
       SELECT id FROM refresh_tokens
       WHERE token_hash = ${newTokenHash}
@@ -363,7 +359,7 @@ export async function rotateRefreshToken(oldToken: string): Promise<{
 
   // Revoke old token and link to new one
   const oldTokenParts = oldToken.split('.')
-  const oldTokenHash = await adaptiveCreateHash(oldTokenParts[0] || '')
+  const oldTokenHash = await createSecureHash(oldTokenParts[0] || '')
 
   await sql`
     UPDATE refresh_tokens
@@ -387,7 +383,7 @@ export async function revokeRefreshToken(token: string): Promise<void> {
     throw new Error('Invalid token format')
   }
 
-  const tokenHash = await adaptiveCreateHash(parts[0] || '')
+  const tokenHash = await createSecureHash(parts[0] || '')
 
   await sql`
     UPDATE refresh_tokens
