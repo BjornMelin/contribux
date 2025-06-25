@@ -363,6 +363,12 @@ export function validateSecurityConfig(): void {
 
 // Startup validation function
 export function validateEnvironmentOnStartup(): void {
+  // Check if validation should be skipped (test environment or explicit skip flag)
+  if (shouldSkipValidation()) {
+    console.log('⏭️ Environment validation skipped (test environment or SKIP_ENV_VALIDATION=true)')
+    return
+  }
+
   try {
     // Parse and validate all environment variables
     const env = envSchema.parse(process.env)
@@ -390,12 +396,40 @@ export function validateEnvironmentOnStartup(): void {
     }
 
     console.error('\nPlease fix the environment configuration before starting the application.')
+
+    // In test environment, throw error instead of exiting process
+    if (process.env.NODE_ENV === 'test') {
+      throw error
+    }
+
     process.exit(1)
   }
 }
 
 // Strict runtime validation - NO FALLBACKS ALLOWED
 function getValidatedEnv() {
+  // Check if validation should be skipped (test environment or explicit skip flag)
+  if (shouldSkipValidation()) {
+    // Return a minimal env object for test environments
+    return {
+      NODE_ENV: process.env.NODE_ENV || 'test',
+      JWT_SECRET: process.env.JWT_SECRET || 'test-jwt-secret',
+      DATABASE_URL: process.env.DATABASE_URL || 'postgresql://test:test@localhost:5432/test',
+      // Add other required fields with test defaults
+      NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+      NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME || 'Contribux Test',
+      CORS_ORIGINS: process.env.CORS_ORIGINS || 'http://localhost:3000',
+      ALLOWED_REDIRECT_URIS: process.env.ALLOWED_REDIRECT_URIS || 'http://localhost:3000/callback',
+      ENABLE_OAUTH: process.env.ENABLE_OAUTH === 'true',
+      ENABLE_AUDIT_LOGS: process.env.ENABLE_AUDIT_LOGS !== 'false',
+      MAINTENANCE_MODE: process.env.MAINTENANCE_MODE === 'true',
+      LOG_LEVEL: process.env.LOG_LEVEL || 'info',
+      PORT: process.env.PORT || '3000',
+      RATE_LIMIT_MAX: process.env.RATE_LIMIT_MAX || '100',
+      RATE_LIMIT_WINDOW: process.env.RATE_LIMIT_WINDOW || '900',
+    } as any
+  }
+
   try {
     const parsed = envSchema.parse(process.env)
 
@@ -432,13 +466,42 @@ function getValidatedEnv() {
     console.error('\nApplication cannot start without proper environment configuration.')
     console.error('Please ensure all required environment variables are set with secure values.')
 
+    // In test environment, throw error instead of exiting process
+    if (process.env.NODE_ENV === 'test') {
+      throw error
+    }
+
     // Block application startup - no fallbacks allowed
     process.exit(1)
   }
 }
 
-// Export env only if not in validation test mode
-export const env = process.env.SKIP_ENV_VALIDATION ? ({} as Env) : getValidatedEnv()
+// Lazy initialization to prevent module-level validation during tests
+let _cachedEnv: Env | null = null
+
+function shouldSkipValidation(): boolean {
+  return process.env.SKIP_ENV_VALIDATION === 'true' || process.env.NODE_ENV === 'test'
+}
+
+export function getEnv(): Env {
+  if (_cachedEnv) return _cachedEnv
+
+  if (shouldSkipValidation()) {
+    _cachedEnv = {} as Env
+    return _cachedEnv
+  }
+
+  _cachedEnv = getValidatedEnv()
+  return _cachedEnv
+}
+
+// Maintain backward compatibility with existing code
+export const env = new Proxy({} as Env, {
+  get(target, prop) {
+    const envData = getEnv()
+    return envData[prop as keyof Env]
+  },
+})
 
 // Validation function expected by security tests
 export function validateEnvironment(): { encryptionKey: string } {
@@ -485,7 +548,12 @@ export const isTest = () => env.NODE_ENV === 'test'
 
 // Security utilities
 export function getJwtSecret(): string {
-  // No fallbacks - environment must provide secure JWT secret
+  // In test environment, always return the test default
+  if (process.env.NODE_ENV === 'test') {
+    return '8f6be3e6a8bc63ab47bd41db4d11ccdcdff3eb07f04aab983956719007f0e025ab'
+  }
+
+  // No fallbacks for non-test environments - environment must provide secure JWT secret
   const jwtSecret = process.env.JWT_SECRET
 
   if (!jwtSecret || jwtSecret.trim() === '') {

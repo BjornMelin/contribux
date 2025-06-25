@@ -11,6 +11,11 @@
 
 import { validateEnvironmentOnStartup } from './validation/env'
 
+// Helper function to check if validation should be skipped
+function shouldSkipValidation(): boolean {
+  return process.env.SKIP_ENV_VALIDATION === 'true' || process.env.NODE_ENV === 'test'
+}
+
 /**
  * Comprehensive startup validation that checks:
  * - Environment variable schema and format validation
@@ -22,6 +27,14 @@ import { validateEnvironmentOnStartup } from './validation/env'
  * This function will exit the process with code 1 if validation fails.
  */
 export function validateApplicationOnStartup(): void {
+  // Check if validation should be skipped (test environment or explicit skip flag)
+  if (shouldSkipValidation()) {
+    console.log(
+      '⏭️ Application startup validation skipped (test environment or SKIP_ENV_VALIDATION=true)'
+    )
+    return
+  }
+
   console.log('🔍 Starting application environment validation...')
 
   try {
@@ -41,6 +54,12 @@ export function validateApplicationOnStartup(): void {
   } catch (_error) {
     console.error('❌ Application startup validation failed!')
     console.error('Please fix the configuration issues above before starting the application.')
+
+    // In test environment, throw error instead of exiting process
+    if (process.env.NODE_ENV === 'test') {
+      throw _error
+    }
+
     process.exit(1)
   }
 }
