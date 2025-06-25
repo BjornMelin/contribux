@@ -1,7 +1,14 @@
 import path from 'node:path'
+import react from '@vitejs/plugin-react'
+import tsconfigPaths from 'vite-tsconfig-paths'
 import { configDefaults, defineConfig } from 'vitest/config'
 
 export default defineConfig({
+  plugins: [
+    // Essential plugins for modern React 19 + Next.js 15 testing
+    tsconfigPaths(), // TypeScript path mapping support
+    react(), // React JSX/TSX transformation and fast refresh
+  ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -56,85 +63,33 @@ export default defineConfig({
     },
 
     // Enable concurrency for faster test execution in Vitest 3.2+ with memory constraints
-    maxConcurrency: process.env.CI ? 1 : 2, // Further reduce concurrency for memory optimization
+    maxConcurrency: process.env.CI ? 1 : 4, // Optimized concurrency for 178 test files
     fileParallelism: true,
 
     // Vitest 3.2+ memory optimization features
     teardownTimeout: 15000, // Extended teardown for thorough cleanup
     forceRerunTriggers: ['**/test-utils/**'], // Restart workers when test utils change
 
-    // Enhanced memory management with projects-based approach (Vitest 3.2+ pattern)
-    projects: [
-      {
-        resolve: {
-          alias: {
-            '@': path.resolve(__dirname, './src'),
-          },
-          extensions: ['.ts', '.tsx', '.js', '.jsx', '.json', '.mts', '.mjs'],
-        },
-        test: {
-          name: 'integration',
-          include: ['**/integration/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-          pool: 'forks',
-          poolOptions: {
-            forks: {
-              singleFork: false,
-              isolate: true,
-            },
-          },
-        },
-      },
-      {
-        resolve: {
-          alias: {
-            '@': path.resolve(__dirname, './src'),
-          },
-          extensions: ['.ts', '.tsx', '.js', '.jsx', '.json', '.mts', '.mjs'],
-        },
-        test: {
-          name: 'github-load',
-          include: ['**/github/load-testing**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-          pool: 'forks',
-          poolOptions: {
-            forks: {
-              singleFork: true,
-            },
-          },
-        },
-      },
-      {
-        resolve: {
-          alias: {
-            '@': path.resolve(__dirname, './src'),
-          },
-          extensions: ['.ts', '.tsx', '.js', '.jsx', '.json', '.mts', '.mjs'],
-        },
-        test: {
-          name: 'default',
-          include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-          exclude: [
-            ...configDefaults.exclude,
-            'packages/template/*',
-            '**/integration/**',
-            '**/github/load-testing**',
-          ],
-          pool: 'forks',
-          poolOptions: {
-            forks: {
-              singleFork: !!process.env.CI,
-              isolate: true,
-              // @ts-expect-error - execArgv is supported in Vitest 3.2+ but TypeScript types haven't been updated
-              execArgv: [
-                '--max-old-space-size=2048',
-                '--expose-gc',
-                '--gc-interval=100',
-                '--optimize-for-size',
-              ],
-            },
-          },
-        },
-      },
+    // Simplified test configuration optimized for solo developer workflow
+    include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+    exclude: [
+      ...configDefaults.exclude,
+      'packages/template/*',
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/.next/**',
     ],
+
+    // Optimized pool configuration for memory efficiency and parallel execution
+    pool: 'threads',
+    poolOptions: {
+      threads: {
+        minThreads: 1,
+        maxThreads: process.env.CI ? 1 : 4, // Thread optimization for 178 test files
+        isolate: true,
+        singleThread: !!process.env.CI, // Single thread in CI for stability
+      },
+    },
 
     // Modern fake timers configuration
     fakeTimers: {
@@ -180,12 +135,13 @@ export default defineConfig({
       setupFiles: 'list', // Optimize setup file handling
     },
 
-    // Environment variables and context
+    // Test sharding for large test suite (178 files) - enables parallel execution across shards
+    // Note: Sharding configuration will be handled via CLI flags for Vitest 3.2+ compatibility
+
+    // Simplified environment configuration
     env: {
       NODE_ENV: 'test',
       VITEST: 'true',
-      // Enable garbage collection for memory testing
-      NODE_OPTIONS: '--expose-gc',
     },
 
     // Modern benchmark configuration
