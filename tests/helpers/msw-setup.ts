@@ -245,12 +245,36 @@ export function resetGitHubMocks() {
  */
 export function createAuthenticationHandlers() {
   return [
-    // Simulate authenticated API endpoints
-    http.get('/api/search/repositories', ({ request }) => {
+    // Simulate authenticated API endpoints with input validation
+    http.get('http://localhost:3000/api/search/repositories', ({ request }) => {
+      const url = new URL(request.url)
+      const query = url.searchParams.get('q') || ''
+
+      // First, validate input (before authentication check)
+      
+      // Validate query length - reject queries longer than 1000 characters
+      if (query.length > 1000) {
+        return HttpResponse.json(
+          { error: 'Query too long - maximum 1000 characters allowed' },
+          { status: 400 }
+        )
+      }
+
+      // Validate for common XSS patterns
+      const xssPatterns = [/<script[^>]*>/i, /javascript:/i, /on\w+\s*=/i, /expression\s*\(/i]
+      const hasXssPattern = xssPatterns.some(pattern => pattern.test(query))
+
+      if (hasXssPattern) {
+        return HttpResponse.json(
+          { error: 'Invalid query - contains potentially dangerous content' },
+          { status: 400 }
+        )
+      }
+
+      // Then check authentication
       const authHeader = request.headers.get('authorization')
       const sessionCookie = request.headers.get('cookie')
 
-      // Check for authentication
       if (!authHeader && !sessionCookie?.includes('next-auth.session-token')) {
         return HttpResponse.json(
           { error: 'Unauthorized - Authentication required' },
@@ -279,7 +303,7 @@ export function createAuthenticationHandlers() {
       })
     }),
 
-    http.get('/api/search/opportunities', ({ request }) => {
+    http.get('http://localhost:3000/api/search/opportunities', ({ request }) => {
       const authHeader = request.headers.get('authorization')
       const sessionCookie = request.headers.get('cookie')
 
@@ -313,7 +337,7 @@ export function createAuthenticationHandlers() {
     }),
 
     // Simulate JWT token validation endpoint
-    http.post('/api/auth/verify', async ({ request }) => {
+    http.post('http://localhost:3000/api/auth/verify', async ({ request }) => {
       const authHeader = request.headers.get('authorization')
 
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -420,11 +444,11 @@ export function createRateLimitHandlers() {
  */
 export function createInputValidationHandlers() {
   return [
-    http.get('/api/search/*', ({ request }) => {
+    http.get('http://localhost:3000/api/search/*', ({ request }) => {
       const url = new URL(request.url)
       const query = url.searchParams.get('q') || ''
 
-      // Validate query length
+      // Validate query length - reject queries longer than 1000 characters
       if (query.length > 1000) {
         return HttpResponse.json(
           { error: 'Query too long - maximum 1000 characters allowed' },
@@ -444,8 +468,11 @@ export function createInputValidationHandlers() {
         )
       }
 
-      // Pass through to other handlers
-      return
+      // For valid queries, return a successful response to avoid unhandled request warnings
+      return HttpResponse.json({
+        repositories: [],
+        message: 'Query validation passed'
+      }, { status: 200 })
     }),
   ]
 }
@@ -456,7 +483,7 @@ export function createInputValidationHandlers() {
 export function setupSecurityMSW() {
   const securityHandlers = [
     ...createAuthenticationHandlers(),
-    ...createInputValidationHandlers(),
+    // Note: Input validation is now integrated into authentication handlers
     // Note: Rate limiting handlers are separate as they can interfere with normal tests
   ]
 
