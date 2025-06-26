@@ -1,0 +1,226 @@
+/**
+ * Common utilities for load testing GitHub client
+ * Shared across all performance test suites
+ */
+
+import { HttpResponse, http } from 'msw'
+import { setupServer } from 'msw/node'
+import { GitHubClient, type GitHubClientConfig, type TokenInfo } from '../../../src/lib/github'
+import { createRateLimitHeaders } from '../../github/test-helpers'
+
+// Create a simple tracked client for load testing
+export function createTrackedClient(
+  ClientClass: typeof GitHubClient,
+  config?: Partial<GitHubClientConfig>
+) {
+  const client = new ClientClass(config)
+  // Add a mock destroy method if the client doesn't have one
+  if (!client.destroy) {
+    client.destroy = async () => {
+      // Clear any caches if available
+      if (client.clearCache) {
+        client.clearCache()
+      }
+    }
+  }
+  return client
+}
+
+// Create a dedicated MSW server for load testing to avoid conflicts
+export const loadTestServer = setupServer()
+
+// Helper function to add test-specific handlers without clearing others
+export async function addTestHandlers(...handlers: Record<string, unknown>[]) {
+  console.log(`Adding test handlers: ${handlers.length} handlers`)
+  
+  // Add handlers without clearing existing ones
+  loadTestServer.use(...handlers)
+  
+  console.log('Test handlers added')
+}
+
+// Custom MSW setup for load testing with dedicated server
+export function setupLoadTestMSW() {
+  return {
+    beforeAll: () => {
+      console.log('MSW enabled env var:', process.env.VITEST_MSW_ENABLED)
+      console.log('Current global fetch:', typeof global.fetch)
+
+      // Force enable MSW environment
+      process.env.VITEST_MSW_ENABLED = 'true'
+
+      // Use global helper to properly enable MSW
+      if ((global as Record<string, unknown>).__enableMSW) {
+        ;(global as Record<string, unknown>).__enableMSW()
+        console.log('MSW enabled via global helper')
+      }
+
+      // Start our dedicated server with no default handlers
+      loadTestServer.listen({ onUnhandledRequest: 'warn' })
+      console.log('Load test MSW server listening with clean handlers')
+    },
+    afterAll: () => {
+      loadTestServer.close()
+      // Restore the mock fetch for other tests if needed
+      if ((global as Record<string, unknown>).__disableMSW) {
+        ;(global as Record<string, unknown>).__disableMSW()
+      }
+    }
+  }
+}
+
+// Helper to create multiple clients with tracking
+export const createMultipleClients = (count: number, config?: Partial<GitHubClientConfig>) => {
+  return Array.from({ length: count }, (_, i) =>
+    createTrackedClient(GitHubClient, {
+      auth: { type: 'token', token: `test_token_${i}` },
+      ...config,
+    })
+  )
+}
+
+// Helper to create token rotation client
+export const createTokenRotationClient = (tokenCount: number, config?: Partial<GitHubClientConfig>) => {
+  const tokens: TokenInfo[] = Array.from({ length: tokenCount }, (_, i) => ({
+    token: `ghp_test_token_${i}`,
+    type: 'personal' as const,
+    scopes: ['repo', 'user'],
+    expiresAt: new Date(Date.now() + 3600000), // 1 hour from now
+  }))
+
+  return createTrackedClient(GitHubClient, {
+    auth: { type: 'token', token: tokens[0].token },
+    tokenRotation: {
+      tokens,
+      rotationStrategy: 'round-robin',
+      refreshBeforeExpiry: 5,
+    },
+    ...config,
+  })
+}
+
+// Common performance metrics calculation
+export interface PerformanceMetrics {
+  totalRequests: number
+  successCount: number
+  failureCount: number
+  successRate: number
+  totalTestDuration: number
+  avgRequestDuration: number
+  minRequestDuration: number
+  maxRequestDuration: number
+  p95RequestDuration: number
+  p99RequestDuration: number
+  requestsPerSecond: number
+}
+
+export function calculatePerformanceMetrics(
+  results: Array<{ success: boolean; duration: number }>,
+  testDuration: number
+): PerformanceMetrics {
+  const successes = results.filter(r => r.success)
+  const failures = results.filter(r => !r.success)
+  const durations = results.map(r => r.duration)
+  
+  const sortedDurations = [...durations].sort((a, b) => a - b)
+  
+  return {
+    totalRequests: results.length,
+    successCount: successes.length,
+    failureCount: failures.length,
+    successRate: (successes.length / results.length) * 100,
+    totalTestDuration: testDuration,
+    avgRequestDuration: durations.reduce((sum, d) => sum + d, 0) / durations.length,
+    minRequestDuration: Math.min(...durations),
+    maxRequestDuration: Math.max(...durations),
+    p95RequestDuration: sortedDurations[Math.floor(sortedDurations.length * 0.95)],
+    p99RequestDuration: sortedDurations[Math.floor(sortedDurations.length * 0.99)],
+    requestsPerSecond: (results.length / testDuration) * 1000,
+  }
+}
+
+// Standard MSW handlers for common scenarios
+export const createStandardUserHandler = (testToken: string, baseRequestCount = 0) => {
+  let requestCount = baseRequestCount
+  
+  return http.get('https://api.github.com/user', ({ request }) => {
+    const authHeader = request.headers.get('authorization')
+    
+    // Only handle if this is our specific test token
+    if (authHeader === `token ${testToken}`) {
+      requestCount++
+      return HttpResponse.json(
+        {
+          login: `user_${requestCount}`,
+          id: requestCount,
+          avatar_url: `https://github.com/images/user_${requestCount}.png`,
+          html_url: `https://github.com/user_${requestCount}`,
+          type: 'User',
+          site_admin: false,
+        },
+        {
+          headers: createRateLimitHeaders({ remaining: 5000 - requestCount }),
+        }
+      )
+    }
+    
+    // Let other handlers handle this request
+    return
+  })
+}
+
+export const createStandardGraphQLHandler = (testToken: string, baseRequestCount = 0) => {
+  let requestCount = baseRequestCount
+  
+  return http.post('https://api.github.com/graphql', async ({ request }) => {
+    const body = await request.json()
+    const authHeader = request.headers.get('authorization')
+    
+    // Only handle if this is our specific test query with our test token
+    if (
+      body &&
+      typeof body === 'object' &&
+      'query' in body &&
+      typeof body.query === 'string' &&
+      body.query.includes('viewer') &&
+      authHeader === `token ${testToken}`
+    ) {
+      requestCount++
+      return HttpResponse.json({
+        data: {
+          viewer: { login: `user_${requestCount}`, id: `gid_${requestCount}` },
+          rateLimit: {
+            limit: 5000,
+            remaining: 5000 - requestCount,
+            resetAt: new Date(Date.now() + 3600000).toISOString(),
+            cost: 1,
+            nodeCount: 1,
+          },
+        },
+      })
+    }
+    
+    // Let other handlers handle this request
+    return
+  })
+}
+
+// Performance test utilities
+export function measureExecutionTime<T>(fn: () => Promise<T>): Promise<{ result: T; duration: number }> {
+  const start = Date.now()
+  return fn().then(result => ({
+    result,
+    duration: Date.now() - start
+  }))
+}
+
+export function logPerformanceMetrics(metrics: PerformanceMetrics) {
+  console.log('Performance Metrics:')
+  console.log(`- Total Requests: ${metrics.totalRequests}`)
+  console.log(`- Success Rate: ${metrics.successRate.toFixed(2)}%`)
+  console.log(`- Total Duration: ${metrics.totalTestDuration}ms`)
+  console.log(`- Requests/Second: ${metrics.requestsPerSecond.toFixed(2)}`)
+  console.log(`- Avg Request Time: ${metrics.avgRequestDuration.toFixed(2)}ms`)
+  console.log(`- P95 Request Time: ${metrics.p95RequestDuration}ms`)
+  console.log(`- P99 Request Time: ${metrics.p99RequestDuration}ms`)
+}
