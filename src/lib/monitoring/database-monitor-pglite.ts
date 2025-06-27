@@ -1,5 +1,4 @@
 // Database monitoring utilities for PGlite in-memory testing
-import type { PGlite } from '@electric-sql/pglite'
 import type { NeonQueryFunction } from '@neondatabase/serverless'
 import {
   type ConnectionMetrics,
@@ -11,12 +10,16 @@ import {
   type IndexStat,
   indexStatSchema,
   type SlowQuery,
-  slowQuerySchema,
   type TableSize,
   tableSizeSchema,
   type VectorIndexMetric,
   vectorIndexMetricSchema,
 } from '../validation/database'
+
+// Define types for database query results
+interface TableNameRow {
+  tablename: string
+}
 
 export class DatabaseMonitorPGlite {
   private sql: NeonQueryFunction<false, false>
@@ -140,9 +143,10 @@ export class DatabaseMonitorPGlite {
         WHERE schemaname = 'public'
       `
 
-      const tables = tablesResult && Array.isArray(tablesResult) ? tablesResult : []
+      const tables =
+        tablesResult && Array.isArray(tablesResult) ? (tablesResult as TableNameRow[]) : []
       const expectedTables = ['users', 'repositories', 'opportunities']
-      const existingTables = tables.map((t: any) => t.tablename)
+      const existingTables = tables.map(t => t.tablename)
       const missingTables = expectedTables.filter(table => !existingTables.includes(table))
 
       if (missingTables.length === 0) {
@@ -217,7 +221,7 @@ export class DatabaseMonitorPGlite {
 
   async generatePerformanceReport(): Promise<string> {
     try {
-      const [connectionMetrics, slowQueries, indexStats, vectorMetrics, tableSizes, healthCheck] =
+      const [connectionMetrics, _slowQueries, indexStats, vectorMetrics, tableSizes, healthCheck] =
         await Promise.all([
           this.getConnectionMetrics(),
           this.getSlowQueries(10),
