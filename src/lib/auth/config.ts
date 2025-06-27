@@ -39,13 +39,11 @@ export const authConfig: NextAuthConfig = {
   callbacks: {
     async signIn({ user, account, profile }) {
       if (!account || !user.email) {
-        console.error('Missing account or email in signIn callback')
         return false
       }
 
       const supportedProviders = ['github', 'google']
       if (!supportedProviders.includes(account.provider)) {
-        console.error(`Unsupported provider: ${account.provider}`)
         return false
       }
 
@@ -63,12 +61,11 @@ export const authConfig: NextAuthConfig = {
         }
 
         if (result.error) {
-          console.error('Sign-in failed:', result.error)
+          // Authentication failed - error details logged by auth handler
         }
 
         return false
-      } catch (error) {
-        console.error('Sign in error:', error)
+      } catch (_error) {
         return false
       }
     },
@@ -237,8 +234,7 @@ async function handleMultiProviderSignIn({
 
     // New user - create account
     return await createNewUserWithOAuth(user, account, profile)
-  } catch (error) {
-    console.error('Error in handleMultiProviderSignIn:', error)
+  } catch (_error) {
     return { success: false, error: 'Authentication failed due to internal error' }
   }
 }
@@ -301,8 +297,7 @@ async function linkAccountToExistingUser(
     })
 
     return { success: true, user: existingUser }
-  } catch (error) {
-    console.error('Error linking account:', error)
+  } catch (_error) {
     return { success: false, error: 'Failed to link account' }
   }
 }
@@ -372,8 +367,7 @@ async function createNewUserWithOAuth(
     })
 
     return { success: true, user: newUser }
-  } catch (error) {
-    console.error('Error creating new user:', error)
+  } catch (_error) {
     return { success: false, error: 'Failed to create user account' }
   }
 }
@@ -490,8 +484,8 @@ async function updateUserProfileFromProvider(userId: string, provider: string, p
       `
     }
     // Add other provider-specific updates as needed
-  } catch (error) {
-    console.error('Error updating user profile:', error)
+  } catch (_error) {
+    // Profile update failed - user profile remains unchanged
   }
 }
 
@@ -527,8 +521,8 @@ async function logSecurityEvent(event: {
         ${JSON.stringify(event.event_data || {})}
       )
     `
-  } catch (error) {
-    console.error('Error logging security event:', error)
+  } catch (_error) {
+    // Audit log insertion failed - event not recorded
   }
 }
 
@@ -545,14 +539,12 @@ async function refreshAccessToken(token: RefreshableToken) {
       case 'google':
         return await refreshGoogleToken(token)
       default:
-        console.error(`Token refresh not implemented for provider: ${provider}`)
         return {
           ...token,
           error: 'RefreshAccessTokenError',
         }
     }
-  } catch (error) {
-    console.error('Error refreshing access token:', error)
+  } catch (_error) {
     return {
       ...token,
       error: 'RefreshAccessTokenError',

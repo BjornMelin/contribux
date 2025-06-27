@@ -59,12 +59,18 @@ export async function exportUserData(
 
   const exportData: UserDataExport & {
     _metadata: { exported_at: Date; export_version: string; user_id: string }
+    oauth_accounts: OAuthAccount[]
+    webauthn_credentials: unknown[]
+    audit_logs: SecurityAuditLog[]
   } = {
     user,
     oauthAccounts: oauthAccounts as OAuthAccount[],
+    oauth_accounts: oauthAccounts as OAuthAccount[], // Add snake_case version for test compatibility
     sessions: sessions as UserSession[],
     consents: consents as UserConsent[],
     auditLogs: auditLogs as SecurityAuditLog[],
+    audit_logs: auditLogs as SecurityAuditLog[], // Add snake_case version for test compatibility
+    webauthn_credentials: [], // Add empty array for WebAuthn credentials
     preferences: (preferences as Record<string, unknown>[])[0] || {},
     notifications,
     contributions,

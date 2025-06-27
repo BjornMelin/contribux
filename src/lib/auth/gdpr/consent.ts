@@ -5,6 +5,7 @@
 
 import { sql } from '@/lib/db/config'
 import type { UserConsent } from '@/types/auth'
+import { logSecurityEvent } from '../audit'
 import { CONSENT_TYPES, CURRENT_VERSIONS, DATA_CATEGORIES, PROCESSING_PURPOSES } from './constants'
 import { logDataProcessing } from './processing'
 import type { ConsentRequest, ConsentType } from './types'
@@ -51,6 +52,29 @@ export async function recordUserConsent(params: ConsentRequest): Promise<UserCon
   if (!result || result.length === 0) {
     throw new Error('Failed to record user consent')
   }
+
+  // Log security event for audit trail
+  const logEvent: Parameters<typeof logSecurityEvent>[0] = {
+    event_type: 'user_consent_recorded',
+    user_id: params.userId,
+    event_data: {
+      consentType: params.consentType,
+      granted: params.granted,
+      version: params.version,
+    },
+    success: true,
+  }
+
+  // Only add optional properties if they have values (exactOptionalPropertyTypes compliance)
+  if (params.context?.ip_address) {
+    logEvent.ip_address = params.context.ip_address
+  }
+  if (params.context?.user_agent) {
+    logEvent.user_agent = params.context.user_agent
+  }
+
+  await logSecurityEvent(logEvent)
+
   return result[0] as UserConsent
 }
 
@@ -90,7 +114,11 @@ export async function getUserConsents(userId: string): Promise<UserConsent[]> {
     ORDER BY consent_type, timestamp DESC
   `
 
-  return result as UserConsent[]
+  // Transform database result to match expected interface (camelCase consentType)
+  return result.map(row => ({
+    ...row,
+    consentType: row.consent_type, // Add camelCase property for test compatibility
+  })) as UserConsent[]
 }
 
 // Check if consent is required

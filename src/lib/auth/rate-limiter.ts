@@ -33,7 +33,6 @@ export async function initializeRedis(): Promise<void> {
 
   const redisUrl = process.env.REDIS_URL
   if (!redisUrl) {
-    console.log('Redis URL not provided, using in-memory rate limiting')
     return
   }
 
@@ -53,18 +52,15 @@ export async function initializeRedis(): Promise<void> {
     })
 
     redisClient.on('connect', () => {
-      console.log('Redis connected successfully')
       redisAvailable = true
       resetCircuitBreaker()
     })
 
-    redisClient.on('error', error => {
-      console.error('Redis connection error:', error)
+    redisClient.on('error', _error => {
       handleRedisFailure()
     })
 
     redisClient.on('close', () => {
-      console.log('Redis connection closed')
       redisAvailable = false
     })
 
@@ -76,10 +72,7 @@ export async function initializeRedis(): Promise<void> {
       blockDuration: 60,
       execEvenly: true,
     })
-
-    console.log('Redis rate limiter initialized')
-  } catch (error) {
-    console.error('Failed to initialize Redis:', error)
+  } catch (_error) {
     handleRedisFailure()
   }
 }
@@ -99,9 +92,8 @@ async function initializeMemoryRateLimiter(): Promise<void> {
       blockDuration: 60,
       execEvenly: true,
     })
-    console.log('Memory rate limiter initialized')
-  } catch (error) {
-    console.error('Failed to initialize memory rate limiter:', error)
+  } catch (_error) {
+    // Rate limiter initialization failed - using fallback
   }
 }
 
@@ -115,7 +107,6 @@ function handleRedisFailure(): void {
 
   if (circuitBreakerState.failures >= circuitBreakerState.maxFailures) {
     circuitBreakerState.isOpen = true
-    console.log('Circuit breaker opened due to Redis failures')
   }
 }
 
@@ -137,7 +128,6 @@ function isCircuitBreakerOpen(): boolean {
   }
 
   if (Date.now() - circuitBreakerState.lastFailure > circuitBreakerState.timeout) {
-    console.log('Circuit breaker timeout expired, attempting Redis reconnection')
     circuitBreakerState.isOpen = false
     circuitBreakerState.failures = Math.max(0, circuitBreakerState.failures - 1)
     return false
@@ -248,9 +238,8 @@ export async function shutdownRateLimiter(): Promise<void> {
   if (redisClient) {
     try {
       await redisClient.quit()
-      console.log('Redis connection closed gracefully')
-    } catch (error) {
-      console.error('Error closing Redis connection:', error)
+    } catch (_error) {
+      // Redis disconnect failed - cleanup continues
     }
   }
 }

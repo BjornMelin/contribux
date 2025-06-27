@@ -313,7 +313,7 @@ export const SecurityAuditLogSchema = BaseEntitySchema.extend({
  */
 export interface AuditLogFilters {
   readonly userId?: UUID
-  readonly eventTypes?: ReadonlyArray<AuthEventType>
+  readonly eventTypes?: readonly AuthEventType[]
   readonly startDate?: Date
   readonly endDate?: Date
   readonly severity?: EventSeverity
@@ -435,7 +435,7 @@ export interface AccessTokenPayload {
   readonly iat: number
   readonly exp: number
   readonly iss: string
-  readonly aud: ReadonlyArray<string>
+  readonly aud: readonly string[]
   readonly jti: UUID // JWT ID for replay protection
 }
 
@@ -486,14 +486,14 @@ export const RefreshTokenPayloadSchema = z.object({
  */
 export interface UserDataExport {
   readonly user: User
-  readonly oauthAccounts: ReadonlyArray<OAuthAccount>
-  readonly sessions: ReadonlyArray<UserSession>
-  readonly consents: ReadonlyArray<UserConsent>
-  readonly auditLogs: ReadonlyArray<SecurityAuditLog>
+  readonly oauthAccounts: readonly OAuthAccount[]
+  readonly sessions: readonly UserSession[]
+  readonly consents: readonly UserConsent[]
+  readonly auditLogs: readonly SecurityAuditLog[]
   readonly preferences: Record<string, unknown>
-  readonly notifications: ReadonlyArray<unknown>
-  readonly contributions: ReadonlyArray<unknown>
-  readonly interactions: ReadonlyArray<unknown>
+  readonly notifications: readonly unknown[]
+  readonly contributions: readonly unknown[]
+  readonly interactions: readonly unknown[]
   readonly exportedAt: Date
   readonly exportVersion: string
 }

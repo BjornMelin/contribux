@@ -3,9 +3,69 @@
  */
 
 import { headers } from 'next/headers'
+import { z } from 'zod'
 import { auth } from '@/lib/auth'
 import { sql } from '@/lib/db/config'
 import type { User } from '@/types/auth'
+
+// Validation schemas for helper functions
+const HasOAuthScopeSchema = z.object({
+  userId: z.string().uuid('User ID must be a valid UUID'),
+  scope: z.string().min(1, 'Scope cannot be empty'),
+  provider: z.string().min(1, 'Provider cannot be empty').default('github'),
+})
+
+const GetOAuthAccessTokenSchema = z.object({
+  userId: z.string().uuid('User ID must be a valid UUID'),
+  provider: z.string().min(1, 'Provider cannot be empty'),
+})
+
+const GetUserProvidersSchema = z.object({
+  userId: z.string().uuid('User ID must be a valid UUID'),
+})
+
+const GetPrimaryProviderSchema = z.object({
+  userId: z.string().uuid('User ID must be a valid UUID'),
+})
+
+const LinkOAuthAccountSchema = z.object({
+  userId: z.string().uuid('User ID must be a valid UUID'),
+  provider: z.string().min(1, 'Provider cannot be empty'),
+  tokens: z.object({
+    provider_account_id: z.string().min(1, 'Provider account ID cannot be empty'),
+    access_token: z.string().min(1, 'Access token cannot be empty'),
+    refresh_token: z.string().optional(),
+    expires_at: z.date().optional(),
+    token_type: z.string().optional(),
+    scope: z.string().optional(),
+  }),
+})
+
+const UnlinkOAuthAccountSchema = z.object({
+  userId: z.string().uuid('User ID must be a valid UUID'),
+  provider: z.string().min(1, 'Provider cannot be empty'),
+})
+
+const SetPrimaryProviderSchema = z.object({
+  userId: z.string().uuid('User ID must be a valid UUID'),
+  provider: z.string().min(1, 'Provider cannot be empty'),
+})
+
+const CanUnlinkProviderSchema = z.object({
+  userId: z.string().uuid('User ID must be a valid UUID'),
+  provider: z.string().min(1, 'Provider cannot be empty'),
+})
+
+const LogSecurityEventSchema = z.object({
+  event: z.object({
+    event_type: z.string().min(1, 'Event type cannot be empty'),
+    event_severity: z.enum(['info', 'warning', 'error', 'critical']),
+    user_id: z.string().uuid('User ID must be a valid UUID').optional(),
+    event_data: z.record(z.unknown()).optional(),
+    success: z.boolean(),
+    error_message: z.string().optional(),
+  }),
+})
 
 /**
  * Get the current authenticated user from the session
@@ -31,8 +91,7 @@ export async function getCurrentUser(): Promise<User | null> {
     }
 
     return userResult[0] as User
-  } catch (error) {
-    console.error('Failed to get current user:', error)
+  } catch (_error) {
     return null
   }
 }
@@ -60,10 +119,13 @@ export async function hasOAuthScope(
   provider = 'github'
 ): Promise<boolean> {
   try {
+    // Validate input parameters
+    const validated = HasOAuthScopeSchema.parse({ userId, scope, provider })
+
     const result = await sql`
       SELECT scope FROM oauth_accounts
-      WHERE user_id = ${userId}
-      AND provider = ${provider}
+      WHERE user_id = ${validated.userId}
+      AND provider = ${validated.provider}
       LIMIT 1
     `
 
@@ -72,9 +134,8 @@ export async function hasOAuthScope(
     }
 
     const scopes = result[0]?.scope?.split(' ') || []
-    return scopes.includes(scope)
-  } catch (error) {
-    console.error('Failed to check OAuth scope:', error)
+    return scopes.includes(validated.scope)
+  } catch (_error) {
     return false
   }
 }
@@ -88,10 +149,13 @@ export async function getOAuthAccessToken(
   provider: string
 ): Promise<string | null> {
   try {
+    // Validate input parameters
+    const validated = GetOAuthAccessTokenSchema.parse({ userId, provider })
+
     const result = await sql`
       SELECT access_token FROM oauth_accounts
-      WHERE user_id = ${userId}
-      AND provider = ${provider}
+      WHERE user_id = ${validated.userId}
+      AND provider = ${validated.provider}
       LIMIT 1
     `
 
@@ -100,8 +164,7 @@ export async function getOAuthAccessToken(
     }
 
     return result[0]?.access_token
-  } catch (error) {
-    console.error(`Failed to get ${provider} access token:`, error)
+  } catch (_error) {
     return null
   }
 }
@@ -119,15 +182,17 @@ export async function getGitHubAccessToken(userId: string): Promise<string | nul
  */
 export async function getUserProviders(userId: string): Promise<string[]> {
   try {
+    // Validate input parameter
+    const validated = GetUserProvidersSchema.parse({ userId })
+
     const result = await sql`
       SELECT DISTINCT provider FROM oauth_accounts
-      WHERE user_id = ${userId}
+      WHERE user_id = ${validated.userId}
       ORDER BY provider
     `
 
     return result.map(row => row.provider)
-  } catch (error) {
-    console.error('Failed to get user providers:', error)
+  } catch (_error) {
     return []
   }
 }
@@ -138,10 +203,13 @@ export async function getUserProviders(userId: string): Promise<string[]> {
  */
 export async function getPrimaryProvider(userId: string): Promise<string | null> {
   try {
+    // Validate input parameter
+    const validated = GetPrimaryProviderSchema.parse({ userId })
+
     // Try to find explicitly marked primary provider
     const primaryResult = await sql`
       SELECT provider FROM oauth_accounts
-      WHERE user_id = ${userId}
+      WHERE user_id = ${validated.userId}
       AND is_primary = true
       LIMIT 1
     `
@@ -153,14 +221,13 @@ export async function getPrimaryProvider(userId: string): Promise<string | null>
     // Fall back to the first linked provider (by creation date)
     const fallbackResult = await sql`
       SELECT provider FROM oauth_accounts
-      WHERE user_id = ${userId}
+      WHERE user_id = ${validated.userId}
       ORDER BY created_at ASC
       LIMIT 1
     `
 
     return fallbackResult.length > 0 ? fallbackResult[0]?.provider : null
-  } catch (error) {
-    console.error('Failed to get primary provider:', error)
+  } catch (_error) {
     return null
   }
 }
@@ -181,6 +248,9 @@ export async function linkOAuthAccount(
   }
 ): Promise<void> {
   try {
+    // Validate input parameters
+    const validated = LinkOAuthAccountSchema.parse({ userId, provider, tokens })
+
     await sql`
       INSERT INTO oauth_accounts (
         user_id, provider, provider_account_id,
@@ -188,14 +258,14 @@ export async function linkOAuthAccount(
         token_type, scope, is_primary, created_at, updated_at
       )
       VALUES (
-        ${userId},
-        ${provider},
-        ${tokens.provider_account_id},
-        ${tokens.access_token},
-        ${tokens.refresh_token || null},
-        ${tokens.expires_at || null},
-        ${tokens.token_type || 'bearer'},
-        ${tokens.scope || null},
+        ${validated.userId},
+        ${validated.provider},
+        ${validated.tokens.provider_account_id},
+        ${validated.tokens.access_token},
+        ${validated.tokens.refresh_token || null},
+        ${validated.tokens.expires_at || null},
+        ${validated.tokens.token_type || 'bearer'},
+        ${validated.tokens.scope || null},
         false, -- New accounts are not primary by default
         CURRENT_TIMESTAMP,
         CURRENT_TIMESTAMP
@@ -214,12 +284,14 @@ export async function linkOAuthAccount(
     await logSecurityEvent({
       event_type: 'oauth_link',
       event_severity: 'info',
-      user_id: userId,
-      event_data: { provider, provider_account_id: tokens.provider_account_id },
+      user_id: validated.userId,
+      event_data: {
+        provider: validated.provider,
+        provider_account_id: validated.tokens.provider_account_id,
+      },
       success: true,
     })
-  } catch (error) {
-    console.error('Failed to link OAuth account:', error)
+  } catch (_error) {
     throw new Error(`Failed to link ${provider} account`)
   }
 }
@@ -228,36 +300,37 @@ export async function linkOAuthAccount(
  * Unlink OAuth account from a user
  */
 export async function unlinkOAuthAccount(userId: string, provider: string): Promise<void> {
-  try {
-    // Check if this is the only provider
-    const canUnlink = await canUnlinkProvider(userId, provider)
-    if (!canUnlink) {
-      throw new Error('Cannot unlink the only authentication method')
-    }
+  // Validate input parameters
+  const validated = UnlinkOAuthAccountSchema.parse({ userId, provider })
 
-    const result = await sql`
+  // Check if this is the only provider
+  const canUnlink = await canUnlinkProvider(validated.userId, validated.provider)
+  if (!canUnlink) {
+    throw new Error('Cannot unlink the only authentication method')
+  }
+
+  const result = await sql`
       DELETE FROM oauth_accounts
-      WHERE user_id = ${userId}
-      AND provider = ${provider}
+      WHERE user_id = ${validated.userId}
+      AND provider = ${validated.provider}
       RETURNING provider_account_id
     `
 
-    if (result.length === 0) {
-      throw new Error('OAuth account not found')
-    }
-
-    // Log the account unlinking event
-    await logSecurityEvent({
-      event_type: 'oauth_unlink',
-      event_severity: 'info',
-      user_id: userId,
-      event_data: { provider, provider_account_id: result[0]?.provider_account_id },
-      success: true,
-    })
-  } catch (error) {
-    console.error('Failed to unlink OAuth account:', error)
-    throw error
+  if (result.length === 0) {
+    throw new Error('OAuth account not found')
   }
+
+  // Log the account unlinking event
+  await logSecurityEvent({
+    event_type: 'oauth_unlink',
+    event_severity: 'info',
+    user_id: validated.userId,
+    event_data: {
+      provider: validated.provider,
+      provider_account_id: result[0]?.provider_account_id,
+    },
+    success: true,
+  })
 }
 
 /**
@@ -265,49 +338,44 @@ export async function unlinkOAuthAccount(userId: string, provider: string): Prom
  */
 export async function setPrimaryProvider(userId: string, provider: string): Promise<void> {
   try {
+    // Validate input parameters
+    const validated = SetPrimaryProviderSchema.parse({ userId, provider })
+
     // Verify the user has this provider linked
     const providerExists = await sql`
       SELECT id FROM oauth_accounts
-      WHERE user_id = ${userId}
-      AND provider = ${provider}
+      WHERE user_id = ${validated.userId}
+      AND provider = ${validated.provider}
       LIMIT 1
     `
 
     if (providerExists.length === 0) {
-      throw new Error(`${provider} account not linked to user`)
+      throw new Error(`${validated.provider} account not linked to user`)
     }
-
-    // Use sequential operations to ensure consistency
-    try {
-      // Unset current primary
-      await sql`
+    // Unset current primary
+    await sql`
         UPDATE oauth_accounts
         SET is_primary = false
-        WHERE user_id = ${userId}
+        WHERE user_id = ${validated.userId}
       `
 
-      // Set new primary
-      await sql`
+    // Set new primary
+    await sql`
         UPDATE oauth_accounts
         SET is_primary = true
-        WHERE user_id = ${userId}
-        AND provider = ${provider}
+        WHERE user_id = ${validated.userId}
+        AND provider = ${validated.provider}
       `
-    } catch (error) {
-      console.error('Primary provider update failed:', error)
-      throw error
-    }
 
     // Log the primary provider change
     await logSecurityEvent({
       event_type: 'config_change',
       event_severity: 'info',
-      user_id: userId,
-      event_data: { action: 'set_primary_provider', provider },
+      user_id: validated.userId,
+      event_data: { action: 'set_primary_provider', provider: validated.provider },
       success: true,
     })
-  } catch (error) {
-    console.error('Failed to set primary provider:', error)
+  } catch (_error) {
     throw new Error(`Failed to set ${provider} as primary provider`)
   }
 }
@@ -317,17 +385,19 @@ export async function setPrimaryProvider(userId: string, provider: string): Prom
  */
 export async function canUnlinkProvider(userId: string, provider: string): Promise<boolean> {
   try {
+    // Validate input parameters
+    const validated = CanUnlinkProviderSchema.parse({ userId, provider })
+
     const otherProvidersResult = await sql`
       SELECT COUNT(*) as count
       FROM oauth_accounts
-      WHERE user_id = ${userId}
-      AND provider != ${provider}
+      WHERE user_id = ${validated.userId}
+      AND provider != ${validated.provider}
     `
 
     const otherProvidersCount = Number(otherProvidersResult[0]?.count || 0)
     return otherProvidersCount > 0
-  } catch (error) {
-    console.error('Failed to check if provider can be unlinked:', error)
+  } catch (_error) {
     return false
   }
 }
@@ -344,6 +414,9 @@ export async function logSecurityEvent(event: {
   error_message?: string
 }): Promise<void> {
   try {
+    // Validate input parameters
+    const validated = LogSecurityEventSchema.parse({ event })
+
     const headersList = await headers()
     const ip_address = headersList.get('x-forwarded-for') || headersList.get('x-real-ip') || null
     const user_agent = headersList.get('user-agent') || null
@@ -354,18 +427,18 @@ export async function logSecurityEvent(event: {
         user_agent, event_data, success, error_message, created_at
       )
       VALUES (
-        ${event.event_type},
-        ${event.event_severity},
-        ${event.user_id || null},
+        ${validated.event.event_type},
+        ${validated.event.event_severity},
+        ${validated.event.user_id || null},
         ${ip_address},
         ${user_agent},
-        ${event.event_data || null},
-        ${event.success},
-        ${event.error_message || null},
+        ${validated.event.event_data || null},
+        ${validated.event.success},
+        ${validated.event.error_message || null},
         CURRENT_TIMESTAMP
       )
     `
-  } catch (error) {
-    console.error('Failed to log security event:', error)
+  } catch (_error) {
+    // Security audit log insertion failed - event not recorded
   }
 }

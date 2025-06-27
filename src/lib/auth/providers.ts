@@ -5,6 +5,7 @@
 
 import { z } from 'zod'
 import type { GitHubProfile, GoogleProfile, LinkedInProfile, MicrosoftProfile } from '@/types/oauth'
+import { parseOAuthProfile } from '@/types/oauth'
 
 // Provider metadata interface
 export interface ProviderMetadata {
@@ -127,11 +128,44 @@ export const OAUTH_PROVIDERS: Record<string, ProviderMetadata> = {
 // Provider validation schema
 export const ProviderSchema = z.enum(['github', 'google', 'linkedin', 'microsoft'])
 
+// Validation schemas
+const GetProviderMetadataSchema = z.object({
+  providerId: z.string().min(1, 'Provider ID cannot be empty'),
+})
+
+const GetProviderScopesSchema = z.object({
+  providerId: z.string().min(1, 'Provider ID cannot be empty'),
+  permissions: z.array(z.string()).default([]),
+})
+
+const NormalizeUserDataSchema = z.object({
+  provider: z.string().min(1, 'Provider cannot be empty'),
+  userData: z.unknown(),
+})
+
+const GetProviderDisplayInfoSchema = z.object({
+  providerId: z.string().min(1, 'Provider ID cannot be empty'),
+})
+
+const GetProviderEndpointsSchema = z.object({
+  providerId: z.string().min(1, 'Provider ID cannot be empty'),
+})
+
+const ValidateProviderConfigSchema = z.object({
+  providerId: z.string().min(1, 'Provider ID cannot be empty'),
+})
+
+const IsProviderSupportedSchema = z.object({
+  providerId: z.string().min(1, 'Provider ID cannot be empty'),
+})
+
 /**
  * Get provider metadata by ID
  */
 export function getProviderMetadata(providerId: string): ProviderMetadata | null {
-  return OAUTH_PROVIDERS[providerId] || null
+  // Validate input parameter
+  const validated = GetProviderMetadataSchema.parse({ providerId })
+  return OAUTH_PROVIDERS[validated.providerId] || null
 }
 
 /**
@@ -145,45 +179,64 @@ export function getSupportedProviders(): string[] {
  * Check if a provider is supported
  */
 export function isProviderSupported(providerId: string): boolean {
-  return providerId in OAUTH_PROVIDERS
+  // Validate input parameter
+  const validated = IsProviderSupportedSchema.parse({ providerId })
+  return validated.providerId in OAUTH_PROVIDERS
 }
 
 /**
  * Get provider scopes based on requested permissions
  */
 export function getProviderScopes(providerId: string, permissions: string[] = []): string[] {
-  const provider = getProviderMetadata(providerId)
+  // Validate input parameters
+  const validated = GetProviderScopesSchema.parse({ providerId, permissions })
+
+  const provider = getProviderMetadata(validated.providerId)
   if (!provider) {
-    throw new Error(`Unsupported provider: ${providerId}`)
+    throw new Error(`Unsupported provider: ${validated.providerId}`)
   }
 
   const scopes = [...provider.defaultScopes]
-
-  // Add additional scopes based on permissions
-  if (providerId === 'github') {
-    if (permissions.includes('public_repos')) {
-      scopes.push('public_repo')
-    }
-    if (permissions.includes('private_repos')) {
-      scopes.push('repo')
-    }
-    if (permissions.includes('organizations')) {
-      scopes.push('read:org')
-    }
-  } else if (providerId === 'google') {
-    if (permissions.includes('calendar')) {
-      scopes.push('https://www.googleapis.com/auth/calendar.readonly')
-    }
-    if (permissions.includes('drive')) {
-      scopes.push('https://www.googleapis.com/auth/drive.readonly')
-    }
-  } else if (providerId === 'linkedin') {
-    if (permissions.includes('w_member_social')) {
-      scopes.push('w_member_social')
-    }
-  }
+  const additionalScopes = getAdditionalScopes(validated.providerId, validated.permissions)
+  scopes.push(...additionalScopes)
 
   return Array.from(new Set(scopes)) // Remove duplicates
+}
+
+/**
+ * Get additional scopes for a provider based on permissions
+ */
+function getAdditionalScopes(providerId: string, permissions: string[]): string[] {
+  const scopeMappers: Record<string, (permissions: string[]) => string[]> = {
+    github: getGitHubScopes,
+    google: getGoogleScopes,
+    linkedin: getLinkedInScopes,
+  }
+
+  const mapper = scopeMappers[providerId]
+  return mapper ? mapper(permissions) : []
+}
+
+function getGitHubScopes(permissions: string[]): string[] {
+  const scopes: string[] = []
+  if (permissions.includes('public_repos')) scopes.push('public_repo')
+  if (permissions.includes('private_repos')) scopes.push('repo')
+  if (permissions.includes('organizations')) scopes.push('read:org')
+  return scopes
+}
+
+function getGoogleScopes(permissions: string[]): string[] {
+  const scopes: string[] = []
+  if (permissions.includes('calendar'))
+    scopes.push('https://www.googleapis.com/auth/calendar.readonly')
+  if (permissions.includes('drive')) scopes.push('https://www.googleapis.com/auth/drive.readonly')
+  return scopes
+}
+
+function getLinkedInScopes(permissions: string[]): string[] {
+  const scopes: string[] = []
+  if (permissions.includes('w_member_social')) scopes.push('w_member_social')
+  return scopes
 }
 
 /**
@@ -200,7 +253,10 @@ export interface ProviderDisplayInfo {
 }
 
 export function getProviderDisplayInfo(providerId: string): ProviderDisplayInfo | null {
-  const provider = getProviderMetadata(providerId)
+  // Validate input parameter
+  const validated = GetProviderDisplayInfoSchema.parse({ providerId })
+
+  const provider = getProviderMetadata(validated.providerId)
   if (!provider) {
     return null
   }
@@ -241,7 +297,10 @@ export interface ProviderEndpoints {
 }
 
 export function getProviderEndpoints(providerId: string): ProviderEndpoints | null {
-  const provider = getProviderMetadata(providerId)
+  // Validate input parameter
+  const validated = GetProviderEndpointsSchema.parse({ providerId })
+
+  const provider = getProviderMetadata(validated.providerId)
   if (!provider) {
     return null
   }
@@ -253,11 +312,11 @@ export function getProviderEndpoints(providerId: string): ProviderEndpoints | nu
   }
 
   // Add revoke URLs for providers that support token revocation
-  if (providerId === 'github') {
+  if (validated.providerId === 'github') {
     endpoints.revokeUrl = 'https://api.github.com/applications/{client_id}/token'
-  } else if (providerId === 'google') {
+  } else if (validated.providerId === 'google') {
     endpoints.revokeUrl = 'https://oauth2.googleapis.com/revoke'
-  } else if (providerId === 'microsoft') {
+  } else if (validated.providerId === 'microsoft') {
     endpoints.revokeUrl = 'https://login.microsoftonline.com/common/oauth2/v2.0/logout'
   }
 
@@ -268,7 +327,10 @@ export function getProviderEndpoints(providerId: string): ProviderEndpoints | nu
  * Validate provider configuration
  */
 export function validateProviderConfig(providerId: string): boolean {
-  const provider = getProviderMetadata(providerId)
+  // Validate input parameter
+  const validated = ValidateProviderConfigSchema.parse({ providerId })
+
+  const provider = getProviderMetadata(validated.providerId)
   if (!provider) {
     return false
   }
@@ -281,7 +343,7 @@ export function validateProviderConfig(providerId: string): boolean {
     microsoft: ['MICROSOFT_CLIENT_ID', 'MICROSOFT_CLIENT_SECRET'],
   }
 
-  const envVars = requiredEnvVars[providerId] || []
+  const envVars = requiredEnvVars[validated.providerId] || []
   return envVars.every(envVar => process.env[envVar])
 }
 
@@ -306,74 +368,94 @@ export interface NormalizedUserData {
 }
 
 export function normalizeUserData(provider: string, userData: unknown): NormalizedUserData {
-  // Import the parseOAuthProfile function at runtime to avoid circular dependency
-  const { parseOAuthProfile } = require('@/types/oauth')
-  const parsedProfile = parseOAuthProfile(provider, userData)
+  // Validate input parameters
+  const validated = NormalizeUserDataSchema.parse({ provider, userData })
+
+  const parsedProfile = parseOAuthProfile(validated.provider, validated.userData)
 
   if (!parsedProfile) {
-    throw new Error(`Invalid profile data for provider: ${provider}`)
+    throw new Error(`Invalid profile data for provider: ${validated.provider}`)
   }
 
-  switch (provider) {
-    case 'github': {
-      const profile = parsedProfile as GitHubProfile
-      return {
-        provider,
-        providerId: profile.id.toString(),
-        email: profile.email || '',
-        name: profile.name || profile.login,
-        username: profile.login,
-        avatarUrl: profile.avatar_url || undefined,
-        profileUrl: profile.html_url || undefined,
-      }
+  // Type-safe normalization using switch statement instead of record to avoid union issues
+  function normalizeByProvider(
+    provider: string,
+    profile: GitHubProfile | GoogleProfile | LinkedInProfile | MicrosoftProfile
+  ): NormalizedUserData {
+    switch (provider) {
+      case 'github':
+        return normalizeGitHubProfile(profile as GitHubProfile)
+      case 'google':
+        return normalizeGoogleProfile(profile as GoogleProfile)
+      case 'linkedin':
+        return normalizeLinkedInProfile(profile as LinkedInProfile)
+      case 'microsoft':
+        return normalizeMicrosoftProfile(profile as MicrosoftProfile)
+      default:
+        throw new Error(`Unsupported provider for user data normalization: ${provider}`)
     }
-
-    case 'google': {
-      const profile = parsedProfile as GoogleProfile
-      return {
-        provider,
-        providerId: profile.id,
-        email: profile.email,
-        name: profile.name,
-        username: profile.email.split('@')[0] || profile.id, // Use email prefix as username, fallback to ID
-        avatarUrl: profile.picture || undefined,
-        profileUrl: profile.link || undefined,
-      }
-    }
-
-    case 'linkedin': {
-      const profile = parsedProfile as LinkedInProfile
-      const firstName = profile.localizedFirstName || ''
-      const lastName = profile.localizedLastName || ''
-      return {
-        provider,
-        providerId: profile.id,
-        email: '', // LinkedIn email requires separate API call
-        name: `${firstName} ${lastName}`.trim(),
-        username: firstName.toLowerCase() || profile.id,
-        avatarUrl:
-          profile.profilePicture?.['displayImage~']?.elements?.[0]?.identifiers?.[0]?.identifier ||
-          undefined,
-        profileUrl: undefined,
-      }
-    }
-
-    case 'microsoft': {
-      const profile = parsedProfile as MicrosoftProfile
-      return {
-        provider,
-        providerId: profile.id,
-        email: profile.mail || profile.userPrincipalName || '',
-        name: profile.displayName || '',
-        username:
-          profile.userPrincipalName?.split('@')[0] || profile.displayName?.toLowerCase() || '',
-        ...(profile.photo?.['@odata.mediaContentType'] && {
-          avatarUrl: `data:${profile.photo['@odata.mediaContentType']};base64,${profile.photo}`,
-        }),
-      }
-    }
-
-    default:
-      throw new Error(`Unsupported provider for user data normalization: ${provider}`)
   }
+
+  return normalizeByProvider(validated.provider, parsedProfile)
+}
+
+function normalizeGitHubProfile(profile: GitHubProfile): NormalizedUserData {
+  return {
+    provider: 'github',
+    providerId: profile.id.toString(),
+    email: profile.email || '',
+    name: profile.name || profile.login,
+    username: profile.login,
+    avatarUrl: profile.avatar_url || undefined,
+    profileUrl: profile.html_url || undefined,
+  }
+}
+
+function normalizeGoogleProfile(profile: GoogleProfile): NormalizedUserData {
+  return {
+    provider: 'google',
+    providerId: profile.id,
+    email: profile.email,
+    name: profile.name,
+    username: profile.email.split('@')[0] || profile.id,
+    avatarUrl: profile.picture || undefined,
+    profileUrl: profile.link || undefined,
+  }
+}
+
+function normalizeLinkedInProfile(profile: LinkedInProfile): NormalizedUserData {
+  const firstName = profile.localizedFirstName || ''
+  const lastName = profile.localizedLastName || ''
+
+  return {
+    provider: 'linkedin',
+    providerId: profile.id,
+    email: '', // LinkedIn email requires separate API call
+    name: `${firstName} ${lastName}`.trim(),
+    username: firstName.toLowerCase() || profile.id,
+    avatarUrl:
+      profile.profilePicture?.['displayImage~']?.elements?.[0]?.identifiers?.[0]?.identifier ||
+      undefined,
+    profileUrl: undefined,
+  }
+}
+
+function normalizeMicrosoftProfile(profile: MicrosoftProfile): NormalizedUserData {
+  const baseData = {
+    provider: 'microsoft' as const,
+    providerId: profile.id,
+    email: profile.mail || profile.userPrincipalName || '',
+    name: profile.displayName || '',
+    username: profile.userPrincipalName?.split('@')[0] || profile.displayName?.toLowerCase() || '',
+  }
+
+  // Add avatar URL if photo data is available
+  if (profile.photo?.['@odata.mediaContentType']) {
+    return {
+      ...baseData,
+      avatarUrl: `data:${profile.photo['@odata.mediaContentType']};base64,${profile.photo}`,
+    }
+  }
+
+  return baseData
 }
