@@ -36,23 +36,14 @@ let testSqlClient: NeonQueryFunction<false, false> | null = null
  * Setup PGlite database for the test suite
  */
 beforeAll(async () => {
-  console.log('🚀 Setting up PGlite in-memory database...')
+  // Create in-memory PostgreSQL with extensions
+  testDb = new PGlite('memory://')
 
-  try {
-    // Create in-memory PostgreSQL with extensions
-    testDb = new PGlite('memory://')
+  // Create SQL client compatible with Neon
+  testSqlClient = createNeonCompatibleClient(testDb)
 
-    // Create SQL client compatible with Neon
-    testSqlClient = createNeonCompatibleClient(testDb)
-
-    // Setup schema and extensions
-    await setupTestSchema(testDb)
-
-    console.log('✅ PGlite database ready')
-  } catch (error) {
-    console.error('❌ Failed to setup PGlite database:', error)
-    throw error
-  }
+  // Setup schema and extensions
+  await setupTestSchema(testDb)
 })
 
 /**
@@ -60,11 +51,9 @@ beforeAll(async () => {
  */
 afterAll(async () => {
   if (testDb) {
-    console.log('🧹 Cleaning up PGlite database...')
     await testDb.close()
     testDb = null
     testSqlClient = null
-    console.log('✅ PGlite database closed')
   }
 })
 
@@ -95,14 +84,13 @@ afterEach(async () => {
  * Setup database schema and extensions
  */
 async function setupTestSchema(db: PGlite): Promise<void> {
-  try {
-    // Enable extensions
-    await db.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
-    await db.query('CREATE EXTENSION IF NOT EXISTS "vector"')
+  // Enable extensions
+  await db.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
+  await db.query('CREATE EXTENSION IF NOT EXISTS "vector"')
 
-    // Create schema from schema.sql if it exists
-    // For now, we'll create a basic schema for testing
-    await db.query(`
+  // Create schema from schema.sql if it exists
+  // For now, we'll create a basic schema for testing
+  await db.query(`
       CREATE TABLE IF NOT EXISTS test_table (
         id SERIAL PRIMARY KEY,
         name TEXT NOT NULL,
@@ -112,33 +100,22 @@ async function setupTestSchema(db: PGlite): Promise<void> {
       )
     `)
 
-    // Create vector index for testing
-    await db.query(`
+  // Create vector index for testing
+  await db.query(`
       CREATE INDEX IF NOT EXISTS test_table_embedding_idx 
       ON test_table USING hnsw (embedding vector_cosine_ops)
     `)
-
-    console.log('✅ Test schema created')
-  } catch (error) {
-    console.error('Failed to setup test schema:', error)
-    throw error
-  }
 }
 
 /**
  * Cleanup test data between tests
  */
 async function cleanupTestData(db: PGlite): Promise<void> {
-  try {
-    // Truncate all tables in correct order
-    await db.query('TRUNCATE TABLE test_table CASCADE')
+  // Truncate all tables in correct order
+  await db.query('TRUNCATE TABLE test_table CASCADE')
 
-    // Reset sequences
-    await db.query('ALTER SEQUENCE test_table_id_seq RESTART WITH 1')
-  } catch (error) {
-    console.error('Failed to cleanup test data:', error)
-    throw error
-  }
+  // Reset sequences
+  await db.query('ALTER SEQUENCE test_table_id_seq RESTART WITH 1')
 }
 
 /**
@@ -146,32 +123,27 @@ async function cleanupTestData(db: PGlite): Promise<void> {
  */
 function createNeonCompatibleClient(db: PGlite): NeonQueryFunction<false, false> {
   return async function sql(strings: TemplateStringsArray, ...values: TemplateQueryValues) {
-    try {
-      // Validate all query parameters
-      for (const value of values) {
-        if (!isValidQueryParameter(value)) {
-          throw new Error(`Invalid query parameter: ${typeof value}`)
-        }
+    // Validate all query parameters
+    for (const value of values) {
+      if (!isValidQueryParameter(value)) {
+        throw new Error(`Invalid query parameter: ${typeof value}`)
       }
-
-      // Convert template literal to query string and parameters
-      let query = strings[0] || ''
-      const params: QueryParameter[] = []
-
-      for (let i = 0; i < values.length; i++) {
-        query += `$${i + 1}${strings[i + 1] || ''}`
-        params.push(values[i] as QueryParameter)
-      }
-
-      // Execute query
-      const result: PGliteResult = await db.query(query, params)
-
-      // Return rows in Neon format (just the rows array)
-      return result.rows
-    } catch (error) {
-      console.error('SQL query failed:', error)
-      throw error
     }
+
+    // Convert template literal to query string and parameters
+    let query = strings[0] || ''
+    const params: QueryParameter[] = []
+
+    for (let i = 0; i < values.length; i++) {
+      query += `$${i + 1}${strings[i + 1] || ''}`
+      params.push(values[i] as QueryParameter)
+    }
+
+    // Execute query
+    const result: PGliteResult = await db.query(query, params)
+
+    // Return rows in Neon format (just the rows array)
+    return result.rows
   } as NeonQueryFunction<false, false>
 }
 
@@ -249,18 +221,14 @@ export async function createTestData(sql: NeonQueryFunction<false, false>) {
  * Performance monitoring utilities
  */
 export const testPerformance = {
-  async measureQuery<T>(name: string, fn: () => Promise<T>): Promise<PerformanceMeasurement<T>> {
+  async measureQuery<T>(_name: string, fn: () => Promise<T>): Promise<PerformanceMeasurement<T>> {
     const start = performance.now()
     const result = await fn()
     const duration = performance.now() - start
-
-    console.log(`⏱️  ${name}: ${duration.toFixed(2)}ms`)
     return { result, duration }
   },
 
   async benchmarkQueries(queries: BenchmarkQuery[], iterations = 10) {
-    console.log(`🔄 Running benchmark with ${iterations} iterations...`)
-
     for (const query of queries) {
       const times: number[] = []
 
@@ -269,15 +237,9 @@ export const testPerformance = {
         times.push(duration)
       }
 
-      const avg = times.reduce((a, b) => a + b, 0) / times.length
-      const min = Math.min(...times)
-      const max = Math.max(...times)
-
-      console.log(
-        `📊 ${query.name}: avg=${avg.toFixed(2)}ms, min=${min.toFixed(2)}ms, max=${max.toFixed(2)}ms`
-      )
+      const _avg = times.reduce((a, b) => a + b, 0) / times.length
+      const _min = Math.min(...times)
+      const _max = Math.max(...times)
     }
   },
 }
-
-console.log('PGlite test setup loaded. Ultra-fast in-memory PostgreSQL enabled.')

@@ -100,7 +100,7 @@ export const RepositoryHealthStatusSchema = z.nativeEnum(RepositoryHealthStatus)
 export interface SearchFilters {
   // Basic search
   readonly query: string
-  readonly languages: ReadonlyArray<string>
+  readonly languages: readonly string[]
   readonly difficulty: DifficultyLevel | undefined
   readonly type: OpportunityType | undefined
 
@@ -219,7 +219,7 @@ export interface Repository extends BaseEntity {
   readonly fullName: string
   readonly description: string | undefined
   readonly language: string | undefined
-  readonly topics: ReadonlyArray<string>
+  readonly topics: readonly string[]
   readonly starsCount: number
   readonly forksCount: number
   readonly issuesCount: number
@@ -269,9 +269,9 @@ export interface OpportunityAnalysis {
   readonly confidenceScore: number // 0-1
   readonly learningPotential: number // 0-1
   readonly businessImpact: number // 0-1
-  readonly requiredSkills: ReadonlyArray<string>
+  readonly requiredSkills: readonly string[]
   readonly suggestedApproach: string | undefined
-  readonly potentialChallenges: ReadonlyArray<string>
+  readonly potentialChallenges: readonly string[]
   readonly successProbability: number // 0-1
   readonly estimatedEffort: {
     readonly hours: number | undefined
@@ -330,9 +330,9 @@ export interface Opportunity extends BaseEntity {
   readonly description: string | undefined
   readonly type: OpportunityType
   readonly difficulty: DifficultyLevel
-  readonly labels: ReadonlyArray<GitHubLabel>
-  readonly technologies: ReadonlyArray<string>
-  readonly requiredSkills: ReadonlyArray<string>
+  readonly labels: readonly GitHubLabel[]
+  readonly technologies: readonly string[]
+  readonly requiredSkills: readonly string[]
   readonly goodFirstIssue: boolean
   readonly helpWanted: boolean
   readonly hasAssignee: boolean
@@ -456,11 +456,11 @@ export const SearchMetadataSchema = z.object({
  * Complete search results
  */
 export interface SearchResults {
-  readonly opportunities: ReadonlyArray<Opportunity>
+  readonly opportunities: readonly Opportunity[]
   readonly pagination: PaginationMetadata
   readonly facets: SearchFacets
   readonly metadata: SearchMetadata
-  readonly suggestions: ReadonlyArray<string>
+  readonly suggestions: readonly string[]
 }
 
 /**
@@ -481,7 +481,7 @@ export const SearchResultsSchema = z.object({
  */
 export interface VectorSearchParams {
   readonly query: string
-  readonly embedding: ReadonlyArray<number> | undefined
+  readonly embedding: readonly number[] | undefined
   readonly threshold: number // 0-1
   readonly limit: number
   readonly includeMetadata: boolean
@@ -558,7 +558,7 @@ export interface SearchAnalytics {
   readonly filters: SearchFilters
   readonly resultCount: number
   readonly executionTime: number
-  readonly clickedResults: ReadonlyArray<UUID>
+  readonly clickedResults: readonly UUID[]
   readonly sessionId: string | undefined
   readonly timestamp: Date
 }
@@ -591,7 +591,7 @@ export interface SearchBarProps {
   readonly className?: string
   readonly autoFocus?: boolean
   readonly showSuggestions?: boolean
-  readonly suggestions?: ReadonlyArray<string>
+  readonly suggestions?: readonly string[]
 }
 
 /**
@@ -623,7 +623,7 @@ export interface OpportunityCardProps {
  * Opportunity list component props
  */
 export interface OpportunityListProps {
-  readonly opportunities: ReadonlyArray<Opportunity>
+  readonly opportunities: readonly Opportunity[]
   readonly loading?: boolean
   readonly error?: string | undefined
   readonly onOpportunitySelect: (opportunity: Opportunity) => void
@@ -670,5 +670,5 @@ export type SearchResult<T> = Result<T, string>
  */
 export type OpportunitySearchResponse = SearchApiResponse<SearchResults>
 export type SavedSearchResponse = SearchApiResponse<SavedSearch>
-export type SearchSuggestionsResponse = SearchApiResponse<ReadonlyArray<string>>
+export type SearchSuggestionsResponse = SearchApiResponse<readonly string[]>
 export type SearchAnalyticsResponse = SearchApiResponse<SearchAnalytics>

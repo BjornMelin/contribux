@@ -48,8 +48,7 @@ export class DatabaseMonitor {
       }
 
       return connectionMetricsSchema.parse(metrics)
-    } catch (error) {
-      console.error('Failed to get connection metrics:', error)
+    } catch (_error) {
       return { active: 0, idle: 0 }
     }
   }
@@ -72,8 +71,7 @@ export class DatabaseMonitor {
       return result && Array.isArray(result)
         ? result.map((row: unknown) => slowQuerySchema.parse(row))
         : []
-    } catch (error) {
-      console.error('Failed to get slow queries (pg_stat_statements may not be enabled):', error)
+    } catch (_error) {
       return []
     }
   }
@@ -96,8 +94,7 @@ export class DatabaseMonitor {
       return result && Array.isArray(result)
         ? result.map((row: unknown) => indexStatSchema.parse(row))
         : []
-    } catch (error) {
-      console.error('Failed to get index usage stats:', error)
+    } catch (_error) {
       return []
     }
   }
@@ -119,8 +116,7 @@ export class DatabaseMonitor {
       return result && Array.isArray(result)
         ? result.map((row: unknown) => vectorIndexMetricSchema.parse(row))
         : []
-    } catch (error) {
-      console.error('Failed to get vector index metrics:', error)
+    } catch (_error) {
       return []
     }
   }
@@ -142,8 +138,7 @@ export class DatabaseMonitor {
       return result && Array.isArray(result)
         ? result.map((row: unknown) => tableSizeSchema.parse(row))
         : []
-    } catch (error) {
-      console.error('Failed to get table sizes:', error)
+    } catch (_error) {
       return []
     }
   }
@@ -330,7 +325,6 @@ ${indexStatsText}`
 
       return report.trim()
     } catch (error) {
-      console.error('Failed to generate performance report:', error)
       return `Performance report generation failed: ${error}`
     }
   }

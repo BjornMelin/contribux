@@ -133,11 +133,11 @@ export const DatabaseTableSchema = z.object({
  * Generic query result interface
  */
 export interface QueryResult<T = unknown> {
-  readonly rows: ReadonlyArray<T>
+  readonly rows: readonly T[]
   readonly rowCount: number
   readonly command?: string
   readonly oid?: number
-  readonly fields?: ReadonlyArray<QueryResultField>
+  readonly fields?: readonly QueryResultField[]
 }
 
 /**
@@ -277,7 +277,7 @@ export interface QueryMetrics {
   readonly planningTime: number // milliseconds
   readonly rowsReturned: number
   readonly rowsExamined: number
-  readonly indexesUsed: ReadonlyArray<string>
+  readonly indexesUsed: readonly string[]
   readonly executedAt: Date
 }
 
@@ -290,7 +290,7 @@ export interface DatabaseHealthCheck {
   readonly activeConnections: number
   readonly version: string
   readonly lastCheck: Date
-  readonly errors: ReadonlyArray<string>
+  readonly errors: readonly string[]
 }
 
 /**
@@ -332,7 +332,7 @@ export const DatabaseHealthCheckSchema = z.object({
  */
 export interface VectorEmbedding {
   readonly id: UUID
-  readonly vector: ReadonlyArray<number>
+  readonly vector: readonly number[]
   readonly dimensions: number
   readonly metadata?: Record<string, unknown>
 }
@@ -341,7 +341,7 @@ export interface VectorEmbedding {
  * Vector search query
  */
 export interface VectorSearchQuery {
-  readonly vector: ReadonlyArray<number>
+  readonly vector: readonly number[]
   readonly limit: number
   readonly threshold: number // similarity threshold (0-1)
   readonly includeMetadata: boolean

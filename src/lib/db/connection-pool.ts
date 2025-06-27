@@ -3,7 +3,8 @@
  * Manages Neon connections with aggressive memory optimization
  */
 
-import { type NeonQueryFunction, neon } from '@neondatabase/serverless'
+import type { NeonQueryFunction } from '@neondatabase/serverless'
+import { neon } from '@neondatabase/serverless'
 
 interface PoolConfig {
   maxConnections: number
@@ -278,10 +279,6 @@ class MemoryOptimizedPool {
     if (global.gc) {
       global.gc()
     }
-
-    console.log(
-      `✅ Database pool shutdown complete. Destroyed ${connectionKeys.length} connections.`
-    )
   }
 
   /**

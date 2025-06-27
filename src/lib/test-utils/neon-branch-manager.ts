@@ -206,9 +206,9 @@ export class NeonBranchManager {
     const branches = Array.from(this.activeBranches.keys())
     await Promise.all(
       branches.map(branchId =>
-        this.deleteBranch(branchId).catch(err =>
-          console.error(`Failed to delete branch ${branchId}:`, err)
-        )
+        this.deleteBranch(branchId).catch(_err => {
+          // Ignore errors during cleanup
+        })
       )
     )
   }

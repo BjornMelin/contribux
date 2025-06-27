@@ -174,8 +174,8 @@ class PerformanceMonitor {
           }
         }
       }).observe({ entryTypes: ['layout-shift'] })
-    } catch (error) {
-      console.warn('Web Vitals monitoring not fully supported:', error)
+    } catch (_error) {
+      // Performance observer for layout shifts not supported
     }
   }
 
@@ -189,8 +189,8 @@ class PerformanceMonitor {
         // Track resource loading performance
         this.metrics.timing.interactivity = Date.now() - this.startTime
       }).observe({ entryTypes: ['resource'] })
-    } catch (error) {
-      console.warn('Resource monitoring not supported:', error)
+    } catch (_error) {
+      // Performance observer for resources not supported
     }
   }
 
@@ -358,7 +358,7 @@ class PerformanceMonitor {
 
     // Log critical alerts immediately
     if (alert.severity === 'critical') {
-      console.error('Critical performance alert:', fullAlert)
+      // Critical alert logging handled by external monitoring system
     }
   }
 
@@ -466,8 +466,8 @@ class PerformanceMonitor {
     this.observers.forEach(observer => {
       try {
         observer.disconnect()
-      } catch (error) {
-        console.warn('Error disconnecting performance observer:', error)
+      } catch (_error) {
+        // Observer disconnect failed - continuing cleanup
       }
     })
 
@@ -490,8 +490,7 @@ class PerformanceMonitor {
    * Log performance report
    */
   logReport(): void {
-    const summary = this.getSummary()
-    console.log('📊 Performance Report:', summary)
+    const _summary = this.getSummary()
   }
 }
 

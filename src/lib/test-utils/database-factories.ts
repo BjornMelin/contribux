@@ -69,26 +69,26 @@ export class UserFactory {
   async create(overrides: Partial<TestUser> = {}): Promise<TestUser> {
     // Generate unique username
     let github_username = overrides.github_username || faker.internet.username()
-    
+
     // If username was explicitly provided, make it unique by adding timestamp suffix if already used
     if (overrides.github_username && this.usedUsernames.has(github_username)) {
       github_username = `${overrides.github_username}_${Date.now()}_${faker.number.int({ min: 1, max: 999 })}`
     }
-    
+
     // For generated usernames, use original collision detection
     while (!overrides.github_username && this.usedUsernames.has(github_username)) {
-      github_username = faker.internet.username() + '_' + faker.number.int({ min: 1, max: 999 })
+      github_username = `${faker.internet.username()}_${faker.number.int({ min: 1, max: 999 })}`
     }
-    
+
     this.usedUsernames.add(github_username)
-    
+
     // Generate unique email
     let email = overrides.email || faker.internet.email()
     while (this.usedEmails.has(email)) {
       email = faker.internet.email()
     }
     this.usedEmails.add(email)
-    
+
     const userData: TestUser = {
       github_id: faker.number.int({ min: 1000000, max: 9999999 }).toString(),
       github_username,
@@ -169,7 +169,7 @@ export class RepositoryFactory {
       github_id = faker.number.int({ min: 100000, max: 999999 }).toString()
     }
     this.usedGithubIds.add(github_id)
-    
+
     const repoData: TestRepository = {
       github_id,
       name: faker.lorem.slug(),
@@ -251,10 +251,10 @@ export class OpportunityFactory {
    */
   async create(overrides: Partial<TestOpportunity> = {}): Promise<TestOpportunity> {
     const repositoryId = overrides.repository_id || (await this.getRandomRepositoryId())
-    
+
     // Get next unique issue number for this repository
     const issueNumber = overrides.issue_number || this.getNextIssueNumber(repositoryId)
-    
+
     const oppData: TestOpportunity = {
       repository_id: repositoryId,
       issue_number: issueNumber,
@@ -410,25 +410,35 @@ export class ScenarioFactory {
       throw new Error('Repository must have an id after creation')
     }
 
-    // Create opportunities with similar embeddings for testing similarity search
-    const similarEmbedding = Array.from({ length: 1536 }, () => 0.5)
+    // Create opportunities with precisely calculated embeddings for testing similarity search
+    // Query vector will be [0.5, 0.5, 0.5, ...] (all 0.5s)
+
+    // Embedding 1: Exact match with query [0.5, 0.5, 0.5, ...] - distance = 0
+    const neuralNetworkEmbedding = Array.from({ length: 1536 }, () => 0.5)
+
+    // Embedding 2: Close match [0.51, 0.51, 0.51, ...] - small distance
+    const preprocessingEmbedding = Array.from({ length: 1536 }, () => 0.51)
+
+    // Embedding 3: Very different [-0.5, -0.5, -0.5, ...] - large distance
+    const visualizationEmbedding = Array.from({ length: 1536 }, () => -0.5)
+
     const opportunities = await Promise.all([
       this.opportunityFactory.create({
         repository_id: repo.id,
         title: 'Implement neural network',
-        embedding: similarEmbedding,
+        embedding: neuralNetworkEmbedding,
         skills_required: ['Python', 'TensorFlow', 'Machine Learning'],
       }),
       this.opportunityFactory.create({
         repository_id: repo.id,
         title: 'Add data preprocessing',
-        embedding: similarEmbedding.map(v => v + 0.1), // Slightly different
+        embedding: preprocessingEmbedding,
         skills_required: ['Python', 'Pandas', 'Data Science'],
       }),
       this.opportunityFactory.create({
         repository_id: repo.id,
         title: 'Create visualization dashboard',
-        embedding: Array.from({ length: 1536 }, () => -0.5), // Very different
+        embedding: visualizationEmbedding,
         skills_required: ['JavaScript', 'D3.js', 'React'],
       }),
     ])
@@ -443,11 +453,8 @@ export class ScenarioFactory {
    * Create performance testing scenario with large dataset
    */
   async createPerformanceTestScenario() {
-    console.log('🔄 Creating performance test scenario...')
-
     // Create multiple repositories
     const repositories = await this.repositoryFactory.createMany(20)
-    console.log(`✅ Created ${repositories.length} repositories`)
 
     // Create many opportunities for performance testing
     const opportunities: TestOpportunity[] = []
@@ -460,7 +467,6 @@ export class ScenarioFactory {
       })
       opportunities.push(...repoOpportunities)
     }
-    console.log(`✅ Created ${opportunities.length} opportunities`)
 
     return {
       repositories,

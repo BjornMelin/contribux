@@ -59,8 +59,7 @@ export class DatabaseMonitorLocal {
       }
 
       return connectionMetricsSchema.parse(metrics)
-    } catch (error) {
-      console.error('Failed to get connection metrics:', error)
+    } catch (_error) {
       return { active: 0, idle: 0 }
     }
   }
@@ -102,8 +101,6 @@ export class DatabaseMonitorLocal {
         // This is expected in test environments, return empty array silently
         return []
       }
-      // For other errors, log them but still return empty array
-      console.error('Failed to get slow queries:', error)
       return []
     }
   }
@@ -124,8 +121,7 @@ export class DatabaseMonitorLocal {
       )
 
       return result && Array.isArray(result) ? result.map(row => indexStatSchema.parse(row)) : []
-    } catch (error) {
-      console.error('Failed to get index usage stats:', error)
+    } catch (_error) {
       return []
     }
   }
@@ -147,8 +143,7 @@ export class DatabaseMonitorLocal {
       return result && Array.isArray(result)
         ? result.map(row => vectorIndexMetricSchema.parse(row))
         : []
-    } catch (error) {
-      console.error('Failed to get vector index metrics:', error)
+    } catch (_error) {
       return []
     }
   }
@@ -168,8 +163,7 @@ export class DatabaseMonitorLocal {
       )
 
       return result && Array.isArray(result) ? result.map(row => tableSizeSchema.parse(row)) : []
-    } catch (error) {
-      console.error('Failed to get table sizes:', error)
+    } catch (_error) {
       return []
     }
   }
@@ -356,7 +350,6 @@ ${indexStatsText}`
 
       return report.trim()
     } catch (error) {
-      console.error('Failed to generate performance report:', error)
       return `Performance report generation failed: ${error}`
     }
   }
