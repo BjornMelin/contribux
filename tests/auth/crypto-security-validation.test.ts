@@ -9,14 +9,8 @@ import {
   encryptToken,
   exportKey,
   generateEncryptionKey,
-  importKey,
 } from '../../src/lib/auth/crypto'
-import {
-  generateAccessToken,
-  generateRefreshToken,
-  verifyAccessToken,
-  verifyRefreshToken,
-} from '../../src/lib/auth/jwt'
+import { generateAccessToken, verifyAccessToken } from '../../src/lib/auth/jwt'
 import {
   calculateShannonEntropy,
   hasPredictablePattern,
@@ -87,7 +81,7 @@ describe('Cryptographic Security Validation', () => {
 
       it('should reject tokens with wrong algorithm', async () => {
         const token = await generateAccessToken(mockUser, mockSession, 'oauth')
-        const [header, payload, signature] = token.split('.')
+        const [_header, payload, signature] = token.split('.')
 
         // Create malicious header with weak algorithm
         const maliciousHeader = Buffer.from(
@@ -281,7 +275,7 @@ describe('Cryptographic Security Validation', () => {
         // Tamper with ciphertext
         const tamperedCiphertext = {
           ...encrypted,
-          ciphertext: encrypted.ciphertext.slice(0, -4) + 'XXXX',
+          ciphertext: `${encrypted.ciphertext.slice(0, -4)}XXXX`,
         }
 
         await expect(decryptToken(tamperedCiphertext, key)).rejects.toThrow('Decryption failed')
@@ -289,7 +283,7 @@ describe('Cryptographic Security Validation', () => {
         // Tamper with authentication tag
         const tamperedTag = {
           ...encrypted,
-          tag: encrypted.tag.slice(0, -4) + 'YYYY',
+          tag: `${encrypted.tag.slice(0, -4)}YYYY`,
         }
 
         await expect(decryptToken(tamperedTag, key)).rejects.toThrow('Decryption failed')
@@ -591,7 +585,7 @@ describe('Cryptographic Security Validation', () => {
         const validToken = await generateAccessToken(mockUser, mockSession, 'oauth')
         const invalidTokens = [
           'completely.invalid.token',
-          validToken.slice(0, -5) + 'XXXXX', // Tampered signature
+          `${validToken.slice(0, -5)}XXXXX`, // Tampered signature
           validToken.replace(/[A-Za-z]/g, 'X'), // Completely different but same structure
         ]
 

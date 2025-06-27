@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { setupTestDatabase } from '../../src/lib/test-utils/test-database-manager'
-import type { DatabaseColumn } from '../../src/types/database'
 
 // Database query result interface (snake_case from PostgreSQL)
 interface DatabaseQueryColumn {
