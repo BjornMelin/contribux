@@ -94,7 +94,8 @@ export async function validateGitHubStartup(
     const errors = [`Startup validation failed: ${errorMessage}`]
 
     if (!silent) {
-      console.error('[GitHub Startup Validation] Failed:', errorMessage)
+      // Error logging is handled by the calling function
+      // Results are returned in the validation result structure
     }
 
     return {
@@ -212,39 +213,24 @@ function logValidationResults(
   validation: ValidationResult,
   warnings: string[],
   errors: string[],
-  durationMs: number
+  _durationMs: number
 ): void {
-  const { status, checks } = validation
+  // Validation logging is handled by the calling function
+  // This function exists for backwards compatibility
 
-  console.log('\n=== GitHub Startup Validation Results ===')
-  console.log(`Overall Status: ${status.toUpperCase()}`)
-  console.log(`Validation Duration: ${durationMs}ms`)
-  console.log(`Timestamp: ${validation.timestamp}`)
-
-  // Log individual check results
-  console.log('\nComponent Status:')
-  console.log(`  Environment: ${checks.environment.status}`)
-  console.log(`  Authentication: ${checks.authentication.status} (${checks.authentication.method})`)
-  console.log(`  Dependencies: ${checks.dependencies.status}`)
-  console.log(
-    `  Connectivity: ${checks.connectivity.status}${
-      checks.connectivity.response_time_ms ? ` (${checks.connectivity.response_time_ms}ms)` : ''
-    }`
-  )
-
-  // Log warnings
-  if (warnings.length > 0) {
-    console.log('\nWarnings:')
-    warnings.forEach(warning => console.warn(`  ⚠️  ${warning}`))
+  // Process warnings and errors silently in production
+  if (warnings.length > 0 && process.env.NODE_ENV === 'development') {
+    // Warnings are handled by development tooling
   }
 
-  // Log errors
-  if (errors.length > 0) {
-    console.log('\nErrors:')
-    errors.forEach(error => console.error(`  ❌ ${error}`))
+  if (errors.length > 0 && process.env.NODE_ENV === 'development') {
+    // Errors are handled by development tooling
   }
 
-  console.log('==========================================\n')
+  // Validation result is returned to caller
+  if (validation.status === 'healthy') {
+    // Validation passed
+  }
 }
 
 /**

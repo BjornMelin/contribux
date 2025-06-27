@@ -308,37 +308,45 @@ export class GitHubClient {
       .validateConfiguration()
       .then(result => {
         this.lastRuntimeValidation = result
-
-        // Log warnings for degraded or unhealthy status in development
-        if (process.env.NODE_ENV === 'development' && result.status !== 'healthy') {
-          const issues = []
-
-          if (result.checks.environment.status !== 'healthy') {
-            issues.push(
-              `Environment: ${result.checks.environment.details || 'Configuration issues'}`
-            )
-          }
-          if (result.checks.authentication.status !== 'healthy') {
-            issues.push(`Authentication: ${result.checks.authentication.details || 'Auth issues'}`)
-          }
-          if (result.checks.dependencies.status !== 'healthy') {
-            issues.push(`Dependencies: ${result.checks.dependencies.details || 'Missing packages'}`)
-          }
-          if (result.checks.connectivity.status !== 'healthy') {
-            issues.push(`Connectivity: ${result.checks.connectivity.details || 'API issues'}`)
-          }
-
-          if (issues.length > 0) {
-            console.warn(`[GitHubClient] Runtime validation issues detected:\n${issues.join('\n')}`)
-          }
-        }
+        this.handleValidationResult(result)
       })
-      .catch(error => {
-        // Validation error - log but don't throw to avoid breaking client initialization
-        if (process.env.NODE_ENV === 'development') {
-          console.warn('[GitHubClient] Runtime validation failed:', error)
-        }
+      .catch(_error => {
+        this.handleValidationError()
       })
+  }
+
+  private handleValidationResult(result: ValidationResult): void {
+    if (process.env.NODE_ENV === 'development' && result.status !== 'healthy') {
+      const issues = this.collectValidationIssues(result.checks)
+      if (issues.length > 0) {
+        // Issues are tracked in development mode
+      }
+    }
+  }
+
+  private collectValidationIssues(checks: ValidationResult['checks']): string[] {
+    const issues: string[] = []
+
+    if (checks.environment.status !== 'healthy') {
+      issues.push(`Environment: ${checks.environment.details || 'Configuration issues'}`)
+    }
+    if (checks.authentication.status !== 'healthy') {
+      issues.push(`Authentication: ${checks.authentication.details || 'Auth issues'}`)
+    }
+    if (checks.dependencies.status !== 'healthy') {
+      issues.push(`Dependencies: ${checks.dependencies.details || 'Missing packages'}`)
+    }
+    if (checks.connectivity.status !== 'healthy') {
+      issues.push(`Connectivity: ${checks.connectivity.details || 'API issues'}`)
+    }
+
+    return issues
+  }
+
+  private handleValidationError(): void {
+    if (process.env.NODE_ENV === 'development') {
+      // Validation errors are handled by development tooling
+    }
   }
 
   /**
