@@ -283,83 +283,87 @@ function transformGitHubIssue(
  * Detect opportunity type from GitHub issue labels and title
  */
 function detectOpportunityType(labels: GitHubApiLabel[], title: string): OpportunityType {
-  const titleLower = title.toLowerCase()
+  // Check labels first for explicit type classification
+  const labelType = detectOpportunityTypeFromLabels(labels)
+  if (labelType !== 'other') {
+    return labelType
+  }
 
-  // Check labels first
+  // Fall back to title analysis
+  return detectOpportunityTypeFromTitle(title)
+}
+
+/**
+ * Helper function: Detect opportunity type from GitHub issue labels
+ */
+function detectOpportunityTypeFromLabels(labels: GitHubApiLabel[]): OpportunityType {
+  const labelPatterns = getLabelPatterns()
+
   for (const label of labels) {
-    const labelName = typeof label === 'string' ? label : label.name || ''
+    const labelName = extractLabelName(label)
     const labelLower = labelName.toLowerCase()
 
-    if (labelLower.includes('bug') || labelLower.includes('fix')) {
-      return 'bug_fix'
-    }
-    if (labelLower.includes('feature') || labelLower.includes('enhancement')) {
-      return 'feature'
-    }
-    if (labelLower.includes('doc') || labelLower.includes('documentation')) {
-      return 'documentation'
-    }
-    if (labelLower.includes('test') || labelLower.includes('testing')) {
-      return 'testing'
-    }
-    if (labelLower.includes('refactor') || labelLower.includes('cleanup')) {
-      return 'refactoring'
-    }
-    if (labelLower.includes('performance') || labelLower.includes('perf')) {
-      return 'performance'
-    }
-    if (labelLower.includes('security') || labelLower.includes('vulnerability')) {
-      return 'security'
-    }
-    if (labelLower.includes('accessibility') || labelLower.includes('a11y')) {
-      return 'accessibility'
+    const detectedType = findMatchingOpportunityType(labelLower, labelPatterns)
+    if (detectedType !== 'other') {
+      return detectedType
     }
   }
 
-  // Check title if no matching label
-  if (titleLower.includes('bug') || titleLower.includes('fix') || titleLower.includes('error')) {
-    return 'bug_fix'
+  return 'other'
+}
+
+function getLabelPatterns(): Record<string, string[]> {
+  return {
+    bug_fix: ['bug', 'fix', 'error', 'issue', 'broken', 'defect'],
+    feature: ['feature', 'enhancement', 'new', 'add', 'implement'],
+    documentation: ['docs', 'documentation', 'readme', 'guide', 'tutorial'],
+    testing: ['test', 'testing', 'spec', 'coverage', 'unit test', 'integration'],
+    refactoring: ['refactor', 'cleanup', 'improvement', 'optimize', 'restructure'],
+    performance: ['performance', 'speed', 'optimization', 'fast', 'slow', 'memory'],
+    security: ['security', 'vulnerability', 'auth', 'permission', 'crypto'],
+    accessibility: ['accessibility', 'a11y', 'screen reader', 'aria', 'wcag'],
   }
-  if (
-    titleLower.includes('add') ||
-    titleLower.includes('implement') ||
-    titleLower.includes('feature')
-  ) {
-    return 'feature'
+}
+
+function extractLabelName(label: GitHubApiLabel): string {
+  return typeof label === 'string' ? label : label.name || ''
+}
+
+function findMatchingOpportunityType(
+  labelLower: string,
+  labelPatterns: Record<string, string[]>
+): OpportunityType {
+  for (const [type, patterns] of Object.entries(labelPatterns)) {
+    if (patterns.some(pattern => labelLower.includes(pattern))) {
+      return type as OpportunityType
+    }
   }
-  if (titleLower.includes('doc') || titleLower.includes('readme') || titleLower.includes('guide')) {
-    return 'documentation'
+  return 'other'
+}
+
+/**
+ * Helper function: Detect opportunity type from issue title
+ */
+function detectOpportunityTypeFromTitle(title: string): OpportunityType {
+  const titleLower = title.toLowerCase()
+
+  // Define title patterns for each opportunity type
+  const titlePatterns = {
+    bug_fix: ['fix', 'bug', 'error', 'broken', 'not working', 'issue with'],
+    feature: ['add', 'implement', 'create', 'new', 'feature', 'support for'],
+    documentation: ['docs', 'documentation', 'readme', 'guide', 'document'],
+    testing: ['test', 'testing', 'coverage', 'spec', 'unit test'],
+    refactoring: ['refactor', 'cleanup', 'improve', 'optimize', 'restructure'],
+    performance: ['performance', 'slow', 'fast', 'optimize', 'speed up'],
+    security: ['security', 'vulnerability', 'auth', 'secure', 'permission'],
+    accessibility: ['accessibility', 'a11y', 'screen reader', 'accessible'],
   }
-  if (titleLower.includes('test') || titleLower.includes('spec')) {
-    return 'testing'
-  }
-  if (
-    titleLower.includes('refactor') ||
-    titleLower.includes('cleanup') ||
-    titleLower.includes('improve')
-  ) {
-    return 'refactoring'
-  }
-  if (
-    titleLower.includes('performance') ||
-    titleLower.includes('optimization') ||
-    titleLower.includes('speed')
-  ) {
-    return 'performance'
-  }
-  if (
-    titleLower.includes('security') ||
-    titleLower.includes('vulnerability') ||
-    titleLower.includes('exploit')
-  ) {
-    return 'security'
-  }
-  if (
-    titleLower.includes('accessibility') ||
-    titleLower.includes('a11y') ||
-    titleLower.includes('screen reader')
-  ) {
-    return 'accessibility'
+
+  // Check each opportunity type pattern
+  for (const [type, patterns] of Object.entries(titlePatterns)) {
+    if (patterns.some(pattern => titleLower.includes(pattern))) {
+      return type as OpportunityType
+    }
   }
 
   return 'other'

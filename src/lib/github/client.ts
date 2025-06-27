@@ -16,6 +16,7 @@ import { throttling } from '@octokit/plugin-throttling'
 import { Octokit } from 'octokit'
 import { z } from 'zod'
 import { createRequestContext, GitHubError } from './errors'
+import { gitHubRuntimeValidator, type ValidationResult } from './runtime-validator'
 import type {
   IssueIdentifier,
   PaginationOptions,
@@ -74,11 +75,33 @@ const GitHubIssueSchema = z.object({
   html_url: z.string(),
 })
 
+// Additional Zod schemas for organization operations
+const GitHubOrganizationSchema = z.object({
+  login: z.string(),
+  id: z.number(),
+  avatar_url: z.string(),
+  html_url: z.string(),
+  type: z.string(),
+  name: z.string().nullable(),
+  company: z.string().nullable(),
+  blog: z.string().nullable(),
+  location: z.string().nullable(),
+  email: z.string().nullable(),
+  bio: z.string().nullable(),
+  public_repos: z.number(),
+  public_gists: z.number(),
+  followers: z.number(),
+  following: z.number(),
+  created_at: z.string(),
+  updated_at: z.string(),
+})
+
 // Type exports
 export type GitHubUser = z.infer<typeof GitHubUserSchema>
 export type GitHubRepository = z.infer<typeof GitHubRepositorySchema>
 export type GitHubIssue = z.infer<typeof GitHubIssueSchema>
 export type GitHubLabel = z.infer<typeof GitHubLabelSchema>
+export type GitHubOrganization = z.infer<typeof GitHubOrganizationSchema>
 
 export interface SearchResult<T> {
   total_count: number
@@ -97,202 +120,312 @@ export interface GitHubClientTest {
 }
 
 export class GitHubClient {
-  octokit: Octokit // Made public for test compatibility
-  private cacheMaxSize: number
+  octokit!: Octokit // Made public for test compatibility - definite assignment assertion
+  private cacheMaxSize!: number // Initialized in initializeProperties
   private cacheHits = 0
   private cacheMisses = 0
-  private retryConfig: { retries: number; doNotRetry: (string | number)[] }
+  private retryConfig!: { retries: number; doNotRetry: (string | number)[] } // Initialized in initializeProperties
   private requestCache = new Map<string, { data: unknown; timestamp: number }>()
+  private lastRuntimeValidation: ValidationResult | null = null
 
   constructor(config: Partial<GitHubClientConfig> = {}) {
-    // Basic validation for compatibility with tests
-    if (config.auth && 'type' in config.auth) {
-      const auth = config.auth as { type: string; token?: string }
-      const authType = auth.type
+    this.validateAuthConfiguration(config)
+    this.validateCacheConfiguration(config)
+    this.validateRetryConfiguration(config)
+    this.validateThrottleConfiguration(config)
+    this.validateConflictingConfigurations(config)
+    this.validateOtherConfigurations(config)
+    this.initializeProperties(config)
+    this.octokit = this.createOctokitInstance(config)
+    // Perform runtime validation after initialization (async, non-blocking)
+    this.performRuntimeValidation()
+  }
 
-      if (!['token', 'app'].includes(authType)) {
-        throw new Error('Invalid authentication type. Must be "token" or "app"')
-      }
+  private validateAuthConfiguration(config: Partial<GitHubClientConfig>): void {
+    if (!config.auth || !('type' in config.auth)) return
 
-      // Token auth validation
-      if (authType === 'token') {
-        if (!('token' in auth)) {
-          throw new Error('Token is required for token authentication')
-        }
-        if (auth.token === '') {
-          throw new Error('Token cannot be empty')
-        }
-        if (typeof auth.token !== 'string') {
-          throw new Error('Token must be a string')
-        }
-      }
+    const auth = config.auth as { type: string; token?: string }
+    const authType = auth.type
 
-      // App auth validation
-      if (authType === 'app') {
-        if (!('appId' in auth)) {
-          throw new Error('App ID is required for app authentication')
-        }
-        if (typeof auth.appId !== 'number' || auth.appId <= 0) {
-          throw new Error('App ID must be a positive integer')
-        }
-        if (!('privateKey' in auth)) {
-          throw new Error('Private key is required for app authentication')
-        }
-        if (auth.privateKey === '') {
-          throw new Error('Private key cannot be empty')
-        }
-        if (typeof auth.privateKey !== 'string') {
-          throw new Error('Private key must be a string')
-        }
-        if (
-          'installationId' in auth &&
-          (typeof auth.installationId !== 'number' || auth.installationId <= 0)
-        ) {
-          throw new Error('Installation ID must be a positive integer')
-        }
-      }
+    if (!['token', 'app'].includes(authType)) {
+      throw new Error('Invalid authentication type. Must be "token" or "app"')
     }
 
-    // Cache validation
-    if (config.cache) {
-      if (
-        'maxAge' in config.cache &&
-        (typeof config.cache.maxAge !== 'number' || config.cache.maxAge <= 0)
-      ) {
-        throw new Error('Cache maxAge must be a positive integer')
-      }
-      if (
-        'maxSize' in config.cache &&
-        (typeof config.cache.maxSize !== 'number' || config.cache.maxSize <= 0)
-      ) {
-        throw new Error('Cache maxSize must be a positive integer')
-      }
-    }
+    this.validateTokenAuth(auth, authType)
+    this.validateAppAuth(auth, authType)
+  }
 
-    // Retry validation
-    if (config.retry) {
-      if ('retries' in config.retry && config.retry.retries !== undefined) {
-        if (typeof config.retry.retries !== 'number' || config.retry.retries < 0) {
-          throw new Error('Retries must be a non-negative integer')
-        }
-        if (config.retry.retries > 10) {
-          throw new Error('Retries cannot exceed 10')
-        }
-      }
-      if ('doNotRetry' in config.retry && config.retry.doNotRetry !== undefined) {
-        if (
-          !Array.isArray(config.retry.doNotRetry) ||
-          !config.retry.doNotRetry.every(item => typeof item === 'string')
-        ) {
-          throw new Error('doNotRetry must be an array of strings')
-        }
-      }
-    }
+  private validateTokenAuth(auth: { type: string; token?: string }, authType: string): void {
+    if (authType !== 'token') return
 
-    // Throttle validation
-    if (config.throttle) {
-      if ('onRateLimit' in config.throttle && config.throttle.onRateLimit !== undefined) {
-        if (typeof config.throttle.onRateLimit !== 'function') {
-          throw new Error('onRateLimit must be a function')
-        }
-      }
-      if (
-        'onSecondaryRateLimit' in config.throttle &&
-        config.throttle.onSecondaryRateLimit !== undefined
-      ) {
-        if (typeof config.throttle.onSecondaryRateLimit !== 'function') {
-          throw new Error('onSecondaryRateLimit must be a function')
-        }
-      }
+    if (!('token' in auth)) {
+      throw new Error('Token is required for token authentication')
     }
+    if (auth.token === '') {
+      throw new Error('Token cannot be empty')
+    }
+    if (typeof auth.token !== 'string') {
+      throw new Error('Token must be a string')
+    }
+  }
 
-    // Check for conflicting auth configurations
+  private validateAppAuth(auth: Record<string, unknown>, authType: string): void {
+    if (authType !== 'app') return
+
+    if (!('appId' in auth)) {
+      throw new Error('App ID is required for app authentication')
+    }
+    if (typeof auth.appId !== 'number' || auth.appId <= 0) {
+      throw new Error('App ID must be a positive integer')
+    }
+    if (!('privateKey' in auth)) {
+      throw new Error('Private key is required for app authentication')
+    }
+    if (auth.privateKey === '') {
+      throw new Error('Private key cannot be empty')
+    }
+    if (typeof auth.privateKey !== 'string') {
+      throw new Error('Private key must be a string')
+    }
+    if (
+      'installationId' in auth &&
+      (typeof auth.installationId !== 'number' || auth.installationId <= 0)
+    ) {
+      throw new Error('Installation ID must be a positive integer')
+    }
+  }
+
+  private validateCacheConfiguration(config: Partial<GitHubClientConfig>): void {
+    if (!config.cache) return
+
+    if (
+      'maxAge' in config.cache &&
+      (typeof config.cache.maxAge !== 'number' || config.cache.maxAge <= 0)
+    ) {
+      throw new Error('Cache maxAge must be a positive integer')
+    }
+    if (
+      'maxSize' in config.cache &&
+      (typeof config.cache.maxSize !== 'number' || config.cache.maxSize <= 0)
+    ) {
+      throw new Error('Cache maxSize must be a positive integer')
+    }
+  }
+
+  private validateRetryConfiguration(config: Partial<GitHubClientConfig>): void {
+    if (!config.retry) return
+
+    this.validateRetryCount(config.retry)
+    this.validateDoNotRetryList(config.retry)
+  }
+
+  private validateRetryCount(retry: Record<string, unknown>): void {
+    if (!('retries' in retry) || retry.retries === undefined) return
+
+    if (typeof retry.retries !== 'number' || retry.retries < 0) {
+      throw new Error('Retries must be a non-negative integer')
+    }
+    if (retry.retries > 10) {
+      throw new Error('Retries cannot exceed 10')
+    }
+  }
+
+  private validateDoNotRetryList(retry: Record<string, unknown>): void {
+    if (!('doNotRetry' in retry) || retry.doNotRetry === undefined) return
+
+    if (
+      !Array.isArray(retry.doNotRetry) ||
+      !retry.doNotRetry.every(item => typeof item === 'string')
+    ) {
+      throw new Error('doNotRetry must be an array of strings')
+    }
+  }
+
+  private validateThrottleConfiguration(config: Partial<GitHubClientConfig>): void {
+    if (!config.throttle) return
+
+    this.validateRateLimitHandler(config.throttle, 'onRateLimit')
+    this.validateRateLimitHandler(config.throttle, 'onSecondaryRateLimit')
+  }
+
+  private validateRateLimitHandler(throttle: Record<string, unknown>, handlerName: string): void {
+    if (!(handlerName in throttle) || throttle[handlerName] === undefined) return
+
+    if (typeof throttle[handlerName] !== 'function') {
+      throw new Error(`${handlerName} must be a function`)
+    }
+  }
+
+  private validateConflictingConfigurations(config: Partial<GitHubClientConfig>): void {
     if (config.auth && 'token' in config.auth && 'appId' in config.auth) {
       throw new Error('Cannot mix token and app authentication')
     }
 
-    // Warn about incompatible cache and throttle settings
+    this.checkCacheThrottleCompatibility(config)
+  }
+
+  private checkCacheThrottleCompatibility(config: Partial<GitHubClientConfig>): void {
     if (config.cache?.maxAge && config.cache.maxAge < 60 && config.throttle?.onRateLimit) {
-      console.warn('Short cache duration with aggressive retry policy may cause issues')
+      // TODO: Add logging for cache/throttle incompatibility warning
     }
+  }
 
-    // Other validation
-    if ('baseUrl' in config && config.baseUrl !== undefined) {
-      if (typeof config.baseUrl !== 'string') {
-        throw new Error('baseUrl must be a string')
-      }
-      try {
-        new URL(config.baseUrl)
-      } catch {
-        throw new Error('baseUrl must be a valid URL')
-      }
+  private validateOtherConfigurations(config: Partial<GitHubClientConfig>): void {
+    this.validateBaseUrl(config)
+    this.validateUserAgent(config)
+  }
+
+  private validateBaseUrl(config: Partial<GitHubClientConfig>): void {
+    if (!('baseUrl' in config) || config.baseUrl === undefined) return
+
+    if (typeof config.baseUrl !== 'string') {
+      throw new Error('baseUrl must be a string')
     }
-
-    if ('userAgent' in config && config.userAgent !== undefined) {
-      if (typeof config.userAgent !== 'string') {
-        throw new Error('userAgent must be a string')
-      }
-      if (config.userAgent === '') {
-        throw new Error('userAgent cannot be empty')
-      }
+    try {
+      new URL(config.baseUrl)
+    } catch {
+      throw new Error('baseUrl must be a valid URL')
     }
+  }
 
-    // Store cache config for compatibility
+  private validateUserAgent(config: Partial<GitHubClientConfig>): void {
+    if (!('userAgent' in config) || config.userAgent === undefined) return
+
+    if (typeof config.userAgent !== 'string') {
+      throw new Error('userAgent must be a string')
+    }
+    if (config.userAgent === '') {
+      throw new Error('userAgent cannot be empty')
+    }
+  }
+
+  /**
+   * Perform runtime configuration validation (async, non-blocking)
+   */
+  private performRuntimeValidation(): void {
+    // Run validation asynchronously to avoid blocking constructor
+    gitHubRuntimeValidator
+      .validateConfiguration()
+      .then(result => {
+        this.lastRuntimeValidation = result
+
+        // Log warnings for degraded or unhealthy status in development
+        if (process.env.NODE_ENV === 'development' && result.status !== 'healthy') {
+          const issues = []
+
+          if (result.checks.environment.status !== 'healthy') {
+            issues.push(
+              `Environment: ${result.checks.environment.details || 'Configuration issues'}`
+            )
+          }
+          if (result.checks.authentication.status !== 'healthy') {
+            issues.push(`Authentication: ${result.checks.authentication.details || 'Auth issues'}`)
+          }
+          if (result.checks.dependencies.status !== 'healthy') {
+            issues.push(`Dependencies: ${result.checks.dependencies.details || 'Missing packages'}`)
+          }
+          if (result.checks.connectivity.status !== 'healthy') {
+            issues.push(`Connectivity: ${result.checks.connectivity.details || 'API issues'}`)
+          }
+
+          if (issues.length > 0) {
+            console.warn(`[GitHubClient] Runtime validation issues detected:\n${issues.join('\n')}`)
+          }
+        }
+      })
+      .catch(error => {
+        // Validation error - log but don't throw to avoid breaking client initialization
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[GitHubClient] Runtime validation failed:', error)
+        }
+      })
+  }
+
+  /**
+   * Get the latest runtime validation result
+   */
+  getRuntimeValidation(): ValidationResult | null {
+    return this.lastRuntimeValidation
+  }
+
+  /**
+   * Force a new runtime validation check
+   */
+  async validateRuntime(): Promise<ValidationResult> {
+    const result = await gitHubRuntimeValidator.validateConfiguration()
+    this.lastRuntimeValidation = result
+    return result
+  }
+
+  /**
+   * Quick health check for runtime configuration
+   */
+  async isRuntimeHealthy(): Promise<boolean> {
+    const status = await gitHubRuntimeValidator.quickHealthCheck()
+    return status === 'healthy'
+  }
+
+  private initializeProperties(config: Partial<GitHubClientConfig>): void {
     this.cacheMaxSize = config.cache?.maxSize ?? 1000
-
-    // Store retry config for error context
     this.retryConfig = {
       retries: config.retry?.retries ?? (process.env.NODE_ENV === 'test' ? 0 : 2),
       doNotRetry: config.retry?.doNotRetry ?? [400, 401, 403, 404, 422],
     }
+  }
 
-    // Create Octokit with plugins
+  private createOctokitInstance(config: Partial<GitHubClientConfig>): Octokit {
     const OctokitWithPlugins = Octokit.plugin(throttling, retry)
+    const authConfig = this.setupAuthentication(config)
 
-    // Setup authentication
-    let authConfig: string | ReturnType<typeof createAppAuth> | undefined
-    if (config.auth) {
-      if (config.auth.type === 'token') {
-        authConfig = config.auth.token
-      } else if (config.auth.type === 'app') {
-        authConfig = createAppAuth({
-          appId: config.auth.appId,
-          privateKey: config.auth.privateKey,
-          ...(config.auth.installationId && { installationId: config.auth.installationId }),
-        })
-      }
-    }
-
-    // Initialize Octokit with built-in plugins
-    this.octokit = new OctokitWithPlugins({
+    return new OctokitWithPlugins({
       ...(authConfig && { auth: authConfig }),
       userAgent: config.userAgent ?? 'contribux-github-client/1.0.0',
       ...(config.baseUrl && { baseUrl: config.baseUrl }),
-
-      // Throttling configuration
-      throttle: {
-        onRateLimit:
-          config.throttle?.onRateLimit ||
-          ((retryAfter: number, _options: unknown, _octokit: unknown, retryCount: number) => {
-            console.warn(`Rate limit exceeded. Retrying after ${retryAfter} seconds.`)
-            // Retry up to 2 times for rate limits
-            return retryCount < 2
-          }),
-        onSecondaryRateLimit:
-          config.throttle?.onSecondaryRateLimit ||
-          ((retryAfter: number, _options: unknown, _octokit: unknown, retryCount: number) => {
-            console.warn(`Secondary rate limit hit. Retrying after ${retryAfter} seconds.`)
-            // Retry once for secondary rate limits
-            return retryCount < 1
-          }),
-      },
-
-      // Retry configuration
-      retry: {
-        retries: config.retry?.retries ?? (process.env.NODE_ENV === 'test' ? 0 : 2),
-        doNotRetry: config.retry?.doNotRetry ?? [400, 401, 403, 404, 422],
-      },
+      throttle: this.createThrottleConfig(config),
+      retry: this.createRetryConfig(config),
     })
+  }
+
+  private setupAuthentication(
+    config: Partial<GitHubClientConfig>
+  ): string | ReturnType<typeof createAppAuth> | undefined {
+    if (!config.auth) return undefined
+
+    if (config.auth.type === 'token') {
+      return config.auth.token
+    }
+    if (config.auth.type === 'app') {
+      return createAppAuth({
+        appId: config.auth.appId,
+        privateKey: config.auth.privateKey,
+        ...(config.auth.installationId && { installationId: config.auth.installationId }),
+      })
+    }
+    return undefined
+  }
+
+  private createThrottleConfig(config: Partial<GitHubClientConfig>) {
+    return {
+      onRateLimit:
+        config.throttle?.onRateLimit ||
+        ((_retryAfter: number, _options: unknown, _octokit: unknown, retryCount: number) => {
+          // Retry up to 2 times for rate limits
+          return retryCount < 2
+        }),
+      onSecondaryRateLimit:
+        config.throttle?.onSecondaryRateLimit ||
+        ((_retryAfter: number, _options: unknown, _octokit: unknown, retryCount: number) => {
+          // Retry once for secondary rate limits
+          return retryCount < 1
+        }),
+    }
+  }
+
+  private createRetryConfig(config: Partial<GitHubClientConfig>) {
+    return {
+      retries: config.retry?.retries ?? (process.env.NODE_ENV === 'test' ? 0 : 2),
+      doNotRetry: config.retry?.doNotRetry ?? [400, 401, 403, 404, 422],
+    }
   }
 
   // Error handling wrapper with Zod validation
@@ -301,69 +434,114 @@ export class GitHubClient {
     schema: z.ZodSchema<T>,
     context: { method: string; operation: string; params: Record<string, unknown> }
   ): Promise<T> {
-    // Generate cache key for this request
+    // Check cache first
+    const cacheResult = this.checkRequestCache(context)
+    if (cacheResult.found) {
+      return schema.parse(cacheResult.data)
+    }
+
+    // Execute request with retries
+    const executionResult = await this.executeWithRetries(operation, schema, context)
+    if (executionResult.success) {
+      this.storeInCache(context, executionResult.data)
+      return executionResult.validatedData
+    }
+
+    // Handle errors
+    throw this.createErrorFromFailure(executionResult.error, executionResult.attemptCount, context)
+  }
+
+  private checkRequestCache<_T>(context: {
+    method: string
+    operation: string
+    params: Record<string, unknown>
+  }): { found: boolean; data?: unknown } {
     const cacheKey = this.getCacheKey(`${context.method}:${context.operation}`, context.params)
     const now = Date.now()
     const cacheMaxAge = 60000 // 60 seconds cache
 
-    // Check cache for this request
     const cached = this.requestCache.get(cacheKey)
     if (cached && now - cached.timestamp < cacheMaxAge) {
       this.cacheHits++
-      return schema.parse(cached.data)
+      return { found: true, data: cached.data }
     }
 
     this.cacheMisses++
-    const startTime = new Date()
+    return { found: false }
+  }
+
+  private async executeWithRetries<T>(
+    operation: () => Promise<{ data: unknown }>,
+    schema: z.ZodSchema<T>,
+    _context: { method: string; operation: string; params: Record<string, unknown> }
+  ): Promise<
+    | { success: true; data: unknown; validatedData: T; attemptCount: number }
+    | { success: false; error: unknown; attemptCount: number }
+  > {
     let attemptCount = 0
     let lastError: unknown
 
-    // Attempt the request with retries
     for (attemptCount = 0; attemptCount <= this.retryConfig.retries; attemptCount++) {
       try {
         const response = await operation()
         const validatedData = schema.parse(response.data)
 
-        // Cache the successful response
-        this.requestCache.set(cacheKey, {
+        return {
+          success: true,
           data: response.data,
-          timestamp: now,
-        })
-
-        // Cleanup old cache entries if we exceed size limit
-        if (this.requestCache.size > this.cacheMaxSize) {
-          this.cleanupCache()
+          validatedData,
+          attemptCount,
         }
-
-        return validatedData
       } catch (error) {
         lastError = error
 
-        // Check if this error should trigger a retry
         const shouldRetry = this.shouldRetry(error, attemptCount)
         if (!shouldRetry || attemptCount >= this.retryConfig.retries) {
           break
         }
 
-        // Wait before retry (simple exponential backoff)
         if (attemptCount < this.retryConfig.retries) {
           await this.sleep(2 ** attemptCount * 1000)
         }
       }
     }
 
-    // Create error with retry context
+    return { success: false, error: lastError, attemptCount }
+  }
+
+  private storeInCache(
+    context: { method: string; operation: string; params: Record<string, unknown> },
+    data: unknown
+  ): void {
+    const cacheKey = this.getCacheKey(`${context.method}:${context.operation}`, context.params)
+    const now = Date.now()
+
+    this.requestCache.set(cacheKey, {
+      data,
+      timestamp: now,
+    })
+
+    if (this.requestCache.size > this.cacheMaxSize) {
+      this.cleanupCache()
+    }
+  }
+
+  private createErrorFromFailure(
+    lastError: unknown,
+    attemptCount: number,
+    context: { method: string; operation: string; params: Record<string, unknown> }
+  ): GitHubError {
     const requestContext = createRequestContext(
       context.method,
       context.operation,
       context.params,
       attemptCount,
       this.retryConfig.retries,
-      startTime
+      new Date()
     )
 
     if (lastError instanceof z.ZodError) {
-      throw new GitHubError(
+      return new GitHubError(
         `Invalid response format: ${lastError.message}`,
         'VALIDATION_ERROR',
         undefined,
@@ -378,7 +556,7 @@ export class GitHubClient {
         message?: string
         response?: { data?: unknown }
       }
-      throw new GitHubError(
+      return new GitHubError(
         githubError.message || 'GitHub API error',
         'API_ERROR',
         githubError.status,
@@ -387,7 +565,7 @@ export class GitHubClient {
       )
     }
 
-    throw new GitHubError(
+    return new GitHubError(
       lastError instanceof Error ? lastError.message : 'Unknown error',
       'UNKNOWN_ERROR',
       undefined,
@@ -472,6 +650,27 @@ export class GitHubClient {
       operation: 'getAuthenticatedUser',
       params: {},
     })
+  }
+
+  // Organization operations
+  async getOrganization(org: string): Promise<GitHubOrganization> {
+    return this.safeRequest(() => this.octokit.rest.orgs.get({ org }), GitHubOrganizationSchema, {
+      method: 'GET',
+      operation: 'getOrganization',
+      params: { org },
+    })
+  }
+
+  async getOrganizationMember(org: string, username: string): Promise<GitHubUser> {
+    return this.safeRequest(
+      () => this.octokit.rest.orgs.getMembershipForUser({ org, username }),
+      GitHubUserSchema,
+      {
+        method: 'GET',
+        operation: 'getOrganizationMember',
+        params: { org, username },
+      }
+    )
   }
 
   // Issue operations
@@ -575,7 +774,6 @@ export class GitHubClient {
   clearCache(): void {
     // Clear our internal cache
     this.requestCache.clear()
-    console.log('Using Octokit conditional requests - no manual cache to clear')
     // Reset stats for test compatibility
     this.cacheHits = 0
     this.cacheMisses = 0
@@ -703,132 +901,200 @@ export class GitHubClient {
     // Perform validation without actually instantiating Octokit to avoid complex auth validation
     if (!config) return
 
-    // Basic validation for compatibility with tests (same as constructor validation)
-    if (config.auth && 'type' in config.auth) {
-      const auth = config.auth as { type: string; token?: string }
-      const authType = auth.type
+    this.validateAuthConfigurationForTesting(config)
+    this.validateCacheConfigurationForTesting(config)
+    this.validateRetryConfigurationForTesting(config)
+    this.validateThrottleConfigurationForTesting(config)
+    this.validateConflictingConfigurationsForTesting(config)
+    this.validateOtherConfigurationsForTesting(config)
+  }
 
-      if (!['token', 'app'].includes(authType)) {
-        throw new Error('Invalid authentication type. Must be "token" or "app"')
-      }
+  /**
+   * Validates authentication configuration for testing
+   * Extracted from validateConfiguration to reduce complexity
+   */
+  private validateAuthConfigurationForTesting(config: Partial<GitHubClientConfig>): void {
+    if (!config.auth || !('type' in config.auth)) return
 
-      // Token auth validation
-      if (authType === 'token') {
-        if (!('token' in auth)) {
-          throw new Error('Token is required for token authentication')
-        }
-        if (auth.token === '') {
-          throw new Error('Token cannot be empty')
-        }
-        if (typeof auth.token !== 'string') {
-          throw new Error('Token must be a string')
-        }
-      }
+    const auth = config.auth as { type: string; token?: string }
+    const authType = auth.type
 
-      // App auth validation (skip actual Octokit instantiation for testing)
-      if (authType === 'app') {
-        if (!('appId' in auth)) {
-          throw new Error('App ID is required for app authentication')
-        }
-        if (typeof auth.appId !== 'number' || auth.appId <= 0) {
-          throw new Error('App ID must be a positive integer')
-        }
-        if (!('privateKey' in auth)) {
-          throw new Error('Private key is required for app authentication')
-        }
-        if (auth.privateKey === '') {
-          throw new Error('Private key cannot be empty')
-        }
-        if (typeof auth.privateKey !== 'string') {
-          throw new Error('Private key must be a string')
-        }
-        if (
-          'installationId' in auth &&
-          (typeof auth.installationId !== 'number' || auth.installationId <= 0)
-        ) {
-          throw new Error('Installation ID must be a positive integer')
-        }
-      }
+    if (!this.isValidAuthType(authType)) {
+      throw new Error('Invalid authentication type. Must be "token" or "app"')
     }
 
-    // Cache validation
-    if (config.cache) {
-      if (
-        'maxAge' in config.cache &&
-        (typeof config.cache.maxAge !== 'number' || config.cache.maxAge <= 0)
-      ) {
-        throw new Error('Cache maxAge must be a positive integer')
-      }
-      if (
-        'maxSize' in config.cache &&
-        (typeof config.cache.maxSize !== 'number' || config.cache.maxSize <= 0)
-      ) {
-        throw new Error('Cache maxSize must be a positive integer')
-      }
+    if (authType === 'token') {
+      this.validateTokenAuthForTesting(auth)
     }
 
-    // Retry validation
-    if (config.retry) {
-      if ('retries' in config.retry && config.retry.retries !== undefined) {
-        if (typeof config.retry.retries !== 'number' || config.retry.retries < 0) {
-          throw new Error('Retries must be a non-negative integer')
-        }
-        if (config.retry.retries > 10) {
-          throw new Error('Retries cannot exceed 10')
-        }
-      }
-      if ('doNotRetry' in config.retry && config.retry.doNotRetry !== undefined) {
-        if (
-          !Array.isArray(config.retry.doNotRetry) ||
-          !config.retry.doNotRetry.every(item => typeof item === 'string')
-        ) {
-          throw new Error('doNotRetry must be an array of strings')
-        }
-      }
+    if (authType === 'app') {
+      this.validateAppAuthForTesting(auth)
     }
+  }
 
-    // Throttle validation
-    if (config.throttle) {
-      if ('onRateLimit' in config.throttle && config.throttle.onRateLimit !== undefined) {
-        if (typeof config.throttle.onRateLimit !== 'function') {
-          throw new Error('onRateLimit must be a function')
-        }
-      }
-      if (
-        'onSecondaryRateLimit' in config.throttle &&
-        config.throttle.onSecondaryRateLimit !== undefined
-      ) {
-        if (typeof config.throttle.onSecondaryRateLimit !== 'function') {
-          throw new Error('onSecondaryRateLimit must be a function')
-        }
-      }
+  /**
+   * Validates token authentication for testing
+   */
+  private validateTokenAuthForTesting(auth: { type: string; token?: string }): void {
+    if (!('token' in auth)) {
+      throw new Error('Token is required for token authentication')
     }
+    if (auth.token === '') {
+      throw new Error('Token cannot be empty')
+    }
+    if (typeof auth.token !== 'string') {
+      throw new Error('Token must be a string')
+    }
+  }
 
-    // Check for conflicting auth configurations
+  /**
+   * Validates app authentication for testing
+   */
+  private validateAppAuthForTesting(auth: Record<string, unknown>): void {
+    this.validateAppId(auth)
+    this.validatePrivateKey(auth)
+    this.validateInstallationId(auth)
+  }
+
+  /**
+   * Validates app ID for app authentication
+   */
+  private validateAppId(auth: Record<string, unknown>): void {
+    if (!('appId' in auth)) {
+      throw new Error('App ID is required for app authentication')
+    }
+    if (typeof auth.appId !== 'number' || auth.appId <= 0) {
+      throw new Error('App ID must be a positive integer')
+    }
+  }
+
+  /**
+   * Validates private key for app authentication
+   */
+  private validatePrivateKey(auth: Record<string, unknown>): void {
+    if (!('privateKey' in auth)) {
+      throw new Error('Private key is required for app authentication')
+    }
+    if (auth.privateKey === '') {
+      throw new Error('Private key cannot be empty')
+    }
+    if (typeof auth.privateKey !== 'string') {
+      throw new Error('Private key must be a string')
+    }
+  }
+
+  /**
+   * Validates installation ID for app authentication
+   */
+  private validateInstallationId(auth: Record<string, unknown>): void {
+    if (
+      'installationId' in auth &&
+      (typeof auth.installationId !== 'number' || auth.installationId <= 0)
+    ) {
+      throw new Error('Installation ID must be a positive integer')
+    }
+  }
+
+  /**
+   * Validates cache configuration for testing
+   */
+  private validateCacheConfigurationForTesting(config: Partial<GitHubClientConfig>): void {
+    if (!config.cache) return
+
+    this.validateCacheMaxAge(config.cache)
+    this.validateCacheMaxSize(config.cache)
+  }
+
+  /**
+   * Validates cache max age configuration
+   */
+  private validateCacheMaxAge(cache: Record<string, unknown>): void {
+    if ('maxAge' in cache && (typeof cache.maxAge !== 'number' || cache.maxAge <= 0)) {
+      throw new Error('Cache maxAge must be a positive integer')
+    }
+  }
+
+  /**
+   * Validates cache max size configuration
+   */
+  private validateCacheMaxSize(cache: Record<string, unknown>): void {
+    if ('maxSize' in cache && (typeof cache.maxSize !== 'number' || cache.maxSize <= 0)) {
+      throw new Error('Cache maxSize must be a positive integer')
+    }
+  }
+
+  /**
+   * Validates retry configuration for testing
+   */
+  private validateRetryConfigurationForTesting(config: Partial<GitHubClientConfig>): void {
+    if (!config.retry) return
+
+    this.validateRetryCount(config.retry)
+    this.validateDoNotRetryList(config.retry)
+  }
+
+  /**
+   * Validates throttle configuration for testing
+   */
+  private validateThrottleConfigurationForTesting(config: Partial<GitHubClientConfig>): void {
+    if (!config.throttle) return
+
+    this.validateRateLimitHandler(config.throttle, 'onRateLimit')
+    this.validateRateLimitHandler(config.throttle, 'onSecondaryRateLimit')
+  }
+
+  /**
+   * Validates conflicting configurations for testing
+   */
+  private validateConflictingConfigurationsForTesting(config: Partial<GitHubClientConfig>): void {
     if (config.auth && 'token' in config.auth && 'appId' in config.auth) {
       throw new Error('Cannot mix token and app authentication')
     }
+  }
 
-    // Other validation
-    if ('baseUrl' in config && config.baseUrl !== undefined) {
-      if (typeof config.baseUrl !== 'string') {
-        throw new Error('baseUrl must be a string')
-      }
-      try {
-        new URL(config.baseUrl)
-      } catch {
-        throw new Error('baseUrl must be a valid URL')
-      }
-    }
+  /**
+   * Validates other configurations for testing
+   */
+  private validateOtherConfigurationsForTesting(config: Partial<GitHubClientConfig>): void {
+    this.validateBaseUrlForTesting(config)
+    this.validateUserAgentForTesting(config)
+  }
 
-    if ('userAgent' in config && config.userAgent !== undefined) {
-      if (typeof config.userAgent !== 'string') {
-        throw new Error('userAgent must be a string')
-      }
-      if (config.userAgent === '') {
-        throw new Error('userAgent cannot be empty')
-      }
+  /**
+   * Validates base URL configuration for testing
+   */
+  private validateBaseUrlForTesting(config: Partial<GitHubClientConfig>): void {
+    if (!('baseUrl' in config) || config.baseUrl === undefined) return
+
+    if (typeof config.baseUrl !== 'string') {
+      throw new Error('baseUrl must be a string')
     }
+    try {
+      new URL(config.baseUrl)
+    } catch {
+      throw new Error('baseUrl must be a valid URL')
+    }
+  }
+
+  /**
+   * Validates user agent configuration for testing
+   */
+  private validateUserAgentForTesting(config: Partial<GitHubClientConfig>): void {
+    if (!('userAgent' in config) || config.userAgent === undefined) return
+
+    if (typeof config.userAgent !== 'string') {
+      throw new Error('userAgent must be a string')
+    }
+    if (config.userAgent === '') {
+      throw new Error('userAgent cannot be empty')
+    }
+  }
+
+  /**
+   * Checks if authentication type is valid
+   */
+  private isValidAuthType(authType: string): boolean {
+    return ['token', 'app'].includes(authType)
   }
 
   // REST API compatibility layer for tests
@@ -847,6 +1113,16 @@ export class GitHubClient {
       repos: {
         get: async ({ owner, repo }: { owner: string; repo: string }) => {
           const data = await this.getRepository({ owner, repo })
+          return { data }
+        },
+      },
+      orgs: {
+        get: async ({ org }: { org: string }) => {
+          const data = await this.getOrganization(org)
+          return { data }
+        },
+        getMembershipForUser: async ({ org, username }: { org: string; username: string }) => {
+          const data = await this.getOrganizationMember(org, username)
           return { data }
         },
       },

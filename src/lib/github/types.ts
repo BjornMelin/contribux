@@ -152,9 +152,7 @@ const GitHubClientConfigSchema = z
   .refine(config => {
     // Warn about potentially problematic configurations
     if (config.cache?.maxAge && config.cache.maxAge < 30 && config.throttle?.onRateLimit) {
-      console.warn(
-        'Configuration warning: Short cache duration with aggressive retry settings may cause performance issues'
-      )
+      // Warning: short cache duration with rate limiting may cause issues
     }
     return true
   })
