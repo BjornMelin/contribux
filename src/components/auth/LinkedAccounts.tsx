@@ -1,9 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import * as LucideIcons from 'lucide-react'
-
-const { AlertTriangle, Check, Github, Link2, Mail, Shield, Star, Unlink2 } = LucideIcons
+import { AlertTriangle, Check, Github, Link2, Mail, Shield, Star, Unlink2 } from 'lucide-react'
 
 import { signIn } from 'next-auth/react'
 import { useCallback, useEffect, useState } from 'react'
@@ -41,14 +39,14 @@ interface LinkedAccountsProps {
 const PROVIDER_CONFIGS = {
   github: {
     name: 'GitHub',
-    icon: <Github className="w-5 h-5" />,
+    icon: <Github className="h-5 w-5" />,
     color: '#24292e',
     gradientFrom: '#24292e',
     gradientTo: '#586069',
   },
   google: {
     name: 'Google',
-    icon: <Mail className="w-5 h-5" />,
+    icon: <Mail className="h-5 w-5" />,
     color: '#4285f4',
     gradientFrom: '#4285f4',
     gradientTo: '#34a853',
@@ -85,8 +83,7 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
       })
 
       setProviders(allProviders)
-    } catch (err) {
-      console.error('Failed to load providers:', err)
+    } catch (_err) {
       setError('Failed to load connected accounts')
     }
   }, [])
@@ -129,8 +126,7 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
       await signIn(provider.id, {
         callbackUrl: '/settings/accounts?linked=true',
       })
-    } catch (error) {
-      console.error('Failed to link provider:', error)
+    } catch (_error) {
       setError(`Failed to connect ${provider.name}`)
     } finally {
       setIsLoading(null)
@@ -179,8 +175,7 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
           }))
         )
       }
-    } catch (error) {
-      console.error('Failed to perform action:', error)
+    } catch (_error) {
       setError(`Failed to ${confirmDialog.type === 'unlink' ? 'unlink' : 'update'} provider`)
     } finally {
       setIsLoading(null)
@@ -192,10 +187,10 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
   const unlinkedProviders = providers.filter(p => !p.isLinked)
 
   return (
-    <div className={cn('w-full max-w-2xl mx-auto space-y-6', className)}>
+    <div className={cn('mx-auto w-full max-w-2xl space-y-6', className)}>
       {/* Header */}
-      <div className="text-center space-y-2">
-        <h2 className="text-2xl font-semibold text-foreground">Connected Accounts</h2>
+      <div className="space-y-2 text-center">
+        <h2 className="font-semibold text-2xl text-foreground">Connected Accounts</h2>
         <p className="text-muted-foreground">Manage your OAuth provider connections</p>
       </div>
 
@@ -204,9 +199,9 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-destructive/10 text-destructive border border-destructive/20 rounded-lg p-4 flex items-center gap-2"
+          className="flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-destructive"
         >
-          <AlertTriangle className="w-5 h-5" />
+          <AlertTriangle className="h-5 w-5" />
           <p className="text-sm">{error}</p>
         </motion.div>
       )}
@@ -214,8 +209,8 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
       {/* Linked Providers */}
       {linkedProviders.length > 0 && (
         <div className="space-y-4">
-          <h3 className="text-lg font-medium text-foreground flex items-center gap-2">
-            <Shield className="w-5 h-5 text-green-500" />
+          <h3 className="flex items-center gap-2 font-medium text-foreground text-lg">
+            <Shield className="h-5 w-5 text-green-500" />
             Connected Providers
           </h3>
           <div className="grid gap-4">
@@ -226,13 +221,13 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -20, scale: 0.95 }}
                 whileHover={{ y: -2, scale: 1.02 }}
-                className="relative group"
+                className="group relative"
               >
                 {/* Glass morphism card */}
                 <div
                   className={cn(
                     'relative overflow-hidden rounded-2xl border border-border/20',
-                    'bg-background/80 backdrop-blur-xl shadow-xl',
+                    'bg-background/80 shadow-xl backdrop-blur-xl',
                     'transition-all duration-300 hover:shadow-2xl',
                     'before:absolute before:inset-0 before:bg-gradient-to-br before:opacity-5',
                     'hover:border-border/40'
@@ -243,7 +238,7 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
                 >
                   {/* Glow effect */}
                   <div
-                    className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-300 blur-xl"
+                    className="absolute inset-0 opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-20"
                     style={{
                       background: `radial-gradient(circle at 50% 50%, ${provider.color}40, transparent 70%)`,
                     }}
@@ -255,8 +250,8 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
                         {/* Provider icon with glow */}
                         <motion.div
                           className={cn(
-                            'relative p-3 rounded-xl border border-border/20',
-                            'bg-background/60 backdrop-blur-sm shadow-lg'
+                            'relative rounded-xl border border-border/20 p-3',
+                            'bg-background/60 shadow-lg backdrop-blur-sm'
                           )}
                           whileHover={{ scale: 1.1, rotate: 5 }}
                           style={{ color: provider.color }}
@@ -274,15 +269,15 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
                             {provider.isPrimary && (
                               <Badge
                                 variant="secondary"
-                                className="text-xs bg-primary/10 text-primary border-primary/20"
+                                className="border-primary/20 bg-primary/10 text-primary text-xs"
                               >
-                                <Star className="w-3 h-3 mr-1 fill-current" />
+                                <Star className="mr-1 h-3 w-3 fill-current" />
                                 Primary
                               </Badge>
                             )}
                           </div>
-                          <p className="text-sm text-muted-foreground">{provider.email}</p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-muted-foreground text-sm">{provider.email}</p>
+                          <p className="text-muted-foreground text-xs">
                             Connected {provider.connectedAt}
                           </p>
                         </div>
@@ -297,7 +292,7 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
                             disabled={isLoading === provider.id}
                             className="text-xs hover:bg-primary/10 hover:text-primary"
                           >
-                            <Star className="w-3 h-3 mr-1" />
+                            <Star className="mr-1 h-3 w-3" />
                             Set Primary
                           </Button>
                         )}
@@ -320,10 +315,10 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
                                 repeat: Number.POSITIVE_INFINITY,
                                 ease: 'linear',
                               }}
-                              className="w-3 h-3 border border-current border-t-transparent rounded-full"
+                              className="h-3 w-3 rounded-full border border-current border-t-transparent"
                             />
                           ) : (
-                            <Unlink2 className="w-3 h-3 mr-1" />
+                            <Unlink2 className="mr-1 h-3 w-3" />
                           )}
                           Unlink
                         </Button>
@@ -340,8 +335,8 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
       {/* Available Providers */}
       {unlinkedProviders.length > 0 && (
         <div className="space-y-4">
-          <h3 className="text-lg font-medium text-foreground flex items-center gap-2">
-            <Link2 className="w-5 h-5 text-blue-500" />
+          <h3 className="flex items-center gap-2 font-medium text-foreground text-lg">
+            <Link2 className="h-5 w-5 text-blue-500" />
             Available Providers
           </h3>
           <div className="grid gap-4">
@@ -351,12 +346,12 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
                 initial={{ opacity: 0, y: 20, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 whileHover={{ y: -2, scale: 1.02 }}
-                className="relative group"
+                className="group relative"
               >
                 <div
                   className={cn(
                     'relative overflow-hidden rounded-2xl border border-border/20',
-                    'bg-background/60 backdrop-blur-xl shadow-lg',
+                    'bg-background/60 shadow-lg backdrop-blur-xl',
                     'transition-all duration-300 hover:shadow-xl',
                     'hover:border-border/40'
                   )}
@@ -366,7 +361,7 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
                       <div className="flex items-center gap-4">
                         <div
                           className={cn(
-                            'p-3 rounded-xl border border-border/20',
+                            'rounded-xl border border-border/20 p-3',
                             'bg-background/40 backdrop-blur-sm'
                           )}
                           style={{ color: provider.color }}
@@ -376,7 +371,7 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
 
                         <div>
                           <h4 className="font-semibold text-foreground">{provider.name}</h4>
-                          <p className="text-sm text-muted-foreground">Not connected</p>
+                          <p className="text-muted-foreground text-sm">Not connected</p>
                         </div>
                       </div>
 
@@ -394,10 +389,10 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
                               repeat: Number.POSITIVE_INFINITY,
                               ease: 'linear',
                             }}
-                            className="w-3 h-3 border border-current border-t-transparent rounded-full mr-2"
+                            className="mr-2 h-3 w-3 rounded-full border border-current border-t-transparent"
                           />
                         ) : (
-                          <Link2 className="w-3 h-3 mr-2" />
+                          <Link2 className="mr-2 h-3 w-3" />
                         )}
                         Connect
                       </Button>
@@ -420,12 +415,12 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
             <DialogTitle className="flex items-center gap-2">
               {confirmDialog.type === 'unlink' ? (
                 <>
-                  <AlertTriangle className="w-5 h-5 text-destructive" />
+                  <AlertTriangle className="h-5 w-5 text-destructive" />
                   Unlink Provider
                 </>
               ) : (
                 <>
-                  <Star className="w-5 h-5 text-primary" />
+                  <Star className="h-5 w-5 text-primary" />
                   Set Primary Provider
                 </>
               )}
@@ -456,12 +451,12 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
                     repeat: Number.POSITIVE_INFINITY,
                     ease: 'linear',
                   }}
-                  className="w-4 h-4 border border-current border-t-transparent rounded-full mr-2"
+                  className="mr-2 h-4 w-4 rounded-full border border-current border-t-transparent"
                 />
               ) : confirmDialog.type === 'unlink' ? (
-                <Unlink2 className="w-4 h-4 mr-2" />
+                <Unlink2 className="mr-2 h-4 w-4" />
               ) : (
-                <Check className="w-4 h-4 mr-2" />
+                <Check className="mr-2 h-4 w-4" />
               )}
               {confirmDialog.type === 'unlink' ? 'Unlink' : 'Set Primary'}
             </Button>

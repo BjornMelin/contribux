@@ -1,6 +1,7 @@
 'use client'
 
-import React from 'react'
+import type { FormEvent } from 'react'
+import { useState } from 'react'
 import type { SearchBarProps } from '@/types/search'
 
 export function SearchBar({
@@ -10,15 +11,11 @@ export function SearchBar({
   loading = false,
   className = '',
 }: SearchBarProps) {
-  const [query, setQuery] = React.useState(defaultValue)
+  const [query, setQuery] = useState(defaultValue)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
-    onSearch(query)
-  }
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (query.trim()) {
       onSearch(query)
     }
   }
@@ -30,15 +27,14 @@ export function SearchBar({
         placeholder={placeholder}
         value={query}
         onChange={e => setQuery(e.target.value)}
-        onKeyDown={handleKeyDown}
         disabled={loading}
-        className="search-input w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+        className="search-input w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
         aria-label="Search input"
       />
       <button
         type="submit"
         disabled={loading || !query.trim()}
-        className="search-button ml-3 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="search-button ml-3 rounded-lg bg-blue-600 px-6 py-2 text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
         aria-label="Search"
       >
         {loading ? 'Searching...' : 'Search'}

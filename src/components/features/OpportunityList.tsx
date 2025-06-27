@@ -13,16 +13,16 @@ export function OpportunityList({
   if (error) {
     return (
       <div
-        className="opportunity-list-error bg-red-50 border border-red-200 rounded-lg p-6 text-center"
+        className="opportunity-list-error rounded-lg border border-red-200 bg-red-50 p-6 text-center"
         role="alert"
       >
-        <div className="text-red-800 mb-4">
+        <div className="mb-4 text-red-800">
           <p className="font-medium">Error loading opportunities: {error}</p>
         </div>
         <button
           type="button"
           onClick={() => window.location.reload()}
-          className="inline-flex items-center px-4 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
+          className="inline-flex items-center rounded-md border border-red-300 bg-red-100 px-4 py-2 font-medium text-red-700 text-sm transition-colors hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
         >
           Retry
         </button>
@@ -36,7 +36,7 @@ export function OpportunityList({
         className="opportunity-list-loading flex flex-col items-center justify-center py-12"
         aria-live="polite"
       >
-        <div className="loading-spinner animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4" />
+        <div className="loading-spinner mb-4 h-8 w-8 animate-spin rounded-full border-blue-600 border-b-2" />
         <p className="text-gray-600">Loading opportunities...</p>
       </div>
     )
@@ -44,8 +44,8 @@ export function OpportunityList({
 
   if (opportunities.length === 0) {
     return (
-      <div className="opportunity-list-empty text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
-        <div className="text-gray-500 mb-2">
+      <div className="opportunity-list-empty rounded-lg border border-gray-200 bg-gray-50 py-12 text-center">
+        <div className="mb-2 text-gray-500">
           <svg
             className="mx-auto h-12 w-12 text-gray-400"
             fill="none"

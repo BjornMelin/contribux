@@ -49,10 +49,10 @@ export default async function AuthErrorPage({ searchParams }: AuthErrorPageProps
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
       <div className="w-full max-w-md space-y-8">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
+          <h2 className="mt-6 text-center font-bold text-3xl text-gray-900 tracking-tight">
             Authentication Error
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
+          <p className="mt-2 text-center text-gray-600 text-sm">
             Something went wrong during the authentication process
           </p>
         </div>
@@ -74,8 +74,8 @@ export default async function AuthErrorPage({ searchParams }: AuthErrorPageProps
               </svg>
             </div>
             <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">Error</h3>
-              <div className="mt-2 text-sm text-red-700">
+              <h3 className="font-medium text-red-800 text-sm">Error</h3>
+              <div className="mt-2 text-red-700 text-sm">
                 <p>{getErrorMessage()}</p>
               </div>
             </div>
@@ -85,13 +85,13 @@ export default async function AuthErrorPage({ searchParams }: AuthErrorPageProps
         <div className="flex flex-col space-y-2">
           <Link
             href="/auth/signin"
-            className="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            className="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 font-semibold text-sm text-white hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 focus-visible:outline-offset-2"
           >
             Try Again
           </Link>
           <Link
             href="/"
-            className="flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
+            className="flex w-full justify-center rounded-md bg-white px-3 py-2 font-semibold text-gray-900 text-sm shadow-sm ring-1 ring-gray-300 ring-inset hover:bg-gray-50"
           >
             Go Home
           </Link>

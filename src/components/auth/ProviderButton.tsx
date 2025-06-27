@@ -1,17 +1,14 @@
 'use client'
 
-import * as LucideIcons from 'lucide-react'
-
-const { Github, Loader2, Mail } = LucideIcons
-
+import { Github, Loader2, Mail } from 'lucide-react'
 import { signIn } from 'next-auth/react'
-import type React from 'react'
+import type { ComponentType } from 'react'
 import { useState } from 'react'
 
 export interface ProviderConfig {
   id: string
   name: string
-  icon: React.ComponentType<{ className?: string }>
+  icon: ComponentType<{ className?: string }>
   bgColor: string
   hoverColor: string
   textColor: string
@@ -33,8 +30,7 @@ export function ProviderButton({ provider, callbackUrl, disabled }: ProviderButt
         callbackUrl: callbackUrl || '/dashboard',
         redirect: true,
       })
-    } catch (error) {
-      console.error(`Sign in with ${provider.name} failed:`, error)
+    } catch (_error) {
       setIsLoading(false)
     }
   }
@@ -46,15 +42,7 @@ export function ProviderButton({ provider, callbackUrl, disabled }: ProviderButt
       type="button"
       onClick={handleSignIn}
       disabled={disabled || isLoading}
-      className={`
-        group relative flex w-full justify-center items-center rounded-md px-3 py-3 sm:py-2.5 text-sm font-semibold
-        transition-all duration-200 ease-in-out
-        ${provider.bgColor} ${provider.hoverColor} ${provider.textColor}
-        focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-900
-        disabled:opacity-50 disabled:cursor-not-allowed
-        shadow-sm hover:shadow-md active:scale-[0.98]
-        min-h-[44px] sm:min-h-[40px]
-      `}
+      className={`group relative flex w-full items-center justify-center rounded-md px-3 py-3 font-semibold text-sm transition-all duration-200 ease-in-out sm:py-2.5 ${provider.bgColor} ${provider.hoverColor} ${provider.textColor}focus-visible:outline-2 min-h-[44px] shadow-sm hover:shadow-md focus-visible:outline-gray-900 focus-visible:outline-offset-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-[40px] `}
       aria-label={`Sign in with ${provider.name}`}
     >
       <span className="absolute inset-y-0 left-0 flex items-center pl-3 sm:pl-3">
