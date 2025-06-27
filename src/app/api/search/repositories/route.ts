@@ -3,9 +3,9 @@
  * Provides semantic search functionality for repositories with authentication
  */
 
-import { type NextRequest, NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 import { z } from 'zod'
-
 import { sql } from '@/lib/db/config'
 
 // Request validation schema
@@ -207,8 +207,6 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('Search repositories error:', error)
-
     // Handle validation errors
     if (error instanceof z.ZodError) {
       return NextResponse.json(

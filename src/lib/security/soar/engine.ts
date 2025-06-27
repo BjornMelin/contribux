@@ -30,7 +30,6 @@ export class SOAREngine {
     }
 
     this.isRunning = true
-    console.log('🤖 SOAR engine started')
   }
 
   /**
@@ -38,7 +37,6 @@ export class SOAREngine {
    */
   async stop(): Promise<void> {
     this.isRunning = false
-    console.log('🛑 SOAR engine stopped')
   }
 
   /**
@@ -48,8 +46,6 @@ export class SOAREngine {
     if (!this.isRunning) {
       throw new Error('SOAR engine is not running')
     }
-
-    console.log(`🚨 Processing security incident: ${incident.incidentId}`)
 
     const executions: PlaybookExecution[] = []
     // Convert SecurityIncident to SecurityEventContext
@@ -82,8 +78,6 @@ export class SOAREngine {
     if (!this.isRunning) {
       throw new Error('SOAR engine is not running')
     }
-
-    console.log(`🎯 Processing threat detection: ${threat.threatId}`)
 
     const executions: PlaybookExecution[] = []
     // Convert ThreatDetection to SecurityEventContext
@@ -120,8 +114,6 @@ export class SOAREngine {
       throw new Error('SOAR engine is not running')
     }
 
-    console.log(`🔍 Processing vulnerability: ${vulnerability.id}`)
-
     const executions: PlaybookExecution[] = []
     // Convert Vulnerability to SecurityEventContext
     const securityEventContext = this.convertVulnerabilityToSecurityEvent(vulnerability)
@@ -145,8 +137,6 @@ export class SOAREngine {
    * Execute critical incident response
    */
   private async executeCriticalIncidentResponse(incident: SecurityIncident): Promise<void> {
-    console.log(`🚨 Executing critical incident response for: ${incident.incidentId}`)
-
     const actions = ['escalate_incident', 'notify_stakeholders', 'collect_evidence']
 
     for (const action of actions) {
@@ -158,8 +148,6 @@ export class SOAREngine {
    * Execute immediate threat response
    */
   private async executeImmediateThreatResponse(threat: ThreatDetection): Promise<void> {
-    console.log(`⚡ Executing immediate threat response for: ${threat.threatId}`)
-
     const actions: string[] = []
 
     // Determine response actions based on threat type

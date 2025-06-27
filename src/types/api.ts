@@ -661,9 +661,9 @@ export type AuthApiResponse = ApiResponse<AuthenticationResult>
 export type UserApiResponse = ApiResponse<User>
 export type UserSessionApiResponse = ApiResponse<UserSession>
 export type OpportunityApiResponse = ApiResponse<Opportunity>
-export type OpportunityListApiResponse = ApiResponse<ReadonlyArray<Opportunity>>
+export type OpportunityListApiResponse = ApiResponse<readonly Opportunity[]>
 export type RepositoryApiResponse = ApiResponse<Repository>
-export type RepositoryListApiResponse = ApiResponse<ReadonlyArray<Repository>>
+export type RepositoryListApiResponse = ApiResponse<readonly Repository[]>
 export type SearchResultsApiResponse = ApiResponse<SearchResults>
 
 /**

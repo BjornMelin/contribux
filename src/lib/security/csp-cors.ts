@@ -4,7 +4,8 @@
  * report-only mode, violation reporting, and policy versioning
  */
 
-import { type NextRequest, NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { generateSecureToken } from './crypto'
 
@@ -414,8 +415,7 @@ export async function processCSPViolation(
     }
 
     return { success: true }
-  } catch (error) {
-    console.error('CSP violation processing error:', error)
+  } catch (_error) {
     return { success: false, error: 'Invalid violation data' }
   }
 }
@@ -461,8 +461,7 @@ export async function rollbackPolicyVersion(targetVersion: string): Promise<bool
     await activatePolicyVersion(targetVersion)
 
     return true
-  } catch (error) {
-    console.error('Policy rollback error:', error)
+  } catch (_error) {
     return false
   }
 }
@@ -604,29 +603,26 @@ interface CSPAnalysis {
 
 // Placeholder storage functions (implement with your preferred storage)
 async function storeCSPViolation(
-  violation: CSPViolation,
-  analysis: CSPAnalysis,
-  request: NextRequest
+  _violation: CSPViolation,
+  _analysis: CSPAnalysis,
+  _request: NextRequest
 ): Promise<void> {
-  // TODO: Implement violation storage
-  console.log('CSP Violation:', { violation, analysis, ip: getClientIp(request) })
+  // TODO: Implement CSP violation storage
 }
 
 async function generateSecurityAlert(
   _violation: CSPViolation,
-  analysis: CSPAnalysis,
+  _analysis: CSPAnalysis,
   _request: NextRequest
 ): Promise<void> {
-  // TODO: Implement security alerting
-  console.warn('High-severity CSP violation detected:', analysis)
+  // TODO: Implement security alert generation
 }
 
 async function storePolicyVersion(
-  info: PolicyVersionInfo,
+  _info: PolicyVersionInfo,
   _directives: CSPDirectives
 ): Promise<void> {
   // TODO: Implement policy version storage
-  console.log('Policy version created:', info)
 }
 
 async function getPolicyVersion(_version: string): Promise<PolicyVersionInfo | null> {

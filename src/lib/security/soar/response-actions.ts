@@ -127,11 +127,9 @@ export class ResponseActionsManager {
       }
 
       action.success = true
-      console.log(`✅ Response action executed: ${actionType} for ${targetId}`)
     } catch (error) {
       action.success = false
       action.error = error instanceof Error ? error.message : 'Unknown error'
-      console.error(`❌ Response action failed: ${actionType} for ${targetId}`, error)
     }
 
     this.responseActions.push(action)
@@ -139,94 +137,76 @@ export class ResponseActionsManager {
   }
 
   // Response action implementations (simulated)
-  private async blockIPAddress(ip: string): Promise<void> {
-    console.log(`🚫 Blocking IP address: ${ip}`)
+  private async blockIPAddress(_ip: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 100))
   }
 
-  private async quarantineUser(userId: string): Promise<void> {
-    console.log(`🔒 Quarantining user: ${userId}`)
+  private async quarantineUser(_userId: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 150))
   }
 
-  private async disableAccount(accountId: string): Promise<void> {
-    console.log(`❌ Disabling account: ${accountId}`)
+  private async disableAccount(_accountId: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 100))
   }
 
-  private async isolateSystem(systemId: string): Promise<void> {
-    console.log(`🏝️ Isolating system: ${systemId}`)
+  private async isolateSystem(_systemId: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 200))
   }
 
-  private async collectEvidence(targetId: string): Promise<void> {
-    console.log(`🔍 Collecting evidence for: ${targetId}`)
+  private async collectEvidence(_targetId: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 300))
   }
 
-  private async patchVulnerability(vulnId: string): Promise<void> {
-    console.log(`🩹 Patching vulnerability: ${vulnId}`)
+  private async patchVulnerability(_vulnId: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 500))
   }
 
-  private async rotateCredentials(targetId: string): Promise<void> {
-    console.log(`🔄 Rotating credentials for: ${targetId}`)
+  private async rotateCredentials(_targetId: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 250))
   }
 
-  private async notifyStakeholders(incidentId: string): Promise<void> {
-    console.log(`📢 Notifying stakeholders about: ${incidentId}`)
+  private async notifyStakeholders(_incidentId: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 100))
   }
 
-  private async escalateIncident(incidentId: string): Promise<void> {
-    console.log(`📈 Escalating incident: ${incidentId}`)
+  private async escalateIncident(_incidentId: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 150))
   }
 
-  private async createTicket(targetId: string): Promise<void> {
-    console.log(`🎫 Creating ticket for: ${targetId}`)
+  private async createTicket(_targetId: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 100))
   }
 
   // Forensic and analysis actions
-  private async validateDetection(targetId: string): Promise<void> {
-    console.log(`🔍 Validating detection for: ${targetId}`)
+  private async validateDetection(_targetId: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 50))
   }
 
-  private async collectInitialEvidence(targetId: string): Promise<void> {
-    console.log(`📋 Collecting initial evidence for: ${targetId}`)
+  private async collectInitialEvidence(_targetId: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 100))
   }
 
-  private async analyzeIndicators(targetId: string): Promise<void> {
-    console.log(`🔎 Analyzing indicators for: ${targetId}`)
+  private async analyzeIndicators(_targetId: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 150))
   }
 
-  private async correlateEvents(targetId: string): Promise<void> {
-    console.log(`🔗 Correlating events for: ${targetId}`)
+  private async correlateEvents(_targetId: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 200))
   }
 
-  private async scanNetwork(targetId: string): Promise<void> {
-    console.log(`🌐 Scanning network for: ${targetId}`)
+  private async scanNetwork(_targetId: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 300))
   }
 
-  private async checkCompromisedAccounts(targetId: string): Promise<void> {
-    console.log(`👤 Checking compromised accounts for: ${targetId}`)
+  private async checkCompromisedAccounts(_targetId: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 250))
   }
 
-  private async assessImpact(targetId: string): Promise<void> {
-    console.log(`📊 Assessing impact for: ${targetId}`)
+  private async assessImpact(_targetId: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 100))
   }
 
-  private async verifyIntegrity(targetId: string): Promise<void> {
-    console.log(`🔒 Verifying integrity for: ${targetId}`)
+  private async verifyIntegrity(_targetId: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 300))
   }
 

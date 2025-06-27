@@ -195,7 +195,6 @@ export class AutomatedSecurityScanner {
     }
 
     this.isScanning = true
-    console.log('🔍 Starting automated security scanning...')
 
     // Initial comprehensive scan
     await this.performComprehensiveScan()
@@ -204,14 +203,10 @@ export class AutomatedSecurityScanner {
     this.scanInterval = setInterval(async () => {
       try {
         await this.performPeriodicScan()
-      } catch (error) {
-        console.error('Error during periodic security scan:', error)
+      } catch (_error) {
+        // Ignore periodic scan errors
       }
     }, this.config.scanner.scanIntervalMs)
-
-    console.log(
-      `✅ Automated security scanning started (interval: ${this.config.scanner.scanIntervalMs}ms)`
-    )
   }
 
   /**
@@ -227,8 +222,6 @@ export class AutomatedSecurityScanner {
       clearInterval(this.scanInterval)
       this.scanInterval = undefined
     }
-
-    console.log('🛑 Automated security scanning stopped')
   }
 
   /**
@@ -240,67 +233,50 @@ export class AutomatedSecurityScanner {
     incidents: SecurityIncident[]
   }> {
     const startTime = Date.now()
-    console.log('🔍 Starting comprehensive security scan...')
 
     const results = {
       vulnerabilities: [] as Vulnerability[],
       threats: [] as ThreatDetection[],
       incidents: [] as SecurityIncident[],
     }
-
-    try {
-      // OWASP Top 10 scanning
-      if (this.config.scanner.enableOWASP) {
-        const owaspResults = await this.performOWASPScan()
-        results.vulnerabilities.push(...owaspResults)
-        console.log(`📊 OWASP scan completed: ${owaspResults.length} vulnerabilities found`)
-      }
-
-      // Dependency scanning
-      if (this.config.scanner.enableDependencyScanning) {
-        const depResults = await this.performDependencyScan()
-        results.vulnerabilities.push(...depResults)
-        console.log(
-          `📦 Dependency scan completed: ${depResults.length} vulnerable dependencies found`
-        )
-      }
-
-      // Penetration testing (if enabled)
-      if (this.config.scanner.enablePenetrationTesting) {
-        const penResults = await this.performPenetrationTest()
-        results.vulnerabilities.push(...penResults)
-        console.log(`🎯 Penetration testing completed: ${penResults.length} vulnerabilities found`)
-      }
-
-      // Real-time threat detection
-      if (this.config.scanner.enableThreatDetection) {
-        const threatResults = await this.performThreatDetection()
-        results.threats.push(...threatResults)
-        console.log(`🚨 Threat detection completed: ${threatResults.length} threats detected`)
-      }
-
-      // Process results and create incidents
-      const incidents = await this.processSecurityResults(results.vulnerabilities, results.threats)
-      results.incidents.push(...incidents)
-
-      // Record scan history
-      this.scanHistory.push({
-        timestamp: Date.now(),
-        type: 'comprehensive',
-        results: results.vulnerabilities.length + results.threats.length,
-      })
-
-      const duration = Date.now() - startTime
-      console.log(`✅ Comprehensive security scan completed in ${duration}ms`)
-      console.log(
-        `📊 Results: ${results.vulnerabilities.length} vulnerabilities, ${results.threats.length} threats, ${results.incidents.length} incidents`
-      )
-
-      return results
-    } catch (error) {
-      console.error('❌ Error during comprehensive security scan:', error)
-      throw error
+    // OWASP Top 10 scanning
+    if (this.config.scanner.enableOWASP) {
+      const owaspResults = await this.performOWASPScan()
+      results.vulnerabilities.push(...owaspResults)
     }
+
+    // Dependency scanning
+    if (this.config.scanner.enableDependencyScanning) {
+      const depResults = await this.performDependencyScan()
+      results.vulnerabilities.push(...depResults)
+    }
+
+    // Penetration testing (if enabled)
+    if (this.config.scanner.enablePenetrationTesting) {
+      const penResults = await this.performPenetrationTest()
+      results.vulnerabilities.push(...penResults)
+    }
+
+    // Real-time threat detection
+    if (this.config.scanner.enableThreatDetection) {
+      const threatResults = await this.performThreatDetection()
+      results.threats.push(...threatResults)
+    }
+
+    // Process results and create incidents
+    const incidents = await this.processSecurityResults(results.vulnerabilities, results.threats)
+    results.incidents.push(...incidents)
+
+    // Record scan history
+    this.scanHistory.push({
+      timestamp: Date.now(),
+      type: 'comprehensive',
+      results: results.vulnerabilities.length + results.threats.length,
+    })
+
+    const _duration = Date.now() - startTime
+
+    return results
   }
 
   /**
@@ -308,7 +284,6 @@ export class AutomatedSecurityScanner {
    */
   private async performPeriodicScan(): Promise<void> {
     const startTime = Date.now()
-    console.log('🔄 Starting periodic security scan...')
 
     try {
       // Focus on real-time threat detection and critical vulnerabilities
@@ -317,12 +292,9 @@ export class AutomatedSecurityScanner {
 
       if (threats.length > 0 || criticalVulns.length > 0) {
         const incidents = await this.processSecurityResults(criticalVulns, threats)
-        console.log(
-          `🚨 Periodic scan found ${threats.length} threats and ${criticalVulns.length} critical vulnerabilities`
-        )
 
         if (incidents.length > 0) {
-          console.log(`📝 Created ${incidents.length} new security incidents`)
+          // TODO: Process security incidents
         }
       }
 
@@ -332,10 +304,9 @@ export class AutomatedSecurityScanner {
         results: threats.length + criticalVulns.length,
       })
 
-      const duration = Date.now() - startTime
-      console.log(`✅ Periodic security scan completed in ${duration}ms`)
-    } catch (error) {
-      console.error('❌ Error during periodic security scan:', error)
+      const _duration = Date.now() - startTime
+    } catch (_error) {
+      // Ignore scan errors
     }
   }
 
@@ -631,7 +602,6 @@ export class AutomatedSecurityScanner {
         // Auto-block critical threats if enabled
         if (threat.severity === 'critical' && this.config.response.blockCriticalThreats) {
           threat.blocked = true
-          console.log(`🚫 Auto-blocked critical threat: ${threat.threatId}`)
         }
       }
     }

@@ -1,4 +1,5 @@
-import { type NextRequest, NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { unlinkOAuthAccount } from '@/lib/auth/helpers'
 
@@ -19,7 +20,6 @@ export async function POST(request: NextRequest) {
     await unlinkOAuthAccount(userId, provider)
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Error unlinking account:', error)
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : 'Internal server error',

@@ -140,109 +140,413 @@ export async function verifyWebhookSignature(
   sourceId?: string
 ): Promise<WebhookVerificationResult> {
   const startTime = Date.now()
+  const context = createVerificationContext(rawPayload, headers, sourceId, startTime)
+
+  try {
+    // Phase 1: Basic header and signature validation
+    const headerResult = await validateWebhookHeaders(context)
+    if (!headerResult.valid) {
+      return createFailureResult(context, headerResult.errors, headerResult.warnings)
+    }
+
+    // Phase 2: Source authentication and rate limiting
+    const authResult = await authenticateWebhookSource(context)
+    if (!authResult.valid) {
+      return createFailureResult(context, authResult.errors, authResult.warnings, authResult.source)
+    }
+
+    // Phase 3: Cryptographic verification and payload validation
+    if (!authResult.source || !authResult.signature) {
+      context.errors.push('Missing authentication data for cryptographic verification')
+      return createFailureResult(context, ['Missing authentication data'], [])
+    }
+
+    const cryptoResult = await performCryptographicVerification(
+      context,
+      authResult.source,
+      authResult.signature
+    )
+    if (!cryptoResult.valid) {
+      return createFailureResult(
+        context,
+        cryptoResult.errors,
+        cryptoResult.warnings,
+        authResult.source
+      )
+    }
+
+    // Phase 4: Security checks and finalization
+    if (!cryptoResult.payload) {
+      context.errors.push('Missing payload data for final verification')
+      return createFailureResult(context, ['Missing payload data'], [], authResult.source)
+    }
+
+    return await finalizeWebhookVerification(
+      context,
+      authResult.source,
+      authResult.signature,
+      cryptoResult.payload
+    )
+  } catch (_error) {
+    context.errors.push('Internal verification error')
+    return createVerificationResult(
+      false,
+      undefined,
+      undefined,
+      context.errors,
+      context.warnings,
+      context.startTime
+    )
+  }
+}
+
+// Types for verification context and phase results
+interface WebhookVerificationContext {
+  rawPayload: string | Buffer
+  headers: Record<string, string>
+  sourceId: string | undefined
+  startTime: number
+  errors: string[]
+  warnings: string[]
+}
+
+interface VerificationPhaseResult {
+  valid: boolean
+  errors: string[]
+  warnings: string[]
+  source: WebhookSource | undefined
+  signature: WebhookSignature | undefined
+  payload: WebhookPayload | undefined
+}
+
+// Helper functions for webhook verification complexity reduction
+
+/**
+ * Create verification context to track state across verification phases
+ */
+function createVerificationContext(
+  rawPayload: string | Buffer,
+  headers: Record<string, string | string[] | undefined>,
+  sourceId?: string,
+  startTime?: number
+): WebhookVerificationContext {
+  return {
+    rawPayload,
+    headers: normalizeHeaders(headers),
+    sourceId,
+    startTime: startTime || Date.now(),
+    errors: [],
+    warnings: [],
+  }
+}
+
+/**
+ * Phase 1: Validate headers and extract signature information
+ */
+async function validateWebhookHeaders(
+  context: WebhookVerificationContext
+): Promise<VerificationPhaseResult> {
   const errors: string[] = []
   const warnings: string[] = []
 
-  try {
-    // Extract headers with normalization
-    const normalizedHeaders = normalizeHeaders(headers)
-
-    // Validate required headers
-    const headerValidation = validateRequiredHeaders(normalizedHeaders)
-    if (!headerValidation.valid) {
-      errors.push(...headerValidation.errors)
-    }
-
-    // Extract signature information
-    const signatureHeader = normalizedHeaders[WEBHOOK_CONFIG.security.signatureHeader.toLowerCase()]
-    if (!signatureHeader) {
-      errors.push('Missing signature header')
-      return createVerificationResult(false, undefined, undefined, errors, warnings, startTime)
-    }
-
-    const signature = parseSignatureHeader(signatureHeader)
-    if (!signature) {
-      errors.push('Invalid signature format')
-      return createVerificationResult(false, undefined, undefined, errors, warnings, startTime)
-    }
-
-    // Validate timestamp
-    const timestampValidation = validateTimestamp(normalizedHeaders, signature.timestamp)
-    if (!timestampValidation.valid) {
-      errors.push(...timestampValidation.errors)
-      warnings.push(...timestampValidation.warnings)
-    }
-
-    // Get webhook source configuration
-    const source = await getWebhookSource(sourceId, normalizedHeaders)
-    if (!source) {
-      errors.push('Unknown webhook source')
-      return createVerificationResult(false, undefined, undefined, errors, warnings, startTime)
-    }
-
-    // Check rate limiting
-    const rateLimitResult = await checkWebhookRateLimit(source.id, normalizedHeaders)
-    if (!rateLimitResult.allowed) {
-      errors.push('Rate limit exceeded')
-      return createVerificationResult(false, source, undefined, errors, warnings, startTime)
-    }
-
-    // Verify payload size
-    if (Buffer.byteLength(rawPayload) > WEBHOOK_CONFIG.security.maxPayloadSize) {
-      errors.push('Payload too large')
-      return createVerificationResult(false, source, undefined, errors, warnings, startTime)
-    }
-
-    // Verify HMAC signature
-    const signatureVerification = await verifyHMACSignature(rawPayload, signature, source.secret)
-    if (!signatureVerification.valid) {
-      errors.push('Invalid signature')
-      return createVerificationResult(false, source, undefined, errors, warnings, startTime)
-    }
-
-    // Parse and validate payload
-    let payload: WebhookPayload
-    try {
-      const parsedPayload = JSON.parse(rawPayload.toString())
-      payload = WebhookPayloadSchema.parse(parsedPayload)
-    } catch (_error) {
-      errors.push('Invalid payload format')
-      return createVerificationResult(false, source, undefined, errors, warnings, startTime)
-    }
-
-    // Replay attack prevention
-    const replayCheck = await checkReplayAttack(payload, signature)
-    if (!replayCheck.valid) {
-      errors.push('Replay attack detected')
-      return createVerificationResult(false, source, payload, errors, warnings, startTime, {
-        isReplay: true,
-      })
-    }
-
-    // Event type validation
-    if (!source.events.includes(payload.event)) {
-      warnings.push(`Unexpected event type: ${payload.event}`)
-    }
-
-    // All validations passed
-    if (errors.length === 0) {
-      // Store nonce to prevent replay
-      if (payload.nonce) {
-        await storeNonce(payload.nonce, signature.timestamp)
-      }
-
-      return createVerificationResult(true, source, payload, errors, warnings, startTime, {
-        signatureAlgorithm: signature.algorithm,
-        timestampDrift: Math.abs(Date.now() - signature.timestamp),
-      })
-    }
-
-    return createVerificationResult(false, source, payload, errors, warnings, startTime)
-  } catch (error) {
-    console.error('Webhook verification error:', error)
-    errors.push('Internal verification error')
-    return createVerificationResult(false, undefined, undefined, errors, warnings, startTime)
+  // Validate required headers
+  const headerValidation = validateRequiredHeaders(context.headers)
+  if (!headerValidation.valid) {
+    errors.push(...headerValidation.errors)
   }
+
+  // Extract and parse signature
+  const signatureResult = extractWebhookSignature(context.headers)
+  if (!signatureResult.valid) {
+    errors.push(signatureResult.error || 'Invalid signature format')
+    return {
+      valid: false,
+      errors,
+      warnings,
+      source: undefined,
+      signature: undefined,
+      payload: undefined,
+    }
+  }
+
+  // Validate timestamp
+  const timestampValidation = validateTimestamp(
+    context.headers,
+    signatureResult.signature?.timestamp || 0
+  )
+  if (!timestampValidation.valid) {
+    errors.push(...timestampValidation.errors)
+    warnings.push(...timestampValidation.warnings)
+  }
+
+  // Update context with findings
+  context.errors.push(...errors)
+  context.warnings.push(...warnings)
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings,
+    source: undefined,
+    signature: signatureResult.signature,
+    payload: undefined,
+  }
+}
+
+/**
+ * Phase 2: Authenticate webhook source and check rate limits
+ */
+async function authenticateWebhookSource(
+  context: WebhookVerificationContext
+): Promise<VerificationPhaseResult> {
+  const errors: string[] = []
+  const warnings: string[] = []
+
+  // Get and validate webhook source
+  const sourceResult = await getAndValidateWebhookSource(context.sourceId, context.headers)
+  if (!sourceResult.valid) {
+    errors.push(sourceResult.error || 'Invalid webhook source')
+    return {
+      valid: false,
+      errors,
+      warnings,
+      source: undefined,
+      signature: undefined,
+      payload: undefined,
+    }
+  }
+
+  // Check rate limiting
+  const rateLimitResult = await checkWebhookRateLimit(
+    sourceResult.source?.id || '',
+    context.headers
+  )
+  if (!rateLimitResult.allowed) {
+    errors.push('Rate limit exceeded')
+    return {
+      valid: false,
+      errors,
+      warnings,
+      source: sourceResult.source,
+      signature: undefined,
+      payload: undefined,
+    }
+  }
+
+  // Re-extract signature for this phase
+  const signatureResult = extractWebhookSignature(context.headers)
+
+  return {
+    valid: true,
+    errors,
+    warnings,
+    source: sourceResult.source,
+    signature: signatureResult.signature,
+    payload: undefined,
+  }
+}
+
+/**
+ * Phase 3: Perform cryptographic verification and payload parsing
+ */
+async function performCryptographicVerification(
+  context: WebhookVerificationContext,
+  source: WebhookSource,
+  signature: WebhookSignature
+): Promise<VerificationPhaseResult> {
+  const errors: string[] = []
+  const warnings: string[] = []
+
+  // Validate payload size and HMAC signature
+  const validationResult = await validatePayloadAndSignature(context.rawPayload, signature, source)
+  if (!validationResult.valid) {
+    errors.push(validationResult.error || 'Payload validation failed')
+    return {
+      valid: false,
+      errors,
+      warnings,
+      source: undefined,
+      signature: undefined,
+      payload: undefined,
+    }
+  }
+
+  // Parse and validate payload structure
+  const payloadResult = parseAndValidatePayload(context.rawPayload)
+  if (!payloadResult.valid) {
+    errors.push(payloadResult.error || 'Payload parsing failed')
+    return {
+      valid: false,
+      errors,
+      warnings,
+      source: undefined,
+      signature: undefined,
+      payload: undefined,
+    }
+  }
+
+  return {
+    valid: true,
+    errors,
+    warnings,
+    source: undefined,
+    signature: undefined,
+    payload: payloadResult.payload,
+  }
+}
+
+/**
+ * Phase 4: Perform final security checks and complete verification
+ */
+async function finalizeWebhookVerification(
+  context: WebhookVerificationContext,
+  source: WebhookSource,
+  signature: WebhookSignature,
+  payload: WebhookPayload
+): Promise<WebhookVerificationResult> {
+  const errors: string[] = [...context.errors]
+  const warnings: string[] = [...context.warnings]
+
+  // Check for replay attacks
+  const replayCheck = await checkReplayAttack(payload, signature)
+  if (!replayCheck.valid) {
+    errors.push('Replay attack detected')
+    return createVerificationResult(false, source, payload, errors, warnings, context.startTime, {
+      isReplay: true,
+    })
+  }
+
+  // Validate event type
+  if (source.events && !source.events.includes(payload.event)) {
+    warnings.push(`Unexpected event type: ${payload.event}`)
+  }
+
+  // Finalize successful verification
+  return await finalizeSuccessfulVerification(
+    errors,
+    payload,
+    signature,
+    source,
+    warnings,
+    context.startTime
+  )
+}
+
+/**
+ * Create failure result with consistent error handling
+ */
+function createFailureResult(
+  context: WebhookVerificationContext,
+  errors: string[],
+  warnings: string[],
+  source?: WebhookSource
+): WebhookVerificationResult {
+  const allErrors = [...context.errors, ...errors]
+  const allWarnings = [...context.warnings, ...warnings]
+
+  return createVerificationResult(
+    false,
+    source,
+    undefined,
+    allErrors,
+    allWarnings,
+    context.startTime
+  )
+}
+
+function extractWebhookSignature(headers: Record<string, string>): {
+  valid: boolean
+  signature?: WebhookSignature
+  error?: string
+} {
+  const signatureHeader = headers[WEBHOOK_CONFIG.security.signatureHeader.toLowerCase()]
+  if (!signatureHeader) {
+    return { valid: false, error: 'Missing signature header' }
+  }
+
+  const signature = parseSignatureHeader(signatureHeader)
+  if (!signature) {
+    return { valid: false, error: 'Invalid signature format' }
+  }
+
+  return { valid: true, signature }
+}
+
+async function getAndValidateWebhookSource(
+  sourceId: string | undefined,
+  headers: Record<string, string>
+): Promise<{ valid: boolean; source?: WebhookSource; error?: string }> {
+  const source = await getWebhookSource(sourceId, headers)
+  if (!source) {
+    return { valid: false, error: 'Unknown webhook source' }
+  }
+
+  if (!source.isActive) {
+    return { valid: false, error: 'Webhook source is disabled' }
+  }
+
+  return { valid: true, source }
+}
+
+async function validatePayloadAndSignature(
+  rawPayload: string | Buffer,
+  signature: WebhookSignature,
+  source: WebhookSource
+): Promise<{ valid: boolean; error?: string }> {
+  // Check payload size
+  const payloadSize = Buffer.isBuffer(rawPayload)
+    ? rawPayload.length
+    : Buffer.byteLength(rawPayload)
+  if (payloadSize > WEBHOOK_CONFIG.security.maxPayloadSize) {
+    return { valid: false, error: 'Payload too large' }
+  }
+
+  // Verify HMAC signature
+  const signatureVerification = await verifyHMACSignature(rawPayload, signature, source.secret)
+  if (!signatureVerification.valid) {
+    return { valid: false, error: signatureVerification.error || 'Invalid signature' }
+  }
+
+  return { valid: true }
+}
+
+function parseAndValidatePayload(rawPayload: string | Buffer): {
+  valid: boolean
+  payload?: WebhookPayload
+  error?: string
+} {
+  try {
+    const payloadString = Buffer.isBuffer(rawPayload) ? rawPayload.toString() : rawPayload
+    const parsed = JSON.parse(payloadString)
+    const payload = WebhookPayloadSchema.parse(parsed)
+    return { valid: true, payload }
+  } catch (error) {
+    return {
+      valid: false,
+      error:
+        error instanceof Error ? `Invalid payload: ${error.message}` : 'Invalid payload format',
+    }
+  }
+}
+
+async function finalizeSuccessfulVerification(
+  errors: string[],
+  payload: WebhookPayload,
+  signature: WebhookSignature,
+  source: WebhookSource,
+  warnings: string[],
+  startTime: number
+): Promise<WebhookVerificationResult> {
+  // Store nonce if provided to prevent replay attacks
+  if (payload.nonce) {
+    await storeNonce(payload.nonce, signature.timestamp)
+  }
+
+  return createVerificationResult(true, source, payload, errors, warnings, startTime, {
+    signatureAlgorithm: signature.algorithm,
+    timestampDrift: Math.abs(Date.now() - signature.timestamp),
+    isReplay: false,
+  })
 }
 
 /**
@@ -478,64 +782,91 @@ function validateRequiredHeaders(headers: Record<string, string>): {
 }
 
 function parseSignatureHeader(signatureHeader: string): WebhookSignature | null {
-  // Support multiple formats: "sha256=abc123" or "algorithm=signature,timestamp=123"
   const parts = signatureHeader.split(',').map(p => p.trim())
 
-  if (parts.length === 1 && parts[0] && parts[0].includes('=')) {
-    // Simple format: "sha256=signature"
-    const signatureParts = parts[0].split('=', 2)
-    const algorithm = signatureParts[0] || ''
-    const signature = signatureParts[1] || ''
-
-    if (!algorithm || !signature) {
-      return null
-    }
-
-    return {
-      algorithm,
-      signature,
-      timestamp: Date.now(), // Use current time if not provided
-    }
+  // Try simple format first
+  if (parts.length === 1 && parts[0]) {
+    return parseSimpleSignatureFormat(parts[0])
   }
 
-  // Complex format: parse key=value pairs
+  // Parse complex format
+  return parseComplexSignatureFormat(parts)
+}
+
+function parseSimpleSignatureFormat(part: string): WebhookSignature | null {
+  if (!part || !part.includes('=')) {
+    return null
+  }
+
+  const [algorithm, signature] = part.split('=', 2)
+
+  if (!algorithm || !signature) {
+    return null
+  }
+
+  return {
+    algorithm,
+    signature,
+    timestamp: Date.now(),
+  }
+}
+
+function parseComplexSignatureFormat(parts: string[]): WebhookSignature | null {
   const parsed: Partial<WebhookSignature> = {}
 
   for (const part of parts) {
-    const [key, value] = part.split('=', 2)
-    if (key && value) {
-      switch (key.toLowerCase()) {
-        case 'algorithm':
-        case 'sha256':
-          parsed.algorithm = key === 'sha256' ? 'sha256' : value
-          if (key === 'sha256') {
-            parsed.signature = value
-          }
-          break
-        case 'signature':
-          parsed.signature = value
-          break
-        case 'timestamp':
-        case 't':
-          parsed.timestamp = Number.parseInt(value, 10)
-          break
-        case 'keyid':
-          parsed.keyId = value
-          break
-      }
-    }
+    parseSignaturePart(part, parsed)
   }
 
-  if (parsed.algorithm && parsed.signature) {
-    return {
-      algorithm: parsed.algorithm,
-      signature: parsed.signature,
-      timestamp: parsed.timestamp || Date.now(),
-      keyId: parsed.keyId,
-    }
+  return buildWebhookSignature(parsed)
+}
+
+function parseSignaturePart(part: string, parsed: Partial<WebhookSignature>): void {
+  const [key, value] = part.split('=', 2)
+  if (!key || !value) return
+
+  const handlers = getSignaturePartHandlers()
+  const handler = handlers[key.toLowerCase() as keyof typeof handlers]
+  if (handler) {
+    handler(value, key, parsed)
+  }
+}
+
+function getSignaturePartHandlers() {
+  return {
+    algorithm: (value: string, _key: string, parsed: Partial<WebhookSignature>) => {
+      parsed.algorithm = value
+    },
+    sha256: (value: string, _key: string, parsed: Partial<WebhookSignature>) => {
+      parsed.algorithm = 'sha256'
+      parsed.signature = value
+    },
+    signature: (value: string, _key: string, parsed: Partial<WebhookSignature>) => {
+      parsed.signature = value
+    },
+    timestamp: (value: string, _key: string, parsed: Partial<WebhookSignature>) => {
+      parsed.timestamp = Number.parseInt(value, 10)
+    },
+    t: (value: string, _key: string, parsed: Partial<WebhookSignature>) => {
+      parsed.timestamp = Number.parseInt(value, 10)
+    },
+    keyid: (value: string, _key: string, parsed: Partial<WebhookSignature>) => {
+      parsed.keyId = value
+    },
+  }
+}
+
+function buildWebhookSignature(parsed: Partial<WebhookSignature>): WebhookSignature | null {
+  if (!parsed.algorithm || !parsed.signature) {
+    return null
   }
 
-  return null
+  return {
+    algorithm: parsed.algorithm,
+    signature: parsed.signature,
+    timestamp: parsed.timestamp || Date.now(),
+    keyId: parsed.keyId,
+  }
 }
 
 function validateTimestamp(
@@ -728,18 +1059,15 @@ function isRetryableError(statusCode?: number): boolean {
 
 // Placeholder delivery function (implement with your preferred HTTP client)
 async function deliverWebhook(
-  url: string,
-  payload: string,
-  headers: Record<string, string>
+  _url: string,
+  _payload: string,
+  _headers: Record<string, string>
 ): Promise<{
   success: boolean
   statusCode?: number
   headers?: Record<string, string>
   error?: string
 }> {
-  // TODO: Implement actual HTTP delivery
-  console.log('Webhook delivery:', { url, payload: payload.substring(0, 100), headers })
-
   // Simulate delivery for now
   return {
     success: Math.random() > 0.2, // 80% success rate

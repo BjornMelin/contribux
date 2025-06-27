@@ -1,4 +1,5 @@
-import { type NextRequest, NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { canUnlinkProvider } from '@/lib/auth/helpers'
 
@@ -20,8 +21,7 @@ export async function GET(request: NextRequest) {
 
     const canUnlink = await canUnlinkProvider(userId, provider)
     return NextResponse.json({ canUnlink })
-  } catch (error) {
-    console.error('Error checking unlink capability:', error)
+  } catch (_error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

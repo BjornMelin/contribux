@@ -1,4 +1,5 @@
-import { type NextRequest, NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { getPrimaryProvider } from '@/lib/auth/helpers'
 
@@ -19,8 +20,7 @@ export async function GET(request: NextRequest) {
 
     const primaryProvider = await getPrimaryProvider(userId)
     return NextResponse.json({ primaryProvider })
-  } catch (error) {
-    console.error('Error fetching primary provider:', error)
+  } catch (_error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

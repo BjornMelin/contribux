@@ -1,4 +1,5 @@
-import { type NextRequest, NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { getUserProviders } from '@/lib/auth/helpers'
 
@@ -19,8 +20,7 @@ export async function GET(request: NextRequest) {
 
     const providers = await getUserProviders(userId)
     return NextResponse.json({ providers })
-  } catch (error) {
-    console.error('Error fetching providers:', error)
+  } catch (_error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

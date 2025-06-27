@@ -101,9 +101,7 @@ export async function GET() {
     const httpStatus = overallStatus === 'healthy' ? 200 : overallStatus === 'degraded' ? 200 : 503
 
     return NextResponse.json(validatedResponse, { status: httpStatus })
-  } catch (error) {
-    console.error('Health check error:', error)
-
+  } catch (_error) {
     // Return unhealthy status if health check itself fails
     const errorResponse = {
       status: 'unhealthy' as const,

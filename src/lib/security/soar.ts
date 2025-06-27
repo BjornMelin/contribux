@@ -530,23 +530,33 @@ export class SOAREngine {
     return this.playbooks.filter(playbook => {
       return playbook.triggers.some(trigger => {
         if (trigger.type !== triggerType) return false
-
-        // Check conditions based on context
-        return trigger.conditions.some(condition => {
-          if (condition === 'severity:critical' && 'severity' in context) {
-            return context.severity === 'critical'
-          }
-          if (condition === 'severity:high' && 'severity' in context) {
-            return context.severity === 'high'
-          }
-          if (condition.startsWith('confidence:>') && 'confidence' in context) {
-            const threshold = Number.parseFloat(condition.split('>')[1] || '0')
-            return context.confidence > threshold
-          }
-          return true
-        })
+        return this.checkTriggerConditions(trigger.conditions, context)
       })
     })
+  }
+
+  private checkTriggerConditions(
+    conditions: string[],
+    context: SecurityIncident | ThreatDetection | Vulnerability
+  ): boolean {
+    return conditions.some(condition => this.evaluateCondition(condition, context))
+  }
+
+  private evaluateCondition(
+    condition: string,
+    context: SecurityIncident | ThreatDetection | Vulnerability
+  ): boolean {
+    if (condition === 'severity:critical' && 'severity' in context) {
+      return context.severity === 'critical'
+    }
+    if (condition === 'severity:high' && 'severity' in context) {
+      return context.severity === 'high'
+    }
+    if (condition.startsWith('confidence:>') && 'confidence' in context) {
+      const threshold = Number.parseFloat(condition.split('>')[1] || '0')
+      return context.confidence > threshold
+    }
+    return true
   }
 
   getPlaybooks(): Playbook[] {

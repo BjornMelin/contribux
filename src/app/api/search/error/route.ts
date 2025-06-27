@@ -97,8 +97,6 @@ export async function GET() {
     const validatedResponse = ErrorResponseSchema.parse(response)
     return NextResponse.json(validatedResponse, { status: 500 })
   } catch (error) {
-    console.error('Error simulation endpoint error:', error)
-
     // Fallback error response
     const fallbackResponse = {
       success: false as const,

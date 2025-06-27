@@ -12,6 +12,204 @@ import type {
 import { createPlaybookTriggerContext } from '../schemas'
 import type { Playbook, PlaybookExecution, PlaybookStep, SOARConfig } from './schemas'
 
+/**
+ * Strategy interface for condition evaluation
+ */
+interface ConditionHandler {
+  canHandle(condition: string): boolean
+  evaluate(condition: string): boolean
+}
+
+/**
+ * Handler for severity-based conditions
+ */
+class SeverityConditionHandler implements ConditionHandler {
+  constructor(private eventContext: SecurityEventContext) {}
+
+  canHandle(condition: string): boolean {
+    return condition.includes('severity=')
+  }
+
+  evaluate(condition: string): boolean {
+    const severity = this.eventContext.severity
+
+    if (condition.includes('severity=critical')) {
+      return severity === 'critical'
+    }
+    if (condition.includes('severity=high')) {
+      return ['critical', 'high'].includes(severity)
+    }
+    if (condition.includes('severity=medium')) {
+      return ['critical', 'high', 'medium'].includes(severity)
+    }
+
+    return true
+  }
+}
+
+/**
+ * Handler for confidence-based conditions
+ */
+class ConfidenceConditionHandler implements ConditionHandler {
+  constructor(private eventContext: SecurityEventContext) {}
+
+  canHandle(condition: string): boolean {
+    return condition.includes('confidence>')
+  }
+
+  evaluate(condition: string): boolean {
+    const confidence = this.eventContext.confidence
+
+    if (condition.includes('confidence>0.9')) {
+      return confidence > 0.9
+    }
+    if (condition.includes('confidence>0.8')) {
+      return confidence > 0.8
+    }
+
+    return true
+  }
+}
+
+/**
+ * Handler for risk score conditions
+ */
+class RiskScoreConditionHandler implements ConditionHandler {
+  constructor(private eventContext: SecurityEventContext) {}
+
+  canHandle(condition: string): boolean {
+    return condition.includes('risk_score>')
+  }
+
+  evaluate(condition: string): boolean {
+    const riskScore = this.eventContext.riskScore
+
+    if (condition.includes('risk_score>90')) {
+      return riskScore > 90
+    }
+    if (condition.includes('risk_score>80')) {
+      return riskScore > 80
+    }
+
+    return true
+  }
+}
+
+/**
+ * Handler for event type conditions
+ */
+class EventTypeConditionHandler implements ConditionHandler {
+  constructor(private eventContext: SecurityEventContext) {}
+
+  canHandle(condition: string): boolean {
+    return condition.includes('type=')
+  }
+
+  evaluate(condition: string): boolean {
+    const eventType = this.eventContext.type
+
+    if (condition.includes('type=threat')) {
+      return eventType === 'threat'
+    }
+    if (condition.includes('type=vulnerability')) {
+      return eventType === 'vulnerability'
+    }
+    if (condition.includes('type=incident')) {
+      return eventType === 'incident'
+    }
+
+    return true
+  }
+}
+
+/**
+ * Handler for business impact conditions
+ */
+class BusinessImpactConditionHandler implements ConditionHandler {
+  constructor(private eventContext: SecurityEventContext) {}
+
+  canHandle(condition: string): boolean {
+    return condition.includes('business_impact=')
+  }
+
+  evaluate(condition: string): boolean {
+    const businessImpact = this.eventContext.businessImpact
+
+    if (condition.includes('business_impact=critical')) {
+      return businessImpact === 'critical'
+    }
+    if (condition.includes('business_impact=high')) {
+      return ['critical', 'high'].includes(businessImpact)
+    }
+
+    return true
+  }
+}
+
+/**
+ * Handler for automation level conditions
+ */
+class AutomationLevelConditionHandler implements ConditionHandler {
+  constructor(private context: PlaybookTriggerContext) {}
+
+  canHandle(condition: string): boolean {
+    return condition.includes('automation_level>=')
+  }
+
+  evaluate(condition: string): boolean {
+    const automationLevel = this.context.automationLevel
+
+    if (condition.includes('automation_level>=high')) {
+      return ['high', 'full'].includes(automationLevel)
+    }
+    if (condition.includes('automation_level>=medium')) {
+      return ['medium', 'high', 'full'].includes(automationLevel)
+    }
+
+    return true
+  }
+}
+
+/**
+ * Handler for historical data conditions
+ */
+class HistoricalDataConditionHandler implements ConditionHandler {
+  constructor(private context: PlaybookTriggerContext) {}
+
+  canHandle(condition: string): boolean {
+    return condition.includes('similar_incidents>')
+  }
+
+  evaluate(condition: string): boolean {
+    const similarIncidents = this.context.historicalData?.similarIncidents || 0
+
+    if (condition.includes('similar_incidents>5')) {
+      return similarIncidents > 5
+    }
+
+    return true
+  }
+}
+
+/**
+ * Handler for affected systems conditions
+ */
+class AffectedSystemsConditionHandler implements ConditionHandler {
+  constructor(private eventContext: SecurityEventContext) {}
+
+  canHandle(condition: string): boolean {
+    return condition.includes('multiple_systems')
+  }
+
+  evaluate(condition: string): boolean {
+    if (condition.includes('multiple_systems')) {
+      return this.eventContext.affectedSystems.length > 1
+    }
+
+    return true
+  }
+}
+
 export class PlaybookManager {
   private playbooks = new Map<string, Playbook>()
   private executions = new Map<string, PlaybookExecution>()
@@ -48,7 +246,6 @@ export class PlaybookManager {
     this.executions.set(executionId, execution)
 
     try {
-      console.log(`📝 Executing playbook: ${playbook.name} (${playbook.playbookId})`)
       execution.status = 'running'
 
       // Execute each step in order
@@ -69,12 +266,9 @@ export class PlaybookManager {
           execution.executedSteps.filter(s => s.status === 'completed').length /
           execution.executedSteps.length
       }
-
-      console.log(`✅ Playbook execution completed: ${executionId}`)
-    } catch (error) {
+    } catch (_error) {
       execution.status = 'failed'
       execution.completedAt = Date.now()
-      console.error(`❌ Playbook execution failed: ${executionId}`, error)
     }
 
     return execution
@@ -98,8 +292,6 @@ export class PlaybookManager {
     execution.currentStep = step.stepId
 
     try {
-      console.log(`🔄 Executing step: ${step.name} (${step.stepId})`)
-
       // Check step conditions
       if (!this.evaluateStepConditions(step.conditions)) {
         stepExecution.status = 'skipped'
@@ -116,18 +308,13 @@ export class PlaybookManager {
 
       stepExecution.status = 'completed'
       stepExecution.completedAt = Date.now()
-
-      console.log(`✅ Step completed: ${step.name}`)
     } catch (error) {
       stepExecution.status = 'failed'
       stepExecution.completedAt = Date.now()
       stepExecution.error = error instanceof Error ? error.message : 'Unknown error'
 
-      console.error(`❌ Step failed: ${step.name}`, error)
-
       // Retry logic
       if (step.retries > 0) {
-        console.log(`🔄 Retrying step: ${step.name} (${step.retries} retries remaining)`)
         step.retries--
         await this.executePlaybookStep(execution, step)
       } else {
@@ -147,14 +334,7 @@ export class PlaybookManager {
     _execution: PlaybookExecution
   ): Promise<void> {
     for (const action of step.actions) {
-      try {
-        // This would call the response actions module
-        console.log(`🤖 Executing automated action: ${action}`)
-        await this.simulateActionExecution(action)
-      } catch (error) {
-        console.error(`Failed to execute automated action: ${action}`, error)
-        throw error
-      }
+      await this.simulateActionExecution(action)
     }
   }
 
@@ -165,9 +345,6 @@ export class PlaybookManager {
     step: PlaybookStep,
     _execution: PlaybookExecution
   ): Promise<void> {
-    console.log(`📋 Manual step requires human intervention: ${step.name}`)
-    console.log(`📝 Actions required: ${step.actions.join(', ')}`)
-
     // In a real implementation, this would create tasks for human operators
     // For now, we'll simulate manual execution
     await this.simulateManualExecution(step)
@@ -225,102 +402,47 @@ export class PlaybookManager {
   }
 
   /**
-   * Evaluate playbook trigger conditions
+   * Evaluate playbook trigger conditions using Strategy pattern
+   * Refactored to reduce cognitive complexity from 50+ to <15
    */
   private evaluatePlaybookTriggerConditions(
     conditions: string[],
     context: PlaybookTriggerContext
   ): boolean {
-    // Enhanced condition evaluation using the security event context
-    const eventContext = context.securityContext.event
-
     for (const condition of conditions) {
-      // Severity-based conditions
-      if (condition.includes('severity=critical') && eventContext.severity !== 'critical') {
-        return false
-      }
-      if (
-        condition.includes('severity=high') &&
-        !['critical', 'high'].includes(eventContext.severity)
-      ) {
-        return false
-      }
-      if (
-        condition.includes('severity=medium') &&
-        !['critical', 'high', 'medium'].includes(eventContext.severity)
-      ) {
-        return false
-      }
-
-      // Confidence-based conditions
-      if (condition.includes('confidence>0.8') && eventContext.confidence <= 0.8) {
-        return false
-      }
-      if (condition.includes('confidence>0.9') && eventContext.confidence <= 0.9) {
-        return false
-      }
-
-      // Risk score conditions
-      if (condition.includes('risk_score>80') && eventContext.riskScore <= 80) {
-        return false
-      }
-      if (condition.includes('risk_score>90') && eventContext.riskScore <= 90) {
-        return false
-      }
-
-      // Event type conditions
-      if (condition.includes('type=threat') && eventContext.type !== 'threat') {
-        return false
-      }
-      if (condition.includes('type=vulnerability') && eventContext.type !== 'vulnerability') {
-        return false
-      }
-      if (condition.includes('type=incident') && eventContext.type !== 'incident') {
-        return false
-      }
-
-      // Business impact conditions
-      if (
-        condition.includes('business_impact=critical') &&
-        eventContext.businessImpact !== 'critical'
-      ) {
-        return false
-      }
-      if (
-        condition.includes('business_impact=high') &&
-        !['critical', 'high'].includes(eventContext.businessImpact)
-      ) {
-        return false
-      }
-
-      // Automation level conditions
-      if (
-        condition.includes('automation_level>=medium') &&
-        !['medium', 'high', 'full'].includes(context.automationLevel)
-      ) {
-        return false
-      }
-      if (
-        condition.includes('automation_level>=high') &&
-        !['high', 'full'].includes(context.automationLevel)
-      ) {
-        return false
-      }
-
-      // Historical data conditions (if available)
-      if (
-        condition.includes('similar_incidents>5') &&
-        (context.historicalData?.similarIncidents || 0) <= 5
-      ) {
-        return false
-      }
-
-      // Affected systems conditions
-      if (condition.includes('multiple_systems') && eventContext.affectedSystems.length <= 1) {
+      if (!this.evaluateSingleCondition(condition, context)) {
         return false
       }
     }
+    return true
+  }
 
+  /**
+   * Evaluate a single condition using strategy pattern handlers
+   */
+  private evaluateSingleCondition(condition: string, context: PlaybookTriggerContext): boolean {
+    const eventContext = context.securityContext.event
+
+    // Initialize condition handlers lazily
+    const handlers: ConditionHandler[] = [
+      new SeverityConditionHandler(eventContext),
+      new ConfidenceConditionHandler(eventContext),
+      new RiskScoreConditionHandler(eventContext),
+      new EventTypeConditionHandler(eventContext),
+      new BusinessImpactConditionHandler(eventContext),
+      new AutomationLevelConditionHandler(context),
+      new HistoricalDataConditionHandler(context),
+      new AffectedSystemsConditionHandler(eventContext),
+    ]
+
+    // Find appropriate handler and evaluate
+    for (const handler of handlers) {
+      if (handler.canHandle(condition)) {
+        return handler.evaluate(condition)
+      }
+    }
+
+    // Default to true for unknown conditions (backward compatibility)
     return true
   }
 
@@ -338,7 +460,6 @@ export class PlaybookManager {
   }
 
   private async simulateManualExecution(step: PlaybookStep): Promise<void> {
-    console.log(`⏳ Simulating manual execution of: ${step.name}`)
     await new Promise(resolve => setTimeout(resolve, step.timeout || 100))
   }
 
@@ -346,8 +467,17 @@ export class PlaybookManager {
    * Initialize default playbooks
    */
   private initializeDefaultPlaybooks(): void {
-    // Critical Incident Response Playbook
-    this.playbooks.set('critical-incident-response', {
+    // Initialize each default playbook type
+    this.playbooks.set('critical-incident-response', this.createCriticalIncidentResponsePlaybook())
+    this.playbooks.set('automated-threat-hunting', this.createAutomatedThreatHuntingPlaybook())
+    this.playbooks.set('vulnerability-management', this.createVulnerabilityManagementPlaybook())
+  }
+
+  /**
+   * Create critical incident response playbook
+   */
+  private createCriticalIncidentResponsePlaybook(): Playbook {
+    return {
       playbookId: 'critical-incident-response',
       name: 'Critical Incident Response',
       description: 'Automated response for critical security incidents',
@@ -402,10 +532,14 @@ export class PlaybookManager {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       createdBy: 'soar_engine',
-    })
+    }
+  }
 
-    // Automated Threat Hunting Playbook
-    this.playbooks.set('automated-threat-hunting', {
+  /**
+   * Create automated threat hunting playbook
+   */
+  private createAutomatedThreatHuntingPlaybook(): Playbook {
+    return {
       playbookId: 'automated-threat-hunting',
       name: 'Automated Threat Hunting',
       description: 'Proactive threat hunting and analysis',
@@ -448,10 +582,14 @@ export class PlaybookManager {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       createdBy: 'soar_engine',
-    })
+    }
+  }
 
-    // Vulnerability Management Playbook
-    this.playbooks.set('vulnerability-management', {
+  /**
+   * Create vulnerability management playbook
+   */
+  private createVulnerabilityManagementPlaybook(): Playbook {
+    return {
       playbookId: 'vulnerability-management',
       name: 'Vulnerability Management',
       description: 'Automated vulnerability assessment and remediation',
@@ -506,7 +644,7 @@ export class PlaybookManager {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       createdBy: 'soar_engine',
-    })
+    }
   }
 
   getPlaybooks(): Playbook[] {

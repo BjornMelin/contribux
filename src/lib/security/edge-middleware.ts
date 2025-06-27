@@ -4,7 +4,8 @@
  * and real-time threat intelligence at the edge
  */
 
-import { type NextRequest, NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 import { createSecureHash, generateSecureToken } from './crypto'
 
 // Edge security configuration
@@ -130,9 +131,7 @@ export async function enhancedEdgeMiddleware(
     }
 
     return response
-  } catch (error) {
-    console.error('Edge security middleware error:', error)
-
+  } catch (_error) {
     // Fail open with basic rate limiting
     const basicLimit = await basicRateLimit(request)
     if (!basicLimit.allowed) {
@@ -686,20 +685,11 @@ function calculateCacheTtl(action: string, riskScore: number): number {
 }
 
 async function logSecurityDecision(
-  decision: EdgeSecurityDecision,
-  request: NextRequest,
-  clientInfo: ClientInfo
+  _decision: EdgeSecurityDecision,
+  _request: NextRequest,
+  _clientInfo: ClientInfo
 ): Promise<void> {
-  // In production, send to security monitoring system
-  console.log('Edge Security Decision:', {
-    action: decision.action,
-    riskScore: decision.riskScore,
-    reasons: decision.reasons,
-    ip: clientInfo.ip,
-    path: request.nextUrl.pathname,
-    userAgent: clientInfo.userAgent,
-    timestamp: new Date().toISOString(),
-  })
+  // Security decision logging placeholder - implement with external security service
 }
 
 async function serveCaptchaChallenge(
@@ -799,8 +789,7 @@ export async function edgeSecurityMiddleware(request: NextRequest): Promise<Next
     }
 
     return NextResponse.next()
-  } catch (error) {
-    console.error('Edge security middleware error:', error)
+  } catch (_error) {
     return NextResponse.next()
   }
 }
