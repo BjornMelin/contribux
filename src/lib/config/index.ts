@@ -297,8 +297,7 @@ export function validateConfig(): boolean {
   try {
     configSchema.parse(config)
     return true
-  } catch (error) {
-    console.error('Configuration validation failed:', error)
+  } catch (_error) {
     return false
   }
 }

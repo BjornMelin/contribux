@@ -4,14 +4,14 @@
  */
 
 import { z } from 'zod'
-import type { UUID } from '@/types/base'
-import { UUIDSchema } from '@/types/base'
-import type {
-  DifficultyLevel,
-  OpportunityType,
-  Opportunity as SearchOpportunity,
+import { type UUID, UUIDSchema } from '@/types/base'
+import {
+  type DifficultyLevel,
+  DifficultyLevelSchema,
+  type OpportunityType,
+  OpportunityTypeSchema,
+  type Opportunity as SearchOpportunity,
 } from '@/types/search'
-import { DifficultyLevelSchema, OpportunityTypeSchema } from '@/types/search'
 
 // Business logic schemas aligned with foundation types
 export const UserProfileSchema = z.object({
@@ -55,8 +55,8 @@ export const MatchScoreSchema = z.object({
 export interface UserProfile {
   readonly id: UUID
   readonly skillLevel: DifficultyLevel
-  readonly preferredLanguages: ReadonlyArray<string>
-  readonly interests: ReadonlyArray<string>
+  readonly preferredLanguages: readonly string[]
+  readonly interests: readonly string[]
   readonly availabilityHours: number
   readonly experienceMonths: number
 }
@@ -67,8 +67,8 @@ export interface BusinessOpportunity {
   readonly description?: string
   readonly type: OpportunityType
   readonly difficulty: DifficultyLevel
-  readonly requiredSkills: ReadonlyArray<string>
-  readonly technologies: ReadonlyArray<string>
+  readonly requiredSkills: readonly string[]
+  readonly technologies: readonly string[]
   readonly estimatedHours?: number
   readonly goodFirstIssue: boolean
   readonly helpWanted: boolean
@@ -85,8 +85,8 @@ export interface MatchScore {
   readonly difficultyScore: number
   readonly availabilityScore: number
   readonly experienceScore: number
-  readonly matchReasons: ReadonlyArray<string>
-  readonly warnings: ReadonlyArray<string>
+  readonly matchReasons: readonly string[]
+  readonly warnings: readonly string[]
 }
 
 // Adapter function to convert from search opportunity to business opportunity

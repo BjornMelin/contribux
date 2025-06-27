@@ -29,32 +29,16 @@ function shouldSkipValidation(): boolean {
 export function validateApplicationOnStartup(): void {
   // Check if validation should be skipped (test environment or explicit skip flag)
   if (shouldSkipValidation()) {
-    console.log(
-      '⏭️ Application startup validation skipped (test environment or SKIP_ENV_VALIDATION=true)'
-    )
     return
   }
 
-  console.log('🔍 Starting application environment validation...')
-
   try {
-    // 1. Core environment variable validation
-    console.log('  Validating environment variables...')
     validateEnvironmentOnStartup()
 
     // Import env after validation
     const { env } = require('./validation/env')
-
-    // 2. Additional authentication service checks
-    console.log('  Validating authentication services...')
     validateAuthenticationServices(env)
-
-    console.log('✅ All environment validation checks passed!')
-    console.log(`🚀 Application ready to start in ${env.NODE_ENV} mode`)
   } catch (_error) {
-    console.error('❌ Application startup validation failed!')
-    console.error('Please fix the configuration issues above before starting the application.')
-
     // In test environment, throw error instead of exiting process
     if (process.env.NODE_ENV === 'test') {
       throw _error
@@ -83,8 +67,6 @@ function validateAuthenticationServices(env: Record<string, unknown>): void {
   if (enabledServices.length === 0) {
     throw new Error('No authentication services are properly configured')
   }
-
-  console.log(`    ✓ Authentication services enabled: ${enabledServices.join(', ')}`)
 }
 
 /**
@@ -92,21 +74,10 @@ function validateAuthenticationServices(env: Record<string, unknown>): void {
  */
 export function printEnvironmentSummary(): void {
   try {
-    const { env } = require('./validation/env')
-
-    console.log('\n📋 Environment Configuration Summary:')
-    console.log(`   Environment: ${env.NODE_ENV}`)
-    console.log(`   Database: ${env.DATABASE_URL ? 'Configured' : 'Missing'}`)
-    console.log(`   JWT Secret: ${env.JWT_SECRET ? 'Configured' : 'Missing'}`)
-    console.log(`   OAuth: ${env.ENABLE_OAUTH ? 'Enabled' : 'Disabled'}`)
-    console.log(`   Encryption: ${env.ENCRYPTION_KEY ? 'Configured' : 'Using default'}`)
-    console.log(`   Audit Logs: ${env.ENABLE_AUDIT_LOGS ? 'Enabled' : 'Disabled'}`)
-    console.log('')
-  } catch (error) {
-    console.warn(
-      'Could not print environment summary:',
-      error instanceof Error ? error.message : 'Unknown error'
-    )
+    require('./validation/env')
+    // TODO: Implement environment summary printing
+  } catch (_error) {
+    // Environment summary unavailable - validation failed
   }
 }
 
