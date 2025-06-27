@@ -131,6 +131,9 @@ playwright-report/
 # Jest cache
 .jest/
 
+# Vitest cache
+.vitest/
+
 # Coverage reports
 lcov.info
 coverage.lcov
@@ -144,6 +147,19 @@ playwright/.cache/
 screenshots/
 videos/
 traces/
+
+# Test result files
+playwright-report.json
+# Root directory generated files only
+/api-validation-results.json
+/current-test-results.json
+/test-performance-*.json
+/test-stats.json
+/test-summary.json
+/coverage-*.json
+# General patterns for result files in any directory
+*-test-results.json
+*-coverage.json
 
 # ================================
 # Build Tools & Bundlers
@@ -294,12 +310,48 @@ WORKING_*.md
 *-working.*
 *-draft.*
 
+# Generated reports and documentation
+*-REPORT.md
+*-SUMMARY.md
+*-report.md
+*-summary.md
+*_REPORT.md
+*_SUMMARY.md
+environment-validation-report.md
+oauth-completion-report.md
+oauth-setup-guide.md
+performance_*.md
+ULTRATHINK_*.md
+DECOMPOSITION_*.md
+DEPRECATED_*.md
+FINAL_*.md
+OAUTH_*.md
+TEST_*.md
+
 # Test output files
 test-output*.log
 test-results*.json
 test-report*.html
 coverage*.txt
 *-test-output.*
+
+# Development and debug scripts in root
+test-*.js
+debug-*.js
+oauth-*.js
+*_debug.js
+test_debug.js
+api-validation-*.json
+
+# Performance and server logs
+performance_run_*.log
+dev-server.log
+server.log
+
+# Temporary instrumentation and validation files
+instrumentation.ts
+*-validation.js
+test-env-validation.js
 
 # Cache directories
 .cache/
