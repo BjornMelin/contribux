@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { NoSSR } from '@/components/ui/no-ssr'
 import { cn } from '@/lib/utils'
 
 // Aurora Button Component
@@ -318,5 +319,20 @@ const OAuthSignIn = () => {
 }
 
 export default function OAuthSignInPage() {
-  return <OAuthSignIn />
+  return (
+    <NoSSR
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+          <div className="w-full max-w-md rounded-lg border border-white/20 bg-white/10 p-8 backdrop-blur-md">
+            <div className="text-center">
+              <div className="mb-2 font-bold text-3xl text-white">Welcome to contribux</div>
+              <div className="text-gray-300 text-sm">Loading sign in options...</div>
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <OAuthSignIn />
+    </NoSSR>
+  )
 }

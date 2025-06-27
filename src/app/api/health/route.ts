@@ -100,7 +100,13 @@ export async function GET() {
     // Return appropriate HTTP status based on health
     const httpStatus = overallStatus === 'healthy' ? 200 : overallStatus === 'degraded' ? 200 : 503
 
-    return NextResponse.json(validatedResponse, { status: httpStatus })
+    return NextResponse.json(validatedResponse, {
+      status: httpStatus,
+      headers: {
+        Connection: 'close',
+        'Cache-Control': 'no-cache',
+      },
+    })
   } catch (_error) {
     // Return unhealthy status if health check itself fails
     const errorResponse = {
@@ -121,6 +127,11 @@ export async function GET() {
       },
     }
 
-    return NextResponse.json(errorResponse, { status: 503 })
+    return NextResponse.json(errorResponse, {
+      status: 503,
+      headers: {
+        Connection: 'close',
+      },
+    })
   }
 }
