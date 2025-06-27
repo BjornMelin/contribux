@@ -31,8 +31,8 @@ const nextConfig = {
   experimental: {
     // Reduce memory usage in development
     webpackMemoryOptimizations: true,
-    // Use built-in CSS optimization
-    optimizeCss: true,
+    // Temporarily disabled - requires critters package
+    // optimizeCss: true,
   },
 
   // Server external packages (moved from experimental)
