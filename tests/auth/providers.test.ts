@@ -144,10 +144,36 @@ describe('OAuth Provider Configuration', () => {
       const githubUser = {
         id: 12345,
         login: 'testuser',
-        name: 'Test User',
-        email: 'test@example.com',
+        node_id: 'MDQ6VXNlcjEyMzQ1',
         avatar_url: 'https://avatars.githubusercontent.com/u/12345',
+        gravatar_id: '',
+        url: 'https://api.github.com/users/testuser',
         html_url: 'https://github.com/testuser',
+        followers_url: 'https://api.github.com/users/testuser/followers',
+        following_url: 'https://api.github.com/users/testuser/following{/other_user}',
+        gists_url: 'https://api.github.com/users/testuser/gists{/gist_id}',
+        starred_url: 'https://api.github.com/users/testuser/starred{/owner}{/repo}',
+        subscriptions_url: 'https://api.github.com/users/testuser/subscriptions',
+        organizations_url: 'https://api.github.com/users/testuser/orgs',
+        repos_url: 'https://api.github.com/users/testuser/repos',
+        events_url: 'https://api.github.com/users/testuser/events{/privacy}',
+        received_events_url: 'https://api.github.com/users/testuser/received_events',
+        type: 'User',
+        site_admin: false,
+        name: 'Test User',
+        company: null,
+        blog: '',
+        location: null,
+        email: 'test@example.com',
+        hireable: null,
+        bio: null,
+        twitter_username: null,
+        public_repos: 2,
+        public_gists: 1,
+        followers: 20,
+        following: 0,
+        created_at: '2011-01-25T18:44:36Z',
+        updated_at: '2023-01-01T12:00:00Z',
       }
 
       const normalized = normalizeUserData('github', githubUser)
@@ -164,9 +190,13 @@ describe('OAuth Provider Configuration', () => {
     it('should normalize Google user data', () => {
       const googleUser = {
         id: 'google123',
-        name: 'Test User',
         email: 'test@gmail.com',
+        verified_email: true,
+        name: 'Test User',
+        given_name: 'Test',
+        family_name: 'User',
         picture: 'https://lh3.googleusercontent.com/photo.jpg',
+        locale: 'en',
         link: 'https://plus.google.com/+TestUser',
       }
 
@@ -182,7 +212,7 @@ describe('OAuth Provider Configuration', () => {
 
     it('should throw error for unsupported provider', () => {
       expect(() => normalizeUserData('unsupported', {})).toThrow(
-        'Unsupported provider for user data normalization: unsupported'
+        'Invalid profile data for provider: unsupported'
       )
     })
   })

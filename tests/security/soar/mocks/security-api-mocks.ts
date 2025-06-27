@@ -8,7 +8,7 @@ import { vi } from 'vitest'
 export const mockSecurityAPIs = {
   // Mock IP blocking service
   ipBlockingAPI: {
-    blockIP: vi.fn().mockImplementation((ip: string) => 
+    blockIP: vi.fn().mockImplementation((ip: string) =>
       Promise.resolve({
         success: true,
         blockedIP: ip,
@@ -16,7 +16,7 @@ export const mockSecurityAPIs = {
         expiresAt: Date.now() + 3600000, // 1 hour
       })
     ),
-    
+
     unblockIP: vi.fn().mockImplementation((ip: string) =>
       Promise.resolve({
         success: true,
@@ -24,7 +24,7 @@ export const mockSecurityAPIs = {
         timestamp: Date.now(),
       })
     ),
-    
+
     checkIPStatus: vi.fn().mockImplementation((ip: string) =>
       Promise.resolve({
         ip,
@@ -100,14 +100,16 @@ export const mockSecurityAPIs = {
 
   // Mock notification service
   notificationAPI: {
-    sendAlert: vi.fn().mockImplementation((alert: { type: string; message: string; recipients: string[] }) =>
-      Promise.resolve({
-        success: true,
-        alertId: `alert-${Date.now()}`,
-        sent: alert.recipients.length,
-        timestamp: Date.now(),
-      })
-    ),
+    sendAlert: vi
+      .fn()
+      .mockImplementation((alert: { type: string; message: string; recipients: string[] }) =>
+        Promise.resolve({
+          success: true,
+          alertId: `alert-${Date.now()}`,
+          sent: alert.recipients.length,
+          timestamp: Date.now(),
+        })
+      ),
 
     escalateIncident: vi.fn().mockImplementation((incidentId: string) =>
       Promise.resolve({
@@ -126,9 +128,7 @@ export const mockSecurityAPIs = {
         Promise.resolve({
           success: true,
           query,
-          results: [
-            { timestamp: Date.now(), event: 'test-event', severity: 'medium' },
-          ],
+          results: [{ timestamp: Date.now(), event: 'test-event', severity: 'medium' }],
         })
       ),
     },
@@ -142,7 +142,7 @@ export const mockSecurityAPIs = {
           confidence: 0.5,
         })
       ),
-      
+
       lookupDomain: vi.fn().mockImplementation((domain: string) =>
         Promise.resolve({
           domain,

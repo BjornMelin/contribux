@@ -6,10 +6,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GitHubClient } from '@/lib/github/client'
 import { GitHubError } from '@/lib/github/errors'
+import { mockUserFixtures } from '../fixtures/github-api-fixtures'
 import { mockGitHubAPI, setupMSW } from '../msw-setup'
 import { setupGitHubTestIsolation } from '../test-helpers'
-import { testClientConfigs, testTokens, expectedUserFields } from '../utils/github-test-helpers'
-import { mockUserFixtures } from '../fixtures/github-api-fixtures'
+import { expectedUserFields, testClientConfigs, testTokens } from '../utils/github-test-helpers'
 
 // Setup MSW for HTTP mocking
 setupMSW()
@@ -247,7 +247,9 @@ describe('GitHubClient - Core API Tests', () => {
       })
 
       it('should warn about incompatible cache and throttle settings', () => {
-        const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+        const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {
+          // Suppress console warnings during test
+        })
 
         new GitHubClient({
           cache: { maxAge: 10 },

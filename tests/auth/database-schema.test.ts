@@ -1,38 +1,31 @@
-import { beforeAll, describe, expect, it } from 'vitest'
-import '../database/setup'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { setupTestDatabase } from '../../src/lib/test-utils/test-database-manager'
 import type { DatabaseColumn } from '../../src/types/database'
-import { sql, TEST_DATABASE_URL } from '../database/db-client'
 
-// Skip these tests if no real test database is configured
-const hasTestDatabase =
-  TEST_DATABASE_URL &&
-  TEST_DATABASE_URL !== 'sqlite://localhost/:memory:' &&
-  !TEST_DATABASE_URL.includes('sqlite') &&
-  TEST_DATABASE_URL.includes('postgresql')
+// Database query result interface (snake_case from PostgreSQL)
+interface DatabaseQueryColumn {
+  column_name: string
+  data_type: string
+  is_nullable: string
+  column_default?: string
+}
 
-const describeConditional = hasTestDatabase ? describe : describe.skip
+describe('Authentication Database Schema', () => {
+  const dbSetup = setupTestDatabase({ strategy: 'pglite' })
 
-describeConditional('Authentication Database Schema', () => {
-  beforeAll(async () => {
-    if (!hasTestDatabase) {
-      throw new Error(
-        'These tests require a real PostgreSQL test database. Set DATABASE_URL_TEST in .env.test'
-      )
-    }
+  beforeEach(async () => {
+    // Database setup is handled by setupTestDatabase
+  })
 
-    // Test connection to ensure it works
-    try {
-      const result = await sql`SELECT 1 as test`
-      if (!result || !Array.isArray(result) || result.length === 0) {
-        throw new Error('Invalid database response')
-      }
-    } catch (error) {
-      throw new Error(`Failed to connect to test database: ${error}`)
-    }
+  afterEach(async () => {
+    // Cleanup is handled by setupTestDatabase
   })
 
   describe('WebAuthn Tables', () => {
     it('should have webauthn_credentials table', async () => {
+      const sql = dbSetup.getSql()
+      if (!sql) throw new Error('Database connection not available')
+
       const tables = await sql`
         SELECT table_name 
         FROM information_schema.tables 
@@ -44,6 +37,9 @@ describeConditional('Authentication Database Schema', () => {
     })
 
     it('should have correct webauthn_credentials columns', async () => {
+      const sql = dbSetup.getSql()
+      if (!sql) throw new Error('Database connection not available')
+
       const columns = await sql`
         SELECT column_name, data_type, is_nullable
         FROM information_schema.columns 
@@ -67,19 +63,22 @@ describeConditional('Authentication Database Schema', () => {
 
       expectedColumns.forEach(expected => {
         const column = Array.isArray(columns)
-          ? (columns as unknown as DatabaseColumn[]).find(
-              (c: DatabaseColumn) => c.columnName === expected.column_name
+          ? (columns as unknown as DatabaseQueryColumn[]).find(
+              (c: DatabaseQueryColumn) => c.column_name === expected.column_name
             )
           : undefined
         expect(column).toBeDefined()
-        if (column && typeof column === 'object' && 'dataType' in column) {
-          expect(column.dataType).toContain(expected.data_type)
-          expect(column.isNullable).toBe(expected.is_nullable !== 'NO')
+        if (column && typeof column === 'object') {
+          expect(column.data_type).toContain(expected.data_type)
+          expect(column.is_nullable).toBe(expected.is_nullable)
         }
       })
     })
 
     it('should have unique constraint on credential_id', async () => {
+      const sql = dbSetup.getSql()
+      if (!sql) throw new Error('Database connection not available')
+
       const constraints = await sql`
         SELECT constraint_name, constraint_type
         FROM information_schema.table_constraints
@@ -98,6 +97,9 @@ describeConditional('Authentication Database Schema', () => {
 
   describe('Authentication Challenges Table', () => {
     it('should have auth_challenges table', async () => {
+      const sql = dbSetup.getSql()
+      if (!sql) throw new Error('Database connection not available')
+
       const tables = await sql`
         SELECT table_name 
         FROM information_schema.tables 
@@ -109,6 +111,9 @@ describeConditional('Authentication Database Schema', () => {
     })
 
     it('should have correct auth_challenges columns', async () => {
+      const sql = dbSetup.getSql()
+      if (!sql) throw new Error('Database connection not available')
+
       const columns = await sql`
         SELECT column_name, data_type, is_nullable
         FROM information_schema.columns 
@@ -128,14 +133,14 @@ describeConditional('Authentication Database Schema', () => {
 
       expectedColumns.forEach(expected => {
         const column = Array.isArray(columns)
-          ? (columns as unknown as DatabaseColumn[]).find(
-              (c: DatabaseColumn) => c.columnName === expected.column_name
+          ? (columns as unknown as DatabaseQueryColumn[]).find(
+              (c: DatabaseQueryColumn) => c.column_name === expected.column_name
             )
           : undefined
         expect(column).toBeDefined()
-        if (column && typeof column === 'object' && 'dataType' in column) {
-          expect(column.dataType).toContain(expected.data_type)
-          expect(column.isNullable).toBe(expected.is_nullable !== 'NO')
+        if (column && typeof column === 'object' && 'data_type' in column) {
+          expect(column.data_type).toContain(expected.data_type)
+          expect(column.is_nullable).toBe(expected.is_nullable)
         }
       })
     })
@@ -143,6 +148,9 @@ describeConditional('Authentication Database Schema', () => {
 
   describe('Sessions Table', () => {
     it('should have user_sessions table', async () => {
+      const sql = dbSetup.getSql()
+      if (!sql) throw new Error('Database connection not available')
+
       const tables = await sql`
         SELECT table_name 
         FROM information_schema.tables 
@@ -154,6 +162,9 @@ describeConditional('Authentication Database Schema', () => {
     })
 
     it('should have correct user_sessions columns', async () => {
+      const sql = dbSetup.getSql()
+      if (!sql) throw new Error('Database connection not available')
+
       const columns = await sql`
         SELECT column_name, data_type, is_nullable
         FROM information_schema.columns 
@@ -178,14 +189,14 @@ describeConditional('Authentication Database Schema', () => {
 
       expectedColumns.forEach(expected => {
         const column = Array.isArray(columns)
-          ? (columns as unknown as DatabaseColumn[]).find(
-              (c: DatabaseColumn) => c.columnName === expected.column_name
+          ? (columns as unknown as DatabaseQueryColumn[]).find(
+              (c: DatabaseQueryColumn) => c.column_name === expected.column_name
             )
           : undefined
         expect(column).toBeDefined()
-        if (column && typeof column === 'object' && 'dataType' in column) {
-          expect(column.dataType).toContain(expected.data_type)
-          expect(column.isNullable).toBe(expected.is_nullable !== 'NO')
+        if (column && typeof column === 'object' && 'data_type' in column) {
+          expect(column.data_type).toContain(expected.data_type)
+          expect(column.is_nullable).toBe(expected.is_nullable)
         }
       })
     })
@@ -193,6 +204,9 @@ describeConditional('Authentication Database Schema', () => {
 
   describe('OAuth Accounts Table', () => {
     it('should have oauth_accounts table', async () => {
+      const sql = dbSetup.getSql()
+      if (!sql) throw new Error('Database connection not available')
+
       const tables = await sql`
         SELECT table_name 
         FROM information_schema.tables 
@@ -204,6 +218,9 @@ describeConditional('Authentication Database Schema', () => {
     })
 
     it('should have correct oauth_accounts columns', async () => {
+      const sql = dbSetup.getSql()
+      if (!sql) throw new Error('Database connection not available')
+
       const columns = await sql`
         SELECT column_name, data_type, is_nullable
         FROM information_schema.columns 
@@ -227,19 +244,22 @@ describeConditional('Authentication Database Schema', () => {
 
       expectedColumns.forEach(expected => {
         const column = Array.isArray(columns)
-          ? (columns as unknown as DatabaseColumn[]).find(
-              (c: DatabaseColumn) => c.columnName === expected.column_name
+          ? (columns as unknown as DatabaseQueryColumn[]).find(
+              (c: DatabaseQueryColumn) => c.column_name === expected.column_name
             )
           : undefined
         expect(column).toBeDefined()
-        if (column && typeof column === 'object' && 'dataType' in column) {
-          expect(column.dataType).toContain(expected.data_type)
-          expect(column.isNullable).toBe(expected.is_nullable !== 'NO')
+        if (column && typeof column === 'object' && 'data_type' in column) {
+          expect(column.data_type).toContain(expected.data_type)
+          expect(column.is_nullable).toBe(expected.is_nullable)
         }
       })
     })
 
     it('should have unique constraint on provider and provider_account_id', async () => {
+      const sql = dbSetup.getSql()
+      if (!sql) throw new Error('Database connection not available')
+
       const constraints = await sql`
         SELECT constraint_name, constraint_type
         FROM information_schema.table_constraints
@@ -253,6 +273,9 @@ describeConditional('Authentication Database Schema', () => {
 
   describe('Audit Logs Table', () => {
     it('should have security_audit_logs table', async () => {
+      const sql = dbSetup.getSql()
+      if (!sql) throw new Error('Database connection not available')
+
       const tables = await sql`
         SELECT table_name 
         FROM information_schema.tables 
@@ -264,6 +287,9 @@ describeConditional('Authentication Database Schema', () => {
     })
 
     it('should have correct security_audit_logs columns', async () => {
+      const sql = dbSetup.getSql()
+      if (!sql) throw new Error('Database connection not available')
+
       const columns = await sql`
         SELECT column_name, data_type, is_nullable
         FROM information_schema.columns 
@@ -286,19 +312,22 @@ describeConditional('Authentication Database Schema', () => {
 
       expectedColumns.forEach(expected => {
         const column = Array.isArray(columns)
-          ? (columns as unknown as DatabaseColumn[]).find(
-              (c: DatabaseColumn) => c.columnName === expected.column_name
+          ? (columns as unknown as DatabaseQueryColumn[]).find(
+              (c: DatabaseQueryColumn) => c.column_name === expected.column_name
             )
           : undefined
         expect(column).toBeDefined()
-        if (column && typeof column === 'object' && 'dataType' in column) {
-          expect(column.dataType).toContain(expected.data_type)
-          expect(column.isNullable).toBe(expected.is_nullable !== 'NO')
+        if (column && typeof column === 'object' && 'data_type' in column) {
+          expect(column.data_type).toContain(expected.data_type)
+          expect(column.is_nullable).toBe(expected.is_nullable)
         }
       })
     })
 
     it('should have index on event_type and created_at', async () => {
+      const sql = dbSetup.getSql()
+      if (!sql) throw new Error('Database connection not available')
+
       const indexes = await sql`
         SELECT indexname
         FROM pg_indexes
@@ -312,6 +341,9 @@ describeConditional('Authentication Database Schema', () => {
 
   describe('User Consent Table', () => {
     it('should have user_consents table for GDPR', async () => {
+      const sql = dbSetup.getSql()
+      if (!sql) throw new Error('Database connection not available')
+
       const tables = await sql`
         SELECT table_name 
         FROM information_schema.tables 
@@ -323,6 +355,9 @@ describeConditional('Authentication Database Schema', () => {
     })
 
     it('should have correct user_consents columns', async () => {
+      const sql = dbSetup.getSql()
+      if (!sql) throw new Error('Database connection not available')
+
       const columns = await sql`
         SELECT column_name, data_type, is_nullable
         FROM information_schema.columns 
@@ -343,14 +378,14 @@ describeConditional('Authentication Database Schema', () => {
 
       expectedColumns.forEach(expected => {
         const column = Array.isArray(columns)
-          ? (columns as unknown as DatabaseColumn[]).find(
-              (c: DatabaseColumn) => c.columnName === expected.column_name
+          ? (columns as unknown as DatabaseQueryColumn[]).find(
+              (c: DatabaseQueryColumn) => c.column_name === expected.column_name
             )
           : undefined
         expect(column).toBeDefined()
-        if (column && typeof column === 'object' && 'dataType' in column) {
-          expect(column.dataType).toContain(expected.data_type)
-          expect(column.isNullable).toBe(expected.is_nullable !== 'NO')
+        if (column && typeof column === 'object' && 'data_type' in column) {
+          expect(column.data_type).toContain(expected.data_type)
+          expect(column.is_nullable).toBe(expected.is_nullable)
         }
       })
     })
@@ -358,6 +393,9 @@ describeConditional('Authentication Database Schema', () => {
 
   describe('Refresh Tokens Table', () => {
     it('should have refresh_tokens table', async () => {
+      const sql = dbSetup.getSql()
+      if (!sql) throw new Error('Database connection not available')
+
       const tables = await sql`
         SELECT table_name 
         FROM information_schema.tables 
@@ -369,6 +407,9 @@ describeConditional('Authentication Database Schema', () => {
     })
 
     it('should have correct refresh_tokens columns', async () => {
+      const sql = dbSetup.getSql()
+      if (!sql) throw new Error('Database connection not available')
+
       const columns = await sql`
         SELECT column_name, data_type, is_nullable
         FROM information_schema.columns 
@@ -389,19 +430,22 @@ describeConditional('Authentication Database Schema', () => {
 
       expectedColumns.forEach(expected => {
         const column = Array.isArray(columns)
-          ? (columns as unknown as DatabaseColumn[]).find(
-              (c: DatabaseColumn) => c.columnName === expected.column_name
+          ? (columns as unknown as DatabaseQueryColumn[]).find(
+              (c: DatabaseQueryColumn) => c.column_name === expected.column_name
             )
           : undefined
         expect(column).toBeDefined()
-        if (column && typeof column === 'object' && 'dataType' in column) {
-          expect(column.dataType).toContain(expected.data_type)
-          expect(column.isNullable).toBe(expected.is_nullable !== 'NO')
+        if (column && typeof column === 'object' && 'data_type' in column) {
+          expect(column.data_type).toContain(expected.data_type)
+          expect(column.is_nullable).toBe(expected.is_nullable)
         }
       })
     })
 
     it('should have unique constraint on token_hash', async () => {
+      const sql = dbSetup.getSql()
+      if (!sql) throw new Error('Database connection not available')
+
       const constraints = await sql`
         SELECT constraint_name, constraint_type
         FROM information_schema.table_constraints
@@ -420,6 +464,9 @@ describeConditional('Authentication Database Schema', () => {
 
   describe('Foreign Key Relationships', () => {
     it('should have foreign key from webauthn_credentials to users', async () => {
+      const sql = dbSetup.getSql()
+      if (!sql) throw new Error('Database connection not available')
+
       const fks = await sql`
         SELECT constraint_name
         FROM information_schema.table_constraints
@@ -431,6 +478,9 @@ describeConditional('Authentication Database Schema', () => {
     })
 
     it('should have foreign key from oauth_accounts to users', async () => {
+      const sql = dbSetup.getSql()
+      if (!sql) throw new Error('Database connection not available')
+
       const fks = await sql`
         SELECT constraint_name
         FROM information_schema.table_constraints
@@ -442,6 +492,9 @@ describeConditional('Authentication Database Schema', () => {
     })
 
     it('should have cascade delete on auth-related tables', async () => {
+      const sql = dbSetup.getSql()
+      if (!sql) throw new Error('Database connection not available')
+
       const cascades = await sql`
         SELECT tc.table_name, rc.delete_rule
         FROM information_schema.table_constraints tc

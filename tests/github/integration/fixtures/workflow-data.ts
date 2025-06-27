@@ -1,11 +1,11 @@
 /**
  * Integration Test Workflow Data & Fixtures
- * 
+ *
  * Shared test data, mock objects, and fixtures for GitHub integration testing.
  * Provides realistic test scenarios and expected data patterns.
  */
 
-import type { Repository, User, SearchRepositoriesResult } from '../../../../src/types/github'
+import type { Repository, SearchRepositoriesResult, User } from '../../../../src/types/github'
 
 /**
  * Test repository configurations for integration testing
@@ -21,7 +21,7 @@ export const testRepositories = {
       language: 'TypeScript',
     },
   },
-  
+
   popular: {
     owner: 'facebook',
     repo: 'react',
@@ -32,7 +32,7 @@ export const testRepositories = {
       language: 'JavaScript',
     },
   },
-  
+
   archived: {
     owner: 'jquery',
     repo: 'jquery',
@@ -56,7 +56,7 @@ export const searchQueries = {
     per_page: 10,
     expectedMinResults: 5,
   },
-  
+
   specific: {
     query: 'react hooks typescript',
     sort: 'updated' as const,
@@ -64,7 +64,7 @@ export const searchQueries = {
     per_page: 5,
     expectedMinResults: 1,
   },
-  
+
   language: {
     query: 'language:python',
     sort: 'stars' as const,
@@ -72,7 +72,7 @@ export const searchQueries = {
     per_page: 20,
     expectedMinResults: 10,
   },
-  
+
   organization: {
     query: 'org:microsoft',
     sort: 'updated' as const,
@@ -172,7 +172,8 @@ export const mockRepositories = {
     blobs_url: 'https://api.github.com/repos/testuser/test-repo/git/blobs{/sha}',
     branches_url: 'https://api.github.com/repos/testuser/test-repo/branches{/branch}',
     clone_url: 'https://github.com/testuser/test-repo.git',
-    collaborators_url: 'https://api.github.com/repos/testuser/test-repo/collaborators{/collaborator}',
+    collaborators_url:
+      'https://api.github.com/repos/testuser/test-repo/collaborators{/collaborator}',
     comments_url: 'https://api.github.com/repos/testuser/test-repo/comments{/number}',
     commits_url: 'https://api.github.com/repos/testuser/test-repo/commits{/sha}',
     compare_url: 'https://api.github.com/repos/testuser/test-repo/compare/{base}...{head}',
@@ -194,7 +195,8 @@ export const mockRepositories = {
     languages_url: 'https://api.github.com/repos/testuser/test-repo/languages',
     merges_url: 'https://api.github.com/repos/testuser/test-repo/merges',
     milestones_url: 'https://api.github.com/repos/testuser/test-repo/milestones{/number}',
-    notifications_url: 'https://api.github.com/repos/testuser/test-repo/notifications{?since,all,participating}',
+    notifications_url:
+      'https://api.github.com/repos/testuser/test-repo/notifications{?since,all,participating}',
     pulls_url: 'https://api.github.com/repos/testuser/test-repo/pulls{/number}',
     releases_url: 'https://api.github.com/repos/testuser/test-repo/releases{/id}',
     ssh_url: 'git@github.com:testuser/test-repo.git',
@@ -243,7 +245,8 @@ export const mockRepositories = {
     blobs_url: 'https://api.github.com/repos/testorg/popular-repo/git/blobs{/sha}',
     branches_url: 'https://api.github.com/repos/testorg/popular-repo/branches{/branch}',
     clone_url: 'https://github.com/testorg/popular-repo.git',
-    collaborators_url: 'https://api.github.com/repos/testorg/popular-repo/collaborators{/collaborator}',
+    collaborators_url:
+      'https://api.github.com/repos/testorg/popular-repo/collaborators{/collaborator}',
     comments_url: 'https://api.github.com/repos/testorg/popular-repo/comments{/number}',
     commits_url: 'https://api.github.com/repos/testorg/popular-repo/commits{/sha}',
     compare_url: 'https://api.github.com/repos/testorg/popular-repo/compare/{base}...{head}',
@@ -265,7 +268,8 @@ export const mockRepositories = {
     languages_url: 'https://api.github.com/repos/testorg/popular-repo/languages',
     merges_url: 'https://api.github.com/repos/testorg/popular-repo/merges',
     milestones_url: 'https://api.github.com/repos/testorg/popular-repo/milestones{/number}',
-    notifications_url: 'https://api.github.com/repos/testorg/popular-repo/notifications{?since,all,participating}',
+    notifications_url:
+      'https://api.github.com/repos/testorg/popular-repo/notifications{?since,all,participating}',
     pulls_url: 'https://api.github.com/repos/testorg/popular-repo/pulls{/number}',
     releases_url: 'https://api.github.com/repos/testorg/popular-repo/releases{/id}',
     ssh_url: 'git@github.com:testorg/popular-repo.git',
@@ -411,18 +415,18 @@ export const performanceBenchmarks = {
     maxDuration: 2000, // ms
     expectedDuration: 500, // ms
   },
-  
+
   batchRequests: {
     maxDuration: 5000, // ms
     expectedDuration: 2000, // ms
     concurrency: 5,
   },
-  
+
   cacheHit: {
     maxDuration: 100, // ms
     expectedDuration: 10, // ms
   },
-  
+
   cacheMiss: {
     maxDuration: 2000, // ms
     expectedDuration: 500, // ms

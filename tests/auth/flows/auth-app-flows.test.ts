@@ -10,14 +10,10 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { GitHubClient } from '../../../src/lib/github/client'
 import { GitHubAuthenticationError } from '../../../src/lib/github/errors'
 import type { IntegrationTestContext } from '../../integration/infrastructure/test-config'
-import {
-  describeIntegration,
-  integrationTest,
-} from '../../integration/infrastructure/test-runner'
-import { jwtClaims, testUsers } from './fixtures/auth-scenarios'
+import { describeIntegration, integrationTest } from '../../integration/infrastructure/test-runner'
+import { jwtClaims } from './fixtures/auth-scenarios'
 import {
   cleanupAuthMocks,
   mockAuthFailure,
@@ -31,10 +27,7 @@ import {
   setupAuthTests,
   skipIfMissingAuth,
 } from './setup/auth-setup'
-import {
-  validateAuthResponse,
-  measureAuthPerformance,
-} from './utils/auth-test-helpers'
+import { measureAuthPerformance } from './utils/auth-test-helpers'
 
 describeIntegration(
   'GitHub App Authentication Flows',
@@ -59,7 +52,7 @@ describeIntegration(
           }
 
           const appId = Number.parseInt(context.env.GITHUB_APP_ID || '0')
-          
+
           // Mock GitHub App authentication
           mockGitHubAppAuth(appId, 'Test Contribux App')
 
@@ -120,7 +113,7 @@ describeIntegration(
           }
 
           const appId = Number.parseInt(context.env.GITHUB_APP_ID || '0')
-          
+
           // Mock GitHub App responses
           mockGitHubAppAuth(appId, 'Test Contribux App')
 
@@ -395,7 +388,7 @@ describeIntegration(
           }
 
           const appId = Number.parseInt(context.env.GITHUB_APP_ID || '0')
-          
+
           // Mock GitHub App authentication
           mockGitHubAppAuth(appId, 'Performance Test App')
 

@@ -5,8 +5,14 @@
  */
 
 import { describe, expect, it } from 'vitest'
+import {
+  createMockSecurityIncident,
+  createMockThreatDetection,
+  createMockVulnerability,
+  securityScenarios,
+  threatTypes,
+} from './fixtures/security-scenarios'
 import { setupRunningSOAREngine } from './utils/soar-test-helpers'
-import { createMockSecurityIncident, createMockThreatDetection, createMockVulnerability, securityScenarios, threatTypes } from './fixtures/security-scenarios'
 
 describe('SOAR Incident Response', () => {
   describe('Incident Processing', () => {
@@ -79,7 +85,7 @@ describe('SOAR Incident Response', () => {
 
       // Critical incidents should trigger executions via Critical Incident Response playbook
       expect(executions.length).toBeGreaterThan(0)
-      
+
       // Should handle multiple vulnerabilities appropriately
       const actions = engine.getResponseActions()
       const incidentActions = actions.filter(a => a.target === multiVulnIncident.incidentId)
@@ -97,7 +103,7 @@ describe('SOAR Incident Response', () => {
       const executions = await engine.processIncident(multiSystemIncident)
 
       expect(executions.length).toBeGreaterThan(0)
-      
+
       // More affected systems might trigger additional containment actions
       const actions = engine.getResponseActions()
       const isolationActions = actions.filter(a => a.type === 'isolate_system')
@@ -146,7 +152,7 @@ describe('SOAR Incident Response', () => {
 
     it('should handle different threat types appropriately', async () => {
       const engine = getEngine()
-      
+
       // Ensure engine is running
       if (!engine.getSOARMetrics().automation.isRunning) {
         await engine.start()
@@ -165,7 +171,7 @@ describe('SOAR Incident Response', () => {
         if (!engine.getSOARMetrics().automation.isRunning) {
           await engine.start()
         }
-        
+
         await engine.processThreat(threat)
       }
 
@@ -184,7 +190,7 @@ describe('SOAR Incident Response', () => {
       const actions = engine.getResponseActions()
       // The actual action type triggered for high confidence threats is 'block_threat' (line 372)
       const blockingActions = actions.filter(a => a.type === 'block_threat')
-      
+
       // SQL injection with high confidence should trigger threat blocking
       expect(blockingActions.length).toBeGreaterThan(0)
     })
@@ -200,7 +206,7 @@ describe('SOAR Incident Response', () => {
 
       const actions = engine.getResponseActions()
       const responseTypes = actions.map(a => a.type)
-      
+
       // Brute force should trigger threat blocking (actual action type is 'block_threat', line 372 in soar.ts)
       expect(responseTypes).toContain('block_threat')
       expect(actions.length).toBeGreaterThan(0)
@@ -219,7 +225,7 @@ describe('SOAR Incident Response', () => {
 
       const actions = engine.getResponseActions()
       const automatedActions = actions.filter((a: { automated?: boolean }) => a.automated)
-      
+
       // High confidence should trigger more automated responses
       expect(automatedActions.length).toBeGreaterThan(0)
     })
@@ -270,12 +276,12 @@ describe('SOAR Incident Response', () => {
 
     it('should handle vulnerabilities with different severity levels', async () => {
       const engine = getEngine()
-      
+
       // Ensure engine is running (setupRunningSOAREngine should handle this, but double-check)
       if (!engine.getSOARMetrics().automation.isRunning) {
         await engine.start()
       }
-      
+
       const severityLevels = ['low', 'medium', 'high', 'critical'] as const
 
       for (const severity of severityLevels) {
@@ -305,7 +311,7 @@ describe('SOAR Incident Response', () => {
       const executions = await engine.processVulnerability(highConfidenceVuln)
 
       expect(executions.length).toBeGreaterThan(0)
-      
+
       // High confidence vulnerabilities should trigger urgent response
       const vulnPlaybooks = executions.filter(e => e.playbookId === 'vulnerability-management')
       expect(vulnPlaybooks.length).toBeGreaterThan(0)
@@ -331,7 +337,7 @@ describe('SOAR Incident Response', () => {
 
       const actions = engine.getResponseActions()
       const escalationActions = actions.filter(a => a.type === 'escalate_incident')
-      
+
       expect(escalationActions.length).toBeGreaterThan(0)
       expect(escalationActions[0]?.target).toBe(criticalIncident.incidentId)
     })
@@ -347,8 +353,8 @@ describe('SOAR Incident Response', () => {
       await engine.processIncident(systemIncident)
 
       const actions = engine.getResponseActions()
-      const isolationActions = actions.filter(a => a.type === 'isolate_system')
-      
+      const _isolationActions = actions.filter(a => a.type === 'isolate_system')
+
       // Critical incidents should trigger automated escalation and stakeholder notification
       expect(actions.length).toBeGreaterThan(0)
     })
@@ -364,7 +370,7 @@ describe('SOAR Incident Response', () => {
 
       const actions = engine.getResponseActions()
       const notificationActions = actions.filter(a => a.type === 'notify_stakeholders')
-      
+
       expect(notificationActions.length).toBeGreaterThan(0)
     })
 
@@ -379,8 +385,8 @@ describe('SOAR Incident Response', () => {
       await engine.processIncident(forensicIncident)
 
       const actions = engine.getResponseActions()
-      const evidenceActions = actions.filter(a => a.type === 'collect_evidence')
-      
+      const _evidenceActions = actions.filter(a => a.type === 'collect_evidence')
+
       // Critical incidents should trigger evidence collection
       expect(actions.length).toBeGreaterThan(0)
     })
@@ -410,7 +416,7 @@ describe('SOAR Incident Response', () => {
 
       // Check for different response phases
       const actionTypes = actions.map(a => a.type)
-      const hasContainment = actionTypes.some(type => 
+      const hasContainment = actionTypes.some(type =>
         ['block_ip', 'isolate_system', 'quarantine_user'].includes(type)
       )
       const hasNotification = actionTypes.includes('notify_stakeholders')

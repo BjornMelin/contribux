@@ -1,6 +1,6 @@
 /**
  * Load Testing Stress & Edge Cases
- * 
+ *
  * Tests stress testing scenarios, failure handling, and edge cases.
  * Focuses on system behavior under extreme conditions and error scenarios.
  */
@@ -9,22 +9,13 @@ import { HttpResponse, http } from 'msw'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { GitHubClient } from '../../src/lib/github'
 import { createRateLimitHeaders } from '../github/test-helpers'
-import { 
-  createTrackedClient, 
-  addTestHandlers,
-  createMultipleClients
-} from './utils/load-test-helpers'
+import { createMockUser, ERROR_SCENARIOS, LOAD_TEST_CONFIG } from './fixtures/load-test-data'
 import { setupPerformanceTest } from './setup/performance-setup'
-import { 
-  LOAD_TEST_CONFIG, 
-  createMockUser, 
-  ERROR_SCENARIOS,
-  RATE_LIMIT_SCENARIOS
-} from './fixtures/load-test-data'
+import { addTestHandlers, createTrackedClient } from './utils/load-test-helpers'
 
 describe('Load Testing - Stress & Edge Cases', () => {
   const setup = setupPerformanceTest()
-  
+
   beforeAll(setup.beforeAll)
   beforeEach(setup.beforeEach)
   afterEach(setup.afterEach)
@@ -61,12 +52,9 @@ describe('Load Testing - Stress & Edge Cases', () => {
 
         tokenUsage.set(token, (tokenUsage.get(token) || 0) + 1)
 
-        return HttpResponse.json(
-          createMockUser(requestCount),
-          {
-            headers: createRateLimitHeaders({ remaining: 5000 - requestCount }),
-          }
-        )
+        return HttpResponse.json(createMockUser(requestCount), {
+          headers: createRateLimitHeaders({ remaining: 5000 - requestCount }),
+        })
       })
 
       await addTestHandlers(tokenHandler)
@@ -107,12 +95,9 @@ describe('Load Testing - Stress & Edge Cases', () => {
 
       const refreshHandler = http.get('https://api.github.com/user', () => {
         requestCount++
-        return HttpResponse.json(
-          createMockUser(requestCount),
-          {
-            headers: createRateLimitHeaders({ remaining: 5000 - requestCount }),
-          }
-        )
+        return HttpResponse.json(createMockUser(requestCount), {
+          headers: createRateLimitHeaders({ remaining: 5000 - requestCount }),
+        })
       })
 
       await addTestHandlers(refreshHandler)
@@ -156,12 +141,9 @@ describe('Load Testing - Stress & Edge Cases', () => {
 
       const jwtHandler = http.get('https://api.github.com/user', () => {
         jwtGenerationCount++
-        return HttpResponse.json(
-          createMockUser(jwtGenerationCount),
-          {
-            headers: createRateLimitHeaders({ remaining: 5000 - jwtGenerationCount }),
-          }
-        )
+        return HttpResponse.json(createMockUser(jwtGenerationCount), {
+          headers: createRateLimitHeaders({ remaining: 5000 - jwtGenerationCount }),
+        })
       })
 
       await addTestHandlers(jwtHandler)
@@ -209,12 +191,9 @@ describe('Load Testing - Stress & Edge Cases', () => {
 
         // Simulate failover by making some requests fail
         if (requestCount <= 5) {
-          return HttpResponse.json(
-            createMockUser(requestCount),
-            {
-              headers: createRateLimitHeaders({ remaining: 5000 - requestCount }),
-            }
-          )
+          return HttpResponse.json(createMockUser(requestCount), {
+            headers: createRateLimitHeaders({ remaining: 5000 - requestCount }),
+          })
         }
 
         // Remaining requests fail to simulate token issues
@@ -268,21 +247,15 @@ describe('Load Testing - Stress & Edge Cases', () => {
 
         // Simulate rate limiting after 5 requests
         if (requestCount > 5) {
-          return HttpResponse.json(
-            ERROR_SCENARIOS.RATE_LIMITED,
-            {
-              status: 429,
-              headers: ERROR_SCENARIOS.RATE_LIMITED.headers,
-            }
-          )
+          return HttpResponse.json(ERROR_SCENARIOS.RATE_LIMITED, {
+            status: 429,
+            headers: ERROR_SCENARIOS.RATE_LIMITED.headers,
+          })
         }
 
-        return HttpResponse.json(
-          createMockUser(requestCount),
-          {
-            headers: createRateLimitHeaders({ remaining: 5000 - requestCount }),
-          }
-        )
+        return HttpResponse.json(createMockUser(requestCount), {
+          headers: createRateLimitHeaders({ remaining: 5000 - requestCount }),
+        })
       })
 
       await addTestHandlers(rateLimitHandler)
@@ -324,105 +297,106 @@ describe('Load Testing - Stress & Edge Cases', () => {
   })
 
   describe('System Limits Testing', () => {
-    it('should validate system limits and thresholds', async () => {
-      const maxConcurrency = LOAD_TEST_CONFIG.MAX_CONCURRENCY
-      const incrementSize = LOAD_TEST_CONFIG.INCREMENT_SIZE
-      const results: Array<{
-        concurrency: number
-        duration: number
-        successRate: number
-        avgLatency: number
-      }> = []
+    it(
+      'should validate system limits and thresholds',
+      async () => {
+        const maxConcurrency = LOAD_TEST_CONFIG.MAX_CONCURRENCY
+        const incrementSize = LOAD_TEST_CONFIG.INCREMENT_SIZE
+        const results: Array<{
+          concurrency: number
+          duration: number
+          successRate: number
+          avgLatency: number
+        }> = []
 
-      // Test increasing concurrency levels
-      for (
-        let concurrency = incrementSize;
-        concurrency <= maxConcurrency;
-        concurrency += incrementSize
-      ) {
-        let requestCount = 0
+        // Test increasing concurrency levels
+        for (
+          let concurrency = incrementSize;
+          concurrency <= maxConcurrency;
+          concurrency += incrementSize
+        ) {
+          let requestCount = 0
 
-        const concurrencyHandler = http.get('https://api.github.com/user', async () => {
-          requestCount++
-          // Fixed 5ms delay
-          await new Promise(resolve => setTimeout(resolve, 5))
+          const concurrencyHandler = http.get('https://api.github.com/user', async () => {
+            requestCount++
+            // Fixed 5ms delay
+            await new Promise(resolve => setTimeout(resolve, 5))
 
-          return HttpResponse.json(
-            createMockUser(requestCount),
-            {
+            return HttpResponse.json(createMockUser(requestCount), {
               headers: createRateLimitHeaders({ remaining: 5000 - requestCount }),
+            })
+          })
+
+          await addTestHandlers(concurrencyHandler)
+
+          const client = createTrackedClient(GitHubClient, {
+            auth: { type: 'token', token: 'limits_test_token' },
+            retry: { retries: 1 },
+          })
+
+          // Execute test at this concurrency level
+          const testStart = Date.now()
+          const promises = Array.from({ length: concurrency }, async () => {
+            const requestStart = Date.now()
+            try {
+              await client.rest.users.getAuthenticated()
+              return { success: true, duration: Date.now() - requestStart }
+            } catch {
+              return { success: false, duration: Date.now() - requestStart }
             }
-          )
-        })
+          })
 
-        await addTestHandlers(concurrencyHandler)
+          const testResults = await Promise.all(promises)
+          const testEnd = Date.now()
 
-        const client = createTrackedClient(GitHubClient, {
-          auth: { type: 'token', token: 'limits_test_token' },
-          retry: { retries: 1 },
-        })
+          // Calculate metrics for this concurrency level
+          const successes = testResults.filter(r => r.success)
+          const durations = testResults.map(r => r.duration)
+          const avgLatency =
+            durations.length > 0 ? durations.reduce((sum, d) => sum + d, 0) / durations.length : 0
 
-        // Execute test at this concurrency level
-        const testStart = Date.now()
-        const promises = Array.from({ length: concurrency }, async () => {
-          const requestStart = Date.now()
-          try {
-            await client.rest.users.getAuthenticated()
-            return { success: true, duration: Date.now() - requestStart }
-          } catch {
-            return { success: false, duration: Date.now() - requestStart }
+          const levelResult = {
+            concurrency,
+            duration: testEnd - testStart,
+            successRate: (successes.length / testResults.length) * 100,
+            avgLatency,
           }
-        })
 
-        const testResults = await Promise.all(promises)
-        const testEnd = Date.now()
+          results.push(levelResult)
 
-        // Calculate metrics for this concurrency level
-        const successes = testResults.filter(r => r.success)
-        const durations = testResults.map(r => r.duration)
-        const avgLatency =
-          durations.length > 0 ? durations.reduce((sum, d) => sum + d, 0) / durations.length : 0
+          console.log(
+            `Concurrency ${concurrency}: ${levelResult.duration}ms, ` +
+              `${levelResult.successRate.toFixed(1)}% success, ` +
+              `${levelResult.avgLatency.toFixed(1)}ms avg latency`
+          )
 
-        const levelResult = {
-          concurrency,
-          duration: testEnd - testStart,
-          successRate: (successes.length / testResults.length) * 100,
-          avgLatency,
+          // Break if performance degrades significantly
+          if (levelResult.successRate < 70 || levelResult.avgLatency > 500) {
+            console.log(`Performance degraded at concurrency level ${concurrency}`)
+            break
+          }
+
+          await client.destroy()
         }
 
-        results.push(levelResult)
+        // Analyze results across concurrency levels
+        expect(results.length).toBeGreaterThan(0)
 
-        console.log(
-          `Concurrency ${concurrency}: ${levelResult.duration}ms, ` +
-            `${levelResult.successRate.toFixed(1)}% success, ` +
-            `${levelResult.avgLatency.toFixed(1)}ms avg latency`
-        )
+        // Find the optimal concurrency level
+        const optimalLevel = results.findLast(r => r.successRate >= 80 && r.avgLatency <= 200)
 
-        // Break if performance degrades significantly
-        if (levelResult.successRate < 70 || levelResult.avgLatency > 500) {
-          console.log(`Performance degraded at concurrency level ${concurrency}`)
-          break
+        if (optimalLevel) {
+          console.log(`Optimal concurrency level: ${optimalLevel.concurrency}`)
+          console.log(
+            `At optimal level: ${optimalLevel.successRate.toFixed(1)}% success, ${optimalLevel.avgLatency.toFixed(1)}ms latency`
+          )
         }
 
-        await client.destroy()
-      }
-
-      // Analyze results across concurrency levels
-      expect(results.length).toBeGreaterThan(0)
-
-      // Find the optimal concurrency level
-      const optimalLevel = results.findLast(r => r.successRate >= 80 && r.avgLatency <= 200)
-
-      if (optimalLevel) {
-        console.log(`Optimal concurrency level: ${optimalLevel.concurrency}`)
-        console.log(
-          `At optimal level: ${optimalLevel.successRate.toFixed(1)}% success, ${optimalLevel.avgLatency.toFixed(1)}ms latency`
-        )
-      }
-
-      // Verify we can handle reasonable concurrency
-      expect(results.some(r => r.concurrency >= 20 && r.successRate >= 80)).toBe(true)
-    }, LOAD_TEST_CONFIG.LONG_TIMEOUT)
+        // Verify we can handle reasonable concurrency
+        expect(results.some(r => r.concurrency >= 20 && r.successRate >= 80)).toBe(true)
+      },
+      LOAD_TEST_CONFIG.LONG_TIMEOUT
+    )
 
     it('should handle extreme concurrency gracefully', async () => {
       const extremeConcurrency = 50
@@ -431,7 +405,7 @@ describe('Load Testing - Stress & Edge Cases', () => {
 
       const extremeHandler = http.get('https://api.github.com/user', async () => {
         requestCount++
-        
+
         // Simulate system stress - some requests may fail
         if (requestCount > 30) {
           errorCount++
@@ -440,12 +414,9 @@ describe('Load Testing - Stress & Edge Cases', () => {
 
         await new Promise(resolve => setTimeout(resolve, 10))
 
-        return HttpResponse.json(
-          createMockUser(requestCount),
-          {
-            headers: createRateLimitHeaders({ remaining: 5000 - requestCount }),
-          }
-        )
+        return HttpResponse.json(createMockUser(requestCount), {
+          headers: createRateLimitHeaders({ remaining: 5000 - requestCount }),
+        })
       })
 
       await addTestHandlers(extremeHandler)
@@ -476,7 +447,9 @@ describe('Load Testing - Stress & Edge Cases', () => {
       expect(failures.length).toBeGreaterThan(0) // Some should fail under extreme load
 
       const successRate = (successes.length / results.length) * 100
-      console.log(`Extreme concurrency test: ${successes.length}/${extremeConcurrency} succeeded (${successRate.toFixed(1)}%)`)
+      console.log(
+        `Extreme concurrency test: ${successes.length}/${extremeConcurrency} succeeded (${successRate.toFixed(1)}%)`
+      )
       console.log(`Errors encountered: ${errorCount}`)
 
       await client.destroy()
@@ -490,18 +463,15 @@ describe('Load Testing - Stress & Edge Cases', () => {
       let totalRequests = 0
       const memorySnapshots: number[] = []
 
-      const memoryHandler = http.get('https://api.github.com/users/:username', ({ params }) => {
+      const memoryHandler = http.get('https://api.github.com/users/:username', () => {
         totalRequests++
-        
+
         // Simulate memory usage
-        memorySnapshots.push(1000 + (totalRequests * 10))
-        
-        return HttpResponse.json(
-          createMockUser(totalRequests),
-          {
-            headers: createRateLimitHeaders({ remaining: 5000 - totalRequests }),
-          }
-        )
+        memorySnapshots.push(1000 + totalRequests * 10)
+
+        return HttpResponse.json(createMockUser(totalRequests), {
+          headers: createRateLimitHeaders({ remaining: 5000 - totalRequests }),
+        })
       })
 
       await addTestHandlers(memoryHandler)
@@ -515,7 +485,7 @@ describe('Load Testing - Stress & Edge Cases', () => {
         const promises = Array.from({ length: batchSize }, (_, i) =>
           client.rest.users.getByUsername({ username: `user_${batch}_${i}` })
         )
-        
+
         const results = await Promise.all(promises)
         expect(results).toHaveLength(batchSize)
 
@@ -529,7 +499,7 @@ describe('Load Testing - Stress & Edge Cases', () => {
 
       const maxMemory = Math.max(...memorySnapshots)
       const minMemory = Math.min(...memorySnapshots)
-      
+
       console.log(`Memory pressure test: ${totalRequests} requests`)
       console.log(`Memory range: ${minMemory} - ${maxMemory}`)
 

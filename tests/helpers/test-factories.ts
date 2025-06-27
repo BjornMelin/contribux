@@ -449,7 +449,7 @@ export function createSimilarOpportunities(
  * Create a diverse set of opportunities with different characteristics
  */
 export function createDiverseOpportunities(repositoryId: string, count = 10) {
-  const types: Array<OpportunityFactoryInput['type']> = [
+  const types: OpportunityFactoryInput['type'][] = [
     'bug_fix',
     'feature',
     'documentation',
@@ -457,7 +457,7 @@ export function createDiverseOpportunities(repositoryId: string, count = 10) {
     'refactor',
     'security',
   ]
-  const difficulties: Array<OpportunityFactoryInput['difficulty']> = [
+  const difficulties: OpportunityFactoryInput['difficulty'][] = [
     'beginner',
     'intermediate',
     'advanced',

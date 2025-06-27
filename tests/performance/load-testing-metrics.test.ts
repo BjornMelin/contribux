@@ -1,6 +1,6 @@
 /**
  * Load Testing Metrics & Monitoring
- * 
+ *
  * Tests performance measurement, reporting, and threshold validation.
  * Focuses on comprehensive metrics collection and analysis.
  */
@@ -9,23 +9,23 @@ import { HttpResponse, http } from 'msw'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { GitHubClient } from '../../src/lib/github'
 import { createRateLimitHeaders } from '../github/test-helpers'
-import { 
-  createTrackedClient, 
+import { createMockUser, LOAD_TEST_CONFIG } from './fixtures/load-test-data'
+import {
+  PerformanceMonitor,
+  setupPerformanceTest,
+  validatePerformanceResults,
+} from './setup/performance-setup'
+import {
   addTestHandlers,
   calculatePerformanceMetrics,
+  createTrackedClient,
   logPerformanceMetrics,
-  type PerformanceMetrics
+  type PerformanceMetrics,
 } from './utils/load-test-helpers'
-import { setupPerformanceTest, PerformanceMonitor, validatePerformanceResults } from './setup/performance-setup'
-import { 
-  LOAD_TEST_CONFIG, 
-  createMockUser, 
-  PERFORMANCE_THRESHOLDS 
-} from './fixtures/load-test-data'
 
 describe('Load Testing - Metrics & Monitoring', () => {
   const setup = setupPerformanceTest()
-  
+
   beforeAll(setup.beforeAll)
   beforeEach(setup.beforeEach)
   afterEach(setup.afterEach)
@@ -42,12 +42,9 @@ describe('Load Testing - Metrics & Monitoring', () => {
         // Fixed 25ms delay
         await new Promise(resolve => setTimeout(resolve, 25))
 
-        return HttpResponse.json(
-          createMockUser(requestCount),
-          {
-            headers: createRateLimitHeaders({ remaining: 5000 - requestCount }),
-          }
-        )
+        return HttpResponse.json(createMockUser(requestCount), {
+          headers: createRateLimitHeaders({ remaining: 5000 - requestCount }),
+        })
       })
 
       await addTestHandlers(metricsHandler)
@@ -156,15 +153,12 @@ describe('Load Testing - Metrics & Monitoring', () => {
       const trendHandler = http.get('https://api.github.com/user', async () => {
         requestCount++
         // Variable delay to simulate performance changes
-        const delay = 10 + (requestCount * 2) // Increasing delay over time
+        const delay = 10 + requestCount * 2 // Increasing delay over time
         await new Promise(resolve => setTimeout(resolve, delay))
 
-        return HttpResponse.json(
-          createMockUser(requestCount),
-          {
-            headers: createRateLimitHeaders({ remaining: 5000 - requestCount }),
-          }
-        )
+        return HttpResponse.json(createMockUser(requestCount), {
+          headers: createRateLimitHeaders({ remaining: 5000 - requestCount }),
+        })
       })
 
       await addTestHandlers(trendHandler)
@@ -178,7 +172,7 @@ describe('Load Testing - Metrics & Monitoring', () => {
       // Execute multiple batches and track performance trends
       for (let batch = 0; batch < batchCount; batch++) {
         const batchStart = Date.now()
-        
+
         const promises = Array.from({ length: batchSize }, async () => {
           const requestStart = Date.now()
           const result = await client.rest.users.getAuthenticated()
@@ -211,17 +205,19 @@ describe('Load Testing - Metrics & Monitoring', () => {
 
       // Analyze performance trends
       expect(trendMetrics).toHaveLength(batchCount)
-      
+
       // Check if performance degraded over time (due to increasing delays)
       const firstBatchAvg = trendMetrics[0].avgRequestDuration
       const lastBatchAvg = trendMetrics[trendMetrics.length - 1].avgRequestDuration
-      
+
       expect(lastBatchAvg).toBeGreaterThan(firstBatchAvg) // Performance should degrade
 
       console.log('Performance trend analysis:')
       console.log(`First batch avg: ${firstBatchAvg.toFixed(2)}ms`)
       console.log(`Last batch avg: ${lastBatchAvg.toFixed(2)}ms`)
-      console.log(`Performance degradation: ${((lastBatchAvg - firstBatchAvg) / firstBatchAvg * 100).toFixed(1)}%`)
+      console.log(
+        `Performance degradation: ${(((lastBatchAvg - firstBatchAvg) / firstBatchAvg) * 100).toFixed(1)}%`
+      )
 
       await client.destroy()
     })
@@ -283,11 +279,11 @@ describe('Load Testing - Metrics & Monitoring', () => {
         requestCount++
         const requestId = requestCount
         const processingStart = Date.now()
-        
+
         // Variable processing time
         const delay = 10 + Math.random() * 20
         await new Promise(resolve => setTimeout(resolve, delay))
-        
+
         const processingEnd = Date.now()
         realTimeMetrics.push({
           timestamp: processingEnd,
@@ -295,12 +291,9 @@ describe('Load Testing - Metrics & Monitoring', () => {
           duration: processingEnd - processingStart,
         })
 
-        return HttpResponse.json(
-          createMockUser(requestId),
-          {
-            headers: createRateLimitHeaders({ remaining: 5000 - requestId }),
-          }
-        )
+        return HttpResponse.json(createMockUser(requestId), {
+          headers: createRateLimitHeaders({ remaining: 5000 - requestId }),
+        })
       })
 
       await addTestHandlers(realTimeHandler)
@@ -324,12 +317,15 @@ describe('Load Testing - Metrics & Monitoring', () => {
 
       // Analyze real-time metrics
       const sortedByTime = [...realTimeMetrics].sort((a, b) => a.timestamp - b.timestamp)
-      const avgDuration = realTimeMetrics.reduce((sum, m) => sum + m.duration, 0) / realTimeMetrics.length
+      const avgDuration =
+        realTimeMetrics.reduce((sum, m) => sum + m.duration, 0) / realTimeMetrics.length
 
       console.log('Real-time metrics:')
       console.log(`- Requests tracked: ${realTimeMetrics.length}`)
       console.log(`- Average processing time: ${avgDuration.toFixed(2)}ms`)
-      console.log(`- Time span: ${sortedByTime[sortedByTime.length - 1].timestamp - sortedByTime[0].timestamp}ms`)
+      console.log(
+        `- Time span: ${sortedByTime[sortedByTime.length - 1].timestamp - sortedByTime[0].timestamp}ms`
+      )
 
       await client.destroy()
     })
@@ -337,26 +333,27 @@ describe('Load Testing - Metrics & Monitoring', () => {
     it('should monitor system resource usage patterns', async () => {
       const concurrency = LOAD_TEST_CONFIG.DEFAULT_CONCURRENCY
       let requestCount = 0
-      const resourceMetrics: Array<{ timestamp: number; memoryUsage: number; connectionCount: number }> = []
+      const resourceMetrics: Array<{
+        timestamp: number
+        memoryUsage: number
+        connectionCount: number
+      }> = []
 
       const resourceHandler = http.get('https://api.github.com/user', async () => {
         requestCount++
-        
+
         // Simulate resource usage tracking
         resourceMetrics.push({
           timestamp: Date.now(),
-          memoryUsage: 1000 + (requestCount * 50), // Simulated memory growth
+          memoryUsage: 1000 + requestCount * 50, // Simulated memory growth
           connectionCount: Math.min(requestCount, 10), // Max 10 connections
         })
 
         await new Promise(resolve => setTimeout(resolve, 15))
 
-        return HttpResponse.json(
-          createMockUser(requestCount),
-          {
-            headers: createRateLimitHeaders({ remaining: 5000 - requestCount }),
-          }
-        )
+        return HttpResponse.json(createMockUser(requestCount), {
+          headers: createRateLimitHeaders({ remaining: 5000 - requestCount }),
+        })
       })
 
       await addTestHandlers(resourceHandler)
@@ -400,23 +397,20 @@ describe('Load Testing - Metrics & Monitoring', () => {
 
       const customHandler = http.get('https://api.github.com/user', async () => {
         requestCount++
-        
+
         // Track custom metrics
         customMetrics.set('api_calls', (customMetrics.get('api_calls') || 0) + 1)
         customMetrics.set('processing_time', Date.now())
-        
+
         if (requestCount % 3 === 0) {
           customMetrics.set('cache_misses', (customMetrics.get('cache_misses') || 0) + 1)
         }
 
         await new Promise(resolve => setTimeout(resolve, 20))
 
-        return HttpResponse.json(
-          createMockUser(requestCount),
-          {
-            headers: createRateLimitHeaders({ remaining: 5000 - requestCount }),
-          }
-        )
+        return HttpResponse.json(createMockUser(requestCount), {
+          headers: createRateLimitHeaders({ remaining: 5000 - requestCount }),
+        })
       })
 
       await addTestHandlers(customHandler)

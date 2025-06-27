@@ -217,10 +217,10 @@ describe('OAuth Authentication', () => {
     })
 
     it('should reject callback with error parameter', async () => {
-      const params: OAuthCallbackParams = {
+      const params = {
         code: undefined,
         error: 'access_denied',
-        errorDescription: 'User denied access',
+        error_description: 'User denied access',
         state: 'test-state-123',
       }
 
@@ -512,7 +512,7 @@ describe('OAuth Authentication', () => {
   })
 
   describe('OAuth Account Management', () => {
-    it('should unlink OAuth account', async () => {
+    it('should unlink OAuth account when user has multiple auth methods', async () => {
       const mockSql = vi.mocked(sql)
 
       // Mock account exists check
@@ -524,8 +524,8 @@ describe('OAuth Authentication', () => {
         },
       ])
 
-      // Mock other OAuth accounts count
-      mockSql.mockResolvedValueOnce([{ count: '0' }])
+      // Mock other OAuth accounts count (user has other auth methods)
+      mockSql.mockResolvedValueOnce([{ count: '1' }]) // Changed from '0' to '1'
 
       // Mock account deletion
       mockSql.mockResolvedValueOnce([])

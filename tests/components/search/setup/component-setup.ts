@@ -4,7 +4,11 @@
  */
 
 import { afterEach, beforeEach, vi } from 'vitest'
-import { setupTestContainer, teardownTestContainer, createMockRouter } from '../utils/search-test-helpers'
+import {
+  createMockRouter,
+  setupTestContainer,
+  teardownTestContainer,
+} from '../utils/search-test-helpers'
 
 // Global setup for search component tests
 export const setupSearchComponentTests = () => {
@@ -31,7 +35,7 @@ export const setupSearchComponentTests = () => {
 export const setupWithRouter = () => {
   const mockPush = vi.fn()
   const mockReplace = vi.fn()
-  
+
   vi.mock('next/navigation', () => ({
     useRouter: () => ({
       push: mockPush,

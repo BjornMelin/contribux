@@ -1,24 +1,21 @@
 /**
  * Database client utility for tests with proper TypeScript support
- * Provides a unified interface for PostgreSQL and Neon databases
+ * Provides a unified interface using TestDatabaseManager
  */
 
-import { type NeonQueryFunction, neon } from '@neondatabase/serverless'
+import type { NeonQueryFunction } from '@neondatabase/serverless'
 import { config } from 'dotenv'
 import { Client } from 'pg'
+import { TestDatabaseManager } from '../../src/lib/test-utils/test-database-manager'
 
 // Load test environment variables
 config({ path: '.env.test' })
 
-// Database connection configuration
+// Get TestDatabaseManager instance
+const dbManager = TestDatabaseManager.getInstance()
+
+// Export test database URL for test utilities
 export const TEST_DATABASE_URL = process.env.DATABASE_URL_TEST || process.env.DATABASE_URL
-
-if (!TEST_DATABASE_URL) {
-  throw new Error('DATABASE_URL is required for database tests. Check .env.test file.')
-}
-
-// TypeScript type assertion after the check
-const VALIDATED_TEST_DATABASE_URL = TEST_DATABASE_URL
 
 // Type definitions for query results
 export interface QueryRow {
@@ -31,8 +28,8 @@ export interface ExecuteSqlOptions {
 }
 
 /**
- * Execute SQL queries with proper parameter handling
- * Supports both local PostgreSQL and Neon databases
+ * Execute SQL queries using TestDatabaseManager
+ * Automatically uses the appropriate strategy (PGlite vs Neon vs PostgreSQL)
  */
 export async function executeSql<T extends QueryRow = QueryRow>(
   query: string,
@@ -52,42 +49,26 @@ export async function executeSql<T extends QueryRow = QueryRow>(
     return result.rows
   }
 
-  if (
-    VALIDATED_TEST_DATABASE_URL.includes('localhost') ||
-    VALIDATED_TEST_DATABASE_URL.includes('127.0.0.1')
-  ) {
-    // Use pg driver for local PostgreSQL
-    const client = new Client({ connectionString: VALIDATED_TEST_DATABASE_URL })
-    try {
-      await client.connect()
-      const result = await client.query<T>(query, params)
-      return result.rows
-    } finally {
-      await client.end()
-    }
-  } else {
-    // Use neon driver for Neon databases
-    const sql = neon(VALIDATED_TEST_DATABASE_URL)
+  // Get connection from TestDatabaseManager
+  const connection = await dbManager.getConnection('db-client-test', {})
 
-    // Neon expects values to be passed in the template literal directly
-    // Build a query function that properly handles parameters
-    const results = await executeNeonQuery(sql, query, params)
-    return results as T[]
-  }
+  // Execute query using the managed connection's sql function
+  const results = await executeWithConnection(connection.sql, query, params)
+  return results as T[]
 }
 
 /**
- * Execute a query using Neon's template literal syntax
+ * Execute a query using the managed connection
  */
-async function executeNeonQuery(
-  sql: NeonQueryFunction<false, false>,
+async function executeWithConnection(
+  connection: NeonQueryFunction<false, false>,
   query: string,
   params: unknown[]
 ): Promise<QueryRow[]> {
   if (params.length === 0) {
     // No parameters, execute directly
     const queryFn = new Function('sql', `return sql\`${query}\``)
-    return await queryFn(sql)
+    return await queryFn(connection)
   }
 
   // Replace placeholders with actual values in a type-safe way
@@ -104,7 +85,7 @@ async function executeNeonQuery(
 
   // Create a function that executes the template literal with params in scope
   const queryFn = new Function('sql', 'params', `return sql\`${processedQuery}\``)
-  return await queryFn(sql, params)
+  return await queryFn(connection, params)
 }
 
 /**
@@ -135,63 +116,69 @@ export type SqlTemplateFunction = <T extends QueryRow = QueryRow>(
 
 /**
  * Type-safe SQL template literal function
- * Automatically handles vector formatting and parameter substitution
+ * Automatically handles vector formatting and uses TestDatabaseManager
  */
 export const sql: SqlTemplateFunction = async function sql<T extends QueryRow = QueryRow>(
   strings: TemplateStringsArray,
   ...values: unknown[]
 ): Promise<T[]> {
-  // Build the query with placeholders
-  let query = strings[0] || ''
-  const params: unknown[] = []
+  // Get connection from TestDatabaseManager
+  const connection = await dbManager.getConnection('sql-template-test', {})
 
-  for (let i = 0; i < values.length; i++) {
-    const value = values[i]
-
+  // Process values for special types (vectors, arrays)
+  const processedValues = values.map(value => {
     // Check if value is a vector (array of numbers with length 1536)
     if (Array.isArray(value) && value.length === 1536 && value.every(v => typeof v === 'number')) {
-      params.push(formatVector(value))
-    } else if (Array.isArray(value) && value.length > 0 && typeof value[0] === 'number') {
-      // Other numeric arrays - format as PostgreSQL array
-      params.push(`{${value.join(',')}}`)
-    } else {
-      params.push(value)
+      return formatVector(value)
     }
+    if (Array.isArray(value) && value.length > 0 && typeof value[0] === 'number') {
+      // Other numeric arrays - format as PostgreSQL array
+      return `{${value.join(',')}}`
+    }
+    return value
+  })
 
-    query += `$${i + 1}${strings[i + 1] || ''}`
-  }
-
-  return executeSql<T>(query, params)
+  // Use the managed connection's sql function with template literal syntax
+  return await connection.sql<T>(strings, ...processedValues)
 }
 
 /**
  * Create a persistent client for tests that need transactions
- * Only supports local PostgreSQL
+ * Uses TestDatabaseManager configuration
  */
-export function createTestClient(): Client {
-  if (
-    VALIDATED_TEST_DATABASE_URL.includes('localhost') ||
-    VALIDATED_TEST_DATABASE_URL.includes('127.0.0.1')
-  ) {
-    return new Client({ connectionString: VALIDATED_TEST_DATABASE_URL })
+export async function createTestClient(): Promise<Client> {
+  // Get a connection to check the strategy
+  const connection = await dbManager.getConnection('createTestClient-check', {})
+
+  if (connection.strategy === 'neon-transaction' || connection.strategy === 'neon-branch') {
+    // For Neon strategies, we can get the connection string from environment
+    const connectionString = process.env.DATABASE_URL_TEST || process.env.DATABASE_URL
+    if (!connectionString) {
+      throw new Error('No database connection string available for PostgreSQL client')
+    }
+    return new Client({ connectionString })
   }
+
   throw new Error(
-    'Persistent client not supported for Neon databases in tests. Use executeSql for individual queries.'
+    `Persistent PostgreSQL client only supported for Neon strategies. Current strategy: ${connection.strategy}. Use sql template for PGlite.`
   )
 }
 
 /**
  * Transaction helper for test scenarios
+ * Uses TestDatabaseManager to determine the appropriate strategy
  */
 export async function withTransaction<T>(fn: (client: Client) => Promise<T>): Promise<T> {
-  if (
-    !VALIDATED_TEST_DATABASE_URL.includes('localhost') &&
-    !VALIDATED_TEST_DATABASE_URL.includes('127.0.0.1')
-  ) {
-    throw new Error('Transactions are only supported for local PostgreSQL in tests')
+  // Get a connection to check the strategy
+  const connection = await dbManager.getConnection('withTransaction-check', {})
+
+  if (connection.strategy === 'pglite') {
+    throw new Error(
+      `Transactions are only supported for Neon strategies, current strategy: ${connection.strategy}`
+    )
   }
 
-  const client = createTestClient()
+  const client = await createTestClient()
 
   try {
     await client.connect()
@@ -212,12 +199,12 @@ export async function withTransaction<T>(fn: (client: Client) => Promise<T>): Pr
 
 /**
  * Helper to check if using local PostgreSQL
+ * Uses TestDatabaseManager to determine the strategy
  */
-export function isLocalPostgres(): boolean {
-  return (
-    VALIDATED_TEST_DATABASE_URL.includes('localhost') ||
-    VALIDATED_TEST_DATABASE_URL.includes('127.0.0.1')
-  )
+export async function isLocalPostgres(): Promise<boolean> {
+  // Get a connection to check the strategy
+  const connection = await dbManager.getConnection('isLocalPostgres-check', {})
+  return connection.strategy !== 'pglite'
 }
 
 /**

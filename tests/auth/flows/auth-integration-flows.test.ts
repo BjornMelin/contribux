@@ -9,36 +9,25 @@
  * - Integration with external services
  */
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { GitHubClient } from '../../../src/lib/github/client'
+import { afterEach, beforeEach, describe, expect } from 'vitest'
+import type { GitHubClient } from '../../../src/lib/github/client'
 import type { IntegrationTestContext } from '../../integration/infrastructure/test-config'
-import {
-  describeIntegration,
-  integrationTest,
-  measurePerformance,
-} from '../../integration/infrastructure/test-runner'
-import { oauthProviders, testUsers, rateLimitScenarios } from './fixtures/auth-scenarios'
+import { describeIntegration, integrationTest } from '../../integration/infrastructure/test-runner'
+import { rateLimitScenarios, testUsers } from './fixtures/auth-scenarios'
 import {
   cleanupAuthMocks,
   mockGraphQLRateLimit,
-  mockRateLimit,
-  mockSuccessfulAuth,
   mockOAuthUserInfo,
-  mockGitHubAppAuth,
-  mockInstallationAuth,
+  mockRateLimit,
 } from './mocks/auth-provider-mocks'
 import {
   cleanupClient,
   createTestClient,
+  measureTestExecution,
   setupAuthTests,
   skipIfMissingAuth,
-  measureTestExecution,
 } from './setup/auth-setup'
-import {
-  validateAuthResponse,
-  validateRateLimitHeaders,
-  measureAuthPerformance,
-} from './utils/auth-test-helpers'
+import { measureAuthPerformance, validateAuthResponse } from './utils/auth-test-helpers'
 
 describeIntegration(
   'Integration Authentication Flows',
@@ -142,7 +131,7 @@ describeIntegration(
 
           // Try primary authentication (should fail)
           const primaryClient = createTestClient(scenario.primary)
-          
+
           try {
             await primaryClient.rest.users.getAuthenticated()
             // If this succeeds unexpectedly, continue to fallback test
@@ -155,7 +144,7 @@ describeIntegration(
 
           // Try fallback authentication (should succeed)
           const fallbackClient = createTestClient(scenario.fallback)
-          
+
           try {
             const user = await fallbackClient.rest.users.getAuthenticated()
             if (scenario.shouldSucceed) {
@@ -341,7 +330,7 @@ describeIntegration(
 
         const concurrentRequests = 5
         const clients: GitHubClient[] = []
-        const promises: Promise<any>[] = []
+        const promises: Promise<unknown>[] = []
 
         try {
           // Create multiple clients with the same token
@@ -364,9 +353,9 @@ describeIntegration(
           expect(successfulResults.length).toBe(concurrentRequests)
 
           // Verify all results are consistent
-          const firstResult = (successfulResults[0] as PromiseFulfilledResult<any>).value
+          const firstResult = (successfulResults[0] as PromiseFulfilledResult<unknown>).value
           for (const result of successfulResults.slice(1)) {
-            const userData = (result as PromiseFulfilledResult<any>).value
+            const userData = (result as PromiseFulfilledResult<unknown>).value
             expect(userData.data.login).toBe(firstResult.data.login)
           }
 
@@ -436,7 +425,7 @@ describeIntegration(
         const errors: string[] = []
 
         const client = createTestClient({
-          type: 'token', 
+          type: 'token',
           token: context.env.GITHUB_TEST_TOKEN,
         })
 
@@ -453,14 +442,16 @@ describeIntegration(
             }
           })
 
-          const results = await Promise.allSettled(promises)
+          const _results = await Promise.allSettled(promises)
           const reliability = (successCount.value / reliabilityTests) * 100
 
           // Expect high reliability (>95%)
           expect(reliability).toBeGreaterThanOrEqual(95)
 
-          console.log(`Authentication reliability: ${reliability}% (${successCount.value}/${reliabilityTests})`)
-          
+          console.log(
+            `Authentication reliability: ${reliability}% (${successCount.value}/${reliabilityTests})`
+          )
+
           if (errors.length > 0) {
             console.log('Reliability test errors:', errors)
           }
@@ -515,7 +506,7 @@ describeIntegration(
               try {
                 const rateLimit = await client.rest.rateLimit.get()
                 const remaining = rateLimit.data.resources.core.remaining
-                
+
                 return {
                   status: remaining > 100 ? 'healthy' : 'warning',
                   data: { remaining, limit: rateLimit.data.resources.core.limit },
@@ -548,7 +539,11 @@ describeIntegration(
 
         // Record overall health
         if (context.metricsCollector) {
-          context.metricsCollector.recordApiCall('auth.integration.health', healthyChecks.length, 200)
+          context.metricsCollector.recordApiCall(
+            'auth.integration.health',
+            healthyChecks.length,
+            200
+          )
         }
       })
     })

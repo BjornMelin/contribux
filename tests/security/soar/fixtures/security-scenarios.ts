@@ -9,7 +9,9 @@ import type {
   Vulnerability,
 } from '../../../../src/lib/security/automated-scanner'
 
-export const createMockSecurityIncident = (overrides?: Partial<SecurityIncident>): SecurityIncident => ({
+export const createMockSecurityIncident = (
+  overrides?: Partial<SecurityIncident>
+): SecurityIncident => ({
   incidentId: 'incident-123',
   type: 'vulnerability',
   severity: 'critical',
@@ -40,7 +42,9 @@ export const createMockSecurityIncident = (overrides?: Partial<SecurityIncident>
   ...overrides,
 })
 
-export const createMockThreatDetection = (overrides?: Partial<ThreatDetection>): ThreatDetection => ({
+export const createMockThreatDetection = (
+  overrides?: Partial<ThreatDetection>
+): ThreatDetection => ({
   threatId: 'threat-456',
   type: 'sql_injection_attempt',
   severity: 'critical',
@@ -85,51 +89,56 @@ export const createMockVulnerability = (overrides?: Partial<Vulnerability>): Vul
 })
 
 export const securityScenarios = {
-  criticalIncident: () => createMockSecurityIncident({
-    severity: 'critical',
-    incidentId: 'critical-incident-001',
-    title: 'Critical System Compromise Detected',
-  }),
-  
-  sqlInjectionThreat: () => createMockThreatDetection({
-    type: 'sql_injection_attempt',
-    threatId: 'sql-threat-001',
-    confidence: 0.98,
-  }),
-  
-  bruteForceAttack: () => createMockThreatDetection({
-    type: 'brute_force',
-    threatId: 'brute-force-001',
-    severity: 'high',
-    source: {
-      ip: '10.0.0.1',
-      userAgent: 'AttackBot/1.0',
-      location: {
-        country: 'Unknown',
-        region: 'Unknown', 
-        city: 'Unknown',
+  criticalIncident: () =>
+    createMockSecurityIncident({
+      severity: 'critical',
+      incidentId: 'critical-incident-001',
+      title: 'Critical System Compromise Detected',
+    }),
+
+  sqlInjectionThreat: () =>
+    createMockThreatDetection({
+      type: 'sql_injection_attempt',
+      threatId: 'sql-threat-001',
+      confidence: 0.98,
+    }),
+
+  bruteForceAttack: () =>
+    createMockThreatDetection({
+      type: 'brute_force',
+      threatId: 'brute-force-001',
+      severity: 'high',
+      source: {
+        ip: '10.0.0.1',
+        userAgent: 'AttackBot/1.0',
+        location: {
+          country: 'Unknown',
+          region: 'Unknown',
+          city: 'Unknown',
+        },
       },
-    },
-  }),
+    }),
 
-  criticalVulnerability: () => createMockVulnerability({
-    severity: 'critical',
-    id: 'critical-vuln-001',
-    type: 'injection',
-  }),
+  criticalVulnerability: () =>
+    createMockVulnerability({
+      severity: 'critical',
+      id: 'critical-vuln-001',
+      type: 'injection',
+    }),
 
-  xssVulnerability: () => createMockVulnerability({
-    type: 'xss',
-    id: 'xss-vuln-001',
-    severity: 'high',
-    title: 'Cross-Site Scripting Vulnerability',
-    description: 'User input reflected without sanitization',
-  }),
+  xssVulnerability: () =>
+    createMockVulnerability({
+      type: 'xss',
+      id: 'xss-vuln-001',
+      severity: 'high',
+      title: 'Cross-Site Scripting Vulnerability',
+      description: 'User input reflected without sanitization',
+    }),
 }
 
 export const threatTypes = [
   'brute_force',
-  'sql_injection_attempt', 
+  'sql_injection_attempt',
   'xss_attempt',
   'privilege_escalation',
 ] as const

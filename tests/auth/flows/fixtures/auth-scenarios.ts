@@ -21,7 +21,7 @@ export interface TestUser {
 export interface AuthTestScenario {
   name: string
   description: string
-  authConfig: any
+  authConfig: Record<string, unknown>
   expectedResult: 'success' | 'failure'
   expectedError?: string
 }
@@ -47,7 +47,7 @@ export const testUsers: Record<string, TestUser> = {
     email: 'test@example.com',
     name: 'Test User',
   },
-  
+
   organizationUser: {
     login: 'testorg',
     id: 67890,
@@ -55,7 +55,7 @@ export const testUsers: Record<string, TestUser> = {
     email: 'org@example.com',
     name: 'Test Organization',
   },
-  
+
   limitedUser: {
     login: 'limiteduser',
     id: 11111,
@@ -78,7 +78,7 @@ export const authScenarios: AuthTestScenario[] = [
     },
     expectedResult: 'success',
   },
-  
+
   {
     name: 'Valid GitHub App JWT',
     description: 'Authentication with valid GitHub App credentials',
@@ -89,7 +89,7 @@ export const authScenarios: AuthTestScenario[] = [
     },
     expectedResult: 'success',
   },
-  
+
   {
     name: 'Valid OAuth Configuration',
     description: 'OAuth client configuration setup',
@@ -116,7 +116,7 @@ export const authErrorScenarios: AuthTestScenario[] = [
     expectedResult: 'failure',
     expectedError: 'Bad credentials',
   },
-  
+
   {
     name: 'Expired Token',
     description: 'Token that has expired',
@@ -127,7 +127,7 @@ export const authErrorScenarios: AuthTestScenario[] = [
     expectedResult: 'failure',
     expectedError: 'Bad credentials',
   },
-  
+
   {
     name: 'Revoked Token',
     description: 'Token that has been revoked',
@@ -138,7 +138,7 @@ export const authErrorScenarios: AuthTestScenario[] = [
     expectedResult: 'failure',
     expectedError: 'Bad credentials',
   },
-  
+
   {
     name: 'Invalid GitHub App ID',
     description: 'GitHub App with invalid app ID',
@@ -163,7 +163,7 @@ export const tokenRotationScenarios: TokenInfo[] = [
   },
   {
     token: 'ghp_secondary_token_789012',
-    type: 'personal', 
+    type: 'personal',
     scopes: ['repo', 'user'],
   },
   {
@@ -186,7 +186,7 @@ export const oauthProviders: Record<string, OAuthProvider> = {
     userUrl: 'https://api.github.com/user',
     scopes: ['user', 'repo', 'read:org'],
   },
-  
+
   githubApp: {
     name: 'GitHub App',
     clientId: 'test_app_client_id',
@@ -208,21 +208,21 @@ export const rateLimitScenarios = {
     reset: Math.floor(Date.now() / 1000) + 3600,
     resource: 'core',
   },
-  
+
   nearLimit: {
     limit: 5000,
     remaining: 10,
     reset: Math.floor(Date.now() / 1000) + 3600,
     resource: 'core',
   },
-  
+
   exhausted: {
     limit: 5000,
     remaining: 0,
     reset: Math.floor(Date.now() / 1000) + 3600,
     resource: 'core',
   },
-  
+
   graphql: {
     limit: 5000,
     remaining: 4990,
@@ -240,13 +240,13 @@ export const jwtClaims = {
     exp: Math.floor(Date.now() / 1000) + 600, // 10 minutes from now
     iat: Math.floor(Date.now() / 1000),
   },
-  
+
   expired: {
     iss: 12345,
     exp: Math.floor(Date.now() / 1000) - 600, // 10 minutes ago
     iat: Math.floor(Date.now() / 1000) - 1200, // 20 minutes ago
   },
-  
+
   future: {
     iss: 12345,
     exp: Math.floor(Date.now() / 1000) + 600,

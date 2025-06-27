@@ -1,13 +1,13 @@
 /**
  * Integration Test Setup & Configuration
- * 
+ *
  * Centralized setup and configuration for GitHub integration tests.
  * Provides consistent test environment and utilities.
  */
 
-import { beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest'
-import { setupServer } from 'msw/node'
 import { HttpResponse, http } from 'msw'
+import { setupServer } from 'msw/node'
+import { afterAll, afterEach, beforeAll, beforeEach, vi } from 'vitest'
 import { GitHubClient } from '../../../../src/lib/github/client'
 
 /**
@@ -19,17 +19,17 @@ export const integrationConfig = {
     extended: 30000,
     short: 5000,
   },
-  
+
   retry: {
     attempts: 3,
     delay: 1000,
   },
-  
+
   cache: {
     maxAge: 300,
     maxSize: 100,
   },
-  
+
   rateLimit: {
     respectLimits: true,
     backoffFactor: 2,
@@ -57,16 +57,16 @@ const mockServer = setupServer()
  */
 export function setupIntegrationTest() {
   const clientInstances: GitHubClient[] = []
-  
+
   beforeAll(async () => {
     // Start MSW server
     mockServer.listen({
       onUnhandledRequest: 'warn',
     })
-    
+
     // Setup default handlers
     setupDefaultHandlers()
-    
+
     if (testEnvironment.verbose) {
       console.log('Integration test environment initialized')
     }
@@ -75,11 +75,11 @@ export function setupIntegrationTest() {
   beforeEach(() => {
     // Clear all mocks
     vi.clearAllMocks()
-    
+
     // Reset MSW handlers
     mockServer.resetHandlers()
     setupDefaultHandlers()
-    
+
     // Track client instances for cleanup
     clientInstances.length = 0
   })
@@ -87,14 +87,14 @@ export function setupIntegrationTest() {
   afterEach(async () => {
     // Cleanup client instances
     await Promise.all(
-      clientInstances.map(client => 
+      clientInstances.map(client =>
         client.destroy?.().catch(() => {
           // Ignore cleanup errors
         })
       )
     )
     clientInstances.length = 0
-    
+
     // Restore all mocks
     vi.restoreAllMocks()
   })
@@ -102,7 +102,7 @@ export function setupIntegrationTest() {
   afterAll(async () => {
     // Stop MSW server
     mockServer.close()
-    
+
     if (testEnvironment.verbose) {
       console.log('Integration test environment cleaned up')
     }
@@ -113,9 +113,9 @@ export function setupIntegrationTest() {
       clientInstances.push(client)
       return client
     },
-    
+
     mockServer,
-    
+
     createTestClient: (options: Parameters<typeof GitHubClient>[0] = {}) => {
       const client = new GitHubClient({
         auth: { type: 'token', token: 'test_token' },
@@ -123,7 +123,7 @@ export function setupIntegrationTest() {
         retry: integrationConfig.retry,
         ...options,
       })
-      
+
       clientInstances.push(client)
       return client
     },
@@ -166,7 +166,7 @@ function setupDefaultHandlers() {
     // Repository endpoint
     http.get('https://api.github.com/repos/:owner/:repo', ({ params }) => {
       const { owner, repo } = params
-      
+
       return HttpResponse.json({
         id: 123456789,
         node_id: 'MDEwOlJlcG9zaXRvcnkxMjM0NTY3ODk=',
@@ -213,8 +213,8 @@ function setupDefaultHandlers() {
     http.get('https://api.github.com/search/repositories', ({ request }) => {
       const url = new URL(request.url)
       const q = url.searchParams.get('q') || ''
-      const per_page = parseInt(url.searchParams.get('per_page') || '30')
-      
+      const per_page = Number.parseInt(url.searchParams.get('per_page') || '30')
+
       // Generate mock results based on query
       const items = Array.from({ length: Math.min(per_page, 10) }, (_, index) => ({
         id: 123456789 + index,
@@ -295,8 +295,8 @@ function setupDefaultHandlers() {
     // User repositories endpoint
     http.get('https://api.github.com/user/repos', ({ request }) => {
       const url = new URL(request.url)
-      const per_page = parseInt(url.searchParams.get('per_page') || '30')
-      
+      const per_page = Number.parseInt(url.searchParams.get('per_page') || '30')
+
       const repos = Array.from({ length: Math.min(per_page, 5) }, (_, index) => ({
         id: 987654321 + index,
         node_id: `MDEwOlJlcG9zaXRvcnk5ODc2NTQzMjE${index}`,
@@ -347,14 +347,14 @@ function setupDefaultHandlers() {
     }),
 
     http.get('https://api.github.com/repos/rate-limit-test/*', () => {
-      return new HttpResponse(null, { 
+      return new HttpResponse(null, {
         status: 403,
         headers: {
           'X-RateLimit-Remaining': '0',
           'X-RateLimit-Reset': String(Math.floor(Date.now() / 1000) + 3600),
         },
       })
-    }),
+    })
   )
 }
 
@@ -379,7 +379,7 @@ export const integrationUtils = {
     } = {}
   ): Promise<T> => {
     const { attempts = 3, delay = 1000, backoffFactor = 2 } = options
-    
+
     for (let i = 0; i < attempts; i++) {
       try {
         return await operation()
@@ -387,11 +387,11 @@ export const integrationUtils = {
         if (i === attempts - 1) {
           throw error
         }
-        
-        await integrationUtils.wait(delay * Math.pow(backoffFactor, i))
+
+        await integrationUtils.wait(delay * backoffFactor ** i)
       }
     }
-    
+
     throw new Error('Retry attempts exhausted')
   },
 
@@ -402,7 +402,7 @@ export const integrationUtils = {
     const start = Date.now()
     const result = await operation()
     const duration = Date.now() - start
-    
+
     return { result, duration }
   },
 
@@ -430,23 +430,23 @@ export class IntegrationPerformanceMonitor {
     try {
       const result = await operation()
       const duration = Date.now() - start
-      
+
       this.measurements.push({
         name,
         duration,
         timestamp: start,
       })
-      
+
       return result
     } catch (error) {
       const duration = Date.now() - start
-      
+
       this.measurements.push({
         name: `${name} (failed)`,
         duration,
         timestamp: start,
       })
-      
+
       throw error
     }
   }

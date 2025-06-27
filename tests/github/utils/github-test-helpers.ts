@@ -3,7 +3,7 @@
  * Common test helpers for GitHub API client testing
  */
 
-import { type GitHubClient } from '@/lib/github/client'
+import type { GitHubClient } from '@/lib/github/client'
 
 /**
  * Access private getCacheKey method for testing
@@ -289,11 +289,8 @@ export function createConcurrentTestPromises(client: GitHubClient) {
 /**
  * Verify cache hit behavior
  */
-export function verifyCacheHit(
-  statsBefore: { hits: number },
-  statsAfter: { hits: number }
-): void {
+export function verifyCacheHit(statsBefore: { hits: number }, statsAfter: { hits: number }): void {
   if (statsAfter.hits !== statsBefore.hits + 1) {
-    throw new Error(`Expected cache hit, but hits did not increase by 1`)
+    throw new Error('Expected cache hit, but hits did not increase by 1')
   }
 }

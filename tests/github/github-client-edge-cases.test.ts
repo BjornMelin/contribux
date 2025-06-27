@@ -60,7 +60,7 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
       mswServer.use(
         http.get('https://api.github.com/user', async () => {
           // Simulate timeout by delaying response longer than client timeout
-          await new Promise(resolve => setTimeout(resolve, 10000))
+          await new Promise(resolve => setTimeout(resolve, 3000))
           return HttpResponse.json({ login: 'test' })
         })
       )

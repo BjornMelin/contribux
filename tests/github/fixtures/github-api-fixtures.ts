@@ -152,7 +152,7 @@ export const mockIssueFixtures = {
         id: 1001,
         name: 'bug',
         color: 'd73a49',
-        description: 'Something isn\'t working',
+        description: "Something isn't working",
       },
       {
         id: 1002,
@@ -169,14 +169,16 @@ export const mockIssueFixtures = {
       html_url: 'https://github.com/assignee',
       site_admin: false,
     },
-    assignees: [{
-      login: 'assignee',
-      id: 54321,
-      type: 'User',
-      avatar_url: 'https://github.com/images/error/assignee_happy.gif',
-      html_url: 'https://github.com/assignee',
-      site_admin: false,
-    }],
+    assignees: [
+      {
+        login: 'assignee',
+        id: 54321,
+        type: 'User',
+        avatar_url: 'https://github.com/images/error/assignee_happy.gif',
+        html_url: 'https://github.com/assignee',
+        site_admin: false,
+      },
+    ],
     created_at: '2024-01-03T08:30:00Z',
     updated_at: '2024-01-03T09:15:00Z',
     html_url: 'https://github.com/testowner/testrepo/issues/3',
@@ -382,7 +384,7 @@ export const mockPullRequestFixtures = {
         id: 2001,
         name: 'bug',
         color: 'd73a49',
-        description: 'Something isn\'t working',
+        description: "Something isn't working",
       },
     ],
     assignee: null,
@@ -414,7 +416,7 @@ export const mockPullRequestFixtures = {
 } as const
 
 /**
- * Mock comment responses  
+ * Mock comment responses
  */
 export const mockCommentFixtures = {
   issueComment: {

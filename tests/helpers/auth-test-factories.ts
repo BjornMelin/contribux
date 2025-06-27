@@ -4,6 +4,7 @@
  */
 
 import type { AdapterUser } from 'next-auth/adapters'
+import { generateUUID } from '../../src/lib/crypto-utils'
 import type {
   AccessTokenPayload,
   AuthEventType,
@@ -22,17 +23,17 @@ import type { Email, GitHubUsername, UUID } from '../../src/types/base'
 
 // Counter for generating unique values
 let userCounter = 1
-let sessionCounter = 1
+let _sessionCounter = 1
 
 /**
  * Create a valid User object that matches the auth types
  */
 export function createTestUser(overrides: Partial<User> = {}): User {
-  const id = `user-${userCounter.toString().padStart(3, '0')}-${Date.now()}`
+  const id = generateUUID() as UUID
   userCounter++
 
   const baseUser: User = {
-    id: id as UUID,
+    id,
     email: `test-${userCounter}@example.com` as Email,
     displayName: `Test User ${userCounter}`,
     username: `testuser${userCounter}`,
@@ -54,12 +55,12 @@ export function createTestUser(overrides: Partial<User> = {}): User {
  * Create a valid UserSession object
  */
 export function createTestUserSession(overrides: Partial<UserSession> = {}): UserSession {
-  const id = `session-${sessionCounter.toString().padStart(3, '0')}-${Date.now()}`
-  sessionCounter++
+  const id = generateUUID() as UUID
+  _sessionCounter++
 
   return {
-    id: id as UUID,
-    userId: `user-${userCounter}` as UUID,
+    id,
+    userId: generateUUID() as UUID,
     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
     authMethod: 'oauth' as AuthMethod,
     ipAddress: '127.0.0.1',
@@ -78,16 +79,16 @@ export function createTestAccessTokenPayload(
   overrides: Partial<AccessTokenPayload> = {}
 ): AccessTokenPayload {
   return {
-    sub: `user-${userCounter}` as UUID,
+    sub: generateUUID() as UUID,
     email: `test-${userCounter}@example.com` as Email,
     githubUsername: `github-user-${userCounter}` as GitHubUsername,
     authMethod: 'oauth' as AuthMethod,
-    sessionId: `session-${sessionCounter}` as UUID,
+    sessionId: generateUUID() as UUID,
     iat: Math.floor(Date.now() / 1000),
     exp: Math.floor(Date.now() / 1000) + 3600, // 1 hour
     iss: 'test-issuer',
     aud: ['test-audience'],
-    jti: `jwt-${Date.now()}` as UUID,
+    jti: generateUUID() as UUID,
     ...overrides,
   }
 }
@@ -99,10 +100,10 @@ export function createTestSecurityAuditLog(
   overrides: Partial<SecurityAuditLog> = {}
 ): SecurityAuditLog {
   const baseLog: SecurityAuditLog = {
-    id: `audit-${Date.now()}` as UUID,
+    id: generateUUID() as UUID,
     eventType: 'login_success' as AuthEventType,
     eventSeverity: 'info' as EventSeverity,
-    userId: `user-${userCounter}` as UUID,
+    userId: generateUUID() as UUID,
     ipAddress: '127.0.0.1',
     userAgent: 'Mozilla/5.0 (Test Agent)',
     eventData: {},
@@ -122,8 +123,8 @@ export function createTestSecurityAuditLog(
  */
 export function createTestUserConsent(overrides: Partial<UserConsent> = {}): UserConsent {
   return {
-    id: `consent-${Date.now()}` as UUID,
-    userId: `user-${userCounter}` as UUID,
+    id: generateUUID() as UUID,
+    userId: generateUUID() as UUID,
     consentType: 'terms' as ConsentType,
     granted: true,
     version: '1.0',
@@ -141,8 +142,8 @@ export function createTestUserConsent(overrides: Partial<UserConsent> = {}): Use
  */
 export function createTestOAuthAccount(overrides: Partial<OAuthAccount> = {}): OAuthAccount {
   return {
-    id: `oauth-${Date.now()}` as UUID,
-    userId: `user-${userCounter}` as UUID,
+    id: generateUUID() as UUID,
+    userId: generateUUID() as UUID,
     provider: 'github' as OAuthProvider,
     providerAccountId: `provider-${Date.now()}`,
     accessToken: 'test-access-token',
@@ -198,7 +199,7 @@ export function createTestNextAuthUser(
   image?: string | null
   githubUsername?: string
 } {
-  const id = `user-${userCounter.toString().padStart(3, '0')}-${Date.now()}`
+  const id = generateUUID()
   userCounter++
 
   return {
@@ -216,7 +217,7 @@ export function createTestNextAuthUser(
  * Create a valid NextAuth AdapterUser object
  */
 export function createTestAdapterUser(overrides: Partial<AdapterUser> = {}): AdapterUser {
-  const id = `user-${userCounter.toString().padStart(3, '0')}-${Date.now()}`
+  const id = generateUUID()
   userCounter++
 
   return {
@@ -245,9 +246,9 @@ export function createTestNextAuthSession(
   userId: string
   expires: string
 } {
-  const userId = `user-${userCounter}`
-  const sessionId = `session-${sessionCounter.toString().padStart(3, '0')}-${Date.now()}`
-  sessionCounter++
+  const userId = generateUUID()
+  const sessionId = generateUUID()
+  _sessionCounter++
 
   return {
     user: createTestAdapterUser({ id: userId }),
@@ -263,5 +264,5 @@ export function createTestNextAuthSession(
  */
 export function resetAuthFactoryCounters(): void {
   userCounter = 1
-  sessionCounter = 1
+  _sessionCounter = 1
 }

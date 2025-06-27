@@ -11,7 +11,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createGitHubClient, GitHubClient } from '../../../src/lib/github/client'
+import { GitHubClient } from '../../../src/lib/github/client'
 import { GitHubError } from '../../../src/lib/github/errors'
 import { mockGitHubAPI } from '../msw-setup'
 import { setupGitHubTestIsolation } from '../test-helpers'
@@ -60,7 +60,7 @@ describe('GitHub Error Recovery & Resilience Integration', () => {
 
       // Test retry behavior with transient failures
       const start = Date.now()
-      
+
       try {
         await client.getRepository({ owner: 'retry-test', repo: 'retry-repo-unique' })
       } catch (error) {
@@ -90,14 +90,16 @@ describe('GitHub Error Recovery & Resilience Integration', () => {
 
       // Simulate multiple failures to trigger circuit breaker
       const failurePromises = Array.from({ length: 5 }, (_, index) =>
-        client.getRepository({ 
-          owner: 'circuit-breaker-test', 
-          repo: `circuit-breaker-repo-${index}` 
-        }).catch(error => ({ error, index }))
+        client
+          .getRepository({
+            owner: 'circuit-breaker-test',
+            repo: `circuit-breaker-repo-${index}`,
+          })
+          .catch(error => ({ error, index }))
       )
 
       const results = await Promise.all(failurePromises)
-      
+
       // All should fail but in a controlled manner
       results.forEach(result => {
         expect(result).toHaveProperty('error')
@@ -117,11 +119,11 @@ describe('GitHub Error Recovery & Resilience Integration', () => {
       })
 
       const start = Date.now()
-      
+
       await expect(
         client.getRepository({ owner: 'test', repo: 'rate-limited-unique' })
       ).rejects.toThrow(GitHubError)
-      
+
       const duration = Date.now() - start
       // Should have waited due to rate limit headers
       expect(duration).toBeGreaterThan(100)
@@ -186,9 +188,7 @@ describe('GitHub Error Recovery & Resilience Integration', () => {
         auth: { type: 'token', token: 'expired_token' },
       })
 
-      await expect(
-        client.getAuthenticatedUser()
-      ).rejects.toThrow(GitHubError)
+      await expect(client.getAuthenticatedUser()).rejects.toThrow(GitHubError)
     })
 
     it('should handle insufficient permissions', async () => {
@@ -229,7 +229,7 @@ describe('GitHub Error Recovery & Resilience Integration', () => {
         await client.getRepository({ owner: 'fallback-test', repo: 'fallback-repo-unique' })
       } catch (primaryError) {
         expect(primaryError).toBeInstanceOf(GitHubError)
-        
+
         // Fallback to basic user info
         const user = await client.getAuthenticatedUser()
         expect(user.login).toBe('testuser')
@@ -243,14 +243,16 @@ describe('GitHub Error Recovery & Resilience Integration', () => {
       })
 
       const concurrentRequests = Array.from({ length: 3 }, (_, index) =>
-        client.getRepository({ 
-          owner: 'concurrent-error-test', 
-          repo: `error-repo-${index}` 
-        }).catch(error => ({ error, index }))
+        client
+          .getRepository({
+            owner: 'concurrent-error-test',
+            repo: `error-repo-${index}`,
+          })
+          .catch(error => ({ error, index }))
       )
 
       const results = await Promise.all(concurrentRequests)
-      
+
       // All should fail but independently
       results.forEach((result, index) => {
         expect(result).toHaveProperty('error')
@@ -279,12 +281,12 @@ describe('GitHub Error Recovery & Resilience Integration', () => {
       })
 
       // First request might fail, but system should recover
-      let firstAttemptFailed = false
-      
+      let _firstAttemptFailed = false
+
       try {
         await client.getRepository({ owner: 'recovery-test', repo: 'recovery-repo-unique' })
-      } catch (error) {
-        firstAttemptFailed = true
+      } catch (_error) {
+        _firstAttemptFailed = true
       }
 
       // Subsequent request should work (assuming recovery)
@@ -297,7 +299,7 @@ describe('GitHub Error Recovery & Resilience Integration', () => {
         auth: { type: 'token', token: 'test_token' },
       })
 
-      const errors: any[] = []
+      const errors: Array<{ type: string; error: unknown }> = []
 
       // Collect errors from multiple failed requests
       try {
@@ -347,14 +349,16 @@ describe('GitHub Error Recovery & Resilience Integration', () => {
       })
 
       const rapidRequests = Array.from({ length: 10 }, (_, index) =>
-        client.getRepository({ 
-          owner: 'rapid-error-test', 
-          repo: `rapid-error-repo-${index}` 
-        }).catch(error => ({ error, index }))
+        client
+          .getRepository({
+            owner: 'rapid-error-test',
+            repo: `rapid-error-repo-${index}`,
+          })
+          .catch(error => ({ error, index }))
       )
 
       const results = await Promise.allSettled(rapidRequests)
-      
+
       // Should handle all requests without system failure
       expect(results.length).toBe(10)
       results.forEach(result => {
@@ -412,16 +416,16 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('Real API Error Recovery Integration', (
     it('should handle API maintenance gracefully', async () => {
       // Test with a large repository that might trigger slower responses
       const start = Date.now()
-      
+
       try {
         const repo = await client.getRepository({
           owner: 'facebook',
           repo: 'react',
         })
-        
+
         expect(repo.name).toBe('react')
         expect(repo.owner.login).toBe('facebook')
-        
+
         const duration = Date.now() - start
         console.log(`Request completed in ${duration}ms`)
       } catch (error) {

@@ -1,6 +1,6 @@
 /**
  * Error Test Data and Response Fixtures
- * 
+ *
  * Comprehensive test data for edge case scenarios including
  * malformed responses, boundary conditions, and error states.
  */
@@ -318,5 +318,77 @@ export const VALIDATION_ERRORS = {
         message: 'body is too long (maximum is 65536 characters)',
       },
     ],
+  },
+} as const
+
+/**
+ * Invalid token test data for authentication edge cases
+ */
+export const INVALID_TOKENS = {
+  malformed: 'ghp_invalid_token_format',
+  expired: 'ghp_1234567890abcdef1234567890abcdef12345678',
+  revoked: 'ghp_abcdef1234567890abcdef1234567890abcdef12',
+  empty: '',
+  null: null,
+  undefined: undefined,
+  wrongFormat: 'not_a_token',
+  tooShort: 'ghp_123',
+  tooLong: `ghp_${'a'.repeat(100)}`,
+  limitedScope: 'ghp_limited_scope_token_no_repo_access_1234567890',
+  refreshFailed: 'ghp_refresh_failed_token_cannot_renew_abcdef123456',
+  hijacked: 'ghp_hijacked_session_token_invalid_security_567890ab',
+  oauthFailed: 'ghp_oauth_exchange_failed_token_invalid_flow_cdef12',
+} as const
+
+/**
+ * Permission scenario test data
+ */
+export const PERMISSION_SCENARIOS = {
+  NO_ACCESS: {
+    message: 'Not Found',
+    documentation_url: 'https://docs.github.com/rest/reference/repos#get-a-repository',
+  },
+  PRIVATE_REPO: {
+    message: 'Not Found',
+    documentation_url: 'https://docs.github.com/rest/reference/repos#get-a-repository',
+  },
+  ORGANIZATION_PRIVATE: {
+    message: 'Not Found',
+    documentation_url: 'https://docs.github.com/rest/reference/orgs#get-an-organization',
+  },
+  INSUFFICIENT_PERMISSIONS: {
+    message: 'Must have admin rights to Repository.',
+    documentation_url: 'https://docs.github.com/rest/reference/repos',
+  },
+} as const
+
+/**
+ * Authentication error response templates
+ */
+export const AUTH_ERROR_RESPONSES = {
+  BAD_CREDENTIALS: {
+    message: 'Bad credentials',
+    documentation_url: 'https://docs.github.com/rest',
+  },
+  TOKEN_EXPIRED: {
+    message: 'Bad credentials',
+    documentation_url: 'https://docs.github.com/rest',
+  },
+  TOKEN_REVOKED: {
+    message: 'Bad credentials',
+    documentation_url: 'https://docs.github.com/rest',
+  },
+  RATE_LIMITED: {
+    message: 'API rate limit exceeded',
+    documentation_url:
+      'https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting',
+  },
+  FORBIDDEN: {
+    message: 'Forbidden',
+    documentation_url: 'https://docs.github.com/rest',
+  },
+  REQUIRES_AUTHENTICATION: {
+    message: 'Requires authentication',
+    documentation_url: 'https://docs.github.com/rest',
   },
 } as const

@@ -12,7 +12,7 @@ export const securityTestConfig = {
     shutdown: 2000,
     startup: 3000,
   },
-  
+
   thresholds: {
     critical: 0.9,
     high: 0.8,
@@ -102,7 +102,7 @@ export const securityTestUtils = {
     if (!event || typeof event !== 'object') {
       throw new Error('Security event must be an object')
     }
-    
+
     const requiredFields = ['id', 'type', 'severity', 'timestamp']
     for (const field of requiredFields) {
       if (!(field in event)) {

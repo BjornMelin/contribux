@@ -13,22 +13,50 @@ import { vi } from 'vitest'
 import type { UUID } from '@/types/base'
 import type { Repository, SearchFilters } from '@/types/search'
 
-// Enhanced isolated render helper for search components
+// Simplified isolated render helper for search components - purely synchronous
 export function renderIsolated(component: React.ReactElement) {
-  // Create a fresh container for this render
+  // Clean up any existing test containers first to prevent conflicts
+  const existingContainers = document.querySelectorAll('[id^="test-container-"]')
+  existingContainers.forEach(container => container.remove())
+
+  // Ensure we start with a clean DOM state
+  cleanup()
+
+  // Create a fresh container for this render with a unique ID
   const testContainer = document.createElement('div')
-  testContainer.id = `test-container-${Date.now()}-${Math.random()}`
+  testContainer.id = `test-container-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+
+  // Clear body and append our container
+  document.body.innerHTML = ''
   document.body.appendChild(testContainer)
 
-  const result = render(component, { container: testContainer })
+  // Render the component synchronously
+  const result = render(component, {
+    container: testContainer,
+    hydrate: false,
+  })
 
-  // Enhanced unmount function that also removes the container
+  // Enhanced unmount function that also removes the container and cleans up properly
   const originalUnmount = result.unmount
   const enhancedUnmount = () => {
-    originalUnmount()
-    if (testContainer.parentNode) {
-      testContainer.parentNode.removeChild(testContainer)
+    try {
+      originalUnmount()
+    } catch (error) {
+      // Ignore unmount errors as component might already be unmounted
+      console.debug('Unmount error (expected):', error)
     }
+
+    // Remove our container
+    try {
+      if (testContainer.parentNode) {
+        testContainer.parentNode.removeChild(testContainer)
+      }
+    } catch (error) {
+      console.debug('Container removal error (expected):', error)
+    }
+
+    // Additional cleanup to prevent memory leaks
+    cleanup()
   }
 
   // Return enhanced result with scoped queries and proper cleanup
@@ -129,7 +157,7 @@ export const teardownTestContainer = (container?: HTMLElement) => {
 export const createMockRouter = () => {
   const mockPush = vi.fn()
   const mockReplace = vi.fn()
-  
+
   vi.mock('next/navigation', () => ({
     useRouter: () => ({
       push: mockPush,
@@ -175,7 +203,10 @@ export const createDefaultFilters = (): SearchFilters => ({
 })
 
 // Helper to get select elements by order (for components that use multiple selects)
-export const getSelectByIndex = (container: HTMLElement, index: number): HTMLSelectElement | null => {
+export const getSelectByIndex = (
+  container: HTMLElement,
+  index: number
+): HTMLSelectElement | null => {
   const selects = container.querySelectorAll('select') as NodeListOf<HTMLSelectElement>
   return selects[index] || null
 }

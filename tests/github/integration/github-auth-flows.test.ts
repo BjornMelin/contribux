@@ -18,7 +18,6 @@ import { GitHubClient } from '../../../src/lib/github/client'
 import { GitHubError } from '../../../src/lib/github/errors'
 import { mockGitHubAPI, mswServer } from '../msw-setup'
 import { setupGitHubTestIsolation } from '../test-helpers'
-import { createIntegrationFixtures } from './fixtures/auth-fixtures'
 
 // GitHub API base URL
 const GITHUB_API_BASE = 'https://api.github.com'

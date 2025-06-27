@@ -9,22 +9,39 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 describe('Environment Validation', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     // Clean slate for each test
     vi.resetModules()
     vi.unstubAllEnvs()
+
+    // Clear any cached environment data
+    try {
+      const { clearEnvCache } = await import('../../src/lib/validation/env')
+      clearEnvCache()
+    } catch {
+      // Ignore import errors during cleanup
+    }
   })
 
-  afterEach(() => {
+  afterEach(async () => {
     // Clean up
     vi.unstubAllEnvs()
     vi.resetModules()
+
+    // Clear any cached environment data
+    try {
+      const { clearEnvCache } = await import('../../src/lib/validation/env')
+      clearEnvCache()
+    } catch {
+      // Ignore import errors during cleanup
+    }
   })
 
   // Helper to create a clean env schema for testing
   async function createTestSchema() {
     vi.resetModules()
-    const { envSchema } = await import('../../src/lib/validation/env')
+    const { envSchema, clearEnvCache } = await import('../../src/lib/validation/env')
+    clearEnvCache() // Clear any cached environment data
     return envSchema
   }
 

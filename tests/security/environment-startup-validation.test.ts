@@ -32,11 +32,15 @@ describe('Environment Startup Validation Security', () => {
       })
 
     // Mock console methods to capture output
-    mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
-    mockConsoleLog = vi.spyOn(console, 'log').mockImplementation(() => {})
+    mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {
+      // Suppress console.error during tests
+    })
+    mockConsoleLog = vi.spyOn(console, 'log').mockImplementation(() => {
+      // Suppress console.log during tests
+    })
 
     // Clear environment to start fresh
-    delete process.env.SKIP_ENV_VALIDATION
+    process.env.SKIP_ENV_VALIDATION = undefined
 
     // Clear all security-related environment variables
     Object.keys(process.env).forEach(key => {
@@ -411,7 +415,7 @@ describe('Environment Startup Validation Security', () => {
         process.env.NODE_ENV = env
         process.env.DATABASE_URL = 'postgresql://user:pass@localhost:5432/db'
         process.env.JWT_SECRET = 'secure-jwt-secret-with-sufficient-length-and-entropy-32chars'
-        delete process.env.ENCRYPTION_KEY
+        process.env.ENCRYPTION_KEY = undefined
 
         const { getEncryptionKey } = await import('@/lib/validation/env')
 
@@ -436,7 +440,9 @@ describe('Environment Startup Validation Security', () => {
       const testCases = [
         {
           scenario: 'missing encryption key',
-          setup: () => delete process.env.ENCRYPTION_KEY,
+          setup: () => {
+            process.env.ENCRYPTION_KEY = undefined
+          },
           fn: 'getEncryptionKey',
           expectedGuidance: ['openssl rand -hex 32', '64-character hexadecimal', '256 bits'],
         },

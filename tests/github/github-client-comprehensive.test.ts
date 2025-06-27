@@ -245,7 +245,9 @@ describe('GitHubClient - Comprehensive Tests', () => {
       })
 
       it('should warn about incompatible cache and throttle settings', () => {
-        const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+        const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {
+          // Silent mock for test isolation
+        })
 
         new GitHubClient({
           cache: { maxAge: 10 },

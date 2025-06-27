@@ -43,7 +43,7 @@ export function isValidSimilarityScore(score: unknown): asserts score is number 
 export function hasValidQueryStructure(
   results: unknown,
   expectedFields: string[]
-): asserts results is Array<Record<string, unknown>> {
+): asserts results is Record<string, unknown>[] {
   if (!Array.isArray(results)) {
     throw new Error('Query results must be an array')
   }

@@ -17,22 +17,16 @@ import { describe, expect, it } from 'vitest'
 import { GitHubError } from '@/lib/github/errors'
 import { mswServer } from '../msw-setup'
 import {
-  createEdgeCaseClient,
-  setupEdgeCaseTestIsolation,
-  EDGE_CASE_PARAMS,
-} from './setup/edge-case-setup'
-import {
-  ERROR_SCENARIOS,
-  mockErrorResponse,
-  mockMalformedJsonResponse,
-  testErrorPropagation,
-  validateErrorResponse,
-} from './utils/error-test-helpers'
-import {
+  malformedResponseHandlers,
   serverErrorHandlers,
   validationErrorHandlers,
-  malformedResponseHandlers,
 } from './mocks/error-api-mocks'
+import {
+  createEdgeCaseClient,
+  EDGE_CASE_PARAMS,
+  setupEdgeCaseTestIsolation,
+} from './setup/edge-case-setup'
+import { testErrorPropagation, validateErrorResponse } from './utils/error-test-helpers'
 
 describe('GitHub API Error Handling', () => {
   // Setup MSW and enhanced test isolation
@@ -85,10 +79,7 @@ describe('GitHub API Error Handling', () => {
       // Mock a 404 response
       mswServer.use(
         http.get('https://api.github.com/repos/notfound/repo', () => {
-          return HttpResponse.json(
-            { message: 'Not Found' },
-            { status: 404 }
-          )
+          return HttpResponse.json({ message: 'Not Found' }, { status: 404 })
         })
       )
 
@@ -158,20 +149,23 @@ describe('GitHub API Error Handling', () => {
     })
 
     it('should handle multiple validation errors', async () => {
-      const client = createEdgeCaseClient()
+      const _client = createEdgeCaseClient()
 
       mswServer.use(...validationErrorHandlers)
 
       try {
         // This endpoint returns multiple validation errors
-        const response = await fetch('https://api.github.com/repos/validation-test/validation-error-repo-unique/issues', {
-          method: 'POST',
-          headers: {
-            'Authorization': 'token test_token',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ title: '', body: 'A'.repeat(70000) }),
-        })
+        const response = await fetch(
+          'https://api.github.com/repos/validation-test/validation-error-repo-unique/issues',
+          {
+            method: 'POST',
+            headers: {
+              Authorization: 'token test_token',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ title: '', body: 'A'.repeat(70000) }),
+          }
+        )
 
         if (!response.ok) {
           const errorData = await response.json()
@@ -192,9 +186,7 @@ describe('GitHub API Error Handling', () => {
 
       mswServer.use(...malformedResponseHandlers)
 
-      await expect(
-        client.getRepository(EDGE_CASE_PARAMS.MALFORMED)
-      ).rejects.toThrow()
+      await expect(client.getRepository(EDGE_CASE_PARAMS.MALFORMED)).rejects.toThrow()
     })
 
     it('should handle empty responses', async () => {
@@ -209,9 +201,7 @@ describe('GitHub API Error Handling', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'empty', repo: 'response' })
-      ).rejects.toThrow()
+      await expect(client.getRepository({ owner: 'empty', repo: 'response' })).rejects.toThrow()
     })
 
     it('should handle non-JSON content type responses', async () => {
@@ -226,9 +216,7 @@ describe('GitHub API Error Handling', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'html', repo: 'response' })
-      ).rejects.toThrow()
+      await expect(client.getRepository({ owner: 'html', repo: 'response' })).rejects.toThrow()
     })
   })
 
@@ -323,9 +311,7 @@ describe('GitHub API Error Handling', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'test', repo: 'network-error' })
-      ).rejects.toThrow()
+      await expect(client.getRepository({ owner: 'test', repo: 'network-error' })).rejects.toThrow()
     })
   })
 
@@ -334,9 +320,7 @@ describe('GitHub API Error Handling', () => {
       const client = createEdgeCaseClient()
 
       // First request fails
-      await expect(
-        client.getRepository(EDGE_CASE_PARAMS.SERVER_ERROR)
-      ).rejects.toThrow(GitHubError)
+      await expect(client.getRepository(EDGE_CASE_PARAMS.SERVER_ERROR)).rejects.toThrow(GitHubError)
 
       // Client should still be functional for valid requests
       const repo = await client.getRepository({ owner: 'octocat', repo: 'Hello-World' })

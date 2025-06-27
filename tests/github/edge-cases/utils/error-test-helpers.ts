@@ -1,14 +1,14 @@
 /**
  * Error Testing Utilities
- * 
+ *
  * Comprehensive utilities for testing error scenarios, retry logic,
  * and failure recovery in GitHub client edge cases.
  */
 
 import { HttpResponse, http } from 'msw'
 import { vi } from 'vitest'
-import { GitHubError } from '@/lib/github/errors'
 import type { GitHubClient } from '@/lib/github'
+import { GitHubError } from '@/lib/github/errors'
 import { mswServer } from '../../msw-setup'
 
 /**
@@ -181,10 +181,7 @@ export class RetryFailureSimulator {
       const response = this.responses[this.attempts] || this.responses[this.responses.length - 1]
       this.attempts++
 
-      return HttpResponse.json(
-        { message: response.message },
-        { status: response.status }
-      )
+      return HttpResponse.json({ message: response.message }, { status: response.status })
     })
   }
 
@@ -226,7 +223,7 @@ export async function testConcurrentErrors(
   expectedResults: Array<'success' | 'failure'>
 ): Promise<void> {
   const results = await Promise.allSettled(actions.map(action => action()))
-  
+
   results.forEach((result, index) => {
     const expected = expectedResults[index]
     if (expected === 'success' && result.status === 'rejected') {

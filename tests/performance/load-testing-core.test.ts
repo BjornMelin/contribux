@@ -1,6 +1,6 @@
 /**
  * Core Load Testing Functionality
- * 
+ *
  * Tests basic load testing setup, configuration, and simple scenarios.
  * Focuses on fundamental load testing patterns and client creation.
  */
@@ -9,19 +9,19 @@ import { HttpResponse, http } from 'msw'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { GitHubClient } from '../../src/lib/github'
 import { createRateLimitHeaders } from '../github/test-helpers'
-import { 
-  createTrackedClient, 
-  addTestHandlers,
-  createStandardUserHandler,
-  createStandardGraphQLHandler,
-  measureExecutionTime
-} from './utils/load-test-helpers'
+import { createMockUser, LOAD_TEST_CONFIG, PERFORMANCE_THRESHOLDS } from './fixtures/load-test-data'
 import { setupPerformanceTest } from './setup/performance-setup'
-import { LOAD_TEST_CONFIG, createMockUser, PERFORMANCE_THRESHOLDS } from './fixtures/load-test-data'
+import {
+  addTestHandlers,
+  createStandardGraphQLHandler,
+  createStandardUserHandler,
+  createTrackedClient,
+  measureExecutionTime,
+} from './utils/load-test-helpers'
 
 describe('Load Testing - Core Functionality', () => {
   const setup = setupPerformanceTest()
-  
+
   beforeAll(setup.beforeAll)
   beforeEach(setup.beforeEach)
   afterEach(setup.afterEach)
@@ -48,7 +48,7 @@ describe('Load Testing - Core Functionality', () => {
     it('should handle basic client lifecycle', async () => {
       const testToken = 'lifecycle_test_token'
       const handler = createStandardUserHandler(testToken)
-      
+
       await addTestHandlers(handler)
 
       const client = createTrackedClient(GitHubClient, {
@@ -72,9 +72,9 @@ describe('Load Testing - Core Functionality', () => {
       )
 
       expect(clients).toHaveLength(3)
-      
+
       // Verify each client is independent
-      for (const [index, client] of clients.entries()) {
+      for (const [_index, client] of clients.entries()) {
         expect(client).toBeDefined()
         expect(client.destroy).toBeDefined()
       }
@@ -89,7 +89,7 @@ describe('Load Testing - Core Functionality', () => {
       const requestCount = LOAD_TEST_CONFIG.DEFAULT_CONCURRENCY
       const testToken = 'sequential_rest_token'
       const handler = createStandardUserHandler(testToken)
-      
+
       await addTestHandlers(handler)
 
       const client = createTrackedClient(GitHubClient, {
@@ -123,7 +123,7 @@ describe('Load Testing - Core Functionality', () => {
       const requestCount = LOAD_TEST_CONFIG.DEFAULT_CONCURRENCY
       const testToken = 'sequential_graphql_token'
       const handler = createStandardGraphQLHandler(testToken)
-      
+
       await addTestHandlers(handler)
 
       const client = createTrackedClient(GitHubClient, {
@@ -164,7 +164,7 @@ describe('Load Testing - Core Functionality', () => {
     it('should measure request timing accurately', async () => {
       const testToken = 'timing_test_token'
       const handler = createStandardUserHandler(testToken)
-      
+
       await addTestHandlers(handler)
 
       const client = createTrackedClient(GitHubClient, {
@@ -187,45 +187,49 @@ describe('Load Testing - Core Functionality', () => {
   })
 
   describe('Basic Concurrency', () => {
-    it('should handle low-concurrency parallel requests', async () => {
-      const concurrency = LOAD_TEST_CONFIG.REDUCED_CONCURRENCY
-      const testToken = 'low_concurrency_token'
-      const handler = createStandardUserHandler(testToken)
-      
-      await addTestHandlers(handler)
+    it(
+      'should handle low-concurrency parallel requests',
+      async () => {
+        const concurrency = LOAD_TEST_CONFIG.REDUCED_CONCURRENCY
+        const testToken = 'low_concurrency_token'
+        const handler = createStandardUserHandler(testToken)
 
-      const client = createTrackedClient(GitHubClient, {
-        auth: { type: 'token', token: testToken },
-        retry: { retries: 1 },
-      })
+        await addTestHandlers(handler)
 
-      // Execute low-concurrency parallel requests
-      const startTime = Date.now()
-      const promises = Array.from({ length: concurrency }, async () => {
-        const result = await client.rest.users.getAuthenticated()
-        expect(result.data.id).toBeGreaterThan(0)
-        return result.data.id
-      })
+        const client = createTrackedClient(GitHubClient, {
+          auth: { type: 'token', token: testToken },
+          retry: { retries: 1 },
+        })
 
-      const results = await Promise.all(promises)
-      const endTime = Date.now()
-      const duration = endTime - startTime
+        // Execute low-concurrency parallel requests
+        const startTime = Date.now()
+        const promises = Array.from({ length: concurrency }, async () => {
+          const result = await client.rest.users.getAuthenticated()
+          expect(result.data.id).toBeGreaterThan(0)
+          return result.data.id
+        })
 
-      // Verify all requests completed
-      expect(results).toHaveLength(concurrency)
-      expect(new Set(results)).toHaveProperty('size', concurrency) // All unique responses
-      expect(duration).toBeLessThan(LOAD_TEST_CONFIG.DEFAULT_TIMEOUT)
+        const results = await Promise.all(promises)
+        const endTime = Date.now()
+        const duration = endTime - startTime
 
-      console.log(`Low concurrency test: ${concurrency} requests in ${duration}ms`)
+        // Verify all requests completed
+        expect(results).toHaveLength(concurrency)
+        expect(new Set(results)).toHaveProperty('size', concurrency) // All unique responses
+        expect(duration).toBeLessThan(LOAD_TEST_CONFIG.DEFAULT_TIMEOUT)
 
-      await client.destroy()
-    }, LOAD_TEST_CONFIG.DEFAULT_TIMEOUT)
+        console.log(`Low concurrency test: ${concurrency} requests in ${duration}ms`)
+
+        await client.destroy()
+      },
+      LOAD_TEST_CONFIG.DEFAULT_TIMEOUT
+    )
 
     it('should maintain response quality under basic load', async () => {
       const concurrency = LOAD_TEST_CONFIG.DEFAULT_CONCURRENCY
       const testToken = 'quality_test_token'
       const handler = createStandardUserHandler(testToken)
-      
+
       await addTestHandlers(handler)
 
       const client = createTrackedClient(GitHubClient, {
@@ -233,7 +237,7 @@ describe('Load Testing - Core Functionality', () => {
       })
 
       // Execute requests and validate response quality
-      const promises = Array.from({ length: concurrency }, async (_, index) => {
+      const promises = Array.from({ length: concurrency }, async (_, _index) => {
         const requestStart = Date.now()
         const result = await client.rest.users.getAuthenticated()
         const requestEnd = Date.now()
@@ -264,7 +268,9 @@ describe('Load Testing - Core Functionality', () => {
       const avgDuration = results.reduce((sum, r) => sum + r.duration, 0) / results.length
       expect(avgDuration).toBeLessThan(PERFORMANCE_THRESHOLDS.AVG_LATENCY_MAX)
 
-      console.log(`Response quality test: ${results.length} valid responses, avg ${avgDuration.toFixed(2)}ms`)
+      console.log(
+        `Response quality test: ${results.length} valid responses, avg ${avgDuration.toFixed(2)}ms`
+      )
 
       await client.destroy()
     })
@@ -277,12 +283,12 @@ describe('Load Testing - Core Functionality', () => {
 
       const retryHandler = http.get('https://api.github.com/user', () => {
         requestCount++
-        
+
         // Fail first request, succeed on retry
         if (requestCount === 1) {
           return HttpResponse.json({ message: 'Server error' }, { status: 500 })
         }
-        
+
         return HttpResponse.json(createMockUser(requestCount), {
           headers: createRateLimitHeaders({ remaining: 5000 - requestCount }),
         })
@@ -312,7 +318,7 @@ describe('Load Testing - Core Functionality', () => {
       )
 
       // Verify each client has correct configuration
-      for (const [index, client] of clients.entries()) {
+      for (const [_index, client] of clients.entries()) {
         expect(client).toBeDefined()
         expect(client.rest).toBeDefined()
         expect(client.graphql).toBeDefined()

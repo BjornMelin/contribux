@@ -17,8 +17,7 @@ import {
   integrationTest,
   withRetry,
 } from '../../integration/infrastructure/test-runner'
-import { tokenRotationScenarios, rateLimitScenarios } from './fixtures/auth-scenarios'
-import type { TokenInfo } from './utils/auth-test-helpers'
+import { rateLimitScenarios, tokenRotationScenarios } from './fixtures/auth-scenarios'
 import {
   cleanupAuthMocks,
   mockIntermittentAuthFailure,
@@ -33,10 +32,8 @@ import {
   skipIfMissingAuth,
   withTimeout,
 } from './setup/auth-setup'
-import {
-  validateRateLimitHeaders,
-  createTestToken,
-} from './utils/auth-test-helpers'
+import type { TokenInfo } from './utils/auth-test-helpers'
+import { createTestToken, validateRateLimitHeaders } from './utils/auth-test-helpers'
 
 describeIntegration(
   'Security Authentication Flows',
@@ -148,7 +145,7 @@ describeIntegration(
         ]
 
         for (const scenario of securityScenarios) {
-          scenario.tokens.forEach((token, index) => {
+          scenario.tokens.forEach((token, _index) => {
             const testToken = createTestToken({ token, type: 'personal' })
             expect(testToken.token).toBe(token)
             // Note: Current validation may not strictly enforce these patterns
@@ -273,11 +270,12 @@ describeIntegration(
 
           try {
             const startTime = Date.now()
-            
+
             // This should timeout and potentially retry
             await expect(
               withTimeout(
-                () => withRetry(() => client.rest.users.getAuthenticated(), { retries: 1, delay: 100 }),
+                () =>
+                  withRetry(() => client.rest.users.getAuthenticated(), { retries: 1, delay: 100 }),
                 3000 // 3 second timeout
               )
             ).rejects.toThrow()
@@ -357,7 +355,7 @@ describeIntegration(
             token: 'ghp_client1_token_123456789012345678901234567890',
           },
           {
-            name: 'Client 2', 
+            name: 'Client 2',
             token: 'ghp_client2_token_098765432109876543210987654321',
           },
         ]
@@ -381,11 +379,7 @@ describeIntegration(
 
             // Record isolation success
             if (context.metricsCollector) {
-              context.metricsCollector.recordApiCall(
-                `auth.security.isolation.${test.name}`,
-                0,
-                200
-              )
+              context.metricsCollector.recordApiCall(`auth.security.isolation.${test.name}`, 0, 200)
             }
           }
 

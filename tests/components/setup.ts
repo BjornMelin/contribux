@@ -22,22 +22,13 @@ afterEach(() => {
   // Clean up Testing Library rendered components
   cleanup()
 
-  // Force clear the document body
-  document.body.innerHTML = ''
-  document.head.innerHTML = ''
-
-  // Clear all mocks
+  // Clear all mocks (avoid resetAllMocks to prevent test pollution)
   vi.clearAllMocks()
-  vi.resetAllMocks()
 })
 
 // Setup before each test
 beforeEach(() => {
-  // Ensure clean document state
-  document.body.innerHTML = ''
-  document.head.innerHTML = ''
-
-  // Clear all mocks
+  // Clear all mocks (avoid resetAllMocks to prevent test pollution)
   vi.clearAllMocks()
 })
 

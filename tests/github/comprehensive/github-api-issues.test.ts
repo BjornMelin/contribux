@@ -9,16 +9,11 @@ import { GitHubError } from '@/lib/github/errors'
 import { mockGitHubAPI, setupMSW } from '../msw-setup'
 import { setupGitHubTestIsolation } from '../test-helpers'
 import {
-  testClientConfigs,
   expectedIssueFields,
+  testClientConfigs,
   testIssueParams,
   testPRParams,
 } from '../utils/github-test-helpers'
-import { 
-  mockIssueFixtures, 
-  mockPRFixtures,
-  mockCommentFixtures 
-} from '../fixtures/github-api-fixtures'
 
 // Setup MSW for HTTP mocking
 setupMSW()
@@ -40,14 +35,14 @@ describe('GitHubClient - Issues & Pull Requests', () => {
     it('should list repository issues', async () => {
       const client = new GitHubClient(testClientConfigs.basicToken)
 
-      const issues = await client.listIssues(
-        testIssueParams.repository,
-        { state: 'open', per_page: 10 }
-      )
+      const issues = await client.listIssues(testIssueParams.repository, {
+        state: 'open',
+        per_page: 10,
+      })
 
       expect(Array.isArray(issues)).toBe(true)
       expect(issues.length).toBeLessThanOrEqual(10)
-      
+
       if (issues.length > 0) {
         // Verify required fields are present
         for (const field of expectedIssueFields) {
@@ -77,9 +72,7 @@ describe('GitHubClient - Issues & Pull Requests', () => {
     it('should handle issue not found', async () => {
       const client = new GitHubClient(testClientConfigs.basicToken)
 
-      await expect(
-        client.getIssue(testIssueParams.notFound)
-      ).rejects.toThrow(GitHubError)
+      await expect(client.getIssue(testIssueParams.notFound)).rejects.toThrow(GitHubError)
     })
 
     it('should validate issue response schema', async () => {
@@ -91,7 +84,7 @@ describe('GitHubClient - Issues & Pull Requests', () => {
       for (const field of expectedIssueFields) {
         expect(issue).toHaveProperty(field)
       }
-      
+
       // Should have proper types
       expect(typeof issue.id).toBe('number')
       expect(typeof issue.number).toBe('number')
@@ -117,22 +110,22 @@ describe('GitHubClient - Issues & Pull Requests', () => {
       const client = new GitHubClient(testClientConfigs.basicToken)
 
       // Test open issues
-      const openIssues = await client.listIssues(
-        testIssueParams.repository,
-        { state: 'open', per_page: 5 }
-      )
+      const openIssues = await client.listIssues(testIssueParams.repository, {
+        state: 'open',
+        per_page: 5,
+      })
 
       // Test closed issues
-      const closedIssues = await client.listIssues(
-        testIssueParams.repository,
-        { state: 'closed', per_page: 5 }
-      )
+      const closedIssues = await client.listIssues(testIssueParams.repository, {
+        state: 'closed',
+        per_page: 5,
+      })
 
       // Test all issues
-      const allIssues = await client.listIssues(
-        testIssueParams.repository,
-        { state: 'all', per_page: 5 }
-      )
+      const allIssues = await client.listIssues(testIssueParams.repository, {
+        state: 'all',
+        per_page: 5,
+      })
 
       expect(Array.isArray(openIssues)).toBe(true)
       expect(Array.isArray(closedIssues)).toBe(true)
@@ -157,10 +150,10 @@ describe('GitHubClient - Issues & Pull Requests', () => {
     it('should list repository pull requests', async () => {
       const client = new GitHubClient(testClientConfigs.basicToken)
 
-      const prs = await client.listPullRequests(
-        testPRParams.repository,
-        { state: 'open', per_page: 10 }
-      )
+      const prs = await client.listPullRequests(testPRParams.repository, {
+        state: 'open',
+        per_page: 10,
+      })
 
       expect(Array.isArray(prs)).toBe(true)
       expect(prs.length).toBeLessThanOrEqual(10)
@@ -184,9 +177,7 @@ describe('GitHubClient - Issues & Pull Requests', () => {
     it('should handle pull request not found', async () => {
       const client = new GitHubClient(testClientConfigs.basicToken)
 
-      await expect(
-        client.getPullRequest(testPRParams.notFound)
-      ).rejects.toThrow(GitHubError)
+      await expect(client.getPullRequest(testPRParams.notFound)).rejects.toThrow(GitHubError)
     })
 
     it('should validate pull request response schema', async () => {
@@ -199,7 +190,7 @@ describe('GitHubClient - Issues & Pull Requests', () => {
       expect(pr).toHaveProperty('base')
       expect(pr).toHaveProperty('mergeable')
       expect(pr).toHaveProperty('merged')
-      
+
       // Head and base should have proper structure
       expect(pr.head).toHaveProperty('ref')
       expect(pr.head).toHaveProperty('sha')
@@ -211,16 +202,16 @@ describe('GitHubClient - Issues & Pull Requests', () => {
       const client = new GitHubClient(testClientConfigs.basicToken)
 
       // Test open PRs
-      const openPRs = await client.listPullRequests(
-        testPRParams.repository,
-        { state: 'open', per_page: 5 }
-      )
+      const openPRs = await client.listPullRequests(testPRParams.repository, {
+        state: 'open',
+        per_page: 5,
+      })
 
       // Test closed PRs
-      const closedPRs = await client.listPullRequests(
-        testPRParams.repository,
-        { state: 'closed', per_page: 5 }
-      )
+      const closedPRs = await client.listPullRequests(testPRParams.repository, {
+        state: 'closed',
+        per_page: 5,
+      })
 
       expect(Array.isArray(openPRs)).toBe(true)
       expect(Array.isArray(closedPRs)).toBe(true)
@@ -245,14 +236,13 @@ describe('GitHubClient - Issues & Pull Requests', () => {
     it('should list issue comments', async () => {
       const client = new GitHubClient(testClientConfigs.basicToken)
 
-      const comments = await client.listIssueComments(
-        testIssueParams.withComments,
-        { per_page: 10 }
-      )
+      const comments = await client.listIssueComments(testIssueParams.withComments, {
+        per_page: 10,
+      })
 
       expect(Array.isArray(comments)).toBe(true)
       expect(comments.length).toBeLessThanOrEqual(10)
-      
+
       if (comments.length > 0) {
         expect(comments[0]).toMatchObject({
           id: expect.any(Number),
@@ -280,9 +270,7 @@ describe('GitHubClient - Issues & Pull Requests', () => {
     it('should handle comment not found', async () => {
       const client = new GitHubClient(testClientConfigs.basicToken)
 
-      await expect(
-        client.getComment(testIssueParams.commentNotFound)
-      ).rejects.toThrow(GitHubError)
+      await expect(client.getComment(testIssueParams.commentNotFound)).rejects.toThrow(GitHubError)
     })
   })
 
@@ -299,7 +287,11 @@ describe('GitHubClient - Issues & Pull Requests', () => {
       const client = new GitHubClient(testClientConfigs.basicToken)
 
       await expect(
-        client.getIssue({ owner: 'server-error-test', repo: 'server-error-issue', issueNumber: 500 })
+        client.getIssue({
+          owner: 'server-error-test',
+          repo: 'server-error-issue',
+          issueNumber: 500,
+        })
       ).rejects.toThrow(GitHubError)
     })
 
@@ -332,9 +324,7 @@ describe('GitHubClient - Issues & Pull Requests', () => {
     it('should handle issues with wrong data types', async () => {
       const client = new GitHubClient(testClientConfigs.basicToken)
 
-      await expect(
-        client.getIssue(testIssueParams.badTypes)
-      ).rejects.toThrow()
+      await expect(client.getIssue(testIssueParams.badTypes)).rejects.toThrow()
     })
 
     it('should handle pull requests with extra unexpected fields', async () => {
@@ -373,10 +363,10 @@ describe('GitHubClient - Issues & Pull Requests', () => {
       expect(issue.number).toBe(testIssueParams.singleIssue.issueNumber)
 
       // List PRs that might reference this issue
-      const prs = await client.listPullRequests(
-        testPRParams.repository,
-        { state: 'all', per_page: 5 }
-      )
+      const prs = await client.listPullRequests(testPRParams.repository, {
+        state: 'all',
+        per_page: 5,
+      })
 
       expect(Array.isArray(prs)).toBe(true)
     })
@@ -416,24 +406,18 @@ describe('GitHubClient - Issues & Pull Requests', () => {
       const client = new GitHubClient(testClientConfigs.basicToken)
 
       // Filter by labels
-      const labeledIssues = await client.listIssues(
-        testIssueParams.repository,
-        { 
-          labels: 'bug,help-wanted',
-          state: 'open',
-          per_page: 10 
-        }
-      )
+      const labeledIssues = await client.listIssues(testIssueParams.repository, {
+        labels: 'bug,help-wanted',
+        state: 'open',
+        per_page: 10,
+      })
 
       // Filter by assignee
-      const assignedIssues = await client.listIssues(
-        testIssueParams.repository,
-        { 
-          assignee: 'testuser',
-          state: 'open',
-          per_page: 10 
-        }
-      )
+      const assignedIssues = await client.listIssues(testIssueParams.repository, {
+        assignee: 'testuser',
+        state: 'open',
+        per_page: 10,
+      })
 
       expect(Array.isArray(labeledIssues)).toBe(true)
       expect(Array.isArray(assignedIssues)).toBe(true)

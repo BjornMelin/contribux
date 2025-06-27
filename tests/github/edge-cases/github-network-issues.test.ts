@@ -15,24 +15,13 @@
 
 import { HttpResponse, http } from 'msw'
 import { describe, expect, it } from 'vitest'
-import { GitHubNetworkError } from '@/lib/github/errors'
 import { mswServer } from '../msw-setup'
 import {
   createEdgeCaseClient,
-  setupEdgeCaseTestIsolation,
-  EDGE_CASE_PARAMS,
   EDGE_CASE_CONFIG,
+  setupEdgeCaseTestIsolation,
 } from './setup/edge-case-setup'
-import {
-  ERROR_SCENARIOS,
-  testErrorPropagation,
-  validateErrorResponse,
-  RetryFailureSimulator,
-} from './utils/error-test-helpers'
-import {
-  EDGE_CASE_RATE_LIMITS,
-  SPECIAL_CHARACTERS,
-} from './fixtures/error-scenarios'
+import { RetryFailureSimulator } from './utils/error-test-helpers'
 
 describe('GitHub Network Issues', () => {
   // Setup MSW and enhanced test isolation
@@ -76,12 +65,12 @@ describe('GitHub Network Issues', () => {
       mswServer.use(
         http.get('https://api.github.com/repos/intermittent-test/connection-drops', () => {
           attemptCount++
-          
+
           // Fail first two attempts, succeed on third
           if (attemptCount < 3) {
             return HttpResponse.error()
           }
-          
+
           return HttpResponse.json({
             id: 123456,
             name: 'connection-drops',
@@ -91,7 +80,10 @@ describe('GitHub Network Issues', () => {
       )
 
       // With retry logic, this should eventually succeed
-      const repo = await client.getRepository({ owner: 'intermittent-test', repo: 'connection-drops' })
+      const repo = await client.getRepository({
+        owner: 'intermittent-test',
+        repo: 'connection-drops',
+      })
       expect(repo).toBeDefined()
       expect(repo.name).toBe('connection-drops')
       expect(attemptCount).toBe(3)
@@ -179,7 +171,10 @@ describe('GitHub Network Issues', () => {
             client.getRepository({ owner: 'timeout-scenarios', repo: scenario.name })
           ).rejects.toThrow()
         } else {
-          const repo = await client.getRepository({ owner: 'timeout-scenarios', repo: scenario.name })
+          const repo = await client.getRepository({
+            owner: 'timeout-scenarios',
+            repo: scenario.name,
+          })
           expect(repo.name).toBe(scenario.name)
         }
       }
@@ -220,17 +215,17 @@ describe('GitHub Network Issues', () => {
   describe('Connection Recovery and Retry Logic', () => {
     it('should implement exponential backoff for network failures', async () => {
       const client = createEdgeCaseClient()
-      const simulator = new RetryFailureSimulator()
+      const _simulator = new RetryFailureSimulator()
       let attemptCount = 0
 
       mswServer.use(
         http.get('https://api.github.com/repos/retry-test/network-backoff', () => {
           attemptCount++
-          
+
           if (attemptCount < 3) {
             return HttpResponse.error()
           }
-          
+
           return HttpResponse.json({
             id: 123456,
             name: 'network-backoff',
@@ -272,7 +267,7 @@ describe('GitHub Network Issues', () => {
             networkAvailable = true // Simulate network recovery
             return HttpResponse.error()
           }
-          
+
           return HttpResponse.json({
             id: 123456,
             name: 'network-recovery',
@@ -404,9 +399,7 @@ describe('GitHub Network Issues', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'proxy-test', repo: 'timeout' })
-      ).rejects.toThrow()
+      await expect(client.getRepository({ owner: 'proxy-test', repo: 'timeout' })).rejects.toThrow()
     })
   })
 
@@ -471,7 +464,7 @@ describe('GitHub Network Issues', () => {
             // Simulate slow network
             await new Promise(resolve => setTimeout(resolve, 100))
           }
-          
+
           return HttpResponse.json({
             id: 123456,
             name: params.repo,

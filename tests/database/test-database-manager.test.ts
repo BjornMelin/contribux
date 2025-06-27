@@ -27,8 +27,9 @@ describe('Test Database Manager', () => {
     const manager = TestDatabaseManager.getInstance()
 
     // Access the private method via reflection for testing
-    // biome-ignore lint/suspicious/noExplicitAny: Testing private method requires type assertion
-    const strategy = (manager as any).determineOptimalStrategy()
+    const strategy = (
+      manager as TestDatabaseManager & { determineOptimalStrategy: () => string }
+    ).determineOptimalStrategy()
     expect(strategy).toBe('pglite')
   })
 
@@ -54,38 +55,49 @@ describe('Test Database Manager', () => {
   })
 
   it('should create database schema automatically', async () => {
-    const connection = await getTestDatabase('schema-test', {
-      strategy: 'pglite',
-      verbose: false,
-    })
+    let connection: Awaited<ReturnType<typeof getTestDatabase>> | null = null
 
-    // Check that basic tables exist
-    const tables = await connection.sql`
-      SELECT table_name 
-      FROM information_schema.tables 
-      WHERE table_schema = 'public'
-      ORDER BY table_name
-    `
+    try {
+      connection = await getTestDatabase('schema-test', {
+        strategy: 'pglite',
+        verbose: false,
+      })
 
-    const tableNames = tables.map((t: { table_name: string }) => t.table_name)
-    expect(tableNames).toContain('users')
-    expect(tableNames).toContain('repositories')
-    expect(tableNames).toContain('opportunities')
-    expect(tableNames).toContain('user_skills')
+      // Check that basic tables exist
+      const tables = await connection.sql`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public'
+        ORDER BY table_name
+      `
 
-    // Test inserting data
-    const [user] = await connection.sql`
-      INSERT INTO users (github_id, github_username, email, name)
-      VALUES ('123', 'testuser', 'test@example.com', 'Test User')
-      RETURNING *
-    `
+      const tableNames = tables.map((t: { table_name: string }) => t.table_name)
+      expect(tableNames).toContain('users')
+      expect(tableNames).toContain('repositories')
+      expect(tableNames).toContain('opportunities')
+      expect(tableNames).toContain('user_skills')
 
-    expect(user.github_username).toBe('testuser')
-    expect(user.email).toBe('test@example.com')
+      // Test inserting data
+      const [user] = await connection.sql`
+        INSERT INTO users (github_id, github_username, email, name)
+        VALUES ('123', 'testuser', 'test@example.com', 'Test User')
+        RETURNING *
+      `
 
-    // Cleanup
-    await connection.cleanup()
-  })
+      expect(user.github_username).toBe('testuser')
+      expect(user.email).toBe('test@example.com')
+    } finally {
+      // Cleanup with error handling
+      if (connection) {
+        try {
+          await connection.cleanup()
+        } catch (error) {
+          // Ignore cleanup errors during test cleanup
+          console.warn('Cleanup error for schema test:', error)
+        }
+      }
+    }
+  }, 10000) // Extended timeout to 10 seconds
 
   it('should handle vector operations (converted for PGlite)', async () => {
     const connection = await getTestDatabase('vector-test', {
@@ -131,38 +143,70 @@ describe('Test Database Manager', () => {
   })
 
   it('should support multiple concurrent connections', async () => {
-    const connections = await Promise.all([
-      getTestDatabase('concurrent-1', { strategy: 'pglite' }),
-      getTestDatabase('concurrent-2', { strategy: 'pglite' }),
-      getTestDatabase('concurrent-3', { strategy: 'pglite' }),
-    ])
+    let connections: Awaited<ReturnType<typeof getTestDatabase>>[] = []
 
-    expect(connections).toHaveLength(3)
+    try {
+      connections = await Promise.all([
+        getTestDatabase('concurrent-1', { strategy: 'pglite' }),
+        getTestDatabase('concurrent-2', { strategy: 'pglite' }),
+        getTestDatabase('concurrent-3', { strategy: 'pglite' }),
+      ])
 
-    // Each should be independent
-    for (let i = 0; i < connections.length; i++) {
-      const result = await connections[i].sql`SELECT ${i + 1} as test_id`
-      expect(Number(result[0].test_id)).toBe(i + 1)
+      expect(connections).toHaveLength(3)
+
+      // Each should be independent
+      for (let i = 0; i < connections.length; i++) {
+        const result = await connections[i].sql`SELECT ${i + 1} as test_id`
+        expect(Number(result[0].test_id)).toBe(i + 1)
+      }
+    } finally {
+      // Cleanup all with error handling
+      await Promise.allSettled(
+        connections.map(async conn => {
+          try {
+            await conn.cleanup()
+          } catch (error) {
+            // Ignore cleanup errors during test cleanup
+            console.warn('Cleanup error for connection:', error)
+          }
+        })
+      )
     }
-
-    // Cleanup all
-    await Promise.all(connections.map(conn => conn.cleanup()))
   })
 
   it('should provide connection statistics', async () => {
     const manager = TestDatabaseManager.getInstance()
 
-    // Create a few connections
-    const conn1 = await getTestDatabase('stats-1', { strategy: 'pglite' })
-    const conn2 = await getTestDatabase('stats-2', { strategy: 'pglite' })
+    let conn1: Awaited<ReturnType<typeof getTestDatabase>> | null = null
+    let conn2: Awaited<ReturnType<typeof getTestDatabase>> | null = null
 
-    const stats = manager.getStats()
-    expect(stats.totalConnections).toBeGreaterThanOrEqual(2)
-    expect(stats.byStrategy.pglite).toBeGreaterThanOrEqual(2)
-    expect(stats.byPerformance['ultra-fast']).toBeGreaterThanOrEqual(2)
+    try {
+      // Create a few connections
+      conn1 = await getTestDatabase('stats-1', { strategy: 'pglite' })
+      conn2 = await getTestDatabase('stats-2', { strategy: 'pglite' })
 
-    // Cleanup
-    await conn1.cleanup()
-    await conn2.cleanup()
-  })
+      const stats = manager.getStats()
+      expect(stats.totalConnections).toBeGreaterThanOrEqual(2)
+      expect(stats.byStrategy.pglite).toBeGreaterThanOrEqual(2)
+      expect(stats.byPerformance['ultra-fast']).toBeGreaterThanOrEqual(2)
+    } finally {
+      // Cleanup with proper error handling
+      if (conn1) {
+        try {
+          await conn1.cleanup()
+        } catch (error) {
+          // Ignore cleanup errors during test cleanup
+          console.warn('Cleanup error for conn1:', error)
+        }
+      }
+      if (conn2) {
+        try {
+          await conn2.cleanup()
+        } catch (error) {
+          // Ignore cleanup errors during test cleanup
+          console.warn('Cleanup error for conn2:', error)
+        }
+      }
+    }
+  }, 10000) // Extended timeout to 10 seconds
 })

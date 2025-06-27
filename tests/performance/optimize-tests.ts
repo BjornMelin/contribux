@@ -140,7 +140,10 @@ export class OptimizedMemoryTracker {
 /**
  * Batch API mocking for performance
  */
-export function setupBatchMocking(nock: (url?: string) => any, baseUrl = 'https://api.github.com') {
+export function setupBatchMocking(
+  nock: (url?: string) => unknown,
+  baseUrl = 'https://api.github.com'
+) {
   const responses = new Map<string, Record<string, unknown>>()
 
   // Pre-generate responses

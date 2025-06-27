@@ -11,6 +11,7 @@
 import nock from 'nock'
 import { afterEach, beforeEach } from 'vitest'
 import { GitHubClient } from '../../../../src/lib/github/client'
+import type { AuthConfig } from '../../../../src/lib/github/types'
 import type { IntegrationTestContext } from '../../../integration/infrastructure/test-config'
 
 /**
@@ -37,11 +38,11 @@ export const defaultAuthSetup: AuthTestSetup = {
  * Creates a GitHub client for testing with proper configuration
  */
 export function createTestClient(
-  authConfig: any,
+  authConfig: AuthConfig,
   setup: Partial<AuthTestSetup> = {}
 ): GitHubClient {
   const config = { ...defaultAuthSetup, ...setup }
-  
+
   return new GitHubClient({
     auth: authConfig,
     includeRateLimit: true,
@@ -57,11 +58,11 @@ export function createTestClient(
  * Sets up authentication test environment
  */
 export function setupAuthTests(
-  context: IntegrationTestContext,
+  _context: IntegrationTestContext,
   setup: Partial<AuthTestSetup> = {}
 ): void {
   const config = { ...defaultAuthSetup, ...setup }
-  
+
   beforeEach(() => {
     if (config.enableMocks) {
       nock.cleanAll()
@@ -102,22 +103,22 @@ export function skipIfMissingAuth(
   }
 ): boolean {
   const env = validateAuthEnvironment(context)
-  
+
   if (requirements.personalToken && !env.hasPersonalToken) {
     console.log('Skipping test - GITHUB_TEST_TOKEN not available')
     return true
   }
-  
+
   if (requirements.githubApp && !env.hasGitHubApp) {
     console.log('Skipping test - GitHub App credentials not available')
     return true
   }
-  
+
   if (requirements.installation && !env.hasInstallation) {
     console.log('Skipping test - GitHub App installation ID not available')
     return true
   }
-  
+
   return false
 }
 
@@ -141,7 +142,7 @@ export function withTestIsolation(testFn: () => Promise<void>): () => Promise<vo
   return async () => {
     // Clear any existing nock interceptors
     nock.cleanAll()
-    
+
     try {
       await testFn()
     } finally {
@@ -160,17 +161,14 @@ export async function measureTestExecution<T>(
   const startTime = Date.now()
   const result = await testFn()
   const duration = Date.now() - startTime
-  
+
   return { result, duration }
 }
 
 /**
  * Creates a timeout wrapper for tests
  */
-export function withTimeout<T>(
-  operation: () => Promise<T>,
-  timeoutMs: number = 10000
-): Promise<T> {
+export function withTimeout<T>(operation: () => Promise<T>, timeoutMs = 10000): Promise<T> {
   return Promise.race([
     operation(),
     new Promise<never>((_, reject) =>

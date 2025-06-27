@@ -4,7 +4,7 @@
  */
 
 import { afterEach, beforeEach, vi } from 'vitest'
-import { SOAREngine, type SOARConfig } from '../../../../src/lib/security/soar'
+import { type SOARConfig, SOAREngine } from '../../../../src/lib/security/soar'
 
 // Mock crypto module for consistent testing
 vi.mock('../../../../src/lib/security/crypto', () => ({
@@ -100,22 +100,22 @@ export const assertSOAREngineState = {
     const metrics = engine.getSOARMetrics()
     return metrics.automation.isRunning === true
   },
-  
+
   isStopped: (engine: SOAREngine) => {
     const metrics = engine.getSOARMetrics()
     return metrics.automation.isRunning === false
   },
-  
+
   hasPlaybooks: (engine: SOAREngine) => {
     const playbooks = engine.getPlaybooks()
     return playbooks.length > 0
   },
-  
+
   hasExecutions: (engine: SOAREngine, minCount = 1) => {
     const executions = engine.getExecutions()
     return executions.length >= minCount
   },
-  
+
   hasResponseActions: (engine: SOAREngine, minCount = 1) => {
     const actions = engine.getResponseActions()
     return actions.length >= minCount
@@ -127,7 +127,7 @@ export const waitForSOAROperation = async (
   timeoutMs = 5000
 ): Promise<unknown> => {
   const startTime = Date.now()
-  
+
   while (Date.now() - startTime < timeoutMs) {
     try {
       return await operation()
@@ -138,7 +138,7 @@ export const waitForSOAROperation = async (
       await new Promise(resolve => setTimeout(resolve, 100))
     }
   }
-  
+
   throw new Error(`SOAR operation timed out after ${timeoutMs}ms`)
 }
 
@@ -165,7 +165,15 @@ export const validatePlaybookStructure = (playbook: {
   createdBy?: string
 }) => {
   // Basic properties
-  const requiredProps = ['playbookId', 'name', 'description', 'version', 'triggers', 'steps', 'priority']
+  const requiredProps = [
+    'playbookId',
+    'name',
+    'description',
+    'version',
+    'triggers',
+    'steps',
+    'priority',
+  ]
   for (const prop of requiredProps) {
     if (!(prop in playbook)) {
       throw new Error(`Playbook missing required property: ${prop}`)
@@ -176,7 +184,7 @@ export const validatePlaybookStructure = (playbook: {
   if (!Array.isArray(playbook.triggers)) {
     throw new Error('Playbook triggers must be an array')
   }
-  
+
   playbook.triggers.forEach(trigger => {
     if (!trigger.type || !Array.isArray(trigger.conditions)) {
       throw new Error('Invalid trigger structure')
@@ -190,29 +198,43 @@ export const validatePlaybookStructure = (playbook: {
   if (!Array.isArray(playbook.steps)) {
     throw new Error('Playbook steps must be an array')
   }
-  
+
   const validStepTypes = [
-    'detection', 'analysis', 'containment', 'eradication',
-    'recovery', 'notification', 'documentation', 'verification'
+    'detection',
+    'analysis',
+    'containment',
+    'eradication',
+    'recovery',
+    'notification',
+    'documentation',
+    'verification',
   ]
-  
+
   playbook.steps.forEach(step => {
-    const stepProps = ['stepId', 'name', 'description', 'type', 'automated', 'conditions', 'actions']
+    const stepProps = [
+      'stepId',
+      'name',
+      'description',
+      'type',
+      'automated',
+      'conditions',
+      'actions',
+    ]
     for (const prop of stepProps) {
       if (!(prop in step)) {
         throw new Error(`Step missing required property: ${prop}`)
       }
     }
-    
+
     if (typeof step.automated !== 'boolean') {
       throw new Error('Step automated property must be boolean')
     }
-    
+
     if (!Array.isArray(step.conditions) || !Array.isArray(step.actions)) {
       throw new Error('Step conditions and actions must be arrays')
     }
-    
-    if (!validStepTypes.includes(step.type!)) {
+
+    if (!step.type || !validStepTypes.includes(step.type)) {
       throw new Error(`Invalid step type: ${step.type}`)
     }
   })
@@ -232,14 +254,24 @@ export const validateExecutionResult = (execution: {
   }
   triggeredBy?: { type?: string; id?: string }
 }) => {
-  const requiredProps = ['executionId', 'playbookId', 'status', 'startedAt', 'executedSteps', 'metrics']
+  const requiredProps = [
+    'executionId',
+    'playbookId',
+    'status',
+    'startedAt',
+    'executedSteps',
+    'metrics',
+  ]
   for (const prop of requiredProps) {
     if (!(prop in execution)) {
       throw new Error(`Execution missing required property: ${prop}`)
     }
   }
 
-  if (!['completed', 'failed', 'running', 'pending'].includes(execution.status!)) {
+  if (
+    !execution.status ||
+    !['completed', 'failed', 'running', 'pending'].includes(execution.status)
+  ) {
     throw new Error(`Invalid execution status: ${execution.status}`)
   }
 

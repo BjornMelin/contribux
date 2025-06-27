@@ -6,6 +6,7 @@
 import { HttpResponse, http } from 'msw'
 import { setupServer } from 'msw/node'
 import { GitHubClient, type GitHubClientConfig, type TokenInfo } from '../../../src/lib/github'
+import { mswServer } from '../../github/msw-setup'
 import { createRateLimitHeaders } from '../../github/test-helpers'
 
 // Create a simple tracked client for load testing
@@ -32,40 +33,41 @@ export const loadTestServer = setupServer()
 // Helper function to add test-specific handlers without clearing others
 export async function addTestHandlers(...handlers: Record<string, unknown>[]) {
   console.log(`Adding test handlers: ${handlers.length} handlers`)
-  
+
   // Add handlers without clearing existing ones
   loadTestServer.use(...handlers)
-  
+
   console.log('Test handlers added')
 }
 
-// Custom MSW setup for load testing with dedicated server
+// Custom MSW setup for load testing with dedicated server that's isolated from global MSW
 export function setupLoadTestMSW() {
   return {
     beforeAll: () => {
-      console.log('MSW enabled env var:', process.env.VITEST_MSW_ENABLED)
-      console.log('Current global fetch:', typeof global.fetch)
+      console.log('Setting up isolated MSW server for performance tests')
 
-      // Force enable MSW environment
-      process.env.VITEST_MSW_ENABLED = 'true'
-
-      // Use global helper to properly enable MSW
-      if ((global as Record<string, unknown>).__enableMSW) {
-        ;(global as Record<string, unknown>).__enableMSW()
-        console.log('MSW enabled via global helper')
+      // IMPORTANT: Stop the global MSW server to prevent conflicts
+      if (mswServer) {
+        console.log('Stopping global MSW server for isolation')
+        mswServer.close()
       }
 
-      // Start our dedicated server with no default handlers
-      loadTestServer.listen({ onUnhandledRequest: 'warn' })
-      console.log('Load test MSW server listening with clean handlers')
+      // Start our dedicated server with no default handlers and isolated fetch
+      loadTestServer.listen({
+        onUnhandledRequest: 'bypass', // Don't warn about unhandled requests in performance tests
+      })
+      console.log('Load test MSW server listening with isolated handlers')
     },
     afterAll: () => {
+      console.log('Cleaning up isolated MSW server')
       loadTestServer.close()
-      // Restore the mock fetch for other tests if needed
-      if ((global as Record<string, unknown>).__disableMSW) {
-        ;(global as Record<string, unknown>).__disableMSW()
+
+      // Restart the global MSW server for other tests
+      if (mswServer?.listen) {
+        console.log('Restarting global MSW server after performance tests')
+        mswServer.listen({ onUnhandledRequest: 'warn' })
       }
-    }
+    },
   }
 }
 
@@ -80,7 +82,10 @@ export const createMultipleClients = (count: number, config?: Partial<GitHubClie
 }
 
 // Helper to create token rotation client
-export const createTokenRotationClient = (tokenCount: number, config?: Partial<GitHubClientConfig>) => {
+export const createTokenRotationClient = (
+  tokenCount: number,
+  config?: Partial<GitHubClientConfig>
+) => {
   const tokens: TokenInfo[] = Array.from({ length: tokenCount }, (_, i) => ({
     token: `ghp_test_token_${i}`,
     type: 'personal' as const,
@@ -121,9 +126,9 @@ export function calculatePerformanceMetrics(
   const successes = results.filter(r => r.success)
   const failures = results.filter(r => !r.success)
   const durations = results.map(r => r.duration)
-  
+
   const sortedDurations = [...durations].sort((a, b) => a - b)
-  
+
   return {
     totalRequests: results.length,
     successCount: successes.length,
@@ -142,10 +147,10 @@ export function calculatePerformanceMetrics(
 // Standard MSW handlers for common scenarios
 export const createStandardUserHandler = (testToken: string, baseRequestCount = 0) => {
   let requestCount = baseRequestCount
-  
+
   return http.get('https://api.github.com/user', ({ request }) => {
     const authHeader = request.headers.get('authorization')
-    
+
     // Only handle if this is our specific test token
     if (authHeader === `token ${testToken}`) {
       requestCount++
@@ -163,7 +168,7 @@ export const createStandardUserHandler = (testToken: string, baseRequestCount = 
         }
       )
     }
-    
+
     // Let other handlers handle this request
     return
   })
@@ -171,11 +176,11 @@ export const createStandardUserHandler = (testToken: string, baseRequestCount = 
 
 export const createStandardGraphQLHandler = (testToken: string, baseRequestCount = 0) => {
   let requestCount = baseRequestCount
-  
+
   return http.post('https://api.github.com/graphql', async ({ request }) => {
     const body = await request.json()
     const authHeader = request.headers.get('authorization')
-    
+
     // Only handle if this is our specific test query with our test token
     if (
       body &&
@@ -199,18 +204,20 @@ export const createStandardGraphQLHandler = (testToken: string, baseRequestCount
         },
       })
     }
-    
+
     // Let other handlers handle this request
     return
   })
 }
 
 // Performance test utilities
-export function measureExecutionTime<T>(fn: () => Promise<T>): Promise<{ result: T; duration: number }> {
+export function measureExecutionTime<T>(
+  fn: () => Promise<T>
+): Promise<{ result: T; duration: number }> {
   const start = Date.now()
   return fn().then(result => ({
     result,
-    duration: Date.now() - start
+    duration: Date.now() - start,
   }))
 }
 

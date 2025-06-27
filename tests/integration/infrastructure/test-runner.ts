@@ -111,7 +111,9 @@ export function describeIntegration(
     const hasRequiredEnv = process.env.GITHUB_TEST_TOKEN && process.env.GITHUB_TEST_ORG
     if (!hasRequiredEnv) {
       describe.skip(name, () => {
-        it('skipped due to missing environment variables', () => {})
+        it('skipped due to missing environment variables', () => {
+          // Test skipped due to missing environment configuration
+        })
       })
       return
     }

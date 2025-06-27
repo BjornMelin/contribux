@@ -35,7 +35,7 @@ export async function validateAuthResponse(
   authType: string
 ): Promise<AuthMetrics> {
   const startTime = Date.now()
-  
+
   try {
     const user = await client.rest.users.getAuthenticated()
     const duration = Date.now() - startTime
@@ -72,12 +72,12 @@ export async function validateAuthResponse(
     return metrics
   } catch (error) {
     const duration = Date.now() - startTime
-    
+
     // Record failure metrics
     if (context.metricsCollector) {
       context.metricsCollector.recordApiCall(`auth.${authType}.failure`, duration, 401)
     }
-    
+
     throw error
   }
 }
@@ -88,9 +88,9 @@ export async function validateAuthResponse(
 export function validateRateLimitHeaders(headers: Record<string, string>): void {
   const requiredHeaders = [
     'x-ratelimit-limit',
-    'x-ratelimit-remaining', 
+    'x-ratelimit-remaining',
     'x-ratelimit-reset',
-    'x-ratelimit-resource'
+    'x-ratelimit-resource',
   ]
 
   for (const header of requiredHeaders) {
@@ -170,7 +170,7 @@ export function validateAuthScopes(
   }
 
   const availableScopes = scopes.split(',').map(s => s.trim())
-  
+
   for (const requiredScope of requiredScopes) {
     expect(availableScopes).toContain(requiredScope)
   }

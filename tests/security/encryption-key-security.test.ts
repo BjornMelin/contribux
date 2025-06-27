@@ -59,7 +59,7 @@ describe('Zero-Trust Cryptographic Security', () => {
         if (originalEncryptionKey !== undefined) {
           process.env.ENCRYPTION_KEY = originalEncryptionKey
         } else {
-          delete process.env.ENCRYPTION_KEY
+          process.env.ENCRYPTION_KEY = undefined
         }
       }
     })
@@ -85,7 +85,7 @@ describe('Zero-Trust Cryptographic Security', () => {
         if (originalEncryptionKey !== undefined) {
           process.env.ENCRYPTION_KEY = originalEncryptionKey
         } else {
-          delete process.env.ENCRYPTION_KEY
+          process.env.ENCRYPTION_KEY = undefined
         }
       }
     })
@@ -98,7 +98,7 @@ describe('Zero-Trust Cryptographic Security', () => {
 
       try {
         vi.stubEnv('NODE_ENV', 'development')
-        delete process.env.ENCRYPTION_KEY
+        process.env.ENCRYPTION_KEY = undefined
 
         // Import and test the real function using ES module syntax
         const { validateEnvironment } = await import('@/lib/validation/env')
@@ -110,7 +110,7 @@ describe('Zero-Trust Cryptographic Security', () => {
         if (originalEncryptionKey !== undefined) {
           process.env.ENCRYPTION_KEY = originalEncryptionKey
         } else {
-          delete process.env.ENCRYPTION_KEY
+          process.env.ENCRYPTION_KEY = undefined
         }
       }
     })
@@ -133,7 +133,7 @@ describe('Zero-Trust Cryptographic Security', () => {
         if (originalEncryptionKey !== undefined) {
           process.env.ENCRYPTION_KEY = originalEncryptionKey
         } else {
-          delete process.env.ENCRYPTION_KEY
+          process.env.ENCRYPTION_KEY = undefined
         }
       }
     })
@@ -156,7 +156,7 @@ describe('Zero-Trust Cryptographic Security', () => {
         if (originalEncryptionKey !== undefined) {
           process.env.ENCRYPTION_KEY = originalEncryptionKey
         } else {
-          delete process.env.ENCRYPTION_KEY
+          process.env.ENCRYPTION_KEY = undefined
         }
       }
     })

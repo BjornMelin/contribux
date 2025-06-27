@@ -353,9 +353,7 @@ describe('GitHub Advanced Workflows Integration', () => {
         'query { viewer { email } }',
       ]
 
-      const results = await Promise.all(
-        queries.map(query => client.graphql(query))
-      )
+      const results = await Promise.all(queries.map(query => client.graphql(query)))
 
       expect(results).toHaveLength(3)
       results.forEach(result => {
@@ -401,7 +399,7 @@ describe('GitHub Advanced Workflows Integration', () => {
       results.forEach((result, index) => {
         expect(result.items).toHaveLength(10)
         expect(result.total_count).toBeGreaterThan(0)
-        
+
         // Each page should have different items
         if (index > 0) {
           const currentIds = result.items.map(item => item.id)

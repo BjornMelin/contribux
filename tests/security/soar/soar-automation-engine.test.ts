@@ -5,10 +5,14 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import { setupRunningSOAREngine, validatePlaybookStructure, validateExecutionResult } from './utils/soar-test-helpers'
+import { SOAREngine } from '../../../src/lib/security/soar'
 import { createMockSecurityIncident, securityScenarios } from './fixtures/security-scenarios'
 import { disabledAutomationConfig, highSecurityConfig } from './setup/security-setup'
-import { SOAREngine } from '../../../src/lib/security/soar'
+import {
+  setupRunningSOAREngine,
+  validateExecutionResult,
+  validatePlaybookStructure,
+} from './utils/soar-test-helpers'
 
 describe('SOAR Automation Engine', () => {
   describe('Playbook Execution', () => {
@@ -77,12 +81,14 @@ describe('SOAR Automation Engine', () => {
         expect(execution.executedSteps.length).toBeGreaterThan(0)
 
         // Check step execution properties
-        execution.executedSteps.forEach((step: { stepId?: string; status?: string; startedAt?: number }) => {
-          expect(step).toHaveProperty('stepId')
-          expect(step).toHaveProperty('status')
-          expect(step).toHaveProperty('startedAt')
-          expect(['pending', 'running', 'completed', 'failed', 'skipped']).toContain(step.status)
-        })
+        execution.executedSteps.forEach(
+          (step: { stepId?: string; status?: string; startedAt?: number }) => {
+            expect(step).toHaveProperty('stepId')
+            expect(step).toHaveProperty('status')
+            expect(step).toHaveProperty('startedAt')
+            expect(['pending', 'running', 'completed', 'failed', 'skipped']).toContain(step.status)
+          }
+        )
       }
     })
 
@@ -94,7 +100,9 @@ describe('SOAR Automation Engine', () => {
         const triggerTypes = ['incident', 'threat', 'vulnerability', 'manual'] as const
 
         for (const triggerType of triggerTypes) {
-          const execution = await engine.executePlaybook(playbooks[0]!, {
+          const firstPlaybook = playbooks[0]
+          if (!firstPlaybook) throw new Error('No playbooks available')
+          const execution = await engine.executePlaybook(firstPlaybook, {
             type: triggerType,
             id: `test-${triggerType}`,
           })
@@ -111,10 +119,14 @@ describe('SOAR Automation Engine', () => {
 
       if (playbooks.length >= 2) {
         const triggerContext = { type: 'incident' as const, id: 'concurrent-test' }
-        
+
+        const firstPlaybook = playbooks[0]
+        const secondPlaybook = playbooks[1]
+        if (!firstPlaybook || !secondPlaybook) throw new Error('Insufficient playbooks for test')
+
         const executions = await Promise.all([
-          engine.executePlaybook(playbooks[0]!, triggerContext),
-          engine.executePlaybook(playbooks[1]!, triggerContext),
+          engine.executePlaybook(firstPlaybook, triggerContext),
+          engine.executePlaybook(secondPlaybook, triggerContext),
         ])
 
         expect(executions).toHaveLength(2)
@@ -254,7 +266,7 @@ describe('SOAR Automation Engine', () => {
       // escalation and stakeholder notification actions (lines 346-349 in soar.ts)
       // This is hardcoded behavior for critical incidents regardless of config
       expect(automatedActions.length).toBe(2)
-      
+
       // Verify the specific actions that are always executed for critical incidents
       const actionTypes = automatedActions.map(action => action.type)
       expect(actionTypes).toContain('escalate_incident')
@@ -281,7 +293,7 @@ describe('SOAR Automation Engine', () => {
       // Ensure critical severity AND high confidence (>= 0.95) to trigger block_threat (lines 371-372 in soar.ts)
       highMLScoreThreat.severity = 'critical'
       highMLScoreThreat.confidence = 0.96
-      
+
       // Process threat to trigger automated actions
       await mlEngine.processThreat(highMLScoreThreat)
 
@@ -331,34 +343,42 @@ describe('SOAR Automation Engine', () => {
 
       playbooks.forEach(playbook => {
         expect(Array.isArray(playbook.steps)).toBe(true)
-        
-        playbook.steps.forEach((step: {
-          stepId?: string
-          name?: string
-          type?: string
-          description?: string
-          automated?: boolean
-          conditions?: unknown[]
-          actions?: unknown[]
-        }) => {
-          expect(step).toHaveProperty('stepId')
-          expect(step).toHaveProperty('name')
-          expect(step).toHaveProperty('description')
-          expect(step).toHaveProperty('type')
-          expect(step).toHaveProperty('automated')
-          expect(step).toHaveProperty('conditions')
-          expect(step).toHaveProperty('actions')
 
-          expect(typeof step.automated).toBe('boolean')
-          expect(Array.isArray(step.conditions)).toBe(true)
-          expect(Array.isArray(step.actions)).toBe(true)
+        playbook.steps.forEach(
+          (step: {
+            stepId?: string
+            name?: string
+            type?: string
+            description?: string
+            automated?: boolean
+            conditions?: unknown[]
+            actions?: unknown[]
+          }) => {
+            expect(step).toHaveProperty('stepId')
+            expect(step).toHaveProperty('name')
+            expect(step).toHaveProperty('description')
+            expect(step).toHaveProperty('type')
+            expect(step).toHaveProperty('automated')
+            expect(step).toHaveProperty('conditions')
+            expect(step).toHaveProperty('actions')
 
-          const validStepTypes = [
-            'detection', 'analysis', 'containment', 'eradication',
-            'recovery', 'notification', 'documentation', 'verification'
-          ]
-          expect(validStepTypes).toContain(step.type)
-        })
+            expect(typeof step.automated).toBe('boolean')
+            expect(Array.isArray(step.conditions)).toBe(true)
+            expect(Array.isArray(step.actions)).toBe(true)
+
+            const validStepTypes = [
+              'detection',
+              'analysis',
+              'containment',
+              'eradication',
+              'recovery',
+              'notification',
+              'documentation',
+              'verification',
+            ]
+            expect(validStepTypes).toContain(step.type)
+          }
+        )
       })
     })
 
@@ -383,7 +403,9 @@ describe('SOAR Automation Engine', () => {
 
       if (playbooks.length > 0) {
         // Use invalid trigger context to potentially cause failure
-        const execution = await engine.executePlaybook(playbooks[0]!, {
+        const firstPlaybook = playbooks[0]
+        if (!firstPlaybook) throw new Error('No playbooks available')
+        const execution = await engine.executePlaybook(firstPlaybook, {
           type: 'incident',
           id: '', // Empty ID might cause issues
         })
@@ -399,9 +421,14 @@ describe('SOAR Automation Engine', () => {
       const incident = securityScenarios.criticalIncident()
 
       // Process the same incident multiple times concurrently
-      const processPromises = Array(3).fill(null).map(() => 
-        engine.processIncident({ ...incident, incidentId: `concurrent-${Date.now()}-${Math.random()}` })
-      )
+      const processPromises = Array(3)
+        .fill(null)
+        .map(() =>
+          engine.processIncident({
+            ...incident,
+            incidentId: `concurrent-${Date.now()}-${Math.random()}`,
+          })
+        )
 
       const results = await Promise.all(processPromises)
 

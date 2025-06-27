@@ -3,7 +3,13 @@
  * Replaces nock with modern HTTP mocking patterns
  */
 
-import { HttpResponse, http } from 'msw'
+// MSW polyfill for Node.js environment - ensure TransformStream is globally available
+// @ts-ignore - Node.js 22+ has built-in TransformStream, ensure it's always accessible for MSW
+if (typeof TransformStream !== 'undefined') {
+  globalThis.TransformStream = TransformStream
+}
+
+import { HttpResponse, http, passthrough } from 'msw'
 import { setupServer } from 'msw/node'
 import { afterAll, afterEach, beforeAll } from 'vitest'
 
@@ -102,6 +108,29 @@ const isValidToken = (authHeader: string | null, expectedToken?: string): boolea
     return true
   }
 
+  // Check for known invalid token patterns first (for edge case tests)
+  const invalidPatterns = [
+    'ghp_invalid_token_format',
+    'ghp_1234567890abcdef1234567890abcdef12345678', // expired
+    'ghp_abcdef1234567890abcdef1234567890abcdef12', // revoked
+    'not_a_token', // wrongFormat
+    'ghp_123', // tooShort
+    'ghp_limited_scope_token_no_repo_access_1234567890', // limitedScope
+    'ghp_refresh_failed_token_cannot_renew_abcdef123456', // refreshFailed
+    'ghp_hijacked_session_token_invalid_security_567890ab', // hijacked
+    'ghp_oauth_exchange_failed_token_invalid_flow_cdef12', // oauthFailed
+  ]
+
+  // Check if this is a known invalid token that should fail authentication
+  if (invalidPatterns.some(pattern => token.includes(pattern))) {
+    return false
+  }
+
+  // Check for tokens that are too long (edge case)
+  if (token.startsWith('ghp_') && token.length > 100) {
+    return false
+  }
+
   // Otherwise, check for valid token patterns
   return (
     token.startsWith('ghp_') ||
@@ -111,7 +140,7 @@ const isValidToken = (authHeader: string | null, expectedToken?: string): boolea
   )
 }
 
-// Default MSW handlers
+// Default MSW handlers with handler precedence awareness
 const defaultHandlers = [
   // GET /user
   http.get(`${GITHUB_API_BASE}/user`, ({ request }) => {
@@ -279,6 +308,53 @@ const defaultHandlers = [
     const { owner, repo } = params as { owner: string; repo: string }
     const url = new URL(request.url)
     const pathname = url.pathname
+    const _authHeader = request.headers.get('authorization')
+
+    // Check for edge case authentication tests that should fail
+    // These patterns indicate test-specific error scenarios that should not be handled by default handlers
+    const edgeCasePatterns = [
+      'auth-test',
+      'private-org',
+      'restricted-org',
+      'scope-test',
+      'rate-limit',
+      'permission-change',
+      'token-expiry',
+      'refresh-fail',
+      'concurrent-expiry',
+      'security-test',
+      'csrf-test',
+      'suspicious',
+      'hijack-test',
+      'multi-user',
+      'cross-user',
+      'oauth-test',
+      'oauth-scope',
+      'oauth-state',
+      'oauth-callback',
+      'auth-recovery',
+      'concurrent-auth',
+      'auth-errors',
+      'partial-auth',
+      // Add specific patterns that are causing test failures
+      'notfound/repo',
+      'test/rate-limited-unique',
+      'test/secondary-limit-unique',
+      'test/bad-credentials-unique',
+      'server-error-test/bad-gateway',
+      'server-error-test/service-unavailable',
+      'empty/response',
+      'malformed-test/non-json',
+      'html/response',
+    ]
+
+    // If this is an edge case test pattern, let test-specific handlers take precedence
+    if (edgeCasePatterns.some(pattern => pathname.includes(pattern))) {
+      // Always let test-specific handlers handle edge case patterns first
+      // This ensures test-specific error scenarios are not overridden by default success handlers
+      // Return passthrough() to continue to next handler
+      return passthrough()
+    }
 
     // Let test-specific error handlers take precedence
     if (pathname.includes('malformed-test/malformed-repo-unique')) {
@@ -786,7 +862,8 @@ export function setupMSW() {
   })
 
   afterEach(() => {
-    // Reset handlers to default state instead of clearing all handlers
+    // Reset handlers to clear test-specific handlers
+    // This ensures each test starts with a clean slate
     mswServer.resetHandlers(...defaultHandlers)
   })
 

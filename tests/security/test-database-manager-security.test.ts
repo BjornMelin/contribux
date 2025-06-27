@@ -283,7 +283,9 @@ describe('TestDatabaseManager Security', () => {
         cleanup: 'truncate',
       })
 
-      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {
+        // Suppress console.warn during tests
+      })
 
       // Cleanup should handle non-existent tables gracefully
       await expect(connection.cleanup()).resolves.not.toThrow()

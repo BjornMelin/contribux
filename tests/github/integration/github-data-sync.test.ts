@@ -187,16 +187,16 @@ describe('GitHub Data Synchronization & Caching Integration', () => {
       // First request (cache miss)
       const start1 = Date.now()
       const repo1 = await client.getRepository({ owner: 'testowner', repo: 'testrepo' })
-      const time1 = Date.now() - start1
+      const _time1 = Date.now() - start1
 
       // Second request (cache hit)
       const start2 = Date.now()
       const repo2 = await client.getRepository({ owner: 'testowner', repo: 'testrepo' })
-      const time2 = Date.now() - start2
+      const _time2 = Date.now() - start2
 
       expect(repo1.id).toBe(repo2.id)
       expect(repo1.name).toBe(repo2.name)
-      
+
       // Cache hit should be faster (though in tests this might not always be true due to mocking)
       // But we can verify the data is consistent
       expect(repo2).toEqual(repo1)
@@ -258,12 +258,12 @@ describe('GitHub Data Synchronization & Caching Integration', () => {
       await client.getRepository({ owner: 'testowner', repo: 'testrepo' })
 
       const stats = client.getCacheStats()
-      
+
       expect(stats).toMatchObject({
         size: expect.any(Number),
         maxSize: 50,
       })
-      
+
       expect(stats.size).toBeGreaterThan(0)
       expect(stats.size).toBeLessThanOrEqual(50)
     })
@@ -308,10 +308,10 @@ describe('GitHub Data Synchronization & Caching Integration', () => {
 
       // Each client should have its own cache
       await client1.getAuthenticatedUser()
-      
+
       const stats1 = client1.getCacheStats()
       const stats2 = client2.getCacheStats()
-      
+
       expect(stats1.size).toBeGreaterThan(0)
       expect(stats2.size).toBe(0) // client2 hasn't made any requests
 
@@ -324,7 +324,7 @@ describe('GitHub Data Synchronization & Caching Integration', () => {
       client1.clearCache()
       const stats1After = client1.getCacheStats()
       const stats2Final = client2.getCacheStats()
-      
+
       expect(stats1After.size).toBe(0)
       expect(stats2Final.size).toBeGreaterThan(0)
     })

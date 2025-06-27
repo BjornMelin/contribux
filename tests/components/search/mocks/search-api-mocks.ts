@@ -137,7 +137,7 @@ export const createEmptyResponse = () => ({
 export const createMockDebouncedSearch = () => {
   const debouncedSearch = vi.fn()
   const cancelSearch = vi.fn()
-  
+
   return {
     debouncedSearch,
     cancelSearch,
@@ -153,7 +153,7 @@ export const createMockDebouncedSearch = () => {
 // Mock local storage for filter persistence
 export const createMockStorage = () => {
   const storage: Record<string, string> = {}
-  
+
   const getItem = vi.fn((key: string) => storage[key] || null)
   const setItem = vi.fn((key: string, value: string) => {
     storage[key] = value

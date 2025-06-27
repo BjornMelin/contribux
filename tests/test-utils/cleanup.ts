@@ -3,6 +3,7 @@
  * Enhanced for Vitest 3.2+ with memory leak prevention
  */
 
+import { performance } from 'node:perf_hooks'
 import { afterEach, beforeEach, vi } from 'vitest'
 
 // Global test state management - use property access instead of delete operator
@@ -32,8 +33,8 @@ const resourceTracker = {
  * Reset all test state to ensure proper isolation and prevent memory leaks
  */
 export function resetTestState() {
-  // Clear all mocks first
-  vi.clearAllMocks()
+  // Note: Do NOT clear all mocks here as it interferes with component test callbacks
+  // Individual test suites should handle their own mock clearing if needed
 
   // Clear all timers and intervals with enhanced tracking
   clearAllActiveTimers()
@@ -349,7 +350,15 @@ export function setupEnhancedTestIsolation() {
     globalWithCleanup.__testCleanupRegistry = new Set()
   }
 
+  // Performance tracking for optimization
+  let testStartTime = 0
+  let testStartMemory = 0
+
   beforeEach(() => {
+    // Performance monitoring
+    testStartTime = performance.now()
+    testStartMemory = process.memoryUsage().heapUsed
+
     // Reset state before each test
     resetTestState()
 
@@ -363,14 +372,32 @@ export function setupEnhancedTestIsolation() {
   })
 
   afterEach(async () => {
+    // Performance monitoring and optimization
+    const testDuration = performance.now() - testStartTime
+    const memoryDelta = process.memoryUsage().heapUsed - testStartMemory
+
+    // Log slow tests in debug mode
+    if (process.env.DEBUG_TESTS && testDuration > 5000) {
+      console.warn(`⚠️ Slow test: ${testDuration.toFixed(2)}ms`)
+    }
+
+    // Auto-trigger GC for high memory usage
+    if (memoryDelta > 10 * 1024 * 1024) {
+      // 10MB threshold
+      forceGarbageCollection()
+    }
+
     // Clean up after each test
     resetTestState()
 
-    // Additional async cleanup delay for Node.js resource cleanup
-    await new Promise(resolve => setTimeout(resolve, 10))
+    // Optimized async cleanup - reduced delay for performance
+    await new Promise(resolve => setTimeout(resolve, 5))
 
-    // Force final GC
-    forceGarbageCollection()
+    // Force final GC if significant memory growth
+    if (memoryDelta > 5 * 1024 * 1024) {
+      // 5MB threshold
+      forceGarbageCollection()
+    }
   })
 }
 

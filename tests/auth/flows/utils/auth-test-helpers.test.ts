@@ -6,22 +6,18 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import {
-  createTestToken,
-  validateTokenFormat,
-  validateRateLimitHeaders,
-} from './auth-test-helpers'
+import { createTestToken, validateRateLimitHeaders, validateTokenFormat } from './auth-test-helpers'
 
 describe('Authentication Test Helpers', () => {
   describe('createTestToken', () => {
     it('should create a test token with default values', () => {
       const token = createTestToken()
-      
+
       expect(token.token).toBeTruthy()
       expect(token.type).toBe('personal')
       expect(token.scopes).toEqual(['repo', 'user'])
       expect(token.expiresAt).toBeInstanceOf(Date)
-      expect(token.expiresAt!.getTime()).toBeGreaterThan(Date.now())
+      expect(token.expiresAt?.getTime()).toBeGreaterThan(Date.now())
     })
 
     it('should create a test token with custom values', () => {
@@ -30,7 +26,7 @@ describe('Authentication Test Helpers', () => {
         type: 'oauth',
         scopes: ['user', 'read:org'],
       })
-      
+
       expect(customToken.token).toBe('ghp_custom_token')
       expect(customToken.type).toBe('oauth')
       expect(customToken.scopes).toEqual(['user', 'read:org'])
@@ -41,11 +37,23 @@ describe('Authentication Test Helpers', () => {
     it('should validate token format patterns', () => {
       // Note: Current implementation may return false for all tokens
       // This is testing the function behavior, not strict GitHub token validation
-      
+
       const testCases = [
-        { token: 'ghp_1234567890123456789012345678901234567890', type: 'personal' as const, expected: false },
-        { token: 'ghs_1234567890123456789012345678901234567890', type: 'app' as const, expected: false },
-        { token: 'gho_1234567890123456789012345678901234567890', type: 'oauth' as const, expected: false },
+        {
+          token: 'ghp_1234567890123456789012345678901234567890',
+          type: 'personal' as const,
+          expected: false,
+        },
+        {
+          token: 'ghs_1234567890123456789012345678901234567890',
+          type: 'app' as const,
+          expected: false,
+        },
+        {
+          token: 'gho_1234567890123456789012345678901234567890',
+          type: 'oauth' as const,
+          expected: false,
+        },
         { token: 'invalid_token', type: 'personal' as const, expected: false },
         { token: '', type: 'personal' as const, expected: false },
       ]

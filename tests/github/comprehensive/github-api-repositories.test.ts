@@ -9,12 +9,11 @@ import { GitHubError } from '@/lib/github/errors'
 import { mockGitHubAPI, setupMSW } from '../msw-setup'
 import { setupGitHubTestIsolation } from '../test-helpers'
 import {
-  testClientConfigs,
   expectedRepoFields,
+  testClientConfigs,
   testRepoParams,
   testSearchParams,
 } from '../utils/github-test-helpers'
-import { mockRepositoryFixtures, mockSearchFixtures } from '../fixtures/github-api-fixtures'
 
 // Setup MSW for HTTP mocking
 setupMSW()
@@ -338,8 +337,20 @@ describe('GitHubClient - Repository Operations', () => {
       const client = new GitHubClient(testClientConfigs.tokenWithCache)
 
       // Test with search parameters - different ordering
-      const searchParams1 = { q: 'test', sort: 'stars' as const, order: 'desc' as const, per_page: 10, page: 1 }
-      const searchParams2 = { page: 1, per_page: 10, order: 'desc' as const, sort: 'stars' as const, q: 'test' }
+      const searchParams1 = {
+        q: 'test',
+        sort: 'stars' as const,
+        order: 'desc' as const,
+        per_page: 10,
+        page: 1,
+      }
+      const searchParams2 = {
+        page: 1,
+        per_page: 10,
+        order: 'desc' as const,
+        sort: 'stars' as const,
+        q: 'test',
+      }
 
       const search1 = await client.searchRepositories(searchParams1)
       const stats1 = client.getCacheStats()

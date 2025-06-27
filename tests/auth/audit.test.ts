@@ -52,24 +52,21 @@ describe('Security Audit Logging', () => {
 
       // Mock INSERT operations (for logSecurityEvent)
       if (query.includes('INSERT INTO security_audit_logs')) {
-        return Promise.resolve({
-          rows: [
-            {
-              id: 'mock-audit-log-id',
-              event_type: values[0], // Use actual event_type from parameters
-              event_severity: values[1], // Use actual event_severity from parameters
-              user_id: values[2],
-              ip_address: values[3],
-              user_agent: values[4],
-              event_data: values[5],
-              success: values[6],
-              error_message: values[7],
-              checksum: values[8],
-              created_at: new Date('2024-01-01T00:00:00Z'),
-            },
-          ],
-          rowCount: 1,
-        })
+        return Promise.resolve([
+          {
+            id: 'mock-audit-log-id',
+            event_type: values[0], // Use actual event_type from parameters
+            event_severity: values[1], // Use actual event_severity from parameters
+            user_id: values[2],
+            ip_address: values[3],
+            user_agent: values[4],
+            event_data: values[5],
+            success: values[6],
+            error_message: values[7],
+            checksum: values[8],
+            created_at: new Date('2024-01-01T00:00:00Z'),
+          },
+        ])
       }
 
       // Mock SELECT operations for failed login attempts (return empty for no failures)
@@ -78,52 +75,52 @@ describe('Security Audit Logging', () => {
         query.includes('login_failure') &&
         !query.includes('COUNT(*)')
       ) {
-        return Promise.resolve({ rows: [], rowCount: 0 })
+        return Promise.resolve([])
       }
 
       // Mock SELECT operations for user sessions
       if (query.includes('FROM user_sessions')) {
-        return Promise.resolve({ rows: [], rowCount: 0 })
+        return Promise.resolve([])
       }
 
       // Mock SELECT operations for getAuditLogs
       if (query.includes('SELECT * FROM security_audit_logs') && !query.includes('INSERT')) {
-        return Promise.resolve({ rows: [], rowCount: 0 })
+        return Promise.resolve([])
       }
 
       // Mock COUNT operations for metrics - be more specific about the queries
       if (query.includes('COUNT(*) as count')) {
         // login_success count query
         if (query.includes("event_type = 'login_success'")) {
-          return Promise.resolve({ rows: [{ count: '10' }], rowCount: 1 })
+          return Promise.resolve([{ count: '10' }])
         }
         // login_failure count query
         if (query.includes("event_type = 'login_failure'")) {
-          return Promise.resolve({ rows: [{ count: '1' }], rowCount: 1 })
+          return Promise.resolve([{ count: '1' }])
         }
         // locked accounts query
         if (query.includes('FROM users') && query.includes('locked_at IS NOT NULL')) {
-          return Promise.resolve({ rows: [{ count: '0' }], rowCount: 1 })
+          return Promise.resolve([{ count: '0' }])
         }
         // anomaly count query
         if (query.includes("event_type = 'unusual_activity'")) {
-          return Promise.resolve({ rows: [{ count: '0' }], rowCount: 1 })
+          return Promise.resolve([{ count: '0' }])
         }
-        return Promise.resolve({ rows: [{ count: '0' }], rowCount: 1 })
+        return Promise.resolve([{ count: '0' }])
       }
 
       // Mock UPDATE operations
       if (query.includes('UPDATE users') || query.includes('UPDATE auth_challenges')) {
-        return Promise.resolve({ rows: [], rowCount: 0 })
+        return Promise.resolve([])
       }
 
       // Mock DELETE operations
       if (query.includes('DELETE FROM')) {
-        return Promise.resolve({ rows: [], rowCount: 0 })
+        return Promise.resolve([])
       }
 
       // Default empty response
-      return Promise.resolve({ rows: [], rowCount: 0 })
+      return Promise.resolve([])
     })
   })
 
@@ -147,9 +144,9 @@ describe('Security Audit Logging', () => {
       })
 
       expect(log).toMatchObject({
-        event_type: 'login_success',
-        event_severity: 'info',
-        user_id: mockUser.id,
+        eventType: 'login_success',
+        eventSeverity: 'info',
+        userId: mockUser.id,
       })
     })
 
@@ -416,12 +413,12 @@ describe('Security Audit Logging', () => {
       const mockSql = vi.mocked(sql) as unknown as SQLFunction
 
       // Mock the getAuditLogs implementation call
-      mockSql.mockResolvedValueOnce?.({ rows: [], rowCount: 0 })
+      mockSql.mockResolvedValueOnce?.([])
 
       // Mock the Promise.all calls for summary statistics
-      mockSql.mockResolvedValueOnce?.({ rows: [{ count: '1000' }], rowCount: 1 }) // Total events
-      mockSql.mockResolvedValueOnce?.({ rows: [], rowCount: 0 }) // Event distribution
-      mockSql.mockResolvedValueOnce?.({ rows: [], rowCount: 0 }) // Top users
+      mockSql.mockResolvedValueOnce?.([{ count: '1000' }]) // Total events
+      mockSql.mockResolvedValueOnce?.([]) // Event distribution
+      mockSql.mockResolvedValueOnce?.([]) // Top users
 
       const report = await exportAuditReport({
         startDate: new Date('2024-01-01'),
@@ -443,7 +440,7 @@ describe('Security Audit Logging', () => {
       const mockSql = vi.mocked(sql) as unknown as SQLFunction
 
       // Mock the getAuditLogs implementation call
-      mockSql.mockResolvedValueOnce?.({ rows: [], rowCount: 0 })
+      mockSql.mockResolvedValueOnce?.([])
 
       const report = await exportAuditReport({
         startDate: new Date('2024-01-01'),
@@ -459,20 +456,17 @@ describe('Security Audit Logging', () => {
   describe('Compliance Features', () => {
     it('should ensure tamper-proof logging', async () => {
       const mockSql = vi.mocked(sql) as unknown as SQLFunction
-      mockSql.mockResolvedValueOnce?.({
-        rows: [
-          {
-            id: 'log-123',
-            event_type: 'critical_operation',
-            event_severity: 'critical',
-            user_id: mockUser.id,
-            checksum: 'abc123def456',
-            created_at: new Date(),
-            success: true,
-          },
-        ],
-        rowCount: 1,
-      })
+      mockSql.mockResolvedValueOnce?.([
+        {
+          id: 'log-123',
+          event_type: 'critical_operation',
+          event_severity: 'critical',
+          user_id: mockUser.id,
+          checksum: 'abc123def456',
+          created_at: new Date(),
+          success: true,
+        },
+      ])
 
       const log = await logSecurityEvent({
         event_type: 'critical_operation',

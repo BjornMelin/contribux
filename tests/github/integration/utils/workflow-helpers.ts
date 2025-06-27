@@ -1,17 +1,16 @@
 /**
  * Integration Test Workflow Helpers
- * 
+ *
  * Shared utilities for GitHub integration testing workflows and scenarios.
  * Provides common patterns for testing end-to-end GitHub operations.
  */
 
-import { GitHubClient } from '../../../../src/lib/github/client'
-import type { Repository, User } from '../../../../src/types/github'
+import type { GitHubClient } from '../../../../src/lib/github/client'
 
-export interface WorkflowTestResult {
+export interface WorkflowTestResult<T = unknown> {
   success: boolean
   duration: number
-  data?: any
+  data?: T
   error?: Error
 }
 
@@ -26,8 +25,8 @@ export interface WorkflowMetrics {
 /**
  * Execute a multi-step workflow and track results
  */
-export async function executeWorkflow(
-  steps: Array<() => Promise<any>>,
+export async function executeWorkflow<T = unknown>(
+  steps: Array<() => Promise<T>>,
   options: {
     stopOnError?: boolean
     trackMetrics?: boolean
@@ -39,13 +38,13 @@ export async function executeWorkflow(
   const results: WorkflowTestResult[] = []
   const startTime = Date.now()
 
-  for (const [index, step] of steps.entries()) {
+  for (const [_index, step] of steps.entries()) {
     const stepStart = Date.now()
-    
+
     try {
       const data = await step()
       const duration = Date.now() - stepStart
-      
+
       results.push({
         success: true,
         duration,
@@ -53,7 +52,7 @@ export async function executeWorkflow(
       })
     } catch (error) {
       const duration = Date.now() - stepStart
-      
+
       results.push({
         success: false,
         duration,
@@ -84,10 +83,7 @@ export async function executeWorkflow(
 /**
  * Create a repository discovery workflow
  */
-export function createRepositoryDiscoveryWorkflow(
-  client: GitHubClient,
-  searchQuery: string
-) {
+export function createRepositoryDiscoveryWorkflow(client: GitHubClient, searchQuery: string) {
   return [
     // Step 1: Search repositories
     async () => {
@@ -99,7 +95,7 @@ export function createRepositoryDiscoveryWorkflow(
       })
       return searchResults
     },
-    
+
     // Step 2: Get details for first repository
     async () => {
       const searchResults = await client.searchRepositories({
@@ -108,7 +104,7 @@ export function createRepositoryDiscoveryWorkflow(
         order: 'desc',
         per_page: 1,
       })
-      
+
       if (searchResults.items.length === 0) {
         throw new Error('No repositories found')
       }
@@ -118,10 +114,10 @@ export function createRepositoryDiscoveryWorkflow(
         owner: firstRepo.owner.login,
         repo: firstRepo.name,
       })
-      
+
       return repoDetails
     },
-    
+
     // Step 3: Verify repository accessibility
     async () => {
       const user = await client.getAuthenticatedUser()
@@ -140,7 +136,7 @@ export function createUserProfileWorkflow(client: GitHubClient) {
       const user = await client.getAuthenticatedUser()
       return user
     },
-    
+
     // Step 2: Get user's repositories
     async () => {
       const repos = await client.rest.repos.listForAuthenticatedUser({
@@ -150,7 +146,7 @@ export function createUserProfileWorkflow(client: GitHubClient) {
       })
       return repos.data
     },
-    
+
     // Step 3: Check rate limits
     async () => {
       const rateLimit = await client.getRateLimit()
@@ -183,15 +179,24 @@ export function validateWorkflowResults(
   const averageDuration = results.reduce((sum, r) => sum + r.duration, 0) / results.length
 
   if (expectations.minSuccessRate !== undefined && successRate < expectations.minSuccessRate) {
-    violations.push(`Success rate ${successRate.toFixed(1)}% below minimum ${expectations.minSuccessRate}%`)
+    violations.push(
+      `Success rate ${successRate.toFixed(1)}% below minimum ${expectations.minSuccessRate}%`
+    )
   }
 
-  if (expectations.maxAverageDuration !== undefined && averageDuration > expectations.maxAverageDuration) {
-    violations.push(`Average duration ${averageDuration.toFixed(1)}ms exceeds maximum ${expectations.maxAverageDuration}ms`)
+  if (
+    expectations.maxAverageDuration !== undefined &&
+    averageDuration > expectations.maxAverageDuration
+  ) {
+    violations.push(
+      `Average duration ${averageDuration.toFixed(1)}ms exceeds maximum ${expectations.maxAverageDuration}ms`
+    )
   }
 
   if (expectations.requiredSteps !== undefined && results.length < expectations.requiredSteps) {
-    violations.push(`Only ${results.length} steps completed, required ${expectations.requiredSteps}`)
+    violations.push(
+      `Only ${results.length} steps completed, required ${expectations.requiredSteps}`
+    )
   }
 
   return {
@@ -216,7 +221,7 @@ export function createIntegrationTestWorkflow(
     includeUserProfile?: boolean
   } = {}
 ) {
-  const steps: Array<() => Promise<any>> = []
+  const steps: Array<() => Promise<unknown>> = []
 
   if (options.includeUserProfile) {
     steps.push(...createUserProfileWorkflow(client))
@@ -227,12 +232,12 @@ export function createIntegrationTestWorkflow(
   }
 
   if (options.testRepository) {
-    steps.push(
-      async () => {
-        const repo = await client.getRepository(options.testRepository!)
-        return repo
-      }
-    )
+    steps.push(async () => {
+      const repo = await client.getRepository(
+        options.testRepository as { owner: string; repo: string }
+      )
+      return repo
+    })
   }
 
   return steps
@@ -245,7 +250,7 @@ export async function simulateUserInteraction(
   client: GitHubClient,
   pattern: 'browsing' | 'searching' | 'development'
 ): Promise<WorkflowTestResult[]> {
-  let workflow: Array<() => Promise<any>>
+  let workflow: Array<() => Promise<unknown>>
 
   switch (pattern) {
     case 'browsing':

@@ -74,8 +74,12 @@ describe('Enhanced Memory Cleanup', () => {
   it('should handle resource registration and cleanup', async () => {
     // Simulate various resources that need cleanup
     const resources = {
-      timer: setTimeout(() => {}, 5000),
-      interval: setInterval(() => {}, 1000),
+      timer: setTimeout(() => {
+        // Placeholder timer for testing cleanup
+      }, 5000),
+      interval: setInterval(() => {
+        // Placeholder interval for testing cleanup
+      }, 1000),
       connection: {
         close: () => console.log('Connection closed'),
         isActive: true,

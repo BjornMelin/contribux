@@ -15,27 +15,18 @@
 
 import { HttpResponse, http } from 'msw'
 import { describe, expect, it } from 'vitest'
-import { GitHubError } from '@/lib/github/errors'
 import { mswServer } from '../msw-setup'
 import {
-  createEdgeCaseClient,
-  setupEdgeCaseTestIsolation,
-  EDGE_CASE_PARAMS,
-} from './setup/edge-case-setup'
-import {
-  ERROR_SCENARIOS,
-  testErrorPropagation,
-  validateErrorResponse,
-} from './utils/error-test-helpers'
-import {
-  MALFORMED_RESPONSES,
   NULL_VALUE_REPOSITORY,
-  WRONG_TYPES_REPOSITORY,
   SPECIAL_CHARACTERS,
+  WRONG_TYPES_REPOSITORY,
 } from './fixtures/error-scenarios'
+import { malformedResponseHandlers } from './mocks/error-api-mocks'
 import {
-  malformedResponseHandlers,
-} from './mocks/error-api-mocks'
+  createEdgeCaseClient,
+  EDGE_CASE_PARAMS,
+  setupEdgeCaseTestIsolation,
+} from './setup/edge-case-setup'
 
 describe('GitHub Data Edge Cases', () => {
   // Setup MSW and enhanced test isolation
@@ -55,7 +46,7 @@ describe('GitHub Data Edge Cases', () => {
       expect(repo).toBeDefined()
       expect(repo.id).toBe(123456)
       expect(repo.name).toBe('repository')
-      
+
       // Should handle null values gracefully
       expect(repo.description).toBeNull()
       expect(repo.homepage).toBeNull()
@@ -73,7 +64,7 @@ describe('GitHub Data Edge Cases', () => {
 
       const repo = await client.getRepository({ owner: 'wrong-types', repo: 'repository' })
       expect(repo).toBeDefined()
-      
+
       // Should handle type coercion appropriately
       expect(typeof repo.id).toBe('number')
       expect(typeof repo.private).toBe('boolean')
@@ -121,7 +112,7 @@ describe('GitHub Data Edge Cases', () => {
       expect(repo).toBeDefined()
       expect(repo.id).toBe(123456)
       expect(repo.name).toBe('repository')
-      
+
       // Should ignore unexpected fields gracefully
     })
   })
@@ -230,9 +221,7 @@ describe('GitHub Data Edge Cases', () => {
 
       mswServer.use(...malformedResponseHandlers)
 
-      await expect(
-        client.getRepository(EDGE_CASE_PARAMS.MALFORMED)
-      ).rejects.toThrow()
+      await expect(client.getRepository(EDGE_CASE_PARAMS.MALFORMED)).rejects.toThrow()
     })
 
     it('should handle invalid JSON syntax', async () => {
@@ -259,13 +248,13 @@ describe('GitHub Data Edge Cases', () => {
       // This would be caught during serialization
       mswServer.use(
         http.get('https://api.github.com/repos/circular/reference', () => {
-          const obj: any = {
+          const obj: Record<string, unknown> = {
             id: 123456,
             name: 'reference',
             full_name: 'circular/reference',
             private: false,
           }
-          
+
           // This would cause issues in real scenario but MSW handles it
           try {
             return HttpResponse.json(obj)
@@ -283,7 +272,7 @@ describe('GitHub Data Edge Cases', () => {
       const client = createEdgeCaseClient()
 
       // Create deeply nested structure
-      let deepObject: any = { value: 'deep' }
+      let deepObject: Record<string, unknown> = { value: 'deep' }
       for (let i = 0; i < 100; i++) {
         deepObject = { nested: deepObject }
       }
@@ -440,7 +429,7 @@ describe('GitHub Data Edge Cases', () => {
         name: 'Custom License',
         spdx_id: 'NOASSERTION',
         url: null,
-        node_id: 'L' + 'x'.repeat(1000),
+        node_id: `L${'x'.repeat(1000)}`,
         body: 'A'.repeat(50000), // 50KB license text
       }
 

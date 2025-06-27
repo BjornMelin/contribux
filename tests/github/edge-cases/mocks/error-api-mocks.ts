@@ -1,23 +1,23 @@
 /**
  * MSW Error Response Handlers
- * 
+ *
  * Specialized MSW handlers for simulating various error conditions,
  * network failures, and edge case responses.
  */
 
 import { HttpResponse, http } from 'msw'
 import {
-  MALFORMED_RESPONSES,
-  NULL_VALUE_REPOSITORY,
-  NULL_USER_ISSUE,
-  WRONG_TYPES_REPOSITORY,
-  MISSING_FIELDS_REPOSITORY,
-  LONG_DESCRIPTION_REPOSITORY,
-  SINGLE_CHAR_REPOSITORY,
-  LARGE_ISSUE_RESPONSE,
   EDGE_CASE_RATE_LIMITS,
-  VALIDATION_ERRORS,
   GRAPHQL_ERRORS,
+  LARGE_ISSUE_RESPONSE,
+  LONG_DESCRIPTION_REPOSITORY,
+  MALFORMED_RESPONSES,
+  MISSING_FIELDS_REPOSITORY,
+  NULL_USER_ISSUE,
+  NULL_VALUE_REPOSITORY,
+  SINGLE_CHAR_REPOSITORY,
+  VALIDATION_ERRORS,
+  WRONG_TYPES_REPOSITORY,
 } from '../fixtures/error-scenarios'
 
 const GITHUB_API_BASE = 'https://api.github.com'
@@ -65,26 +65,17 @@ export const malformedResponseHandlers = [
 export const serverErrorHandlers = [
   // 500 Internal Server Error
   http.get(`${GITHUB_API_BASE}/repos/server-error-test/server-error-repo-unique`, () => {
-    return HttpResponse.json(
-      { message: 'Internal Server Error' },
-      { status: 500 }
-    )
+    return HttpResponse.json({ message: 'Internal Server Error' }, { status: 500 })
   }),
 
   // 502 Bad Gateway
   http.get(`${GITHUB_API_BASE}/repos/server-error-test/bad-gateway`, () => {
-    return HttpResponse.json(
-      { message: 'Bad Gateway' },
-      { status: 502 }
-    )
+    return HttpResponse.json({ message: 'Bad Gateway' }, { status: 502 })
   }),
 
   // 503 Service Unavailable
   http.get(`${GITHUB_API_BASE}/repos/server-error-test/service-unavailable`, () => {
-    return HttpResponse.json(
-      { message: 'Service Unavailable' },
-      { status: 503 }
-    )
+    return HttpResponse.json({ message: 'Service Unavailable' }, { status: 503 })
   }),
 ]
 
@@ -94,18 +85,12 @@ export const serverErrorHandlers = [
 export const validationErrorHandlers = [
   // 422 Validation Error
   http.get(`${GITHUB_API_BASE}/repos/validation-test/validation-error-repo-unique`, () => {
-    return HttpResponse.json(
-      VALIDATION_ERRORS.REPOSITORY_NAME,
-      { status: 422 }
-    )
+    return HttpResponse.json(VALIDATION_ERRORS.REPOSITORY_NAME, { status: 422 })
   }),
 
   // Multiple validation errors
   http.post(`${GITHUB_API_BASE}/repos/validation-test/validation-error-repo-unique/issues`, () => {
-    return HttpResponse.json(
-      VALIDATION_ERRORS.MULTIPLE_FIELDS,
-      { status: 422 }
-    )
+    return HttpResponse.json(VALIDATION_ERRORS.MULTIPLE_FIELDS, { status: 422 })
   }),
 ]
 
@@ -151,7 +136,7 @@ export const rateLimitingHandlers = [
   // Edge case rate limit values
   http.get(`${GITHUB_API_BASE}/rate_limit`, ({ request }) => {
     const userAgent = request.headers.get('user-agent') || ''
-    
+
     if (userAgent.includes('edge-case-test')) {
       return HttpResponse.json(EDGE_CASE_RATE_LIMITS.ZERO_LIMIT)
     }
@@ -187,10 +172,7 @@ export const networkErrorHandlers = [
 export const authenticationErrorHandlers = [
   // Bad credentials
   http.get(`${GITHUB_API_BASE}/repos/test/bad-credentials-unique`, () => {
-    return HttpResponse.json(
-      { message: 'Bad credentials' },
-      { status: 401 }
-    )
+    return HttpResponse.json({ message: 'Bad credentials' }, { status: 401 })
   }),
 
   // Insufficient scope
@@ -206,10 +188,7 @@ export const authenticationErrorHandlers = [
 
   // Token expired
   http.get(`${GITHUB_API_BASE}/repos/test/expired-token`, () => {
-    return HttpResponse.json(
-      { message: 'Token has expired' },
-      { status: 401 }
-    )
+    return HttpResponse.json({ message: 'Token has expired' }, { status: 401 })
   }),
 ]
 
@@ -318,7 +297,7 @@ export const searchEdgeCaseHandlers = [
 export const graphqlEdgeCaseHandlers = [
   // GraphQL errors
   http.post(`${GITHUB_API_BASE}/graphql`, async ({ request }) => {
-    const body = await request.json() as { query: string; variables?: Record<string, unknown> }
+    const body = (await request.json()) as { query: string; variables?: Record<string, unknown> }
 
     if (body.query.includes('invalidField')) {
       return HttpResponse.json(GRAPHQL_ERRORS.INVALID_FIELD, { status: 400 })

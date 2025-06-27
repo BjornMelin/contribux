@@ -6,8 +6,12 @@
 
 import { describe, expect, it } from 'vitest'
 import { createSOAREngine, SOAREngine } from '../../../src/lib/security/soar'
-import { setupSOAREngineTest, createMockSOARConfig, assertSOAREngineState } from './utils/soar-test-helpers'
 import { securityTestConfig, testOnlyConfig } from './setup/security-setup'
+import {
+  assertSOAREngineState,
+  createMockSOARConfig,
+  setupSOAREngineTest,
+} from './utils/soar-test-helpers'
 
 describe('SOAR Core Operations', () => {
   describe('Engine Initialization', () => {
@@ -32,7 +36,7 @@ describe('SOAR Core Operations', () => {
     it('should create SOAR engine using factory function', () => {
       const factoryConfig = createMockSOARConfig(testOnlyConfig)
       const factoryEngine = createSOAREngine(factoryConfig)
-      
+
       expect(factoryEngine).toBeInstanceOf(SOAREngine)
     })
 
@@ -74,7 +78,7 @@ describe('SOAR Core Operations', () => {
 
     it('should stop SOAR engine successfully', async () => {
       const engine = getEngine()
-      
+
       await startEngine()
       expect(assertSOAREngineState.isRunning(engine)).toBe(true)
 
@@ -83,40 +87,40 @@ describe('SOAR Core Operations', () => {
     })
 
     it('should prevent starting engine when already running', async () => {
-      const engine = getEngine()
-      
+      const _engine = getEngine()
+
       await startEngine()
-      
+
       await expect(startEngine()).rejects.toThrow('SOAR engine is already running')
     })
 
     it('should handle stop when not running gracefully', async () => {
-      const engine = getEngine()
-      
+      const _engine = getEngine()
+
       // Engine starts stopped, should handle stop gracefully
       await expect(stopEngine()).resolves.not.toThrow()
     })
 
     it('should handle shutdown gracefully', async () => {
       const engine = getEngine()
-      
+
       await startEngine()
       expect(assertSOAREngineState.isRunning(engine)).toBe(true)
-      
+
       await shutdownEngine()
       expect(assertSOAREngineState.isStopped(engine)).toBe(true)
     })
 
     it('should clean up resources on shutdown', async () => {
       const engine = getEngine()
-      
+
       await startEngine()
-      
+
       // Verify engine has resources
       expect(assertSOAREngineState.hasPlaybooks(engine)).toBe(true)
-      
+
       await shutdownEngine()
-      
+
       // Verify cleanup
       expect(assertSOAREngineState.isStopped(engine)).toBe(true)
       expect(engine.getPlaybooks()).toHaveLength(0)
@@ -135,10 +139,10 @@ describe('SOAR Core Operations', () => {
           maxAutomationLevel: 'high',
         },
       })
-      
+
       const engine = new SOAREngine(automationConfig)
       const metrics = engine.getSOARMetrics()
-      
+
       expect(metrics.automation.enabled).toBe(true)
       expect(metrics.automation.level).toBe('high')
     })
@@ -151,7 +155,7 @@ describe('SOAR Core Operations', () => {
           escalationThreshold: 0.98,
         },
       })
-      
+
       const engine = new SOAREngine(thresholdConfig)
       // Thresholds are internal, but we can verify engine initializes correctly
       expect(engine).toBeInstanceOf(SOAREngine)
@@ -166,7 +170,7 @@ describe('SOAR Core Operations', () => {
           enableWebhookNotifications: true,
         },
       })
-      
+
       const engine = new SOAREngine(notificationConfig)
       // Notifications are internal, but we can verify engine initializes correctly
       expect(engine).toBeInstanceOf(SOAREngine)
@@ -181,10 +185,10 @@ describe('SOAR Core Operations', () => {
           maxAutomationLevel: 'low',
         },
       })
-      
+
       const engine = new SOAREngine(disabledConfig)
       const metrics = engine.getSOARMetrics()
-      
+
       expect(metrics.automation.enabled).toBe(false)
       expect(metrics.automation.level).toBe('low')
     })
@@ -246,7 +250,7 @@ describe('SOAR Core Operations', () => {
 
     it('should handle state queries when engine is running', async () => {
       const engine = getEngine()
-      
+
       await startEngine()
       expect(assertSOAREngineState.isRunning(engine)).toBe(true)
 
@@ -265,7 +269,7 @@ describe('SOAR Core Operations', () => {
 
     it('should handle multiple shutdown calls gracefully', async () => {
       const engine = new SOAREngine()
-      
+
       // Multiple shutdowns should not throw
       await expect(engine.shutdown()).resolves.not.toThrow()
       await expect(engine.shutdown()).resolves.not.toThrow()
@@ -273,17 +277,17 @@ describe('SOAR Core Operations', () => {
 
     it('should handle operations when engine is not running', async () => {
       const engine = new SOAREngine()
-      
+
       // Should provide metrics even when not running
       const metrics = engine.getSOARMetrics()
       expect(metrics.automation.isRunning).toBe(false)
-      
+
       // The SOAR engine initializes default playbooks during construction (line 175 in soar.ts)
       // So even when not running, it has 3 default playbooks available
       expect(engine.getPlaybooks()).toHaveLength(3)
       expect(engine.getExecutions()).toHaveLength(0)
       expect(engine.getResponseActions()).toHaveLength(0)
-      
+
       // Verify the default playbooks are created
       const playbooks = engine.getPlaybooks()
       const playbookNames = playbooks.map(p => p.name)
@@ -292,14 +296,18 @@ describe('SOAR Core Operations', () => {
       expect(playbookNames).toContain('Vulnerability Management')
     })
 
-    it('should handle startup timeout gracefully', async () => {
-      const engine = new SOAREngine()
-      
-      // Should complete within timeout
-      const startPromise = engine.start()
-      await expect(startPromise).resolves.not.toThrow()
-      
-      await engine.shutdown()
-    }, securityTestConfig.timeouts.startup)
+    it(
+      'should handle startup timeout gracefully',
+      async () => {
+        const engine = new SOAREngine()
+
+        // Should complete within timeout
+        const startPromise = engine.start()
+        await expect(startPromise).resolves.not.toThrow()
+
+        await engine.shutdown()
+      },
+      securityTestConfig.timeouts.startup
+    )
   })
 })

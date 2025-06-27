@@ -9,7 +9,7 @@ import { setupLoadTestMSW } from '../utils/load-test-helpers'
 // Global performance test setup
 export function setupPerformanceTest() {
   const mswSetup = setupLoadTestMSW()
-  
+
   return {
     beforeAll: () => {
       mswSetup.beforeAll()
@@ -17,7 +17,7 @@ export function setupPerformanceTest() {
     beforeEach: () => {
       // Ensure MSW is enabled for our tests
       process.env.VITEST_MSW_ENABLED = 'true'
-      
+
       // Clear all mocks but DON'T reset to default handlers
       vi.clearAllMocks()
 
@@ -35,7 +35,7 @@ export function setupPerformanceTest() {
     },
     afterAll: () => {
       mswSetup.afterAll()
-    }
+    },
   }
 }
 
@@ -57,13 +57,13 @@ export function setupTestIsolation() {
     afterEach: () => {
       // Just clear mocks, don't reset handlers
       vi.clearAllMocks()
-    }
+    },
   }
 }
 
 // Performance monitoring utilities
 export class PerformanceMonitor {
-  private startTime: number = 0
+  private startTime = 0
   private measurements: Array<{ name: string; duration: number }> = []
 
   start() {
@@ -106,11 +106,15 @@ export function validatePerformanceResults(
   const validations = []
 
   if (thresholds.minSuccessRate && successRate < thresholds.minSuccessRate) {
-    validations.push(`Success rate ${successRate.toFixed(2)}% below threshold ${thresholds.minSuccessRate}%`)
+    validations.push(
+      `Success rate ${successRate.toFixed(2)}% below threshold ${thresholds.minSuccessRate}%`
+    )
   }
 
   if (thresholds.maxAvgDuration && avgDuration > thresholds.maxAvgDuration) {
-    validations.push(`Average duration ${avgDuration.toFixed(2)}ms above threshold ${thresholds.maxAvgDuration}ms`)
+    validations.push(
+      `Average duration ${avgDuration.toFixed(2)}ms above threshold ${thresholds.maxAvgDuration}ms`
+    )
   }
 
   if (thresholds.maxP95Duration && p95Duration > thresholds.maxP95Duration) {
@@ -124,6 +128,6 @@ export function validatePerformanceResults(
       successRate,
       avgDuration,
       p95Duration,
-    }
+    },
   }
 }

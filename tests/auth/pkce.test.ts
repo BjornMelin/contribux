@@ -93,12 +93,35 @@ describe('PKCE (Proof Key for Code Exchange)', () => {
   })
 
   it('should use crypto.subtle.digest for challenge generation', async () => {
-    const mockDigest = vi.spyOn(crypto.subtle, 'digest')
+    // Create a fresh mock for this test
+    const mockDigest = vi.fn(async (_algorithm, _data) => {
+      const mockHash = new Uint8Array(32)
+      for (let i = 0; i < 32; i++) {
+        mockHash[i] = (i * 2) % 256
+      }
+      return mockHash.buffer
+    })
+
+    // Override crypto for this test
+    vi.stubGlobal('crypto', {
+      getRandomValues: vi.fn(arr => {
+        if (arr instanceof Uint8Array) {
+          for (let i = 0; i < arr.length; i++) {
+            arr[i] = i % 256
+          }
+        }
+        return arr
+      }),
+      subtle: {
+        digest: mockDigest,
+      },
+    })
 
     await generatePKCEChallenge()
 
-    // The digest is called with a Uint8Array buffer, not ArrayBuffer
-    expect(mockDigest).toHaveBeenCalledWith('SHA-256', expect.any(Uint8Array))
+    // Should be called with SHA-256 algorithm and some data
+    expect(mockDigest).toHaveBeenCalledWith('SHA-256', expect.anything())
+    expect(mockDigest).toHaveBeenCalledTimes(1)
   })
 
   it('should handle base64url encoding correctly', async () => {

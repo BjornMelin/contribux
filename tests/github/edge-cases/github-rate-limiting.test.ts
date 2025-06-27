@@ -16,26 +16,18 @@ import { HttpResponse, http } from 'msw'
 import { describe, expect, it } from 'vitest'
 import { GitHubRateLimitError } from '@/lib/github/errors'
 import { mswServer } from '../msw-setup'
+import { rateLimitingHandlers, secondaryRateLimitHandlers } from './mocks/error-api-mocks'
 import {
   createEdgeCaseClient,
-  setupEdgeCaseTestIsolation,
   EDGE_CASE_PARAMS,
   RATE_LIMIT_EDGE_CASE_CONFIG,
+  setupEdgeCaseTestIsolation,
 } from './setup/edge-case-setup'
 import {
-  ERROR_SCENARIOS,
+  RetryFailureSimulator,
   testErrorPropagation,
   validateErrorResponse,
-  RetryFailureSimulator,
 } from './utils/error-test-helpers'
-import {
-  EDGE_CASE_RATE_LIMITS,
-  SPECIAL_CHARACTERS,
-} from './fixtures/error-scenarios'
-import {
-  rateLimitingHandlers,
-  secondaryRateLimitHandlers,
-} from './mocks/error-api-mocks'
 
 describe('GitHub Rate Limiting', () => {
   // Setup MSW and enhanced test isolation
@@ -64,13 +56,13 @@ describe('GitHub Rate Limiting', () => {
         validateErrorResponse(error)
         expect(error.status).toBe(403)
         expect(error.message).toContain('rate limit exceeded')
-        
+
         // Should include rate limit information
         if (error.response?.headers) {
           const limit = error.response.headers['x-ratelimit-limit']
           const remaining = error.response.headers['x-ratelimit-remaining']
           const reset = error.response.headers['x-ratelimit-reset']
-          
+
           expect(limit).toBeDefined()
           expect(remaining).toBe('0')
           expect(reset).toBeDefined()
@@ -105,7 +97,7 @@ describe('GitHub Rate Limiting', () => {
       } catch (error) {
         validateErrorResponse(error)
         expect(error.status).toBe(403)
-        
+
         if (error.response?.headers) {
           expect(error.response.headers['retry-after']).toBe(String(retryAfter))
         }
@@ -114,7 +106,7 @@ describe('GitHub Rate Limiting', () => {
 
     it('should handle different rate limit types correctly', async () => {
       const client = createEdgeCaseClient()
-      
+
       const rateLimitTypes = [
         { name: 'core', endpoint: 'core-rate-limit' },
         { name: 'search', endpoint: 'search-rate-limit' },
@@ -184,7 +176,8 @@ describe('GitHub Rate Limiting', () => {
           return HttpResponse.json(
             {
               message: 'You have exceeded a secondary rate limit',
-              documentation_url: 'https://docs.github.com/rest/overview/resources-in-the-rest-api#secondary-rate-limits',
+              documentation_url:
+                'https://docs.github.com/rest/overview/resources-in-the-rest-api#secondary-rate-limits',
             },
             {
               status: 403,
@@ -204,7 +197,7 @@ describe('GitHub Rate Limiting', () => {
         validateErrorResponse(error)
         expect(error.status).toBe(403)
         expect(error.message).toContain('secondary rate limit')
-        
+
         if (error.response?.headers) {
           expect(error.response.headers['x-ratelimit-type']).toBe('secondary')
           expect(error.response.headers['retry-after']).toBe('60')
@@ -216,7 +209,7 @@ describe('GitHub Rate Limiting', () => {
   describe('Retry Logic and Exponential Backoff', () => {
     it('should implement exponential backoff for rate limits', async () => {
       const client = createEdgeCaseClient(RATE_LIMIT_EDGE_CASE_CONFIG)
-      const simulator = new RetryFailureSimulator()
+      const _simulator = new RetryFailureSimulator()
 
       // Configure to retry rate limits
       const maxRetries = 3
@@ -225,7 +218,7 @@ describe('GitHub Rate Limiting', () => {
       mswServer.use(
         http.get('https://api.github.com/repos/retry-test/exponential-backoff', () => {
           attemptCount++
-          
+
           if (attemptCount <= maxRetries) {
             return HttpResponse.json(
               { message: 'API rate limit exceeded' },
@@ -239,7 +232,7 @@ describe('GitHub Rate Limiting', () => {
               }
             )
           }
-          
+
           // Success after retries
           return HttpResponse.json({
             id: 123456,
@@ -256,7 +249,7 @@ describe('GitHub Rate Limiting', () => {
       expect(repo).toBeDefined()
       expect(repo.name).toBe('exponential-backoff')
       expect(attemptCount).toBe(maxRetries + 1)
-      
+
       // Should have taken some time due to retries
       expect(duration).toBeGreaterThan(100)
     })
@@ -303,7 +296,7 @@ describe('GitHub Rate Limiting', () => {
               }
             )
           }
-          
+
           return HttpResponse.json({
             id: 123456,
             name: 'rate-limit-recovery',
@@ -321,7 +314,10 @@ describe('GitHub Rate Limiting', () => {
       await new Promise(resolve => setTimeout(resolve, 100))
 
       // Second request should succeed
-      const repo = await client.getRepository({ owner: 'recovery-test', repo: 'rate-limit-recovery' })
+      const repo = await client.getRepository({
+        owner: 'recovery-test',
+        repo: 'rate-limit-recovery',
+      })
       expect(repo).toBeDefined()
       expect(repo.name).toBe('rate-limit-recovery')
     })
@@ -354,15 +350,15 @@ describe('GitHub Rate Limiting', () => {
         expect.fail('Should have thrown a rate limit error')
       } catch (error) {
         validateErrorResponse(error)
-        
+
         if (error.response?.headers) {
           const headers = error.response.headers
-          
+
           expect(headers['x-ratelimit-limit']).toBe('5000')
           expect(headers['x-ratelimit-remaining']).toBe('0')
           expect(headers['x-ratelimit-used']).toBe('5000')
           expect(headers['x-ratelimit-resource']).toBe('core')
-          
+
           const resetTime = Number.parseInt(headers['x-ratelimit-reset'] || '0')
           expect(resetTime).toBeGreaterThan(Math.floor(Date.now() / 1000))
         }
@@ -429,7 +425,7 @@ describe('GitHub Rate Limiting', () => {
       mswServer.use(
         http.get('https://api.github.com/repos/quota-test/:repo', ({ params }) => {
           remaining -= 1
-          
+
           if (remaining <= 0) {
             return HttpResponse.json(
               { message: 'API rate limit exceeded' },
@@ -443,18 +439,21 @@ describe('GitHub Rate Limiting', () => {
               }
             )
           }
-          
-          return HttpResponse.json({
-            id: 123456,
-            name: params.repo,
-            full_name: `quota-test/${params.repo}`,
-          }, {
-            headers: {
-              'X-RateLimit-Limit': '100',
-              'X-RateLimit-Remaining': String(remaining),
-              'X-RateLimit-Reset': String(Math.floor(Date.now() / 1000) + 3600),
+
+          return HttpResponse.json(
+            {
+              id: 123456,
+              name: params.repo,
+              full_name: `quota-test/${params.repo}`,
             },
-          })
+            {
+              headers: {
+                'X-RateLimit-Limit': '100',
+                'X-RateLimit-Remaining': String(remaining),
+                'X-RateLimit-Reset': String(Math.floor(Date.now() / 1000) + 3600),
+              },
+            }
+          )
         })
       )
 
@@ -482,11 +481,11 @@ describe('GitHub Rate Limiting', () => {
       mswServer.use(
         http.get('https://api.github.com/repos/reset-test/quota-reset', () => {
           const currentTime = Math.floor(Date.now() / 1000)
-          
+
           if (currentTime >= resetTime) {
             isAfterReset = true
           }
-          
+
           if (!isAfterReset) {
             return HttpResponse.json(
               { message: 'API rate limit exceeded' },
@@ -500,18 +499,21 @@ describe('GitHub Rate Limiting', () => {
               }
             )
           }
-          
-          return HttpResponse.json({
-            id: 123456,
-            name: 'quota-reset',
-            full_name: 'reset-test/quota-reset',
-          }, {
-            headers: {
-              'X-RateLimit-Limit': '5000',
-              'X-RateLimit-Remaining': '4999',
-              'X-RateLimit-Reset': String(resetTime + 3600),
+
+          return HttpResponse.json(
+            {
+              id: 123456,
+              name: 'quota-reset',
+              full_name: 'reset-test/quota-reset',
             },
-          })
+            {
+              headers: {
+                'X-RateLimit-Limit': '5000',
+                'X-RateLimit-Remaining': '4999',
+                'X-RateLimit-Reset': String(resetTime + 3600),
+              },
+            }
+          )
         })
       )
 
@@ -533,7 +535,7 @@ describe('GitHub Rate Limiting', () => {
       const client = createEdgeCaseClient()
 
       const resourceTypes = ['core', 'search', 'graphql', 'integration_manifest']
-      
+
       for (const resourceType of resourceTypes) {
         mswServer.use(
           http.get(`https://api.github.com/repos/resource-test/${resourceType}-quota`, () => {
@@ -558,7 +560,7 @@ describe('GitHub Rate Limiting', () => {
         } catch (error) {
           validateErrorResponse(error)
           expect(error.status).toBe(403)
-          
+
           if (error.response?.headers) {
             expect(error.response.headers['x-ratelimit-resource']).toBe(resourceType)
           }

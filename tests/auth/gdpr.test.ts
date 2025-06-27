@@ -98,7 +98,7 @@ describe('GDPR Compliance Features', () => {
         })
       }
 
-      expect(mockSql).toHaveBeenCalledTimes(3)
+      expect(mockSql).toHaveBeenCalledTimes(6) // 2 SQL calls per consent (consent + data processing log)
     })
 
     it('should revoke consent', async () => {
@@ -112,7 +112,7 @@ describe('GDPR Compliance Features', () => {
 
       await revokeUserConsent({
         userId: mockUser.id,
-        consentType: 'marketing',
+        consentType: 'marketing_emails',
         context: mockContext,
       })
 
@@ -137,7 +137,7 @@ describe('GDPR Compliance Features', () => {
           timestamp: new Date(),
         },
         {
-          consent_type: 'marketing',
+          consent_type: 'marketing_emails',
           granted: false,
           version: '1.0',
           timestamp: new Date(),
@@ -149,7 +149,7 @@ describe('GDPR Compliance Features', () => {
       expect(consents).toHaveLength(3)
       expect(
         Array.isArray(consents)
-          ? consents.find(c => c.consentType === 'marketing')?.granted
+          ? consents.find(c => c.consent_type === 'marketing_emails')?.granted
           : undefined
       ).toBe(false)
     })
@@ -163,11 +163,11 @@ describe('GDPR Compliance Features', () => {
       const required = await checkConsentRequired(mockUser.id, 'terms_of_service')
       expect(required).toBe(true)
 
-      // Consent exists
+      // Consent exists with current version
       mockSql.mockResolvedValueOnce([
         {
           granted: true,
-          version: '1.0',
+          version: '2.0', // Use current version from CURRENT_VERSIONS
         },
       ])
 
@@ -551,7 +551,7 @@ describe('GDPR Compliance Features', () => {
         consentOptions?.optional && Array.isArray(consentOptions.optional)
           ? consentOptions.optional.map(c => c.type)
           : []
-      expect(optionalTypes).toContain('marketing')
+      expect(optionalTypes).toContain('marketing_emails')
       expect(optionalTypes).toContain('usage_analytics')
       expect(optionalTypes).toContain('third_party_sharing')
     })

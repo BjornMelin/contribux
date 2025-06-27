@@ -10,19 +10,9 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { GitHubClient } from '../../../src/lib/github/client'
 import type { IntegrationTestContext } from '../../integration/infrastructure/test-config'
-import {
-  describeIntegration,
-  integrationTest,
-} from '../../integration/infrastructure/test-runner'
-import { testUsers } from './fixtures/auth-scenarios'
-import {
-  cleanupAuthMocks,
-  mockAuthFailure,
-  mockAuthenticatedUserRepos,
-  mockSuccessfulAuth,
-} from './mocks/auth-provider-mocks'
+import { describeIntegration, integrationTest } from '../../integration/infrastructure/test-runner'
+import { cleanupAuthMocks, mockAuthFailure } from './mocks/auth-provider-mocks'
 import {
   cleanupClient,
   createTestClient,

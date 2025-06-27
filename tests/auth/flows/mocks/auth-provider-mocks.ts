@@ -13,7 +13,7 @@ import { rateLimitScenarios, testUsers } from '../fixtures/auth-scenarios'
 
 export interface MockResponse {
   status: number
-  body: any
+  body: unknown
   headers?: Record<string, string>
 }
 
@@ -38,22 +38,17 @@ export function mockSuccessfulAuth(
 /**
  * Mocks authentication failure scenarios
  */
-export function mockAuthFailure(
-  statusCode: number = 401,
-  message: string = 'Bad credentials'
-): nock.Scope {
-  return nock('https://api.github.com')
-    .get('/user')
-    .reply(statusCode, {
-      message,
-      documentation_url: 'https://docs.github.com/rest',
-    })
+export function mockAuthFailure(statusCode = 401, message = 'Bad credentials'): nock.Scope {
+  return nock('https://api.github.com').get('/user').reply(statusCode, {
+    message,
+    documentation_url: 'https://docs.github.com/rest',
+  })
 }
 
 /**
  * Mocks GitHub App authentication
  */
-export function mockGitHubAppAuth(appId: number, appName: string = 'Test App'): nock.Scope {
+export function mockGitHubAppAuth(appId: number, appName = 'Test App'): nock.Scope {
   return nock('https://api.github.com')
     .get('/app')
     .reply(200, {
@@ -75,10 +70,7 @@ export function mockGitHubAppAuth(appId: number, appName: string = 'Test App'): 
 /**
  * Mocks GitHub App installation access
  */
-export function mockInstallationAuth(
-  installationId: number,
-  appId: number
-): nock.Scope {
+export function mockInstallationAuth(installationId: number, appId: number): nock.Scope {
   return nock('https://api.github.com')
     .get(`/app/installations/${installationId}`)
     .reply(200, {
@@ -106,30 +98,26 @@ export function mockInstallationAuth(
 /**
  * Mocks installation repositories access
  */
-export function mockInstallationRepos(repositories: any[] = []): nock.Scope {
-  return nock('https://api.github.com')
-    .get('/installation/repositories')
-    .reply(200, {
-      total_count: repositories.length,
-      repositories,
-      repository_selection: 'selected',
-    })
+export function mockInstallationRepos(repositories: unknown[] = []): nock.Scope {
+  return nock('https://api.github.com').get('/installation/repositories').reply(200, {
+    total_count: repositories.length,
+    repositories,
+    repository_selection: 'selected',
+  })
 }
 
 /**
  * Mocks OAuth token exchange
  */
 export function mockOAuthTokenExchange(
-  clientId: string,
-  accessToken: string = 'gho_oauth_access_token'
+  _clientId: string,
+  accessToken = 'gho_oauth_access_token'
 ): nock.Scope {
-  return nock('https://github.com')
-    .post('/login/oauth/access_token')
-    .reply(200, {
-      access_token: accessToken,
-      token_type: 'bearer',
-      scope: 'user,repo',
-    })
+  return nock('https://github.com').post('/login/oauth/access_token').reply(200, {
+    access_token: accessToken,
+    token_type: 'bearer',
+    scope: 'user,repo',
+  })
 }
 
 /**
@@ -138,12 +126,10 @@ export function mockOAuthTokenExchange(
 export function mockOAuthUserInfo(
   user: typeof testUsers.validUser = testUsers.validUser
 ): nock.Scope {
-  return nock('https://api.github.com')
-    .get('/user')
-    .reply(200, user, {
-      'x-oauth-scopes': 'user,repo,read:org',
-      'x-accepted-oauth-scopes': 'user',
-    })
+  return nock('https://api.github.com').get('/user').reply(200, user, {
+    'x-oauth-scopes': 'user,repo,read:org',
+    'x-accepted-oauth-scopes': 'user',
+  })
 }
 
 /**
@@ -156,12 +142,10 @@ export function mockRateLimit(
     graphql: rateLimitScenarios.graphql,
   }
 ): nock.Scope {
-  return nock('https://api.github.com')
-    .get('/rate_limit')
-    .reply(200, {
-      resources,
-      rate: resources.core,
-    })
+  return nock('https://api.github.com').get('/rate_limit').reply(200, {
+    resources,
+    rate: resources.core,
+  })
 }
 
 /**
@@ -192,7 +176,7 @@ export function mockGraphQLRateLimit(
  * Mocks intermittent authentication failures for retry testing
  */
 export function mockIntermittentAuthFailure(
-  failureCount: number = 2,
+  failureCount = 2,
   user: typeof testUsers.validUser = testUsers.validUser
 ): nock.Scope {
   const scope = nock('https://api.github.com')
@@ -211,17 +195,14 @@ export function mockIntermittentAuthFailure(
 /**
  * Mocks network timeout scenarios
  */
-export function mockNetworkTimeout(delayMs: number = 5000): nock.Scope {
-  return nock('https://api.github.com')
-    .get('/user')
-    .delay(delayMs)
-    .reply(200, testUsers.validUser)
+export function mockNetworkTimeout(delayMs = 5000): nock.Scope {
+  return nock('https://api.github.com').get('/user').delay(delayMs).reply(200, testUsers.validUser)
 }
 
 /**
  * Mocks repository list for authenticated user
  */
-export function mockAuthenticatedUserRepos(repos: any[] = []): nock.Scope {
+export function mockAuthenticatedUserRepos(repos: unknown[] = []): nock.Scope {
   return nock('https://api.github.com')
     .get('/user/repos')
     .query(true) // Accept any query parameters

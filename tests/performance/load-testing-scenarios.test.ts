@@ -1,6 +1,6 @@
 /**
  * Load Testing Scenarios & Patterns
- * 
+ *
  * Tests complex load patterns, user simulation, and realistic workloads.
  * Focuses on real-world usage scenarios and concurrent operations.
  */
@@ -9,121 +9,122 @@ import { HttpResponse, http } from 'msw'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { GitHubClient } from '../../src/lib/github'
 import { createRateLimitHeaders } from '../github/test-helpers'
-import { 
-  createTrackedClient, 
-  addTestHandlers,
-  createStandardUserHandler,
-  createStandardGraphQLHandler,
-  createMultipleClients
-} from './utils/load-test-helpers'
-import { setupPerformanceTest } from './setup/performance-setup'
-import { 
-  LOAD_TEST_CONFIG, 
-  createMockUser, 
-  createMockViewer, 
-  LOAD_SCENARIOS 
+import {
+  createMockUser,
+  createMockViewer,
+  LOAD_SCENARIOS,
+  LOAD_TEST_CONFIG,
 } from './fixtures/load-test-data'
+import { setupPerformanceTest } from './setup/performance-setup'
+import {
+  addTestHandlers,
+  createMultipleClients,
+  createTrackedClient,
+} from './utils/load-test-helpers'
 
 describe('Load Testing - Scenarios & Patterns', () => {
   const setup = setupPerformanceTest()
-  
+
   beforeAll(setup.beforeAll)
   beforeEach(setup.beforeEach)
   afterEach(setup.afterEach)
   afterAll(setup.afterAll)
 
   describe('High-Concurrency Operations', () => {
-    it('should handle concurrent REST API requests', async () => {
-      const concurrency = LOAD_TEST_CONFIG.DEFAULT_CONCURRENCY
-      let requestCount = 0
-      const testToken = 'concurrent_rest_token'
+    it(
+      'should handle concurrent REST API requests',
+      async () => {
+        const concurrency = LOAD_TEST_CONFIG.DEFAULT_CONCURRENCY
+        let requestCount = 0
+        const testToken = 'concurrent_rest_token'
 
-      const testHandler = http.get('https://api.github.com/user', ({ request }) => {
-        const authHeader = request.headers.get('authorization')
+        const testHandler = http.get('https://api.github.com/user', ({ request }) => {
+          const authHeader = request.headers.get('authorization')
 
-        if (authHeader === `token ${testToken}`) {
-          requestCount++
-          console.log(`REST handler hit: ${requestCount}`)
-          return HttpResponse.json(
-            createMockUser(requestCount),
-            {
+          if (authHeader === `token ${testToken}`) {
+            requestCount++
+            console.log(`REST handler hit: ${requestCount}`)
+            return HttpResponse.json(createMockUser(requestCount), {
               headers: createRateLimitHeaders({ remaining: 5000 - requestCount }),
-            }
-          )
-        }
-
-        return
-      })
-
-      await addTestHandlers(testHandler)
-
-      const client = createTrackedClient(GitHubClient, {
-        auth: { type: 'token', token: testToken },
-        retry: { retries: 1 },
-      })
-
-      // Execute concurrent requests
-      const startTime = Date.now()
-      const promises = Array.from({ length: concurrency }, async () => {
-        const result = await client.getAuthenticatedUser()
-        expect(result.id).toBeGreaterThan(0)
-        return result.id
-      })
-
-      const results = await Promise.all(promises)
-      const endTime = Date.now()
-
-      // Verify all requests completed
-      expect(results).toHaveLength(concurrency)
-      expect(new Set(results)).toHaveProperty('size', concurrency)
-      expect(requestCount).toBe(concurrency)
-
-      const duration = endTime - startTime
-      expect(duration).toBeLessThan(5000)
-
-      console.log(`Completed ${concurrency} concurrent requests in ${duration}ms`)
-
-      await client.destroy()
-    }, LOAD_TEST_CONFIG.DEFAULT_TIMEOUT)
-
-    it('should handle concurrent GraphQL requests', async () => {
-      const concurrency = LOAD_TEST_CONFIG.DEFAULT_CONCURRENCY
-      let requestCount = 0
-      const testToken = 'concurrent_graphql_token'
-
-      const graphqlHandler = http.post('https://api.github.com/graphql', async ({ request }) => {
-        const body = await request.json()
-        const authHeader = request.headers.get('authorization')
-
-        if (
-          body &&
-          typeof body === 'object' &&
-          'query' in body &&
-          typeof body.query === 'string' &&
-          body.query.includes('viewer') &&
-          authHeader === `token ${testToken}`
-        ) {
-          requestCount++
-          console.log(`GraphQL handler MATCHING: ${requestCount}`)
-          const response = {
-            data: createMockViewer(requestCount),
+            })
           }
-          return HttpResponse.json(response)
-        }
 
-        return
-      })
+          return
+        })
 
-      await addTestHandlers(graphqlHandler)
+        await addTestHandlers(testHandler)
 
-      const client = createTrackedClient(GitHubClient, {
-        auth: { type: 'token', token: testToken },
-      })
+        const client = createTrackedClient(GitHubClient, {
+          auth: { type: 'token', token: testToken },
+          retry: { retries: 1 },
+        })
 
-      // Execute concurrent GraphQL requests
-      const startTime = Date.now()
-      const promises = Array.from({ length: concurrency }, async () => {
-        const result = await client.graphql(`
+        // Execute concurrent requests
+        const startTime = Date.now()
+        const promises = Array.from({ length: concurrency }, async () => {
+          const result = await client.getAuthenticatedUser()
+          expect(result.id).toBeGreaterThan(0)
+          return result.id
+        })
+
+        const results = await Promise.all(promises)
+        const endTime = Date.now()
+
+        // Verify all requests completed
+        expect(results).toHaveLength(concurrency)
+        expect(new Set(results)).toHaveProperty('size', concurrency)
+        expect(requestCount).toBe(concurrency)
+
+        const duration = endTime - startTime
+        expect(duration).toBeLessThan(5000)
+
+        console.log(`Completed ${concurrency} concurrent requests in ${duration}ms`)
+
+        await client.destroy()
+      },
+      LOAD_TEST_CONFIG.DEFAULT_TIMEOUT
+    )
+
+    it(
+      'should handle concurrent GraphQL requests',
+      async () => {
+        const concurrency = LOAD_TEST_CONFIG.DEFAULT_CONCURRENCY
+        let requestCount = 0
+        const testToken = 'concurrent_graphql_token'
+
+        const graphqlHandler = http.post('https://api.github.com/graphql', async ({ request }) => {
+          const body = await request.json()
+          const authHeader = request.headers.get('authorization')
+
+          if (
+            body &&
+            typeof body === 'object' &&
+            'query' in body &&
+            typeof body.query === 'string' &&
+            body.query.includes('viewer') &&
+            authHeader === `token ${testToken}`
+          ) {
+            requestCount++
+            console.log(`GraphQL handler MATCHING: ${requestCount}`)
+            const response = {
+              data: createMockViewer(requestCount),
+            }
+            return HttpResponse.json(response)
+          }
+
+          return
+        })
+
+        await addTestHandlers(graphqlHandler)
+
+        const client = createTrackedClient(GitHubClient, {
+          auth: { type: 'token', token: testToken },
+        })
+
+        // Execute concurrent GraphQL requests
+        const startTime = Date.now()
+        const promises = Array.from({ length: concurrency }, async () => {
+          const result = await client.graphql(`
           query {
             viewer {
               login
@@ -132,112 +133,120 @@ describe('Load Testing - Scenarios & Patterns', () => {
           }
         `)
 
-        expect(result).toBeDefined()
-        expect((result as { viewer?: { login?: string; id?: string } }).viewer).toBeDefined()
-        expect((result as { viewer?: { login?: string; id?: string } }).viewer?.login).toContain('user_')
-        return (result as { viewer?: { login?: string; id?: string } }).viewer?.id
-      })
-
-      const results = await Promise.all(promises)
-      const endTime = Date.now()
-
-      // Verify all requests completed
-      expect(results).toHaveLength(concurrency)
-      expect(requestCount).toBe(concurrency)
-
-      const duration = endTime - startTime
-      console.log(`Completed ${concurrency} concurrent GraphQL requests in ${duration}ms`)
-
-      await client.destroy()
-    }, LOAD_TEST_CONFIG.DEFAULT_TIMEOUT)
-
-    it('should handle mixed REST and GraphQL concurrent requests', async () => {
-      const restConcurrency = LOAD_TEST_CONFIG.REDUCED_CONCURRENCY
-      const graphqlConcurrency = LOAD_TEST_CONFIG.REDUCED_CONCURRENCY
-      let restCount = 0
-      let graphqlCount = 0
-      const testToken = 'mixed_concurrent_token'
-
-      const restHandler = http.get('https://api.github.com/user', ({ request }) => {
-        const authHeader = request.headers.get('authorization')
-
-        if (authHeader === `token ${testToken}`) {
-          restCount++
-          return HttpResponse.json(
-            {
-              login: `rest_user_${restCount}`,
-              id: restCount,
-              avatar_url: `https://github.com/images/rest_user_${restCount}.png`,
-              html_url: `https://github.com/rest_user_${restCount}`,
-              type: 'User',
-              site_admin: false,
-            },
-            {
-              headers: createRateLimitHeaders({ remaining: 5000 - restCount }),
-            }
+          expect(result).toBeDefined()
+          expect((result as { viewer?: { login?: string; id?: string } }).viewer).toBeDefined()
+          expect((result as { viewer?: { login?: string; id?: string } }).viewer?.login).toContain(
+            'user_'
           )
-        }
+          return (result as { viewer?: { login?: string; id?: string } }).viewer?.id
+        })
 
-        return
-      })
+        const results = await Promise.all(promises)
+        const endTime = Date.now()
 
-      const graphqlHandler = http.post('https://api.github.com/graphql', async ({ request }) => {
-        const authHeader = request.headers.get('authorization')
+        // Verify all requests completed
+        expect(results).toHaveLength(concurrency)
+        expect(requestCount).toBe(concurrency)
 
-        if (authHeader === `token ${testToken}`) {
-          graphqlCount++
-          return HttpResponse.json({
-            data: {
-              viewer: { login: `graphql_user_${graphqlCount}`, id: `gql_${graphqlCount}` },
-              rateLimit: {
-                limit: 5000,
-                remaining: 5000 - graphqlCount,
-                resetAt: new Date(Date.now() + 3600000).toISOString(),
-                cost: 1,
-                nodeCount: 1,
+        const duration = endTime - startTime
+        console.log(`Completed ${concurrency} concurrent GraphQL requests in ${duration}ms`)
+
+        await client.destroy()
+      },
+      LOAD_TEST_CONFIG.DEFAULT_TIMEOUT
+    )
+
+    it(
+      'should handle mixed REST and GraphQL concurrent requests',
+      async () => {
+        const restConcurrency = LOAD_TEST_CONFIG.REDUCED_CONCURRENCY
+        const graphqlConcurrency = LOAD_TEST_CONFIG.REDUCED_CONCURRENCY
+        let restCount = 0
+        let graphqlCount = 0
+        const testToken = 'mixed_concurrent_token'
+
+        const restHandler = http.get('https://api.github.com/user', ({ request }) => {
+          const authHeader = request.headers.get('authorization')
+
+          if (authHeader === `token ${testToken}`) {
+            restCount++
+            return HttpResponse.json(
+              {
+                login: `rest_user_${restCount}`,
+                id: restCount,
+                avatar_url: `https://github.com/images/rest_user_${restCount}.png`,
+                html_url: `https://github.com/rest_user_${restCount}`,
+                type: 'User',
+                site_admin: false,
               },
-            },
-          })
-        }
+              {
+                headers: createRateLimitHeaders({ remaining: 5000 - restCount }),
+              }
+            )
+          }
 
-        return
-      })
+          return
+        })
 
-      await addTestHandlers(restHandler, graphqlHandler)
+        const graphqlHandler = http.post('https://api.github.com/graphql', async ({ request }) => {
+          const authHeader = request.headers.get('authorization')
 
-      const client = createTrackedClient(GitHubClient, {
-        auth: { type: 'token', token: testToken },
-        retry: { retries: 1 },
-      })
+          if (authHeader === `token ${testToken}`) {
+            graphqlCount++
+            return HttpResponse.json({
+              data: {
+                viewer: { login: `graphql_user_${graphqlCount}`, id: `gql_${graphqlCount}` },
+                rateLimit: {
+                  limit: 5000,
+                  remaining: 5000 - graphqlCount,
+                  resetAt: new Date(Date.now() + 3600000).toISOString(),
+                  cost: 1,
+                  nodeCount: 1,
+                },
+              },
+            })
+          }
 
-      // Execute mixed concurrent requests
-      const startTime = Date.now()
-      const restPromises = Array.from({ length: restConcurrency }, () =>
-        client.getAuthenticatedUser()
-      )
-      const graphqlPromises = Array.from({ length: graphqlConcurrency }, () =>
-        client.graphql('query { viewer { login id } }')
-      )
+          return
+        })
 
-      const [restResults, graphqlResults] = await Promise.all([
-        Promise.all(restPromises),
-        Promise.all(graphqlPromises),
-      ])
-      const endTime = Date.now()
+        await addTestHandlers(restHandler, graphqlHandler)
 
-      // Verify all requests completed
-      expect(restResults).toHaveLength(restConcurrency)
-      expect(graphqlResults).toHaveLength(graphqlConcurrency)
-      expect(restCount).toBe(restConcurrency)
-      expect(graphqlCount).toBe(graphqlConcurrency)
+        const client = createTrackedClient(GitHubClient, {
+          auth: { type: 'token', token: testToken },
+          retry: { retries: 1 },
+        })
 
-      const duration = endTime - startTime
-      console.log(
-        `Completed ${restConcurrency + graphqlConcurrency} mixed requests in ${duration}ms`
-      )
+        // Execute mixed concurrent requests
+        const startTime = Date.now()
+        const restPromises = Array.from({ length: restConcurrency }, () =>
+          client.getAuthenticatedUser()
+        )
+        const graphqlPromises = Array.from({ length: graphqlConcurrency }, () =>
+          client.graphql('query { viewer { login id } }')
+        )
 
-      await client.destroy()
-    }, LOAD_TEST_CONFIG.DEFAULT_TIMEOUT)
+        const [restResults, graphqlResults] = await Promise.all([
+          Promise.all(restPromises),
+          Promise.all(graphqlPromises),
+        ])
+        const endTime = Date.now()
+
+        // Verify all requests completed
+        expect(restResults).toHaveLength(restConcurrency)
+        expect(graphqlResults).toHaveLength(graphqlConcurrency)
+        expect(restCount).toBe(restConcurrency)
+        expect(graphqlCount).toBe(graphqlConcurrency)
+
+        const duration = endTime - startTime
+        console.log(
+          `Completed ${restConcurrency + graphqlConcurrency} mixed requests in ${duration}ms`
+        )
+
+        await client.destroy()
+      },
+      LOAD_TEST_CONFIG.DEFAULT_TIMEOUT
+    )
   })
 
   describe('User Simulation Scenarios', () => {
@@ -246,14 +255,11 @@ describe('Load Testing - Scenarios & Patterns', () => {
       const requestsPerUser = 2
       let totalRequests = 0
 
-      const userHandler = http.get('https://api.github.com/user', ({ request }) => {
+      const userHandler = http.get('https://api.github.com/user', () => {
         totalRequests++
-        return HttpResponse.json(
-          createMockUser(totalRequests),
-          {
-            headers: createRateLimitHeaders({ remaining: 5000 - totalRequests }),
-          }
-        )
+        return HttpResponse.json(createMockUser(totalRequests), {
+          headers: createRateLimitHeaders({ remaining: 5000 - totalRequests }),
+        })
       })
 
       await addTestHandlers(userHandler)
@@ -266,15 +272,15 @@ describe('Load Testing - Scenarios & Patterns', () => {
       // Simulate user behavior - each user makes multiple requests
       const userPromises = clients.map(async (client, userIndex) => {
         const userRequests = []
-        
+
         for (let i = 0; i < requestsPerUser; i++) {
           const result = await client.getAuthenticatedUser()
           userRequests.push(result.id)
-          
+
           // Add small delay between user requests to simulate real usage
           await new Promise(resolve => setTimeout(resolve, 10))
         }
-        
+
         return { userIndex, requests: userRequests }
       })
 
@@ -303,21 +309,18 @@ describe('Load Testing - Scenarios & Patterns', () => {
 
       const burstHandler = http.get('https://api.github.com/user', ({ request }) => {
         const authHeader = request.headers.get('authorization')
-        
+
         if (authHeader === `token ${testToken}`) {
           const timestamp = Date.now()
           requestTimestamps.push(timestamp)
           const requestId = requestTimestamps.length
           console.log(`Burst handler hit: ${requestId} at ${timestamp}`)
-          
-          return HttpResponse.json(
-            createMockUser(requestId),
-            {
-              headers: createRateLimitHeaders({ remaining: 5000 - requestId }),
-            }
-          )
+
+          return HttpResponse.json(createMockUser(requestId), {
+            headers: createRateLimitHeaders({ remaining: 5000 - requestId }),
+          })
         }
-        
+
         return
       })
 
@@ -334,16 +337,14 @@ describe('Load Testing - Scenarios & Patterns', () => {
       for (let burst = 0; burst < burstCount; burst++) {
         const burstStart = Date.now()
         const requestCountBefore = requestTimestamps.length
-        
-        const burstPromises = Array.from({ length: burstSize }, () =>
-          client.getAuthenticatedUser()
-        )
-        
+
+        const burstPromises = Array.from({ length: burstSize }, () => client.getAuthenticatedUser())
+
         const results = await Promise.all(burstPromises)
         const burstEnd = Date.now()
         const requestCountAfter = requestTimestamps.length
         const actualRequestsInBurst = requestCountAfter - requestCountBefore
-        
+
         burstResults.push({
           burst,
           duration: burstEnd - burstStart,
@@ -351,7 +352,9 @@ describe('Load Testing - Scenarios & Patterns', () => {
           actualHandlerHits: actualRequestsInBurst,
         })
 
-        console.log(`Burst ${burst + 1}: ${results.length} requests in ${burstEnd - burstStart}ms (${actualRequestsInBurst} handler hits)`)
+        console.log(
+          `Burst ${burst + 1}: ${results.length} requests in ${burstEnd - burstStart}ms (${actualRequestsInBurst} handler hits)`
+        )
 
         // Delay between bursts
         if (burst < burstCount - 1) {
@@ -363,11 +366,11 @@ describe('Load Testing - Scenarios & Patterns', () => {
 
       // Verify all bursts completed successfully
       expect(burstResults).toHaveLength(burstCount)
-      
+
       // Verify total request handling - focus on the Promise.all results rather than handler count
       const totalBurstRequests = burstResults.reduce((sum, burst) => sum + burst.requests, 0)
       expect(totalBurstRequests).toBe(burstSize * burstCount)
-      
+
       // Verify each burst completed the expected number of requests
       for (const burstResult of burstResults) {
         expect(burstResult.requests).toBe(burstSize)
@@ -377,8 +380,10 @@ describe('Load Testing - Scenarios & Patterns', () => {
 
       // Handler timing might vary, but we should get most requests
       // This is more of an informational check rather than a strict requirement
-      if (requestTimestamps.length < (burstSize * burstCount * 0.8)) {
-        console.warn(`Warning: Handler only intercepted ${requestTimestamps.length} out of ${burstSize * burstCount} requests`)
+      if (requestTimestamps.length < burstSize * burstCount * 0.8) {
+        console.warn(
+          `Warning: Handler only intercepted ${requestTimestamps.length} out of ${burstSize * burstCount} requests`
+        )
       }
 
       await client.destroy()
@@ -392,13 +397,13 @@ describe('Load Testing - Scenarios & Patterns', () => {
       ]
       let requestCount = 0
 
-      const complexityHandler = http.get('https://api.github.com/user', async ({ request }) => {
+      const complexityHandler = http.get('https://api.github.com/user', async () => {
         requestCount++
         const complexity = complexityLevels[(requestCount - 1) % complexityLevels.length]
-        
+
         // Simulate different processing times
         await new Promise(resolve => setTimeout(resolve, complexity.delay))
-        
+
         return HttpResponse.json(
           {
             ...createMockUser(requestCount),
@@ -421,9 +426,9 @@ describe('Load Testing - Scenarios & Patterns', () => {
         const requestStart = Date.now()
         const result = await client.getAuthenticatedUser()
         const requestEnd = Date.now()
-        
+
         const expectedComplexity = complexityLevels[index % complexityLevels.length]
-        
+
         return {
           id: result.id,
           duration: requestEnd - requestStart,
@@ -444,7 +449,10 @@ describe('Load Testing - Scenarios & Patterns', () => {
         expect(result.duration).toBeGreaterThan(0)
       }
 
-      console.log('Complexity results:', results.map(r => `${r.expectedComplexity}: ${r.duration}ms`))
+      console.log(
+        'Complexity results:',
+        results.map(r => `${r.expectedComplexity}: ${r.duration}ms`)
+      )
 
       await client.destroy()
     })
@@ -454,11 +462,7 @@ describe('Load Testing - Scenarios & Patterns', () => {
     it('should handle typical API usage patterns', async () => {
       const pattern = LOAD_SCENARIOS.MODERATE
       let requestCount = 0
-      const endpoints = [
-        'user',
-        'repos',
-        'issues',
-      ]
+      const _endpoints = ['user', 'repos', 'issues']
 
       // Create handlers for different endpoints
       const userHandler = http.get('https://api.github.com/user', () => {
@@ -475,18 +479,18 @@ describe('Load Testing - Scenarios & Patterns', () => {
       // Simulate typical usage pattern
       const promises = Array.from({ length: pattern.concurrency }, async (_, userIndex) => {
         const userResults = []
-        
+
         // Each "user" does a sequence of API calls
         const userInfo = await client.getAuthenticatedUser()
         userResults.push({ type: 'user', id: userInfo.id })
-        
+
         // Small delay between calls
         await new Promise(resolve => setTimeout(resolve, 10))
-        
+
         // Mock a repository list request since the method doesn't exist in GitHubClient
         const repos = { data: [{ name: `repo_${userIndex + 1}`, id: userIndex + 1 }] }
         userResults.push({ type: 'repos', count: repos.data.length })
-        
+
         return { userIndex, results: userResults }
       })
 
@@ -500,7 +504,9 @@ describe('Load Testing - Scenarios & Patterns', () => {
         expect(userResult.results.length).toBeGreaterThan(0)
       }
 
-      console.log(`Realistic workload: ${requestCount} total requests from ${pattern.concurrency} simulated users`)
+      console.log(
+        `Realistic workload: ${requestCount} total requests from ${pattern.concurrency} simulated users`
+      )
 
       await client.destroy()
     })

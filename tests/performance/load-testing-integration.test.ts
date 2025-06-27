@@ -1,6 +1,6 @@
 /**
  * Load Testing Integration & End-to-End
- * 
+ *
  * Tests full system load testing with multiple components and realistic scenarios.
  * Focuses on end-to-end workflows and system stability under load.
  */
@@ -9,23 +9,19 @@ import { HttpResponse, http } from 'msw'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { GitHubClient } from '../../src/lib/github'
 import { createRateLimitHeaders } from '../github/test-helpers'
-import { 
-  createTrackedClient, 
-  addTestHandlers,
-  calculatePerformanceMetrics
-} from './utils/load-test-helpers'
-import { setupPerformanceTest } from './setup/performance-setup'
-import { 
-  LOAD_TEST_CONFIG, 
-  createMockUser, 
-  createWebhookPayloads,
+import {
   BATCH_CONFIG,
-  PERFORMANCE_THRESHOLDS
+  createMockUser,
+  createWebhookPayloads,
+  LOAD_TEST_CONFIG,
+  PERFORMANCE_THRESHOLDS,
 } from './fixtures/load-test-data'
+import { setupPerformanceTest } from './setup/performance-setup'
+import { addTestHandlers, createTrackedClient } from './utils/load-test-helpers'
 
 describe('Load Testing - Integration & End-to-End', () => {
   const setup = setupPerformanceTest()
-  
+
   beforeAll(setup.beforeAll)
   beforeEach(setup.beforeEach)
   afterEach(setup.afterEach)
@@ -44,12 +40,9 @@ describe('Load Testing - Integration & End-to-End', () => {
         // Add small delay to simulate network latency
         await new Promise(resolve => setTimeout(resolve, LOAD_TEST_CONFIG.STANDARD_DELAY))
 
-        return HttpResponse.json(
-          createMockUser(connectionCount),
-          {
-            headers: createRateLimitHeaders({ remaining: 5000 - connectionCount }),
-          }
-        )
+        return HttpResponse.json(createMockUser(connectionCount), {
+          headers: createRateLimitHeaders({ remaining: 5000 - connectionCount }),
+        })
       })
 
       await addTestHandlers(poolingHandler)
@@ -173,62 +166,67 @@ describe('Load Testing - Integration & End-to-End', () => {
       await client.destroy()
     }, 25000)
 
-    it('should handle webhook processing under concurrent load', async () => {
-      const webhookCount = 20
-      let processedWebhooks = 0
-      const webhookTimes: number[] = []
+    it(
+      'should handle webhook processing under concurrent load',
+      async () => {
+        const webhookCount = 20
+        let processedWebhooks = 0
+        const webhookTimes: number[] = []
 
-      // Mock webhook validation and processing
-      const webhookPayloads = createWebhookPayloads(webhookCount)
+        // Mock webhook validation and processing
+        const webhookPayloads = createWebhookPayloads(webhookCount)
 
-      // Simulate webhook processing with varying complexity
-      const processWebhook = async (payload: Record<string, unknown>, index: number) => {
-        const start = Date.now()
+        // Simulate webhook processing with varying complexity
+        const processWebhook = async (payload: Record<string, unknown>, index: number) => {
+          const start = Date.now()
 
-        // Simulate webhook validation
-        await new Promise(resolve => setTimeout(resolve, 5 + Math.random() * 10))
+          // Simulate webhook validation
+          await new Promise(resolve => setTimeout(resolve, 5 + Math.random() * 10))
 
-        // Simulate processing complexity based on payload
-        const complexity = (index % 3) + 1 // 1-3 complexity levels
-        await new Promise(resolve => setTimeout(resolve, complexity * 10))
+          // Simulate processing complexity based on payload
+          const complexity = (index % 3) + 1 // 1-3 complexity levels
+          await new Promise(resolve => setTimeout(resolve, complexity * 10))
 
-        processedWebhooks++
-        const end = Date.now()
-        webhookTimes.push(end - start)
+          processedWebhooks++
+          const end = Date.now()
+          webhookTimes.push(end - start)
 
-        return {
-          id: payload.pull_request.id,
-          processed: true,
-          duration: end - start,
+          return {
+            id: payload.pull_request.id,
+            processed: true,
+            duration: end - start,
+          }
         }
-      }
 
-      // Process webhooks concurrently
-      const startTime = Date.now()
-      const promises = webhookPayloads.map((payload, index) => processWebhook(payload, index))
-      const results = await Promise.all(promises)
-      const endTime = Date.now()
+        // Process webhooks concurrently
+        const startTime = Date.now()
+        const promises = webhookPayloads.map((payload, index) => processWebhook(payload, index))
+        const results = await Promise.all(promises)
+        const endTime = Date.now()
 
-      // Verify all webhooks processed
-      expect(results).toHaveLength(webhookCount)
-      expect(processedWebhooks).toBe(webhookCount)
-      expect(results.every(r => r.processed)).toBe(true)
+        // Verify all webhooks processed
+        expect(results).toHaveLength(webhookCount)
+        expect(processedWebhooks).toBe(webhookCount)
+        expect(results.every(r => r.processed)).toBe(true)
 
-      // Analyze webhook processing performance
-      const totalDuration = endTime - startTime
-      const avgWebhookTime = webhookTimes.reduce((sum, time) => sum + time, 0) / webhookTimes.length
-      const maxWebhookTime = Math.max(...webhookTimes)
-      const minWebhookTime = Math.min(...webhookTimes)
+        // Analyze webhook processing performance
+        const totalDuration = endTime - startTime
+        const avgWebhookTime =
+          webhookTimes.reduce((sum, time) => sum + time, 0) / webhookTimes.length
+        const maxWebhookTime = Math.max(...webhookTimes)
+        const minWebhookTime = Math.min(...webhookTimes)
 
-      // Concurrent processing should be faster than sequential
-      const estimatedSequentialTime = webhookTimes.reduce((sum, time) => sum + time, 0)
-      expect(totalDuration).toBeLessThan(estimatedSequentialTime * 0.7) // At least 30% improvement
+        // Concurrent processing should be faster than sequential
+        const estimatedSequentialTime = webhookTimes.reduce((sum, time) => sum + time, 0)
+        expect(totalDuration).toBeLessThan(estimatedSequentialTime * 0.7) // At least 30% improvement
 
-      console.log(`Webhook processing: ${webhookCount} webhooks in ${totalDuration}ms`)
-      console.log(`Average webhook time: ${avgWebhookTime.toFixed(2)}ms`)
-      console.log(`Webhook time range: ${minWebhookTime}ms - ${maxWebhookTime}ms`)
-      console.log(`Sequential would take: ~${estimatedSequentialTime}ms`)
-    }, LOAD_TEST_CONFIG.DEFAULT_TIMEOUT)
+        console.log(`Webhook processing: ${webhookCount} webhooks in ${totalDuration}ms`)
+        console.log(`Average webhook time: ${avgWebhookTime.toFixed(2)}ms`)
+        console.log(`Webhook time range: ${minWebhookTime}ms - ${maxWebhookTime}ms`)
+        console.log(`Sequential would take: ~${estimatedSequentialTime}ms`)
+      },
+      LOAD_TEST_CONFIG.DEFAULT_TIMEOUT
+    )
   })
 
   describe('End-to-End Scenarios', () => {
@@ -245,31 +243,34 @@ describe('Load Testing - Integration & End-to-End', () => {
 
       const reposHandler = http.get('https://api.github.com/user/repos', () => {
         stepCount++
-        return HttpResponse.json([
-          { name: `repo_${stepCount}`, id: stepCount }
-        ])
+        return HttpResponse.json([{ name: `repo_${stepCount}`, id: stepCount }])
       })
 
-      const issuesHandler = http.get('https://api.github.com/repos/:owner/:repo/issues', ({ params }) => {
-        stepCount++
-        return HttpResponse.json([
-          { number: stepCount, title: `Issue ${stepCount}`, id: stepCount }
-        ])
-      })
+      const issuesHandler = http.get(
+        'https://api.github.com/repos/:owner/:repo/issues',
+        ({ params: _params }) => {
+          stepCount++
+          return HttpResponse.json([
+            { number: stepCount, title: `Issue ${stepCount}`, id: stepCount },
+          ])
+        }
+      )
 
-      const commitsHandler = http.get('https://api.github.com/repos/:owner/:repo/commits', ({ params }) => {
-        stepCount++
-        return HttpResponse.json([
-          { sha: `commit_${stepCount}`, message: `Commit ${stepCount}` }
-        ])
-      })
+      const commitsHandler = http.get(
+        'https://api.github.com/repos/:owner/:repo/commits',
+        ({ params: _params }) => {
+          stepCount++
+          return HttpResponse.json([{ sha: `commit_${stepCount}`, message: `Commit ${stepCount}` }])
+        }
+      )
 
-      const prHandler = http.get('https://api.github.com/repos/:owner/:repo/pulls', ({ params }) => {
-        stepCount++
-        return HttpResponse.json([
-          { number: stepCount, title: `PR ${stepCount}`, id: stepCount }
-        ])
-      })
+      const prHandler = http.get(
+        'https://api.github.com/repos/:owner/:repo/pulls',
+        ({ params: _params }) => {
+          stepCount++
+          return HttpResponse.json([{ number: stepCount, title: `PR ${stepCount}`, id: stepCount }])
+        }
+      )
 
       await addTestHandlers(userHandler, reposHandler, issuesHandler, commitsHandler, prHandler)
 
@@ -278,40 +279,46 @@ describe('Load Testing - Integration & End-to-End', () => {
       })
 
       // Execute complete workflows concurrently
-      const workflowPromises = Array.from({ length: concurrentWorkflows }, async (_, workflowIndex) => {
-        const workflowResults = []
-        
-        // Step 1: Get user info (actual API call)
-        const user = await client.getAuthenticatedUser()
-        workflowResults.push({ step: 'user', id: user.id })
-        
-        // Step 2: Get repositories (actual API call via octokit)
-        const reposResponse = await client.octokit.request('GET /user/repos')
-        workflowResults.push({ step: 'repos', count: reposResponse.data.length })
-        
-        // Step 3: Get issues from first repo (actual API call via octokit)
-        const issuesResponse = await client.octokit.request('GET /repos/{owner}/{repo}/issues', {
-          owner: 'testowner',
-          repo: `repo_${workflowIndex}`,
-        })
-        workflowResults.push({ step: 'issues', count: issuesResponse.data.length })
-        
-        // Step 4: Get commits (actual API call via octokit)
-        const commitsResponse = await client.octokit.request('GET /repos/{owner}/{repo}/commits', {
-          owner: 'testowner',
-          repo: `repo_${workflowIndex}`,
-        })
-        workflowResults.push({ step: 'commits', count: commitsResponse.data.length })
-        
-        // Step 5: Get pull requests (actual API call via octokit)
-        const prsResponse = await client.octokit.request('GET /repos/{owner}/{repo}/pulls', {
-          owner: 'testowner',
-          repo: `repo_${workflowIndex}`,
-        })
-        workflowResults.push({ step: 'prs', count: prsResponse.data.length })
-        
-        return { workflowIndex, steps: workflowResults }
-      })
+      const workflowPromises = Array.from(
+        { length: concurrentWorkflows },
+        async (_, workflowIndex) => {
+          const workflowResults = []
+
+          // Step 1: Get user info (actual API call)
+          const user = await client.getAuthenticatedUser()
+          workflowResults.push({ step: 'user', id: user.id })
+
+          // Step 2: Get repositories (actual API call via octokit)
+          const reposResponse = await client.octokit.request('GET /user/repos')
+          workflowResults.push({ step: 'repos', count: reposResponse.data.length })
+
+          // Step 3: Get issues from first repo (actual API call via octokit)
+          const issuesResponse = await client.octokit.request('GET /repos/{owner}/{repo}/issues', {
+            owner: 'testowner',
+            repo: `repo_${workflowIndex}`,
+          })
+          workflowResults.push({ step: 'issues', count: issuesResponse.data.length })
+
+          // Step 4: Get commits (actual API call via octokit)
+          const commitsResponse = await client.octokit.request(
+            'GET /repos/{owner}/{repo}/commits',
+            {
+              owner: 'testowner',
+              repo: `repo_${workflowIndex}`,
+            }
+          )
+          workflowResults.push({ step: 'commits', count: commitsResponse.data.length })
+
+          // Step 5: Get pull requests (actual API call via octokit)
+          const prsResponse = await client.octokit.request('GET /repos/{owner}/{repo}/pulls', {
+            owner: 'testowner',
+            repo: `repo_${workflowIndex}`,
+          })
+          workflowResults.push({ step: 'prs', count: prsResponse.data.length })
+
+          return { workflowIndex, steps: workflowResults }
+        }
+      )
 
       const workflowResults = await Promise.all(workflowPromises)
 
@@ -323,15 +330,19 @@ describe('Load Testing - Integration & End-to-End', () => {
 
       for (const workflowResult of workflowResults) {
         expect(workflowResult.steps).toHaveLength(workflowSteps)
-        expect(workflowResult.steps.every(step => {
-          const hasStep = typeof (step as { step: string }).step === 'string'
-          const hasId = typeof (step as { id?: number }).id === 'number'
-          const hasCount = typeof (step as { count?: number }).count === 'number'
-          return hasStep && (hasId || hasCount)
-        })).toBe(true)
+        expect(
+          workflowResult.steps.every(step => {
+            const hasStep = typeof (step as { step: string }).step === 'string'
+            const hasId = typeof (step as { id?: number }).id === 'number'
+            const hasCount = typeof (step as { count?: number }).count === 'number'
+            return hasStep && (hasId || hasCount)
+          })
+        ).toBe(true)
       }
 
-      console.log(`Completed ${concurrentWorkflows} GitHub workflows with ${workflowSteps} steps each`)
+      console.log(
+        `Completed ${concurrentWorkflows} GitHub workflows with ${workflowSteps} steps each`
+      )
       console.log(`Total API calls: ${stepCount}`)
 
       await client.destroy()
@@ -343,15 +354,18 @@ describe('Load Testing - Integration & End-to-End', () => {
       const totalOperations = repoCount * operationsPerRepo
       let operationCount = 0
 
-      const multiRepoHandler = http.get('https://api.github.com/repos/:owner/:repo/:operation', ({ params }) => {
-        operationCount++
-        return HttpResponse.json({
-          repo: params.repo,
-          operation: params.operation,
-          id: operationCount,
-          result: `Operation ${operationCount} on ${params.repo}`,
-        })
-      })
+      const multiRepoHandler = http.get(
+        'https://api.github.com/repos/:owner/:repo/:operation',
+        ({ params }) => {
+          operationCount++
+          return HttpResponse.json({
+            repo: params.repo,
+            operation: params.operation,
+            id: operationCount,
+            result: `Operation ${operationCount} on ${params.repo}`,
+          })
+        }
+      )
 
       await addTestHandlers(multiRepoHandler)
 
@@ -363,7 +377,7 @@ describe('Load Testing - Integration & End-to-End', () => {
       const repoPromises = Array.from({ length: repoCount }, async (_, repoIndex) => {
         const repoName = `repo_${repoIndex}`
         const operations = []
-        
+
         // Perform multiple operations on each repo
         for (let op = 0; op < operationsPerRepo; op++) {
           const operation = op === 0 ? 'issues' : 'commits'
@@ -373,7 +387,7 @@ describe('Load Testing - Integration & End-to-End', () => {
           })
           operations.push(result.data)
         }
-        
+
         return { repo: repoName, operations }
       })
 
@@ -389,7 +403,9 @@ describe('Load Testing - Integration & End-to-End', () => {
         expect(repoResult.operations).toHaveLength(operationsPerRepo)
       }
 
-      console.log(`Multi-repo operations: ${totalOperations} operations across ${repoCount} repositories`)
+      console.log(
+        `Multi-repo operations: ${totalOperations} operations across ${repoCount} repositories`
+      )
 
       await client.destroy()
     })
@@ -399,50 +415,53 @@ describe('Load Testing - Integration & End-to-End', () => {
       const processingBatches = 2
       let processedItems = 0
 
-      const dataHandler = http.get('https://api.github.com/search/repositories', async ({ request }) => {
-        const url = new URL(request.url)
-        const query = url.searchParams.get('q') || ''
-        const page = Number(url.searchParams.get('page')) || 1
-        const perPage = Number(url.searchParams.get('per_page')) || 30
+      const dataHandler = http.get(
+        'https://api.github.com/search/repositories',
+        async ({ request }) => {
+          const url = new URL(request.url)
+          const query = url.searchParams.get('q') || ''
+          const page = Number(url.searchParams.get('page')) || 1
+          const perPage = Number(url.searchParams.get('per_page')) || 30
 
-        // Minimal processing delay to prevent timeouts
-        await new Promise(resolve => setTimeout(resolve, 1))
+          // Minimal processing delay to prevent timeouts
+          await new Promise(resolve => setTimeout(resolve, 1))
 
-        processedItems += perPage
-        
-        const items = Array.from({ length: perPage }, (_, i) => {
-          const repoId = (page - 1) * perPage + i + 1
-          return {
-            id: repoId,
-            name: `repo_${query}_${repoId}`,
-            full_name: `owner/repo_${query}_${repoId}`,
-            owner: {
-              login: 'owner',
-              id: 123,
-              avatar_url: 'https://github.com/images/error/owner_happy.gif',
-              html_url: 'https://github.com/owner',
-              type: 'User',
-              site_admin: false,
-            },
-            private: false,
-            html_url: `https://github.com/owner/repo_${query}_${repoId}`,
-            description: `Repository ${repoId} for query ${query}`,
-            fork: false,
-            created_at: '2023-01-01T00:00:00Z',
-            updated_at: '2023-01-01T00:00:00Z',
-            stargazers_count: repoId * 10,
-            forks_count: repoId * 2,
-            language: 'TypeScript',
-            default_branch: 'main',
-          }
-        })
+          processedItems += perPage
 
-        return HttpResponse.json({
-          total_count: dataSize,
-          incomplete_results: false,
-          items,
-        })
-      })
+          const items = Array.from({ length: perPage }, (_, i) => {
+            const repoId = (page - 1) * perPage + i + 1
+            return {
+              id: repoId,
+              name: `repo_${query}_${repoId}`,
+              full_name: `owner/repo_${query}_${repoId}`,
+              owner: {
+                login: 'owner',
+                id: 123,
+                avatar_url: 'https://github.com/images/error/owner_happy.gif',
+                html_url: 'https://github.com/owner',
+                type: 'User',
+                site_admin: false,
+              },
+              private: false,
+              html_url: `https://github.com/owner/repo_${query}_${repoId}`,
+              description: `Repository ${repoId} for query ${query}`,
+              fork: false,
+              created_at: '2023-01-01T00:00:00Z',
+              updated_at: '2023-01-01T00:00:00Z',
+              stargazers_count: repoId * 10,
+              forks_count: repoId * 2,
+              language: 'TypeScript',
+              default_branch: 'main',
+            }
+          })
+
+          return HttpResponse.json({
+            total_count: dataSize,
+            incomplete_results: false,
+            items,
+          })
+        }
+      )
 
       await addTestHandlers(dataHandler)
 
@@ -452,10 +471,10 @@ describe('Load Testing - Integration & End-to-End', () => {
 
       // Process data in batches
       const batchResults = []
-      
+
       for (let batch = 0; batch < processingBatches; batch++) {
         const batchStart = Date.now()
-        
+
         // Execute search requests for this batch
         const searchPromises = Array.from({ length: 1 }, async (_, searchIndex) => {
           const query = `batch${batch}_search${searchIndex}`
@@ -466,18 +485,20 @@ describe('Load Testing - Integration & End-to-End', () => {
             itemCount: result.items.length,
           }
         })
-        
+
         const searchResults = await Promise.all(searchPromises)
         const batchEnd = Date.now()
-        
+
         batchResults.push({
           batch,
           duration: batchEnd - batchStart,
           searches: searchResults.length,
           totalItems: searchResults.reduce((sum, s) => sum + s.itemCount, 0),
         })
-        
-        console.log(`Batch ${batch + 1}: ${searchResults.length} searches, ${batchEnd - batchStart}ms`)
+
+        console.log(
+          `Batch ${batch + 1}: ${searchResults.length} searches, ${batchEnd - batchStart}ms`
+        )
       }
 
       // Verify data processing
@@ -488,7 +509,9 @@ describe('Load Testing - Integration & End-to-End', () => {
       const totalItems = batchResults.reduce((sum, b) => sum + b.totalItems, 0)
 
       console.log(`Data processing: ${totalItems} items processed in ${totalProcessingTime}ms`)
-      console.log(`Processing rate: ${(totalItems / totalProcessingTime * 1000).toFixed(2)} items/second`)
+      console.log(
+        `Processing rate: ${((totalItems / totalProcessingTime) * 1000).toFixed(2)} items/second`
+      )
 
       await client.destroy()
     }, 10000) // Reduced timeout to 10 seconds
@@ -501,7 +524,7 @@ describe('Load Testing - Integration & End-to-End', () => {
 
       const monitoredHandler = http.get('https://api.github.com/user', () => {
         requestCount++
-        
+
         // Simulate monitoring event
         monitoringEvents.push({
           timestamp: Date.now(),
@@ -521,14 +544,14 @@ describe('Load Testing - Integration & End-to-End', () => {
       // Execute requests with monitoring
       const promises = Array.from({ length: LOAD_TEST_CONFIG.DEFAULT_CONCURRENCY }, async () => {
         const result = await client.getAuthenticatedUser()
-        
+
         // Simulate additional monitoring
         monitoringEvents.push({
           timestamp: Date.now(),
           event: 'request_completed',
           data: { userId: result.id, status: 'success' },
         })
-        
+
         return result.id
       })
 
@@ -547,7 +570,9 @@ describe('Load Testing - Integration & End-to-End', () => {
       expect(completionEvents).toHaveLength(LOAD_TEST_CONFIG.DEFAULT_CONCURRENCY)
 
       console.log(`Monitoring integration: ${monitoringEvents.length} events captured`)
-      console.log(`Event types: ${Array.from(new Set(monitoringEvents.map(e => e.event))).join(', ')}`)
+      console.log(
+        `Event types: ${Array.from(new Set(monitoringEvents.map(e => e.event))).join(', ')}`
+      )
 
       await client.destroy()
     })

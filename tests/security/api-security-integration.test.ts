@@ -3,11 +3,208 @@
  * Tests security patterns and validation logic for API endpoints
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { setupMSW, setupSecurityMSW } from '../helpers/msw-setup'
+import { HttpResponse, http } from 'msw'
+import { setupServer } from 'msw/node'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { mswServer } from '../github/msw-setup'
 
-setupMSW()
-setupSecurityMSW()
+// Dedicated MSW server for security tests with localhost handlers
+const securityServer = setupServer(
+  // Search repositories endpoint with authentication and input validation
+  http.get('http://localhost:3000/api/search/repositories', ({ request }) => {
+    const url = new URL(request.url)
+    const query = url.searchParams.get('q') || ''
+
+    // First, validate input (before authentication check)
+
+    // Validate query length - reject queries longer than 1000 characters
+    if (query.length > 1000) {
+      return HttpResponse.json(
+        { error: 'Query too long - maximum 1000 characters allowed' },
+        { status: 400 }
+      )
+    }
+
+    // Validate for common XSS patterns
+    const xssPatterns = [/<script[^>]*>/i, /javascript:/i, /on\w+\s*=/i, /expression\s*\(/i]
+    const hasXssPattern = xssPatterns.some(pattern => pattern.test(query))
+
+    if (hasXssPattern) {
+      return HttpResponse.json(
+        { error: 'Invalid query - contains potentially dangerous content' },
+        { status: 400 }
+      )
+    }
+
+    // Check for SQL injection patterns
+    const sqlPatterns = [/union\s+select/i, /drop\s+table/i, /;\s*--/, /';\s*drop/i]
+    const hasSqlPattern = sqlPatterns.some(pattern => pattern.test(query))
+
+    if (hasSqlPattern) {
+      return HttpResponse.json(
+        { error: 'Invalid request - suspicious patterns detected' },
+        { status: 400 }
+      )
+    }
+
+    // Then check authentication
+    const authHeader = request.headers.get('authorization')
+    const sessionCookie = request.headers.get('cookie')
+
+    if (!authHeader && !sessionCookie?.includes('next-auth.session-token')) {
+      return HttpResponse.json({ error: 'Unauthorized - Authentication required' }, { status: 401 })
+    }
+
+    // Simulate successful authenticated response
+    return HttpResponse.json(
+      {
+        repositories: [
+          {
+            id: 1,
+            name: 'test-repo',
+            full_name: 'user/test-repo',
+            description: 'Test repository for security testing',
+            language: 'TypeScript',
+            stars: 100,
+            url: 'https://github.com/user/test-repo',
+          },
+        ],
+        pagination: {
+          page: 1,
+          per_page: 20,
+          total: 1,
+        },
+      },
+      {
+        headers: {
+          'X-Content-Type-Options': 'nosniff',
+          'X-Frame-Options': 'DENY',
+          'X-XSS-Protection': '1; mode=block',
+          'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+        },
+      }
+    )
+  }),
+
+  // JWT token validation endpoint
+  http.post('http://localhost:3000/api/auth/verify', async ({ request }) => {
+    const authHeader = request.headers.get('authorization')
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return HttpResponse.json(
+        { error: 'Invalid token format' },
+        {
+          status: 401,
+          headers: {
+            'X-Content-Type-Options': 'nosniff',
+            'X-Frame-Options': 'DENY',
+            'X-XSS-Protection': '1; mode=block',
+            'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+          },
+        }
+      )
+    }
+
+    const token = authHeader.substring(7)
+
+    // Simulate token validation logic
+    if (token === 'valid-jwt-token') {
+      return HttpResponse.json(
+        {
+          valid: true,
+          user: {
+            id: 'user-123',
+            email: 'test@example.com',
+            name: 'Test User',
+          },
+        },
+        {
+          headers: {
+            'X-Content-Type-Options': 'nosniff',
+            'X-Frame-Options': 'DENY',
+            'X-XSS-Protection': '1; mode=block',
+            'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+          },
+        }
+      )
+    }
+
+    return HttpResponse.json(
+      { error: 'Invalid or expired token' },
+      {
+        status: 401,
+        headers: {
+          'X-Content-Type-Options': 'nosniff',
+          'X-Frame-Options': 'DENY',
+          'X-XSS-Protection': '1; mode=block',
+          'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+        },
+      }
+    )
+  }),
+
+  // Search opportunities endpoint with authentication
+  http.get('http://localhost:3000/api/search/opportunities', ({ request }) => {
+    const authHeader = request.headers.get('authorization')
+    const sessionCookie = request.headers.get('cookie')
+
+    // Check for authentication
+    if (!authHeader && !sessionCookie?.includes('next-auth.session-token')) {
+      return HttpResponse.json({ error: 'Unauthorized - Authentication required' }, { status: 401 })
+    }
+
+    // Simulate successful authenticated response
+    return HttpResponse.json(
+      {
+        opportunities: [
+          {
+            id: 1,
+            title: 'Add TypeScript support',
+            repository: 'user/test-repo',
+            difficulty: 'beginner',
+            type: 'feature',
+            description: 'Add TypeScript support to improve code quality',
+            labels: ['good first issue', 'typescript'],
+          },
+        ],
+        pagination: {
+          page: 1,
+          per_page: 20,
+          total: 1,
+        },
+      },
+      {
+        headers: {
+          'X-Content-Type-Options': 'nosniff',
+          'X-Frame-Options': 'DENY',
+          'X-XSS-Protection': '1; mode=block',
+          'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+        },
+      }
+    )
+  })
+)
+
+// Setup the dedicated security MSW server
+beforeAll(() => {
+  // Disable the global GitHub MSW server to prevent conflicts
+  mswServer.close()
+
+  // Start the dedicated security server
+  securityServer.listen({ onUnhandledRequest: 'warn' })
+})
+
+afterEach(() => {
+  securityServer.resetHandlers()
+})
+
+afterAll(() => {
+  // Close the security server
+  securityServer.close()
+
+  // Restore the global GitHub MSW server for other tests
+  mswServer.listen({ onUnhandledRequest: 'warn' })
+})
 
 describe('API Security Integration Tests', () => {
   beforeEach(() => {
