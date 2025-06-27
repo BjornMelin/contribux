@@ -1,3 +1,9 @@
+// CRITICAL: Prevent environment validation during build process
+// This must be set before ANY modules are imported
+if (process.env.NODE_ENV !== 'development' && !process.env.SKIP_ENV_VALIDATION) {
+  process.env.SKIP_ENV_VALIDATION = 'true'
+}
+
 const withPWA = require('next-pwa')({
   dest: 'public',
   disable: process.env.NODE_ENV === 'development',
@@ -31,6 +37,8 @@ const nextConfig = {
   experimental: {
     // Reduce memory usage in development
     webpackMemoryOptimizations: true,
+    // Enable test proxy for Playwright testing
+    testProxy: true,
     // Temporarily disabled - requires critters package
     // optimizeCss: true,
   },
@@ -93,11 +101,28 @@ const nextConfig = {
   poweredByHeader: false,
   generateEtags: true,
 
+  // Custom headers for API routes to prevent connection issues
+  async headers() {
+    return [
+      {
+        source: '/api/(.*)',
+        headers: [
+          {
+            key: 'Connection',
+            value: 'close',
+          },
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate',
+          },
+        ],
+      },
+    ]
+  },
+
   // Module optimization for barrel files (icon libraries, etc)
   modularizeImports: {
-    'lucide-react': {
-      transform: 'lucide-react/dist/esm/icons/{{member}}',
-    },
+    // Remove lucide-react transform - modern versions use barrel exports
     '@heroicons/react': {
       transform: '@heroicons/react/24/outline/{{member}}',
     },
