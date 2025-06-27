@@ -13,6 +13,7 @@ declare global {
   var __activeTimers: Set<NodeJS.Timeout> | undefined
   var __activeIntervals: Set<NodeJS.Timeout> | undefined
   var gc: (() => void) | undefined
+  var TransformStream: typeof TransformStream | undefined
 
   // Extend NodeJS global to include additional test properties
   namespace NodeJS {
@@ -27,6 +28,7 @@ declare global {
       __activeTimers?: Set<NodeJS.Timeout>
       __activeIntervals?: Set<NodeJS.Timeout>
       gc?: () => void
+      TransformStream?: typeof TransformStream
     }
   }
 }

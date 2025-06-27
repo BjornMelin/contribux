@@ -8,14 +8,14 @@ import { configDefaults, defineConfig } from 'vitest/config'
 try {
   // Ensure TransformStream is available for Vite and MSW
   if (typeof TransformStream !== 'undefined') {
-    ;(globalThis as any).TransformStream = TransformStream
+    globalThis.TransformStream = TransformStream
   } else {
     // Fallback for environments where TransformStream is not defined
-    ;(globalThis as any).TransformStream = class TransformStream {
+    globalThis.TransformStream = class TransformStream {
       constructor() {
         throw new Error('TransformStream not available')
       }
-    }
+    } as typeof TransformStream
   }
 } catch (error) {
   console.warn('TransformStream polyfill setup failed:', error)
