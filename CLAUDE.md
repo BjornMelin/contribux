@@ -375,3 +375,113 @@ help; // shows available commands
 - Use `generate` to regenerate task files after manual changes
 
 **Research Mode:** Add `{research: true}` to any MCP call for enhanced AI analysis
+
+---
+
+## Serena MCP Server Integration
+
+**CRITICAL: Serena is a specialized code analysis and editing system. Always follow this workflow for optimal code understanding and modification.**
+
+### Essential Workflow (ALWAYS Follow This Order)
+
+**Startup Sequence:**
+1. `mcp__serena__initial_instructions` - Get project instructions (ALWAYS call first)
+2. `mcp__serena__check_onboarding_performed` - Check if onboarding completed
+3. `mcp__serena__onboarding` - Perform onboarding if needed
+4. `mcp__serena__list_memories` - Check existing project knowledge
+
+### Project Analysis & Navigation
+
+**Overview Tools:**
+- `mcp__serena__get_current_config` - Current configuration, projects, tools, modes
+- `mcp__serena__list_dir` - List files/directories (use `recursive: true` for deep exploration)
+- `mcp__serena__find_file` - Find files by name/pattern mask
+- `mcp__serena__get_symbols_overview` - Get code symbol overview (classes, functions, etc.)
+
+**Code Discovery:**
+- `mcp__serena__find_symbol` - Find symbols by name path pattern
+  - Use patterns like `"ClassName"`, `"method"`, or `"/ClassName/method"` for absolute paths
+  - Add `depth: 1` to get children (methods of a class)
+  - Use `substring_matching: true` for partial matches
+- `mcp__serena__find_referencing_symbols` - Find what references a symbol
+- `mcp__serena__search_for_pattern` - Regex search across project files
+
+**Analysis Checkpoints:**
+- `mcp__serena__think_about_collected_information` - ALWAYS call after search sequences
+- `mcp__serena__think_about_task_adherence` - ALWAYS call before making code changes
+
+### File Operations
+
+**Reading:**
+- `mcp__serena__read_file` - Read file content or chunks
+  - Prefer symbolic operations when you know the symbol name
+  - Use `start_line` and `end_line` for large files
+
+**Creating:**
+- `mcp__serena__create_text_file` - Create new files
+  - **Only use for new files**; prefer symbolic operations for existing files
+
+### Code Editing (Prefer Symbolic Operations)
+
+**Symbol-Level Editing (PREFERRED):**
+- `mcp__serena__replace_symbol_body` - Replace entire function/class body
+- `mcp__serena__insert_after_symbol` - Insert after symbol definition
+- `mcp__serena__insert_before_symbol` - Insert before symbol definition
+
+**Pattern-Based Editing:**
+- `mcp__serena__replace_regex` - Use with wildcards for complex replacements
+  - **CRITICAL: Use wildcards (`.*?`) to avoid specifying exact content**
+  - Example: `"function.*?{.*?}"` instead of full function text
+
+**Line-Based Editing (Last Resort):**
+- `mcp__serena__delete_lines` - Delete line ranges (requires prior read_file)
+- `mcp__serena__replace_lines` - Replace line ranges (requires prior read_file)
+- `mcp__serena__insert_at_line` - Insert at specific line
+
+### System Operations
+
+**Shell Commands:**
+- `mcp__serena__execute_shell_command` - Execute shell commands
+  - **ALWAYS check memories first** for suggested commands
+  - Read "suggested shell commands" memory before using
+
+**Language Server:**
+- `mcp__serena__restart_language_server` - Restart on errors/inconsistencies
+
+### Memory Management
+
+**Project Knowledge:**
+- `mcp__serena__write_memory` - Store important project insights
+  - Use during onboarding and when discovering key patterns
+  - Short, focused memories are better than large ones
+- `mcp__serena__read_memory` - Read stored memory by filename
+- `mcp__serena__list_memories` - List all available memories
+- `mcp__serena__delete_memory` - Delete memory (only on explicit user request)
+
+### Quality Assurance Workflow
+
+**Before Code Changes:**
+1. `mcp__serena__think_about_task_adherence` - Verify alignment with task
+2. Make changes using symbolic operations
+3. `mcp__serena__think_about_whether_you_are_done` - Evaluate completion
+4. `mcp__serena__summarize_changes` - Document what was changed
+
+**Common Patterns:**
+
+```javascript
+// Code Discovery Pattern
+get_symbols_overview → find_symbol → find_referencing_symbols → think_about_collected_information
+
+// Editing Pattern  
+think_about_task_adherence → replace_symbol_body → think_about_whether_you_are_done → summarize_changes
+
+// Search Pattern
+search_for_pattern → find_symbol → read_file → think_about_collected_information
+```
+
+**Key Rules:**
+- **Always prefer symbolic operations** over direct file editing
+- **Use wildcards in regex** to avoid brittle exact matches
+- **Call think_about_* tools** at workflow checkpoints
+- **Store project insights** in memories during discovery
+- **Check memories before shell commands** for project-specific commands
