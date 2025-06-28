@@ -14,11 +14,16 @@ const GITHUB_API_URL = 'https://api.github.com'
 // Environment configuration with validation
 const getGithubClientId = () => env.GITHUB_CLIENT_ID || 'test-client-id'
 const getGithubClientSecret = () => env.GITHUB_CLIENT_SECRET || 'test-client-secret'
-const ALLOWED_REDIRECT_URIS = env.ALLOWED_REDIRECT_URIS.split(',')
+const ALLOWED_REDIRECT_URIS = env.ALLOWED_REDIRECT_URIS?.split(',') || [
+  'http://localhost:3000/auth/callback',
+  'http://localhost:3000/api/auth/github/callback',
+  'https://localhost:3000/auth/callback',
+  'https://localhost:3000/api/auth/github/callback',
+]
 
 // Validation schemas
 const GenerateOAuthUrlSchema = z.object({
-  provider: z.enum(['github']),
+  provider: z.enum(['github', 'google', 'linkedin', 'microsoft']),
   redirectUri: z.string().url(),
   scopes: z.array(z.string()),
   userId: z.string().uuid().optional(),
@@ -170,7 +175,22 @@ export async function exchangeCodeForTokens(
 ): Promise<OAuthTokens & { user?: User }> {
   const validated = ExchangeTokenSchema.parse(params)
 
-  // Exchange code for tokens
+  // Step 1: Exchange code for tokens
+  const tokens = await performTokenExchange(validated)
+
+  // Step 2: Fetch user profile if requested
+  if (validated.fetchUserProfile) {
+    const user = await processUserProfile(tokens, validated.securityContext)
+    return { ...tokens, user }
+  }
+
+  return tokens
+}
+
+// Helper function to exchange authorization code for access tokens
+async function performTokenExchange(
+  params: z.infer<typeof ExchangeTokenSchema>
+): Promise<OAuthTokens> {
   const tokenResponse = await fetch(GITHUB_TOKEN_URL, {
     method: 'POST',
     headers: {
@@ -180,9 +200,9 @@ export async function exchangeCodeForTokens(
     body: JSON.stringify({
       client_id: getGithubClientId(),
       client_secret: getGithubClientSecret(),
-      code: validated.code,
-      redirect_uri: validated.redirectUri,
-      code_verifier: validated.codeVerifier,
+      code: params.code,
+      redirect_uri: params.redirectUri,
+      code_verifier: params.codeVerifier,
     }),
   })
 
@@ -192,128 +212,175 @@ export async function exchangeCodeForTokens(
   }
 
   const tokenData = await tokenResponse.json()
+  return parseTokenResponse(tokenData)
+}
 
-  const tokens: OAuthTokens = {
+// GitHub token response interface
+interface GitHubTokenResponse {
+  access_token: string
+  token_type: string
+  refresh_token?: string
+  scope?: string
+  expires_in?: number
+}
+
+// Helper function to parse and validate token response
+function parseTokenResponse(tokenData: GitHubTokenResponse): OAuthTokens {
+  return {
     accessToken: tokenData.access_token,
     tokenType: tokenData.token_type,
+    refreshToken: tokenData.refresh_token,
+    scope: tokenData.scope,
+    expiresAt: tokenData.expires_in
+      ? new Date(Date.now() + tokenData.expires_in * 1000)
+      : undefined,
+  }
+}
+
+// Helper function to fetch and process user profile
+async function processUserProfile(
+  tokens: OAuthTokens,
+  securityContext?: z.infer<typeof ExchangeTokenSchema>['securityContext']
+): Promise<User> {
+  const githubUser = await fetchGitHubUserProfile(tokens.accessToken)
+  const user = await findOrCreateUser(githubUser)
+  await storeOAuthAccount(user, githubUser, tokens)
+
+  if (securityContext) {
+    await logOAuthEvent(user, githubUser, securityContext)
   }
 
-  if (tokenData.scope !== undefined) {
-    tokens.scope = tokenData.scope
-  }
-  if (tokenData.refresh_token !== undefined) {
-    tokens.refreshToken = tokenData.refresh_token
-  }
-  if (tokenData.expires_in) {
-    tokens.expiresAt = new Date(Date.now() + tokenData.expires_in * 1000)
-  }
+  return user
+}
 
-  // Fetch user profile if requested
-  if (validated.fetchUserProfile) {
-    const userResponse = await fetch(`${GITHUB_API_URL}/user`, {
-      headers: {
-        Authorization: `Bearer ${tokens.accessToken}`,
-        Accept: 'application/vnd.github.v3+json',
-      },
-    })
+// GitHub user profile interface
+interface GitHubUserProfile {
+  id: number
+  login: string
+  email: string
+  name?: string
+  avatar_url?: string
+}
 
-    if (!userResponse.ok) {
-      throw new Error('Failed to fetch user profile')
-    }
+// Helper function to fetch GitHub user profile
+async function fetchGitHubUserProfile(accessToken: string): Promise<GitHubUserProfile> {
+  const userResponse = await fetch(`${GITHUB_API_URL}/user`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: 'application/vnd.github.v3+json',
+    },
+  })
 
-    const githubUser = await userResponse.json()
-
-    // Find or create user
-    const userResult = await sql`
-      SELECT * FROM users
-      WHERE github_username = ${githubUser.login}
-      OR email = ${githubUser.email}
-      LIMIT 1
-    `
-
-    let user: User
-    if (userResult.length === 0) {
-      // Create new user
-      const newUserResult = await sql`
-        INSERT INTO users (
-          email, github_username, email_verified, 
-          created_at, updated_at
-        )
-        VALUES (
-          ${githubUser.email},
-          ${githubUser.login},
-          true,
-          CURRENT_TIMESTAMP,
-          CURRENT_TIMESTAMP
-        )
-        RETURNING *
-      `
-      const newUser = newUserResult[0]
-      if (!newUser) {
-        throw new Error('Failed to create user')
-      }
-      user = newUser as User
-    } else {
-      const existingUser = userResult[0]
-      if (!existingUser) {
-        throw new Error('User data not found')
-      }
-      user = existingUser as User
-    }
-
-    // Store OAuth account (tokens encrypted in real implementation)
-    await sql`
-      INSERT INTO oauth_accounts (
-        user_id, provider, provider_account_id,
-        access_token, refresh_token, expires_at,
-        token_type, scope, created_at, updated_at
-      )
-      VALUES (
-        ${user.id},
-        'github',
-        ${githubUser.id.toString()},
-        ${await encryptOAuthToken(tokens.accessToken, user.id, 'github')},
-        ${tokens.refreshToken ? await encryptOAuthToken(tokens.refreshToken, user.id, 'github') : null},
-        ${tokens.expiresAt || null},
-        ${tokens.tokenType},
-        ${tokens.scope},
-        CURRENT_TIMESTAMP,
-        CURRENT_TIMESTAMP
-      )
-      ON CONFLICT (provider, provider_account_id)
-      DO UPDATE SET
-        access_token = EXCLUDED.access_token,
-        refresh_token = EXCLUDED.refresh_token,
-        expires_at = EXCLUDED.expires_at,
-        updated_at = CURRENT_TIMESTAMP
-    `
-
-    // Log OAuth event
-    if (validated.securityContext) {
-      await logSecurityEvent({
-        event_type: 'oauth_link',
-        event_severity: 'info',
-        user_id: user.id,
-        ip_address: validated.securityContext.ip_address,
-        user_agent: validated.securityContext.user_agent,
-        event_data: {
-          provider: 'github',
-          github_username: githubUser.login,
-        },
-        success: true,
-      })
-    }
-
-    return { ...tokens, user }
+  if (!userResponse.ok) {
+    throw new Error('Failed to fetch user profile')
   }
 
-  return tokens
+  return await userResponse.json()
+}
+
+// Helper function to find existing user or create new one
+async function findOrCreateUser(githubUser: GitHubUserProfile): Promise<User> {
+  const userResult = await sql`
+    SELECT * FROM users
+    WHERE github_username = ${githubUser.login}
+    OR email = ${githubUser.email}
+    LIMIT 1
+  `
+
+  if (userResult.length === 0) {
+    return await createNewUser(githubUser)
+  }
+
+  const existingUser = userResult[0]
+  if (!existingUser) {
+    throw new Error('User data not found')
+  }
+
+  return existingUser as User
+}
+
+// Helper function to create a new user
+async function createNewUser(githubUser: GitHubUserProfile): Promise<User> {
+  const newUserResult = await sql`
+    INSERT INTO users (
+      email, github_username, email_verified, 
+      created_at, updated_at
+    )
+    VALUES (
+      ${githubUser.email},
+      ${githubUser.login},
+      true,
+      CURRENT_TIMESTAMP,
+      CURRENT_TIMESTAMP
+    )
+    RETURNING *
+  `
+
+  const newUser = newUserResult[0]
+  if (!newUser) {
+    throw new Error('Failed to create user')
+  }
+
+  return newUser as User
+}
+
+// Helper function to store OAuth account with encrypted tokens
+async function storeOAuthAccount(
+  user: User,
+  githubUser: GitHubUserProfile,
+  tokens: OAuthTokens
+): Promise<void> {
+  await sql`
+    INSERT INTO oauth_accounts (
+      user_id, provider, provider_account_id,
+      access_token, refresh_token, expires_at,
+      token_type, scope, created_at, updated_at
+    )
+    VALUES (
+      ${user.id},
+      'github',
+      ${githubUser.id.toString()},
+      ${await encryptOAuthToken(tokens.accessToken, user.id, 'github')},
+      ${tokens.refreshToken ? await encryptOAuthToken(tokens.refreshToken, user.id, 'github') : null},
+      ${tokens.expiresAt || null},
+      ${tokens.tokenType},
+      ${tokens.scope},
+      CURRENT_TIMESTAMP,
+      CURRENT_TIMESTAMP
+    )
+    ON CONFLICT (provider, provider_account_id)
+    DO UPDATE SET
+      access_token = EXCLUDED.access_token,
+      refresh_token = EXCLUDED.refresh_token,
+      expires_at = EXCLUDED.expires_at,
+      updated_at = CURRENT_TIMESTAMP
+  `
+}
+
+// Helper function to log OAuth security event
+async function logOAuthEvent(
+  user: User,
+  githubUser: GitHubUserProfile,
+  securityContext: z.infer<typeof ExchangeTokenSchema>['securityContext']
+): Promise<void> {
+  await logSecurityEvent({
+    event_type: 'oauth_link',
+    event_severity: 'info',
+    user_id: user.id,
+    ip_address: securityContext?.ip_address ?? null,
+    user_agent: securityContext?.user_agent ?? null,
+    event_data: {
+      provider: 'github',
+      github_username: githubUser.login,
+    },
+    success: true,
+  })
 }
 
 // Refresh OAuth tokens
 export async function refreshOAuthTokens(params: {
   userId: string
-  provider: 'github'
+  provider: string
 }): Promise<OAuthTokens> {
   // Get OAuth account with refresh token
   const accountResult = await sql`
@@ -375,16 +442,11 @@ export async function refreshOAuthTokens(params: {
   const result: OAuthTokens = {
     accessToken: tokenData.access_token,
     tokenType: tokenData.token_type || 'bearer',
-  }
-
-  if (tokenData.refresh_token !== undefined) {
-    result.refreshToken = tokenData.refresh_token
-  }
-  if (tokenData.scope !== undefined) {
-    result.scope = tokenData.scope
-  }
-  if (tokenData.expires_in) {
-    result.expiresAt = new Date(Date.now() + tokenData.expires_in * 1000)
+    refreshToken: tokenData.refresh_token,
+    scope: tokenData.scope,
+    expiresAt: tokenData.expires_in
+      ? new Date(Date.now() + tokenData.expires_in * 1000)
+      : undefined,
   }
 
   return result
@@ -393,7 +455,7 @@ export async function refreshOAuthTokens(params: {
 // Unlink OAuth account
 export async function unlinkOAuthAccount(params: {
   userId: string
-  provider: 'github'
+  provider: string
 }): Promise<void> {
   // Check if account exists
   const accountResult = await sql`
@@ -407,13 +469,7 @@ export async function unlinkOAuthAccount(params: {
     throw new Error('OAuth account not found')
   }
 
-  // Check if user has other auth methods
-  const webauthnCountResult = await sql`
-    SELECT COUNT(*) as count
-    FROM webauthn_credentials
-    WHERE user_id = ${params.userId}
-  `
-
+  // Check if user has other OAuth accounts
   const otherOAuthCountResult = await sql`
     SELECT COUNT(*) as count
     FROM oauth_accounts
@@ -421,10 +477,9 @@ export async function unlinkOAuthAccount(params: {
     AND provider != ${params.provider}
   `
 
-  const webauthnCount = Number(webauthnCountResult[0]?.count || 0)
   const otherOAuthCount = Number(otherOAuthCountResult[0]?.count || 0)
 
-  if (webauthnCount === 0 && otherOAuthCount === 0) {
+  if (otherOAuthCount === 0) {
     throw new Error('Cannot unlink last authentication method')
   }
 

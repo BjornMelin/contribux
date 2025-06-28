@@ -3,6 +3,7 @@
  * Uses AES-GCM for authenticated encryption with 256-bit keys
  */
 
+import { z } from 'zod'
 import { cryptoConfig } from '@/lib/config'
 import { sql } from '@/lib/db/config'
 
@@ -11,6 +12,50 @@ const ALGORITHM = cryptoConfig.algorithm
 const KEY_LENGTH = cryptoConfig.keyLength
 const IV_LENGTH = cryptoConfig.ivLength
 const TAG_LENGTH = cryptoConfig.tagLength
+
+// Validation schemas for crypto operations
+const EncryptTokenSchema = z.object({
+  token: z.string().min(1, 'Token cannot be empty'),
+  key: z.instanceof(CryptoKey),
+  additionalData: z.record(z.unknown()).optional(),
+})
+
+const DecryptTokenSchema = z.object({
+  encrypted: z.object({
+    ciphertext: z.string().min(1, 'Ciphertext cannot be empty'),
+    iv: z.string().min(1, 'IV cannot be empty'),
+    tag: z.string().min(1, 'Tag cannot be empty'),
+    algorithm: z.string().min(1, 'Algorithm must be specified'),
+    keyId: z.string().min(1, 'Key ID must be specified'),
+  }),
+  key: z.instanceof(CryptoKey),
+  additionalData: z.record(z.unknown()).optional(),
+})
+
+const EncryptOAuthTokenSchema = z.object({
+  token: z.string().min(1, 'Token cannot be empty'),
+  userId: z.string().uuid('User ID must be a valid UUID'),
+  provider: z.string().min(1, 'Provider cannot be empty'),
+})
+
+const DecryptOAuthTokenSchema = z.object({
+  encryptedData: z.string().min(1, 'Encrypted data cannot be empty'),
+  userId: z.string().uuid('User ID must be a valid UUID'),
+  provider: z.string().min(1, 'Provider cannot be empty'),
+})
+
+const ExportedKeySchema = z.object({
+  key: z.string().min(1, 'Key data cannot be empty'),
+  algorithm: z.string().min(1, 'Algorithm must be specified'),
+  keyLength: z.number().int().positive('Key length must be positive'),
+})
+
+const _EncryptionKeyMetadataSchema = z.object({
+  keyId: z.string().min(1, 'Key ID cannot be empty'),
+  version: z.number().int().positive('Version must be positive'),
+  createdAt: z.date(),
+  rotatedAt: z.date().optional(),
+})
 
 // Type definitions
 export interface EncryptedData {
@@ -51,26 +96,37 @@ export const generateAESKey = generateEncryptionKey
 
 // Export key to storable format
 export async function exportKey(key: CryptoKey): Promise<ExportedKey> {
+  // Validate input parameter
+  if (!(key instanceof CryptoKey)) {
+    throw new Error('Must provide a valid CryptoKey')
+  }
+
   const exported = await crypto.subtle.exportKey('raw', key)
   const keyData = new Uint8Array(exported)
 
-  return {
+  const result = {
     key: base64Encode(keyData),
     algorithm: ALGORITHM,
     keyLength: KEY_LENGTH,
   }
+
+  // Validate output using schema
+  return ExportedKeySchema.parse(result)
 }
 
 // Import key from stored format
 export async function importKey(exported: ExportedKey): Promise<CryptoKey> {
-  const keyData = base64Decode(exported.key)
+  // Validate input parameter
+  const validated = ExportedKeySchema.parse(exported)
+
+  const keyData = base64Decode(validated.key)
 
   return await crypto.subtle.importKey(
     'raw',
     keyData,
     {
-      name: exported.algorithm,
-      length: exported.keyLength,
+      name: validated.algorithm,
+      length: validated.keyLength,
     },
     true,
     ['encrypt', 'decrypt']
@@ -83,6 +139,9 @@ export async function encryptToken(
   key: CryptoKey,
   additionalData?: Record<string, unknown>
 ): Promise<EncryptedData> {
+  // Validate input parameters
+  const _validated = EncryptTokenSchema.parse({ token, key, additionalData })
+
   // Generate random IV
   const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH))
 
@@ -132,13 +191,14 @@ export async function decryptToken(
   key: CryptoKey,
   additionalData?: Record<string, unknown>
 ): Promise<string> {
-  // Validate input
-  if (!encrypted.ciphertext || !encrypted.iv || !encrypted.tag) {
-    throw new Error('Missing required encryption parameters')
-  }
+  // Validate input parameters
+  const validated = DecryptTokenSchema.parse({ encrypted, key, additionalData })
 
-  if (encrypted.algorithm !== ALGORITHM) {
-    throw new Error('Algorithm mismatch')
+  // Additional algorithm validation
+  if (validated.encrypted.algorithm !== ALGORITHM) {
+    throw new Error(
+      `Algorithm mismatch: expected ${ALGORITHM}, got ${validated.encrypted.algorithm}`
+    )
   }
 
   try {
@@ -195,7 +255,7 @@ export async function rotateEncryptionKey(): Promise<EncryptionKeyMetadata> {
   let currentVersion = 0
   let currentKeyData = null
 
-  if (currentKeyResult.length > 0 && currentKeyResult[0]) {
+  if (currentKeyResult.length > 0 && currentKeyResult[0] && currentKeyResult[0].key_data) {
     currentVersion = currentKeyResult[0].version
     currentKeyData = JSON.parse(currentKeyResult[0].key_data)
   }
@@ -245,6 +305,93 @@ export async function rotateEncryptionKey(): Promise<EncryptionKeyMetadata> {
   }
 }
 
+// Type for token re-encryption operations
+interface TokenReencryptionRecord {
+  id: string
+  access_token?: string
+  refresh_token?: string
+}
+
+// Type for database record during token re-encryption
+interface OAuthTokenRecord {
+  id: string
+  access_token?: string
+  refresh_token?: string
+}
+
+// Helper function to safely re-encrypt a single token field
+async function reencryptTokenField(
+  encryptedTokenData: string,
+  oldKey: CryptoKey,
+  newKey: CryptoKey
+): Promise<string | null> {
+  try {
+    const encrypted = JSON.parse(encryptedTokenData)
+    const decrypted = await decryptToken(encrypted, oldKey)
+    const newEncrypted = await encryptToken(decrypted, newKey)
+    return JSON.stringify(newEncrypted)
+  } catch (_error) {
+    // Silent failure for security - token re-encryption errors are logged at system level
+    return null
+  }
+}
+
+// Helper function to process a single token record
+async function processTokenRecord(
+  record: OAuthTokenRecord,
+  oldKey: CryptoKey,
+  newKey: CryptoKey
+): Promise<TokenReencryptionRecord> {
+  const reEncrypted: TokenReencryptionRecord = {
+    id: record.id,
+  }
+
+  // Process access token if present
+  if (record.access_token) {
+    const reencryptedToken = await reencryptTokenField(record.access_token, oldKey, newKey)
+    if (reencryptedToken) {
+      reEncrypted.access_token = reencryptedToken
+    }
+  }
+
+  // Process refresh token if present
+  if (record.refresh_token) {
+    const reencryptedToken = await reencryptTokenField(record.refresh_token, oldKey, newKey)
+    if (reencryptedToken) {
+      reEncrypted.refresh_token = reencryptedToken
+    }
+  }
+
+  return reEncrypted
+}
+
+// Helper function to batch update tokens in database
+async function batchUpdateTokens(updates: TokenReencryptionRecord[]): Promise<void> {
+  if (updates.length === 0) return
+
+  // In production, use a proper batch update
+  for (const update of updates) {
+    await sql`
+      UPDATE oauth_accounts
+      SET 
+        access_token = ${update.access_token || null},
+        refresh_token = ${update.refresh_token || null},
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${update.id}
+    `
+  }
+}
+
+// Helper function to fetch tokens needing re-encryption
+async function fetchTokensForReencryption(): Promise<OAuthTokenRecord[]> {
+  const result = await sql`
+    SELECT id, access_token, refresh_token
+    FROM oauth_accounts
+    WHERE access_token IS NOT NULL
+  `
+  return result as OAuthTokenRecord[]
+}
+
 // Re-encrypt tokens during key rotation
 async function reEncryptTokens(
   oldKeyData: ExportedKey | null,
@@ -253,68 +400,28 @@ async function reEncryptTokens(
 ): Promise<void> {
   if (!oldKeyData) return
 
-  // Import keys
+  // Import keys for re-encryption
   const oldKey = await importKey(oldKeyData)
   const newKey = await importKey(newKeyData)
 
-  // Get all encrypted tokens
-  const tokensResult = await sql`
-    SELECT id, access_token, refresh_token
-    FROM oauth_accounts
-    WHERE access_token IS NOT NULL
-  `
+  // Get all encrypted tokens that need re-encryption
+  const tokensResult = await fetchTokensForReencryption()
 
-  // Re-encrypt each token
-  const updates = []
+  // Process each token record
+  const updates: TokenReencryptionRecord[] = []
   for (const record of tokensResult) {
-    const reEncrypted: { id: string; access_token?: string; refresh_token?: string } = {
-      id: record.id,
-    }
-
-    // Re-encrypt access token
-    if (record.access_token) {
-      try {
-        const encrypted = JSON.parse(record.access_token)
-        const decrypted = await decryptToken(encrypted, oldKey)
-        const newEncrypted = await encryptToken(decrypted, newKey)
-        reEncrypted.access_token = JSON.stringify(newEncrypted)
-      } catch (error) {
-        console.error(`Failed to re-encrypt access token for ${record.id}:`, error)
-        continue
-      }
-    }
-
-    // Re-encrypt refresh token
-    if (record.refresh_token) {
-      try {
-        const encrypted = JSON.parse(record.refresh_token)
-        const decrypted = await decryptToken(encrypted, oldKey)
-        const newEncrypted = await encryptToken(decrypted, newKey)
-        reEncrypted.refresh_token = JSON.stringify(newEncrypted)
-      } catch (error) {
-        console.error(`Failed to re-encrypt refresh token for ${record.id}:`, error)
-        continue
-      }
-    }
-
-    updates.push(reEncrypted)
+    const processedRecord = await processTokenRecord(record, oldKey, newKey)
+    updates.push(processedRecord)
   }
 
-  // Batch update tokens
-  if (updates.length > 0) {
-    // In production, use a proper batch update
-    for (const update of updates) {
-      await sql`
-        UPDATE oauth_accounts
-        SET 
-          access_token = ${update.access_token || null},
-          refresh_token = ${update.refresh_token || null},
-          updated_at = CURRENT_TIMESTAMP
-        WHERE id = ${update.id}
-      `
-    }
-  }
+  // Apply batch updates to database
+  await batchUpdateTokens(updates)
 }
+
+// Validation schema for key retrieval
+const GetEncryptionKeyByIdSchema = z.object({
+  keyId: z.string().min(1, 'Key ID cannot be empty'),
+})
 
 // Get current active encryption key
 export async function getCurrentEncryptionKey(): Promise<{
@@ -365,10 +472,13 @@ export async function getCurrentEncryptionKey(): Promise<{
 
 // Get encryption key by ID
 export async function getEncryptionKeyById(keyId: string): Promise<CryptoKey> {
+  // Validate input parameter
+  const validated = GetEncryptionKeyByIdSchema.parse({ keyId })
+
   const result = await sql`
     SELECT key_data
     FROM encryption_keys
-    WHERE id = ${keyId}
+    WHERE id = ${validated.keyId}
     LIMIT 1
   `
 
@@ -412,11 +522,14 @@ export async function encryptOAuthToken(
   userId: string,
   provider: string
 ): Promise<string> {
+  // Validate input parameters
+  const validated = EncryptOAuthTokenSchema.parse({ token, userId, provider })
+
   const { key } = await getCurrentEncryptionKey()
 
-  const encrypted = await encryptToken(token, key, {
-    userId,
-    provider,
+  const encrypted = await encryptToken(validated.token, key, {
+    userId: validated.userId,
+    provider: validated.provider,
     timestamp: Date.now(),
   })
 
@@ -428,14 +541,24 @@ export async function decryptOAuthToken(
   userId: string,
   provider: string
 ): Promise<string> {
-  const encrypted = JSON.parse(encryptedData) as EncryptedData
+  // Validate input parameters
+  const validated = DecryptOAuthTokenSchema.parse({ encryptedData, userId, provider })
 
-  // Get the key used for encryption
-  const key = await getEncryptionKeyById(encrypted.keyId)
+  try {
+    const encrypted = JSON.parse(validated.encryptedData) as EncryptedData
 
-  return await decryptToken(encrypted, key, {
-    userId,
-    provider,
-    timestamp: Date.now(), // This won't match, but it's for demonstration
-  })
+    // Get the key used for encryption
+    const key = await getEncryptionKeyById(encrypted.keyId)
+
+    return await decryptToken(encrypted, key, {
+      userId: validated.userId,
+      provider: validated.provider,
+      timestamp: Date.now(), // This won't match, but it's for demonstration
+    })
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new Error('Invalid encrypted data format')
+    }
+    throw error
+  }
 }

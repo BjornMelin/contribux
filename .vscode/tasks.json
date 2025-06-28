@@ -97,6 +97,164 @@
         "focus": false,
         "panel": "shared"
       }
+    },
+    {
+      "label": "dev:debug",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["dev"],
+      "group": "build",
+      "options": {
+        "env": {
+          "NODE_OPTIONS": "--inspect",
+          "DEBUG": "*"
+        }
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "isBackground": true
+    },
+    {
+      "label": "dev:performance",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["dev"],
+      "group": "build",
+      "options": {
+        "env": {
+          "NEXT_DEBUG_PERFORMANCE": "1",
+          "PERFORMANCE_MONITORING": "true"
+        }
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "isBackground": true
+    },
+    {
+      "label": "db:debug",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["dev"],
+      "group": "build", 
+      "options": {
+        "env": {
+          "DATABASE_DEBUG": "1",
+          "DEBUG": "db:*"
+        }
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "isBackground": true
+    },
+    {
+      "label": "api:debug",
+      "type": "shell",
+      "command": "pnpm", 
+      "args": ["dev"],
+      "group": "build",
+      "options": {
+        "env": {
+          "API_DEBUG": "true",
+          "DEBUG": "api:*"
+        }
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "isBackground": true
+    },
+    {
+      "label": "oauth:debug",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["dev"],
+      "group": "build",
+      "options": {
+        "env": {
+          "OAUTH_DEBUG": "true",
+          "DEBUG": "oauth:*,auth:*"
+        }
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "isBackground": true
+    },
+    {
+      "label": "db:health-check",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["db:health"],
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "db:performance-report",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["db:performance-report"],
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "test:debug",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["test:watch"],
+      "group": "test",
+      "options": {
+        "env": {
+          "NODE_OPTIONS": "--inspect"
+        }
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "isBackground": true
+    },
+    {
+      "label": "memory:check",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["memory:check"],
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      }
     }
   ]
 }

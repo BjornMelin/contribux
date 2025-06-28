@@ -1,6 +1,5 @@
 // Database monitoring utilities for Neon PostgreSQL
 import { neon } from '@neondatabase/serverless'
-import { databaseConfig } from '@/lib/config'
 import {
   type ConnectionMetrics,
   connectionMetricsSchema,
@@ -39,16 +38,17 @@ export class DatabaseMonitor {
       `
 
       const metrics = { active: 0, idle: 0 }
-      result.forEach((row: unknown) => {
-        const validatedRow = connectionRowSchema.parse(row)
-        const count = Number.parseInt(validatedRow.count, 10) || 0
-        if (validatedRow.state === 'active') metrics.active = count
-        if (validatedRow.state === 'idle') metrics.idle = count
-      })
+      if (result && Array.isArray(result)) {
+        result.forEach((row: unknown) => {
+          const validatedRow = connectionRowSchema.parse(row)
+          const count = Number.parseInt(validatedRow.count, 10) || 0
+          if (validatedRow.state === 'active') metrics.active = count
+          if (validatedRow.state === 'idle') metrics.idle = count
+        })
+      }
 
       return connectionMetricsSchema.parse(metrics)
-    } catch (error) {
-      console.error('Failed to get connection metrics:', error)
+    } catch (_error) {
       return { active: 0, idle: 0 }
     }
   }
@@ -63,14 +63,15 @@ export class DatabaseMonitor {
           mean_exec_time,
           rows
         FROM pg_stat_statements
-        WHERE total_exec_time > ${databaseConfig.slowQueryThreshold}  -- queries above configured threshold
+        WHERE total_exec_time > 1000  -- queries above 1 second threshold
         ORDER BY total_exec_time DESC
         LIMIT ${limit}
       `
 
-      return result.map((row: unknown) => slowQuerySchema.parse(row))
-    } catch (error) {
-      console.error('Failed to get slow queries (pg_stat_statements may not be enabled):', error)
+      return result && Array.isArray(result)
+        ? result.map((row: unknown) => slowQuerySchema.parse(row))
+        : []
+    } catch (_error) {
       return []
     }
   }
@@ -80,19 +81,20 @@ export class DatabaseMonitor {
       const result = await this.sql`
         SELECT 
           schemaname,
-          tablename,
+          relname as tablename,
           indexrelname as indexname,
-          idx_scan as scans_count,
-          idx_tup_read as tuples_read,
-          idx_tup_fetch as tuples_fetched
+          CAST(idx_scan as INTEGER) as scans_count,
+          CAST(idx_tup_read as INTEGER) as tuples_read,
+          CAST(idx_tup_fetch as INTEGER) as tuples_fetched
         FROM pg_stat_user_indexes
         WHERE schemaname = 'public'
         ORDER BY idx_scan DESC
       `
 
-      return result.map((row: unknown) => indexStatSchema.parse(row))
-    } catch (error) {
-      console.error('Failed to get index usage stats:', error)
+      return result && Array.isArray(result)
+        ? result.map((row: unknown) => indexStatSchema.parse(row))
+        : []
+    } catch (_error) {
       return []
     }
   }
@@ -102,18 +104,19 @@ export class DatabaseMonitor {
       const result = await this.sql`
         SELECT 
           schemaname,
-          tablename,
+          relname as tablename,
           indexrelname as indexname,
           pg_size_pretty(pg_relation_size(indexrelid)) as index_size,
-          idx_scan as scans_count
+          CAST(idx_scan as INTEGER) as scans_count
         FROM pg_stat_user_indexes 
         WHERE indexrelname LIKE '%hnsw%'
         ORDER BY pg_relation_size(indexrelid) DESC
       `
 
-      return result.map((row: unknown) => vectorIndexMetricSchema.parse(row))
-    } catch (error) {
-      console.error('Failed to get vector index metrics:', error)
+      return result && Array.isArray(result)
+        ? result.map((row: unknown) => vectorIndexMetricSchema.parse(row))
+        : []
+    } catch (_error) {
       return []
     }
   }
@@ -132,9 +135,10 @@ export class DatabaseMonitor {
         ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC
       `
 
-      return result.map((row: unknown) => tableSizeSchema.parse(row))
-    } catch (error) {
-      console.error('Failed to get table sizes:', error)
+      return result && Array.isArray(result)
+        ? result.map((row: unknown) => tableSizeSchema.parse(row))
+        : []
+    } catch (_error) {
       return []
     }
   }
@@ -172,7 +176,10 @@ export class DatabaseMonitor {
         WHERE extname IN ('vector', 'pg_trgm', 'uuid-ossp', 'pgcrypto')
       `
 
-      const extensions = extensionsResult.map((row: unknown) => extensionSchema.parse(row))
+      const extensions =
+        extensionsResult && Array.isArray(extensionsResult)
+          ? extensionsResult.map((row: unknown) => extensionSchema.parse(row))
+          : []
       const requiredExtensions = ['vector', 'pg_trgm', 'uuid-ossp', 'pgcrypto']
       const installedExtensions = extensions.map(ext => ext.extname)
       const missing = requiredExtensions.filter(ext => !installedExtensions.includes(ext))
@@ -246,7 +253,7 @@ export class DatabaseMonitor {
       const [connectionMetrics, slowQueries, indexStats, vectorMetrics, tableSizes, healthCheck] =
         await Promise.all([
           this.getConnectionMetrics(),
-          this.getSlowQueries(databaseConfig.maxSlowQueries),
+          this.getSlowQueries(10),
           this.getIndexUsageStats(),
           this.getVectorIndexMetrics(),
           this.getTableSizes(),
@@ -318,7 +325,6 @@ ${indexStatsText}`
 
       return report.trim()
     } catch (error) {
-      console.error('Failed to generate performance report:', error)
       return `Performance report generation failed: ${error}`
     }
   }

@@ -1,4 +1,14 @@
-import type { Config } from 'tailwindcss'
+interface Config {
+  content: string[]
+  theme?: {
+    extend?: {
+      colors?: Record<string, string>
+      animation?: Record<string, string>
+      keyframes?: Record<string, Record<string, Record<string, string>>>
+    }
+  }
+  plugins?: unknown[]
+}
 
 const config: Config = {
   content: [
@@ -11,6 +21,25 @@ const config: Config = {
       colors: {
         background: 'var(--background)',
         foreground: 'var(--foreground)',
+      },
+      animation: {
+        blob: 'blob 7s infinite',
+      },
+      keyframes: {
+        blob: {
+          '0%': {
+            transform: 'translate(0px, 0px) scale(1)',
+          },
+          '33%': {
+            transform: 'translate(30px, -50px) scale(1.1)',
+          },
+          '66%': {
+            transform: 'translate(-20px, 20px) scale(0.9)',
+          },
+          '100%': {
+            transform: 'translate(0px, 0px) scale(1)',
+          },
+        },
       },
     },
   },
