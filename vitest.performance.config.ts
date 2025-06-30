@@ -4,7 +4,7 @@ import tsconfigPaths from 'vite-tsconfig-paths'
 import { configDefaults, defineConfig } from 'vitest/config'
 
 export default defineConfig({
-  cacheDir: '.vitest/cache-integration',
+  cacheDir: '.vitest/cache-performance',
   
   plugins: [
     tsconfigPaths(),
@@ -24,49 +24,49 @@ export default defineConfig({
   },
   
   test: {
-    // Integration test configuration
+    // Performance and load test configuration
     globals: true,
     environment: 'node',
     
     include: [
-      'tests/integration/**/*.{test,spec}.{js,ts,tsx}',
+      'tests/performance/**/*.{test,spec}.{js,ts,tsx}',
     ],
     
     exclude: [
       ...configDefaults.exclude,
       'tests/unit/**/*',
-      'tests/performance/**/*',
+      'tests/integration/**/*',
       'tests/e2e/**/*',
       'tests/security/**/*',
     ],
     
     setupFiles: ['./tests/setup.ts'],
     
-    // Integration tests need more time and resources
-    testTimeout: 60000,
-    hookTimeout: 30000,
-    retry: 1,
+    // Performance tests need extended timeouts
+    testTimeout: 120000,
+    hookTimeout: 60000,
+    retry: 0, // No retries for performance tests
     
-    // Sequential execution for integration tests to avoid conflicts
-    pool: 'forks',
+    // Optimized for performance testing
+    pool: 'threads',
     poolOptions: {
-      forks: {
-        singleFork: true,
+      threads: {
+        singleThread: false,
+        minThreads: 2,
+        maxThreads: 8,
       },
     },
     
-    // Coverage for integration tests
+    // Minimal coverage for performance tests
     coverage: {
-      provider: 'v8',
-      reporter: ['text', 'json'],
-      exclude: [
-        ...configDefaults.coverage.exclude,
-        'tests/**/*',
-        '**/*.config.*',
-      ],
+      enabled: false,
     },
     
+    // Performance-focused reporting
     reporter: ['default', 'json'],
-    outputFile: { json: './integration-test-results.json' },
+    outputFile: { json: './performance-test-results.json' },
+    
+    // Memory and resource limits
+    isolate: false, // Share environment for performance testing
   },
 })
