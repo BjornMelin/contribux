@@ -81,7 +81,7 @@ export async function setupSearchFunctions(sql: NeonQueryFunction<false, false>)
     if (extensions.length > 0 && extensions.length !== 3) {
       console.warn('Some extensions may not be loaded, but continuing with available functionality')
     }
-  } catch (error) {
+  } catch (_error) {
     // Expected to fail in PGlite - continue without extension verification
     console.log('Skipping extension check (expected in PGlite environment)')
   }

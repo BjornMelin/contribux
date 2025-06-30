@@ -1,14 +1,12 @@
 'use client'
 
 import { motion, useMotionTemplate, useMotionValue } from 'framer-motion'
-import { Eye, EyeOff, Github, Loader2, Mail } from 'lucide-react'
+import { Github, Loader2, Mail } from 'lucide-react'
 
 import { signIn } from 'next-auth/react'
 import type { MouseEvent, ReactNode } from 'react'
 import { useEffect, useState } from 'react'
-import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { NoSSR } from '@/components/ui/no-ssr'
 import { cn } from '@/lib/utils'
 
@@ -158,9 +156,6 @@ const FloatingParticles = () => {
 
 // Main OAuth Sign In Component
 const OAuthSignIn = () => {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null)
 
@@ -184,10 +179,6 @@ const OAuthSignIn = () => {
       setIsLoading(false)
       setLoadingProvider(null)
     }
-  }
-
-  const handleEmailSignIn = (_email: string, _password: string) => {
-    alert('Email authentication is not currently set up. Please use GitHub or Google to sign in.')
   }
 
   return (
@@ -241,59 +232,6 @@ const OAuthSignIn = () => {
                 </div>
               </AuroraButton>
             </div>
-
-            {/* Divider */}
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-gray-600 border-t" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="bg-white/10 px-2 text-gray-400">Or continue with email</span>
-              </div>
-            </div>
-
-            {/* Email Form */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6, duration: 0.5 }}
-              className="space-y-4"
-            >
-              <div>
-                <Input
-                  type="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  className="border-white/20 bg-white/10 text-white placeholder:text-gray-400 focus:border-blue-400"
-                />
-              </div>
-
-              <div className="relative">
-                <Input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  className="border-white/20 bg-white/10 pr-12 text-white placeholder:text-gray-400 focus:border-blue-400"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="-translate-y-1/2 absolute top-1/2 right-3 transform text-gray-400 transition-colors hover:text-white"
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-
-              <Button
-                onClick={() => handleEmailSignIn(email, password)}
-                className="w-full bg-blue-600 py-2.5 font-medium text-white transition-colors hover:bg-blue-700"
-                disabled={!email || !password}
-              >
-                Sign In with Email
-              </Button>
-            </motion.div>
 
             {/* Footer */}
             <motion.div

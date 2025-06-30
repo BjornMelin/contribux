@@ -3,7 +3,7 @@
  * Provides comprehensive event logging, monitoring, and compliance features
  */
 
-import { authConfig } from '@/lib/config'
+import { authConfig } from '@/lib/config/auth'
 import { timingSafeEqual } from '@/lib/crypto-utils'
 import { sql } from '@/lib/db/config'
 import { createSecureHash } from '@/lib/security/crypto'

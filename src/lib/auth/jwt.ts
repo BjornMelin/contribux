@@ -6,7 +6,7 @@
 
 import { errors as joseErrors, jwtVerify, SignJWT } from 'jose'
 import { z } from 'zod'
-import { authConfig } from '@/lib/config'
+import { authConfig } from '@/lib/config/auth'
 import { base64url, generateRandomToken, generateUUID } from '@/lib/crypto-utils'
 import { sql } from '@/lib/db/config'
 import { createSecureHash } from '@/lib/security/crypto'
@@ -327,7 +327,16 @@ function tryParseMockJWT(token: string): AccessTokenPayload | null {
     if (parts.length === 3) {
       const [headerPart, payloadPart, signaturePart] = parts
       if (headerPart && payloadPart && signaturePart) {
-        // Parse payload first to get JTI for signature validation
+        // Parse and validate header first for security
+        const headerBytes = base64url.decode(headerPart)
+        const header = JSON.parse(new TextDecoder().decode(headerBytes))
+
+        // Reject tokens with insecure algorithms (security test requirement)
+        if (!header.alg || header.alg === 'none' || header.alg !== 'HS256') {
+          throw new Error('Invalid token')
+        }
+
+        // Parse payload to get JTI for signature validation
         const payloadBytes = base64url.decode(payloadPart)
         const payload = JSON.parse(new TextDecoder().decode(payloadBytes)) as AccessTokenPayload
 

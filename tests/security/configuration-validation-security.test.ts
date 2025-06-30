@@ -203,7 +203,7 @@ describe('Configuration Validation Security', () => {
     it('should block startup with test keywords in production secrets', async () => {
       // Set environment with test keywords in production
       process.env.NODE_ENV = 'production'
-      process.env.DATABASE_URL = 'postgresql://user:pass@localhost:5432/db'
+      process.env.DATABASE_URL = 'postgresql://user:pass@production.db.com:5432/db' // Non-localhost URL
       process.env.JWT_SECRET = 'test-jwt-secret-with-sufficient-length-and-entropy-32chars' // Contains 'test'
       process.env.ENCRYPTION_KEY =
         '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'

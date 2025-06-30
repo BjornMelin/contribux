@@ -440,6 +440,18 @@ test-entropy.js
 .taskmaster/.env
 .taskmaster/*.log
 
+# ================================
+# AI Development Tools
+# ================================
+# Serena MCP server configuration
+.serena/
+
+# AI development tool configurations
+.aider/
+.gpt/
+.anthropic/
+.openai/
+
 # Roo integration files
 .roo/
 .roomodes

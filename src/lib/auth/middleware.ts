@@ -33,7 +33,6 @@ import { sql } from '@/lib/db/config'
 import { env } from '@/lib/validation/env'
 import type { AccessTokenPayload, User } from '@/types/auth'
 import { createLogParams, logSecurityEvent } from './audit'
-// import { checkConsentRequired } from './gdpr' // TODO: Re-enable when GDPR module is fully integrated
 import { verifyAccessToken } from './jwt'
 
 // Rate limiter interfaces
@@ -483,10 +482,7 @@ export function requireConsent(consentTypes: string[]) {
       const missingConsents: string[] = []
 
       for (const _consentType of consentTypes) {
-        // TODO: Re-enable when GDPR module is fully integrated
-        // if (await checkConsentRequired(authReq.auth.user.id, consentType)) {
-        //   missingConsents.push(consentType)
-        // }
+        // GDPR compliance checking removed - using NextAuth.js session-based consent management
       }
 
       if (missingConsents.length > 0) {

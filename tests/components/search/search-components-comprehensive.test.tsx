@@ -9,11 +9,13 @@
 
 import { screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { OpportunityCard } from '@/components/features/OpportunityCard'
-import { OpportunityList } from '@/components/features/OpportunityList'
-import { SearchBar } from '@/components/features/SearchBar'
-import { SearchFilters } from '@/components/features/SearchFilters'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  OpportunityCard,
+  OpportunityList,
+  SearchBar,
+  SearchFilters,
+} from '../../../src/components/features'
 import {
   goodFirstIssueOpportunity,
   longDescriptionOpportunity,
@@ -125,7 +127,9 @@ describe('Search Components - Comprehensive Suite', () => {
         renderIsolated(<SearchBar onSearch={onSearch} loading={true} />)
 
         const input = screen.getByRole('textbox', { name: /search input/i })
-        const submitButton = screen.getByRole('button', { name: /searching\.\.\./i })
+        const submitButton = screen.getByRole('button', {
+          name: /searching\.\.\./i,
+        })
 
         expect(input).toBeDisabled()
         expect(submitButton).toBeDisabled()
@@ -259,7 +263,9 @@ describe('Search Components - Comprehensive Suite', () => {
         const onFiltersChange = vi.fn()
         renderIsolated(<SearchFilters filters={filters} onFiltersChange={onFiltersChange} />)
 
-        const resetButton = screen.getByRole('button', { name: /reset filters/i })
+        const resetButton = screen.getByRole('button', {
+          name: /reset filters/i,
+        })
         await user.click(resetButton)
 
         expect(onFiltersChange).toHaveBeenCalledWith(
@@ -584,7 +590,9 @@ describe('Search Components - Comprehensive Suite', () => {
         )
 
         // User types a search query
-        const searchInput = screen.getByRole('textbox', { name: /search input/i })
+        const searchInput = screen.getByRole('textbox', {
+          name: /search input/i,
+        })
         await user.type(searchInput, 'typescript')
         await user.keyboard('{Enter}')
 

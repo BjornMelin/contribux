@@ -4,7 +4,7 @@
  */
 
 import { z } from 'zod'
-import { cryptoConfig } from '@/lib/config'
+import { cryptoConfig } from '@/lib/config/crypto'
 import { sql } from '@/lib/db/config'
 
 // Encryption configuration using centralized config

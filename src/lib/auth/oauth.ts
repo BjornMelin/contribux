@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { oauthConfig } from '@/lib/config'
+import { oauthConfig } from '@/lib/config/oauth'
 import { sql } from '@/lib/db/config'
 import { env } from '@/lib/validation/env'
 import type { OAuthCallbackParams, OAuthTokens, User } from '@/types/auth'

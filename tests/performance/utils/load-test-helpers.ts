@@ -9,6 +9,36 @@ import { GitHubClient, type GitHubClientConfig, type TokenInfo } from '../../../
 import { mswServer } from '../../github/msw-setup'
 import { createRateLimitHeaders } from '../../github/test-helpers'
 
+// Authentication validation for load test server (extracted from msw-setup.ts)
+function isValidLoadTestToken(authHeader: string | null, expectedToken?: string): boolean {
+  if (!authHeader) return false
+
+  const token = authHeader.replace(/^(token|Bearer)\s+/i, '')
+
+  // If expectedToken is provided, check exact match
+  if (expectedToken) {
+    return token === expectedToken
+  }
+
+  // Test tokens are valid
+  if (token === 'test_token' || token === 'ghp_test_token') {
+    return true
+  }
+
+  // Check for load test token patterns
+  if (token.startsWith('test_token_') || token.startsWith('ghp_test_token_')) {
+    return true
+  }
+
+  // Otherwise, check for valid token patterns
+  return (
+    token.startsWith('ghp_') ||
+    token.startsWith('gho_') ||
+    token.startsWith('ghs_') ||
+    token.length >= 20
+  )
+}
+
 // Create a simple tracked client for load testing
 export function createTrackedClient(
   ClientClass: typeof GitHubClient,
@@ -31,7 +61,7 @@ export function createTrackedClient(
 export const loadTestServer = setupServer()
 
 // Helper function to add test-specific handlers without clearing others
-export async function addTestHandlers(...handlers: Record<string, unknown>[]) {
+export async function addTestHandlers(...handlers: Parameters<typeof loadTestServer.use>) {
   console.log(`Adding test handlers: ${handlers.length} handlers`)
 
   // Add handlers without clearing existing ones
@@ -52,11 +82,118 @@ export function setupLoadTestMSW() {
         mswServer.close()
       }
 
-      // Start our dedicated server with no default handlers and isolated fetch
+      // Add essential authentication handlers for GitHub API endpoints
+      loadTestServer.use(
+        // Generic user endpoint with authentication
+        http.get('https://api.github.com/user', ({ request }) => {
+          const authHeader = request.headers.get('authorization')
+
+          if (!isValidLoadTestToken(authHeader)) {
+            return HttpResponse.json(
+              {
+                message: 'Bad credentials',
+                documentation_url: 'https://docs.github.com/rest',
+              },
+              { status: 401 }
+            )
+          }
+
+          return HttpResponse.json(
+            {
+              login: 'test-user',
+              id: 12345,
+              avatar_url: 'https://github.com/images/test-user.png',
+              html_url: 'https://github.com/test-user',
+              type: 'User',
+              site_admin: false,
+            },
+            {
+              headers: createRateLimitHeaders({ remaining: 4900 }),
+            }
+          )
+        }),
+
+        // Users by username endpoint
+        http.get('https://api.github.com/users/:username', ({ request, params }) => {
+          const authHeader = request.headers.get('authorization')
+
+          if (!isValidLoadTestToken(authHeader)) {
+            return HttpResponse.json(
+              {
+                message: 'Bad credentials',
+                documentation_url: 'https://docs.github.com/rest',
+              },
+              { status: 401 }
+            )
+          }
+
+          const { username } = params
+          return HttpResponse.json(
+            {
+              login: username,
+              id: 12345,
+              avatar_url: `https://github.com/images/${username}.png`,
+              html_url: `https://github.com/${username}`,
+              type: 'User',
+              site_admin: false,
+            },
+            {
+              headers: createRateLimitHeaders({ remaining: 4890 }),
+            }
+          )
+        }),
+
+        // GraphQL endpoint with authentication
+        http.post('https://api.github.com/graphql', async ({ request }) => {
+          const authHeader = request.headers.get('authorization')
+
+          if (!isValidLoadTestToken(authHeader)) {
+            return HttpResponse.json(
+              {
+                message: 'Bad credentials',
+                documentation_url: 'https://docs.github.com/rest',
+              },
+              { status: 401 }
+            )
+          }
+
+          const body = await request.json()
+
+          // Handle viewer queries
+          if (
+            body &&
+            typeof body === 'object' &&
+            'query' in body &&
+            typeof body.query === 'string' &&
+            body.query.includes('viewer')
+          ) {
+            return HttpResponse.json({
+              data: {
+                viewer: { login: 'test-user', id: 'gid_12345' },
+                rateLimit: {
+                  limit: 5000,
+                  remaining: 4880,
+                  resetAt: new Date(Date.now() + 3600000).toISOString(),
+                  cost: 1,
+                  nodeCount: 1,
+                },
+              },
+            })
+          }
+
+          // Default GraphQL response
+          return HttpResponse.json({
+            data: {},
+            errors: [{ message: 'Query not supported in test environment' }],
+          })
+        })
+      )
+
+      // Start our dedicated server with authentication handlers
       loadTestServer.listen({
         onUnhandledRequest: 'bypass', // Don't warn about unhandled requests in performance tests
       })
-      console.log('Load test MSW server listening with isolated handlers')
+      console.log('Load test MSW server listening with authentication handlers')
     },
     afterAll: () => {
       console.log('Cleaning up isolated MSW server')
@@ -151,26 +288,31 @@ export const createStandardUserHandler = (testToken: string, baseRequestCount = 
   return http.get('https://api.github.com/user', ({ request }) => {
     const authHeader = request.headers.get('authorization')
 
-    // Only handle if this is our specific test token
-    if (authHeader === `token ${testToken}`) {
-      requestCount++
+    // Validate authentication first
+    if (!isValidLoadTestToken(authHeader, testToken)) {
       return HttpResponse.json(
         {
-          login: `user_${requestCount}`,
-          id: requestCount,
-          avatar_url: `https://github.com/images/user_${requestCount}.png`,
-          html_url: `https://github.com/user_${requestCount}`,
-          type: 'User',
-          site_admin: false,
+          message: 'Bad credentials',
+          documentation_url: 'https://docs.github.com/rest',
         },
-        {
-          headers: createRateLimitHeaders({ remaining: 5000 - requestCount }),
-        }
+        { status: 401 }
       )
     }
 
-    // Let other handlers handle this request
-    return
+    requestCount++
+    return HttpResponse.json(
+      {
+        login: `user_${requestCount}`,
+        id: requestCount,
+        avatar_url: `https://github.com/images/user_${requestCount}.png`,
+        html_url: `https://github.com/user_${requestCount}`,
+        type: 'User',
+        site_admin: false,
+      },
+      {
+        headers: createRateLimitHeaders({ remaining: 5000 - requestCount }),
+      }
+    )
   })
 }
 
@@ -178,17 +320,28 @@ export const createStandardGraphQLHandler = (testToken: string, baseRequestCount
   let requestCount = baseRequestCount
 
   return http.post('https://api.github.com/graphql', async ({ request }) => {
-    const body = await request.json()
     const authHeader = request.headers.get('authorization')
 
-    // Only handle if this is our specific test query with our test token
+    // Validate authentication first
+    if (!isValidLoadTestToken(authHeader, testToken)) {
+      return HttpResponse.json(
+        {
+          message: 'Bad credentials',
+          documentation_url: 'https://docs.github.com/rest',
+        },
+        { status: 401 }
+      )
+    }
+
+    const body = await request.json()
+
+    // Handle GraphQL requests
     if (
       body &&
       typeof body === 'object' &&
       'query' in body &&
       typeof body.query === 'string' &&
-      body.query.includes('viewer') &&
-      authHeader === `token ${testToken}`
+      body.query.includes('viewer')
     ) {
       requestCount++
       return HttpResponse.json({
@@ -205,8 +358,11 @@ export const createStandardGraphQLHandler = (testToken: string, baseRequestCount
       })
     }
 
-    // Let other handlers handle this request
-    return
+    // Return error for unhandled GraphQL queries
+    return HttpResponse.json(
+      { errors: [{ message: 'Query not supported in test environment' }] },
+      { status: 400 }
+    )
   })
 }
 

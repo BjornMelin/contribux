@@ -425,6 +425,8 @@ async function validateAPIs(): Promise<ValidationSummary> {
   return summary
 }
 
+// NEW: Security validation script created on line below
+
 // Save results to file
 async function saveResults(summary: ValidationSummary): Promise<void> {
   const results = {

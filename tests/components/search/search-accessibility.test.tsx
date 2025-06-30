@@ -9,11 +9,13 @@
 
 import { screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { OpportunityCard } from '@/components/features/OpportunityCard'
-import { OpportunityList } from '@/components/features/OpportunityList'
-import { SearchBar } from '@/components/features/SearchBar'
-import { SearchFilters } from '@/components/features/SearchFilters'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  OpportunityCard,
+  OpportunityList,
+  SearchBar,
+  SearchFilters,
+} from '../../../src/components/features'
 import { mockOpportunities, sharedMockOpportunity } from './fixtures/search-component-data'
 import {
   createDefaultFilters,
@@ -172,7 +174,9 @@ describe('Search Components - Accessibility Suite', () => {
         const goodFirstIssue = screen.getByLabelText(/good first issue/i)
         const helpWanted = screen.getByLabelText(/help wanted/i)
         const scoreSlider = screen.getByLabelText(/minimum relevance score/i)
-        const resetButton = screen.getByRole('button', { name: /reset filters/i })
+        const resetButton = screen.getByRole('button', {
+          name: /reset filters/i,
+        })
 
         // Tab through controls in order
         await user.tab()
@@ -370,7 +374,9 @@ describe('Search Components - Accessibility Suite', () => {
           />
         )
 
-        const statusElement = screen.getByRole('status', { name: /loading opportunities/i })
+        const statusElement = screen.getByRole('status', {
+          name: /loading opportunities/i,
+        })
         expect(statusElement).toBeInTheDocument()
       })
     })

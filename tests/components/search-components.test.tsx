@@ -15,20 +15,20 @@
 
 import { fireEvent, render } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // Import actual components
 import {
   OpportunityCard,
   OpportunityList,
   SearchBar,
   SearchFilters as SearchFiltersComponent,
-} from '@/components/features'
+} from '../../src/components/features'
 import {
   type Opportunity,
   OpportunitySchema,
   type SearchFilters,
   SearchFiltersSchema,
-} from '@/types/search'
+} from '../../src/types/search'
 import {
   asUUID,
   cleanupComponentTest,
@@ -401,7 +401,9 @@ describe('Search Components - Fixed', () => {
         <SearchFiltersComponent filters={filtersWithValues} onFiltersChange={onFiltersChange} />
       )
 
-      const resetButton = renderResult.getByRole('button', { name: /reset filters/i })
+      const resetButton = renderResult.getByRole('button', {
+        name: /reset filters/i,
+      })
 
       // Use fireEvent for direct DOM interaction instead of userEvent
       fireEvent.click(resetButton)
@@ -747,7 +749,9 @@ describe('Search Components - Fixed', () => {
       const user = userEvent.setup()
 
       // Test search interaction using direct element access
-      const searchInput = renderResult.getByRole('textbox', { name: 'Search input' })
+      const searchInput = renderResult.getByRole('textbox', {
+        name: 'Search input',
+      })
       await user.clear(searchInput)
       await user.type(searchInput, 'React')
       await user.keyboard('{Enter}')

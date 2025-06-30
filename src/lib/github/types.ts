@@ -90,23 +90,6 @@ const CacheOptionsSchema = z
   })
   .optional()
 
-const ThrottleOptionsSchema = z
-  .object({
-    onRateLimit: z
-      .any()
-      .refine(val => val === undefined || typeof val === 'function', {
-        message: 'onRateLimit must be a function',
-      })
-      .optional(),
-    onSecondaryRateLimit: z
-      .any()
-      .refine(val => val === undefined || typeof val === 'function', {
-        message: 'onSecondaryRateLimit must be a function',
-      })
-      .optional(),
-  })
-  .optional()
-
 const RetryOptionsSchema = z
   .object({
     retries: z
@@ -130,40 +113,39 @@ const RetryOptionsSchema = z
   })
   .optional()
 
-const GitHubClientConfigSchema = z
+const ThrottleOptionsSchema = z
   .object({
-    auth: AuthSchema.optional(),
-    baseUrl: z
-      .string({
-        invalid_type_error: 'baseUrl must be a string',
-      })
-      .url('baseUrl must be a valid URL')
-      .optional(),
-    userAgent: z
-      .string({
-        invalid_type_error: 'userAgent must be a string',
-      })
-      .min(1, 'userAgent cannot be empty')
-      .optional(),
-    throttle: ThrottleOptionsSchema,
-    cache: CacheOptionsSchema,
-    retry: RetryOptionsSchema,
+    onRateLimit: z.function().optional(),
+    onSecondaryRateLimit: z.function().optional(),
   })
-  .refine(config => {
-    // Warn about potentially problematic configurations
-    if (config.cache?.maxAge && config.cache.maxAge < 30 && config.throttle?.onRateLimit) {
-      // Warning: short cache duration with rate limiting may cause issues
-    }
-    return true
-  })
+  .optional()
+
+const GitHubClientConfigSchema = z.object({
+  auth: AuthSchema.optional(),
+  baseUrl: z
+    .string({
+      invalid_type_error: 'baseUrl must be a string',
+    })
+    .url('baseUrl must be a valid URL')
+    .optional(),
+  userAgent: z
+    .string({
+      invalid_type_error: 'userAgent must be a string',
+    })
+    .min(1, 'userAgent cannot be empty')
+    .optional(),
+  cache: CacheOptionsSchema,
+  retry: RetryOptionsSchema,
+  throttle: ThrottleOptionsSchema,
+})
 
 // Export validation schemas and their inferred types
 export {
   GitHubClientConfigSchema,
   AuthSchema,
   CacheOptionsSchema,
-  ThrottleOptionsSchema,
   RetryOptionsSchema,
+  ThrottleOptionsSchema,
 }
 export type GitHubClientConfig = z.infer<typeof GitHubClientConfigSchema>
 export type AuthConfig = z.infer<typeof AuthSchema>

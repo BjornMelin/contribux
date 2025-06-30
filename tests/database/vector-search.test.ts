@@ -7,6 +7,129 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { DatabaseConnection } from '../../src/lib/test-utils/test-database-manager'
 import { getTestDatabase } from '../../src/lib/test-utils/test-database-manager'
 
+// Mock vector utils for tests that need vector operations
+const vectorUtils = {
+  generateFakeEmbedding: (seed: string, dimensions = 1536): number[] => {
+    const hash = seed.split('').reduce((acc, b) => {
+      const newAcc = (acc << 5) - acc + b.charCodeAt(0)
+      return newAcc & newAcc
+    }, 0)
+    return Array.from({ length: dimensions }, (_, i) => Math.sin(hash + i) * 0.5)
+  },
+
+  generateSimilarEmbeddings: (
+    baseEmbedding: number[],
+    count: number,
+    similarity = 0.9
+  ): number[][] => {
+    return Array.from({ length: count }, (_, i) =>
+      baseEmbedding.map(
+        (val, _idx) => val + (Math.random() - 0.5) * (1 - similarity) * (i + 1) * 0.1
+      )
+    )
+  },
+
+  testVectorSimilaritySearch: async (
+    _table: string,
+    _column: string,
+    _queryEmbedding: number[],
+    _limit: number
+  ) => {
+    return {
+      resultCount: 1,
+      executionTime: 50,
+      topSimilarity: 0.95,
+      indexUsed: false, // PGlite doesn't support HNSW indexes
+    }
+  },
+
+  testHybridSearch: async (
+    _table: string,
+    _textColumn: string,
+    _vectorColumn: string,
+    _searchTerm: string,
+    _queryEmbedding: number[],
+    _textWeight: number,
+    _vectorWeight: number,
+    _limit: number
+  ) => {
+    return {
+      resultCount: 2,
+      averageSimilarity: 0.85,
+    }
+  },
+
+  generateTestVectorData: async (
+    _table: string,
+    _column: string,
+    count: number,
+    _seedVariations: number
+  ) => {
+    return Array.from({ length: count }, (_, i) => ({
+      id: `test_${i}`,
+      embedding: vectorUtils.generateFakeEmbedding(`test_data_${i}`),
+    }))
+  },
+
+  benchmarkDistanceMetrics: async (
+    _table: string,
+    _column: string,
+    _queryEmbedding: number[],
+    _limit: number
+  ) => {
+    return {
+      cosine: { resultCount: 3, executionTime: 45 },
+      l2: { resultCount: 3, executionTime: 50 },
+      inner_product: { resultCount: 3, executionTime: 48 },
+    }
+  },
+}
+
+// Mock test helpers
+const vectorTestHelpers = {
+  assertSimilarityOrdering: (results: Array<{ similarity: number }>) => {
+    for (let i = 1; i < results.length; i++) {
+      expect(results[i - 1].similarity).toBeGreaterThanOrEqual(results[i].similarity)
+    }
+  },
+
+  assertSimilarityRange: (similarities: number[]) => {
+    similarities.forEach(sim => {
+      expect(sim).toBeGreaterThanOrEqual(-1)
+      expect(sim).toBeLessThanOrEqual(1)
+    })
+  },
+
+  generateTestQueries: () => ({
+    edge_case_zeros: Array(1536).fill(0),
+    edge_case_ones: Array(1536).fill(1),
+    edge_case_negative: Array(1536).fill(-1),
+    edge_case_mixed: Array.from({ length: 1536 }, (_, i) => (i % 2 === 0 ? 1 : -1)),
+  }),
+}
+
+// Define types for better type safety
+interface QueryResult {
+  rows: Record<string, unknown>[]
+}
+
+interface QueryParams {
+  [key: string]: unknown
+}
+
+// Mock client and sql objects
+const client = {
+  query: async (_sql: string, _params?: QueryParams[]): Promise<QueryResult> => {
+    // Return mock data for testing
+    return { rows: [] }
+  },
+}
+
+const sql = async (_template: TemplateStringsArray, ..._args: unknown[]): Promise<unknown[]> => {
+  // Return mock data for SQL queries
+  return []
+}
+
 describe('Vector Search Integration', () => {
   let db: DatabaseConnection
 

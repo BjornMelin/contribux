@@ -631,45 +631,75 @@ export class TestDatabaseManager {
    * Create Neon-compatible SQL client from PGlite
    */
   private createNeonCompatibleClient(db: PGlite): NeonQueryFunction<false, false> {
+    const self = this
     return async function sql(strings: TemplateStringsArray, ...values: unknown[]) {
-      // More robust connection state checking
       try {
-        // Simple check if db exists and has query method
-        if (!db || typeof db.query !== 'function') {
-          throw new Error('Database connection is not available')
-        }
-
-        const { query, params } = buildParameterizedQuery(strings, values)
-        const { finalQuery, finalParams } = processVectorOperations(query, params)
-
-        // Handle transaction commands for PGlite compatibility
-        if (
-          finalQuery.trim().toUpperCase().startsWith('BEGIN') ||
-          finalQuery.trim().toUpperCase().startsWith('COMMIT') ||
-          finalQuery.trim().toUpperCase().startsWith('ROLLBACK')
-        ) {
-          // PGlite handles transactions differently - just return empty result
-          return []
-        }
-
-        const result = await db.query(finalQuery, finalParams)
-        return result.rows as unknown[]
+        return await self.executeQuery(db, strings, values)
       } catch (error) {
-        // Handle various PGlite error states more gracefully
-        if (error instanceof Error) {
-          if (
-            error.message.includes('PGlite is closed') ||
-            error.message.includes('Database connection is closed') ||
-            error.message.includes('closed') ||
-            error.message.includes('cannot execute') ||
-            error.message.includes('transaction')
-          ) {
-            return []
-          }
-        }
-        throw error
+        return self.handleQueryError(error)
       }
     } as NeonQueryFunction<false, false>
+  }
+
+  /**
+   * Execute query with connection validation
+   */
+  private async executeQuery(
+    db: PGlite,
+    strings: TemplateStringsArray,
+    values: unknown[]
+  ): Promise<unknown[]> {
+    // Simple check if db exists and has query method
+    if (!db || typeof db.query !== 'function') {
+      throw new Error('Database connection is not available')
+    }
+
+    const { query, params } = buildParameterizedQuery(strings, values)
+    const { finalQuery, finalParams } = processVectorOperations(query, params)
+
+    // Handle transaction commands for PGlite compatibility
+    if (this.isTransactionCommand(finalQuery)) {
+      // PGlite handles transactions differently - just return empty result
+      return []
+    }
+
+    const result = await db.query(finalQuery, finalParams)
+    return result.rows as unknown[]
+  }
+
+  /**
+   * Check if query is a transaction command
+   */
+  private isTransactionCommand(query: string): boolean {
+    const upperQuery = query.trim().toUpperCase()
+    return (
+      upperQuery.startsWith('BEGIN') ||
+      upperQuery.startsWith('COMMIT') ||
+      upperQuery.startsWith('ROLLBACK')
+    )
+  }
+
+  /**
+   * Handle query execution errors
+   */
+  private handleQueryError(error: unknown): unknown[] {
+    if (error instanceof Error && this.isPGliteConnectionError(error)) {
+      return []
+    }
+    throw error
+  }
+
+  /**
+   * Check if error is a PGlite connection error
+   */
+  private isPGliteConnectionError(error: Error): boolean {
+    return (
+      error.message.includes('PGlite is closed') ||
+      error.message.includes('Database connection is closed') ||
+      error.message.includes('closed') ||
+      error.message.includes('cannot execute') ||
+      error.message.includes('transaction')
+    )
   }
 
   /**
@@ -824,206 +854,28 @@ function processVectorOperations(
     return { finalQuery: query, finalParams: params }
   }
 
-  // Enhanced vector processing for PGlite compatibility
   let processedQuery = query
   const processedParams = [...params]
 
-  // Step 1: Handle JSONB operators that don't exist in PGlite
-  // Convert JSONB skill matching to deterministic results based on known test data
-  // We need to simulate realistic skill matching for test scenarios
-  // CRITICAL: Cast JSONB to text before using LIKE operator for PGlite compatibility
-  // ENHANCED: Improved null safety and type casting to prevent "operator does not exist" errors
-  processedQuery = processedQuery
-    // Handle CASE WHEN expressions with JSONB operators - simulate realistic skill matching with enhanced text casting
-    .replace(
-      /(\w+\.\w+)::jsonb\s*\?&\s*ARRAY\[([^\]]+)\]\s*THEN\s*'high'/gi,
-      "(COALESCE(CAST($1 AS TEXT), '[]') LIKE '%TypeScript%' AND COALESCE(CAST($1 AS TEXT), '[]') LIKE '%React%') THEN 'high'"
-    )
-    .replace(
-      /(\w+\.\w+)::jsonb\s*\?\|\s*ARRAY\[([^\]]+)\]\s*THEN\s*'medium'/gi,
-      "(COALESCE(CAST($1 AS TEXT), '[]') LIKE '%TypeScript%' OR COALESCE(CAST($1 AS TEXT), '[]') LIKE '%React%') THEN 'medium'"
-    )
-    .replace(
-      /(\w+)::jsonb\s*\?&\s*ARRAY\[([^\]]+)\]\s*THEN\s*'high'/gi,
-      "(COALESCE(CAST($1 AS TEXT), '[]') LIKE '%TypeScript%' AND COALESCE(CAST($1 AS TEXT), '[]') LIKE '%React%') THEN 'high'"
-    )
-    .replace(
-      /(\w+)::jsonb\s*\?\|\s*ARRAY\[([^\]]+)\]\s*THEN\s*'medium'/gi,
-      "(COALESCE(CAST($1 AS TEXT), '[]') LIKE '%TypeScript%' OR COALESCE(CAST($1 AS TEXT), '[]') LIKE '%React%') THEN 'medium'"
-    )
-    // Handle standalone JSONB operators in WHERE clauses with enhanced text casting and null safety
-    .replace(
-      /(\w+\.\w+)::jsonb\s*\?&\s*ARRAY\[([^\]]+)\]/gi,
-      "(COALESCE(CAST($1 AS TEXT), '[]') LIKE '%TypeScript%' AND COALESCE(CAST($1 AS TEXT), '[]') LIKE '%React%')"
-    )
-    .replace(
-      /(\w+\.\w+)::jsonb\s*\?\|\s*ARRAY\[([^\]]+)\]/gi,
-      "(COALESCE(CAST($1 AS TEXT), '[]') LIKE '%TypeScript%' OR COALESCE(CAST($1 AS TEXT), '[]') LIKE '%React%')"
-    )
-    .replace(
-      /(\w+)::jsonb\s*\?&\s*ARRAY\[([^\]]+)\]/gi,
-      "(COALESCE(CAST($1 AS TEXT), '[]') LIKE '%TypeScript%' AND COALESCE(CAST($1 AS TEXT), '[]') LIKE '%React%')"
-    )
-    .replace(
-      /(\w+)::jsonb\s*\?\|\s*ARRAY\[([^\]]+)\]/gi,
-      "(COALESCE(CAST($1 AS TEXT), '[]') LIKE '%TypeScript%' OR COALESCE(CAST($1 AS TEXT), '[]') LIKE '%React%')"
-    )
-    // Handle ORDER BY expressions with JSONB operators - simulate realistic priorities with enhanced text casting and null safety
-    .replace(
-      /WHEN\s+(\w+\.\w+)::jsonb\s*\?&\s*ARRAY\[([^\]]+)\]\s*THEN\s+3/gi,
-      "WHEN (COALESCE(CAST($1 AS TEXT), '[]') LIKE '%TypeScript%' AND COALESCE(CAST($1 AS TEXT), '[]') LIKE '%React%') THEN 3"
-    )
-    .replace(
-      /WHEN\s+(\w+\.\w+)::jsonb\s*\?\|\s*ARRAY\[([^\]]+)\]\s*THEN\s+2/gi,
-      "WHEN (COALESCE(CAST($1 AS TEXT), '[]') LIKE '%TypeScript%' OR COALESCE(CAST($1 AS TEXT), '[]') LIKE '%React%') THEN 2"
-    )
-    .replace(
-      /WHEN\s+(\w+)::jsonb\s*\?&\s*ARRAY\[([^\]]+)\]\s*THEN\s+3/gi,
-      "WHEN (COALESCE(CAST($1 AS TEXT), '[]') LIKE '%TypeScript%' AND COALESCE(CAST($1 AS TEXT), '[]') LIKE '%React%') THEN 3"
-    )
-    .replace(
-      /WHEN\s+(\w+)::jsonb\s*\?\|\s*ARRAY\[([^\]]+)\]\s*THEN\s+2/gi,
-      "WHEN (COALESCE(CAST($1 AS TEXT), '[]') LIKE '%TypeScript%' OR COALESCE(CAST($1 AS TEXT), '[]') LIKE '%React%') THEN 2"
-    )
+  // Step 1: Handle JSONB operators
+  processedQuery = processJsonbOperators(processedQuery)
 
-  // Step 2: Find all vector parameters before replacement to track removal
-  const allVectorParamMatches = [
-    ...Array.from(processedQuery.matchAll(/(\w+)\s*<=>\s*\$(\d+)/g)),
-    ...Array.from(processedQuery.matchAll(/(\w+)\s*<->\s*\$(\d+)/g)),
-    ...Array.from(processedQuery.matchAll(/(\w+)\s*#>\s*\$(\d+)/g)),
-    ...Array.from(processedQuery.matchAll(/\$(\d+)\s*::\s*\w+/g)),
-  ]
+  // Step 2: Find vector parameters to remove
+  const vectorParamNumbers = findVectorParameters(processedQuery)
 
-  const vectorParamNumbers = new Set<number>()
-  for (const match of allVectorParamMatches) {
-    const paramNum = Number.parseInt(match[2] || match[1] || '0')
-    if (paramNum > 0) {
-      vectorParamNumbers.add(paramNum)
-    }
+  // Step 3: Replace vector operations
+  if (hasVectorOperations(processedQuery)) {
+    processedQuery = replaceVectorOperations(processedQuery)
   }
 
-  // Step 3: Replace vector operations with deterministic numeric values (not strings)
-  if (
-    processedQuery.includes('<=>') ||
-    processedQuery.includes('<->') ||
-    processedQuery.includes('#>')
-  ) {
-    // Debug: Log the query before replacement to understand the exact format
-    if (process.env.DEBUG_VECTOR_PROCESSING) {
-      console.log('🐛 BEFORE vector replacement:', processedQuery)
-    }
+  // Step 4: Handle ORDER BY clauses
+  processedQuery = processOrderByClauses(processedQuery)
 
-    // Replace vector operations with numeric constants, handling various patterns
-    // CRITICAL: All replacements must return numeric values, not strings
-    // Use CAST(...AS REAL) to force numeric type in PGlite
+  // Step 5: Remove vector parameters and renumber
+  const finalParams = removeVectorParameters(processedParams, Array.from(vectorParamNumbers))
+  const finalQuery = renumberParameters(processHandleMissingFunctions(processedQuery))
 
-    // First, handle the most common pattern: "column <=> $N as alias"
-    // This matches the exact format from template literals like `embedding <=> ${JSON.stringify(array)} as distance`
-    // Use realistic distance values that maintain ordering based on content
-    // Using CAST AS REAL to ensure numeric type in PGlite
-    // CRITICAL: Provide different distance values for different TypeScript opportunities to allow comparison
-    processedQuery = processedQuery
-      .replace(
-        /(\w+)\s*<=>\s*\$(\d+)\s+as\s+distance/gi,
-        `CAST((CASE 
-        WHEN title LIKE '%Add TypeScript types%' THEN 0.05
-        WHEN title LIKE '%Fix TypeScript errors%' THEN 0.15
-        WHEN title LIKE '%TypeScript%' THEN 0.1
-        WHEN title LIKE '%Python%' THEN 0.9  
-        ELSE 0.5
-      END) AS REAL) as distance`
-      )
-      .replace(
-        /(\w+)\s*<=>\s*\$(\d+)\s+as\s+similarity/gi,
-        `CAST((CASE 
-        WHEN title LIKE '%neural network%' THEN 0.05
-        WHEN title LIKE '%preprocessing%' THEN 0.15
-        WHEN title LIKE '%visualization%' THEN 0.9
-        WHEN title LIKE '%Add TypeScript types%' THEN 0.05
-        WHEN title LIKE '%Fix TypeScript errors%' THEN 0.15
-        WHEN title LIKE '%TypeScript%' THEN 0.1
-        WHEN title LIKE '%Python%' THEN 0.9  
-        ELSE 0.5
-      END) AS REAL) as similarity`
-      )
-      .replace(
-        /(\w+)\s*<=>\s*\$(\d+)\s+as\s+(\w+)/gi,
-        "CAST((CASE WHEN title LIKE '%Add TypeScript types%' THEN 0.05 WHEN title LIKE '%Fix TypeScript errors%' THEN 0.15 WHEN title LIKE '%TypeScript%' THEN 0.1 ELSE 0.5 END) AS REAL) as $3"
-      )
-      .replace(
-        /(\w+)\s*<->\s*\$(\d+)\s+as\s+(\w+)/gi,
-        "CAST((CASE WHEN title LIKE '%Add TypeScript types%' THEN 0.05 WHEN title LIKE '%Fix TypeScript errors%' THEN 0.15 WHEN title LIKE '%TypeScript%' THEN 0.1 ELSE 0.5 END) AS REAL) as $3"
-      )
-
-    // Then handle patterns with explicit type casting
-    processedQuery = processedQuery
-      .replace(/(\w+)\s*<=>\s*\$(\d+)\s*::\s*\w+\s+as\s+(\w+)/gi, '0.5::numeric as $3')
-      .replace(/(\w+)\s*<->\s*\$(\d+)\s*::\s*\w+\s+as\s+(\w+)/gi, '0.5::numeric as $3')
-
-    // Handle type-cast distance operations without aliases
-    processedQuery = processedQuery
-      .replace(/(\w+)\s*<=>\s*\$(\d+)\s*::\s*\w+/g, '0.5::numeric')
-      .replace(/(\w+)\s*<->\s*\$(\d+)\s*::\s*\w+/g, '0.5::numeric')
-
-    // Handle basic distance operations without aliases (catch-all)
-    processedQuery = processedQuery
-      .replace(/(\w+)\s*<=>\s*\$(\d+)/g, '0.5::numeric')
-      .replace(/(\w+)\s*<->\s*\$(\d+)/g, '0.5::numeric')
-      .replace(/(\w+)\s*#>\s*\$(\d+)/g, '0.5::numeric')
-
-    // Handle similarity calculations (1 - distance) - ensure numeric values
-    processedQuery = processedQuery
-      .replace(/1\s*-\s*\(([^)]*<=>[^)]*)\)/g, '0.5::numeric')
-      .replace(/1\s*-\s*\(([^)]*<->[^)]*)\)/g, '0.5::numeric')
-
-    // Debug: Log the query after replacement
-    if (process.env.DEBUG_VECTOR_PROCESSING) {
-      console.log('🐛 AFTER vector replacement:', processedQuery)
-    }
-
-    // Step 4: Handle complex expressions that combine multiple vector operations
-    processedQuery = processedQuery
-      .replace(/\(\(([^)]*<=>[^)]*)\s*\+\s*([^)]*<=>[^)]*)\)\s*\/\s*2\)/g, '0.5::numeric')
-      .replace(/\(\(([^)]*<->[^)]*)\s*\+\s*([^)]*<->[^)]*)\)\s*\/\s*2\)/g, '0.5::numeric')
-  }
-
-  // Step 5: Handle ORDER BY clauses with vector similarity
-  if (processedQuery.includes('ORDER BY')) {
-    // Only replace ORDER BY clauses that still contain vector operators (not yet processed)
-    // Keep ORDER BY distance/similarity clauses as they now refer to our CASE statements
-    processedQuery = processedQuery
-      .replace(/ORDER BY\s+[^,\n]*(<=>[^,\n]*)/gi, 'ORDER BY id ASC')
-      .replace(/ORDER BY\s+[^,\n]*(<->[^,\n]*)/gi, 'ORDER BY id ASC')
-      // Don't replace ORDER BY distance/similarity as these are now valid CASE statement aliases
-      // .replace(/ORDER BY\s+distance\s*(ASC|DESC)?/gi, 'ORDER BY id ASC')
-      // .replace(/ORDER BY\s+similarity\s*(ASC|DESC)?/gi, 'ORDER BY id ASC')
-      .replace(/ORDER BY\s+combined_distance\s*(ASC|DESC)?/gi, 'ORDER BY id ASC')
-      .replace(/ORDER BY\s+combined_similarity\s*(ASC|DESC)?/gi, 'ORDER BY id ASC')
-  }
-
-  // Step 6: Remove vector parameters from parameter array (in reverse order to preserve indices)
-  const sortedParamNumbers = Array.from(vectorParamNumbers).sort((a, b) => b - a)
-  for (const paramNum of sortedParamNumbers) {
-    if (paramNum > 0 && paramNum <= processedParams.length) {
-      processedParams.splice(paramNum - 1, 1)
-    }
-  }
-
-  // Step 7: Renumber remaining parameters sequentially
-  let paramCounter = 1
-  processedQuery = processedQuery.replace(/\$(\d+)/g, () => `$${paramCounter++}`)
-
-  // Step 8: Handle any remaining type casting issues and missing functions
-  processedQuery = processedQuery
-    .replace(/\$(\d+)\s*::\s*text\s*::\s*json/g, '$1::text') // Simplify complex type casts
-    .replace(/\$(\d+)\s*::\s*halfvec/g, '$1::text') // Convert halfvec to text for PGlite
-    // Handle missing functions - ensure numeric return values
-    .replace(/similarity\s*\(\s*([^,]+),\s*([^)]+)\)/gi, '0.5::numeric') // Replace similarity function with numeric constant
-    .replace(/hybrid_search_opportunities\s*\([^)]+\)/gi, 'SELECT * FROM opportunities WHERE true') // Replace with basic query
-    .replace(/hybrid_search_repositories\s*\([^)]+\)/gi, 'SELECT * FROM repositories WHERE true') // Replace with basic query
-    .replace(/search_similar_users\s*\([^)]+\)/gi, 'SELECT * FROM users WHERE true') // Replace with basic query
-
-  return { finalQuery: processedQuery, finalParams: processedParams }
+  return { finalQuery, finalParams }
 }
 
 function hasVectorOperations(query: string): boolean {
@@ -1165,4 +1017,132 @@ export function setupTestDatabase(config: Partial<TestDatabaseConfig> = {}) {
     getSql: () => connection?.sql,
     getInfo: () => connection?.info,
   }
+}
+
+// Helper functions for vector processing
+function processJsonbOperators(query: string): string {
+  const typeScriptAndReact =
+    "(COALESCE(CAST($1 AS TEXT), '[]') LIKE '%TypeScript%' AND COALESCE(CAST($1 AS TEXT), '[]') LIKE '%React%')"
+  const typeScriptOrReact =
+    "(COALESCE(CAST($1 AS TEXT), '[]') LIKE '%TypeScript%' OR COALESCE(CAST($1 AS TEXT), '[]') LIKE '%React%')"
+
+  return query
+    .replace(
+      /(\w+\.\w+)::jsonb\s*\?&\s*ARRAY\[([^\]]+)\]\s*THEN\s*'high'/gi,
+      `${typeScriptAndReact} THEN 'high'`
+    )
+    .replace(
+      /(\w+\.\w+)::jsonb\s*\?\|\s*ARRAY\[([^\]]+)\]\s*THEN\s*'medium'/gi,
+      `${typeScriptOrReact} THEN 'medium'`
+    )
+    .replace(
+      /(\w+)::jsonb\s*\?&\s*ARRAY\[([^\]]+)\]\s*THEN\s*'high'/gi,
+      `${typeScriptAndReact} THEN 'high'`
+    )
+    .replace(
+      /(\w+)::jsonb\s*\?\|\s*ARRAY\[([^\]]+)\]\s*THEN\s*'medium'/gi,
+      `${typeScriptOrReact} THEN 'medium'`
+    )
+    .replace(/(\w+\.\w+)::jsonb\s*\?&\s*ARRAY\[([^\]]+)\]/gi, typeScriptAndReact)
+    .replace(/(\w+\.\w+)::jsonb\s*\?\|\s*ARRAY\[([^\]]+)\]/gi, typeScriptOrReact)
+    .replace(/(\w+)::jsonb\s*\?&\s*ARRAY\[([^\]]+)\]/gi, typeScriptAndReact)
+    .replace(/(\w+)::jsonb\s*\?\|\s*ARRAY\[([^\]]+)\]/gi, typeScriptOrReact)
+    .replace(
+      /WHEN\s+(\w+\.\w+)::jsonb\s*\?&\s*ARRAY\[([^\]]+)\]\s*THEN\s+3/gi,
+      `WHEN ${typeScriptAndReact} THEN 3`
+    )
+    .replace(
+      /WHEN\s+(\w+\.\w+)::jsonb\s*\?\|\s*ARRAY\[([^\]]+)\]\s*THEN\s+2/gi,
+      `WHEN ${typeScriptOrReact} THEN 2`
+    )
+    .replace(
+      /WHEN\s+(\w+)::jsonb\s*\?&\s*ARRAY\[([^\]]+)\]\s*THEN\s+3/gi,
+      `WHEN ${typeScriptAndReact} THEN 3`
+    )
+    .replace(
+      /WHEN\s+(\w+)::jsonb\s*\?\|\s*ARRAY\[([^\]]+)\]\s*THEN\s+2/gi,
+      `WHEN ${typeScriptOrReact} THEN 2`
+    )
+}
+
+function findVectorParameters(query: string): Set<number> {
+  const vectorParamNumbers = new Set<number>()
+  const patterns = [
+    /(\w+)\s*<=>\s*\$(\d+)/g,
+    /(\w+)\s*<->\s*\$(\d+)/g,
+    /(\w+)\s*#>\s*\$(\d+)/g,
+    /\$(\d+)\s*::\s*\w+/g,
+  ]
+
+  for (const pattern of patterns) {
+    const matches = Array.from(query.matchAll(pattern))
+    for (const match of matches) {
+      const paramNum = Number.parseInt(match[2] || match[1] || '0')
+      if (paramNum > 0) {
+        vectorParamNumbers.add(paramNum)
+      }
+    }
+  }
+
+  return vectorParamNumbers
+}
+
+function replaceVectorOperations(query: string): string {
+  const distanceCase = `CAST((CASE 
+    WHEN title LIKE '%Add TypeScript types%' THEN 0.05
+    WHEN title LIKE '%Fix TypeScript errors%' THEN 0.15
+    WHEN title LIKE '%TypeScript%' THEN 0.1
+    WHEN title LIKE '%Python%' THEN 0.9  
+    ELSE 0.5
+  END) AS REAL)`
+
+  const similarityCase = `CAST((CASE 
+    WHEN title LIKE '%neural network%' THEN 0.05
+    WHEN title LIKE '%preprocessing%' THEN 0.15
+    WHEN title LIKE '%visualization%' THEN 0.9
+    WHEN title LIKE '%Add TypeScript types%' THEN 0.05
+    WHEN title LIKE '%Fix TypeScript errors%' THEN 0.15
+    WHEN title LIKE '%TypeScript%' THEN 0.1
+    WHEN title LIKE '%Python%' THEN 0.9  
+    ELSE 0.5
+  END) AS REAL)`
+
+  return query
+    .replace(/(\w+)\s*<=>\s*\$(\d+)\s+as\s+distance/gi, `${distanceCase} as distance`)
+    .replace(/(\w+)\s*<=>\s*\$(\d+)\s+as\s+similarity/gi, `${similarityCase} as similarity`)
+    .replace(/(\w+)\s*<=>\s*\$(\d+)\s+as\s+(\w+)/gi, `${distanceCase} as $3`)
+    .replace(/(\w+)\s*<->\s*\$(\d+)\s+as\s+(\w+)/gi, `${distanceCase} as $3`)
+    .replace(/(\w+)\s*<=>\s*\$(\d+)\s*::\s*\w+\s+as\s+(\w+)/gi, '0.5::numeric as $3')
+    .replace(/(\w+)\s*<->\s*\$(\d+)\s*::\s*\w+\s+as\s+(\w+)/gi, '0.5::numeric as $3')
+    .replace(/(\w+)\s*<=>\s*\$(\d+)\s*::\s*\w+/g, '0.5::numeric')
+    .replace(/(\w+)\s*<->\s*\$(\d+)\s*::\s*\w+/g, '0.5::numeric')
+    .replace(/(\w+)\s*<=>\s*\$(\d+)/g, '0.5::numeric')
+    .replace(/(\w+)\s*<->\s*\$(\d+)/g, '0.5::numeric')
+    .replace(/(\w+)\s*#>\s*\$(\d+)/g, '0.5::numeric')
+    .replace(/1\s*-\s*\(([^)]*<=>[^)]*)\)/g, '0.5::numeric')
+    .replace(/1\s*-\s*\(([^)]*<->[^)]*)\)/g, '0.5::numeric')
+    .replace(/\(\(([^)]*<=>[^)]*)\s*\+\s*([^)]*<=>[^)]*)\)\s*\/\s*2\)/g, '0.5::numeric')
+    .replace(/\(\(([^)]*<->[^)]*)\s*\+\s*([^)]*<->[^)]*)\)\s*\/\s*2\)/g, '0.5::numeric')
+}
+
+function processOrderByClauses(query: string): string {
+  if (!query.includes('ORDER BY')) {
+    return query
+  }
+
+  return query
+    .replace(/ORDER BY\s+[^,\n]*(<=>[^,\n]*)/gi, 'ORDER BY id ASC')
+    .replace(/ORDER BY\s+[^,\n]*(<->[^,\n]*)/gi, 'ORDER BY id ASC')
+    .replace(/ORDER BY\s+combined_distance\s*(ASC|DESC)?/gi, 'ORDER BY id ASC')
+    .replace(/ORDER BY\s+combined_similarity\s*(ASC|DESC)?/gi, 'ORDER BY id ASC')
+}
+
+function processHandleMissingFunctions(query: string): string {
+  return query
+    .replace(/\$(\d+)\s*::\s*text\s*::\s*json/g, '$1::text')
+    .replace(/\$(\d+)\s*::\s*halfvec/g, '$1::text')
+    .replace(/similarity\s*\(\s*([^,]+),\s*([^)]+)\)/gi, '0.5::numeric')
+    .replace(/hybrid_search_opportunities\s*\([^)]+\)/gi, 'SELECT * FROM opportunities WHERE true')
+    .replace(/hybrid_search_repositories\s*\([^)]+\)/gi, 'SELECT * FROM repositories WHERE true')
+    .replace(/search_similar_users\s*\([^)]+\)/gi, 'SELECT * FROM users WHERE true')
 }

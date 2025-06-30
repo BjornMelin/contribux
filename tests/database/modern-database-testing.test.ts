@@ -218,8 +218,12 @@ describe('Modern Database Testing Infrastructure', () => {
         await sql`BEGIN`
 
         // Add more users in transaction
-        await factories.users.create({ email: `temp1-${Date.now()}@example.com` })
-        await factories.users.create({ email: `temp2-${Date.now()}@example.com` })
+        await factories.users.create({
+          email: `temp1-${Date.now()}@example.com`,
+        })
+        await factories.users.create({
+          email: `temp2-${Date.now()}@example.com`,
+        })
 
         const transactionCount = await sql`SELECT COUNT(*) FROM users`
         expect(Number(transactionCount[0]?.count)).toBe(3)

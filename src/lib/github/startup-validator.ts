@@ -1,50 +1,32 @@
 /**
- * GitHub API Client Startup Validation
- * Validates GitHub configuration during application startup
- * Provides comprehensive validation and health checking for production readiness
+ * Simplified GitHub Startup Validation
+ * Streamlined validation for GitHub configuration
  */
 
 import { gitHubRuntimeValidator, type ValidationResult } from './runtime-validator'
 
 export interface StartupValidationOptions {
-  /** Whether to fail startup on unhealthy configuration */
   failOnUnhealthy?: boolean
-  /** Whether to fail startup on degraded configuration */
-  failOnDegraded?: boolean
-  /** Timeout for validation in milliseconds */
   timeoutMs?: number
-  /** Whether to log validation results */
   silent?: boolean
 }
 
 export interface StartupValidationResult {
-  /** Whether startup should proceed */
   shouldProceed: boolean
-  /** Validation result details */
   validation: ValidationResult
-  /** Any warnings to display */
   warnings: string[]
-  /** Any critical errors */
   errors: string[]
 }
 
 /**
- * Validate GitHub configuration during application startup
+ * Simplified GitHub startup validation
  */
 export async function validateGitHubStartup(
   options: StartupValidationOptions = {}
 ): Promise<StartupValidationResult> {
-  const {
-    failOnUnhealthy = true,
-    failOnDegraded = false,
-    timeoutMs = 10000,
-    silent = false,
-  } = options
-
-  const startTime = Date.now()
+  const { failOnUnhealthy = true, timeoutMs = 10000, silent = false } = options
 
   try {
-    // Run validation with timeout
     const validation = await Promise.race([
       gitHubRuntimeValidator.validateConfiguration(),
       new Promise<never>((_, reject) =>
@@ -52,189 +34,92 @@ export async function validateGitHubStartup(
       ),
     ])
 
-    const warnings: string[] = []
-    const errors: string[] = []
-    let shouldProceed = true
+    const result = analyzeValidation(validation, failOnUnhealthy)
 
-    // Analyze validation results
-    const { status, checks } = validation
-
-    // Check overall status
-    if (status === 'unhealthy') {
-      errors.push('GitHub configuration is unhealthy')
-      if (failOnUnhealthy) {
-        shouldProceed = false
-      }
-    } else if (status === 'degraded') {
-      warnings.push('GitHub configuration is degraded')
-      if (failOnDegraded) {
-        shouldProceed = false
-      }
+    if (!silent && result.errors.length > 0) {
+      // Log validation errors in non-silent mode
+      // Using console in validation context is acceptable for startup diagnostics
+      // biome-ignore lint/suspicious/noConsole: Validation errors need logging
+      console.error('GitHub validation errors:', result.errors)
     }
 
-    // Check individual components
-    analyzeEnvironmentCheck(checks.environment, warnings, errors)
-    analyzeAuthenticationCheck(checks.authentication, warnings, errors)
-    analyzeDependenciesCheck(checks.dependencies, warnings, errors)
-    analyzeConnectivityCheck(checks.connectivity, warnings, errors)
-
-    // Log results if not silent
-    if (!silent) {
-      logValidationResults(validation, warnings, errors, Date.now() - startTime)
-    }
-
-    return {
-      shouldProceed,
-      validation,
-      warnings,
-      errors,
-    }
+    return result
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown validation error'
-    const errors = [`Startup validation failed: ${errorMessage}`]
-
-    if (!silent) {
-      // Error logging is handled by the calling function
-      // Results are returned in the validation result structure
-    }
-
+    const errorMsg = error instanceof Error ? error.message : 'Validation failed'
     return {
       shouldProceed: !failOnUnhealthy,
-      validation: {
-        status: 'unhealthy',
-        timestamp: new Date().toISOString(),
-        checks: {
-          environment: { status: 'unhealthy', details: errorMessage },
-          authentication: { status: 'unhealthy', method: 'none', details: errorMessage },
-          dependencies: { status: 'unhealthy', missing: [], details: errorMessage },
-          connectivity: { status: 'unhealthy', details: errorMessage },
-        },
-      },
+      validation: createFailedValidation(errorMsg),
       warnings: [],
-      errors,
+      errors: [errorMsg],
     }
   }
 }
 
 /**
- * Analyze environment validation results
+ * Analyze validation results and extract issues
  */
-function analyzeEnvironmentCheck(
-  check: ValidationResult['checks']['environment'],
-  warnings: string[],
-  errors: string[]
-): void {
-  if (check.status === 'unhealthy') {
-    errors.push(`Environment configuration issue: ${check.details || 'Unknown error'}`)
-  } else if (check.status === 'degraded') {
-    warnings.push(
-      `Environment configuration warning: ${check.details || 'Configuration issues detected'}`
-    )
-  }
-}
-
-/**
- * Analyze authentication validation results
- */
-function analyzeAuthenticationCheck(
-  check: ValidationResult['checks']['authentication'],
-  warnings: string[],
-  errors: string[]
-): void {
-  if (check.status === 'unhealthy') {
-    errors.push(
-      `Authentication issue: ${check.details || 'Authentication not configured properly'}`
-    )
-  } else if (check.status === 'degraded') {
-    warnings.push(
-      `Authentication warning: ${check.details || 'Authentication configuration issues'}`
-    )
-  }
-
-  // Provide guidance based on authentication method
-  if (check.method === 'none') {
-    errors.push('No GitHub authentication configured. Set GITHUB_TOKEN or GitHub App credentials.')
-  } else if (check.method === 'token' && check.status === 'healthy') {
-    // Token auth is working
-  } else if (check.method === 'app' && check.status === 'healthy') {
-    // App auth is working
-  }
-}
-
-/**
- * Analyze dependencies validation results
- */
-function analyzeDependenciesCheck(
-  check: ValidationResult['checks']['dependencies'],
-  warnings: string[],
-  errors: string[]
-): void {
-  if (check.status === 'unhealthy') {
-    errors.push(`Missing critical dependencies: ${check.missing.join(', ')}`)
-    errors.push(
-      'Install missing packages: pnpm install @octokit/rest @octokit/graphql @octokit/webhooks'
-    )
-  } else if (check.status === 'degraded') {
-    warnings.push(`Some optional dependencies missing: ${check.missing.join(', ')}`)
-  }
-}
-
-/**
- * Analyze connectivity validation results
- */
-function analyzeConnectivityCheck(
-  check: ValidationResult['checks']['connectivity'],
-  warnings: string[],
-  errors: string[]
-): void {
-  if (check.status === 'unhealthy') {
-    errors.push(`GitHub API connectivity issue: ${check.details || 'Cannot connect to GitHub API'}`)
-
-    if (check.details?.includes('timeout')) {
-      errors.push(
-        'GitHub API connection timeout - check network connectivity and firewall settings'
-      )
-    } else if (check.details?.includes('authentication')) {
-      errors.push('GitHub API authentication failed - verify token or app credentials')
-    }
-  } else if (check.status === 'degraded') {
-    warnings.push(`GitHub API performance issue: ${check.details || 'Slow response times'}`)
-
-    if (check.response_time_ms && check.response_time_ms > 3000) {
-      warnings.push(`Slow GitHub API response time: ${check.response_time_ms}ms`)
-    }
-  }
-}
-
-/**
- * Log validation results to console
- */
-function logValidationResults(
+function analyzeValidation(
   validation: ValidationResult,
-  warnings: string[],
-  errors: string[],
-  _durationMs: number
-): void {
-  // Validation logging is handled by the calling function
-  // This function exists for backwards compatibility
+  failOnUnhealthy: boolean
+): StartupValidationResult {
+  const warnings: string[] = []
+  const errors: string[] = []
 
-  // Process warnings and errors silently in production
-  if (warnings.length > 0 && process.env.NODE_ENV === 'development') {
-    // Warnings are handled by development tooling
+  // Check overall status
+  if (validation.status === 'unhealthy') {
+    errors.push('GitHub configuration is unhealthy')
+  } else if (validation.status === 'degraded') {
+    warnings.push('GitHub configuration is degraded')
   }
 
-  if (errors.length > 0 && process.env.NODE_ENV === 'development') {
-    // Errors are handled by development tooling
+  // Check individual components
+  const { checks } = validation
+
+  if (checks.environment.status === 'unhealthy') {
+    errors.push(`Environment: ${checks.environment.details || 'Configuration error'}`)
   }
 
-  // Validation result is returned to caller
-  if (validation.status === 'healthy') {
-    // Validation passed
+  if (checks.authentication.status === 'unhealthy') {
+    errors.push(`Authentication: ${checks.authentication.details || 'Auth not configured'}`)
+    if (checks.authentication.method === 'none') {
+      errors.push('Set GITHUB_TOKEN or GitHub App credentials')
+    }
+  }
+
+  if (checks.dependencies.status === 'unhealthy') {
+    errors.push(`Dependencies: ${checks.dependencies.missing.join(', ')}`)
+  }
+
+  if (checks.connectivity.status === 'unhealthy') {
+    errors.push(`Connectivity: ${checks.connectivity.details || 'Cannot connect to GitHub'}`)
+  }
+
+  return {
+    shouldProceed: !(failOnUnhealthy && validation.status === 'unhealthy'),
+    validation,
+    warnings,
+    errors,
   }
 }
 
 /**
- * Quick startup health check (minimal validation)
+ * Create failed validation response
+ */
+function createFailedValidation(errorMessage: string): ValidationResult {
+  return {
+    status: 'unhealthy',
+    timestamp: new Date().toISOString(),
+    checks: {
+      environment: { status: 'unhealthy', details: errorMessage },
+      authentication: { status: 'unhealthy', method: 'none', details: errorMessage },
+      dependencies: { status: 'unhealthy', missing: [], details: errorMessage },
+      connectivity: { status: 'unhealthy', details: errorMessage },
+    },
+  }
+}
+
+/**
+ * Quick health check
  */
 export async function quickStartupCheck(): Promise<boolean> {
   try {
@@ -246,86 +131,44 @@ export async function quickStartupCheck(): Promise<boolean> {
 }
 
 /**
- * Wait for GitHub configuration to become healthy
+ * Wait for healthy configuration with simplified polling
  */
-export async function waitForHealthyConfiguration(
-  maxWaitMs = 30000,
-  checkIntervalMs = 1000
-): Promise<boolean> {
+export async function waitForHealthyConfiguration(maxWaitMs = 30000): Promise<boolean> {
   const startTime = Date.now()
+  const checkInterval = 1000
 
   while (Date.now() - startTime < maxWaitMs) {
-    try {
-      const isHealthy = await quickStartupCheck()
-      if (isHealthy) {
-        return true
-      }
-    } catch {
-      // Continue waiting
+    if (await quickStartupCheck()) {
+      return true
     }
-
-    await new Promise(resolve => setTimeout(resolve, checkIntervalMs))
+    await new Promise(resolve => setTimeout(resolve, checkInterval))
   }
-
   return false
 }
 
 /**
- * Validate GitHub configuration for production deployment
+ * Simple production readiness check
  */
 export async function validateProductionReadiness(): Promise<{
   ready: boolean
   issues: string[]
-  recommendations: string[]
 }> {
   const validation = await gitHubRuntimeValidator.validateConfiguration()
   const issues: string[] = []
-  const recommendations: string[] = []
 
-  // Check for production-critical issues
   if (validation.status === 'unhealthy') {
-    issues.push('Configuration is unhealthy - not ready for production')
-  }
+    issues.push('Configuration is unhealthy')
 
-  // Environment checks
-  if (validation.checks.environment.status !== 'healthy') {
-    issues.push('Environment configuration issues detected')
-    recommendations.push('Review environment variables and configuration')
-  }
-
-  // Authentication checks
-  if (validation.checks.authentication.status !== 'healthy') {
-    issues.push('Authentication configuration issues detected')
-    if (validation.checks.authentication.method === 'token') {
-      recommendations.push('Consider using GitHub App authentication for production')
-    }
-  }
-
-  // Dependencies checks
-  if (validation.checks.dependencies.status !== 'healthy') {
-    issues.push('Missing required dependencies')
-    recommendations.push('Ensure all required packages are installed')
-  }
-
-  // Connectivity checks
-  if (validation.checks.connectivity.status !== 'healthy') {
-    issues.push('GitHub API connectivity issues')
-    recommendations.push('Verify network connectivity and API access')
-  }
-
-  // Performance recommendations
-  if (
-    validation.checks.connectivity.response_time_ms &&
-    validation.checks.connectivity.response_time_ms > 1000
-  ) {
-    recommendations.push(
-      'Consider optimizing network configuration for better GitHub API performance'
-    )
+    // Add specific issues
+    Object.entries(validation.checks).forEach(([check, result]) => {
+      if (result.status === 'unhealthy') {
+        issues.push(`${check}: ${result.details || 'Not configured'}`)
+      }
+    })
   }
 
   return {
     ready: issues.length === 0,
     issues,
-    recommendations,
   }
 }

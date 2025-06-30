@@ -7,14 +7,16 @@
  * Tests boundary conditions, error scenarios, and edge cases
  */
 
-import { fireEvent, screen } from '@testing-library/react'
+import { fireEvent, screen, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { OpportunityCard } from '@/components/features/OpportunityCard'
-import { OpportunityList } from '@/components/features/OpportunityList'
-import { SearchBar } from '@/components/features/SearchBar'
-import { SearchFilters } from '@/components/features/SearchFilters'
-import type { Opportunity, SearchFilters as SearchFiltersType } from '@/types/search'
+import {
+  OpportunityCard,
+  OpportunityList,
+  SearchBar,
+  SearchFilters,
+} from '../../../src/components/features'
+import type { Opportunity, SearchFilters as SearchFiltersType } from '../../../src/types/search'
 import {
   asUUID,
   createDefaultFilters,
@@ -135,22 +137,31 @@ describe('Search Components - Edge Cases Suite', () => {
 
     describe('State Management Edge Cases', () => {
       it('handles rapid consecutive searches', async () => {
-        const user = userEvent.setup()
         const onSearch = vi.fn()
 
         renderIsolated(<SearchBar onSearch={onSearch} />)
 
         const input = screen.getByRole('textbox', { name: /search input/i })
 
-        // Simulate rapid typing and searching
-        await user.type(input, 'react')
-        await user.keyboard('{Enter}')
-        await user.clear(input)
-        await user.type(input, 'vue')
-        await user.keyboard('{Enter}')
-        await user.clear(input)
-        await user.type(input, 'angular')
-        await user.keyboard('{Enter}')
+        // First search - use fireEvent.change for consistent text replacement
+        fireEvent.change(input, { target: { value: 'react' } })
+        const form = input.closest('form')
+        expect(form).toBeInTheDocument()
+        if (form) {
+          fireEvent.submit(form)
+        }
+
+        // Second search - replace text and submit
+        fireEvent.change(input, { target: { value: 'vue' } })
+        if (form) {
+          fireEvent.submit(form)
+        }
+
+        // Third search - replace text and submit
+        fireEvent.change(input, { target: { value: 'angular' } })
+        if (form) {
+          fireEvent.submit(form)
+        }
 
         expect(onSearch).toHaveBeenCalledTimes(3)
         expect(onSearch).toHaveBeenNthCalledWith(1, 'react')
@@ -235,7 +246,9 @@ describe('Search Components - Edge Cases Suite', () => {
 
         renderIsolated(<SearchFilters filters={complexFilters} onFiltersChange={onFiltersChange} />)
 
-        const resetButton = screen.getByRole('button', { name: /reset filters/i })
+        const resetButton = screen.getByRole('button', {
+          name: /reset filters/i,
+        })
         await user.click(resetButton)
 
         expect(onFiltersChange).toHaveBeenCalledWith(
@@ -257,10 +270,13 @@ describe('Search Components - Edge Cases Suite', () => {
         const filters = createDefaultFilters()
         const onFiltersChange = vi.fn()
 
-        renderIsolated(<SearchFilters filters={filters} onFiltersChange={onFiltersChange} />)
+        const { container } = renderIsolated(
+          <SearchFilters filters={filters} onFiltersChange={onFiltersChange} />
+        )
 
-        const difficultySelect = screen.getByLabelText(/difficulty/i)
-        const typeSelect = screen.getByLabelText(/type/i)
+        // Use specific selectors based on the actual HTML structure
+        const difficultySelect = within(container).getByDisplayValue('All Difficulties')
+        const typeSelect = within(container).getByDisplayValue('All Types')
 
         // Rapid changes
         await user.selectOptions(difficultySelect, 'beginner')
@@ -279,15 +295,18 @@ describe('Search Components - Edge Cases Suite', () => {
 
         renderIsolated(<SearchFilters filters={filters} onFiltersChange={onFiltersChange} />)
 
-        const languages = ['typescript', 'python', 'javascript', 'java', 'go', 'rust']
+        const languages = ['TypeScript', 'Python', 'JavaScript', 'Java', 'Go', 'Rust']
 
-        // Select all languages
+        // Select all languages using aria-label queries (component uses proper case for aria-label)
         for (const language of languages) {
           const checkbox = screen.getByLabelText(language)
           await user.click(checkbox)
         }
 
-        // Last call should have all languages
+        // Verify we have calls for each language selection
+        expect(onFiltersChange).toHaveBeenCalledTimes(6)
+
+        // Last call should have all languages (with proper casing as stored in component)
         const lastCall = onFiltersChange.mock.calls[onFiltersChange.mock.calls.length - 1][0]
         expect(lastCall.languages).toHaveLength(6)
 
@@ -297,6 +316,9 @@ describe('Search Components - Edge Cases Suite', () => {
           await user.click(checkbox)
         }
 
+        // Should have 12 total calls (6 select + 6 deselect)
+        expect(onFiltersChange).toHaveBeenCalledTimes(12)
+
         // Final call should have no languages
         const finalCall = onFiltersChange.mock.calls[onFiltersChange.mock.calls.length - 1][0]
         expect(finalCall.languages).toHaveLength(0)
@@ -305,26 +327,23 @@ describe('Search Components - Edge Cases Suite', () => {
 
     describe('Slider Edge Cases', () => {
       it('handles minimum and maximum slider values', async () => {
-        const user = userEvent.setup()
         const filters = createDefaultFilters()
         const onFiltersChange = vi.fn()
 
         renderIsolated(<SearchFilters filters={filters} onFiltersChange={onFiltersChange} />)
 
-        const slider = screen.getByLabelText(/minimum relevance score/i)
+        const slider = screen.getByLabelText(/minimum relevance score/i) as HTMLInputElement
 
-        // Set to minimum
-        await user.clear(slider)
-        await user.type(slider, '0')
+        // Set to minimum value using fireEvent for range inputs
+        fireEvent.change(slider, { target: { value: '0' } })
 
         expect(onFiltersChange).toHaveBeenCalledWith({
           ...filters,
           minScore: 0,
         })
 
-        // Set to maximum
-        await user.clear(slider)
-        await user.type(slider, '1')
+        // Set to maximum value
+        fireEvent.change(slider, { target: { value: '1' } })
 
         expect(onFiltersChange).toHaveBeenCalledWith({
           ...filters,
@@ -333,7 +352,6 @@ describe('Search Components - Edge Cases Suite', () => {
       })
 
       it('handles decimal precision in slider', async () => {
-        const user = userEvent.setup()
         const filters = createDefaultFilters()
         const onFiltersChange = vi.fn()
 
@@ -341,9 +359,8 @@ describe('Search Components - Edge Cases Suite', () => {
 
         const slider = screen.getByLabelText(/minimum relevance score/i)
 
-        // Set to precise decimal value
-        await user.clear(slider)
-        await user.type(slider, '0.75')
+        // Set to precise decimal value using fireEvent for range inputs
+        fireEvent.change(slider, { target: { value: '0.75' } })
 
         expect(onFiltersChange).toHaveBeenCalledWith({
           ...filters,

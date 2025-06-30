@@ -65,7 +65,7 @@ export const setupBasic = () => {
     teardownTestContainer(container)
   })
 
-  return { container }
+  return {}
 }
 
 // Configuration constants for test consistency

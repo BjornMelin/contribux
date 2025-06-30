@@ -946,52 +946,77 @@ export function createSecurityScanner(
 /**
  * Security scanner for OWASP Top 10 detection specifically
  */
+/**
+ * Helper function to create scanner configuration
+ */
+function createScannerConfig(config?: Partial<SecurityScannerConfig>) {
+  return {
+    enableOWASP: true,
+    enableDependencyScanning: false,
+    enablePenetrationTesting: false,
+    enableThreatDetection: false,
+    scanIntervalMs: config?.scanner?.scanIntervalMs ?? 300000,
+    maxConcurrentScans: config?.scanner?.maxConcurrentScans ?? 3,
+  }
+}
+
+/**
+ * Helper function to create OWASP detection configuration
+ */
+function createOWASPConfig(config?: Partial<SecurityScannerConfig>) {
+  return {
+    enableInjectionDetection: config?.owasp?.enableInjectionDetection ?? true,
+    enableBrokenAuthDetection: config?.owasp?.enableBrokenAuthDetection ?? true,
+    enableSensitiveDataDetection: config?.owasp?.enableSensitiveDataDetection ?? true,
+    enableXMLExternalEntitiesDetection: config?.owasp?.enableXMLExternalEntitiesDetection ?? true,
+    enableBrokenAccessControlDetection: config?.owasp?.enableBrokenAccessControlDetection ?? true,
+    enableSecurityMisconfigurationDetection:
+      config?.owasp?.enableSecurityMisconfigurationDetection ?? true,
+    enableXSSDetection: config?.owasp?.enableXSSDetection ?? true,
+    enableInsecureDeserializationDetection:
+      config?.owasp?.enableInsecureDeserializationDetection ?? true,
+    enableVulnerableComponentsDetection: config?.owasp?.enableVulnerableComponentsDetection ?? true,
+    enableLoggingMonitoringDetection: config?.owasp?.enableLoggingMonitoringDetection ?? true,
+  }
+}
+
+/**
+ * Helper function to create threat detection configuration
+ */
+function createThreatConfig(config?: Partial<SecurityScannerConfig>) {
+  return {
+    enableMLDetection: config?.threats?.enableMLDetection ?? false,
+    suspiciousThreshold: config?.threats?.suspiciousThreshold ?? 0.7,
+    criticalThreshold: config?.threats?.criticalThreshold ?? 0.9,
+    enableGeoAnomalyDetection: config?.threats?.enableGeoAnomalyDetection ?? false,
+    enableBehaviorAnomalyDetection: config?.threats?.enableBehaviorAnomalyDetection ?? false,
+    enableRateLimitAnomalyDetection: config?.threats?.enableRateLimitAnomalyDetection ?? false,
+  }
+}
+
+/**
+ * Helper function to create response configuration
+ */
+function createResponseConfig(config?: Partial<SecurityScannerConfig>) {
+  return {
+    enableAutomatedResponse: config?.response?.enableAutomatedResponse ?? false,
+    enableIncidentCreation: config?.response?.enableIncidentCreation ?? true,
+    enableNotifications: config?.response?.enableNotifications ?? true,
+    quarantineSuspiciousRequests: config?.response?.quarantineSuspiciousRequests ?? false,
+    blockCriticalThreats: config?.response?.blockCriticalThreats ?? false,
+  }
+}
+
 export class OWASPScanner {
   private scanner: AutomatedSecurityScanner
 
   constructor(config?: Partial<SecurityScannerConfig>) {
     // Configure for OWASP-only scanning with proper defaults
     const owaspConfig: Partial<SecurityScannerConfig> = {
-      scanner: {
-        enableOWASP: true,
-        enableDependencyScanning: false,
-        enablePenetrationTesting: false,
-        enableThreatDetection: false,
-        scanIntervalMs: config?.scanner?.scanIntervalMs ?? 300000,
-        maxConcurrentScans: config?.scanner?.maxConcurrentScans ?? 3,
-      },
-      owasp: {
-        enableInjectionDetection: config?.owasp?.enableInjectionDetection ?? true,
-        enableBrokenAuthDetection: config?.owasp?.enableBrokenAuthDetection ?? true,
-        enableSensitiveDataDetection: config?.owasp?.enableSensitiveDataDetection ?? true,
-        enableXMLExternalEntitiesDetection:
-          config?.owasp?.enableXMLExternalEntitiesDetection ?? true,
-        enableBrokenAccessControlDetection:
-          config?.owasp?.enableBrokenAccessControlDetection ?? true,
-        enableSecurityMisconfigurationDetection:
-          config?.owasp?.enableSecurityMisconfigurationDetection ?? true,
-        enableXSSDetection: config?.owasp?.enableXSSDetection ?? true,
-        enableInsecureDeserializationDetection:
-          config?.owasp?.enableInsecureDeserializationDetection ?? true,
-        enableVulnerableComponentsDetection:
-          config?.owasp?.enableVulnerableComponentsDetection ?? true,
-        enableLoggingMonitoringDetection: config?.owasp?.enableLoggingMonitoringDetection ?? true,
-      },
-      threats: {
-        enableMLDetection: config?.threats?.enableMLDetection ?? false,
-        suspiciousThreshold: config?.threats?.suspiciousThreshold ?? 0.7,
-        criticalThreshold: config?.threats?.criticalThreshold ?? 0.9,
-        enableGeoAnomalyDetection: config?.threats?.enableGeoAnomalyDetection ?? false,
-        enableBehaviorAnomalyDetection: config?.threats?.enableBehaviorAnomalyDetection ?? false,
-        enableRateLimitAnomalyDetection: config?.threats?.enableRateLimitAnomalyDetection ?? false,
-      },
-      response: {
-        enableAutomatedResponse: config?.response?.enableAutomatedResponse ?? false,
-        enableIncidentCreation: config?.response?.enableIncidentCreation ?? true,
-        enableNotifications: config?.response?.enableNotifications ?? true,
-        quarantineSuspiciousRequests: config?.response?.quarantineSuspiciousRequests ?? false,
-        blockCriticalThreats: config?.response?.blockCriticalThreats ?? false,
-      },
+      scanner: createScannerConfig(config),
+      owasp: createOWASPConfig(config),
+      threats: createThreatConfig(config),
+      response: createResponseConfig(config),
     }
     this.scanner = new AutomatedSecurityScanner(owaspConfig)
   }

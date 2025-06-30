@@ -55,8 +55,12 @@ describe('Authentication Database Schema', () => {
         { column_name: 'credential_device_type', data_type: 'text', is_nullable: 'NO' },
         { column_name: 'credential_backed_up', data_type: 'boolean', is_nullable: 'NO' },
         { column_name: 'transports', data_type: 'ARRAY', is_nullable: 'YES' },
-        { column_name: 'created_at', data_type: 'timestamp with time zone', is_nullable: 'YES' }, // Has DEFAULT NOW()
-        { column_name: 'last_used_at', data_type: 'timestamp with time zone', is_nullable: 'YES' },
+        { column_name: 'created_at', data_type: 'timestamp without time zone', is_nullable: 'YES' }, // Has DEFAULT NOW()
+        {
+          column_name: 'last_used_at',
+          data_type: 'timestamp without time zone',
+          is_nullable: 'YES',
+        },
         { column_name: 'name', data_type: 'text', is_nullable: 'YES' },
       ]
 
@@ -125,8 +129,8 @@ describe('Authentication Database Schema', () => {
         { column_name: 'challenge', data_type: 'text', is_nullable: 'NO' },
         { column_name: 'user_id', data_type: 'uuid', is_nullable: 'YES' },
         { column_name: 'type', data_type: 'text', is_nullable: 'NO' },
-        { column_name: 'created_at', data_type: 'timestamp with time zone', is_nullable: 'YES' }, // Has DEFAULT NOW()
-        { column_name: 'expires_at', data_type: 'timestamp with time zone', is_nullable: 'NO' },
+        { column_name: 'created_at', data_type: 'timestamp without time zone', is_nullable: 'YES' }, // Has DEFAULT NOW()
+        { column_name: 'expires_at', data_type: 'timestamp without time zone', is_nullable: 'NO' },
         { column_name: 'used', data_type: 'boolean', is_nullable: 'YES' }, // Has DEFAULT false
       ]
 
@@ -174,14 +178,14 @@ describe('Authentication Database Schema', () => {
       const expectedColumns = [
         { column_name: 'id', data_type: 'text', is_nullable: 'NO' },
         { column_name: 'user_id', data_type: 'uuid', is_nullable: 'NO' },
-        { column_name: 'expires_at', data_type: 'timestamp with time zone', is_nullable: 'NO' },
+        { column_name: 'expires_at', data_type: 'timestamp without time zone', is_nullable: 'NO' },
         { column_name: 'auth_method', data_type: 'text', is_nullable: 'NO' },
         { column_name: 'ip_address', data_type: 'inet', is_nullable: 'YES' },
         { column_name: 'user_agent', data_type: 'text', is_nullable: 'YES' },
-        { column_name: 'created_at', data_type: 'timestamp with time zone', is_nullable: 'YES' }, // Has DEFAULT NOW()
+        { column_name: 'created_at', data_type: 'timestamp without time zone', is_nullable: 'YES' }, // Has DEFAULT NOW()
         {
           column_name: 'last_active_at',
-          data_type: 'timestamp with time zone',
+          data_type: 'timestamp without time zone',
           is_nullable: 'YES',
         }, // Has DEFAULT NOW()
       ]
@@ -234,11 +238,11 @@ describe('Authentication Database Schema', () => {
         { column_name: 'provider_account_id', data_type: 'text', is_nullable: 'NO' },
         { column_name: 'access_token', data_type: 'text', is_nullable: 'YES' },
         { column_name: 'refresh_token', data_type: 'text', is_nullable: 'YES' },
-        { column_name: 'expires_at', data_type: 'timestamp with time zone', is_nullable: 'YES' },
+        { column_name: 'expires_at', data_type: 'timestamp without time zone', is_nullable: 'YES' },
         { column_name: 'token_type', data_type: 'text', is_nullable: 'YES' },
         { column_name: 'scope', data_type: 'text', is_nullable: 'YES' },
-        { column_name: 'created_at', data_type: 'timestamp with time zone', is_nullable: 'YES' }, // Has DEFAULT NOW()
-        { column_name: 'updated_at', data_type: 'timestamp with time zone', is_nullable: 'YES' }, // Has DEFAULT NOW()
+        { column_name: 'created_at', data_type: 'timestamp without time zone', is_nullable: 'YES' }, // Has DEFAULT NOW()
+        { column_name: 'updated_at', data_type: 'timestamp without time zone', is_nullable: 'YES' }, // Has DEFAULT NOW()
       ]
 
       expectedColumns.forEach(expected => {
@@ -306,7 +310,7 @@ describe('Authentication Database Schema', () => {
         { column_name: 'event_data', data_type: 'jsonb', is_nullable: 'YES' },
         { column_name: 'success', data_type: 'boolean', is_nullable: 'NO' },
         { column_name: 'error_message', data_type: 'text', is_nullable: 'YES' },
-        { column_name: 'created_at', data_type: 'timestamp with time zone', is_nullable: 'YES' }, // Has DEFAULT NOW()
+        { column_name: 'created_at', data_type: 'timestamp without time zone', is_nullable: 'YES' }, // Has DEFAULT NOW()
       ]
 
       expectedColumns.forEach(expected => {
@@ -370,7 +374,7 @@ describe('Authentication Database Schema', () => {
         { column_name: 'consent_type', data_type: 'text', is_nullable: 'NO' },
         { column_name: 'granted', data_type: 'boolean', is_nullable: 'NO' },
         { column_name: 'version', data_type: 'text', is_nullable: 'NO' },
-        { column_name: 'timestamp', data_type: 'timestamp with time zone', is_nullable: 'YES' }, // Has DEFAULT NOW()
+        { column_name: 'timestamp', data_type: 'timestamp without time zone', is_nullable: 'YES' }, // Has DEFAULT NOW()
         { column_name: 'ip_address', data_type: 'inet', is_nullable: 'YES' },
         { column_name: 'user_agent', data_type: 'text', is_nullable: 'YES' },
       ]
@@ -421,9 +425,9 @@ describe('Authentication Database Schema', () => {
         { column_name: 'token_hash', data_type: 'text', is_nullable: 'NO' },
         { column_name: 'user_id', data_type: 'uuid', is_nullable: 'NO' },
         { column_name: 'session_id', data_type: 'text', is_nullable: 'NO' },
-        { column_name: 'expires_at', data_type: 'timestamp with time zone', is_nullable: 'NO' },
-        { column_name: 'created_at', data_type: 'timestamp with time zone', is_nullable: 'YES' }, // Has DEFAULT NOW()
-        { column_name: 'revoked_at', data_type: 'timestamp with time zone', is_nullable: 'YES' },
+        { column_name: 'expires_at', data_type: 'timestamp without time zone', is_nullable: 'NO' },
+        { column_name: 'created_at', data_type: 'timestamp without time zone', is_nullable: 'YES' }, // Has DEFAULT NOW()
+        { column_name: 'revoked_at', data_type: 'timestamp without time zone', is_nullable: 'YES' },
         { column_name: 'replaced_by', data_type: 'uuid', is_nullable: 'YES' },
       ]
 

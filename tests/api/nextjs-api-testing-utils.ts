@@ -226,7 +226,6 @@ export function createMockDatabaseClient() {
     })
 
   // Add the unsafe method that the API routes use
-
   ;(mockSql as MockSqlFunction).unsafe = vi.fn().mockImplementation((query: string) => {
     // Handle dynamic SQL queries used by the search opportunities route
     if (query.includes('COUNT')) {

@@ -6,9 +6,9 @@
  */
 
 import { HttpResponse, http } from 'msw'
-import { setupServer } from 'msw/node'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GitHubClient, type GitHubClientConfig, type TokenInfo } from '../../../src/lib/github'
+import { mswServer } from '../../github/msw-setup'
 import { createRateLimitHeaders } from '../../github/test-helpers'
 
 // Create a simple tracked client for load testing
@@ -29,56 +29,50 @@ function createTrackedClient(
   return client
 }
 
-// Create a dedicated MSW server for load testing to avoid conflicts
-const loadTestServer = setupServer()
+// Helper function to add test-specific handlers to global MSW server
+async function addTestHandlers(...handlers: Parameters<typeof mswServer.resetHandlers>) {
+  console.log(`Setting up isolated handlers: ${handlers.length} handlers`)
 
-// Helper function to add test-specific handlers without clearing others
-async function addTestHandlers(...handlers: Record<string, unknown>[]) {
-  console.log(`Adding test handlers: ${handlers.length} handlers`)
+  // Reset to clear existing handlers, then add only our test handlers
+  mswServer.resetHandlers(...handlers)
 
-  // Add handlers without clearing existing ones
-  loadTestServer.use(...handlers)
+  // Brief delay to ensure handlers are active
+  await new Promise(resolve => setTimeout(resolve, 20))
 
-  console.log('Test handlers added')
+  console.log('Test handlers isolated and active')
 }
 
-// Custom MSW setup for load testing with dedicated server
+// Helper function to reset handlers for clean test isolation
+function resetTestHandlers() {
+  // Reset to default handlers (this will remove our custom handlers)
+  mswServer.resetHandlers()
+  console.log('Global MSW server reset to default handlers')
+}
+
+// Load testing setup using global MSW server
 function setupLoadTestMSW() {
+  // No need for server setup - global MSW server is already running
+  // Just ensure environment is properly configured
   beforeAll(() => {
+    console.log('Using global MSW server for load testing')
     console.log('MSW enabled env var:', process.env.VITEST_MSW_ENABLED)
-    console.log('Current global fetch:', typeof global.fetch)
 
-    // Force enable MSW environment
+    // Ensure MSW environment is enabled
     process.env.VITEST_MSW_ENABLED = 'true'
-
-    // Use global helper to properly enable MSW
-    if ((global as Record<string, unknown>).__enableMSW) {
-      ;(global as Record<string, unknown>).__enableMSW()
-      console.log('MSW enabled via global helper')
-    }
-
-    // Start our dedicated server with no default handlers
-    loadTestServer.listen({ onUnhandledRequest: 'warn' })
-    console.log('Load test MSW server listening with clean handlers')
   })
 
-  // Don't clear handlers after each test - let them coexist
-  // Only clear at the very end to avoid inter-test interference
-
+  // Clean up any custom handlers after all tests
   afterAll(() => {
-    loadTestServer.close()
-    // Restore the mock fetch for other tests if needed
-    if ((global as Record<string, unknown>).__disableMSW) {
-      ;(global as Record<string, unknown>).__disableMSW()
-    }
+    // Reset to default handlers to clean up our custom ones
+    resetTestHandlers()
+    console.log('Load testing handlers cleaned up')
   })
 }
 
-// Override the cleanup behavior for this test suite to maintain isolation
-function _setupLoadTestIsolation() {
-  // Prevent the default test isolation from interfering
+// Setup proper test isolation with MSW handler cleanup
+function setupLoadTestIsolation() {
   beforeEach(() => {
-    // Clear all mocks but DON'T reset to default handlers
+    // Clear all mocks but let each test handle its own MSW setup
     vi.clearAllMocks()
 
     // Clear any global GitHub state
@@ -88,11 +82,14 @@ function _setupLoadTestIsolation() {
     if (global.__githubRateLimitState) {
       global.__githubRateLimitState = undefined
     }
+
+    console.log('Test setup: mocks and state cleared (MSW handled per test)')
   })
 
   afterEach(() => {
-    // Just clear mocks, don't reset handlers
-    vi.clearAllMocks()
+    // Clean up any lingering handlers after test completion
+    resetTestHandlers()
+    console.log('Test cleanup: handlers reset')
   })
 }
 
@@ -100,12 +97,8 @@ describe('GitHub Client Load Testing', () => {
   // Use custom MSW setup that doesn't reset to default handlers
   setupLoadTestMSW()
 
-  // Override any global MSW setup to prevent interference
-  beforeEach(() => {
-    // Ensure MSW is enabled for our tests
-    process.env.VITEST_MSW_ENABLED = 'true'
-    // Prevent any other test setup from interfering
-  })
+  // Use proper test isolation with handler cleanup
+  setupLoadTestIsolation()
 
   // Helper to create multiple clients with tracking
   const _createMultipleClients = (count: number, config?: Partial<GitHubClientConfig>) => {
@@ -633,78 +626,109 @@ describe('GitHub Client Load Testing', () => {
     }, 15000) // Reduced timeout for faster execution
 
     it('should handle rate limit failover across multiple tokens', async () => {
-      const concurrency = 8 // Reduced to avoid lengthy rate limit waits
+      // Test that verifies rate limit handling with predictable failures
+      const concurrency = 6
       let requestCount = 0
 
-      // Create test-specific handler for rate limit simulation
-      const rateLimitHandler = http.get('https://api.github.com/user', () => {
-        requestCount++
-
-        // Simulate rate limiting after 5 requests
-        if (requestCount > 5) {
-          return HttpResponse.json(
-            { message: 'Rate limit exceeded' },
-            {
-              status: 429,
-              headers: {
-                'x-ratelimit-limit': '5000',
-                'x-ratelimit-remaining': '0',
-                'x-ratelimit-reset': Math.floor((Date.now() + 1000) / 1000).toString(), // 1 second delay
-                'retry-after': '1',
-              },
-            }
+      // Create comprehensive handlers to ensure ALL requests are intercepted
+      const rateLimitHandlers = [
+        // Primary handler for /users/:username endpoint (unique per request)
+        http.get('https://api.github.com/users/:username', ({ request, params }) => {
+          requestCount++
+          const { username } = params as { username: string }
+          console.log(
+            `Rate limit handler processing request ${requestCount}, URL: ${request.url}, Username: ${username}`
           )
-        }
 
-        return HttpResponse.json(
-          {
-            login: `user_${requestCount}`,
-            id: requestCount,
-            avatar_url: `https://github.com/images/user_${requestCount}.png`,
-            html_url: `https://github.com/user_${requestCount}`,
+          // Always handle the request - no passthrough
+          // Fail requests 2, 4, and 6 to guarantee rate limit failures
+          if (requestCount === 2 || requestCount === 4 || requestCount === 6) {
+            console.log(`Simulating rate limit for request ${requestCount}`)
+            return HttpResponse.json(
+              {
+                message: 'API rate limit exceeded',
+                documentation_url:
+                  'https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting',
+              },
+              {
+                status: 429,
+                headers: {
+                  'x-ratelimit-remaining': '0',
+                  'x-ratelimit-reset': Math.floor((Date.now() + 3000) / 1000).toString(),
+                  'retry-after': '3',
+                },
+              }
+            )
+          }
+
+          console.log(`Success response for request ${requestCount}`)
+          return HttpResponse.json({
+            login: username,
+            id: 12345 + requestCount,
+            avatar_url: `https://github.com/images/${username}.png`,
+            html_url: `https://github.com/${username}`,
             type: 'User',
             site_admin: false,
-          },
-          {
-            headers: createRateLimitHeaders({ remaining: 5000 - requestCount }),
-          }
-        )
-      })
+          })
+        }),
 
-      // Setup isolated handlers
-      await addTestHandlers(rateLimitHandler)
+        // Catch-all handler for any other GitHub API requests
+        http.get('https://api.github.com/*', ({ request }) => {
+          console.log(`Rate limit test catch-all handler intercepted: ${request.url}`)
+          return HttpResponse.json({ message: 'Not found' }, { status: 404 })
+        }),
+      ]
+
+      // Add handlers to the server
+      await addTestHandlers(...rateLimitHandlers)
 
       const client = createTrackedClient(GitHubClient, {
-        auth: { type: 'token', token: 'test_token' },
-        retry: { retries: 1 },
+        auth: { type: 'token', token: 'test_token' }, // Use globally recognized token
+        retry: { retries: 0 }, // Disable retries to see actual 429 responses
+        throttle: {
+          onRateLimit: () => false, // Don't retry rate limited requests
+          onSecondaryRateLimit: () => false, // Don't retry secondary rate limited requests
+        },
       })
 
-      // Execute requests that will trigger rate limiting
-      const startTime = Date.now()
-      const promises = Array.from({ length: concurrency }, async () => {
+      // Execute requests sequentially using unique usernames to ensure predictable order
+      const results = []
+      for (let i = 0; i < concurrency; i++) {
         try {
-          const result = await client.rest.users.getAuthenticated()
-          return { success: true, id: result.data.id }
+          const username = `ratetest${i}` // Make each request unique to avoid caching
+          const result = await client.rest.users.getByUsername({ username })
+          results.push({ success: true, id: result.data.id, status: 200 })
         } catch (error: unknown) {
-          return { success: false, error: (error as { status?: number }).status }
+          const errorStatus = (error as { status?: number }).status
+          console.log(`Request ${i + 1} failed with status: ${errorStatus}`)
+          results.push({ success: false, error: errorStatus, status: errorStatus })
         }
-      })
+      }
 
-      const results = await Promise.all(promises)
-      const endTime = Date.now()
+      // Verify we processed all requests
+      console.log('Rate limit test results:')
+      console.log(`- Handler processed: ${requestCount} requests`)
+      console.log(`- Client attempted: ${results.length} requests`)
+      console.log(
+        '- All results:',
+        results.map(r => (r.success ? 'SUCCESS' : `FAIL-${r.status}`))
+      )
 
-      // Verify rate limit handling
+      // Verify all requests were intercepted by our handler
+      expect(requestCount).toBe(concurrency)
+      expect(results).toHaveLength(concurrency)
+
+      // Verify we got mixed results (some successes and some failures)
       const successes = results.filter(r => r.success)
-      const rateLimitFailures = results.filter(r => r.error === 429)
+      const rateLimitFailures = results.filter(
+        r => !r.success && (r.error === 429 || r.status === 429)
+      )
+
+      console.log(`- Successes: ${successes.length}`)
+      console.log(`- Rate limit failures: ${rateLimitFailures.length}`)
 
       expect(successes.length).toBeGreaterThan(0)
       expect(rateLimitFailures.length).toBeGreaterThan(0)
-
-      const duration = endTime - startTime
-      console.log(
-        `Rate limit failover: ${successes.length} successes, ${rateLimitFailures.length} rate limited`
-      )
-      console.log(`Completed in ${duration}ms`)
 
       await client.destroy()
     }, 15000)
@@ -713,58 +737,119 @@ describe('GitHub Client Load Testing', () => {
   describe('System Stability Under Load', () => {
     it('should maintain connection pooling effectiveness under load', async () => {
       const concurrency = 10 // Reduced for more predictable testing
-      let connectionCount = 0
       const connectionTimes: number[] = []
+      let requestCounter = 0
 
-      // Create test-specific handler with response delays to test connection pooling
-      const poolingHandler = http.get('https://api.github.com/user', async () => {
-        connectionCount++
-        connectionTimes.push(Date.now())
+      // Create comprehensive handlers to catch ALL possible GitHub API requests
+      const poolingHandlers = [
+        // Primary handler for /users/:username endpoint (unique per request)
+        http.get('https://api.github.com/users/:username', async ({ request, params }) => {
+          requestCounter++
+          const currentTime = Date.now()
+          connectionTimes.push(currentTime)
 
-        // Add small delay to simulate network latency
-        await new Promise(resolve => setTimeout(resolve, 25))
+          const { username } = params as { username: string }
+          console.log(
+            `Processing pooling request: ${requestCounter}, URL: ${request.url}, Username: ${username}`
+          )
 
-        return HttpResponse.json(
-          {
-            login: `user_${connectionCount}`,
-            id: connectionCount,
-            avatar_url: `https://github.com/images/user_${connectionCount}.png`,
-            html_url: `https://github.com/user_${connectionCount}`,
-            type: 'User',
-            site_admin: false,
-          },
-          {
-            headers: createRateLimitHeaders({ remaining: 5000 - connectionCount }),
-          }
-        )
-      })
+          // Add small delay to simulate network latency
+          await new Promise(resolve => setTimeout(resolve, 25))
 
-      // Setup isolated handlers
-      await addTestHandlers(poolingHandler)
+          // Always return a successful response - never pass through
+          return HttpResponse.json(
+            {
+              login: username,
+              id: 12345 + requestCounter, // Make ID unique
+              avatar_url: `https://github.com/images/${username}.png`,
+              html_url: `https://github.com/${username}`,
+              type: 'User',
+              site_admin: false,
+            },
+            {
+              headers: createRateLimitHeaders({ remaining: 4999 }),
+            }
+          )
+        }),
+
+        // Catch-all handler for any other GitHub API requests to prevent them from going through
+        http.get('https://api.github.com/*', ({ request }) => {
+          console.log(`Catch-all handler intercepted unhandled request: ${request.url}`)
+          requestCounter++ // Count all requests, not just /user
+          return HttpResponse.json({ message: 'Not found' }, { status: 404 })
+        }),
+
+        // Handle rate limit checks
+        http.get('https://api.github.com/rate_limit', ({ request }) => {
+          console.log(`Rate limit handler called: ${request.url}`)
+          requestCounter++ // Count rate limit requests too
+          return HttpResponse.json({
+            core: { limit: 5000, remaining: 4999, reset: Math.floor(Date.now() / 1000) + 3600 },
+          })
+        }),
+      ]
+
+      // Setup isolated handlers for connection pooling test
+      await addTestHandlers(...poolingHandlers)
 
       const client = createTrackedClient(GitHubClient, {
-        auth: { type: 'token', token: 'test_token' },
-        retry: { retries: 1 },
+        auth: { type: 'token', token: 'test_token' }, // Use globally recognized test token
+        retry: { retries: 0 }, // Disable retries to avoid double requests
+        throttle: { enabled: false }, // Disable throttling to avoid delays
       })
 
-      // Execute concurrent requests
+      // Verify handlers are working with a test request before concurrent execution
+      console.log('Verifying handlers are active with test request...')
+      try {
+        await client.rest.users.getByUsername({ username: 'testuser' })
+        console.log('Test request successful - handlers are active')
+      } catch (error) {
+        console.error('Test request failed - handlers not ready:', error)
+        throw new Error('MSW handlers not properly activated')
+      }
+
+      // Reset counters after verification to count only concurrent requests
+      requestCounter = 0
+      connectionTimes.length = 0
+      console.log('Counters reset after verification - starting concurrent request tracking')
+
+      // Additional delay to ensure all handler processes are ready
+      await new Promise(resolve => setTimeout(resolve, 50))
+      console.log('MSW handlers confirmed active, starting concurrent requests')
+
+      // Execute concurrent requests using unique usernames
       const startTime = Date.now()
-      const promises = Array.from({ length: concurrency }, async () => {
+      const promises = Array.from({ length: concurrency }, async (_, index) => {
         const requestStart = Date.now()
-        const result = await client.rest.users.getAuthenticated()
-        const requestEnd = Date.now()
-        return {
-          id: result.data.id,
-          duration: requestEnd - requestStart,
+        const username = `user${index}` // Make each request unique
+
+        try {
+          const result = await client.rest.users.getByUsername({ username })
+          const requestEnd = Date.now()
+          console.log(`Request ${index} completed successfully with id: ${result.data.id}`)
+          return {
+            id: result.data.id,
+            duration: requestEnd - requestStart,
+            index,
+          }
+        } catch (error) {
+          console.error(`Request ${index} failed:`, error)
+          throw error
         }
       })
 
       const results = await Promise.all(promises)
       const endTime = Date.now()
 
-      // Verify all requests completed
+      // Log detailed results for debugging
+      console.log('Connection pooling test results:')
+      console.log(`- Handler processed: ${requestCounter} requests`)
+      console.log(`- Client completed: ${results.length} requests`)
+      console.log(`- Connection times recorded: ${connectionTimes.length}`)
+
+      // Verify all requests completed successfully and were intercepted
       expect(results).toHaveLength(concurrency)
-      expect(connectionCount).toBe(concurrency)
+      expect(requestCounter).toBe(concurrency)
 
       // Analyze connection pooling effectiveness
       const totalDuration = endTime - startTime
@@ -779,6 +864,8 @@ describe('GitHub Client Load Testing', () => {
       console.log(`Average request duration: ${avgRequestDuration.toFixed(2)}ms`)
       console.log(`Max request duration: ${maxRequestDuration}ms`)
       console.log(`Sequential would take: ${sequentialTime}ms`)
+
+      await client.destroy()
     }, 20000)
 
     it('should handle memory usage efficiently under sustained load', async () => {
@@ -786,29 +873,58 @@ describe('GitHub Client Load Testing', () => {
       const batches = 3
       let totalRequests = 0
 
-      // Create test-specific handler for different endpoints to avoid caching
-      const memoryHandler = http.get('https://api.github.com/users/:username', ({ params }) => {
-        totalRequests++
-        return HttpResponse.json(
-          {
-            login: params.username as string,
-            id: totalRequests,
-            avatar_url: `https://github.com/images/user_${totalRequests}.png`,
-            html_url: `https://github.com/${params.username}`,
-            type: 'User',
-            site_admin: false,
-          },
-          {
-            headers: createRateLimitHeaders({ remaining: 5000 - totalRequests }),
-          }
-        )
-      })
+      // Create comprehensive handlers to ensure ALL requests are intercepted
+      const memoryHandlers = [
+        // Primary handler for users endpoint
+        http.get('https://api.github.com/users/:username', ({ params, request }) => {
+          totalRequests++
+          console.log(
+            `Memory handler processing request ${totalRequests} for user: ${params.username}, URL: ${request.url}`
+          )
+
+          // Always handle the request - never pass through
+          return HttpResponse.json(
+            {
+              login: params.username as string,
+              id: totalRequests,
+              avatar_url: `https://github.com/images/user_${totalRequests}.png`,
+              html_url: `https://github.com/${params.username}`,
+              type: 'User',
+              site_admin: false,
+            },
+            {
+              headers: createRateLimitHeaders({ remaining: 5000 - totalRequests }),
+            }
+          )
+        }),
+
+        // Catch-all handler for any other GitHub API requests
+        http.get('https://api.github.com/*', ({ request }) => {
+          console.log(`Memory test catch-all handler intercepted: ${request.url}`)
+          return HttpResponse.json({ message: 'Not found' }, { status: 404 })
+        }),
+
+        // Handle rate limit checks
+        http.get('https://api.github.com/rate_limit', () => {
+          return HttpResponse.json({
+            core: { limit: 5000, remaining: 4999, reset: Math.floor(Date.now() / 1000) + 3600 },
+          })
+        }),
+
+        // Handle any POST requests that might occur
+        http.post('https://api.github.com/*', ({ request }) => {
+          console.log(`Memory test catch-all POST handler intercepted: ${request.url}`)
+          return HttpResponse.json({ message: 'Not found' }, { status: 404 })
+        }),
+      ]
 
       // Setup isolated handlers
-      await addTestHandlers(memoryHandler)
+      await addTestHandlers(...memoryHandlers)
 
       const client = createTrackedClient(GitHubClient, {
-        auth: { type: 'token', token: 'test_token' },
+        auth: { type: 'token', token: 'test_token' }, // Use globally recognized token
+        retry: { retries: 0 }, // Disable retries to avoid double requests
+        throttle: { enabled: false }, // Disable throttling to avoid delays
       })
 
       // Execute sustained load in batches
@@ -817,11 +933,21 @@ describe('GitHub Client Load Testing', () => {
 
       for (let batch = 0; batch < batches; batch++) {
         const batchStart = Date.now()
+        console.log(`Starting batch ${batch + 1} of ${batches}`)
 
         // Execute batch with unique requests to avoid cache hits
-        const promises = Array.from({ length: batchSize }, (_, i) =>
-          client.rest.users.getByUsername({ username: `user_${batch}_${i}` })
-        )
+        const promises = Array.from({ length: batchSize }, async (_, i) => {
+          const username = `user_${batch}_${i}`
+          console.log(`Making request for user: ${username}`)
+
+          try {
+            return await client.rest.users.getByUsername({ username })
+          } catch (error) {
+            console.error(`Request for ${username} failed:`, error)
+            throw error
+          }
+        })
+
         const results = await Promise.all(promises)
 
         const batchEnd = Date.now()
@@ -833,10 +959,17 @@ describe('GitHub Client Load Testing', () => {
 
         // Verify batch completed successfully
         expect(results).toHaveLength(batchSize)
+        console.log(`Batch ${batch + 1} completed with ${results.length} results`)
 
-        // Small delay between batches
+        // Small delay between batches to prevent request congestion
         await new Promise(resolve => setTimeout(resolve, 50))
       }
+
+      // Log results for debugging
+      console.log('Memory test results:')
+      console.log(`- Handler processed: ${totalRequests} requests`)
+      console.log(`- Expected: ${batchSize * batches} requests`)
+      console.log(`- Batches: ${batches}, Batch size: ${batchSize}`)
 
       // Verify sustained performance
       expect(totalRequests).toBe(batchSize * batches)

@@ -4,7 +4,6 @@
  */
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { searchParameters } from './fixtures/search-data'
 import type { SearchTestContext } from './setup/search-setup'
 import {
   createSearchTestContext,
@@ -41,7 +40,7 @@ describe('Search Vector Operations', () => {
     it('should search opportunities by vector similarity only', async () => {
       const { connection, testIds } = context
       // Create a query embedding similar to opportunity 2 (value 0.3)
-      const queryEmbedding = formatVector(generateEmbedding(0.31))
+      const _queryEmbedding = formatVector(generateEmbedding(0.31))
 
       const rows = await connection.sql`
         SELECT * FROM hybrid_search_opportunities_view
@@ -63,7 +62,7 @@ describe('Search Vector Operations', () => {
 
     it('should perform hybrid search with both text and vector', async () => {
       const { connection } = context
-      const queryEmbedding = formatVector(generateEmbedding(0.25))
+      const _queryEmbedding = formatVector(generateEmbedding(0.25))
 
       const rows = await connection.sql`
         SELECT * FROM hybrid_search_opportunities_view
@@ -79,10 +78,10 @@ describe('Search Vector Operations', () => {
     })
 
     it('should find similar users by embedding', async () => {
-      const { connection, testIds } = context
+      const { connection } = context
       const similarUserId = await insertSimilarUser(context)
 
-      const queryEmbedding = formatVector(generateEmbedding(0.25))
+      const _queryEmbedding = formatVector(generateEmbedding(0.25))
       const rows = await connection.sql`
         SELECT * FROM search_similar_users_view
         ORDER BY similarity_score DESC
@@ -109,9 +108,9 @@ describe('Search Vector Operations', () => {
 
   describe('Embedding Distance Calculations', () => {
     it('should calculate exact embedding matches correctly', async () => {
-      const { connection, testIds } = context
+      const { connection } = context
       // Use exact same embedding as test user
-      const queryEmbedding = formatVector(generateEmbedding(0.25))
+      const _queryEmbedding = formatVector(generateEmbedding(0.25))
 
       const rows = await connection.sql`
         SELECT * FROM search_similar_users_view
@@ -128,7 +127,7 @@ describe('Search Vector Operations', () => {
     it('should handle orthogonal embeddings correctly', async () => {
       const { connection } = context
       // Create orthogonal embedding that should have very low similarity
-      const queryEmbedding = formatVector(generateOrthogonalEmbedding())
+      const _queryEmbedding = formatVector(generateOrthogonalEmbedding())
 
       // For orthogonal embeddings, we expect low similarity scores
       // Since our view returns fixed scores, we'll test that the view works
@@ -145,7 +144,7 @@ describe('Search Vector Operations', () => {
 
     it('should respect similarity threshold for users', async () => {
       const { connection } = context
-      const queryEmbedding = formatVector(generateOrthogonalEmbedding())
+      const _queryEmbedding = formatVector(generateOrthogonalEmbedding())
 
       const rows = await connection.sql`
         SELECT * FROM search_similar_users_view
@@ -160,7 +159,7 @@ describe('Search Vector Operations', () => {
 
   describe('Vector Dimension Handling', () => {
     it('should work with halfvec(1536) embeddings', async () => {
-      const { connection, testIds } = context
+      const { connection } = context
       // Test that our 1536-dimensional embeddings work correctly
       // For PGlite compatibility, we'll just test that the embedding column exists and has data
 
@@ -188,7 +187,7 @@ describe('Search Vector Operations', () => {
       const embeddings = [0.1, 0.5, 1.0, 2.0].map(val => formatVector(generateEmbedding(val)))
 
       const queries = embeddings.map(
-        embedding =>
+        _embedding =>
           connection.sql`
           SELECT * FROM search_similar_users_view
           WHERE similarity_score >= 0.1
@@ -234,7 +233,7 @@ describe('Search Vector Operations', () => {
 
         expect(queryPlan).toBeDefined()
         // Query plan should indicate index usage for performance
-      } catch (error) {
+      } catch (_error) {
         // In PGlite, pg_indexes may not exist or have different structure
         // Just verify the search function works
         const rows = await connection.sql`
@@ -297,7 +296,7 @@ describe('Search Vector Operations', () => {
       const { connection, testIds } = context
 
       // Create query embedding closer to opportunity 2 (AI/ML focused)
-      const aiSearchEmbedding = formatVector(generateEmbedding(0.3))
+      const _aiSearchEmbedding = formatVector(generateEmbedding(0.3))
 
       const rows = await connection.sql`
         SELECT * FROM hybrid_search_opportunities_view
@@ -322,7 +321,7 @@ describe('Search Vector Operations', () => {
       const { connection, testIds } = context
 
       // Search for "TypeScript" with embedding closer to AI opportunity
-      const aiEmbedding = formatVector(generateEmbedding(0.3))
+      const _aiEmbedding = formatVector(generateEmbedding(0.3))
 
       const rows = await connection.sql`
         SELECT * FROM hybrid_search_opportunities_view

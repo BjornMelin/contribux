@@ -139,7 +139,7 @@ export const sql: SqlTemplateFunction = async function sql<T extends QueryRow = 
   })
 
   // Use the managed connection's sql function with template literal syntax
-  return await connection.sql<T>(strings, ...processedValues)
+  return (await connection.sql(strings, ...processedValues)) as T[]
 }
 
 /**

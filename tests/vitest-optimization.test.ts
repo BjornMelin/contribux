@@ -70,7 +70,6 @@ describe('Vitest 3.2+ Memory Optimization', () => {
     const globalKey = `__test_isolation_${testId}`
 
     // Set a global value
-
     ;(globalThis as Record<string, unknown>)[globalKey] = 'test_value'
 
     // Verify it exists

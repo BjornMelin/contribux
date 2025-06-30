@@ -6,6 +6,16 @@
 import { z } from 'zod'
 import { env } from '../validation/env'
 
+// Import individual config modules
+export { authConfig } from './auth'
+export { cryptoConfig } from './crypto'
+export { oauthConfig } from './oauth'
+
+// Import for type definitions
+import type { authConfig as importedAuthConfig } from './auth'
+import type { cryptoConfig as importedCryptoConfig } from './crypto'
+import type { oauthConfig as importedOauthConfig } from './oauth'
+
 // Configuration schema for runtime validation
 const configSchema = z.object({
   // Authentication & JWT configuration
@@ -283,11 +293,8 @@ export const config = configSchema.parse(createConfig())
 
 // Re-export specific configuration sections for convenience
 export const {
-  auth: authConfig,
   webauthn: webauthnConfig,
-  oauth: oauthConfig,
   audit: auditConfig,
-  crypto: cryptoConfig,
   database: databaseConfig,
   app: appConfig,
 } = config
@@ -357,10 +364,10 @@ export const DB_TIMEOUTS = {
 } as const
 
 // Export type for external usage
-export type AuthConfig = typeof authConfig
+export type AuthConfig = typeof importedAuthConfig
 export type WebAuthnConfig = typeof webauthnConfig
-export type OAuthConfig = typeof oauthConfig
+export type OAuthConfig = typeof importedOauthConfig
 export type AuditConfig = typeof auditConfig
-export type CryptoConfig = typeof cryptoConfig
+export type CryptoConfig = typeof importedCryptoConfig
 export type DatabaseConfig = typeof databaseConfig
 export type AppConfig = typeof appConfig
