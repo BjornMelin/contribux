@@ -5,7 +5,7 @@
 /**
  * Advanced Search Components Test Suite
  * Enhanced testing for search functionality with modern patterns
- * 
+ *
  * Features tested:
  * - Repository search interface
  * - Opportunity discovery components
@@ -17,7 +17,7 @@
  * - Performance optimization
  */
 
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -26,7 +26,7 @@ import {
   SearchBar,
   SearchFilters as SearchFiltersComponent,
 } from '@/components/features'
-import type { Opportunity, Repository, SearchFilters } from '@/types/search'
+import { setupMSW } from '@/tests/test-utils/msw-unified'
 import {
   asUUID,
   cleanupComponentTest,
@@ -35,7 +35,7 @@ import {
   createModernMockRouter,
   setupComponentTest,
 } from '@/tests/utils/modern-test-helpers'
-import { setupMSW } from '@/tests/test-utils/msw-unified'
+import type { Opportunity, SearchFilters } from '@/types/search'
 
 // Enhanced mock data
 const createMockOpportunity = (overrides: Partial<Opportunity> = {}): Opportunity => ({
@@ -103,24 +103,23 @@ const mockBookmarkManager = {
   toggleBookmark: vi.fn(async (id: string) => {
     if (mockBookmarkManager.bookmarks.has(id)) {
       return await mockBookmarkManager.removeBookmark(id)
-    } else {
-      return await mockBookmarkManager.addBookmark(id)
     }
+    return await mockBookmarkManager.addBookmark(id)
   }),
 }
 
 // Enhanced Opportunity Card with bookmark functionality
-const EnhancedOpportunityCard = ({ 
-  opportunity, 
-  onSelect, 
-  onBookmark 
-}: { 
+const EnhancedOpportunityCard = ({
+  opportunity,
+  onSelect,
+  onBookmark,
+}: {
   opportunity: Opportunity
   onSelect: (opportunity: Opportunity) => void
   onBookmark?: (id: string) => void
 }) => {
   const isBookmarked = mockBookmarkManager.isBookmarked(opportunity.id)
-  
+
   return (
     <div className="opportunity-card" role="article">
       <OpportunityCard opportunity={opportunity} onSelect={onSelect} />
@@ -140,11 +139,11 @@ const EnhancedOpportunityCard = ({
 }
 
 // Advanced Search Interface
-const AdvancedSearchInterface = ({ 
-  onSearch, 
+const AdvancedSearchInterface = ({
+  onSearch,
   onFiltersChange,
   onSortChange,
-  loading = false
+  loading = false,
 }: {
   onSearch: (query: string) => void
   onFiltersChange: (filters: SearchFilters) => void
@@ -173,21 +172,21 @@ const AdvancedSearchInterface = ({
       <div className="search-section">
         <SearchBar onSearch={onSearch} loading={loading} />
       </div>
-      
+
       <div className="filters-section">
-        <SearchFiltersComponent 
-          filters={filters} 
+        <SearchFiltersComponent
+          filters={filters}
           onFiltersChange={handleFiltersChange}
           loading={loading}
         />
       </div>
-      
+
       <div className="sort-section">
         <label htmlFor="sort-select">Sort by:</label>
         <select
           id="sort-select"
           value={sortBy}
-          onChange={(e) => handleSortChange(e.target.value, order)}
+          onChange={e => handleSortChange(e.target.value, order)}
           disabled={loading}
         >
           <option value="relevance">Relevance</option>
@@ -196,12 +195,12 @@ const AdvancedSearchInterface = ({
           <option value="difficulty">Difficulty</option>
           <option value="stars">Repository Stars</option>
         </select>
-        
+
         <label htmlFor="order-select">Order:</label>
         <select
           id="order-select"
           value={order}
-          onChange={(e) => handleSortChange(sortBy, e.target.value)}
+          onChange={e => handleSortChange(sortBy, e.target.value)}
           disabled={loading}
         >
           <option value="desc">Descending</option>
@@ -219,7 +218,7 @@ const PaginatedSearchResults = ({
   totalPages = 1,
   onPageChange,
   onOpportunitySelect,
-  loading = false
+  loading = false,
 }: {
   opportunities: Opportunity[]
   currentPage?: number
@@ -233,13 +232,13 @@ const PaginatedSearchResults = ({
       <div className="results-info" role="status">
         Showing page {currentPage} of {totalPages} ({opportunities.length} results)
       </div>
-      
+
       <OpportunityList
         opportunities={opportunities}
         onOpportunitySelect={onOpportunitySelect}
         loading={loading}
       />
-      
+
       {totalPages > 1 && (
         <nav aria-label="Search results pagination" className="pagination">
           <button
@@ -250,11 +249,11 @@ const PaginatedSearchResults = ({
           >
             Previous
           </button>
-          
+
           <span className="page-info">
             Page {currentPage} of {totalPages}
           </span>
-          
+
           <button
             type="button"
             onClick={() => onPageChange(currentPage + 1)}
@@ -304,7 +303,7 @@ describe('Advanced Search Components', () => {
       expect(screen.getByRole('textbox', { name: 'Search input' })).toBeInTheDocument()
       expect(screen.getByLabelText('Sort by:')).toBeInTheDocument()
       expect(screen.getByLabelText('Order:')).toBeInTheDocument()
-      
+
       // Check filter controls
       const selects = screen.getAllByRole('combobox')
       expect(selects.length).toBeGreaterThanOrEqual(4) // Difficulty, type, sort, order
@@ -404,10 +403,7 @@ describe('Advanced Search Components', () => {
       const handleSelect = vi.fn()
 
       render(
-        <OpportunityList
-          opportunities={mockOpportunities}
-          onOpportunitySelect={handleSelect}
-        />
+        <OpportunityList opportunities={mockOpportunities} onOpportunitySelect={handleSelect} />
       )
 
       // Check all opportunities are displayed
@@ -426,14 +422,11 @@ describe('Advanced Search Components', () => {
       const user = userEvent.setup()
 
       render(
-        <OpportunityList
-          opportunities={mockOpportunities}
-          onOpportunitySelect={handleSelect}
-        />
+        <OpportunityList opportunities={mockOpportunities} onOpportunitySelect={handleSelect} />
       )
 
-      const firstOpportunity = screen.getByRole('button', { 
-        name: /view opportunity.*fix typescript errors/i 
+      const firstOpportunity = screen.getByRole('button', {
+        name: /view opportunity.*fix typescript errors/i,
       })
       await user.click(firstOpportunity)
 
@@ -444,10 +437,7 @@ describe('Advanced Search Components', () => {
       const handleSelect = vi.fn()
 
       render(
-        <OpportunityList
-          opportunities={mockOpportunities}
-          onOpportunitySelect={handleSelect}
-        />
+        <OpportunityList opportunities={mockOpportunities} onOpportunitySelect={handleSelect} />
       )
 
       expect(screen.getByText('beginner')).toBeInTheDocument()
@@ -459,10 +449,7 @@ describe('Advanced Search Components', () => {
       const handleSelect = vi.fn()
 
       render(
-        <OpportunityList
-          opportunities={mockOpportunities}
-          onOpportunitySelect={handleSelect}
-        />
+        <OpportunityList opportunities={mockOpportunities} onOpportunitySelect={handleSelect} />
       )
 
       expect(screen.getByText('TypeScript')).toBeInTheDocument()
@@ -556,7 +543,7 @@ describe('Advanced Search Components', () => {
   })
 
   describe('Search Result Pagination', () => {
-    const mockOpportunities = Array.from({ length: 5 }, (_, i) => 
+    const mockOpportunities = Array.from({ length: 5 }, (_, i) =>
       createMockOpportunity({
         id: asUUID(`550e8400-e29b-41d4-a716-44665544000${i + 1}`),
         title: `Opportunity ${i + 1}`,
@@ -656,7 +643,9 @@ describe('Advanced Search Components', () => {
         />
       )
 
-      expect(screen.queryByRole('navigation', { name: 'Search results pagination' })).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('navigation', { name: 'Search results pagination' })
+      ).not.toBeInTheDocument()
     })
   })
 
@@ -718,7 +707,7 @@ describe('Advanced Search Components', () => {
       )
 
       const bookmarkButton = screen.getByLabelText('Add bookmark')
-      
+
       // Check for minimum touch target size (44px recommended)
       const buttonRect = bookmarkButton.getBoundingClientRect()
       expect(buttonRect.width).toBeGreaterThanOrEqual(44)
@@ -783,7 +772,7 @@ describe('Advanced Search Components', () => {
 
       const pagination = screen.getByRole('navigation', { name: 'Search results pagination' })
       expect(pagination).toBeInTheDocument()
-      
+
       const resultsInfo = screen.getByRole('status')
       expect(resultsInfo).toHaveTextContent('Showing page 2 of 5')
     })
@@ -812,19 +801,16 @@ describe('Advanced Search Components', () => {
       const user = userEvent.setup()
 
       render(
-        <OpportunityList
-          opportunities={mockOpportunities}
-          onOpportunitySelect={handleSelect}
-        />
+        <OpportunityList opportunities={mockOpportunities} onOpportunitySelect={handleSelect} />
       )
 
-      const opportunityButton = screen.getByRole('button', { 
-        name: /view opportunity/i 
+      const opportunityButton = screen.getByRole('button', {
+        name: /view opportunity/i,
       })
-      
+
       opportunityButton.focus()
       expect(opportunityButton).toHaveFocus()
-      
+
       await user.keyboard('{Enter}')
       expect(handleSelect).toHaveBeenCalled()
     })
@@ -832,7 +818,7 @@ describe('Advanced Search Components', () => {
 
   describe('Performance Optimization', () => {
     it('renders large lists efficiently', () => {
-      const manyOpportunities = Array.from({ length: 100 }, (_, i) => 
+      const manyOpportunities = Array.from({ length: 100 }, (_, i) =>
         createMockOpportunity({
           id: asUUID(`opportunity-${i.toString().padStart(36, '0')}`),
           title: `Opportunity ${i + 1}`,
@@ -843,10 +829,7 @@ describe('Advanced Search Components', () => {
       const start = performance.now()
 
       render(
-        <OpportunityList
-          opportunities={manyOpportunities}
-          onOpportunitySelect={handleSelect}
-        />
+        <OpportunityList opportunities={manyOpportunities} onOpportunitySelect={handleSelect} />
       )
 
       const end = performance.now()
@@ -871,7 +854,7 @@ describe('Advanced Search Components', () => {
       )
 
       const sortSelect = screen.getByLabelText('Sort by:')
-      
+
       // Rapid sort changes
       const start = performance.now()
       for (let i = 0; i < 10; i++) {

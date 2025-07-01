@@ -3,8 +3,8 @@
  * Testing user creation, updates, account linking, session storage, and profile synchronization
  */
 
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import type { Account, Profile } from 'next-auth'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { authConfig } from '@/lib/auth/config'
 import type { User as AuthUser } from '@/types/auth'
 
@@ -29,16 +29,19 @@ describe('NextAuth Database Integration', () => {
       mockSql
         .mockResolvedValueOnce([]) // No existing OAuth account
         .mockResolvedValueOnce([]) // No existing user by email
-        .mockResolvedValueOnce([{ // New user created
-          id: 'new-user-123',
-          email: 'github-user@example.com',
-          display_name: 'GitHub User',
-          username: 'githubuser',
-          github_username: 'githubuser',
-          email_verified: true,
-          created_at: new Date(),
-          updated_at: new Date(),
-        }])
+        .mockResolvedValueOnce([
+          {
+            // New user created
+            id: 'new-user-123',
+            email: 'github-user@example.com',
+            display_name: 'GitHub User',
+            username: 'githubuser',
+            github_username: 'githubuser',
+            email_verified: true,
+            created_at: new Date(),
+            updated_at: new Date(),
+          },
+        ])
         .mockResolvedValueOnce([]) // OAuth account created
         .mockResolvedValueOnce([]) // Security event logged
 
@@ -77,16 +80,12 @@ describe('NextAuth Database Integration', () => {
 
       // Verify user creation query
       expect(mockSql).toHaveBeenCalledWith(
-        expect.arrayContaining([
-          expect.stringContaining('INSERT INTO users'),
-        ])
+        expect.arrayContaining([expect.stringContaining('INSERT INTO users')])
       )
 
       // Verify OAuth account creation query
       expect(mockSql).toHaveBeenCalledWith(
-        expect.arrayContaining([
-          expect.stringContaining('INSERT INTO oauth_accounts'),
-        ])
+        expect.arrayContaining([expect.stringContaining('INSERT INTO oauth_accounts')])
       )
     })
 
@@ -95,16 +94,19 @@ describe('NextAuth Database Integration', () => {
       mockSql
         .mockResolvedValueOnce([]) // No existing OAuth account
         .mockResolvedValueOnce([]) // No existing user by email
-        .mockResolvedValueOnce([{ // New user created
-          id: 'new-google-user-456',
-          email: 'google-user@example.com',
-          display_name: 'Google User',
-          username: 'googleuser',
-          github_username: null,
-          email_verified: true,
-          created_at: new Date(),
-          updated_at: new Date(),
-        }])
+        .mockResolvedValueOnce([
+          {
+            // New user created
+            id: 'new-google-user-456',
+            email: 'google-user@example.com',
+            display_name: 'Google User',
+            username: 'googleuser',
+            github_username: null,
+            email_verified: true,
+            created_at: new Date(),
+            updated_at: new Date(),
+          },
+        ])
         .mockResolvedValueOnce([]) // OAuth account created
         .mockResolvedValueOnce([]) // Security event logged
 
@@ -247,12 +249,15 @@ describe('NextAuth Database Integration', () => {
       mockSql
         .mockResolvedValueOnce([]) // No existing OAuth account by provider ID
         .mockResolvedValueOnce([existingUser]) // Existing user by email
-        .mockResolvedValueOnce([{ // Existing GitHub link for user
-          id: 'existing-oauth-123',
-          user_id: 'existing-user-123',
-          provider: 'github',
-          provider_account_id: 'existing-github-123',
-        }])
+        .mockResolvedValueOnce([
+          {
+            // Existing GitHub link for user
+            id: 'existing-oauth-123',
+            user_id: 'existing-user-123',
+            provider: 'github',
+            provider_account_id: 'existing-github-123',
+          },
+        ])
         .mockResolvedValueOnce([]) // Update tokens
 
       const githubAccount: Account = {
@@ -282,13 +287,15 @@ describe('NextAuth Database Integration', () => {
 
     it('should handle account linking conflicts', async () => {
       // Mock conflicting account scenario
-      mockSql
-        .mockResolvedValueOnce([{ // Existing OAuth account for different user
+      mockSql.mockResolvedValueOnce([
+        {
+          // Existing OAuth account for different user
           id: 'oauth-conflict-123',
           user_id: 'different-user-456',
           provider: 'github',
           provider_account_id: 'github-12345',
-        }])
+        },
+      ])
 
       const result = await authConfig.callbacks?.signIn?.({
         user: {
@@ -352,9 +359,7 @@ describe('NextAuth Database Integration', () => {
 
       // Verify token update query
       expect(mockSql).toHaveBeenCalledWith(
-        expect.arrayContaining([
-          expect.stringContaining('UPDATE oauth_accounts'),
-        ])
+        expect.arrayContaining([expect.stringContaining('UPDATE oauth_accounts')])
       )
     })
 
@@ -384,7 +389,10 @@ describe('NextAuth Database Integration', () => {
 
       expect(result?.accessToken).toBe('gho_refreshed_token')
       expect(result?.refreshToken).toBe('ghr_refreshed_token')
-      expect(fetch).toHaveBeenCalledWith('https://github.com/login/oauth/access_token', expect.any(Object))
+      expect(fetch).toHaveBeenCalledWith(
+        'https://github.com/login/oauth/access_token',
+        expect.any(Object)
+      )
     })
 
     it('should clean up expired tokens', async () => {
@@ -451,21 +459,21 @@ describe('NextAuth Database Integration', () => {
       expect(result?.user?.id).toBe('session-user-123')
       expect(result?.user?.connectedProviders).toEqual(['github'])
       expect(mockSql).toHaveBeenCalledWith(
-        expect.arrayContaining([
-          expect.stringContaining('SELECT u.id, u.email'),
-        ])
+        expect.arrayContaining([expect.stringContaining('SELECT u.id, u.email')])
       )
     })
 
     it('should handle concurrent session queries', async () => {
       const userPromises = Array.from({ length: 5 }, (_, i) => {
-        mockSql.mockResolvedValueOnce([{
-          id: `concurrent-user-${i}`,
-          email: `user${i}@example.com`,
-          display_name: `User ${i}`,
-          connected_providers: ['github'],
-          primary_provider: 'github',
-        }])
+        mockSql.mockResolvedValueOnce([
+          {
+            id: `concurrent-user-${i}`,
+            email: `user${i}@example.com`,
+            display_name: `User ${i}`,
+            connected_providers: ['github'],
+            primary_provider: 'github',
+          },
+        ])
 
         return authConfig.callbacks?.session?.({
           session: {
@@ -534,10 +542,13 @@ describe('NextAuth Database Integration', () => {
       mockSql
         .mockResolvedValueOnce([]) // No existing OAuth account
         .mockResolvedValueOnce([]) // No existing user
-        .mockResolvedValueOnce([{ // New user created
-          id: 'audit-user-123',
-          email: 'audit@example.com',
-        }])
+        .mockResolvedValueOnce([
+          {
+            // New user created
+            id: 'audit-user-123',
+            email: 'audit@example.com',
+          },
+        ])
         .mockResolvedValueOnce([]) // OAuth account created
         .mockResolvedValueOnce([]) // Security event logged
 
@@ -560,9 +571,7 @@ describe('NextAuth Database Integration', () => {
 
       // Verify security event logging
       expect(mockSql).toHaveBeenCalledWith(
-        expect.arrayContaining([
-          expect.stringContaining('INSERT INTO security_audit_logs'),
-        ])
+        expect.arrayContaining([expect.stringContaining('INSERT INTO security_audit_logs')])
       )
     })
 
@@ -604,10 +613,13 @@ describe('NextAuth Database Integration', () => {
       mockSql
         .mockResolvedValueOnce([]) // No existing OAuth account
         .mockResolvedValueOnce([]) // No existing user
-        .mockResolvedValueOnce([{ // New user created
-          id: 'audit-fail-user-123',
-          email: 'auditfail@example.com',
-        }])
+        .mockResolvedValueOnce([
+          {
+            // New user created
+            id: 'audit-fail-user-123',
+            email: 'auditfail@example.com',
+          },
+        ])
         .mockResolvedValueOnce([]) // OAuth account created
         .mockRejectedValueOnce(new Error('Audit log insertion failed'))
 

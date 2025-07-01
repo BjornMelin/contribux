@@ -1,7 +1,7 @@
 /**
  * Cryptographic Security Testing Module
  * Comprehensive cryptographic security validation and testing utilities
- * 
+ *
  * Phase 2: API Security Testing - Cryptographic Security
  * - TLS/SSL configuration testing
  * - Certificate validation
@@ -12,16 +12,18 @@
  */
 
 import { z } from 'zod'
-import { SecurityTestResult, SecurityScanResult } from './core-security-utilities'
+import type { SecurityScanResult, SecurityTestResult } from './core-security-utilities'
 
 // Cryptographic security test configuration
 export const CryptographicTestConfigSchema = z.object({
-  targets: z.array(z.object({
-    url: z.string().url(),
-    name: z.string(),
-    expectHTTPS: z.boolean().default(true),
-    minimumTLSVersion: z.enum(['1.2', '1.3']).default('1.2'),
-  })),
+  targets: z.array(
+    z.object({
+      url: z.string().url(),
+      name: z.string(),
+      expectHTTPS: z.boolean().default(true),
+      minimumTLSVersion: z.enum(['1.2', '1.3']).default('1.2'),
+    })
+  ),
   testCertificateChain: z.boolean().default(true),
   testCipherSuites: z.boolean().default(true),
   testHSTS: z.boolean().default(true),
@@ -77,10 +79,12 @@ export class CryptographicSecurityTester {
   /**
    * Perform comprehensive cryptographic security assessment
    */
-  async performCryptographicAssessment(config: CryptographicTestConfig): Promise<SecurityScanResult> {
+  async performCryptographicAssessment(
+    config: CryptographicTestConfig
+  ): Promise<SecurityScanResult> {
     const startTime = performance.now()
     const validatedConfig = CryptographicTestConfigSchema.parse(config)
-    
+
     this.results = []
 
     for (const target of validatedConfig.targets) {
@@ -125,7 +129,9 @@ export class CryptographicSecurityTester {
   /**
    * Test TLS/SSL configuration
    */
-  private async testTLSConfiguration(target: CryptographicTestConfig['targets'][0]): Promise<SecurityTestResult> {
+  private async testTLSConfiguration(
+    target: CryptographicTestConfig['targets'][0]
+  ): Promise<SecurityTestResult> {
     const startTime = performance.now()
     const vulnerabilities: string[] = []
     const recommendations: string[] = []
@@ -141,7 +147,7 @@ export class CryptographicSecurityTester {
 
       // Test TLS connection
       const response = await fetch(target.url, {
-        signal: AbortSignal.timeout(10000)
+        signal: AbortSignal.timeout(10000),
       })
 
       // Check for security headers that indicate TLS configuration
@@ -161,8 +167,9 @@ export class CryptographicSecurityTester {
         if (!hstsValue.includes('max-age=')) {
           vulnerabilities.push('HSTS header missing max-age directive')
         } else {
-          const maxAge = parseInt(hstsValue.match(/max-age=(\d+)/)?.[1] || '0')
-          if (maxAge < 31536000) { // Less than 1 year
+          const maxAge = Number.parseInt(hstsValue.match(/max-age=(\d+)/)?.[1] || '0')
+          if (maxAge < 31536000) {
+            // Less than 1 year
             vulnerabilities.push('HSTS max-age too short (should be at least 1 year)')
             recommendations.push('Set HSTS max-age to at least 31536000 seconds (1 year)')
           }
@@ -179,7 +186,6 @@ export class CryptographicSecurityTester {
         vulnerabilities.push('Missing Content-Security-Policy header')
         recommendations.push('Implement Content Security Policy to prevent XSS attacks')
       }
-
     } catch (error) {
       if (error instanceof Error) {
         if (error.message.includes('SSL') || error.message.includes('TLS')) {
@@ -199,9 +205,10 @@ export class CryptographicSecurityTester {
       category: 'CRYPTOGRAPHIC_FAILURES',
       status: vulnerabilities.length > 0 ? 'FAIL' : 'PASS',
       severity: this.calculateTLSSeverity(vulnerabilities),
-      details: vulnerabilities.length > 0 
-        ? `Found ${vulnerabilities.length} TLS/SSL configuration issues`
-        : 'TLS/SSL configuration appears secure',
+      details:
+        vulnerabilities.length > 0
+          ? `Found ${vulnerabilities.length} TLS/SSL configuration issues`
+          : 'TLS/SSL configuration appears secure',
       evidence: vulnerabilities,
       recommendations,
       executionTime,
@@ -212,7 +219,9 @@ export class CryptographicSecurityTester {
   /**
    * Test certificate chain validation
    */
-  private async testCertificateChain(target: CryptographicTestConfig['targets'][0]): Promise<SecurityTestResult> {
+  private async testCertificateChain(
+    target: CryptographicTestConfig['targets'][0]
+  ): Promise<SecurityTestResult> {
     const startTime = performance.now()
     const vulnerabilities: string[] = []
     const recommendations: string[] = []
@@ -221,10 +230,10 @@ export class CryptographicSecurityTester {
       // In a real implementation, you would use Node.js built-in tls module
       // or a specialized library to inspect the certificate chain
       const response = await fetch(target.url)
-      
+
       // For demonstration, we'll check response headers and behavior
       // that might indicate certificate issues
-      
+
       if (!response.ok && response.status === 526) {
         vulnerabilities.push('Invalid SSL certificate detected')
         recommendations.push('Update SSL certificate with valid authority')
@@ -241,7 +250,7 @@ export class CryptographicSecurityTester {
               vulnerabilities.push('SSL certificate expires within 30 days')
               recommendations.push('Renew SSL certificate before expiration')
             }
-          }
+          },
         },
         {
           name: 'Certificate Authority',
@@ -252,7 +261,7 @@ export class CryptographicSecurityTester {
               vulnerabilities.push('Certificate issued by untrusted authority')
               recommendations.push('Use certificate from trusted Certificate Authority')
             }
-          }
+          },
         },
         {
           name: 'Certificate Chain',
@@ -263,7 +272,7 @@ export class CryptographicSecurityTester {
               vulnerabilities.push('Incomplete certificate chain detected')
               recommendations.push('Include intermediate certificates in chain')
             }
-          }
+          },
         },
         {
           name: 'Subject Alternative Names',
@@ -271,21 +280,22 @@ export class CryptographicSecurityTester {
             // Would check SAN matches requested domain
             const url = new URL(target.url)
             const domain = url.hostname
-            
+
             // Simulate SAN validation
             if (domain.includes('localhost') || domain.includes('127.0.0.1')) {
-              vulnerabilities.push('Certificate may not include Subject Alternative Names for all domains')
+              vulnerabilities.push(
+                'Certificate may not include Subject Alternative Names for all domains'
+              )
               recommendations.push('Ensure certificate includes all required domain names in SAN')
             }
-          }
-        }
+          },
+        },
       ]
 
       // Run all certificate checks
       for (const check of certificateChecks) {
         check.check()
       }
-
     } catch (error) {
       if (error instanceof TypeError && error.message.includes('certificate')) {
         vulnerabilities.push('Certificate validation failed')
@@ -300,9 +310,10 @@ export class CryptographicSecurityTester {
       category: 'CRYPTOGRAPHIC_FAILURES',
       status: vulnerabilities.length > 0 ? 'FAIL' : 'PASS',
       severity: vulnerabilities.length > 0 ? 'HIGH' : 'LOW',
-      details: vulnerabilities.length > 0 
-        ? `Found ${vulnerabilities.length} certificate chain issues`
-        : 'Certificate chain validation passed',
+      details:
+        vulnerabilities.length > 0
+          ? `Found ${vulnerabilities.length} certificate chain issues`
+          : 'Certificate chain validation passed',
       evidence: vulnerabilities,
       recommendations,
       executionTime,
@@ -313,7 +324,9 @@ export class CryptographicSecurityTester {
   /**
    * Test cipher suite configuration
    */
-  private async testCipherSuites(target: CryptographicTestConfig['targets'][0]): Promise<SecurityTestResult> {
+  private async testCipherSuites(
+    target: CryptographicTestConfig['targets'][0]
+  ): Promise<SecurityTestResult> {
     const startTime = performance.now()
     const vulnerabilities: string[] = []
     const recommendations: string[] = []
@@ -323,9 +336,15 @@ export class CryptographicSecurityTester {
       const response = await fetch(target.url)
 
       // Simulate cipher suite analysis based on common weak configurations
-      const weakCipherPatterns = [
-        'RC4', 'DES', '3DES', 'MD5', 'SHA1',
-        'NULL', 'EXPORT', 'ANONYMOUS'
+      const _weakCipherPatterns = [
+        'RC4',
+        'DES',
+        '3DES',
+        'MD5',
+        'SHA1',
+        'NULL',
+        'EXPORT',
+        'ANONYMOUS',
       ]
 
       // Check for server information that might indicate weak ciphers
@@ -337,13 +356,15 @@ export class CryptographicSecurityTester {
           /Apache\/2\.[0-3]/,
           /nginx\/0\./,
           /nginx\/1\.[0-9]\./,
-          /IIS\/[1-7]\./
+          /IIS\/[1-7]\./,
         ]
 
         for (const pattern of outdatedPatterns) {
           if (pattern.test(serverHeader)) {
             vulnerabilities.push(`Outdated server software detected: ${serverHeader}`)
-            recommendations.push('Update server software to latest version with modern cipher support')
+            recommendations.push(
+              'Update server software to latest version with modern cipher support'
+            )
             break
           }
         }
@@ -360,7 +381,7 @@ export class CryptographicSecurityTester {
       const securityConfig = {
         hasHSTS: response.headers.has('Strict-Transport-Security'),
         hasCSP: response.headers.has('Content-Security-Policy'),
-        hasXFrameOptions: response.headers.has('X-Frame-Options')
+        hasXFrameOptions: response.headers.has('X-Frame-Options'),
       }
 
       // If security headers are missing, likely indicates poor crypto config
@@ -370,16 +391,19 @@ export class CryptographicSecurityTester {
       }
 
       // Simulate cipher strength analysis
-      if (Math.random() > 0.9) { // 10% chance to find weak cipher
+      if (Math.random() > 0.9) {
+        // 10% chance to find weak cipher
         vulnerabilities.push('Weak cipher suite detected in TLS configuration')
-        recommendations.push('Configure server to use only strong cipher suites (AES-256, ChaCha20)')
+        recommendations.push(
+          'Configure server to use only strong cipher suites (AES-256, ChaCha20)'
+        )
       }
 
-      if (Math.random() > 0.95) { // 5% chance to find very weak cipher
+      if (Math.random() > 0.95) {
+        // 5% chance to find very weak cipher
         vulnerabilities.push('Deprecated cipher suite (3DES/RC4) still enabled')
         recommendations.push('Disable all deprecated and weak cipher suites')
       }
-
     } catch (error) {
       // Connection errors might indicate cipher incompatibility
       if (error instanceof TypeError) {
@@ -395,9 +419,10 @@ export class CryptographicSecurityTester {
       category: 'CRYPTOGRAPHIC_FAILURES',
       status: vulnerabilities.length > 0 ? 'FAIL' : 'PASS',
       severity: this.calculateCipherSeverity(vulnerabilities),
-      details: vulnerabilities.length > 0 
-        ? `Found ${vulnerabilities.length} cipher suite issues`
-        : 'Cipher suite configuration appears secure',
+      details:
+        vulnerabilities.length > 0
+          ? `Found ${vulnerabilities.length} cipher suite issues`
+          : 'Cipher suite configuration appears secure',
       evidence: vulnerabilities,
       recommendations,
       executionTime,
@@ -408,7 +433,9 @@ export class CryptographicSecurityTester {
   /**
    * Test HSTS policy implementation
    */
-  private async testHSTSPolicy(target: CryptographicTestConfig['targets'][0]): Promise<SecurityTestResult> {
+  private async testHSTSPolicy(
+    target: CryptographicTestConfig['targets'][0]
+  ): Promise<SecurityTestResult> {
     const startTime = performance.now()
     const vulnerabilities: string[] = []
     const recommendations: string[] = []
@@ -422,25 +449,32 @@ export class CryptographicSecurityTester {
         recommendations.push('Implement HSTS header to enforce HTTPS connections')
       } else {
         // Parse HSTS header directives
-        const directives = hstsHeader.toLowerCase().split(';').map(d => d.trim())
-        
+        const directives = hstsHeader
+          .toLowerCase()
+          .split(';')
+          .map(d => d.trim())
+
         // Check max-age directive
         const maxAgeDirective = directives.find(d => d.startsWith('max-age='))
         if (!maxAgeDirective) {
           vulnerabilities.push('HSTS header missing max-age directive')
           recommendations.push('Add max-age directive to HSTS header')
         } else {
-          const maxAge = parseInt(maxAgeDirective.split('=')[1] || '0')
-          
+          const maxAge = Number.parseInt(maxAgeDirective.split('=')[1] || '0')
+
           if (maxAge === 0) {
             vulnerabilities.push('HSTS max-age set to 0 (disables HSTS)')
             recommendations.push('Set HSTS max-age to positive value (recommended: 31536000)')
-          } else if (maxAge < 86400) { // Less than 1 day
+          } else if (maxAge < 86400) {
+            // Less than 1 day
             vulnerabilities.push('HSTS max-age too short (less than 1 day)')
             recommendations.push('Increase HSTS max-age to at least 86400 seconds (1 day)')
-          } else if (maxAge < 31536000) { // Less than 1 year
+          } else if (maxAge < 31536000) {
+            // Less than 1 year
             vulnerabilities.push('HSTS max-age less than recommended 1 year')
-            recommendations.push('Set HSTS max-age to 31536000 seconds (1 year) for optimal security')
+            recommendations.push(
+              'Set HSTS max-age to 31536000 seconds (1 year) for optimal security'
+            )
           }
         }
 
@@ -464,7 +498,7 @@ export class CryptographicSecurityTester {
       try {
         const httpResponse = await fetch(httpUrl, {
           redirect: 'manual',
-          signal: AbortSignal.timeout(5000)
+          signal: AbortSignal.timeout(5000),
         })
 
         // Check if HTTP redirects to HTTPS
@@ -478,15 +512,13 @@ export class CryptographicSecurityTester {
           vulnerabilities.push('HTTP endpoint accessible without redirect to HTTPS')
           recommendations.push('Block HTTP access or redirect all HTTP requests to HTTPS')
         }
-
       } catch (error) {
         // HTTP connection failure might be expected (good security)
         if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
           // This is actually good - HTTP is blocked
         }
       }
-
-    } catch (error) {
+    } catch (_error) {
       vulnerabilities.push('Failed to test HSTS policy implementation')
       recommendations.push('Ensure HSTS is properly configured and testable')
     }
@@ -498,9 +530,10 @@ export class CryptographicSecurityTester {
       category: 'SECURITY_MISCONFIGURATION',
       status: vulnerabilities.length > 0 ? 'FAIL' : 'PASS',
       severity: vulnerabilities.length > 0 ? 'MEDIUM' : 'LOW',
-      details: vulnerabilities.length > 0 
-        ? `Found ${vulnerabilities.length} HSTS policy issues`
-        : 'HSTS policy properly configured',
+      details:
+        vulnerabilities.length > 0
+          ? `Found ${vulnerabilities.length} HSTS policy issues`
+          : 'HSTS policy properly configured',
       evidence: vulnerabilities,
       recommendations,
       executionTime,
@@ -511,18 +544,16 @@ export class CryptographicSecurityTester {
   /**
    * Test token security implementation
    */
-  private async testTokenSecurity(target: CryptographicTestConfig['targets'][0]): Promise<SecurityTestResult> {
+  private async testTokenSecurity(
+    target: CryptographicTestConfig['targets'][0]
+  ): Promise<SecurityTestResult> {
     const startTime = performance.now()
     const vulnerabilities: string[] = []
     const recommendations: string[] = []
 
     try {
       // Test various endpoints for token usage
-      const testEndpoints = [
-        '/api/auth/session',
-        '/api/user/profile',
-        '/api/protected'
-      ]
+      const testEndpoints = ['/api/auth/session', '/api/user/profile', '/api/protected']
 
       for (const endpoint of testEndpoints) {
         try {
@@ -531,21 +562,23 @@ export class CryptographicSecurityTester {
 
           // Check for tokens in response
           const responseText = await response.text()
-          
+
           // Look for JWT tokens in response
           const jwtPattern = /eyJ[A-Za-z0-9_-]*\.eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*/g
           const jwtMatches = responseText.match(jwtPattern)
-          
+
           if (jwtMatches) {
             for (const token of jwtMatches) {
               const analysis = this.analyzeJWTToken(token)
-              
+
               if (analysis.vulnerabilities.length > 0) {
                 vulnerabilities.push(...analysis.vulnerabilities.map(v => `JWT Token: ${v}`))
               }
-              
+
               if (analysis.securityScore < 70) {
-                vulnerabilities.push(`Weak JWT token detected (score: ${analysis.securityScore}/100)`)
+                vulnerabilities.push(
+                  `Weak JWT token detected (score: ${analysis.securityScore}/100)`
+                )
                 recommendations.push(...analysis.recommendations)
               }
             }
@@ -563,7 +596,7 @@ export class CryptographicSecurityTester {
           const apiKeyPatterns = [
             /api[_-]?key["\s]*[:=]["\s]*([a-zA-Z0-9]{20,})/gi,
             /token["\s]*[:=]["\s]*([a-zA-Z0-9]{20,})/gi,
-            /secret["\s]*[:=]["\s]*([a-zA-Z0-9]{20,})/gi
+            /secret["\s]*[:=]["\s]*([a-zA-Z0-9]{20,})/gi,
           ]
 
           for (const pattern of apiKeyPatterns) {
@@ -574,19 +607,18 @@ export class CryptographicSecurityTester {
               break
             }
           }
-
-        } catch (error) {
+        } catch (_error) {
           // Continue with other endpoints
         }
       }
 
       // Test token entropy and randomness
-      if (Math.random() > 0.8) { // 20% chance to find weak token
+      if (Math.random() > 0.8) {
+        // 20% chance to find weak token
         vulnerabilities.push('Weak token entropy detected')
         recommendations.push('Use cryptographically secure random number generation for tokens')
       }
-
-    } catch (error) {
+    } catch (_error) {
       vulnerabilities.push('Failed to analyze token security')
       recommendations.push('Review token implementation and security measures')
     }
@@ -598,9 +630,10 @@ export class CryptographicSecurityTester {
       category: 'IDENTIFICATION_AUTHENTICATION_FAILURES',
       status: vulnerabilities.length > 0 ? 'FAIL' : 'PASS',
       severity: vulnerabilities.length > 0 ? 'HIGH' : 'LOW',
-      details: vulnerabilities.length > 0 
-        ? `Found ${vulnerabilities.length} token security issues`
-        : 'Token security implementation appears secure',
+      details:
+        vulnerabilities.length > 0
+          ? `Found ${vulnerabilities.length} token security issues`
+          : 'Token security implementation appears secure',
       evidence: vulnerabilities,
       recommendations,
       executionTime,
@@ -627,7 +660,7 @@ export class CryptographicSecurityTester {
           hasProperSigning: false,
           vulnerabilities: ['Invalid JWT format'],
           recommendations: ['Use properly formatted JWT tokens'],
-          securityScore: 0
+          securityScore: 0,
         }
       }
 
@@ -660,11 +693,12 @@ export class CryptographicSecurityTester {
       } else {
         const now = Math.floor(Date.now() / 1000)
         const exp = payload.exp
-        
+
         if (exp < now) {
           vulnerabilities.push('JWT token is expired')
           securityScore -= 10
-        } else if (exp - now > 86400 * 7) { // More than 7 days
+        } else if (exp - now > 86400 * 7) {
+          // More than 7 days
           vulnerabilities.push('JWT expiration too far in future (>7 days)')
           recommendations.push('Use shorter JWT expiration times for better security')
           securityScore -= 10
@@ -693,10 +727,9 @@ export class CryptographicSecurityTester {
         hasProperSigning: header.alg !== 'none',
         vulnerabilities,
         recommendations,
-        securityScore: Math.max(0, securityScore)
+        securityScore: Math.max(0, securityScore),
       }
-
-    } catch (error) {
+    } catch (_error) {
       return {
         tokenType: 'JWT',
         entropy: 0,
@@ -704,7 +737,7 @@ export class CryptographicSecurityTester {
         hasProperSigning: false,
         vulnerabilities: ['Failed to decode JWT token'],
         recommendations: ['Ensure JWT tokens are properly formatted'],
-        securityScore: 0
+        securityScore: 0,
       }
     }
   }
@@ -712,7 +745,10 @@ export class CryptographicSecurityTester {
   /**
    * Analyze session cookie security
    */
-  private analyzeSessionCookies(setCookieHeader: string): { vulnerabilities: string[], recommendations: string[] } {
+  private analyzeSessionCookies(setCookieHeader: string): {
+    vulnerabilities: string[]
+    recommendations: string[]
+  } {
     const vulnerabilities: string[] = []
     const recommendations: string[] = []
 
@@ -724,10 +760,11 @@ export class CryptographicSecurityTester {
       const attributes = cookieParts.slice(1).map(attr => attr.toLowerCase())
 
       // Check for session-related cookies
-      if (nameValue.toLowerCase().includes('session') || 
-          nameValue.toLowerCase().includes('auth') ||
-          nameValue.toLowerCase().includes('token')) {
-
+      if (
+        nameValue.toLowerCase().includes('session') ||
+        nameValue.toLowerCase().includes('auth') ||
+        nameValue.toLowerCase().includes('token')
+      ) {
         // Check Secure flag
         if (!attributes.includes('secure')) {
           vulnerabilities.push('Session cookie missing Secure flag')
@@ -751,7 +788,8 @@ export class CryptographicSecurityTester {
         const cookieValue = nameValue.split('=')[1]
         if (cookieValue) {
           const entropy = this.calculateEntropy(cookieValue)
-          if (entropy < 4.0) { // Low entropy threshold
+          if (entropy < 4.0) {
+            // Low entropy threshold
             vulnerabilities.push('Session cookie has low entropy')
             recommendations.push('Use cryptographically secure random values for session cookies')
           }
@@ -788,7 +826,11 @@ export class CryptographicSecurityTester {
    * Calculate TLS severity based on vulnerabilities
    */
   private calculateTLSSeverity(vulnerabilities: string[]): 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' {
-    if (vulnerabilities.some(v => v.includes('HTTP protocol') || v.includes('SSL configuration error'))) {
+    if (
+      vulnerabilities.some(
+        v => v.includes('HTTP protocol') || v.includes('SSL configuration error')
+      )
+    ) {
       return 'CRITICAL'
     }
     if (vulnerabilities.some(v => v.includes('HSTS') || v.includes('certificate'))) {
@@ -803,7 +845,9 @@ export class CryptographicSecurityTester {
   /**
    * Calculate cipher severity based on vulnerabilities
    */
-  private calculateCipherSeverity(vulnerabilities: string[]): 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' {
+  private calculateCipherSeverity(
+    vulnerabilities: string[]
+  ): 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' {
     if (vulnerabilities.some(v => v.includes('RC4') || v.includes('3DES') || v.includes('NULL'))) {
       return 'CRITICAL'
     }
@@ -827,16 +871,12 @@ export class CryptographicSecurityTester {
       low: this.results.filter(r => r.severity === 'LOW').length,
     }
 
-    const cryptographicScore = Math.max(0, 100 - (
-      summary.critical * 30 + 
-      summary.high * 20 + 
-      summary.medium * 10 + 
-      summary.low * 2
-    ))
+    const cryptographicScore = Math.max(
+      0,
+      100 - (summary.critical * 30 + summary.high * 20 + summary.medium * 10 + summary.low * 2)
+    )
 
-    const recommendations = [
-      ...new Set(this.results.flatMap(r => r.recommendations || []))
-    ]
+    const recommendations = [...new Set(this.results.flatMap(r => r.recommendations || []))]
 
     return {
       overallScore: cryptographicScore,
@@ -893,31 +933,35 @@ export class CryptographicTestUtils {
   /**
    * Generate secure random token for testing
    */
-  static generateSecureToken(length: number = 32): string {
+  static generateSecureToken(length = 32): string {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
     let result = ''
-    
+
     for (let i = 0; i < length; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length))
     }
-    
+
     return result
   }
 
   /**
    * Create test HSTS header
    */
-  static createTestHSTSHeader(maxAge: number = 31536000, includeSubDomains: boolean = true, preload: boolean = false): string {
+  static createTestHSTSHeader(
+    maxAge = 31536000,
+    includeSubDomains = true,
+    preload = false
+  ): string {
     let header = `max-age=${maxAge}`
-    
+
     if (includeSubDomains) {
       header += '; includeSubDomains'
     }
-    
+
     if (preload) {
       header += '; preload'
     }
-    
+
     return header
   }
 }

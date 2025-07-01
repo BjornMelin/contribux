@@ -4,8 +4,6 @@
  * Phase 4: Developer Experience - Performance testing utilities
  */
 
-import { vi } from 'vitest'
-
 // Performance benchmark configuration
 export interface BenchmarkConfig {
   /** Number of iterations to run */
@@ -82,8 +80,8 @@ export interface BenchmarkResult {
  * Performance Timer - High-resolution timing utility
  */
 export class PerformanceTimer {
-  private startTime: number = 0
-  private endTime: number = 0
+  private startTime = 0
+  private endTime = 0
   private measurements: number[] = []
 
   /**
@@ -106,7 +104,7 @@ export class PerformanceTimer {
     } else {
       this.endTime = Date.now()
     }
-    
+
     const duration = this.endTime - this.startTime
     this.measurements.push(duration)
     return duration
@@ -232,27 +230,27 @@ export class PerformanceBenchmark {
   ): Promise<BenchmarkResult> {
     const fullConfig = { ...this.defaultConfig, ...config }
     const startTime = Date.now()
-    
+
     // Setup
     await fullConfig.setup()
-    
+
     // Set memory baseline
     this.memoryMonitor.setBaseline()
-    
+
     const measurements: number[] = []
     let iteration = 0
-    
+
     // Warmup phase
     for (let i = 0; i < fullConfig.warmup; i++) {
       await this.runSingleIteration(fn, false)
     }
-    
+
     // Main benchmark loop
     const benchmarkStart = Date.now()
     while (
       iteration < fullConfig.iterations &&
-      (Date.now() - benchmarkStart) < fullConfig.maxTime &&
-      (iteration < fullConfig.minIterations || (Date.now() - benchmarkStart) < fullConfig.maxTime)
+      Date.now() - benchmarkStart < fullConfig.maxTime &&
+      (iteration < fullConfig.minIterations || Date.now() - benchmarkStart < fullConfig.maxTime)
     ) {
       const duration = await this.runSingleIteration(fn, fullConfig.forceGC)
       measurements.push(duration)
@@ -261,10 +259,10 @@ export class PerformanceBenchmark {
 
     // Teardown
     await fullConfig.teardown()
-    
+
     const endTime = Date.now()
     const totalDuration = endTime - startTime
-    
+
     // Calculate metrics
     const metrics = this.calculateMetrics(measurements)
     metrics.memory = this.memoryMonitor.getMetrics() || undefined
@@ -290,12 +288,12 @@ export class PerformanceBenchmark {
     }>
   ): Promise<BenchmarkResult[]> {
     const results: BenchmarkResult[] = []
-    
+
     for (const benchmark of benchmarks) {
       const result = await this.benchmark(benchmark.name, benchmark.fn, benchmark.config)
       results.push(result)
     }
-    
+
     return results
   }
 
@@ -313,31 +311,31 @@ export class PerformanceBenchmark {
     }
   ): void {
     const { metrics } = result
-    
+
     if (requirements.maxAvg && metrics.avg > requirements.maxAvg) {
       throw new Error(
         `Average time ${metrics.avg.toFixed(2)}ms exceeds maximum ${requirements.maxAvg}ms`
       )
     }
-    
+
     if (requirements.maxP95 && metrics.p95 > requirements.maxP95) {
       throw new Error(
         `P95 time ${metrics.p95.toFixed(2)}ms exceeds maximum ${requirements.maxP95}ms`
       )
     }
-    
+
     if (requirements.maxP99 && metrics.p99 > requirements.maxP99) {
       throw new Error(
         `P99 time ${metrics.p99.toFixed(2)}ms exceeds maximum ${requirements.maxP99}ms`
       )
     }
-    
+
     if (requirements.minOpsPerSec && metrics.opsPerSec < requirements.minOpsPerSec) {
       throw new Error(
         `Operations per second ${metrics.opsPerSec.toFixed(2)} below minimum ${requirements.minOpsPerSec}`
       )
     }
-    
+
     if (requirements.maxMemoryIncreaseMB && metrics.memory) {
       const increaseMB = metrics.memory.heapIncrease / 1024 / 1024
       if (increaseMB > requirements.maxMemoryIncreaseMB) {
@@ -355,7 +353,7 @@ export class PerformanceBenchmark {
     if (forceGC) {
       this.memoryMonitor.forceGC()
     }
-    
+
     this.timer.start()
     await fn()
     return this.timer.stop()
@@ -365,21 +363,22 @@ export class PerformanceBenchmark {
     if (measurements.length === 0) {
       throw new Error('No measurements available')
     }
-    
+
     const sorted = [...measurements].sort((a, b) => a - b)
     const sum = measurements.reduce((a, b) => a + b, 0)
     const avg = sum / measurements.length
-    
+
     // Calculate percentiles
     const getPercentile = (p: number) => {
       const index = Math.floor((p / 100) * sorted.length)
       return sorted[Math.min(index, sorted.length - 1)] || 0
     }
-    
+
     // Calculate standard deviation
-    const variance = measurements.reduce((acc, val) => acc + Math.pow(val - avg, 2), 0) / measurements.length
+    const variance =
+      measurements.reduce((acc, val) => acc + (val - avg) ** 2, 0) / measurements.length
     const stdDev = Math.sqrt(variance)
-    
+
     return {
       avg,
       min: sorted[0] || 0,
@@ -424,16 +423,12 @@ export class DatabasePerformanceTester {
     embedding: number[],
     config?: BenchmarkConfig
   ): Promise<BenchmarkResult> {
-    return this.benchmark.benchmark(
-      'Vector Search',
-      () => searchFn(embedding),
-      {
-        iterations: 50,
-        warmup: 5,
-        forceGC: true,
-        ...config,
-      }
-    )
+    return this.benchmark.benchmark('Vector Search', () => searchFn(embedding), {
+      iterations: 50,
+      warmup: 5,
+      forceGC: true,
+      ...config,
+    })
   }
 
   /**
@@ -468,16 +463,20 @@ export class APIPerformanceTester {
     requestFn: () => Promise<Response>,
     config?: BenchmarkConfig
   ): Promise<BenchmarkResult> {
-    return this.benchmark.benchmark(name, async () => {
-      const response = await requestFn()
-      if (!response.ok) {
-        throw new Error(`API request failed: ${response.status}`)
+    return this.benchmark.benchmark(
+      name,
+      async () => {
+        const response = await requestFn()
+        if (!response.ok) {
+          throw new Error(`API request failed: ${response.status}`)
+        }
+      },
+      {
+        iterations: 100,
+        warmup: 10,
+        ...config,
       }
-    }, {
-      iterations: 100,
-      warmup: 10,
-      ...config,
-    })
+    )
   }
 
   /**
@@ -489,20 +488,24 @@ export class APIPerformanceTester {
     concurrency: number,
     config?: BenchmarkConfig
   ): Promise<BenchmarkResult> {
-    return this.benchmark.benchmark(name, async () => {
-      const promises = Array.from({ length: concurrency }, () => requestFn())
-      const responses = await Promise.all(promises)
-      
-      for (const response of responses) {
-        if (!response.ok) {
-          throw new Error(`Concurrent API request failed: ${response.status}`)
+    return this.benchmark.benchmark(
+      name,
+      async () => {
+        const promises = Array.from({ length: concurrency }, () => requestFn())
+        const responses = await Promise.all(promises)
+
+        for (const response of responses) {
+          if (!response.ok) {
+            throw new Error(`Concurrent API request failed: ${response.status}`)
+          }
         }
+      },
+      {
+        iterations: 20,
+        warmup: 2,
+        ...config,
       }
-    }, {
-      iterations: 20,
-      warmup: 2,
-      ...config,
-    })
+    )
   }
 }
 
@@ -547,7 +550,9 @@ export async function quickBenchmark(
 /**
  * Time a single function execution
  */
-export async function timeFunction<T>(fn: () => T | Promise<T>): Promise<{ result: T; duration: number }> {
+export async function timeFunction<T>(
+  fn: () => T | Promise<T>
+): Promise<{ result: T; duration: number }> {
   const timer = new PerformanceTimer()
   timer.start()
   const result = await fn()
@@ -564,11 +569,11 @@ export async function assertExecutionTime<T>(
   name = 'Function'
 ): Promise<T> {
   const { result, duration } = await timeFunction(fn)
-  
+
   if (duration > maxTimeMs) {
     throw new Error(`${name} took ${duration.toFixed(2)}ms, exceeding limit of ${maxTimeMs}ms`)
   }
-  
+
   return result
 }
 
@@ -606,13 +611,14 @@ export function compareBenchmarks(
 } {
   const avgChange = ((current.metrics.avg - baseline.metrics.avg) / baseline.metrics.avg) * 100
   const p95Change = ((current.metrics.p95 - baseline.metrics.p95) / baseline.metrics.p95) * 100
-  const opsChange = ((current.metrics.opsPerSec - baseline.metrics.opsPerSec) / baseline.metrics.opsPerSec) * 100
-  
+  const opsChange =
+    ((current.metrics.opsPerSec - baseline.metrics.opsPerSec) / baseline.metrics.opsPerSec) * 100
+
   return {
     avgChange,
     p95Change,
     opsChange,
     isFaster: avgChange < -5, // More than 5% faster
-    isSlower: avgChange > 5,  // More than 5% slower
+    isSlower: avgChange > 5, // More than 5% slower
   }
 }

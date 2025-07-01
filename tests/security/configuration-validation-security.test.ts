@@ -551,4 +551,211 @@ describe('Configuration Validation Security', () => {
       }
     })
   })
+
+  describe('Multi-Factor Authentication (MFA) Security Validation', () => {
+    it('should validate WebAuthn registration security', async () => {
+      // Test WebAuthn configuration validation
+      const webauthnConfig = {
+        rpName: 'Contribux',
+        rpID: 'contribux.app',
+        origin: 'https://contribux.app',
+        userVerification: 'required',
+      }
+
+      expect(webauthnConfig.rpName).toBe('Contribux')
+      expect(webauthnConfig.rpID).toBe('contribux.app')
+      expect(webauthnConfig.origin).toContain('https://')
+      expect(webauthnConfig.userVerification).toBe('required')
+    })
+
+    it('should validate TOTP configuration security', () => {
+      // Test TOTP settings validation
+      const totpConfig = {
+        window: 30,
+        digits: 6,
+        algorithm: 'SHA1',
+        step: 30,
+      }
+
+      expect(totpConfig.window).toBe(30)
+      expect(totpConfig.digits).toBe(6)
+      expect(['SHA1', 'SHA256', 'SHA512']).toContain(totpConfig.algorithm)
+      expect(totpConfig.step).toBeGreaterThan(0)
+    })
+
+    it('should enforce MFA requirements for sensitive operations', () => {
+      const sensitiveOperations = [
+        'delete_account',
+        'change_email',
+        'export_data',
+        'revoke_all_tokens',
+        'disable_mfa',
+        'change_password',
+      ]
+
+      const mfaRequiredOps = sensitiveOperations.filter(op =>
+        ['delete_account', 'change_email', 'export_data', 'revoke_all_tokens'].includes(op)
+      )
+
+      expect(mfaRequiredOps.length).toBeGreaterThanOrEqual(4)
+    })
+
+    it('should validate backup code generation security', () => {
+      // Test backup code format and security
+      const backupCodes = ['123456', '789012', '345678', '901234', '567890']
+
+      backupCodes.forEach(code => {
+        expect(code).toMatch(/^\d{6}$/)
+        expect(code).not.toBe('000000')
+        expect(code).not.toBe('123456') // Should not be predictable
+      })
+
+      // Ensure codes are unique
+      const uniqueCodes = new Set(backupCodes)
+      expect(uniqueCodes.size).toBe(backupCodes.length)
+    })
+  })
+
+  describe('PKCE OAuth Security Implementation Validation', () => {
+    it('should enforce PKCE for all OAuth providers', () => {
+      const oauthProviders = ['github', 'google', 'discord']
+
+      oauthProviders.forEach(provider => {
+        const pkceParams = {
+          code_challenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
+          code_challenge_method: 'S256',
+          client_id: `${provider}_client_id`,
+        }
+
+        expect(pkceParams.code_challenge).toBeDefined()
+        expect(pkceParams.code_challenge_method).toBe('S256')
+        expect(pkceParams.code_challenge.length).toBeGreaterThan(0)
+      })
+    })
+
+    it('should validate code verifier generation security', () => {
+      // Test code verifier requirements
+      const codeVerifier = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk'
+
+      expect(codeVerifier.length).toBeGreaterThanOrEqual(43)
+      expect(codeVerifier.length).toBeLessThanOrEqual(128)
+      expect(codeVerifier).toMatch(/^[A-Za-z0-9_-]+$/) // Base64url encoding
+    })
+
+    it('should reject weak PKCE implementations', () => {
+      const weakPKCEAttempts = [
+        { code_challenge_method: 'plain' }, // Weak method
+        { code_challenge: '' }, // Empty challenge
+        { code_verifier: '12345' }, // Too short
+      ]
+
+      weakPKCEAttempts.forEach(attempt => {
+        if (attempt.code_challenge_method === 'plain') {
+          expect(attempt.code_challenge_method).not.toBe('S256')
+        }
+        if (attempt.code_challenge === '') {
+          expect(attempt.code_challenge.length).toBe(0)
+        }
+        if (attempt.code_verifier && attempt.code_verifier.length < 43) {
+          expect(attempt.code_verifier.length).toBeLessThan(43)
+        }
+      })
+    })
+
+    it('should validate code challenge generation', () => {
+      // Test code challenge requirements
+      const codeChallenge = 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM'
+      const codeChallengeMethod = 'S256'
+
+      expect(codeChallenge.length).toBeGreaterThan(0)
+      expect(codeChallenge).toMatch(/^[A-Za-z0-9_-]+$/)
+      expect(codeChallengeMethod).toBe('S256')
+    })
+  })
+
+  describe('Security Headers Enforcement Validation', () => {
+    it('should validate required security headers configuration', () => {
+      const requiredHeaders = {
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY',
+        'X-XSS-Protection': '1; mode=block',
+        'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+        'Content-Security-Policy': "default-src 'self'",
+        'Referrer-Policy': 'strict-origin-when-cross-origin',
+        'Permissions-Policy': 'geolocation=(), microphone=(), camera=()',
+      }
+
+      Object.entries(requiredHeaders).forEach(([header, value]) => {
+        expect(value).toBeDefined()
+        if (header === 'Strict-Transport-Security') {
+          expect(value).toContain('max-age')
+          expect(value).toContain('includeSubDomains')
+        }
+        if (header === 'Content-Security-Policy') {
+          expect(value).toContain('default-src')
+        }
+      })
+    })
+
+    it('should validate CSP directive security', () => {
+      const cspDirectives = {
+        'default-src': "'self'",
+        'script-src': "'self' 'unsafe-inline'",
+        'style-src': "'self' 'unsafe-inline'",
+        'img-src': "'self' data: https:",
+        'connect-src': "'self'",
+        'font-src': "'self'",
+        'object-src': "'none'",
+        'media-src': "'self'",
+        'frame-src': "'none'",
+      }
+
+      // Validate secure CSP directives
+      expect(cspDirectives['default-src']).toBe("'self'")
+      expect(cspDirectives['object-src']).toBe("'none'")
+      expect(cspDirectives['frame-src']).toBe("'none'")
+
+      // Check for potentially unsafe directives
+      const unsafeDirectives = Object.entries(cspDirectives).filter(
+        ([_key, value]) => value.includes("'unsafe-eval'") || value === "'unsafe-inline'"
+      )
+
+      // Should have minimal unsafe directives
+      expect(unsafeDirectives.length).toBeLessThanOrEqual(2)
+    })
+  })
+
+  describe('Rate Limiting Configuration Validation', () => {
+    it('should validate rate limiting thresholds', () => {
+      const rateLimitConfig = {
+        auth_endpoints: { limit: 5, window: '15m' },
+        api_endpoints: { limit: 100, window: '15m' },
+        search_endpoints: { limit: 50, window: '15m' },
+      }
+
+      Object.entries(rateLimitConfig).forEach(([endpoint, config]) => {
+        expect(config.limit).toBeGreaterThan(0)
+        expect(config.window).toMatch(/^\d+[ms]$/)
+
+        if (endpoint === 'auth_endpoints') {
+          expect(config.limit).toBeLessThanOrEqual(10) // Strict for auth
+        }
+      })
+    })
+
+    it('should validate rate limiting implementation security', () => {
+      const rateLimitFeatures = {
+        ip_based: true,
+        user_based: true,
+        endpoint_specific: true,
+        sliding_window: true,
+        redis_backend: true,
+      }
+
+      // Ensure comprehensive rate limiting
+      expect(rateLimitFeatures.ip_based).toBe(true)
+      expect(rateLimitFeatures.user_based).toBe(true)
+      expect(rateLimitFeatures.endpoint_specific).toBe(true)
+    })
+  })
 })

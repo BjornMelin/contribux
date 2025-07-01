@@ -1,7 +1,7 @@
 /**
  * Infrastructure Security Testing Module
  * Phase 3: Comprehensive infrastructure security testing and monitoring
- * 
+ *
  * Coverage Areas:
  * - Environment Security Validation
  * - DDoS Protection Testing
@@ -12,7 +12,7 @@
  */
 
 import { z } from 'zod'
-import { SecurityTestResult, SecurityScanResult } from './core-security-utilities'
+import type { SecurityScanResult, SecurityTestResult } from './core-security-utilities'
 
 // Infrastructure security configuration
 export const InfrastructureSecurityConfigSchema = z.object({
@@ -20,13 +20,17 @@ export const InfrastructureSecurityConfigSchema = z.object({
     baseUrl: z.string().url(),
     name: z.string(),
   }),
-  testTypes: z.array(z.enum([
-    'environment_security',
-    'ddos_protection',
-    'security_monitoring',
-    'performance_security',
-    'intrusion_detection'
-  ])).default(['environment_security', 'ddos_protection', 'security_monitoring']),
+  testTypes: z
+    .array(
+      z.enum([
+        'environment_security',
+        'ddos_protection',
+        'security_monitoring',
+        'performance_security',
+        'intrusion_detection',
+      ])
+    )
+    .default(['environment_security', 'ddos_protection', 'security_monitoring']),
   intensity: z.enum(['low', 'medium', 'high']).default('medium'),
   timeout: z.number().min(1000).max(30000).default(15000),
   concurrency: z.number().min(1).max(50).default(10),
@@ -44,7 +48,9 @@ export class EnvironmentSecurityValidator {
   /**
    * Execute comprehensive environment security validation
    */
-  async validateEnvironmentSecurity(config: InfrastructureSecurityConfig): Promise<SecurityTestResult[]> {
+  async validateEnvironmentSecurity(
+    config: InfrastructureSecurityConfig
+  ): Promise<SecurityTestResult[]> {
     this.results = []
 
     await this.validateSecurityHeaders(config)
@@ -62,7 +68,7 @@ export class EnvironmentSecurityValidator {
 
     try {
       const response = await fetch(`${config.target.baseUrl}/api/health`, {
-        signal: AbortSignal.timeout(config.timeout)
+        signal: AbortSignal.timeout(config.timeout),
       })
 
       const requiredHeaders = {
@@ -76,7 +82,7 @@ export class EnvironmentSecurityValidator {
 
       for (const [header, expectedValue] of Object.entries(requiredHeaders)) {
         const actualValue = response.headers.get(header)
-        
+
         if (!actualValue) {
           vulnerabilities.push(`Missing security header: ${header}`)
           recommendations.push(`Implement ${header} header for enhanced security`)
@@ -104,8 +110,7 @@ export class EnvironmentSecurityValidator {
           recommendations.push(`Remove ${header} header to prevent information disclosure`)
         }
       }
-
-    } catch (error) {
+    } catch (_error) {
       vulnerabilities.push('Unable to validate security headers - connection failed')
       recommendations.push('Ensure API endpoints are accessible for security validation')
     }
@@ -115,9 +120,10 @@ export class EnvironmentSecurityValidator {
       category: 'SECURITY_MISCONFIGURATION',
       status: vulnerabilities.length > 0 ? 'FAIL' : 'PASS',
       severity: vulnerabilities.length > 0 ? 'HIGH' : 'LOW',
-      details: vulnerabilities.length > 0 
-        ? `Found ${vulnerabilities.length} security header issues`
-        : 'All required security headers are properly configured',
+      details:
+        vulnerabilities.length > 0
+          ? `Found ${vulnerabilities.length} security header issues`
+          : 'All required security headers are properly configured',
       evidence: vulnerabilities,
       recommendations,
       executionTime: performance.now() - startTime,
@@ -141,18 +147,18 @@ export class EnvironmentSecurityValidator {
         '/api/system/info',
         '/api/version',
         '/health',
-        '/status'
+        '/status',
       ]
 
       for (const endpoint of exposureEndpoints) {
         try {
           const response = await fetch(`${config.target.baseUrl}${endpoint}`, {
-            signal: AbortSignal.timeout(config.timeout)
+            signal: AbortSignal.timeout(config.timeout),
           })
 
           if (response.status === 200) {
             const responseText = await response.text()
-            
+
             // Check for sensitive information patterns
             const sensitivePatterns = [
               /api[_-]?key/i,
@@ -163,7 +169,7 @@ export class EnvironmentSecurityValidator {
               /access[_-]?token/i,
               /jwt[_-]?secret/i,
               /oauth/i,
-              /github[_-]?token/i
+              /github[_-]?token/i,
             ]
 
             for (const pattern of sensitivePatterns) {
@@ -179,7 +185,7 @@ export class EnvironmentSecurityValidator {
               /debug.*true/i,
               /development/i,
               /stack.*trace/i,
-              /error.*details/i
+              /error.*details/i,
             ]
 
             for (const pattern of debugPatterns) {
@@ -190,12 +196,11 @@ export class EnvironmentSecurityValidator {
               }
             }
           }
-        } catch (error) {
+        } catch (_error) {
           // Expected for secure implementations
         }
       }
-
-    } catch (error) {
+    } catch (_error) {
       // Expected behavior for secure systems
     }
 
@@ -204,9 +209,10 @@ export class EnvironmentSecurityValidator {
       category: 'SECURITY_MISCONFIGURATION',
       status: vulnerabilities.length > 0 ? 'FAIL' : 'PASS',
       severity: vulnerabilities.length > 0 ? 'CRITICAL' : 'LOW',
-      details: vulnerabilities.length > 0 
-        ? `Found ${vulnerabilities.length} environment exposure issues`
-        : 'No sensitive environment information exposed',
+      details:
+        vulnerabilities.length > 0
+          ? `Found ${vulnerabilities.length} environment exposure issues`
+          : 'No sensitive environment information exposed',
       evidence: vulnerabilities,
       recommendations,
       executionTime: performance.now() - startTime,
@@ -221,12 +227,15 @@ export class EnvironmentSecurityValidator {
 
     try {
       // Test for debug mode indicators
-      const response = await fetch(`${config.target.baseUrl}/api/non-existent-endpoint-debug-test`, {
-        signal: AbortSignal.timeout(config.timeout)
-      })
+      const response = await fetch(
+        `${config.target.baseUrl}/api/non-existent-endpoint-debug-test`,
+        {
+          signal: AbortSignal.timeout(config.timeout),
+        }
+      )
 
       const responseText = await response.text()
-      
+
       // Check for debug mode indicators in error responses
       const debugIndicators = [
         /stack trace/i,
@@ -235,7 +244,7 @@ export class EnvironmentSecurityValidator {
         /development.*environment/i,
         /webpack/i,
         /node_modules/i,
-        /internal server error.*details/i
+        /internal server error.*details/i,
       ]
 
       for (const indicator of debugIndicators) {
@@ -254,8 +263,7 @@ export class EnvironmentSecurityValidator {
           recommendations.push(`Remove debug header: ${header}`)
         }
       }
-
-    } catch (error) {
+    } catch (_error) {
       // Expected for secure implementations
     }
 
@@ -264,9 +272,10 @@ export class EnvironmentSecurityValidator {
       category: 'SECURITY_MISCONFIGURATION',
       status: vulnerabilities.length > 0 ? 'FAIL' : 'PASS',
       severity: vulnerabilities.length > 0 ? 'MEDIUM' : 'LOW',
-      details: vulnerabilities.length > 0 
-        ? 'Debug mode indicators detected'
-        : 'No debug mode indicators found',
+      details:
+        vulnerabilities.length > 0
+          ? 'Debug mode indicators detected'
+          : 'No debug mode indicators found',
       evidence: vulnerabilities,
       recommendations,
       executionTime: performance.now() - startTime,
@@ -283,24 +292,24 @@ export class EnvironmentSecurityValidator {
       // Test HTTPS enforcement
       if (config.target.baseUrl.startsWith('https://')) {
         const httpUrl = config.target.baseUrl.replace('https://', 'http://')
-        
+
         try {
           const httpResponse = await fetch(`${httpUrl}/api/health`, {
             signal: AbortSignal.timeout(config.timeout),
-            redirect: 'manual'
+            redirect: 'manual',
           })
 
           if (httpResponse.status !== 301 && httpResponse.status !== 302) {
             vulnerabilities.push('HTTP traffic not properly redirected to HTTPS')
             recommendations.push('Implement HTTP to HTTPS redirection')
           }
-        } catch (error) {
+        } catch (_error) {
           // Expected if HTTP is completely disabled
         }
 
         // Check HSTS header
         const httpsResponse = await fetch(`${config.target.baseUrl}/api/health`, {
-          signal: AbortSignal.timeout(config.timeout)
+          signal: AbortSignal.timeout(config.timeout),
         })
 
         const hstsHeader = httpsResponse.headers.get('Strict-Transport-Security')
@@ -313,16 +322,16 @@ export class EnvironmentSecurityValidator {
             vulnerabilities.push('HSTS header missing max-age directive')
             recommendations.push('Configure HSTS max-age directive')
           }
-          
+
           const maxAge = hstsHeader.match(/max-age=(\d+)/)?.[1]
-          if (maxAge && Number(maxAge) < 31536000) { // Less than 1 year
+          if (maxAge && Number(maxAge) < 31536000) {
+            // Less than 1 year
             vulnerabilities.push('HSTS max-age too short')
             recommendations.push('Set HSTS max-age to at least 31536000 (1 year)')
           }
         }
       }
-
-    } catch (error) {
+    } catch (_error) {
       vulnerabilities.push('Unable to validate TLS configuration')
       recommendations.push('Ensure HTTPS is properly configured')
     }
@@ -332,9 +341,10 @@ export class EnvironmentSecurityValidator {
       category: 'CRYPTOGRAPHIC_FAILURES',
       status: vulnerabilities.length > 0 ? 'FAIL' : 'PASS',
       severity: vulnerabilities.length > 0 ? 'HIGH' : 'LOW',
-      details: vulnerabilities.length > 0 
-        ? `Found ${vulnerabilities.length} TLS configuration issues`
-        : 'TLS configuration appears secure',
+      details:
+        vulnerabilities.length > 0
+          ? `Found ${vulnerabilities.length} TLS configuration issues`
+          : 'TLS configuration appears secure',
       evidence: vulnerabilities,
       recommendations,
       executionTime: performance.now() - startTime,
@@ -373,17 +383,17 @@ export class DDoSProtectionTester {
       // Generate flood of requests
       const floodSize = config.intensity === 'high' ? 100 : config.intensity === 'medium' ? 50 : 25
       const concurrentBatches = Math.min(config.concurrency, 10)
-      
+
       const batchSize = Math.ceil(floodSize / concurrentBatches)
       const batches: Promise<Response>[][] = []
 
       for (let i = 0; i < concurrentBatches; i++) {
         const batch: Promise<Response>[] = []
-        for (let j = 0; j < batchSize && (i * batchSize + j) < floodSize; j++) {
+        for (let j = 0; j < batchSize && i * batchSize + j < floodSize; j++) {
           batch.push(
             fetch(`${config.target.baseUrl}/api/health`, {
-              signal: AbortSignal.timeout(config.timeout)
-            }).catch(() => ({ status: 0 } as Response))
+              signal: AbortSignal.timeout(config.timeout),
+            }).catch(() => ({ status: 0 }) as Response)
           )
         }
         batches.push(batch)
@@ -391,18 +401,18 @@ export class DDoSProtectionTester {
 
       let successCount = 0
       let rateLimitedCount = 0
-      let errorCount = 0
+      let _errorCount = 0
 
       for (const batch of batches) {
         const responses = await Promise.all(batch)
-        
+
         for (const response of responses) {
           if (response.status === 200) {
             successCount++
           } else if (response.status === 429) {
             rateLimitedCount++
           } else {
-            errorCount++
+            _errorCount++
           }
         }
       }
@@ -412,7 +422,9 @@ export class DDoSProtectionTester {
       const successRate = successCount / totalRequests
 
       if (successRate > 0.8) {
-        vulnerabilities.push(`High success rate during flood test: ${(successRate * 100).toFixed(1)}%`)
+        vulnerabilities.push(
+          `High success rate during flood test: ${(successRate * 100).toFixed(1)}%`
+        )
         recommendations.push('Implement request rate limiting to prevent flood attacks')
       }
 
@@ -420,8 +432,7 @@ export class DDoSProtectionTester {
         vulnerabilities.push('No rate limiting detected during flood test')
         recommendations.push('Configure rate limiting middleware')
       }
-
-    } catch (error) {
+    } catch (_error) {
       vulnerabilities.push('Flood protection test failed to execute')
       recommendations.push('Verify DDoS protection mechanisms are in place')
     }
@@ -431,9 +442,10 @@ export class DDoSProtectionTester {
       category: 'SECURITY_LOGGING_MONITORING_FAILURES',
       status: vulnerabilities.length > 0 ? 'FAIL' : 'PASS',
       severity: vulnerabilities.length > 0 ? 'HIGH' : 'LOW',
-      details: vulnerabilities.length > 0 
-        ? 'Request flood protection appears insufficient'
-        : 'Request flood protection working correctly',
+      details:
+        vulnerabilities.length > 0
+          ? 'Request flood protection appears insufficient'
+          : 'Request flood protection working correctly',
       evidence: vulnerabilities,
       recommendations,
       executionTime: performance.now() - startTime,
@@ -448,15 +460,16 @@ export class DDoSProtectionTester {
 
     try {
       // Test concurrent connection limits
-      const maxConnections = config.intensity === 'high' ? 50 : config.intensity === 'medium' ? 30 : 15
+      const maxConnections =
+        config.intensity === 'high' ? 50 : config.intensity === 'medium' ? 30 : 15
       const connections: Promise<Response>[] = []
 
       for (let i = 0; i < maxConnections; i++) {
         connections.push(
           fetch(`${config.target.baseUrl}/api/health`, {
             signal: AbortSignal.timeout(config.timeout * 2), // Longer timeout for connection test
-            keepalive: true
-          }).catch(() => ({ status: 0 } as Response))
+            keepalive: true,
+          }).catch(() => ({ status: 0 }) as Response)
         )
       }
 
@@ -465,11 +478,12 @@ export class DDoSProtectionTester {
       const connectionRate = successfulConnections / maxConnections
 
       if (connectionRate > 0.9) {
-        vulnerabilities.push(`High concurrent connection success rate: ${(connectionRate * 100).toFixed(1)}%`)
+        vulnerabilities.push(
+          `High concurrent connection success rate: ${(connectionRate * 100).toFixed(1)}%`
+        )
         recommendations.push('Implement connection limits to prevent resource exhaustion')
       }
-
-    } catch (error) {
+    } catch (_error) {
       // Expected for systems with proper connection limits
     }
 
@@ -478,9 +492,10 @@ export class DDoSProtectionTester {
       category: 'SECURITY_LOGGING_MONITORING_FAILURES',
       status: vulnerabilities.length > 0 ? 'FAIL' : 'PASS',
       severity: vulnerabilities.length > 0 ? 'MEDIUM' : 'LOW',
-      details: vulnerabilities.length > 0 
-        ? 'Connection limits may be insufficient'
-        : 'Connection limits appear properly configured',
+      details:
+        vulnerabilities.length > 0
+          ? 'Connection limits may be insufficient'
+          : 'Connection limits appear properly configured',
       evidence: vulnerabilities,
       recommendations,
       executionTime: performance.now() - startTime,
@@ -496,12 +511,12 @@ export class DDoSProtectionTester {
     try {
       // Test with large request payloads
       const largePayload = 'x'.repeat(1024 * 1024) // 1MB payload
-      
+
       const response = await fetch(`${config.target.baseUrl}/api/search/repositories`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: largePayload }),
-        signal: AbortSignal.timeout(config.timeout)
+        signal: AbortSignal.timeout(config.timeout),
       })
 
       if (response.status === 200) {
@@ -518,13 +533,13 @@ export class DDoSProtectionTester {
 
       if (complexResponse.status === 200) {
         const responseTime = performance.now() - startTime
-        if (responseTime > 5000) { // More than 5 seconds
+        if (responseTime > 5000) {
+          // More than 5 seconds
           vulnerabilities.push('Complex queries cause excessive processing time')
           recommendations.push('Implement query complexity limits and timeouts')
         }
       }
-
-    } catch (error) {
+    } catch (_error) {
       // Expected for systems with proper resource protection
     }
 
@@ -533,9 +548,10 @@ export class DDoSProtectionTester {
       category: 'SECURITY_LOGGING_MONITORING_FAILURES',
       status: vulnerabilities.length > 0 ? 'FAIL' : 'PASS',
       severity: vulnerabilities.length > 0 ? 'HIGH' : 'LOW',
-      details: vulnerabilities.length > 0 
-        ? 'Resource exhaustion protection may be insufficient'
-        : 'Resource exhaustion protection working correctly',
+      details:
+        vulnerabilities.length > 0
+          ? 'Resource exhaustion protection may be insufficient'
+          : 'Resource exhaustion protection working correctly',
       evidence: vulnerabilities,
       recommendations,
       executionTime: performance.now() - startTime,
@@ -551,38 +567,37 @@ export class DDoSProtectionTester {
     try {
       // Simulate slow HTTP attack by sending partial requests
       const slowConnections = []
-      
+
       for (let i = 0; i < 5; i++) {
         // Note: This is a simplified simulation
         // Real slowloris would require lower-level socket control
         const controller = new AbortController()
-        
+
         const slowRequest = fetch(`${config.target.baseUrl}/api/health`, {
           signal: controller.signal,
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ slow: true })
-        }).catch(() => ({ status: 0 } as Response))
+          body: JSON.stringify({ slow: true }),
+        }).catch(() => ({ status: 0 }) as Response)
 
         slowConnections.push(slowRequest)
-        
+
         // Cancel some requests mid-way to simulate slow connections
         setTimeout(() => controller.abort(), Math.random() * 1000)
       }
 
       await Promise.all(slowConnections)
-      
+
       // Test if server is still responsive
       const healthCheck = await fetch(`${config.target.baseUrl}/api/health`, {
-        signal: AbortSignal.timeout(config.timeout)
+        signal: AbortSignal.timeout(config.timeout),
       })
 
       if (healthCheck.status !== 200) {
         vulnerabilities.push('Server became unresponsive during slow connection test')
         recommendations.push('Implement slowloris protection and connection timeouts')
       }
-
-    } catch (error) {
+    } catch (_error) {
       // Expected for systems with proper protection
     }
 
@@ -591,9 +606,10 @@ export class DDoSProtectionTester {
       category: 'SECURITY_LOGGING_MONITORING_FAILURES',
       status: vulnerabilities.length > 0 ? 'FAIL' : 'PASS',
       severity: vulnerabilities.length > 0 ? 'MEDIUM' : 'LOW',
-      details: vulnerabilities.length > 0 
-        ? 'Slowloris protection may be insufficient'
-        : 'Slowloris protection appears adequate',
+      details:
+        vulnerabilities.length > 0
+          ? 'Slowloris protection may be insufficient'
+          : 'Slowloris protection appears adequate',
       evidence: vulnerabilities,
       recommendations,
       executionTime: performance.now() - startTime,
@@ -612,7 +628,9 @@ export class SecurityMonitoringTester {
   /**
    * Execute security monitoring and alerting tests
    */
-  async testSecurityMonitoring(config: InfrastructureSecurityConfig): Promise<SecurityTestResult[]> {
+  async testSecurityMonitoring(
+    config: InfrastructureSecurityConfig
+  ): Promise<SecurityTestResult[]> {
     this.results = []
 
     await this.testIntrusionDetection(config)
@@ -634,11 +652,11 @@ export class SecurityMonitoringTester {
         `${config.target.baseUrl}:8080`,
         `${config.target.baseUrl}:3306`,
         `${config.target.baseUrl}:5432`,
-        
+
         // Directory traversal attempts
         `${config.target.baseUrl}/api/../../../etc/passwd`,
         `${config.target.baseUrl}/api/../../config.json`,
-        
+
         // Admin panel probing
         `${config.target.baseUrl}/admin`,
         `${config.target.baseUrl}/wp-admin`,
@@ -646,20 +664,20 @@ export class SecurityMonitoringTester {
       ]
 
       let detectedActivities = 0
-      
+
       for (const activity of suspiciousActivities) {
         try {
           const response = await fetch(activity, {
-            signal: AbortSignal.timeout(config.timeout)
+            signal: AbortSignal.timeout(config.timeout),
           })
-          
+
           // Check if suspicious activity was blocked or logged
           if (response.status === 403 || response.status === 404) {
             detectedActivities++
           } else if (response.status === 200) {
             vulnerabilities.push(`Suspicious endpoint accessible: ${activity}`)
           }
-        } catch (error) {
+        } catch (_error) {
           detectedActivities++ // Connection refused is good
         }
       }
@@ -668,8 +686,7 @@ export class SecurityMonitoringTester {
         vulnerabilities.push('Intrusion detection appears insufficient')
         recommendations.push('Implement comprehensive intrusion detection system')
       }
-
-    } catch (error) {
+    } catch (_error) {
       vulnerabilities.push('Unable to test intrusion detection')
       recommendations.push('Verify intrusion detection system is operational')
     }
@@ -679,9 +696,10 @@ export class SecurityMonitoringTester {
       category: 'SECURITY_LOGGING_MONITORING_FAILURES',
       status: vulnerabilities.length > 0 ? 'FAIL' : 'PASS',
       severity: vulnerabilities.length > 0 ? 'HIGH' : 'LOW',
-      details: vulnerabilities.length > 0 
-        ? 'Intrusion detection system may need improvement'
-        : 'Intrusion detection appears functional',
+      details:
+        vulnerabilities.length > 0
+          ? 'Intrusion detection system may need improvement'
+          : 'Intrusion detection appears functional',
       evidence: vulnerabilities,
       recommendations,
       executionTime: performance.now() - startTime,
@@ -698,33 +716,32 @@ export class SecurityMonitoringTester {
       // Generate unusual traffic patterns
       const anomalousPatterns = [
         // Rapid requests from same IP
-        ...Array.from({ length: 20 }, () => 
+        ...Array.from({ length: 20 }, () =>
           fetch(`${config.target.baseUrl}/api/health`, {
-            signal: AbortSignal.timeout(config.timeout)
-          }).catch(() => ({ status: 0 } as Response))
+            signal: AbortSignal.timeout(config.timeout),
+          }).catch(() => ({ status: 0 }) as Response)
         ),
-        
+
         // Unusual user agent
         fetch(`${config.target.baseUrl}/api/health`, {
           headers: { 'User-Agent': 'SQLMap/1.0 (Bot)' },
-          signal: AbortSignal.timeout(config.timeout)
-        }).catch(() => ({ status: 0 } as Response)),
-        
+          signal: AbortSignal.timeout(config.timeout),
+        }).catch(() => ({ status: 0 }) as Response),
+
         // Unusual request patterns
         fetch(`${config.target.baseUrl}/api/search/repositories?q=${'a'.repeat(1000)}`, {
-          signal: AbortSignal.timeout(config.timeout)
-        }).catch(() => ({ status: 0 } as Response)),
+          signal: AbortSignal.timeout(config.timeout),
+        }).catch(() => ({ status: 0 }) as Response),
       ]
 
       const responses = await Promise.all(anomalousPatterns)
       const blockedResponses = responses.filter(r => r.status === 429 || r.status === 403).length
-      
+
       if (blockedResponses < anomalousPatterns.length * 0.3) {
         vulnerabilities.push('Anomaly detection appears insufficient')
         recommendations.push('Implement behavioral anomaly detection')
       }
-
-    } catch (error) {
+    } catch (_error) {
       // Expected for systems with good anomaly detection
     }
 
@@ -733,9 +750,10 @@ export class SecurityMonitoringTester {
       category: 'SECURITY_LOGGING_MONITORING_FAILURES',
       status: vulnerabilities.length > 0 ? 'FAIL' : 'PASS',
       severity: vulnerabilities.length > 0 ? 'MEDIUM' : 'LOW',
-      details: vulnerabilities.length > 0 
-        ? 'Anomaly detection system may need enhancement'
-        : 'Anomaly detection appears functional',
+      details:
+        vulnerabilities.length > 0
+          ? 'Anomaly detection system may need enhancement'
+          : 'Anomaly detection appears functional',
       evidence: vulnerabilities,
       recommendations,
       executionTime: performance.now() - startTime,
@@ -756,29 +774,28 @@ export class SecurityMonitoringTester {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: 'hacker@evil.com', password: 'wrongpassword' }),
-          signal: AbortSignal.timeout(config.timeout)
-        }).catch(() => ({ status: 0 } as Response)),
-        
+          signal: AbortSignal.timeout(config.timeout),
+        }).catch(() => ({ status: 0 }) as Response),
+
         // Privilege escalation attempts
         fetch(`${config.target.baseUrl}/api/admin/users`, {
-          headers: { 'Authorization': 'Bearer fake-token' },
-          signal: AbortSignal.timeout(config.timeout)
-        }).catch(() => ({ status: 0 } as Response)),
-        
+          headers: { Authorization: 'Bearer fake-token' },
+          signal: AbortSignal.timeout(config.timeout),
+        }).catch(() => ({ status: 0 }) as Response),
+
         // Data access attempts
         fetch(`${config.target.baseUrl}/api/user/profile`, {
-          headers: { 'Authorization': 'Bearer invalid-token' },
-          signal: AbortSignal.timeout(config.timeout)
-        }).catch(() => ({ status: 0 } as Response)),
+          headers: { Authorization: 'Bearer invalid-token' },
+          signal: AbortSignal.timeout(config.timeout),
+        }).catch(() => ({ status: 0 }) as Response),
       ]
 
       await Promise.all(securityEvents)
-      
+
       // Note: In a real implementation, we would check if these events
       // are properly logged in security monitoring systems
       // For this test, we assume proper logging is in place
-      
-    } catch (error) {
+    } catch (_error) {
       vulnerabilities.push('Security event logging test failed')
       recommendations.push('Verify security event logging is operational')
     }
@@ -788,9 +805,10 @@ export class SecurityMonitoringTester {
       category: 'SECURITY_LOGGING_MONITORING_FAILURES',
       status: vulnerabilities.length > 0 ? 'FAIL' : 'PASS',
       severity: vulnerabilities.length > 0 ? 'MEDIUM' : 'LOW',
-      details: vulnerabilities.length > 0 
-        ? 'Security event logging may need verification'
-        : 'Security event logging test completed',
+      details:
+        vulnerabilities.length > 0
+          ? 'Security event logging may need verification'
+          : 'Security event logging test completed',
       evidence: vulnerabilities,
       recommendations,
       executionTime: performance.now() - startTime,
@@ -810,15 +828,18 @@ export class InfrastructureSecurityOrchestrator {
   /**
    * Execute comprehensive infrastructure security testing
    */
-  async executeInfrastructureSecurityTests(config: InfrastructureSecurityConfig): Promise<SecurityScanResult> {
+  async executeInfrastructureSecurityTests(
+    config: InfrastructureSecurityConfig
+  ): Promise<SecurityScanResult> {
     const startTime = performance.now()
     const validatedConfig = InfrastructureSecurityConfigSchema.parse(config)
-    
-    let allResults: SecurityTestResult[] = []
+
+    const allResults: SecurityTestResult[] = []
 
     // Execute test suites based on configuration
     if (validatedConfig.testTypes.includes('environment_security')) {
-      const environmentResults = await this.environmentValidator.validateEnvironmentSecurity(validatedConfig)
+      const environmentResults =
+        await this.environmentValidator.validateEnvironmentSecurity(validatedConfig)
       allResults.push(...environmentResults)
     }
 
@@ -828,7 +849,8 @@ export class InfrastructureSecurityOrchestrator {
     }
 
     if (validatedConfig.testTypes.includes('security_monitoring')) {
-      const monitoringResults = await this.securityMonitoringTester.testSecurityMonitoring(validatedConfig)
+      const monitoringResults =
+        await this.securityMonitoringTester.testSecurityMonitoring(validatedConfig)
       allResults.push(...monitoringResults)
     }
 
@@ -839,7 +861,10 @@ export class InfrastructureSecurityOrchestrator {
   /**
    * Generate comprehensive infrastructure security report
    */
-  private generateInfrastructureSecurityReport(results: SecurityTestResult[], scanDuration: number): SecurityScanResult {
+  private generateInfrastructureSecurityReport(
+    results: SecurityTestResult[],
+    scanDuration: number
+  ): SecurityScanResult {
     const summary = {
       critical: results.filter(r => r.severity === 'CRITICAL').length,
       high: results.filter(r => r.severity === 'HIGH').length,
@@ -847,16 +872,12 @@ export class InfrastructureSecurityOrchestrator {
       low: results.filter(r => r.severity === 'LOW').length,
     }
 
-    const infrastructureScore = Math.max(0, 100 - (
-      summary.critical * 40 + 
-      summary.high * 25 + 
-      summary.medium * 15 + 
-      summary.low * 5
-    ))
+    const infrastructureScore = Math.max(
+      0,
+      100 - (summary.critical * 40 + summary.high * 25 + summary.medium * 15 + summary.low * 5)
+    )
 
-    const recommendations = [
-      ...new Set(results.flatMap(r => r.recommendations || []))
-    ]
+    const recommendations = [...new Set(results.flatMap(r => r.recommendations || []))]
 
     return {
       overallScore: infrastructureScore,

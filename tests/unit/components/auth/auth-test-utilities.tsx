@@ -1,7 +1,7 @@
 /**
  * Authentication Component Testing Utilities
  * Reusable helpers for testing NextAuth.js v5 components
- * 
+ *
  * Features:
  * - Session state mocking utilities
  * - Authentication flow helpers
@@ -10,7 +10,7 @@
  * - API mocking for auth endpoints
  */
 
-import { render, RenderOptions } from '@testing-library/react'
+import { type RenderOptions, render } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import type React from 'react'
 import { vi } from 'vitest'
@@ -74,7 +74,10 @@ export const mockUsers = {
 } as const
 
 // Session state factories
-export const createMockSession = (user: MockUser, overrides?: Partial<MockSession>): MockSession => ({
+export const createMockSession = (
+  user: MockUser,
+  overrides?: Partial<MockSession>
+): MockSession => ({
   user,
   expires: '2024-12-31T23:59:59.999Z',
   ...overrides,
@@ -113,12 +116,12 @@ export const createAuthMocks = () => ({
 export const setupAuthMocks = (sessionState: MockSessionState) => {
   const mocks = createAuthMocks()
   mocks.useSession.mockReturnValue(sessionState)
-  
+
   vi.doMock('next-auth/react', () => ({
     ...mocks,
     SessionProvider: ({ children }: { children: React.ReactNode }) => children,
   }))
-  
+
   return mocks
 }
 
@@ -130,22 +133,24 @@ export const createAuthApiMocks = () => {
   const responses = {
     providers: {
       ok: true,
-      json: () => Promise.resolve([
-        { id: 'github', name: 'GitHub', type: 'oauth' },
-        { id: 'google', name: 'Google', type: 'oauth' },
-      ]),
+      json: () =>
+        Promise.resolve([
+          { id: 'github', name: 'GitHub', type: 'oauth' },
+          { id: 'google', name: 'Google', type: 'oauth' },
+        ]),
     },
     linkedAccounts: {
       ok: true,
-      json: () => Promise.resolve([
-        { 
-          id: 'github', 
-          provider: 'github', 
-          name: 'GitHub', 
-          email: 'user@example.com',
-          isPrimary: true 
-        },
-      ]),
+      json: () =>
+        Promise.resolve([
+          {
+            id: 'github',
+            provider: 'github',
+            name: 'GitHub',
+            email: 'user@example.com',
+            isPrimary: true,
+          },
+        ]),
     },
     linkAccount: {
       ok: true,
@@ -201,7 +206,7 @@ export const renderWithAuth = (
 ) => {
   // Setup auth mocks
   const authMocks = setupAuthMocks(sessionState)
-  
+
   // Setup API mocks if requested
   let apiMockUtils
   if (apiMocks) {
@@ -237,34 +242,31 @@ export const authFlowHelpers = {
   // Simulate sign in flow
   simulateSignIn: async (
     authMocks: ReturnType<typeof createAuthMocks>,
-    provider: string = 'github',
-    callbackUrl: string = '/dashboard'
+    provider = 'github',
+    callbackUrl = '/dashboard'
   ) => {
-    authMocks.signIn.mockResolvedValueOnce({ 
-      ok: true, 
-      error: null, 
-      status: 200, 
-      url: callbackUrl 
+    authMocks.signIn.mockResolvedValueOnce({
+      ok: true,
+      error: null,
+      status: 200,
+      url: callbackUrl,
     })
-    
+
     return authMocks.signIn(provider, { callbackUrl, redirect: true })
   },
 
   // Simulate sign out flow
   simulateSignOut: async (
     authMocks: ReturnType<typeof createAuthMocks>,
-    callbackUrl: string = '/auth/signin'
+    callbackUrl = '/auth/signin'
   ) => {
     authMocks.signOut.mockResolvedValueOnce({ url: callbackUrl })
-    
+
     return authMocks.signOut({ callbackUrl, redirect: true })
   },
 
   // Simulate authentication error
-  simulateAuthError: (
-    authMocks: ReturnType<typeof createAuthMocks>,
-    error: string = 'OAuthCallback'
-  ) => {
+  simulateAuthError: (authMocks: ReturnType<typeof createAuthMocks>, error = 'OAuthCallback') => {
     authMocks.signIn.mockRejectedValueOnce(new Error(error))
   },
 
@@ -278,7 +280,7 @@ export const authFlowHelpers = {
       ...currentSession,
       user: { ...currentSession?.user, ...updatedUser },
     }
-    
+
     authMocks.update.mockResolvedValueOnce(updatedSession)
     return authMocks.update(updatedUser)
   },
@@ -288,18 +290,20 @@ export const authFlowHelpers = {
 export const authAssertions = {
   // Assert loading state
   expectLoadingState: (container: HTMLElement) => {
-    const loadingElement = container.querySelector('[role="status"]') ||
-                          container.querySelector('[aria-label*="loading" i]') ||
-                          container.querySelector('[aria-label*="Loading" i]')
+    const loadingElement =
+      container.querySelector('[role="status"]') ||
+      container.querySelector('[aria-label*="loading" i]') ||
+      container.querySelector('[aria-label*="Loading" i]')
     expect(loadingElement).toBeInTheDocument()
   },
 
   // Assert unauthenticated state
   expectUnauthenticatedState: (container: HTMLElement) => {
-    const signInButton = container.querySelector('button[aria-label*="sign in" i]') ||
-                        container.querySelector('button[aria-label*="Sign in" i]') ||
-                        container.querySelector('button:contains("Sign in")') ||
-                        container.querySelector('a[href*="signin"]')
+    const signInButton =
+      container.querySelector('button[aria-label*="sign in" i]') ||
+      container.querySelector('button[aria-label*="Sign in" i]') ||
+      container.querySelector('button:contains("Sign in")') ||
+      container.querySelector('a[href*="signin"]')
     expect(signInButton).toBeInTheDocument()
   },
 
@@ -308,7 +312,7 @@ export const authAssertions = {
     if (userName) {
       expect(container).toHaveTextContent(userName)
     }
-    
+
     // Should not show sign-in prompts
     const signInButton = container.querySelector('button[aria-label*="sign in" i]')
     expect(signInButton).not.toBeInTheDocument()
@@ -316,19 +320,21 @@ export const authAssertions = {
 
   // Assert access denied state
   expectAccessDenied: (container: HTMLElement) => {
-    const accessDeniedText = container.textContent?.toLowerCase().includes('access denied') ||
-                           container.textContent?.toLowerCase().includes('permission') ||
-                           container.textContent?.toLowerCase().includes('unauthorized')
+    const accessDeniedText =
+      container.textContent?.toLowerCase().includes('access denied') ||
+      container.textContent?.toLowerCase().includes('permission') ||
+      container.textContent?.toLowerCase().includes('unauthorized')
     expect(accessDeniedText).toBeTruthy()
   },
 
   // Assert error state
   expectErrorState: (container: HTMLElement, errorMessage?: string) => {
-    const errorElement = container.querySelector('[role="alert"]') ||
-                        container.querySelector('[aria-live="polite"]') ||
-                        container.querySelector('.error, .alert, [class*="error"]')
+    const errorElement =
+      container.querySelector('[role="alert"]') ||
+      container.querySelector('[aria-live="polite"]') ||
+      container.querySelector('.error, .alert, [class*="error"]')
     expect(errorElement).toBeInTheDocument()
-    
+
     if (errorMessage) {
       expect(container).toHaveTextContent(errorMessage)
     }
@@ -352,13 +358,13 @@ export const testDataGenerators = {
   generateSessionStates: (baseUser: MockUser) => ({
     fresh: createSessionState(createMockSession(baseUser)),
     almostExpired: createSessionState(
-      createMockSession(baseUser, { 
-        expires: new Date(Date.now() + 5 * 60 * 1000).toISOString() // 5 minutes
+      createMockSession(baseUser, {
+        expires: new Date(Date.now() + 5 * 60 * 1000).toISOString(), // 5 minutes
       })
     ),
     expired: createSessionState(
-      createMockSession(baseUser, { 
-        expires: new Date(Date.now() - 60 * 1000).toISOString() // 1 minute ago
+      createMockSession(baseUser, {
+        expires: new Date(Date.now() - 60 * 1000).toISOString(), // 1 minute ago
       })
     ),
   }),
@@ -389,9 +395,10 @@ export const authA11yHelpers = {
     // Check for proper ARIA labels
     const buttons = container.querySelectorAll('button')
     buttons.forEach(button => {
-      const hasLabel = button.getAttribute('aria-label') || 
-                      button.getAttribute('aria-labelledby') ||
-                      button.textContent?.trim()
+      const hasLabel =
+        button.getAttribute('aria-label') ||
+        button.getAttribute('aria-labelledby') ||
+        button.textContent?.trim()
       expect(hasLabel).toBeTruthy()
     })
 
@@ -409,7 +416,10 @@ export const authA11yHelpers = {
   },
 
   // Check keyboard navigation
-  checkKeyboardNavigation: async (container: HTMLElement, user: ReturnType<typeof userEvent.setup>) => {
+  checkKeyboardNavigation: async (
+    container: HTMLElement,
+    user: ReturnType<typeof userEvent.setup>
+  ) => {
     const focusableElements = container.querySelectorAll(
       'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
     )
@@ -431,14 +441,14 @@ export const authA11yHelpers = {
     interactiveElements.forEach(element => {
       const styles = getComputedStyle(element)
       const pseudoStyles = getComputedStyle(element, ':focus')
-      
+
       // Should have some kind of focus indication
-      const hasFocusIndicator = 
+      const hasFocusIndicator =
         pseudoStyles.outline !== 'none' ||
         pseudoStyles.boxShadow !== 'none' ||
         styles.outline !== 'none' ||
         element.className.includes('focus')
-      
+
       expect(hasFocusIndicator).toBeTruthy()
     })
   },
@@ -451,7 +461,7 @@ export const authPerformanceHelpers = {
     const start = performance.now()
     const result = renderFn()
     const end = performance.now()
-    
+
     return {
       renderTime: end - start,
       result,
@@ -459,22 +469,22 @@ export const authPerformanceHelpers = {
   },
 
   // Check for memory leaks in auth components
-  checkMemoryLeaks: (renderFn: () => any, iterations: number = 10) => {
+  checkMemoryLeaks: (renderFn: () => any, iterations = 10) => {
     const initialMemory = performance.memory?.usedJSHeapSize || 0
-    
+
     for (let i = 0; i < iterations; i++) {
       const { result } = renderFn()
       result.unmount()
     }
-    
+
     // Force garbage collection if available
     if (global.gc) {
       global.gc()
     }
-    
+
     const finalMemory = performance.memory?.usedJSHeapSize || 0
     const memoryIncrease = finalMemory - initialMemory
-    
+
     return {
       initialMemory,
       finalMemory,

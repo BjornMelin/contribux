@@ -1,12 +1,11 @@
 /**
  * Drizzle Migration Testing Utilities
- * 
+ *
  * Comprehensive testing for migration scenarios, schema changes,
  * and data integrity during database evolution.
  */
 
 import { beforeEach, describe, expect, it } from 'vitest'
-import { sql as drizzleSql } from 'drizzle-orm'
 import { createTestFactories } from '@/lib/test-utils/database-factories'
 import type { DatabaseConnection } from '@/lib/test-utils/test-database-manager'
 import { getTestDatabase } from '@/lib/test-utils/test-database-manager'
@@ -32,7 +31,7 @@ describe('Drizzle Migration Testing Suite', () => {
       // Create initial data
       const user = await factories.users.create({
         github_username: 'migration-user',
-        email: 'migration@example.com'
+        email: 'migration@example.com',
       })
 
       // Simulate adding a new column (nullable)
@@ -183,7 +182,7 @@ describe('Drizzle Migration Testing Suite', () => {
           INSERT INTO constraint_test_table (email, status, score)
           VALUES ('user1@example.com', 'active', 75)
         `
-      } catch (error) {
+      } catch (_error) {
         constraintViolated = true
       }
       expect(constraintViolated).toBe(true) // Should violate unique constraint
@@ -194,7 +193,7 @@ describe('Drizzle Migration Testing Suite', () => {
           INSERT INTO constraint_test_table (email, status, score)
           VALUES ('user4@example.com', 'active', 150)
         `
-      } catch (error) {
+      } catch (_error) {
         constraintViolated = true
       }
       expect(constraintViolated).toBe(true) // Should violate check constraint
@@ -221,7 +220,7 @@ describe('Drizzle Migration Testing Suite', () => {
       const testData = Array.from({ length: 100 }, (_, i) => ({
         user_id: `user-${i % 10}`,
         category: ['A', 'B', 'C'][i % 3],
-        value: Math.floor(Math.random() * 1000)
+        value: Math.floor(Math.random() * 1000),
       }))
 
       for (const data of testData) {
@@ -263,12 +262,14 @@ describe('Drizzle Migration Testing Suite', () => {
       const afterDuration = performance.now() - afterIndex
 
       expect(beforeResults.length).toBe(afterResults.length)
-      
+
       // With small dataset, may not see significant improvement
       // but ensure queries still work correctly
       expect(afterResults.length).toBeGreaterThan(0)
-      
-      console.log(`Index performance: Before ${beforeDuration.toFixed(2)}ms, After ${afterDuration.toFixed(2)}ms`)
+
+      console.log(
+        `Index performance: Before ${beforeDuration.toFixed(2)}ms, After ${afterDuration.toFixed(2)}ms`
+      )
 
       // Verify indexes were created
       const indexes = await sql`
@@ -294,8 +295,8 @@ describe('Drizzle Migration Testing Suite', () => {
         email: 'jsonb@example.com',
         preferences: {
           theme: 'dark',
-          notifications: true // Old structure
-        } as any
+          notifications: true, // Old structure
+        } as any,
       })
 
       // Simulate data migration - restructure preferences
@@ -332,7 +333,7 @@ describe('Drizzle Migration Testing Suite', () => {
       // Create repository with old embedding format (array)
       const repo = await factories.repositories.create({
         name: 'vector-migration-repo',
-        language: 'JavaScript'
+        language: 'JavaScript',
       })
 
       // Simulate old format - direct array storage
@@ -353,9 +354,9 @@ describe('Drizzle Migration Testing Suite', () => {
       // Simulate migration - normalize to 1536 dimensions
       await sql`
         UPDATE repositories 
-        SET embedding = ${JSON.stringify(Array.from({ length: 1536 }, (_, i) => 
-          i < oldEmbedding.length ? oldEmbedding[i] : 0
-        ))}
+        SET embedding = ${JSON.stringify(
+          Array.from({ length: 1536 }, (_, i) => (i < oldEmbedding.length ? oldEmbedding[i] : 0))
+        )}
         WHERE id = ${repo.id}
       `
 
@@ -376,14 +377,14 @@ describe('Drizzle Migration Testing Suite', () => {
       // Create large dataset for migration testing
       const batchSize = 100
       const users = await Promise.all(
-        Array.from({ length: batchSize }, (_, i) => 
+        Array.from({ length: batchSize }, (_, i) =>
           factories.users.create({
             github_username: `batch-user-${i}`,
             email: `batch-${i}@example.com`,
             preferences: {
               theme: 'light',
-              oldSetting: `value-${i}` // Old setting to migrate
-            } as any
+              oldSetting: `value-${i}`, // Old setting to migrate
+            } as any,
           })
         )
       )
@@ -399,7 +400,7 @@ describe('Drizzle Migration Testing Suite', () => {
 
       for (let i = 0; i < userIds.length; i += chunkSize) {
         const chunk = userIds.slice(i, i + chunkSize)
-        
+
         await sql`
           UPDATE users 
           SET preferences = jsonb_set(
@@ -441,7 +442,7 @@ describe('Drizzle Migration Testing Suite', () => {
 
       try {
         // Create backup data
-        const originalUsers = await sql`
+        const _originalUsers = await sql`
           SELECT id, preferences FROM users LIMIT 5
         `
 
@@ -473,7 +474,6 @@ describe('Drizzle Migration Testing Suite', () => {
         `
 
         expect(afterRollback).toHaveLength(0)
-
       } catch (error) {
         await sql`ROLLBACK`
         throw error
@@ -576,12 +576,12 @@ describe('Drizzle Migration Testing Suite', () => {
       // Create valid relationship
       const user = await factories.users.create({
         github_username: 'fk-test-user',
-        email: 'fk@example.com'
+        email: 'fk@example.com',
       })
 
       const repo = await factories.repositories.create({
         name: 'fk-test-repo',
-        language: 'Go'
+        language: 'Go',
       })
 
       // Create valid bookmark
@@ -597,7 +597,7 @@ describe('Drizzle Migration Testing Suite', () => {
           INSERT INTO bookmarks (user_id, repository_id)
           VALUES ('invalid-uuid', ${repo.id})
         `
-      } catch (error) {
+      } catch (_error) {
         fkViolated = true
       }
 
@@ -617,7 +617,7 @@ describe('Drizzle Migration Testing Suite', () => {
       // Create user with unique GitHub ID
       await factories.users.create({
         github_username: 'unique-test-1',
-        email: 'unique1@example.com'
+        email: 'unique1@example.com',
       })
 
       // Test unique constraint on github_id
@@ -631,7 +631,7 @@ describe('Drizzle Migration Testing Suite', () => {
             'unique2@example.com'
           )
         `
-      } catch (error) {
+      } catch (_error) {
         uniqueViolated = true
       }
 
@@ -644,7 +644,7 @@ describe('Drizzle Migration Testing Suite', () => {
           INSERT INTO users (github_id, username, email)
           VALUES (99999, 'unique-test-3', 'unique1@example.com')
         `
-      } catch (error) {
+      } catch (_error) {
         uniqueViolated = true
       }
 
@@ -662,13 +662,13 @@ describe('Drizzle Migration Testing Suite', () => {
           theme: 'dark',
           emailNotifications: true,
           topicPreferences: ['javascript', 'typescript'],
-          difficultyPreference: 'intermediate'
+          difficultyPreference: 'intermediate',
         },
         profile: {
           bio: 'Test user bio',
           location: 'Test City',
-          followers: 150
-        }
+          followers: 150,
+        },
       })
 
       // Test JSONB queries and validation

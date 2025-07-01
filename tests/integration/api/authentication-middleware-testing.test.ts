@@ -1,7 +1,7 @@
 /**
  * Authentication Middleware Testing Suite
  * Comprehensive testing for NextAuth.js v5 integration with API routes
- * 
+ *
  * Focus Areas:
  * - Middleware authentication validation
  * - Session-based authorization
@@ -22,7 +22,7 @@ afterEach(() => server.resetHandlers())
 afterAll(() => server.close())
 
 // Test schemas
-const SessionSchema = z.object({
+const _SessionSchema = z.object({
   user: z.object({
     id: z.string(),
     email: z.string().email(),
@@ -72,38 +72,46 @@ const generateMockJWT = (payload: any = {}) => {
     exp: Math.floor(Date.now() / 1000) + 3600,
     ...payload,
   }
-  
+
   // Simple base64 encoding for testing (not cryptographically secure)
   const encodedHeader = Buffer.from(JSON.stringify(header)).toString('base64')
   const encodedPayload = Buffer.from(JSON.stringify(mockPayload)).toString('base64')
   const signature = 'mock-signature-for-testing'
-  
+
   return `${encodedHeader}.${encodedPayload}.${signature}`
 }
 
 describe('Middleware Authentication Validation', () => {
   describe('Session Management', () => {
     it('should validate active session for protected routes', async () => {
-      const mockSession = generateMockSession()
+      const _mockSession = generateMockSession()
 
       server.use(
         http.get('http://localhost:3000/api/search/repositories', ({ request }) => {
           const sessionCookie = request.headers.get('Cookie')
-          
+
           if (!sessionCookie || !sessionCookie.includes('next-auth.session-token')) {
-            return HttpResponse.json({
-              success: false,
-              error: {
-                code: 'NO_SESSION',
-                message: 'No valid session found',
+            return HttpResponse.json(
+              {
+                success: false,
+                error: {
+                  code: 'NO_SESSION',
+                  message: 'No valid session found',
+                },
               },
-            }, { status: 401 })
+              { status: 401 }
+            )
           }
 
           return HttpResponse.json({
             success: true,
             data: { repositories: [], total_count: 0, page: 1, per_page: 20, has_more: false },
-            metadata: { query: '', filters: {}, execution_time_ms: 25, performance_note: 'Session validated' },
+            metadata: {
+              query: '',
+              filters: {},
+              execution_time_ms: 25,
+              performance_note: 'Session validated',
+            },
           })
         })
       )
@@ -129,21 +137,29 @@ describe('Middleware Authentication Validation', () => {
       server.use(
         http.get('http://localhost:3000/api/search/opportunities', ({ request }) => {
           const sessionCookie = request.headers.get('Cookie')
-          
+
           if (sessionCookie?.includes('expired-session-token')) {
-            return HttpResponse.json({
-              success: false,
-              error: {
-                code: 'SESSION_EXPIRED',
-                message: 'Session has expired. Please sign in again.',
+            return HttpResponse.json(
+              {
+                success: false,
+                error: {
+                  code: 'SESSION_EXPIRED',
+                  message: 'Session has expired. Please sign in again.',
+                },
               },
-            }, { status: 401 })
+              { status: 401 }
+            )
           }
 
           return HttpResponse.json({
             success: true,
             data: { opportunities: [], total_count: 0, page: 1, per_page: 20, has_more: false },
-            metadata: { query: '', filters: {}, execution_time_ms: 25, performance_note: 'Session valid' },
+            metadata: {
+              query: '',
+              filters: {},
+              execution_time_ms: 25,
+              performance_note: 'Session valid',
+            },
           })
         })
       )
@@ -173,12 +189,15 @@ describe('Middleware Authentication Validation', () => {
 
           // Simulate session user validation
           const currentUserId = 'user_123456789' // Extracted from session
-          
+
           if (userId && userId !== currentUserId) {
-            return HttpResponse.json({
-              error: 'Forbidden',
-              message: 'Cannot access other user data',
-            }, { status: 403 })
+            return HttpResponse.json(
+              {
+                error: 'Forbidden',
+                message: 'Cannot access other user data',
+              },
+              { status: 403 }
+            )
           }
 
           return HttpResponse.json({
@@ -196,19 +215,25 @@ describe('Middleware Authentication Validation', () => {
       )
 
       // Test accessing own data
-      const validResponse = await fetch('http://localhost:3000/api/auth/providers?userId=user_123456789', {
-        headers: {
-          Cookie: 'next-auth.session-token=valid-session-token',
-        },
-      })
+      const validResponse = await fetch(
+        'http://localhost:3000/api/auth/providers?userId=user_123456789',
+        {
+          headers: {
+            Cookie: 'next-auth.session-token=valid-session-token',
+          },
+        }
+      )
       expect(validResponse.status).toBe(200)
 
       // Test accessing other user data
-      const forbiddenResponse = await fetch('http://localhost:3000/api/auth/providers?userId=other_user_999', {
-        headers: {
-          Cookie: 'next-auth.session-token=valid-session-token',
-        },
-      })
+      const forbiddenResponse = await fetch(
+        'http://localhost:3000/api/auth/providers?userId=other_user_999',
+        {
+          headers: {
+            Cookie: 'next-auth.session-token=valid-session-token',
+          },
+        }
+      )
       expect(forbiddenResponse.status).toBe(403)
     })
   })
@@ -218,97 +243,119 @@ describe('Middleware Authentication Validation', () => {
       server.use(
         http.get('http://localhost:3000/api/search/repositories', ({ request }) => {
           const authHeader = request.headers.get('Authorization')
-          
+
           if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return HttpResponse.json({
-              success: false,
-              error: {
-                code: 'INVALID_AUTH_HEADER',
-                message: 'Authorization header must start with Bearer',
+            return HttpResponse.json(
+              {
+                success: false,
+                error: {
+                  code: 'INVALID_AUTH_HEADER',
+                  message: 'Authorization header must start with Bearer',
+                },
               },
-            }, { status: 401 })
+              { status: 401 }
+            )
           }
 
           const token = authHeader.split(' ')[1]
-          
+
           // Basic JWT structure validation
           if (!token || token.split('.').length !== 3) {
-            return HttpResponse.json({
-              success: false,
-              error: {
-                code: 'INVALID_JWT_STRUCTURE',
-                message: 'JWT must have three parts separated by dots',
+            return HttpResponse.json(
+              {
+                success: false,
+                error: {
+                  code: 'INVALID_JWT_STRUCTURE',
+                  message: 'JWT must have three parts separated by dots',
+                },
               },
-            }, { status: 401 })
+              { status: 401 }
+            )
           }
 
           try {
             // Decode payload (in real app, this would include signature verification)
             const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString())
-            
+
             // Check expiration
             if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
-              return HttpResponse.json({
-                success: false,
-                error: {
-                  code: 'JWT_EXPIRED',
-                  message: 'JWT token has expired',
+              return HttpResponse.json(
+                {
+                  success: false,
+                  error: {
+                    code: 'JWT_EXPIRED',
+                    message: 'JWT token has expired',
+                  },
                 },
-              }, { status: 401 })
+                { status: 401 }
+              )
             }
 
             // Check required claims
             if (!payload.sub || !payload.email) {
-              return HttpResponse.json({
-                success: false,
-                error: {
-                  code: 'INVALID_JWT_CLAIMS',
-                  message: 'JWT missing required claims',
+              return HttpResponse.json(
+                {
+                  success: false,
+                  error: {
+                    code: 'INVALID_JWT_CLAIMS',
+                    message: 'JWT missing required claims',
+                  },
                 },
-              }, { status: 401 })
+                { status: 401 }
+              )
             }
 
             return HttpResponse.json({
               success: true,
               data: { repositories: [], total_count: 0, page: 1, per_page: 20, has_more: false },
-              metadata: { query: '', filters: {}, execution_time_ms: 25, performance_note: 'JWT validated' },
-            })
-
-          } catch (_error) {
-            return HttpResponse.json({
-              success: false,
-              error: {
-                code: 'JWT_DECODE_ERROR',
-                message: 'Failed to decode JWT token',
+              metadata: {
+                query: '',
+                filters: {},
+                execution_time_ms: 25,
+                performance_note: 'JWT validated',
               },
-            }, { status: 401 })
+            })
+          } catch (_error) {
+            return HttpResponse.json(
+              {
+                success: false,
+                error: {
+                  code: 'JWT_DECODE_ERROR',
+                  message: 'Failed to decode JWT token',
+                },
+              },
+              { status: 401 }
+            )
           }
         })
       )
 
       // Test invalid header format
       const invalidHeaderResponse = await fetch('http://localhost:3000/api/search/repositories', {
-        headers: { Authorization: 'InvalidFormat token123' }
+        headers: { Authorization: 'InvalidFormat token123' },
       })
       expect(invalidHeaderResponse.status).toBe(401)
 
       // Test invalid JWT structure
-      const invalidStructureResponse = await fetch('http://localhost:3000/api/search/repositories', {
-        headers: { Authorization: 'Bearer invalid.structure' }
-      })
+      const invalidStructureResponse = await fetch(
+        'http://localhost:3000/api/search/repositories',
+        {
+          headers: { Authorization: 'Bearer invalid.structure' },
+        }
+      )
       expect(invalidStructureResponse.status).toBe(401)
 
       // Test expired JWT
       const expiredJWT = generateMockJWT({ exp: Math.floor(Date.now() / 1000) - 3600 })
       const expiredResponse = await fetch('http://localhost:3000/api/search/repositories', {
-        headers: { Authorization: `Bearer ${expiredJWT}` }
+        headers: { Authorization: `Bearer ${expiredJWT}` },
       })
       expect(expiredResponse.status).toBe(401)
 
       // Test valid JWT
       const validJWT = generateMockJWT()
       const validResponse = await fetch('http://localhost:3000/api/search/repositories', {
-        headers: { Authorization: `Bearer ${validJWT}` }
+        headers: { Authorization: `Bearer ${validJWT}` },
       })
       expect(validResponse.status).toBe(200)
     })
@@ -320,25 +367,33 @@ describe('Middleware Authentication Validation', () => {
           const token = authHeader?.split(' ')[1]
 
           if (token?.includes('invalid-signature')) {
-            return HttpResponse.json({
-              success: false,
-              error: {
-                code: 'JWT_SIGNATURE_INVALID',
-                message: 'JWT signature verification failed',
+            return HttpResponse.json(
+              {
+                success: false,
+                error: {
+                  code: 'JWT_SIGNATURE_INVALID',
+                  message: 'JWT signature verification failed',
+                },
               },
-            }, { status: 401 })
+              { status: 401 }
+            )
           }
 
           return HttpResponse.json({
             success: true,
             data: { opportunities: [], total_count: 0, page: 1, per_page: 20, has_more: false },
-            metadata: { query: '', filters: {}, execution_time_ms: 25, performance_note: 'JWT signature valid' },
+            metadata: {
+              query: '',
+              filters: {},
+              execution_time_ms: 25,
+              performance_note: 'JWT signature valid',
+            },
           })
         })
       )
 
       const response = await fetch('http://localhost:3000/api/search/opportunities', {
-        headers: { Authorization: 'Bearer header.payload.invalid-signature' }
+        headers: { Authorization: 'Bearer header.payload.invalid-signature' },
       })
 
       expect(response.status).toBe(401)
@@ -392,17 +447,23 @@ describe('Middleware Authentication Validation', () => {
           const error = url.searchParams.get('error')
 
           if (error) {
-            return HttpResponse.json({
-              error: 'OAuth callback error',
-              error_description: 'User denied access or other OAuth error occurred',
-            }, { status: 400 })
+            return HttpResponse.json(
+              {
+                error: 'OAuth callback error',
+                error_description: 'User denied access or other OAuth error occurred',
+              },
+              { status: 400 }
+            )
           }
 
           if (!code || !state) {
-            return HttpResponse.json({
-              error: 'Missing required parameters',
-              error_description: 'Authorization code and state are required',
-            }, { status: 400 })
+            return HttpResponse.json(
+              {
+                error: 'Missing required parameters',
+                error_description: 'Authorization code and state are required',
+              },
+              { status: 400 }
+            )
           }
 
           // Simulate successful OAuth callback
@@ -462,12 +523,15 @@ describe('Middleware Authentication Validation', () => {
         }),
 
         http.post('http://localhost:3000/api/auth/unlink', async ({ request }) => {
-          const body = await request.json() as { providerId: string; userId: string }
-          
+          const body = (await request.json()) as { providerId: string; userId: string }
+
           if (!body.providerId || !body.userId) {
-            return HttpResponse.json({
-              error: 'Provider ID and User ID are required',
-            }, { status: 400 })
+            return HttpResponse.json(
+              {
+                error: 'Provider ID and User ID are required',
+              },
+              { status: 400 }
+            )
           }
 
           return HttpResponse.json({
@@ -478,7 +542,9 @@ describe('Middleware Authentication Validation', () => {
       )
 
       // Test getting user providers
-      const providersResponse = await fetch('http://localhost:3000/api/auth/providers?userId=user_123')
+      const providersResponse = await fetch(
+        'http://localhost:3000/api/auth/providers?userId=user_123'
+      )
       expect(providersResponse.status).toBe(200)
 
       const providersData = await providersResponse.json()
@@ -509,30 +575,41 @@ describe('Middleware Authentication Validation', () => {
 
           // Simulate session validation with additional security checks
           if (sessionCookie?.includes('suspicious-session')) {
-            return HttpResponse.json({
-              success: false,
-              error: {
-                code: 'SESSION_SECURITY_VIOLATION',
-                message: 'Session security violation detected',
+            return HttpResponse.json(
+              {
+                success: false,
+                error: {
+                  code: 'SESSION_SECURITY_VIOLATION',
+                  message: 'Session security violation detected',
+                },
               },
-            }, { status: 401 })
+              { status: 401 }
+            )
           }
 
           // Check for suspicious patterns
           if (userAgent?.includes('suspicious-bot') || xForwardedFor?.includes('suspicious-ip')) {
-            return HttpResponse.json({
-              success: false,
-              error: {
-                code: 'SUSPICIOUS_ACTIVITY',
-                message: 'Suspicious activity detected',
+            return HttpResponse.json(
+              {
+                success: false,
+                error: {
+                  code: 'SUSPICIOUS_ACTIVITY',
+                  message: 'Suspicious activity detected',
+                },
               },
-            }, { status: 403 })
+              { status: 403 }
+            )
           }
 
           return HttpResponse.json({
             success: true,
             data: { repositories: [], total_count: 0, page: 1, per_page: 20, has_more: false },
-            metadata: { query: '', filters: {}, execution_time_ms: 25, performance_note: 'Security check passed' },
+            metadata: {
+              query: '',
+              filters: {},
+              execution_time_ms: 25,
+              performance_note: 'Security check passed',
+            },
           })
         })
       )
@@ -571,24 +648,33 @@ describe('Middleware Authentication Validation', () => {
           const contentType = request.headers.get('Content-Type')
 
           if (!csrfToken) {
-            return HttpResponse.json({
-              error: 'CSRF token missing',
-              message: 'CSRF protection requires X-CSRF-Token header',
-            }, { status: 403 })
+            return HttpResponse.json(
+              {
+                error: 'CSRF token missing',
+                message: 'CSRF protection requires X-CSRF-Token header',
+              },
+              { status: 403 }
+            )
           }
 
           if (csrfToken === 'invalid-csrf-token') {
-            return HttpResponse.json({
-              error: 'Invalid CSRF token',
-              message: 'CSRF token validation failed',
-            }, { status: 403 })
+            return HttpResponse.json(
+              {
+                error: 'Invalid CSRF token',
+                message: 'CSRF token validation failed',
+              },
+              { status: 403 }
+            )
           }
 
           if (!contentType?.includes('application/json')) {
-            return HttpResponse.json({
-              error: 'Invalid content type',
-              message: 'Content-Type must be application/json',
-            }, { status: 400 })
+            return HttpResponse.json(
+              {
+                error: 'Invalid content type',
+                message: 'Content-Type must be application/json',
+              },
+              { status: 400 }
+            )
           }
 
           return HttpResponse.json({
@@ -637,18 +723,28 @@ describe('Middleware Authentication Validation', () => {
 
           // Validate origin
           if (origin && !['http://localhost:3000', 'https://contribux.com'].includes(origin)) {
-            return HttpResponse.json({
-              error: 'Invalid origin',
-              message: 'Request origin not allowed',
-            }, { status: 403 })
+            return HttpResponse.json(
+              {
+                error: 'Invalid origin',
+                message: 'Request origin not allowed',
+              },
+              { status: 403 }
+            )
           }
 
           // Validate referer
-          if (referer && !referer.startsWith('http://localhost:3000') && !referer.startsWith('https://contribux.com')) {
-            return HttpResponse.json({
-              error: 'Invalid referer',
-              message: 'Request referer not allowed',
-            }, { status: 403 })
+          if (
+            referer &&
+            !referer.startsWith('http://localhost:3000') &&
+            !referer.startsWith('https://contribux.com')
+          ) {
+            return HttpResponse.json(
+              {
+                error: 'Invalid referer',
+                message: 'Request referer not allowed',
+              },
+              { status: 403 }
+            )
           }
 
           return HttpResponse.json({
@@ -662,7 +758,7 @@ describe('Middleware Authentication Validation', () => {
       const invalidOriginResponse = await fetch('http://localhost:3000/api/auth/unlink', {
         method: 'POST',
         headers: {
-          'Origin': 'https://malicious-site.com',
+          Origin: 'https://malicious-site.com',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ providerId: 'github', userId: 'user_123' }),
@@ -673,7 +769,7 @@ describe('Middleware Authentication Validation', () => {
       const invalidRefererResponse = await fetch('http://localhost:3000/api/auth/unlink', {
         method: 'POST',
         headers: {
-          'Referer': 'https://malicious-site.com/fake-page',
+          Referer: 'https://malicious-site.com/fake-page',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ providerId: 'github', userId: 'user_123' }),
@@ -684,8 +780,8 @@ describe('Middleware Authentication Validation', () => {
       const validResponse = await fetch('http://localhost:3000/api/auth/unlink', {
         method: 'POST',
         headers: {
-          'Origin': 'http://localhost:3000',
-          'Referer': 'http://localhost:3000/settings/accounts',
+          Origin: 'http://localhost:3000',
+          Referer: 'http://localhost:3000/settings/accounts',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ providerId: 'github', userId: 'user_123' }),

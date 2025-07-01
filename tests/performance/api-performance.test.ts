@@ -3,27 +3,27 @@
  * Comprehensive testing of Next.js API routes, serverless function performance, and API response times
  */
 
-import { describe, expect, it, beforeAll, afterAll, beforeEach } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { TestDatabaseManager } from '@/lib/test-utils/test-database-manager'
 
 // API Performance thresholds (in milliseconds)
 const API_PERFORMANCE_THRESHOLDS = {
-  HEALTH_CHECK: 100,          // Health check endpoints should respond under 100ms
-  SIMPLE_GET: 200,            // Simple GET requests should respond under 200ms
-  SEARCH_API: 500,            // Search API should respond under 500ms
-  AUTH_API: 300,              // Authentication API should respond under 300ms
-  COMPLEX_POST: 800,          // Complex POST operations should complete under 800ms
-  DATABASE_API: 400,          // Database-dependent APIs should respond under 400ms
+  HEALTH_CHECK: 100, // Health check endpoints should respond under 100ms
+  SIMPLE_GET: 200, // Simple GET requests should respond under 200ms
+  SEARCH_API: 500, // Search API should respond under 500ms
+  AUTH_API: 300, // Authentication API should respond under 300ms
+  COMPLEX_POST: 800, // Complex POST operations should complete under 800ms
+  DATABASE_API: 400, // Database-dependent APIs should respond under 400ms
   SERVERLESS_COLD_START: 3000, // Serverless cold start should be under 3 seconds
-  SERVERLESS_WARM: 200,       // Warm serverless functions should respond under 200ms
+  SERVERLESS_WARM: 200, // Warm serverless functions should respond under 200ms
 }
 
 // Load testing parameters
 const API_LOAD_PARAMS = {
-  LIGHT_LOAD: 10,            // 10 concurrent requests
-  MEDIUM_LOAD: 25,           // 25 concurrent requests  
-  HEAVY_LOAD: 50,            // 50 concurrent requests
-  STRESS_LOAD: 100,          // 100 concurrent requests
+  LIGHT_LOAD: 10, // 10 concurrent requests
+  MEDIUM_LOAD: 25, // 25 concurrent requests
+  HEAVY_LOAD: 50, // 50 concurrent requests
+  STRESS_LOAD: 100, // 100 concurrent requests
 }
 
 interface ApiPerformanceMetrics {
@@ -66,11 +66,11 @@ describe('API Performance Testing', () => {
 
   async function measureApiCall(
     url: string,
-    options: RequestInit = {},
+    options: RequestInit,
     description: string
   ): Promise<{ response: Response; metrics: ApiPerformanceMetrics }> {
     const startTime = performance.now()
-    
+
     try {
       const response = await fetch(url, {
         ...options,
@@ -90,7 +90,7 @@ describe('API Performance Testing', () => {
         serverTimingHeader.split(',').forEach(timing => {
           const [name, value] = timing.trim().split('=')
           if (value) {
-            serverTiming[name] = parseFloat(value)
+            serverTiming[name] = Number.parseFloat(value)
           }
         })
       }
@@ -106,7 +106,7 @@ describe('API Performance Testing', () => {
       const metrics: ApiPerformanceMetrics = {
         responseTime,
         statusCode: response.status,
-        contentLength: parseInt(response.headers.get('content-length') || '0'),
+        contentLength: Number.parseInt(response.headers.get('content-length') || '0'),
         headers: Object.fromEntries(response.headers.entries()),
         body,
         serverTiming,
@@ -125,23 +125,23 @@ describe('API Performance Testing', () => {
 
   async function runLoadTest(
     url: string,
-    options: RequestInit = {},
+    options: RequestInit,
     concurrency: number,
     description: string
   ): Promise<LoadTestResults> {
     console.log(`🔥 Starting load test: ${description} (${concurrency} concurrent requests)`)
-    
+
     const startTime = performance.now()
     const results: { success: boolean; responseTime: number }[] = []
 
     const promises = Array.from({ length: concurrency }, async () => {
       try {
-        const { metrics } = await measureApiCall(url, options, `Load test request`)
+        const { metrics } = await measureApiCall(url, options, 'Load test request')
         results.push({
           success: metrics.statusCode >= 200 && metrics.statusCode < 400,
           responseTime: metrics.responseTime,
         })
-      } catch (error) {
+      } catch (_error) {
         results.push({
           success: false,
           responseTime: 0,
@@ -156,7 +156,7 @@ describe('API Performance Testing', () => {
     const successCount = results.filter(r => r.success).length
     const failureCount = results.filter(r => !r.success).length
     const responseTimes = results.filter(r => r.success).map(r => r.responseTime)
-    
+
     if (responseTimes.length === 0) {
       throw new Error('All requests failed in load test')
     }
@@ -186,11 +186,7 @@ describe('API Performance Testing', () => {
 
   describe('Health Check Endpoints', () => {
     it('should respond to health check quickly', async () => {
-      const { metrics } = await measureApiCall(
-        `${baseUrl}/api/health`,
-        {},
-        'Health check endpoint'
-      )
+      const { metrics } = await measureApiCall(`${baseUrl}/api/health`, {}, 'Health check endpoint')
 
       expect(metrics.statusCode).toBe(200)
       expect(metrics.responseTime).toBeLessThan(API_PERFORMANCE_THRESHOLDS.HEALTH_CHECK)
@@ -341,7 +337,7 @@ describe('API Performance Testing', () => {
         `${baseUrl}/api/auth/session`,
         {
           headers: {
-            'Authorization': 'Bearer test-session-token',
+            Authorization: 'Bearer test-session-token',
           },
         },
         'Session validation'
@@ -368,7 +364,7 @@ describe('API Performance Testing', () => {
     it('should handle warm serverless function calls efficiently', async () => {
       // First call to warm up the function
       await measureApiCall(`${baseUrl}/api/health`, {}, 'Warm-up call')
-      
+
       // Wait a moment
       await new Promise(resolve => setTimeout(resolve, 100))
 
@@ -403,7 +399,7 @@ describe('API Performance Testing', () => {
       const maxResponseTime = Math.max(...results.map(r => r.responseTime))
       const successRate = (results.filter(r => r.statusCode === 200).length / results.length) * 100
 
-      console.log(`🚀 Serverless scaling test:`)
+      console.log('🚀 Serverless scaling test:')
       console.log(`  Average Response Time: ${avgResponseTime.toFixed(2)}ms`)
       console.log(`  Max Response Time: ${maxResponseTime.toFixed(2)}ms`)
       console.log(`  Success Rate: ${successRate.toFixed(1)}%`)
@@ -436,7 +432,9 @@ describe('API Performance Testing', () => {
 
       expect(loadResults.successRate).toBeGreaterThan(90)
       expect(loadResults.averageResponseTime).toBeLessThan(API_PERFORMANCE_THRESHOLDS.DATABASE_API)
-      expect(loadResults.p95ResponseTime).toBeLessThan(API_PERFORMANCE_THRESHOLDS.DATABASE_API * 1.5)
+      expect(loadResults.p95ResponseTime).toBeLessThan(
+        API_PERFORMANCE_THRESHOLDS.DATABASE_API * 1.5
+      )
     })
   })
 
@@ -491,7 +489,7 @@ describe('API Performance Testing', () => {
           `Performance consistency run ${i + 1}`
         )
         results.push(metrics.responseTime)
-        
+
         // Small delay between runs
         await new Promise(resolve => setTimeout(resolve, 200))
       }
@@ -500,7 +498,7 @@ describe('API Performance Testing', () => {
       const maxTime = Math.max(...results)
       const minTime = Math.min(...results)
       const standardDeviation = Math.sqrt(
-        results.reduce((sum, time) => sum + Math.pow(time - avgTime, 2), 0) / runs
+        results.reduce((sum, time) => sum + (time - avgTime) ** 2, 0) / runs
       )
       const coefficientOfVariation = standardDeviation / avgTime
 
@@ -530,14 +528,14 @@ describe('API Performance Testing', () => {
       }
 
       const mean = responseTimes.reduce((sum, time) => sum + time, 0) / samples
-      const variance = responseTimes.reduce((sum, time) => sum + Math.pow(time - mean, 2), 0) / samples
+      const variance = responseTimes.reduce((sum, time) => sum + (time - mean) ** 2, 0) / samples
       const standardDeviation = Math.sqrt(variance)
 
       // Check for outliers (values beyond 2 standard deviations)
       const outliers = responseTimes.filter(time => Math.abs(time - mean) > 2 * standardDeviation)
       const outlierPercentage = (outliers.length / samples) * 100
 
-      console.log(`🔍 Anomaly Detection Results:`)
+      console.log('🔍 Anomaly Detection Results:')
       console.log(`Mean Response Time: ${mean.toFixed(2)}ms`)
       console.log(`Standard Deviation: ${standardDeviation.toFixed(2)}ms`)
       console.log(`Outliers: ${outliers.length}/${samples} (${outlierPercentage.toFixed(1)}%)`)
@@ -570,7 +568,9 @@ describe('API Performance Testing', () => {
       )
 
       expect(loadResults.successRate).toBeGreaterThan(95)
-      expect(loadResults.averageResponseTime).toBeLessThan(API_PERFORMANCE_THRESHOLDS.SIMPLE_GET * 1.5)
+      expect(loadResults.averageResponseTime).toBeLessThan(
+        API_PERFORMANCE_THRESHOLDS.SIMPLE_GET * 1.5
+      )
       expect(loadResults.requestsPerSecond).toBeGreaterThan(15)
     })
 
@@ -583,12 +583,14 @@ describe('API Performance Testing', () => {
       )
 
       expect(loadResults.successRate).toBeGreaterThan(90)
-      expect(loadResults.averageResponseTime).toBeLessThan(API_PERFORMANCE_THRESHOLDS.SIMPLE_GET * 2)
+      expect(loadResults.averageResponseTime).toBeLessThan(
+        API_PERFORMANCE_THRESHOLDS.SIMPLE_GET * 2
+      )
       expect(loadResults.requestsPerSecond).toBeGreaterThan(10)
     })
   })
 })
 
 // Export utilities for other test files
-export { measureApiCall, runLoadTest, API_PERFORMANCE_THRESHOLDS }
+export { type measureApiCall, type runLoadTest, API_PERFORMANCE_THRESHOLDS }
 export type { ApiPerformanceMetrics, LoadTestResults }

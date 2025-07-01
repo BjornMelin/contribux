@@ -1,7 +1,7 @@
 /**
  * Comprehensive API Routes Testing Suite
  * Phase 4: Complete API testing with NextAuth.js v5 and Drizzle ORM
- * 
+ *
  * MISSION: API Routes Testing Excellence
  * - Authentication & Authorization Testing
  * - Endpoint Validation & Security
@@ -10,7 +10,7 @@
 
 import { HttpResponse, http } from 'msw'
 import { setupServer } from 'msw/node'
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { z } from 'zod'
 
 // Global MSW setup
@@ -31,32 +31,36 @@ const ApiErrorSchema = z.object({
   request_id: z.string().optional(),
 })
 
-const ApiSuccessSchema = z.object({
+const _ApiSuccessSchema = z.object({
   success: z.literal(true),
   data: z.any(),
-  metadata: z.object({
-    query: z.string(),
-    filters: z.any(),
-    execution_time_ms: z.number(),
-    performance_note: z.string().optional(),
-  }).optional(),
+  metadata: z
+    .object({
+      query: z.string(),
+      filters: z.any(),
+      execution_time_ms: z.number(),
+      performance_note: z.string().optional(),
+    })
+    .optional(),
 })
 
 const SearchRepositoriesResponseSchema = z.object({
   success: z.literal(true),
   data: z.object({
-    repositories: z.array(z.object({
-      id: z.string().uuid(),
-      githubId: z.number(),
-      fullName: z.string(),
-      name: z.string(),
-      owner: z.string(),
-      description: z.string().nullable(),
-      metadata: z.any().optional(),
-      healthMetrics: z.any().optional(),
-      createdAt: z.string(),
-      updatedAt: z.string(),
-    })),
+    repositories: z.array(
+      z.object({
+        id: z.string().uuid(),
+        githubId: z.number(),
+        fullName: z.string(),
+        name: z.string(),
+        owner: z.string(),
+        description: z.string().nullable(),
+        metadata: z.any().optional(),
+        healthMetrics: z.any().optional(),
+        createdAt: z.string(),
+        updatedAt: z.string(),
+      })
+    ),
     total_count: z.number(),
     page: z.number(),
     per_page: z.number(),
@@ -73,20 +77,22 @@ const SearchRepositoriesResponseSchema = z.object({
 const SearchOpportunitiesResponseSchema = z.object({
   success: z.literal(true),
   data: z.object({
-    opportunities: z.array(z.object({
-      id: z.string().uuid(),
-      repositoryId: z.string().uuid().nullable(),
-      issueNumber: z.number().nullable(),
-      title: z.string(),
-      description: z.string().nullable(),
-      url: z.string().nullable(),
-      metadata: z.any().optional(),
-      difficultyScore: z.number(),
-      impactScore: z.number(),
-      matchScore: z.number(),
-      createdAt: z.string(),
-      updatedAt: z.string(),
-    })),
+    opportunities: z.array(
+      z.object({
+        id: z.string().uuid(),
+        repositoryId: z.string().uuid().nullable(),
+        issueNumber: z.number().nullable(),
+        title: z.string(),
+        description: z.string().nullable(),
+        url: z.string().nullable(),
+        metadata: z.any().optional(),
+        difficultyScore: z.number(),
+        impactScore: z.number(),
+        matchScore: z.number(),
+        createdAt: z.string(),
+        updatedAt: z.string(),
+      })
+    ),
     total_count: z.number(),
     page: z.number(),
     per_page: z.number(),
@@ -158,13 +164,16 @@ describe('PHASE 1: Authentication Testing', () => {
     it('should reject unauthenticated requests to /api/search/repositories', async () => {
       server.use(
         http.get('http://localhost:3000/api/search/repositories', () => {
-          return HttpResponse.json({
-            success: false,
-            error: {
-              code: 'UNAUTHORIZED',
-              message: 'Authentication required',
+          return HttpResponse.json(
+            {
+              success: false,
+              error: {
+                code: 'UNAUTHORIZED',
+                message: 'Authentication required',
+              },
             },
-          }, { status: 401 })
+            { status: 401 }
+          )
         })
       )
 
@@ -180,13 +189,16 @@ describe('PHASE 1: Authentication Testing', () => {
     it('should reject unauthenticated requests to /api/search/opportunities', async () => {
       server.use(
         http.get('http://localhost:3000/api/search/opportunities', () => {
-          return HttpResponse.json({
-            success: false,
-            error: {
-              code: 'UNAUTHORIZED',
-              message: 'Authentication required',
+          return HttpResponse.json(
+            {
+              success: false,
+              error: {
+                code: 'UNAUTHORIZED',
+                message: 'Authentication required',
+              },
             },
-          }, { status: 401 })
+            { status: 401 }
+          )
         })
       )
 
@@ -217,11 +229,11 @@ describe('PHASE 1: Authentication Testing', () => {
         http.get('http://localhost:3000/api/auth/providers', ({ request }) => {
           const url = new URL(request.url)
           const userId = url.searchParams.get('userId')
-          
+
           if (userId && userId !== 'current-user-id') {
             return HttpResponse.json({ error: 'Forbidden' }, { status: 403 })
           }
-          
+
           return HttpResponse.json({ providers: [] })
         })
       )
@@ -239,21 +251,29 @@ describe('PHASE 1: Authentication Testing', () => {
       server.use(
         http.get('http://localhost:3000/api/search/repositories', ({ request }) => {
           const authHeader = request.headers.get('Authorization')
-          
+
           if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return HttpResponse.json({
-              success: false,
-              error: {
-                code: 'INVALID_TOKEN',
-                message: 'Valid authentication token required',
+            return HttpResponse.json(
+              {
+                success: false,
+                error: {
+                  code: 'INVALID_TOKEN',
+                  message: 'Valid authentication token required',
+                },
               },
-            }, { status: 401 })
+              { status: 401 }
+            )
           }
 
           return HttpResponse.json({
             success: true,
             data: { repositories: [], total_count: 0, page: 1, per_page: 20, has_more: false },
-            metadata: { query: '', filters: {}, execution_time_ms: 25, performance_note: 'Test query' },
+            metadata: {
+              query: '',
+              filters: {},
+              execution_time_ms: 25,
+              performance_note: 'Test query',
+            },
           })
         })
       )
@@ -263,14 +283,17 @@ describe('PHASE 1: Authentication Testing', () => {
       expect(responseWithoutToken.status).toBe(401)
 
       // Test with invalid token format
-      const responseWithInvalidToken = await fetch('http://localhost:3000/api/search/repositories', {
-        headers: { Authorization: 'InvalidToken' }
-      })
+      const responseWithInvalidToken = await fetch(
+        'http://localhost:3000/api/search/repositories',
+        {
+          headers: { Authorization: 'InvalidToken' },
+        }
+      )
       expect(responseWithInvalidToken.status).toBe(401)
 
       // Test with valid token format
       const responseWithValidToken = await fetch('http://localhost:3000/api/search/repositories', {
-        headers: { Authorization: 'Bearer valid-token-123' }
+        headers: { Authorization: 'Bearer valid-token-123' },
       })
       expect(responseWithValidToken.status).toBe(200)
     })
@@ -279,29 +302,37 @@ describe('PHASE 1: Authentication Testing', () => {
       server.use(
         http.get('http://localhost:3000/api/search/opportunities', ({ request }) => {
           const authHeader = request.headers.get('Authorization')
-          
+
           if (authHeader?.includes('expired')) {
-            return HttpResponse.json({
-              success: false,
-              error: {
-                code: 'TOKEN_EXPIRED',
-                message: 'Authentication token has expired',
+            return HttpResponse.json(
+              {
+                success: false,
+                error: {
+                  code: 'TOKEN_EXPIRED',
+                  message: 'Authentication token has expired',
+                },
               },
-            }, { status: 401 })
+              { status: 401 }
+            )
           }
 
           return HttpResponse.json({
             success: true,
             data: { opportunities: [], total_count: 0, page: 1, per_page: 20, has_more: false },
-            metadata: { query: '', filters: {}, execution_time_ms: 25, performance_note: 'Test query' },
+            metadata: {
+              query: '',
+              filters: {},
+              execution_time_ms: 25,
+              performance_note: 'Test query',
+            },
           })
         })
       )
 
       const response = await fetch('http://localhost:3000/api/search/opportunities', {
-        headers: { Authorization: 'Bearer expired-token' }
+        headers: { Authorization: 'Bearer expired-token' },
       })
-      
+
       expect(response.status).toBe(401)
       const data = await response.json()
       const validatedError = ApiErrorSchema.parse(data)
@@ -320,13 +351,16 @@ describe('PHASE 1: Authentication Testing', () => {
       for (const endpoint of endpoints) {
         server.use(
           http.get(`http://localhost:3000${endpoint}`, () => {
-            return HttpResponse.json({
-              success: false,
-              error: {
-                code: 'UNAUTHORIZED',
-                message: 'Authentication required',
+            return HttpResponse.json(
+              {
+                success: false,
+                error: {
+                  code: 'UNAUTHORIZED',
+                  message: 'Authentication required',
+                },
               },
-            }, { status: 401 })
+              { status: 401 }
+            )
           })
         )
 
@@ -386,7 +420,7 @@ describe('PHASE 2: Endpoint Testing', () => {
 
       const data = await response.json()
       const validatedResponse = SearchRepositoriesResponseSchema.parse(data)
-      
+
       expect(validatedResponse.success).toBe(true)
       expect(validatedResponse.data.repositories).toHaveLength(1)
       expect(validatedResponse.data.repositories[0].fullName).toBe('test-org/test-repo')
@@ -401,51 +435,79 @@ describe('PHASE 2: Endpoint Testing', () => {
           const perPage = url.searchParams.get('per_page')
 
           // Validate page parameter
-          if (page && (isNaN(Number(page)) || Number(page) < 1)) {
-            return HttpResponse.json({
-              success: false,
-              error: {
-                code: 'INVALID_PARAMETER',
-                message: 'Expected number, received nan',
-                details: [{ path: ['page'], message: 'Expected number, received nan' }],
+          if (page && (Number.isNaN(Number(page)) || Number(page) < 1)) {
+            return HttpResponse.json(
+              {
+                success: false,
+                error: {
+                  code: 'INVALID_PARAMETER',
+                  message: 'Expected number, received nan',
+                  details: [{ path: ['page'], message: 'Expected number, received nan' }],
+                },
               },
-            }, { status: 400 })
+              { status: 400 }
+            )
           }
 
           // Validate per_page parameter
-          if (perPage && (isNaN(Number(perPage)) || Number(perPage) < 1 || Number(perPage) > 100)) {
-            return HttpResponse.json({
-              success: false,
-              error: {
-                code: 'INVALID_PARAMETER',
-                message: 'Number must be greater than or equal to 1',
-                details: [{ path: ['per_page'], message: 'Number must be greater than or equal to 1' }],
+          if (
+            perPage &&
+            (Number.isNaN(Number(perPage)) || Number(perPage) < 1 || Number(perPage) > 100)
+          ) {
+            return HttpResponse.json(
+              {
+                success: false,
+                error: {
+                  code: 'INVALID_PARAMETER',
+                  message: 'Number must be greater than or equal to 1',
+                  details: [
+                    { path: ['per_page'], message: 'Number must be greater than or equal to 1' },
+                  ],
+                },
               },
-            }, { status: 400 })
+              { status: 400 }
+            )
           }
 
           return HttpResponse.json({
             success: true,
-            data: { repositories: [], total_count: 0, page: Number(page) || 1, per_page: Number(perPage) || 20, has_more: false },
-            metadata: { query: '', filters: {}, execution_time_ms: 25, performance_note: 'Test query' },
+            data: {
+              repositories: [],
+              total_count: 0,
+              page: Number(page) || 1,
+              per_page: Number(perPage) || 20,
+              has_more: false,
+            },
+            metadata: {
+              query: '',
+              filters: {},
+              execution_time_ms: 25,
+              performance_note: 'Test query',
+            },
           })
         })
       )
 
       // Test invalid page parameter
-      const invalidPageResponse = await fetch('http://localhost:3000/api/search/repositories?page=invalid')
+      const invalidPageResponse = await fetch(
+        'http://localhost:3000/api/search/repositories?page=invalid'
+      )
       expect(invalidPageResponse.status).toBe(400)
-      
+
       const invalidPageData = await invalidPageResponse.json()
       const validatedError = ApiErrorSchema.parse(invalidPageData)
       expect(validatedError.error.code).toBe('INVALID_PARAMETER')
 
       // Test per_page out of range
-      const invalidPerPageResponse = await fetch('http://localhost:3000/api/search/repositories?per_page=200')
+      const invalidPerPageResponse = await fetch(
+        'http://localhost:3000/api/search/repositories?per_page=200'
+      )
       expect(invalidPerPageResponse.status).toBe(400)
 
       // Test valid parameters
-      const validResponse = await fetch('http://localhost:3000/api/search/repositories?page=2&per_page=50')
+      const validResponse = await fetch(
+        'http://localhost:3000/api/search/repositories?page=2&per_page=50'
+      )
       expect(validResponse.status).toBe(200)
     })
 
@@ -460,14 +522,16 @@ describe('PHASE 2: Endpoint Testing', () => {
           const isArchived = url.searchParams.get('is_archived')
           const license = url.searchParams.get('license')
 
-          const filteredRepositories = [generateMockRepository({
-            metadata: {
-              language,
-              stars: Number(minStars) || 1250,
-              topics: topics ? topics.split(',') : ['testing'],
-              license: license || 'MIT',
-            }
-          })]
+          const filteredRepositories = [
+            generateMockRepository({
+              metadata: {
+                language,
+                stars: Number(minStars) || 1250,
+                topics: topics ? topics.split(',') : ['testing'],
+                license: license || 'MIT',
+              },
+            }),
+          ]
 
           return HttpResponse.json({
             success: true,
@@ -499,13 +563,13 @@ describe('PHASE 2: Endpoint Testing', () => {
 
       const response = await fetch(
         'http://localhost:3000/api/search/repositories?' +
-        'language=TypeScript&min_stars=1000&topics=testing,api&has_issues=true&license=MIT'
+          'language=TypeScript&min_stars=1000&topics=testing,api&has_issues=true&license=MIT'
       )
-      
+
       expect(response.status).toBe(200)
       const data = await response.json()
       const validatedResponse = SearchRepositoriesResponseSchema.parse(data)
-      
+
       expect(validatedResponse.metadata.filters.language).toBe('TypeScript')
       expect(validatedResponse.metadata.filters.min_stars).toBe(1000)
       expect(validatedResponse.metadata.filters.topics).toEqual(['testing', 'api'])
@@ -567,11 +631,11 @@ describe('PHASE 2: Endpoint Testing', () => {
       const response = await fetch(
         'http://localhost:3000/api/search/opportunities?q=typescript&difficulty=intermediate&good_first_issue=true'
       )
-      
+
       expect(response.status).toBe(200)
       const data = await response.json()
       const validatedResponse = SearchOpportunitiesResponseSchema.parse(data)
-      
+
       expect(validatedResponse.success).toBe(true)
       expect(validatedResponse.data.opportunities).toHaveLength(1)
       expect(validatedResponse.metadata.query).toBe('typescript')
@@ -595,35 +659,50 @@ describe('PHASE 2: Endpoint Testing', () => {
             ['min_impact_score', minImpact],
             ['max_impact_score', maxImpact],
           ]) {
-            if (value && (isNaN(Number(value)) || Number(value) < 1 || Number(value) > 10)) {
-              return HttpResponse.json({
-                success: false,
-                error: {
-                  code: 'INVALID_PARAMETER',
-                  message: 'Number must be between 1 and 10',
-                  details: [{ path: [param], message: 'Number must be between 1 and 10' }],
+            if (value && (Number.isNaN(Number(value)) || Number(value) < 1 || Number(value) > 10)) {
+              return HttpResponse.json(
+                {
+                  success: false,
+                  error: {
+                    code: 'INVALID_PARAMETER',
+                    message: 'Number must be between 1 and 10',
+                    details: [{ path: [param], message: 'Number must be between 1 and 10' }],
+                  },
                 },
-              }, { status: 400 })
+                { status: 400 }
+              )
             }
           }
 
           return HttpResponse.json({
             success: true,
             data: { opportunities: [], total_count: 0, page: 1, per_page: 20, has_more: false },
-            metadata: { query: '', filters: {}, execution_time_ms: 25, performance_note: 'Test query', stats: {} },
+            metadata: {
+              query: '',
+              filters: {},
+              execution_time_ms: 25,
+              performance_note: 'Test query',
+              stats: {},
+            },
           })
         })
       )
 
       // Test invalid ranges
-      const invalidMinResponse = await fetch('http://localhost:3000/api/search/opportunities?min_difficulty_score=0')
+      const invalidMinResponse = await fetch(
+        'http://localhost:3000/api/search/opportunities?min_difficulty_score=0'
+      )
       expect(invalidMinResponse.status).toBe(400)
 
-      const invalidMaxResponse = await fetch('http://localhost:3000/api/search/opportunities?max_impact_score=15')
+      const invalidMaxResponse = await fetch(
+        'http://localhost:3000/api/search/opportunities?max_impact_score=15'
+      )
       expect(invalidMaxResponse.status).toBe(400)
 
       // Test valid ranges
-      const validResponse = await fetch('http://localhost:3000/api/search/opportunities?min_difficulty_score=3&max_difficulty_score=7')
+      const validResponse = await fetch(
+        'http://localhost:3000/api/search/opportunities?min_difficulty_score=3&max_difficulty_score=7'
+      )
       expect(validResponse.status).toBe(200)
     })
   })
@@ -665,23 +744,26 @@ describe('PHASE 2: Endpoint Testing', () => {
     it('should handle degraded health status', async () => {
       server.use(
         http.get('http://localhost:3000/api/health', () => {
-          return HttpResponse.json({
-            status: 'degraded',
-            timestamp: new Date().toISOString(),
-            version: '1.0.0',
-            checks: {
-              database: {
-                status: 'degraded',
-                response_time_ms: 2500,
-                details: 'High response time detected',
-              },
-              memory: {
-                status: 'healthy',
-                usage_mb: 512,
-                free_mb: 512,
+          return HttpResponse.json(
+            {
+              status: 'degraded',
+              timestamp: new Date().toISOString(),
+              version: '1.0.0',
+              checks: {
+                database: {
+                  status: 'degraded',
+                  response_time_ms: 2500,
+                  details: 'High response time detected',
+                },
+                memory: {
+                  status: 'healthy',
+                  usage_mb: 512,
+                  free_mb: 512,
+                },
               },
             },
-          }, { status: 200 })
+            { status: 200 }
+          )
         })
       )
 
@@ -701,14 +783,17 @@ describe('PHASE 3: Integration Testing', () => {
     it('should handle database connection errors gracefully', async () => {
       server.use(
         http.get('http://localhost:3000/api/search/repositories', () => {
-          return HttpResponse.json({
-            success: false,
-            error: {
-              code: 'DATABASE_ERROR',
-              message: 'Database connection failed',
+          return HttpResponse.json(
+            {
+              success: false,
+              error: {
+                code: 'DATABASE_ERROR',
+                message: 'Database connection failed',
+              },
+              request_id: `req_${Date.now()}_abc123`,
             },
-            request_id: `req_${Date.now()}_abc123`,
-          }, { status: 500 })
+            { status: 500 }
+          )
         })
       )
 
@@ -724,14 +809,17 @@ describe('PHASE 3: Integration Testing', () => {
     it('should handle database timeout scenarios', async () => {
       server.use(
         http.get('http://localhost:3000/api/search/opportunities', () => {
-          return HttpResponse.json({
-            success: false,
-            error: {
-              code: 'DATABASE_TIMEOUT',
-              message: 'Database query timeout exceeded',
+          return HttpResponse.json(
+            {
+              success: false,
+              error: {
+                code: 'DATABASE_TIMEOUT',
+                message: 'Database query timeout exceeded',
+              },
+              request_id: `req_${Date.now()}_timeout`,
             },
-            request_id: `req_${Date.now()}_timeout`,
-          }, { status: 504 })
+            { status: 504 }
+          )
         })
       )
 
@@ -746,7 +834,7 @@ describe('PHASE 3: Integration Testing', () => {
 
   describe('Performance & Concurrency', () => {
     it('should handle concurrent requests efficiently', async () => {
-      const mockRepositories = Array.from({ length: 5 }, (_, i) => 
+      const mockRepositories = Array.from({ length: 5 }, (_, i) =>
         generateMockRepository({ fullName: `org/repo-${i}` })
       )
 
@@ -772,12 +860,12 @@ describe('PHASE 3: Integration Testing', () => {
       )
 
       // Send 10 concurrent requests
-      const requests = Array.from({ length: 10 }, () => 
+      const requests = Array.from({ length: 10 }, () =>
         fetch('http://localhost:3000/api/search/repositories?q=concurrent-test')
       )
 
       const responses = await Promise.all(requests)
-      
+
       // All requests should succeed
       for (const response of responses) {
         expect(response.status).toBe(200)
@@ -798,7 +886,7 @@ describe('PHASE 3: Integration Testing', () => {
         server.use(
           http.get(`http://localhost:3000${test.endpoint}`, () => {
             const executionTime = Math.floor(Math.random() * 100) + 20 // 20-120ms
-            
+
             if (test.endpoint === '/api/health') {
               return HttpResponse.json({
                 status: 'healthy',
@@ -810,7 +898,7 @@ describe('PHASE 3: Integration Testing', () => {
 
             return HttpResponse.json({
               success: true,
-              data: test.endpoint.includes('repositories') 
+              data: test.endpoint.includes('repositories')
                 ? { repositories: [], total_count: 0, page: 1, per_page: 20, has_more: false }
                 : { opportunities: [], total_count: 0, page: 1, per_page: 20, has_more: false },
               metadata: {
@@ -828,7 +916,7 @@ describe('PHASE 3: Integration Testing', () => {
         expect(response.status).toBe(200)
 
         const data = await response.json()
-        
+
         if (test.endpoint === '/api/health') {
           expect(typeof data.execution_time_ms).toBe('number')
           expect(data.execution_time_ms).toBeGreaterThan(0)
@@ -847,43 +935,54 @@ describe('PHASE 3: Integration Testing', () => {
       server.use(
         http.get('http://localhost:3000/api/search/repositories', () => {
           requestCount++
-          
+
           if (requestCount > 5) {
-            return HttpResponse.json({
-              success: false,
-              error: {
-                code: 'RATE_LIMIT_EXCEEDED',
-                message: 'Too many requests, please try again later',
+            return HttpResponse.json(
+              {
+                success: false,
+                error: {
+                  code: 'RATE_LIMIT_EXCEEDED',
+                  message: 'Too many requests, please try again later',
+                },
               },
-            }, { 
-              status: 429,
-              headers: {
-                'X-RateLimit-Limit': '5',
-                'X-RateLimit-Remaining': '0',
-                'X-RateLimit-Reset': String(Date.now() + 60000),
-                'Retry-After': '60',
+              {
+                status: 429,
+                headers: {
+                  'X-RateLimit-Limit': '5',
+                  'X-RateLimit-Remaining': '0',
+                  'X-RateLimit-Reset': String(Date.now() + 60000),
+                  'Retry-After': '60',
+                },
               }
-            })
+            )
           }
 
-          return HttpResponse.json({
-            success: true,
-            data: { repositories: [], total_count: 0, page: 1, per_page: 20, has_more: false },
-            metadata: { query: '', filters: {}, execution_time_ms: 25, performance_note: 'Rate limit test' },
-          }, {
-            headers: {
-              'X-RateLimit-Limit': '5',
-              'X-RateLimit-Remaining': String(5 - requestCount),
-              'X-RateLimit-Reset': String(Date.now() + 60000),
+          return HttpResponse.json(
+            {
+              success: true,
+              data: { repositories: [], total_count: 0, page: 1, per_page: 20, has_more: false },
+              metadata: {
+                query: '',
+                filters: {},
+                execution_time_ms: 25,
+                performance_note: 'Rate limit test',
+              },
+            },
+            {
+              headers: {
+                'X-RateLimit-Limit': '5',
+                'X-RateLimit-Remaining': String(5 - requestCount),
+                'X-RateLimit-Reset': String(Date.now() + 60000),
+              },
             }
-          })
+          )
         })
       )
 
       // Send requests until rate limit is hit
       for (let i = 1; i <= 7; i++) {
         const response = await fetch('http://localhost:3000/api/search/repositories')
-        
+
         if (i <= 5) {
           expect(response.status).toBe(200)
           expect(response.headers.get('X-RateLimit-Remaining')).toBe(String(5 - i))
@@ -891,7 +990,7 @@ describe('PHASE 3: Integration Testing', () => {
           expect(response.status).toBe(429)
           expect(response.headers.get('X-RateLimit-Remaining')).toBe('0')
           expect(response.headers.get('Retry-After')).toBe('60')
-          
+
           const data = await response.json()
           const validatedError = ApiErrorSchema.parse(data)
           expect(validatedError.error.code).toBe('RATE_LIMIT_EXCEEDED')
@@ -906,20 +1005,31 @@ describe('PHASE 3: Integration Testing', () => {
           const query = url.searchParams.get('q')
 
           // Check for potential injection attacks
-          if (query && (query.includes('<script>') || query.includes('DROP TABLE') || query.includes('OR 1=1'))) {
-            return HttpResponse.json({
-              success: false,
-              error: {
-                code: 'INVALID_INPUT',
-                message: 'Invalid characters detected in query parameter',
+          if (
+            query &&
+            (query.includes('<script>') || query.includes('DROP TABLE') || query.includes('OR 1=1'))
+          ) {
+            return HttpResponse.json(
+              {
+                success: false,
+                error: {
+                  code: 'INVALID_INPUT',
+                  message: 'Invalid characters detected in query parameter',
+                },
               },
-            }, { status: 400 })
+              { status: 400 }
+            )
           }
 
           return HttpResponse.json({
             success: true,
             data: { repositories: [], total_count: 0, page: 1, per_page: 20, has_more: false },
-            metadata: { query: query || '', filters: {}, execution_time_ms: 25, performance_note: 'Input validation test' },
+            metadata: {
+              query: query || '',
+              filters: {},
+              execution_time_ms: 25,
+              performance_note: 'Input validation test',
+            },
           })
         })
       )
@@ -929,11 +1039,15 @@ describe('PHASE 3: Integration Testing', () => {
       expect(sqlResponse.status).toBe(400)
 
       // Test XSS attempt
-      const xssResponse = await fetch('http://localhost:3000/api/search/repositories?q=<script>alert("xss")</script>')
+      const xssResponse = await fetch(
+        'http://localhost:3000/api/search/repositories?q=<script>alert("xss")</script>'
+      )
       expect(xssResponse.status).toBe(400)
 
       // Test normal query
-      const normalResponse = await fetch('http://localhost:3000/api/search/repositories?q=typescript')
+      const normalResponse = await fetch(
+        'http://localhost:3000/api/search/repositories?q=typescript'
+      )
       expect(normalResponse.status).toBe(200)
     })
   })
@@ -942,14 +1056,17 @@ describe('PHASE 3: Integration Testing', () => {
     it('should provide meaningful error messages with request tracking', async () => {
       server.use(
         http.get('http://localhost:3000/api/search/opportunities', () => {
-          return HttpResponse.json({
-            success: false,
-            error: {
-              code: 'INTERNAL_ERROR',
-              message: 'Internal server error',
+          return HttpResponse.json(
+            {
+              success: false,
+              error: {
+                code: 'INTERNAL_ERROR',
+                message: 'Internal server error',
+              },
+              request_id: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             },
-            request_id: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          }, { status: 500 })
+            { status: 500 }
+          )
         })
       )
 
@@ -966,13 +1083,16 @@ describe('PHASE 3: Integration Testing', () => {
       server.use(
         http.post('http://localhost:3000/api/search/repositories', ({ request }) => {
           // This would normally be handled by the framework, but we simulate the error
-          return HttpResponse.json({
-            success: false,
-            error: {
-              code: 'INVALID_JSON',
-              message: 'Request body contains invalid JSON',
+          return HttpResponse.json(
+            {
+              success: false,
+              error: {
+                code: 'INVALID_JSON',
+                message: 'Request body contains invalid JSON',
+              },
             },
-          }, { status: 400 })
+            { status: 400 }
+          )
         })
       )
 

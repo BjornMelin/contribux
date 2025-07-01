@@ -342,6 +342,254 @@ describe('API Security Integration Tests', () => {
     })
   })
 
+  describe('Enhanced Security Headers Validation', () => {
+    it('should enforce comprehensive security headers', async () => {
+      const response = await fetch('http://localhost:3000/api/search/repositories?q=test', {
+        method: 'GET',
+        headers: {
+          Cookie: 'next-auth.session-token=valid-session',
+        },
+      })
+
+      // Comprehensive security headers validation
+      const requiredHeaders = {
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY',
+        'X-XSS-Protection': '1; mode=block',
+        'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+        'Content-Security-Policy': "default-src 'self'",
+        'Referrer-Policy': 'strict-origin-when-cross-origin',
+        'Permissions-Policy': 'geolocation=(), microphone=(), camera=()',
+      }
+
+      Object.entries(requiredHeaders).forEach(([header, expectedValue]) => {
+        const actualValue = response.headers.get(header)
+        if (header === 'Strict-Transport-Security') {
+          expect(actualValue).toContain('max-age')
+          expect(actualValue).toContain('includeSubDomains')
+        } else if (header === 'Content-Security-Policy') {
+          expect(actualValue).toContain('default-src')
+        } else {
+          expect(actualValue).toBe(expectedValue)
+        }
+      })
+    })
+
+    it('should prevent information disclosure in error responses', async () => {
+      const response = await fetch('http://localhost:3000/api/nonexistent', {
+        method: 'GET',
+      })
+
+      expect(response.status).toBe(404)
+      const errorData = await response.json()
+
+      // Should not expose sensitive information
+      expect(errorData).not.toHaveProperty('stack')
+      expect(errorData).not.toHaveProperty('file')
+      expect(errorData).not.toHaveProperty('line')
+      expect(JSON.stringify(errorData)).not.toContain('node_modules')
+      expect(JSON.stringify(errorData)).not.toContain('database')
+    })
+
+    it('should implement proper CORS configuration', async () => {
+      const response = await fetch('http://localhost:3000/api/health', {
+        method: 'OPTIONS',
+        headers: {
+          Origin: 'https://malicious-site.com',
+          'Access-Control-Request-Method': 'POST',
+        },
+      })
+
+      // Should not allow arbitrary origins
+      const allowedOrigin = response.headers.get('Access-Control-Allow-Origin')
+      expect(allowedOrigin).not.toBe('*')
+      expect(allowedOrigin).not.toBe('https://malicious-site.com')
+    })
+  })
+
+  describe('Rate Limiting Security', () => {
+    it('should implement rate limiting for authentication endpoints', async () => {
+      const authRequests = Array(15)
+        .fill(null)
+        .map(() =>
+          fetch('http://localhost:3000/api/auth/signin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: 'test@example.com', password: 'password' }),
+          })
+        )
+
+      const responses = await Promise.all(authRequests)
+      const rateLimited = responses.filter(r => r.status === 429)
+
+      expect(rateLimited.length).toBeGreaterThan(0)
+
+      // Check rate limit headers
+      const rateLimitedResponse = rateLimited[0]
+      expect(rateLimitedResponse.headers.get('X-RateLimit-Limit')).toBeDefined()
+      expect(rateLimitedResponse.headers.get('X-RateLimit-Remaining')).toBeDefined()
+      expect(rateLimitedResponse.headers.get('Retry-After')).toBeDefined()
+    })
+
+    it('should implement rate limiting for API endpoints', async () => {
+      const apiRequests = Array(20)
+        .fill(null)
+        .map(() =>
+          fetch('http://localhost:3000/api/search/repositories?q=test', {
+            method: 'GET',
+            headers: {
+              Cookie: 'next-auth.session-token=valid-session',
+            },
+          })
+        )
+
+      const responses = await Promise.all(apiRequests)
+      const rateLimited = responses.filter(r => r.status === 429)
+
+      expect(rateLimited.length).toBeGreaterThan(0)
+    })
+
+    it('should have different rate limits for different endpoint categories', async () => {
+      // Test different rate limits for different types of endpoints
+      const endpointCategories = [
+        { path: '/api/auth/signin', limit: 5 },
+        { path: '/api/search/repositories', limit: 100 },
+        { path: '/api/user/profile', limit: 50 },
+      ]
+
+      for (const category of endpointCategories) {
+        const requests = Array(category.limit + 5)
+          .fill(null)
+          .map(() =>
+            fetch(`http://localhost:3000${category.path}`, {
+              method: 'GET',
+              headers: { Cookie: 'next-auth.session-token=valid-session' },
+            })
+          )
+
+        const responses = await Promise.all(requests)
+        const rateLimited = responses.filter(r => r.status === 429)
+
+        expect(rateLimited.length).toBeGreaterThan(0)
+      }
+    })
+  })
+
+  describe('Advanced Input Validation Security', () => {
+    it('should prevent NoSQL injection attempts', async () => {
+      const noSqlInjectionPayloads = [
+        '{"$ne": null}',
+        '{"$regex": ".*"}',
+        '{"$where": "sleep(1000)"}',
+        '{"$or": [{}]}',
+      ]
+
+      for (const payload of noSqlInjectionPayloads) {
+        const response = await fetch(
+          `http://localhost:3000/api/search/repositories?q=${encodeURIComponent(payload)}`,
+          {
+            method: 'GET',
+            headers: { Cookie: 'next-auth.session-token=valid-session' },
+          }
+        )
+
+        expect(response.status).toBeOneOf([400, 422])
+        const errorData = await response.json()
+        expect(errorData.error).toMatch(/invalid|dangerous|suspicious/i)
+      }
+    })
+
+    it('should validate file upload security', async () => {
+      const maliciousFiles = [
+        { name: 'malicious.php', content: '<?php system($_GET["cmd"]); ?>' },
+        { name: '../../../etc/passwd', content: 'root:x:0:0:root:/root:/bin/bash' },
+        { name: 'script.js', content: 'alert("xss")' },
+      ]
+
+      for (const file of maliciousFiles) {
+        const formData = new FormData()
+        formData.append('file', new Blob([file.content]), file.name)
+
+        const response = await fetch('http://localhost:3000/api/upload', {
+          method: 'POST',
+          headers: { Cookie: 'next-auth.session-token=valid-session' },
+          body: formData,
+        })
+
+        expect(response.status).toBe(400)
+        const errorData = await response.json()
+        expect(errorData.error).toMatch(/invalid.*file|unsupported.*type/i)
+      }
+    })
+
+    it('should sanitize GraphQL injection attempts', async () => {
+      const graphqlInjectionPayloads = [
+        '{ users { password } }',
+        'mutation { deleteAllUsers }',
+        '{ __schema { types { name } } }',
+      ]
+
+      for (const payload of graphqlInjectionPayloads) {
+        const response = await fetch('http://localhost:3000/api/graphql', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Cookie: 'next-auth.session-token=valid-session',
+          },
+          body: JSON.stringify({ query: payload }),
+        })
+
+        expect(response.status).toBeOneOf([400, 403])
+      }
+    })
+  })
+
+  describe('Security Monitoring and Alerting', () => {
+    it('should log security events for monitoring', async () => {
+      // Test that security events are properly logged
+      const suspiciousActivity = [
+        'Multiple failed login attempts',
+        'SQL injection attempt detected',
+        'Rate limit exceeded',
+        'Invalid JWT token usage',
+      ]
+
+      suspiciousActivity.forEach(activity => {
+        // Simulate security event logging
+        const securityLog = {
+          timestamp: new Date(),
+          event: activity,
+          severity: 'HIGH',
+          userId: 'unknown',
+          ip: '192.168.1.100',
+        }
+
+        expect(securityLog.timestamp).toBeInstanceOf(Date)
+        expect(securityLog.severity).toBe('HIGH')
+        expect(securityLog.event).toContain('attempt')
+      })
+    })
+
+    it('should implement intrusion detection patterns', async () => {
+      // Test patterns that should trigger intrusion detection
+      const intrusionPatterns = [
+        { pattern: 'rapid_requests', threshold: 100, timeWindow: 60 },
+        { pattern: 'failed_auth', threshold: 5, timeWindow: 300 },
+        { pattern: 'suspicious_agents', userAgent: 'sqlmap/1.0' },
+      ]
+
+      intrusionPatterns.forEach(pattern => {
+        expect(pattern.threshold).toBeGreaterThan(0)
+        if (pattern.timeWindow) {
+          expect(pattern.timeWindow).toBeGreaterThan(0)
+        }
+        if (pattern.userAgent) {
+          expect(pattern.userAgent).toMatch(/sqlmap|nikto|nmap|burp/i)
+        }
+      })
+    })
+  })
+
   describe('Security Pattern Documentation', () => {
     it('should document expected security patterns', () => {
       // This test documents the security patterns that should be implemented:

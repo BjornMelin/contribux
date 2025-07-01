@@ -3,10 +3,10 @@
  * Testing authenticated vs unauthenticated access, middleware validation, and role-based access
  */
 
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import type { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import type { NextRequest } from 'next/server'
 import type { Session } from 'next-auth'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { auth } from '@/lib/auth'
 
 // Mock NextAuth auth function
 vi.mock('@/lib/auth', () => ({
@@ -65,7 +65,7 @@ describe('NextAuth API Route Protection Integration', () => {
         url: 'https://contribux.example.com/api/protected/data',
         method: 'OPTIONS',
         headers: new Headers({
-          'origin': 'https://contribux.example.com',
+          origin: 'https://contribux.example.com',
           'access-control-request-method': 'GET',
           'access-control-request-headers': 'authorization',
         }),
@@ -90,7 +90,7 @@ describe('NextAuth API Route Protection Integration', () => {
       ]
 
       for (const route of protectedRoutes) {
-        const mockRequest = {
+        const _mockRequest = {
           url: `https://contribux.example.com${route}`,
           method: 'GET',
           headers: new Headers(),
@@ -129,11 +129,11 @@ describe('NextAuth API Route Protection Integration', () => {
       ]
 
       for (const route of protectedRoutes) {
-        const mockRequest = {
+        const _mockRequest = {
           url: `https://contribux.example.com${route}`,
           method: 'GET',
           headers: new Headers({
-            'cookie': 'next-auth.session-token=valid-session-token',
+            cookie: 'next-auth.session-token=valid-session-token',
           }),
         } as NextRequest
 
@@ -160,16 +160,16 @@ describe('NextAuth API Route Protection Integration', () => {
 
       mockAuth.mockResolvedValueOnce(expiredSession)
 
-      const mockRequest = {
+      const _mockRequest = {
         url: 'https://contribux.example.com/api/user/profile',
         method: 'GET',
         headers: new Headers({
-          'cookie': 'next-auth.session-token=expired-session-token',
+          cookie: 'next-auth.session-token=expired-session-token',
         }),
       } as NextRequest
 
       const session = await auth()
-      
+
       // Check if session is expired
       const isExpired = new Date(session?.expires || 0) < new Date()
       expect(isExpired).toBe(true)
@@ -196,13 +196,9 @@ describe('NextAuth API Route Protection Integration', () => {
 
       mockAuth.mockResolvedValueOnce(adminSession)
 
-      const adminRoutes = [
-        '/api/admin/users',
-        '/api/admin/settings',
-        '/api/admin/analytics',
-      ]
+      const adminRoutes = ['/api/admin/users', '/api/admin/settings', '/api/admin/analytics']
 
-      for (const route of adminRoutes) {
+      for (const _route of adminRoutes) {
         const session = await auth()
         expect(session?.user?.role).toBe('admin')
       }
@@ -229,10 +225,10 @@ describe('NextAuth API Route Protection Integration', () => {
 
       const session = await auth()
       expect(session?.user?.role).toBeUndefined()
-      
+
       // Regular users should not access admin routes
       const adminRoutes = ['/api/admin/users', '/api/admin/settings']
-      for (const route of adminRoutes) {
+      for (const _route of adminRoutes) {
         expect(session?.user?.role).not.toBe('admin')
       }
     })
@@ -266,7 +262,7 @@ describe('NextAuth API Route Protection Integration', () => {
       const mockAuth = vi.mocked(auth)
       mockAuth.mockResolvedValueOnce(null)
 
-      const mockRequest = {
+      const _mockRequest = {
         url: 'https://contribux.example.com/api/user/profile',
         method: 'GET',
         headers: new Headers(),
@@ -324,11 +320,11 @@ describe('NextAuth API Route Protection Integration', () => {
       const mockAuth = vi.mocked(auth)
       mockAuth.mockResolvedValueOnce(null) // Invalid token results in null session
 
-      const mockRequest = {
+      const _mockRequest = {
         url: 'https://contribux.example.com/api/user/profile',
         method: 'GET',
         headers: new Headers({
-          'cookie': 'next-auth.session-token=malformed-token-data',
+          cookie: 'next-auth.session-token=malformed-token-data',
         }),
       } as NextRequest
 
@@ -340,7 +336,7 @@ describe('NextAuth API Route Protection Integration', () => {
   describe('Middleware Authentication', () => {
     it('should validate authentication in middleware', async () => {
       const mockAuth = vi.mocked(auth)
-      
+
       // Test middleware authentication flow
       const validSession: Session = {
         user: {
@@ -361,7 +357,7 @@ describe('NextAuth API Route Protection Integration', () => {
         url: 'https://contribux.example.com/api/user/profile',
         method: 'GET',
         headers: new Headers({
-          'cookie': 'next-auth.session-token=valid-token',
+          cookie: 'next-auth.session-token=valid-token',
         }),
         nextUrl: {
           pathname: '/api/user/profile',
@@ -370,7 +366,7 @@ describe('NextAuth API Route Protection Integration', () => {
 
       const session = await auth()
       expect(session?.user?.id).toBe('user-123')
-      
+
       // Middleware should allow the request to proceed
       expect(mockRequest.nextUrl.pathname).toBe('/api/user/profile')
     })
@@ -379,7 +375,7 @@ describe('NextAuth API Route Protection Integration', () => {
       const mockAuth = vi.mocked(auth)
       mockAuth.mockResolvedValueOnce(null)
 
-      const mockRequest = {
+      const _mockRequest = {
         url: 'https://contribux.example.com/dashboard',
         method: 'GET',
         headers: new Headers(),
@@ -413,13 +409,13 @@ describe('NextAuth API Route Protection Integration', () => {
 
       mockAuth.mockResolvedValueOnce(apiSession)
 
-      const mockRequest = {
+      const _mockRequest = {
         url: 'https://contribux.example.com/api/github/repositories',
         method: 'GET',
         headers: new Headers({
-          'authorization': 'Bearer api-token',
+          authorization: 'Bearer api-token',
           'x-api-key': 'api-key-value',
-          'cookie': 'next-auth.session-token=api-session-token',
+          cookie: 'next-auth.session-token=api-session-token',
         }),
       } as NextRequest
 
@@ -450,8 +446,8 @@ describe('NextAuth API Route Protection Integration', () => {
         url: 'https://contribux.example.com/api/user/data',
         method: 'GET',
         headers: new Headers({
-          'origin': 'https://app.contribux.example.com',
-          'cookie': 'next-auth.session-token=valid-token',
+          origin: 'https://app.contribux.example.com',
+          cookie: 'next-auth.session-token=valid-token',
         }),
       } as NextRequest
 
@@ -471,7 +467,7 @@ describe('NextAuth API Route Protection Integration', () => {
         url: 'https://contribux.example.com/api/user/data',
         method: 'GET',
         headers: new Headers({
-          'origin': 'https://malicious-site.com',
+          origin: 'https://malicious-site.com',
         }),
       } as NextRequest
 
@@ -507,11 +503,11 @@ describe('NextAuth API Route Protection Integration', () => {
         url: `https://contribux.example.com/api/user/data?req=${i}`,
         method: 'GET',
         headers: new Headers({
-          'cookie': 'next-auth.session-token=valid-token',
+          cookie: 'next-auth.session-token=valid-token',
         }),
       }))
 
-      for (const request of requests) {
+      for (const _request of requests) {
         const session = await auth()
         expect(session?.user?.id).toBe('user-123')
       }

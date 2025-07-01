@@ -3,21 +3,19 @@
  * Comprehensive performance tracking, regression detection, and automated alerting
  */
 
-import { describe, expect, it, beforeAll, afterAll } from 'vitest'
-import { writeFile, readFile, mkdir, access } from 'fs/promises'
-import { join } from 'path'
-import { measureQuery } from './database-performance.test'
+import { access, mkdir, readFile, writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { measureApiCall } from './api-performance.test'
-import { measureCoreWebVitals } from './core-web-vitals.test'
 
 // Performance monitoring configuration
 const MONITORING_CONFIG = {
-  BASELINE_PERCENTILE: 95,        // Use 95th percentile as baseline
-  REGRESSION_THRESHOLD: 1.5,      // 50% performance degradation triggers alert
-  IMPROVEMENT_THRESHOLD: 0.8,     // 20% improvement is noteworthy
-  MIN_SAMPLES: 5,                 // Minimum samples for statistical significance
-  RETENTION_DAYS: 30,             // Keep performance data for 30 days
-  ALERT_COOLDOWN_HOURS: 6,        // Don't spam alerts within 6 hours
+  BASELINE_PERCENTILE: 95, // Use 95th percentile as baseline
+  REGRESSION_THRESHOLD: 1.5, // 50% performance degradation triggers alert
+  IMPROVEMENT_THRESHOLD: 0.8, // 20% improvement is noteworthy
+  MIN_SAMPLES: 5, // Minimum samples for statistical significance
+  RETENTION_DAYS: 30, // Keep performance data for 30 days
+  ALERT_COOLDOWN_HOURS: 6, // Don't spam alerts within 6 hours
 }
 
 // Performance categories and their weight in overall score
@@ -99,7 +97,7 @@ class PerformanceMonitor {
   async recordMetric(metric: PerformanceMetric): Promise<void> {
     const dateStr = metric.timestamp.toISOString().split('T')[0]
     const metricsFile = join(this.dataDir, `metrics-${dateStr}.json`)
-    
+
     let existingMetrics: PerformanceMetric[] = []
     try {
       const data = await readFile(metricsFile, 'utf-8')
@@ -123,13 +121,16 @@ class PerformanceMonitor {
 
   async updateBaselines(metrics: PerformanceMetric[]): Promise<void> {
     const baselines = await this.getBaselines()
-    
+
     // Group metrics by category
-    const metricsByCategory = metrics.reduce((acc, metric) => {
-      if (!acc[metric.category]) acc[metric.category] = []
-      acc[metric.category].push(metric.value)
-      return acc
-    }, {} as Record<string, number[]>)
+    const metricsByCategory = metrics.reduce(
+      (acc, metric) => {
+        if (!acc[metric.category]) acc[metric.category] = []
+        acc[metric.category].push(metric.value)
+        return acc
+      },
+      {} as Record<string, number[]>
+    )
 
     // Calculate baselines for each category
     for (const [category, values] of Object.entries(metricsByCategory)) {
@@ -137,7 +138,7 @@ class PerformanceMonitor {
 
       const sortedValues = values.sort((a, b) => a - b)
       const mean = values.reduce((sum, val) => sum + val, 0) / values.length
-      const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length
+      const variance = values.reduce((sum, val) => sum + (val - mean) ** 2, 0) / values.length
       const standardDeviation = Math.sqrt(variance)
 
       baselines[category] = {
@@ -199,7 +200,8 @@ class PerformanceMonitor {
       // Check for statistical anomalies
       else {
         const zScore = Math.abs(currentValue - baseline.mean) / baseline.standardDeviation
-        if (zScore > 3) { // 3 standard deviations
+        if (zScore > 3) {
+          // 3 standard deviations
           alert = {
             type: 'ANOMALY',
             category: metric.category,
@@ -219,7 +221,10 @@ class PerformanceMonitor {
     return alerts
   }
 
-  private calculateSeverity(relativeChange: number, type: 'REGRESSION' | 'IMPROVEMENT'): PerformanceAlert['severity'] {
+  private calculateSeverity(
+    relativeChange: number,
+    type: 'REGRESSION' | 'IMPROVEMENT'
+  ): PerformanceAlert['severity'] {
     if (type === 'REGRESSION') {
       if (relativeChange > 3) return 'CRITICAL'
       if (relativeChange > 2.5) return 'HIGH'
@@ -232,7 +237,7 @@ class PerformanceMonitor {
   async generateReport(metrics: PerformanceMetric[]): Promise<PerformanceReport> {
     const baselines = await this.getBaselines()
     const alerts = await this.detectAnomalies(metrics)
-    
+
     // Calculate category scores
     const categoryScores: Record<string, number> = {}
     const trendAnalysis: Record<string, 'IMPROVING' | 'DEGRADING' | 'STABLE'> = {}
@@ -256,10 +261,13 @@ class PerformanceMonitor {
     }
 
     // Calculate overall score
-    const overallScore = Object.entries(PERFORMANCE_CATEGORIES).reduce((score, [category, config]) => {
-      const categoryScore = categoryScores[category] || 0
-      return score + (categoryScore * config.weight)
-    }, 0)
+    const overallScore = Object.entries(PERFORMANCE_CATEGORIES).reduce(
+      (score, [category, config]) => {
+        const categoryScore = categoryScores[category] || 0
+        return score + categoryScore * config.weight
+      },
+      0
+    )
 
     // Generate recommendations
     const recommendations = this.generateRecommendations(categoryScores, alerts)
@@ -284,7 +292,9 @@ class PerformanceMonitor {
     // Check for critical performance issues
     const criticalAlerts = alerts.filter(a => a.severity === 'CRITICAL')
     if (criticalAlerts.length > 0) {
-      recommendations.push('🚨 CRITICAL: Immediate attention required for critical performance regressions')
+      recommendations.push(
+        '🚨 CRITICAL: Immediate attention required for critical performance regressions'
+      )
     }
 
     // Check individual category scores
@@ -292,44 +302,68 @@ class PerformanceMonitor {
       if (score < 50) {
         switch (category) {
           case 'API_HEALTH_CHECK':
-            recommendations.push('🔧 Optimize health check endpoint - consider removing unnecessary operations')
+            recommendations.push(
+              '🔧 Optimize health check endpoint - consider removing unnecessary operations'
+            )
             break
           case 'API_SEARCH':
-            recommendations.push('🔍 Optimize search API - consider adding database indexes, caching, or pagination')
+            recommendations.push(
+              '🔍 Optimize search API - consider adding database indexes, caching, or pagination'
+            )
             break
           case 'API_AUTH':
-            recommendations.push('🔐 Optimize authentication API - review token validation and database queries')
+            recommendations.push(
+              '🔐 Optimize authentication API - review token validation and database queries'
+            )
             break
           case 'DB_SIMPLE_QUERY':
-            recommendations.push('💾 Optimize simple database queries - check indexes and query plans')
+            recommendations.push(
+              '💾 Optimize simple database queries - check indexes and query plans'
+            )
             break
           case 'DB_COMPLEX_QUERY':
-            recommendations.push('🗄️ Optimize complex database queries - consider query restructuring or materialized views')
+            recommendations.push(
+              '🗄️ Optimize complex database queries - consider query restructuring or materialized views'
+            )
             break
           case 'FRONTEND_LCP':
-            recommendations.push('🌐 Optimize frontend loading - consider code splitting, image optimization, or CDN')
+            recommendations.push(
+              '🌐 Optimize frontend loading - consider code splitting, image optimization, or CDN'
+            )
             break
         }
       }
     }
 
     // Check for patterns in alerts
-    const regressionCategories = alerts
-      .filter(a => a.type === 'REGRESSION')
-      .map(a => a.category)
-    
-    if (regressionCategories.includes('DB_SIMPLE_QUERY') && regressionCategories.includes('DB_COMPLEX_QUERY')) {
-      recommendations.push('🏥 Database performance issue detected - check database health and connection pool')
+    const regressionCategories = alerts.filter(a => a.type === 'REGRESSION').map(a => a.category)
+
+    if (
+      regressionCategories.includes('DB_SIMPLE_QUERY') &&
+      regressionCategories.includes('DB_COMPLEX_QUERY')
+    ) {
+      recommendations.push(
+        '🏥 Database performance issue detected - check database health and connection pool'
+      )
     }
 
-    if (regressionCategories.includes('API_SEARCH') && regressionCategories.includes('DB_COMPLEX_QUERY')) {
-      recommendations.push('🔍 Search performance degradation - consider search result caching or index optimization')
+    if (
+      regressionCategories.includes('API_SEARCH') &&
+      regressionCategories.includes('DB_COMPLEX_QUERY')
+    ) {
+      recommendations.push(
+        '🔍 Search performance degradation - consider search result caching or index optimization'
+      )
     }
 
     // General recommendations based on overall score
-    const overallScore = Object.values(categoryScores).reduce((sum, score) => sum + score, 0) / Object.keys(categoryScores).length
+    const overallScore =
+      Object.values(categoryScores).reduce((sum, score) => sum + score, 0) /
+      Object.keys(categoryScores).length
     if (overallScore < 70) {
-      recommendations.push('📊 Overall performance below target - consider comprehensive performance audit')
+      recommendations.push(
+        '📊 Overall performance below target - consider comprehensive performance audit'
+      )
     }
 
     return recommendations
@@ -340,7 +374,7 @@ class PerformanceMonitor {
     await writeFile(alertFile, JSON.stringify(alert, null, 2))
   }
 
-  async getRecentAlerts(hours: number = 24): Promise<PerformanceAlert[]> {
+  async getRecentAlerts(_hours = 24): Promise<PerformanceAlert[]> {
     // Implementation would read alert files from the last N hours
     // For now, return empty array as this is a testing framework
     return []
@@ -436,7 +470,7 @@ describe('Performance Monitoring & Alerting', () => {
 
       for (let i = 0; i < samples; i++) {
         const timestamp = new Date()
-        
+
         // Simulate performance metrics with some variance
         metrics.push({
           category: 'API_HEALTH_CHECK',
@@ -464,16 +498,18 @@ describe('Performance Monitoring & Alerting', () => {
 
       // Verify baselines were created
       const baselines = await monitor.getBaselines()
-      expect(baselines['API_HEALTH_CHECK']).toBeDefined()
-      expect(baselines['DB_SIMPLE_QUERY']).toBeDefined()
-      
-      expect(baselines['API_HEALTH_CHECK'].sampleCount).toBe(samples)
-      expect(baselines['API_HEALTH_CHECK'].p95).toBeGreaterThan(0)
-      expect(baselines['API_HEALTH_CHECK'].mean).toBeGreaterThan(0)
+      expect(baselines.API_HEALTH_CHECK).toBeDefined()
+      expect(baselines.DB_SIMPLE_QUERY).toBeDefined()
+
+      expect(baselines.API_HEALTH_CHECK.sampleCount).toBe(samples)
+      expect(baselines.API_HEALTH_CHECK.p95).toBeGreaterThan(0)
+      expect(baselines.API_HEALTH_CHECK.mean).toBeGreaterThan(0)
 
       console.log('📈 Performance baselines established:')
       for (const [category, baseline] of Object.entries(baselines)) {
-        console.log(`  ${category}: P95=${baseline.p95.toFixed(2)}ms, Mean=${baseline.mean.toFixed(2)}ms`)
+        console.log(
+          `  ${category}: P95=${baseline.p95.toFixed(2)}ms, Mean=${baseline.mean.toFixed(2)}ms`
+        )
       }
     })
   })
@@ -499,12 +535,12 @@ describe('Performance Monitoring & Alerting', () => {
       }
 
       const alerts = await monitor.detectAnomalies([regressionMetric])
-      
+
       expect(alerts).toHaveLength(1)
       expect(alerts[0].type).toBe('REGRESSION')
       expect(alerts[0].category).toBe('TEST_REGRESSION')
       expect(alerts[0].severity).toMatch(/MEDIUM|HIGH/)
-      
+
       console.log('🚨 Regression detected:', alerts[0].message)
     })
 
@@ -528,11 +564,11 @@ describe('Performance Monitoring & Alerting', () => {
       }
 
       const alerts = await monitor.detectAnomalies([improvementMetric])
-      
+
       expect(alerts).toHaveLength(1)
       expect(alerts[0].type).toBe('IMPROVEMENT')
       expect(alerts[0].category).toBe('TEST_IMPROVEMENT')
-      
+
       console.log('✅ Improvement detected:', alerts[0].message)
     })
 
@@ -556,11 +592,11 @@ describe('Performance Monitoring & Alerting', () => {
       }
 
       const alerts = await monitor.detectAnomalies([anomalyMetric])
-      
+
       expect(alerts).toHaveLength(1)
       expect(alerts[0].type).toBe('ANOMALY')
       expect(alerts[0].metadata?.zScore).toBeGreaterThan(3)
-      
+
       console.log('📊 Statistical anomaly detected:', alerts[0].message)
     })
   })
@@ -637,7 +673,7 @@ describe('Performance Monitoring & Alerting', () => {
       const report = await monitor.generateReport(problemMetrics)
 
       expect(report.recommendations.length).toBeGreaterThan(0)
-      
+
       // Should have specific recommendations for the problem areas
       const recommendationText = report.recommendations.join(' ')
       expect(recommendationText).toMatch(/search|database|index|optim/i)
@@ -708,9 +744,9 @@ describe('Performance Monitoring & Alerting', () => {
 
       const report = await monitor.generateReport(currentMetrics)
 
-      expect(report.trendAnalysis['TREND_TEST_IMPROVING']).toBe('IMPROVING')
-      expect(report.trendAnalysis['TREND_TEST_DEGRADING']).toBe('DEGRADING')
-      expect(report.trendAnalysis['TREND_TEST_STABLE']).toBe('STABLE')
+      expect(report.trendAnalysis.TREND_TEST_IMPROVING).toBe('IMPROVING')
+      expect(report.trendAnalysis.TREND_TEST_DEGRADING).toBe('DEGRADING')
+      expect(report.trendAnalysis.TREND_TEST_STABLE).toBe('STABLE')
 
       console.log('📈 Trend Analysis:')
       for (const [category, trend] of Object.entries(report.trendAnalysis)) {
@@ -726,7 +762,7 @@ describe('Performance Monitoring & Alerting', () => {
           value: 45, // Good performance
           threshold: PERFORMANCE_CATEGORIES.API_HEALTH_CHECK.threshold,
           timestamp: new Date(),
-          metadata: { 
+          metadata: {
             buildId: 'build-123',
             branch: 'main',
             commit: 'abc123',
@@ -737,7 +773,7 @@ describe('Performance Monitoring & Alerting', () => {
           value: 300, // Acceptable performance
           threshold: PERFORMANCE_CATEGORIES.API_SEARCH.threshold,
           timestamp: new Date(),
-          metadata: { 
+          metadata: {
             buildId: 'build-123',
             branch: 'main',
             commit: 'abc123',
@@ -746,9 +782,10 @@ describe('Performance Monitoring & Alerting', () => {
       ]
 
       const report = await monitor.generateReport(ciMetrics)
-      
+
       // Determine if build should pass performance gates
-      const passesPerformanceGates = report.overallScore >= 70 && 
+      const passesPerformanceGates =
+        report.overallScore >= 70 &&
         report.alerts.filter(a => a.severity === 'CRITICAL').length === 0
 
       console.log(`🚀 CI/CD Performance Check: ${passesPerformanceGates ? 'PASS' : 'FAIL'}`)
@@ -756,7 +793,7 @@ describe('Performance Monitoring & Alerting', () => {
       console.log(`Critical Alerts: ${report.alerts.filter(a => a.severity === 'CRITICAL').length}`)
 
       expect(typeof passesPerformanceGates).toBe('boolean')
-      
+
       if (!passesPerformanceGates) {
         console.log('❌ Build would fail performance gates')
         console.log('Blocking issues:')

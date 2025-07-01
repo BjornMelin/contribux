@@ -3,10 +3,10 @@
  * Comprehensive testing for session creation, validation, persistence, expiration, refresh, and cleanup
  */
 
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import type { Session, JWT } from 'next-auth'
+import type { JWT, Session } from 'next-auth'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { authConfig } from '@/lib/auth/config'
-import type { UUID, Email } from '@/types/base'
+import type { Email, UUID } from '@/types/base'
 
 // Mock database
 vi.mock('@/lib/db/config', () => ({
@@ -29,23 +29,25 @@ describe('NextAuth Session Management Testing', () => {
       const mockSql = vi.mocked(await import('@/lib/db/config')).sql
 
       // Mock user data from database
-      mockSql.mockResolvedValueOnce([{
-        id: 'user-123',
-        email: 'github-user@example.com',
-        display_name: 'GitHub User',
-        username: 'githubuser',
-        github_username: 'githubuser',
-        email_verified: true,
-        two_factor_enabled: false,
-        recovery_email: null,
-        locked_at: null,
-        failed_login_attempts: 0,
-        last_login_at: new Date(),
-        created_at: new Date(),
-        updated_at: new Date(),
-        connected_providers: ['github'],
-        primary_provider: 'github',
-      }])
+      mockSql.mockResolvedValueOnce([
+        {
+          id: 'user-123',
+          email: 'github-user@example.com',
+          display_name: 'GitHub User',
+          username: 'githubuser',
+          github_username: 'githubuser',
+          email_verified: true,
+          two_factor_enabled: false,
+          recovery_email: null,
+          locked_at: null,
+          failed_login_attempts: 0,
+          last_login_at: new Date(),
+          created_at: new Date(),
+          updated_at: new Date(),
+          connected_providers: ['github'],
+          primary_provider: 'github',
+        },
+      ])
 
       const mockToken: JWT = {
         sub: 'user-123',
@@ -90,23 +92,25 @@ describe('NextAuth Session Management Testing', () => {
       const mockSql = vi.mocked(await import('@/lib/db/config')).sql
 
       // Mock user data from database
-      mockSql.mockResolvedValueOnce([{
-        id: 'user-456',
-        email: 'google-user@example.com',
-        display_name: 'Google User',
-        username: 'googleuser',
-        github_username: null,
-        email_verified: true,
-        two_factor_enabled: false,
-        recovery_email: null,
-        locked_at: null,
-        failed_login_attempts: 0,
-        last_login_at: new Date(),
-        created_at: new Date(),
-        updated_at: new Date(),
-        connected_providers: ['google'],
-        primary_provider: 'google',
-      }])
+      mockSql.mockResolvedValueOnce([
+        {
+          id: 'user-456',
+          email: 'google-user@example.com',
+          display_name: 'Google User',
+          username: 'googleuser',
+          github_username: null,
+          email_verified: true,
+          two_factor_enabled: false,
+          recovery_email: null,
+          locked_at: null,
+          failed_login_attempts: 0,
+          last_login_at: new Date(),
+          created_at: new Date(),
+          updated_at: new Date(),
+          connected_providers: ['google'],
+          primary_provider: 'google',
+        },
+      ])
 
       const mockToken: JWT = {
         sub: 'user-456',
@@ -151,23 +155,25 @@ describe('NextAuth Session Management Testing', () => {
       const mockSql = vi.mocked(await import('@/lib/db/config')).sql
 
       // Mock user with multiple providers
-      mockSql.mockResolvedValueOnce([{
-        id: 'user-789',
-        email: 'multi-user@example.com',
-        display_name: 'Multi Provider User',
-        username: 'multiuser',
-        github_username: 'multiuser',
-        email_verified: true,
-        two_factor_enabled: true,
-        recovery_email: 'recovery@example.com',
-        locked_at: null,
-        failed_login_attempts: 0,
-        last_login_at: new Date(),
-        created_at: new Date(),
-        updated_at: new Date(),
-        connected_providers: ['github', 'google'],
-        primary_provider: 'github',
-      }])
+      mockSql.mockResolvedValueOnce([
+        {
+          id: 'user-789',
+          email: 'multi-user@example.com',
+          display_name: 'Multi Provider User',
+          username: 'multiuser',
+          github_username: 'multiuser',
+          email_verified: true,
+          two_factor_enabled: true,
+          recovery_email: 'recovery@example.com',
+          locked_at: null,
+          failed_login_attempts: 0,
+          last_login_at: new Date(),
+          created_at: new Date(),
+          updated_at: new Date(),
+          connected_providers: ['github', 'google'],
+          primary_provider: 'github',
+        },
+      ])
 
       const mockToken: JWT = {
         sub: 'user-789',
@@ -296,19 +302,19 @@ describe('NextAuth Session Management Testing', () => {
   describe('Session Persistence', () => {
     it('should persist session for configured duration', () => {
       const sessionConfig = authConfig.session
-      
+
       expect(sessionConfig?.strategy).toBe('jwt')
       expect(sessionConfig?.maxAge).toBe(30 * 24 * 60 * 60) // 30 days
       expect(sessionConfig?.updateAge).toBe(24 * 60 * 60) // 24 hours
     })
 
     it('should update session timestamp appropriately', () => {
-      const sessionMaxAge = 30 * 24 * 60 * 60 * 1000 // 30 days in ms
+      const _sessionMaxAge = 30 * 24 * 60 * 60 * 1000 // 30 days in ms
       const updateAge = 24 * 60 * 60 * 1000 // 24 hours in ms
-      
+
       const now = Date.now()
       const lastUpdate = now - (updateAge + 1000) // Just over 24 hours ago
-      
+
       // Should update if more than updateAge has passed
       expect(now - lastUpdate).toBeGreaterThan(updateAge)
     })
@@ -318,16 +324,18 @@ describe('NextAuth Session Management Testing', () => {
 
       // Simulate concurrent session callbacks
       const promises = Array.from({ length: 5 }, async (_, i) => {
-        mockSql.mockResolvedValueOnce([{
-          id: `user-${i}`,
-          email: `user${i}@example.com`,
-          display_name: `User ${i}`,
-          username: `user${i}`,
-          github_username: `user${i}`,
-          email_verified: true,
-          connected_providers: ['github'],
-          primary_provider: 'github',
-        }])
+        mockSql.mockResolvedValueOnce([
+          {
+            id: `user-${i}`,
+            email: `user${i}@example.com`,
+            display_name: `User ${i}`,
+            username: `user${i}`,
+            github_username: `user${i}`,
+            email_verified: true,
+            connected_providers: ['github'],
+            primary_provider: 'github',
+          },
+        ])
 
         const sessionCallback = authConfig.callbacks?.session
         return sessionCallback?.({
@@ -353,7 +361,7 @@ describe('NextAuth Session Management Testing', () => {
       })
 
       const results = await Promise.all(promises)
-      
+
       // All sessions should be processed successfully
       expect(results).toHaveLength(5)
       results.forEach((result, i) => {
@@ -365,7 +373,7 @@ describe('NextAuth Session Management Testing', () => {
   describe('Session Expiration', () => {
     it('should handle JWT token expiration correctly', async () => {
       const jwtCallback = authConfig.callbacks?.jwt
-      
+
       // Test token that's about to expire
       const expiredToken: JWT = {
         sub: 'user-123',
@@ -394,7 +402,7 @@ describe('NextAuth Session Management Testing', () => {
 
     it('should handle refresh token failure', async () => {
       const jwtCallback = authConfig.callbacks?.jwt
-      
+
       const expiredToken: JWT = {
         sub: 'user-123',
         accessToken: 'expired-token',
@@ -420,7 +428,7 @@ describe('NextAuth Session Management Testing', () => {
 
     it('should handle session cleanup after expiration', () => {
       const cookieConfig = authConfig.cookies?.sessionToken
-      
+
       expect(cookieConfig?.options?.httpOnly).toBe(true)
       expect(cookieConfig?.options?.sameSite).toBe('lax')
       expect(cookieConfig?.options?.secure).toBe(process.env.NODE_ENV === 'production')
@@ -522,7 +530,7 @@ describe('NextAuth Session Management Testing', () => {
   describe('Session Cleanup', () => {
     it('should clear session data on signout', () => {
       const cookieConfig = authConfig.cookies?.sessionToken
-      
+
       // Verify cookie settings for proper cleanup
       expect(cookieConfig?.name).toBeDefined()
       expect(cookieConfig?.options?.httpOnly).toBe(true)
@@ -531,7 +539,7 @@ describe('NextAuth Session Management Testing', () => {
 
     it('should handle database cleanup during session destruction', async () => {
       const mockSql = vi.mocked(await import('@/lib/db/config')).sql
-      
+
       // Mock security event logging for signout
       mockSql.mockResolvedValueOnce([])
 
@@ -544,7 +552,7 @@ describe('NextAuth Session Management Testing', () => {
       // This is handled by NextAuth.js internal mechanisms
       // We verify our session configuration supports it
       const sessionConfig = authConfig.session
-      
+
       expect(sessionConfig?.maxAge).toBeGreaterThan(0)
       expect(sessionConfig?.updateAge).toBeGreaterThan(0)
       expect(sessionConfig?.updateAge).toBeLessThan(sessionConfig?.maxAge || 0)

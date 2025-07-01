@@ -3,9 +3,9 @@
  * Tests the fundamental user experience metrics as defined by Google's Core Web Vitals
  */
 
-import { describe, expect, it, beforeAll, afterAll } from 'vitest'
-import { Page, Browser } from 'playwright'
+import type { Browser, Page } from 'playwright'
 import { chromium } from 'playwright'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 // Core Web Vitals thresholds based on Google's recommendations
 const CORE_WEB_VITALS_THRESHOLDS = {
@@ -55,7 +55,7 @@ interface CoreWebVitalsMetrics {
 
 describe('Core Web Vitals Performance', () => {
   let browser: Browser
-  let page: Page
+  let _page: Page
   const testUrl = process.env.TEST_BASE_URL || 'http://localhost:3000'
 
   beforeAll(async () => {
@@ -68,13 +68,13 @@ describe('Core Web Vitals Performance', () => {
 
   async function measureCoreWebVitals(url: string): Promise<CoreWebVitalsMetrics> {
     const page = await browser.newPage()
-    
+
     try {
       // Enable performance metrics collection
       await page.addInitScript(() => {
         // Store performance entries for later retrieval
         window.performanceEntries = []
-        
+
         // Core Web Vitals measurement script
         window.vitalsData = {
           lcp: null,
@@ -88,7 +88,7 @@ describe('Core Web Vitals Performance', () => {
         // LCP Observer
         if ('PerformanceObserver' in window) {
           try {
-            const lcpObserver = new PerformanceObserver((list) => {
+            const lcpObserver = new PerformanceObserver(list => {
               const entries = list.getEntries()
               const lastEntry = entries[entries.length - 1]
               window.vitalsData.lcp = lastEntry.startTime
@@ -96,9 +96,9 @@ describe('Core Web Vitals Performance', () => {
             lcpObserver.observe({ type: 'largest-contentful-paint', buffered: true })
 
             // FID Observer
-            const fidObserver = new PerformanceObserver((list) => {
+            const fidObserver = new PerformanceObserver(list => {
               const entries = list.getEntries()
-              entries.forEach((entry) => {
+              entries.forEach(entry => {
                 if (entry.name === 'first-input') {
                   window.vitalsData.fid = entry.processingStart - entry.startTime
                 }
@@ -108,10 +108,10 @@ describe('Core Web Vitals Performance', () => {
 
             // CLS Observer
             let clsValue = 0
-            let clsEntries = []
-            const clsObserver = new PerformanceObserver((list) => {
+            const clsEntries = []
+            const clsObserver = new PerformanceObserver(list => {
               const entries = list.getEntries()
-              entries.forEach((entry) => {
+              entries.forEach(entry => {
                 if (!entry.hadRecentInput) {
                   clsEntries.push(entry)
                   clsValue += entry.value
@@ -122,9 +122,9 @@ describe('Core Web Vitals Performance', () => {
             clsObserver.observe({ type: 'layout-shift', buffered: true })
 
             // FCP Observer
-            const fcpObserver = new PerformanceObserver((list) => {
+            const fcpObserver = new PerformanceObserver(list => {
               const entries = list.getEntries()
-              entries.forEach((entry) => {
+              entries.forEach(entry => {
                 if (entry.name === 'first-contentful-paint') {
                   window.vitalsData.fcp = entry.startTime
                 }
@@ -138,10 +138,10 @@ describe('Core Web Vitals Performance', () => {
       })
 
       const navigationStart = Date.now()
-      
+
       // Navigate and wait for load
       await page.goto(url, { waitUntil: 'networkidle' })
-      
+
       // Wait a bit for all vitals to be collected
       await page.waitForTimeout(2000)
 
@@ -154,8 +154,9 @@ describe('Core Web Vitals Performance', () => {
         return {
           domContentLoaded: timing.domContentLoadedEventEnd - timing.navigationStart,
           loadComplete: timing.loadEventEnd - timing.navigationStart,
-          firstPaint: performance.getEntriesByType('paint')
-            .find(entry => entry.name === 'first-paint')?.startTime || null,
+          firstPaint:
+            performance.getEntriesByType('paint').find(entry => entry.name === 'first-paint')
+              ?.startTime || null,
         }
       })
 
@@ -190,25 +191,28 @@ describe('Core Web Vitals Performance', () => {
     }
   }
 
-  function evaluateMetric(value: number | null, thresholds: { GOOD: number; NEEDS_IMPROVEMENT: number }): {
+  function evaluateMetric(
+    value: number | null,
+    thresholds: { GOOD: number; NEEDS_IMPROVEMENT: number }
+  ): {
     score: 'GOOD' | 'NEEDS_IMPROVEMENT' | 'POOR' | 'UNKNOWN'
     status: string
   } {
     if (value === null) return { score: 'UNKNOWN', status: 'Could not measure' }
-    
+
     if (value <= thresholds.GOOD) {
       return { score: 'GOOD', status: '✅ Good' }
-    } else if (value <= thresholds.NEEDS_IMPROVEMENT) {
-      return { score: 'NEEDS_IMPROVEMENT', status: '⚠️ Needs Improvement' }
-    } else {
-      return { score: 'POOR', status: '❌ Poor' }
     }
+    if (value <= thresholds.NEEDS_IMPROVEMENT) {
+      return { score: 'NEEDS_IMPROVEMENT', status: '⚠️ Needs Improvement' }
+    }
+    return { score: 'POOR', status: '❌ Poor' }
   }
 
   describe('Homepage Performance', () => {
     it('should meet Core Web Vitals thresholds on homepage', async () => {
       const metrics = await measureCoreWebVitals(testUrl)
-      
+
       const results = {
         lcp: evaluateMetric(metrics.lcp, CORE_WEB_VITALS_THRESHOLDS.LCP),
         fid: evaluateMetric(metrics.fid, CORE_WEB_VITALS_THRESHOLDS.FID),
@@ -218,12 +222,16 @@ describe('Core Web Vitals Performance', () => {
       }
 
       console.log('\n📊 Core Web Vitals Results:')
-      console.log(`LCP (Largest Contentful Paint): ${metrics.lcp?.toFixed(2)}ms ${results.lcp.status}`)
+      console.log(
+        `LCP (Largest Contentful Paint): ${metrics.lcp?.toFixed(2)}ms ${results.lcp.status}`
+      )
       console.log(`FID (First Input Delay): ${metrics.fid?.toFixed(2)}ms ${results.fid.status}`)
       console.log(`CLS (Cumulative Layout Shift): ${metrics.cls?.toFixed(3)} ${results.cls.status}`)
-      console.log(`FCP (First Contentful Paint): ${metrics.fcp?.toFixed(2)}ms ${results.fcp.status}`)
+      console.log(
+        `FCP (First Contentful Paint): ${metrics.fcp?.toFixed(2)}ms ${results.fcp.status}`
+      )
       console.log(`TTI (Time to Interactive): ${metrics.tti?.toFixed(2)}ms ${results.tti.status}`)
-      console.log(`\n⏱️ Additional Metrics:`)
+      console.log('\n⏱️ Additional Metrics:')
       console.log(`Total Load Time: ${metrics.loadTime}ms`)
       console.log(`DOM Content Loaded: ${metrics.domContentLoaded}ms`)
       console.log(`First Paint: ${metrics.firstPaint}ms`)
@@ -232,11 +240,11 @@ describe('Core Web Vitals Performance', () => {
       if (metrics.lcp !== null) {
         expect(metrics.lcp).toBeLessThan(CORE_WEB_VITALS_THRESHOLDS.LCP.NEEDS_IMPROVEMENT)
       }
-      
+
       if (metrics.cls !== null) {
         expect(metrics.cls).toBeLessThan(CORE_WEB_VITALS_THRESHOLDS.CLS.NEEDS_IMPROVEMENT)
       }
-      
+
       if (metrics.fcp !== null) {
         expect(metrics.fcp).toBeLessThan(CORE_WEB_VITALS_THRESHOLDS.FCP.NEEDS_IMPROVEMENT)
       }
@@ -248,16 +256,16 @@ describe('Core Web Vitals Performance', () => {
 
     it('should maintain good performance under simulated slow network', async () => {
       const page = await browser.newPage()
-      
+
       try {
         // Simulate 3G network conditions
-        await page.route('**/*', async (route) => {
+        await page.route('**/*', async route => {
           await new Promise(resolve => setTimeout(resolve, 100)) // Add 100ms delay
           route.continue()
         })
 
         const metrics = await measureCoreWebVitals(testUrl)
-        
+
         console.log('\n📱 Slow Network Performance:')
         console.log(`Load Time with 3G simulation: ${metrics.loadTime}ms`)
         console.log(`LCP under slow network: ${metrics.lcp?.toFixed(2)}ms`)
@@ -278,7 +286,7 @@ describe('Core Web Vitals Performance', () => {
     it('should maintain good performance on search page', async () => {
       const searchUrl = `${testUrl}/search?q=react`
       const metrics = await measureCoreWebVitals(searchUrl)
-      
+
       console.log('\n🔍 Search Page Performance:')
       console.log(`Search Load Time: ${metrics.loadTime}ms`)
       console.log(`Search LCP: ${metrics.lcp?.toFixed(2)}ms`)
@@ -298,20 +306,22 @@ describe('Core Web Vitals Performance', () => {
   describe('Mobile Performance', () => {
     it('should meet mobile performance standards', async () => {
       const page = await browser.newPage()
-      
+
       try {
         // Simulate mobile device
         await page.setViewportSize({ width: 375, height: 667 })
-        await page.setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1')
+        await page.setUserAgent(
+          'Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1'
+        )
 
         // Simulate mobile network (slower than desktop)
-        await page.route('**/*', async (route) => {
+        await page.route('**/*', async route => {
           await new Promise(resolve => setTimeout(resolve, 50)) // Add mobile latency
           route.continue()
         })
 
         const metrics = await measureCoreWebVitals(testUrl)
-        
+
         console.log('\n📱 Mobile Performance:')
         console.log(`Mobile Load Time: ${metrics.loadTime}ms`)
         console.log(`Mobile LCP: ${metrics.lcp?.toFixed(2)}ms`)
@@ -333,24 +343,32 @@ describe('Core Web Vitals Performance', () => {
     it('should detect performance regressions across multiple runs', async () => {
       const runs = 3
       const metrics: CoreWebVitalsMetrics[] = []
-      
+
       for (let i = 0; i < runs; i++) {
         console.log(`Performance run ${i + 1}/${runs}`)
         const runMetrics = await measureCoreWebVitals(testUrl)
         metrics.push(runMetrics)
-        
+
         // Small delay between runs
         await new Promise(resolve => setTimeout(resolve, 1000))
       }
 
       // Calculate averages and variations
       const avgLoadTime = metrics.reduce((sum, m) => sum + m.loadTime, 0) / runs
-      const avgLCP = metrics.filter(m => m.lcp).reduce((sum, m) => sum + (m.lcp || 0), 0) / metrics.filter(m => m.lcp).length
-      const avgCLS = metrics.filter(m => m.cls).reduce((sum, m) => sum + (m.cls || 0), 0) / metrics.filter(m => m.cls).length
+      const avgLCP =
+        metrics.filter(m => m.lcp).reduce((sum, m) => sum + (m.lcp || 0), 0) /
+        metrics.filter(m => m.lcp).length
+      const avgCLS =
+        metrics.filter(m => m.cls).reduce((sum, m) => sum + (m.cls || 0), 0) /
+        metrics.filter(m => m.cls).length
 
       // Calculate coefficient of variation (CV) for consistency
-      const loadTimeCV = metrics.length > 1 ? 
-        Math.sqrt(metrics.reduce((sum, m) => sum + Math.pow(m.loadTime - avgLoadTime, 2), 0) / (runs - 1)) / avgLoadTime : 0
+      const loadTimeCV =
+        metrics.length > 1
+          ? Math.sqrt(
+              metrics.reduce((sum, m) => sum + (m.loadTime - avgLoadTime) ** 2, 0) / (runs - 1)
+            ) / avgLoadTime
+          : 0
 
       console.log('\n📈 Performance Consistency Analysis:')
       console.log(`Average Load Time: ${avgLoadTime.toFixed(2)}ms`)
@@ -361,7 +379,7 @@ describe('Core Web Vitals Performance', () => {
       // Performance should be consistent (CV < 20%)
       expect(loadTimeCV).toBeLessThan(0.2)
       expect(avgLoadTime).toBeLessThan(8000)
-      if (!isNaN(avgLCP)) {
+      if (!Number.isNaN(avgLCP)) {
         expect(avgLCP).toBeLessThan(CORE_WEB_VITALS_THRESHOLDS.LCP.NEEDS_IMPROVEMENT)
       }
     })
@@ -369,5 +387,5 @@ describe('Core Web Vitals Performance', () => {
 })
 
 // Export for use in other test files
-export { measureCoreWebVitals, CORE_WEB_VITALS_THRESHOLDS }
+export { type measureCoreWebVitals, CORE_WEB_VITALS_THRESHOLDS }
 export type { CoreWebVitalsMetrics }

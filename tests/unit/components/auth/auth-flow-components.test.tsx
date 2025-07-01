@@ -15,11 +15,10 @@
  * - Accessibility compliance
  */
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { SignInButton } from '@/app/auth/signin/signin-button'
-import { ProviderButton } from '@/components/auth/ProviderButton'
 import { LinkedAccounts } from '@/components/auth/LinkedAccounts'
 import { cleanupComponentTest, createModernMockRouter, setupComponentTest } from '@/tests/utils/modern-test-helpers'
 

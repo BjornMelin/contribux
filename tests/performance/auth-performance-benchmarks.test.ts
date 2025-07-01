@@ -3,49 +3,48 @@
  * Comprehensive performance testing for authentication operations, token refresh, session management
  */
 
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import { performance } from 'perf_hooks'
-import type { Session, JWT } from 'next-auth'
+import { performance } from 'node:perf_hooks'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { authConfig } from '@/lib/auth/config'
 import {
-  PerformanceTestHelper,
-  AuthenticationStateManager,
-  OAuthFlowSimulator,
-  DatabaseMockHelper,
-  createMockSession,
+  type AuthenticationStateManager,
   createMockJWT,
+  createMockSession,
+  type DatabaseMockHelper,
+  OAuthFlowSimulator,
+  PerformanceTestHelper,
   setupAuthTestEnvironment,
 } from '../utils/auth-test-utilities'
 
 // Performance thresholds (in milliseconds)
 const PERFORMANCE_THRESHOLDS = {
-  SESSION_CREATION: 50,           // Session creation should be under 50ms
-  TOKEN_REFRESH: 500,             // Token refresh should be under 500ms
-  DATABASE_QUERY: 100,            // Database queries should be under 100ms
-  OAUTH_CALLBACK: 200,            // OAuth callback processing under 200ms
-  CONCURRENT_SESSIONS: 1000,      // 100 concurrent sessions under 1s
-  MEMORY_LIMIT_MB: 100,           // Memory usage under 100MB
+  SESSION_CREATION: 50, // Session creation should be under 50ms
+  TOKEN_REFRESH: 500, // Token refresh should be under 500ms
+  DATABASE_QUERY: 100, // Database queries should be under 100ms
+  OAUTH_CALLBACK: 200, // OAuth callback processing under 200ms
+  CONCURRENT_SESSIONS: 1000, // 100 concurrent sessions under 1s
+  MEMORY_LIMIT_MB: 100, // Memory usage under 100MB
 }
 
 // Load testing parameters
 const LOAD_TEST_PARAMS = {
-  LIGHT_LOAD: 10,                 // 10 concurrent users
-  MEDIUM_LOAD: 50,                // 50 concurrent users
-  HEAVY_LOAD: 100,                // 100 concurrent users
-  STRESS_LOAD: 500,               // 500 concurrent users
+  LIGHT_LOAD: 10, // 10 concurrent users
+  MEDIUM_LOAD: 50, // 50 concurrent users
+  HEAVY_LOAD: 100, // 100 concurrent users
+  STRESS_LOAD: 500, // 500 concurrent users
 }
 
 describe('NextAuth Performance Benchmarks', () => {
   let mockSql: any
-  let mockAuth: any
-  let authStateManager: AuthenticationStateManager
+  let _mockAuth: any
+  let _authStateManager: AuthenticationStateManager
   let dbMockHelper: DatabaseMockHelper
 
   beforeEach(() => {
     const testEnv = setupAuthTestEnvironment()
     mockSql = testEnv.mockSql
-    mockAuth = testEnv.mockAuth
-    authStateManager = testEnv.authStateManager
+    _mockAuth = testEnv.mockAuth
+    _authStateManager = testEnv.authStateManager
     dbMockHelper = testEnv.dbMockHelper
 
     vi.clearAllMocks()
@@ -78,23 +77,22 @@ describe('NextAuth Performance Benchmarks', () => {
       const mockToken = createMockJWT()
 
       // Measure session creation performance
-      const { duration, result } = await PerformanceTestHelper.measureAuthOperation(
-        async () => {
-          return sessionCallback?.({
-            session: {
-              ...mockSession,
-              sessionToken: 'perf-session-token',
-              userId: 'perf-user-123',
-            },
-            token: mockToken,
-          })
-        },
-        'session_creation'
-      )
+      const { duration, result } = await PerformanceTestHelper.measureAuthOperation(async () => {
+        return sessionCallback?.({
+          session: {
+            ...mockSession,
+            sessionToken: 'perf-session-token',
+            userId: 'perf-user-123',
+          },
+          token: mockToken,
+        })
+      }, 'session_creation')
 
       expect(result).toBeDefined()
       expect(duration).toBeLessThan(PERFORMANCE_THRESHOLDS.SESSION_CREATION)
-      console.log(`✅ Session creation: ${duration.toFixed(2)}ms (threshold: ${PERFORMANCE_THRESHOLDS.SESSION_CREATION}ms)`)
+      console.log(
+        `✅ Session creation: ${duration.toFixed(2)}ms (threshold: ${PERFORMANCE_THRESHOLDS.SESSION_CREATION}ms)`
+      )
     })
 
     it('should handle rapid session creation bursts', async () => {
@@ -115,7 +113,9 @@ describe('NextAuth Performance Benchmarks', () => {
         burstPromises.push(
           sessionCallback?.({
             session: {
-              ...createMockSession({ user: { ...createMockSession().user, id: `burst-user-${i}` as any } }),
+              ...createMockSession({
+                user: { ...createMockSession().user, id: `burst-user-${i}` as any },
+              }),
               sessionToken: `burst-session-${i}`,
               userId: `burst-user-${i}`,
             },
@@ -130,7 +130,9 @@ describe('NextAuth Performance Benchmarks', () => {
 
       expect(results).toHaveLength(burstSize)
       expect(totalDuration).toBeLessThan(burstSize * PERFORMANCE_THRESHOLDS.SESSION_CREATION)
-      console.log(`✅ Burst session creation (${burstSize} sessions): ${totalDuration.toFixed(2)}ms`)
+      console.log(
+        `✅ Burst session creation (${burstSize} sessions): ${totalDuration.toFixed(2)}ms`
+      )
     })
 
     it('should maintain consistent performance under memory pressure', async () => {
@@ -139,12 +141,14 @@ describe('NextAuth Performance Benchmarks', () => {
 
       try {
         // Simulate memory-intensive session operations
-        const largeSessionData = Array.from({ length: 1000 }, (_, i) => createMockSession({
-          user: {
-            ...createMockSession().user,
-            id: `memory-user-${i}` as any,
-          },
-        }))
+        const _largeSessionData = Array.from({ length: 1000 }, (_, i) =>
+          createMockSession({
+            user: {
+              ...createMockSession().user,
+              id: `memory-user-${i}` as any,
+            },
+          })
+        )
 
         dbMockHelper.mockUserRetrieval({
           id: 'memory-test-user',
@@ -153,20 +157,17 @@ describe('NextAuth Performance Benchmarks', () => {
           primary_provider: 'github',
         } as any)
 
-        const { duration } = await PerformanceTestHelper.measureAuthOperation(
-          async () => {
-            const sessionCallback = authConfig.callbacks?.session
-            return sessionCallback?.({
-              session: {
-                ...createMockSession(),
-                sessionToken: 'memory-session-token',
-                userId: 'memory-test-user',
-              },
-              token: createMockJWT(),
-            })
-          },
-          'memory_pressure_session'
-        )
+        const { duration } = await PerformanceTestHelper.measureAuthOperation(async () => {
+          const sessionCallback = authConfig.callbacks?.session
+          return sessionCallback?.({
+            session: {
+              ...createMockSession(),
+              sessionToken: 'memory-session-token',
+              userId: 'memory-test-user',
+            },
+            token: createMockJWT(),
+          })
+        }, 'memory_pressure_session')
 
         // Stop tracking and analyze memory usage
         const measurements = memoryTracker.stopTracking(trackingInterval)
@@ -174,7 +175,9 @@ describe('NextAuth Performance Benchmarks', () => {
 
         expect(duration).toBeLessThan(PERFORMANCE_THRESHOLDS.SESSION_CREATION * 2) // Allow 2x under memory pressure
         expect(maxMemoryUsage).toBeLessThan(PERFORMANCE_THRESHOLDS.MEMORY_LIMIT_MB)
-        console.log(`✅ Session creation under memory pressure: ${duration.toFixed(2)}ms, max memory: ${maxMemoryUsage.toFixed(2)}MB`)
+        console.log(
+          `✅ Session creation under memory pressure: ${duration.toFixed(2)}ms, max memory: ${maxMemoryUsage.toFixed(2)}MB`
+        )
       } finally {
         memoryTracker.stopTracking(trackingInterval)
       }
@@ -207,7 +210,9 @@ describe('NextAuth Performance Benchmarks', () => {
 
       expect(result?.accessToken).toBe('gho_new_fast_token')
       expect(duration).toBeLessThan(PERFORMANCE_THRESHOLDS.TOKEN_REFRESH)
-      console.log(`✅ GitHub token refresh: ${duration.toFixed(2)}ms (threshold: ${PERFORMANCE_THRESHOLDS.TOKEN_REFRESH}ms)`)
+      console.log(
+        `✅ GitHub token refresh: ${duration.toFixed(2)}ms (threshold: ${PERFORMANCE_THRESHOLDS.TOKEN_REFRESH}ms)`
+      )
     })
 
     it('should refresh Google tokens within performance threshold', async () => {
@@ -235,7 +240,9 @@ describe('NextAuth Performance Benchmarks', () => {
 
       expect(result?.accessToken).toBe('ya29.new_fast_token')
       expect(duration).toBeLessThan(PERFORMANCE_THRESHOLDS.TOKEN_REFRESH)
-      console.log(`✅ Google token refresh: ${duration.toFixed(2)}ms (threshold: ${PERFORMANCE_THRESHOLDS.TOKEN_REFRESH}ms)`)
+      console.log(
+        `✅ Google token refresh: ${duration.toFixed(2)}ms (threshold: ${PERFORMANCE_THRESHOLDS.TOKEN_REFRESH}ms)`
+      )
     })
 
     it('should handle concurrent token refreshes efficiently', async () => {
@@ -276,7 +283,9 @@ describe('NextAuth Performance Benchmarks', () => {
       expect(results).toHaveLength(concurrentRefreshes)
       expect(averageDuration).toBeLessThan(PERFORMANCE_THRESHOLDS.TOKEN_REFRESH)
       expect(totalDuration).toBeLessThan(PERFORMANCE_THRESHOLDS.TOKEN_REFRESH * 2) // Allow 2x for concurrent overhead
-      console.log(`✅ Concurrent token refreshes (${concurrentRefreshes}): avg ${averageDuration.toFixed(2)}ms, total ${totalDuration.toFixed(2)}ms`)
+      console.log(
+        `✅ Concurrent token refreshes (${concurrentRefreshes}): avg ${averageDuration.toFixed(2)}ms, total ${totalDuration.toFixed(2)}ms`
+      )
     })
 
     it('should handle token refresh failures gracefully with minimal performance impact', async () => {
@@ -319,23 +328,22 @@ describe('NextAuth Performance Benchmarks', () => {
 
       dbMockHelper.mockUserRetrieval(mockUser)
 
-      const { duration } = await PerformanceTestHelper.measureAuthOperation(
-        async () => {
-          const sessionCallback = authConfig.callbacks?.session
-          return sessionCallback?.({
-            session: {
-              ...createMockSession(),
-              sessionToken: 'db-perf-session',
-              userId: 'db-perf-user',
-            },
-            token: createMockJWT({ sub: 'db-perf-user' }),
-          })
-        },
-        'database_user_query'
-      )
+      const { duration } = await PerformanceTestHelper.measureAuthOperation(async () => {
+        const sessionCallback = authConfig.callbacks?.session
+        return sessionCallback?.({
+          session: {
+            ...createMockSession(),
+            sessionToken: 'db-perf-session',
+            userId: 'db-perf-user',
+          },
+          token: createMockJWT({ sub: 'db-perf-user' }),
+        })
+      }, 'database_user_query')
 
       expect(duration).toBeLessThan(PERFORMANCE_THRESHOLDS.DATABASE_QUERY)
-      console.log(`✅ Database user query: ${duration.toFixed(2)}ms (threshold: ${PERFORMANCE_THRESHOLDS.DATABASE_QUERY}ms)`)
+      console.log(
+        `✅ Database user query: ${duration.toFixed(2)}ms (threshold: ${PERFORMANCE_THRESHOLDS.DATABASE_QUERY}ms)`
+      )
     })
 
     it('should handle database connection timeouts gracefully', async () => {
@@ -343,23 +351,20 @@ describe('NextAuth Performance Benchmarks', () => {
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => reject(new Error('Database connection timeout')), 50)
       })
-      
+
       mockSql.mockImplementationOnce(() => timeoutPromise)
 
-      const { duration, result } = await PerformanceTestHelper.measureAuthOperation(
-        async () => {
-          try {
-            const sessionCallback = authConfig.callbacks?.session
-            return await sessionCallback?.({
-              session: createMockSession(),
-              token: createMockJWT(),
-            })
-          } catch (error) {
-            return { error: error.message }
-          }
-        },
-        'database_timeout_handling'
-      )
+      const { duration, result } = await PerformanceTestHelper.measureAuthOperation(async () => {
+        try {
+          const sessionCallback = authConfig.callbacks?.session
+          return await sessionCallback?.({
+            session: createMockSession(),
+            token: createMockJWT(),
+          })
+        } catch (error) {
+          return { error: error.message }
+        }
+      }, 'database_timeout_handling')
 
       expect(duration).toBeLessThan(PERFORMANCE_THRESHOLDS.DATABASE_QUERY)
       console.log(`✅ Database timeout handling: ${duration.toFixed(2)}ms`)
@@ -379,91 +384,89 @@ describe('NextAuth Performance Benchmarks', () => {
       }
 
       const concurrentPromises = Array.from({ length: concurrentOperations }, (_, i) => {
-        return PerformanceTestHelper.measureAuthOperation(
-          async () => {
-            const sessionCallback = authConfig.callbacks?.session
-            return sessionCallback?.({
-              session: {
-                ...createMockSession(),
-                sessionToken: `concurrent-session-${i}`,
-                userId: `concurrent-db-user-${i}`,
-              },
-              token: createMockJWT({ sub: `concurrent-db-user-${i}` }),
-            })
-          },
-          `concurrent_db_operation_${i}`
-        )
+        return PerformanceTestHelper.measureAuthOperation(async () => {
+          const sessionCallback = authConfig.callbacks?.session
+          return sessionCallback?.({
+            session: {
+              ...createMockSession(),
+              sessionToken: `concurrent-session-${i}`,
+              userId: `concurrent-db-user-${i}`,
+            },
+            token: createMockJWT({ sub: `concurrent-db-user-${i}` }),
+          })
+        }, `concurrent_db_operation_${i}`)
       })
 
       const results = await Promise.all(concurrentPromises)
       const averageDuration = results.reduce((sum, r) => sum + r.duration, 0) / results.length
 
       expect(averageDuration).toBeLessThan(PERFORMANCE_THRESHOLDS.DATABASE_QUERY)
-      console.log(`✅ Concurrent database operations (${concurrentOperations}): avg ${averageDuration.toFixed(2)}ms`)
+      console.log(
+        `✅ Concurrent database operations (${concurrentOperations}): avg ${averageDuration.toFixed(2)}ms`
+      )
     })
   })
 
   describe('OAuth Callback Performance', () => {
     it('should process OAuth callbacks within performance threshold', async () => {
       const oauthFlow = OAuthFlowSimulator.simulateGitHubOAuth()
-      
+
       // Mock successful OAuth flow
       oauthFlow.mockTokenExchange()
       oauthFlow.mockProfileFetch()
-      
-      dbMockHelper.mockUserCreation({
-        id: 'oauth-perf-user',
-        email: 'oauth@example.com',
-        connected_providers: ['github'],
-        primary_provider: 'github',
-      } as any, {
-        provider: 'github',
-        providerAccountId: 'github-123',
-        type: 'oauth',
-        access_token: 'gho_oauth_token',
-      } as any)
 
-      const { duration, result } = await PerformanceTestHelper.measureAuthOperation(
-        async () => {
-          const signInCallback = authConfig.callbacks?.signIn
-          return signInCallback?.({
-            user: {
-              id: 'oauth-perf-user',
-              email: 'oauth@example.com',
-              name: 'OAuth User',
-              emailVerified: null,
-            },
-            account: {
-              provider: 'github',
-              providerAccountId: 'github-123',
-              type: 'oauth',
-              access_token: 'gho_oauth_token',
-            },
-          })
-        },
-        'oauth_callback_processing'
+      dbMockHelper.mockUserCreation(
+        {
+          id: 'oauth-perf-user',
+          email: 'oauth@example.com',
+          connected_providers: ['github'],
+          primary_provider: 'github',
+        } as any,
+        {
+          provider: 'github',
+          providerAccountId: 'github-123',
+          type: 'oauth',
+          access_token: 'gho_oauth_token',
+        } as any
       )
+
+      const { duration, result } = await PerformanceTestHelper.measureAuthOperation(async () => {
+        const signInCallback = authConfig.callbacks?.signIn
+        return signInCallback?.({
+          user: {
+            id: 'oauth-perf-user',
+            email: 'oauth@example.com',
+            name: 'OAuth User',
+            emailVerified: null,
+          },
+          account: {
+            provider: 'github',
+            providerAccountId: 'github-123',
+            type: 'oauth',
+            access_token: 'gho_oauth_token',
+          },
+        })
+      }, 'oauth_callback_processing')
 
       expect(result).toBe(true)
       expect(duration).toBeLessThan(PERFORMANCE_THRESHOLDS.OAUTH_CALLBACK)
-      console.log(`✅ OAuth callback processing: ${duration.toFixed(2)}ms (threshold: ${PERFORMANCE_THRESHOLDS.OAUTH_CALLBACK}ms)`)
+      console.log(
+        `✅ OAuth callback processing: ${duration.toFixed(2)}ms (threshold: ${PERFORMANCE_THRESHOLDS.OAUTH_CALLBACK}ms)`
+      )
     })
 
     it('should handle OAuth errors efficiently', async () => {
-      const { duration, result } = await PerformanceTestHelper.measureAuthOperation(
-        async () => {
-          const signInCallback = authConfig.callbacks?.signIn
-          return signInCallback?.({
-            user: {
-              id: 'invalid-oauth-user',
-              email: 'invalid@example.com',
-              emailVerified: null,
-            },
-            // Missing account indicates OAuth error
-          })
-        },
-        'oauth_error_handling'
-      )
+      const { duration, result } = await PerformanceTestHelper.measureAuthOperation(async () => {
+        const signInCallback = authConfig.callbacks?.signIn
+        return signInCallback?.({
+          user: {
+            id: 'invalid-oauth-user',
+            email: 'invalid@example.com',
+            emailVerified: null,
+          },
+          // Missing account indicates OAuth error
+        })
+      }, 'oauth_error_handling')
 
       expect(result).toBe(false)
       expect(duration).toBeLessThan(PERFORMANCE_THRESHOLDS.OAUTH_CALLBACK / 2) // Errors should be faster
@@ -473,101 +476,101 @@ describe('NextAuth Performance Benchmarks', () => {
 
   describe('Load Testing', () => {
     it('should handle light load efficiently', async () => {
-      const loadTestResult = await PerformanceTestHelper.simulateConcurrentAuth(
-        async () => {
-          dbMockHelper.mockUserRetrieval({
-            id: 'load-test-user',
-            email: 'load@example.com',
-            connected_providers: ['github'],
-            primary_provider: 'github',
-          } as any)
+      const loadTestResult = await PerformanceTestHelper.simulateConcurrentAuth(async () => {
+        dbMockHelper.mockUserRetrieval({
+          id: 'load-test-user',
+          email: 'load@example.com',
+          connected_providers: ['github'],
+          primary_provider: 'github',
+        } as any)
 
-          const sessionCallback = authConfig.callbacks?.session
-          return sessionCallback?.({
-            session: createMockSession(),
-            token: createMockJWT(),
-          })
-        },
-        LOAD_TEST_PARAMS.LIGHT_LOAD
-      )
+        const sessionCallback = authConfig.callbacks?.session
+        return sessionCallback?.({
+          session: createMockSession(),
+          token: createMockJWT(),
+        })
+      }, LOAD_TEST_PARAMS.LIGHT_LOAD)
 
       expect(loadTestResult.successRate).toBeGreaterThan(0.95) // 95% success rate
-      expect(loadTestResult.averageDuration).toBeLessThan(PERFORMANCE_THRESHOLDS.SESSION_CREATION * 2)
-      console.log(`✅ Light load test (${LOAD_TEST_PARAMS.LIGHT_LOAD} users): ${loadTestResult.averageDuration.toFixed(2)}ms avg, ${(loadTestResult.successRate * 100).toFixed(1)}% success`)
+      expect(loadTestResult.averageDuration).toBeLessThan(
+        PERFORMANCE_THRESHOLDS.SESSION_CREATION * 2
+      )
+      console.log(
+        `✅ Light load test (${LOAD_TEST_PARAMS.LIGHT_LOAD} users): ${loadTestResult.averageDuration.toFixed(2)}ms avg, ${(loadTestResult.successRate * 100).toFixed(1)}% success`
+      )
     })
 
     it('should handle medium load with acceptable performance', async () => {
-      const loadTestResult = await PerformanceTestHelper.simulateConcurrentAuth(
-        async () => {
-          dbMockHelper.mockUserRetrieval({
-            id: 'medium-load-user',
-            email: 'medium@example.com',
-            connected_providers: ['github'],
-            primary_provider: 'github',
-          } as any)
+      const loadTestResult = await PerformanceTestHelper.simulateConcurrentAuth(async () => {
+        dbMockHelper.mockUserRetrieval({
+          id: 'medium-load-user',
+          email: 'medium@example.com',
+          connected_providers: ['github'],
+          primary_provider: 'github',
+        } as any)
 
-          const sessionCallback = authConfig.callbacks?.session
-          return sessionCallback?.({
-            session: createMockSession(),
-            token: createMockJWT(),
-          })
-        },
-        LOAD_TEST_PARAMS.MEDIUM_LOAD
-      )
+        const sessionCallback = authConfig.callbacks?.session
+        return sessionCallback?.({
+          session: createMockSession(),
+          token: createMockJWT(),
+        })
+      }, LOAD_TEST_PARAMS.MEDIUM_LOAD)
 
-      expect(loadTestResult.successRate).toBeGreaterThan(0.90) // 90% success rate under medium load
+      expect(loadTestResult.successRate).toBeGreaterThan(0.9) // 90% success rate under medium load
       expect(loadTestResult.totalDuration).toBeLessThan(PERFORMANCE_THRESHOLDS.CONCURRENT_SESSIONS)
-      console.log(`✅ Medium load test (${LOAD_TEST_PARAMS.MEDIUM_LOAD} users): ${loadTestResult.totalDuration.toFixed(2)}ms total, ${(loadTestResult.successRate * 100).toFixed(1)}% success`)
+      console.log(
+        `✅ Medium load test (${LOAD_TEST_PARAMS.MEDIUM_LOAD} users): ${loadTestResult.totalDuration.toFixed(2)}ms total, ${(loadTestResult.successRate * 100).toFixed(1)}% success`
+      )
     })
 
     it('should maintain functionality under heavy load', async () => {
-      const loadTestResult = await PerformanceTestHelper.simulateConcurrentAuth(
-        async () => {
-          dbMockHelper.mockUserRetrieval({
-            id: 'heavy-load-user',
-            email: 'heavy@example.com',
-            connected_providers: ['github'],
-            primary_provider: 'github',
-          } as any)
+      const loadTestResult = await PerformanceTestHelper.simulateConcurrentAuth(async () => {
+        dbMockHelper.mockUserRetrieval({
+          id: 'heavy-load-user',
+          email: 'heavy@example.com',
+          connected_providers: ['github'],
+          primary_provider: 'github',
+        } as any)
 
-          const sessionCallback = authConfig.callbacks?.session
-          return sessionCallback?.({
-            session: createMockSession(),
-            token: createMockJWT(),
-          })
-        },
-        LOAD_TEST_PARAMS.HEAVY_LOAD
+        const sessionCallback = authConfig.callbacks?.session
+        return sessionCallback?.({
+          session: createMockSession(),
+          token: createMockJWT(),
+        })
+      }, LOAD_TEST_PARAMS.HEAVY_LOAD)
+
+      expect(loadTestResult.successRate).toBeGreaterThan(0.8) // 80% success rate under heavy load
+      console.log(
+        `✅ Heavy load test (${LOAD_TEST_PARAMS.HEAVY_LOAD} users): ${loadTestResult.totalDuration.toFixed(2)}ms total, ${(loadTestResult.successRate * 100).toFixed(1)}% success`
       )
-
-      expect(loadTestResult.successRate).toBeGreaterThan(0.80) // 80% success rate under heavy load
-      console.log(`✅ Heavy load test (${LOAD_TEST_PARAMS.HEAVY_LOAD} users): ${loadTestResult.totalDuration.toFixed(2)}ms total, ${(loadTestResult.successRate * 100).toFixed(1)}% success`)
     })
 
     it('should identify breaking point under stress load', async () => {
-      const loadTestResult = await PerformanceTestHelper.simulateConcurrentAuth(
-        async () => {
-          dbMockHelper.mockUserRetrieval({
-            id: 'stress-load-user',
-            email: 'stress@example.com',
-            connected_providers: ['github'],
-            primary_provider: 'github',
-          } as any)
+      const loadTestResult = await PerformanceTestHelper.simulateConcurrentAuth(async () => {
+        dbMockHelper.mockUserRetrieval({
+          id: 'stress-load-user',
+          email: 'stress@example.com',
+          connected_providers: ['github'],
+          primary_provider: 'github',
+        } as any)
 
-          const sessionCallback = authConfig.callbacks?.session
-          return sessionCallback?.({
-            session: createMockSession(),
-            token: createMockJWT(),
-          })
-        },
-        LOAD_TEST_PARAMS.STRESS_LOAD
-      )
+        const sessionCallback = authConfig.callbacks?.session
+        return sessionCallback?.({
+          session: createMockSession(),
+          token: createMockJWT(),
+        })
+      }, LOAD_TEST_PARAMS.STRESS_LOAD)
 
       // Under stress load, we expect some degradation but system should not completely fail
-      expect(loadTestResult.successRate).toBeGreaterThan(0.50) // 50% minimum success rate
-      console.log(`⚠️  Stress load test (${LOAD_TEST_PARAMS.STRESS_LOAD} users): ${loadTestResult.totalDuration.toFixed(2)}ms total, ${(loadTestResult.successRate * 100).toFixed(1)}% success`)
-      
-      if (loadTestResult.successRate < 0.80) {
-        console.warn(`Performance degradation detected under stress load: ${(loadTestResult.successRate * 100).toFixed(1)}% success rate`)
+      expect(loadTestResult.successRate).toBeGreaterThan(0.5) // 50% minimum success rate
+      console.log(
+        `⚠️  Stress load test (${LOAD_TEST_PARAMS.STRESS_LOAD} users): ${loadTestResult.totalDuration.toFixed(2)}ms total, ${(loadTestResult.successRate * 100).toFixed(1)}% success`
+      )
+
+      if (loadTestResult.successRate < 0.8) {
+        console.warn(
+          `Performance degradation detected under stress load: ${(loadTestResult.successRate * 100).toFixed(1)}% success rate`
+        )
       }
     })
   })
@@ -600,7 +603,9 @@ describe('NextAuth Performance Benchmarks', () => {
         const memoryGrowth = (finalMemory - initialMemory) / 1024 / 1024 // MB
 
         expect(memoryGrowth).toBeLessThan(50) // Less than 50MB growth
-        console.log(`✅ Memory stability test: ${memoryGrowth.toFixed(2)}MB growth over 100 operations`)
+        console.log(
+          `✅ Memory stability test: ${memoryGrowth.toFixed(2)}MB growth over 100 operations`
+        )
       } finally {
         memoryTracker.stopTracking(trackingInterval)
       }
@@ -641,7 +646,9 @@ describe('NextAuth Performance Benchmarks', () => {
         const finalMemory = measurements[measurements.length - 1]?.usage.heapUsed / 1024 / 1024
 
         expect(maxMemory).toBeLessThan(PERFORMANCE_THRESHOLDS.MEMORY_LIMIT_MB)
-        console.log(`✅ Garbage collection test: max ${maxMemory.toFixed(2)}MB, final ${finalMemory.toFixed(2)}MB`)
+        console.log(
+          `✅ Garbage collection test: max ${maxMemory.toFixed(2)}MB, final ${finalMemory.toFixed(2)}MB`
+        )
       } finally {
         memoryTracker.stopTracking(trackingInterval)
       }
@@ -661,31 +668,30 @@ describe('NextAuth Performance Benchmarks', () => {
           primary_provider: 'github',
         } as any)
 
-        const { duration } = await PerformanceTestHelper.measureAuthOperation(
-          async () => {
-            const sessionCallback = authConfig.callbacks?.session
-            return sessionCallback?.({
-              session: createMockSession(),
-              token: createMockJWT(),
-            })
-          },
-          `regression_test_run_${run}`
-        )
+        const { duration } = await PerformanceTestHelper.measureAuthOperation(async () => {
+          const sessionCallback = authConfig.callbacks?.session
+          return sessionCallback?.({
+            session: createMockSession(),
+            token: createMockJWT(),
+          })
+        }, `regression_test_run_${run}`)
 
         durations.push(duration)
       }
 
       const averageDuration = durations.reduce((sum, d) => sum + d, 0) / durations.length
       const standardDeviation = Math.sqrt(
-        durations.reduce((sum, d) => sum + Math.pow(d - averageDuration, 2), 0) / durations.length
+        durations.reduce((sum, d) => sum + (d - averageDuration) ** 2, 0) / durations.length
       )
       const coefficientOfVariation = standardDeviation / averageDuration
 
       // Coefficient of variation should be low (consistent performance)
       expect(coefficientOfVariation).toBeLessThan(0.2) // Less than 20% variation
       expect(averageDuration).toBeLessThan(PERFORMANCE_THRESHOLDS.SESSION_CREATION)
-      
-      console.log(`✅ Performance consistency: avg ${averageDuration.toFixed(2)}ms, CV ${(coefficientOfVariation * 100).toFixed(1)}%`)
+
+      console.log(
+        `✅ Performance consistency: avg ${averageDuration.toFixed(2)}ms, CV ${(coefficientOfVariation * 100).toFixed(1)}%`
+      )
     })
   })
 })
@@ -700,7 +706,8 @@ export const generatePerformanceReport = (benchmarkResults: any[]) => {
     summary: {
       totalBenchmarks: benchmarkResults.length,
       passedBenchmarks: benchmarkResults.filter(r => r.passed).length,
-      averagePerformance: benchmarkResults.reduce((sum, r) => sum + r.duration, 0) / benchmarkResults.length,
+      averagePerformance:
+        benchmarkResults.reduce((sum, r) => sum + r.duration, 0) / benchmarkResults.length,
     },
     thresholds: PERFORMANCE_THRESHOLDS,
     loadTestParams: LOAD_TEST_PARAMS,
@@ -710,7 +717,9 @@ export const generatePerformanceReport = (benchmarkResults: any[]) => {
   // Generate recommendations based on results
   const failedBenchmarks = benchmarkResults.filter(r => !r.passed)
   if (failedBenchmarks.length > 0) {
-    report.recommendations.push(`${failedBenchmarks.length} benchmarks failed - investigate performance bottlenecks`)
+    report.recommendations.push(
+      `${failedBenchmarks.length} benchmarks failed - investigate performance bottlenecks`
+    )
   }
 
   if (report.summary.averagePerformance > PERFORMANCE_THRESHOLDS.SESSION_CREATION * 2) {

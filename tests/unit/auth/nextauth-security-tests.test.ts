@@ -3,10 +3,10 @@
  * Comprehensive security validation for CSRF protection, token storage, session hijacking prevention
  */
 
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import type { NextRequest } from 'next/server'
+import type { JWT } from 'next-auth'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { authConfig } from '@/lib/auth/config'
-import type { Session, JWT } from 'next-auth'
 
 // Mock database and environment
 vi.mock('@/lib/db/config', () => ({
@@ -42,7 +42,7 @@ describe('NextAuth Security Testing', () => {
 
     it('should validate CSRF token in requests', async () => {
       // Mock a request without proper CSRF token
-      const invalidRequest = {
+      const _invalidRequest = {
         method: 'POST',
         headers: new Headers({
           'content-type': 'application/json',
@@ -85,7 +85,7 @@ describe('NextAuth Security Testing', () => {
     it('should handle CSRF token rotation', () => {
       // CSRF tokens should rotate on sensitive operations
       const sessionConfig = authConfig.session
-      
+
       expect(sessionConfig?.updateAge).toBeDefined()
       expect(sessionConfig?.updateAge).toBeLessThan(sessionConfig?.maxAge || 0)
     })
@@ -225,13 +225,15 @@ describe('NextAuth Security Testing', () => {
 
       // Mock database query that could detect anomalies
       const mockSql = vi.mocked(await import('@/lib/db/config')).sql
-      mockSql.mockResolvedValueOnce([{
-        id: 'user-123',
-        email: 'test@example.com',
-        last_login_at: new Date(Date.now() - 86400000), // 24 hours ago
-        failed_login_attempts: 0,
-        locked_at: null,
-      }])
+      mockSql.mockResolvedValueOnce([
+        {
+          id: 'user-123',
+          email: 'test@example.com',
+          last_login_at: new Date(Date.now() - 86400000), // 24 hours ago
+          failed_login_attempts: 0,
+          locked_at: null,
+        },
+      ])
 
       const result = await sessionCallback?.({
         session: {
@@ -284,7 +286,7 @@ describe('NextAuth Security Testing', () => {
     it('should prevent concurrent session abuse', async () => {
       // Test that multiple simultaneous sessions are handled properly
       const sessionPromises = Array.from({ length: 10 }, (_, i) => {
-        return new Promise((resolve) => {
+        return new Promise(resolve => {
           setTimeout(() => {
             resolve({
               sessionId: `session-${i}`,
@@ -296,10 +298,10 @@ describe('NextAuth Security Testing', () => {
       })
 
       const sessions = await Promise.all(sessionPromises)
-      
+
       // All sessions should be created but tracked
       expect(sessions).toHaveLength(10)
-      
+
       // Each session should have a unique ID
       const sessionIds = sessions.map((s: any) => s.sessionId)
       const uniqueIds = new Set(sessionIds)
@@ -309,13 +311,9 @@ describe('NextAuth Security Testing', () => {
 
   describe('Input Validation Security', () => {
     it('should validate email addresses properly', async () => {
-      const signInCallback = authConfig.callbacks?.signIn
+      const _signInCallback = authConfig.callbacks?.signIn
 
-      const validEmails = [
-        'user@example.com',
-        'test.user@domain.org',
-        'user+tag@example.co.uk',
-      ]
+      const validEmails = ['user@example.com', 'test.user@domain.org', 'user+tag@example.co.uk']
 
       const invalidEmails = [
         'invalid-email',
@@ -337,7 +335,7 @@ describe('NextAuth Security Testing', () => {
     })
 
     it('should sanitize user input data', async () => {
-      const signInCallback = authConfig.callbacks?.signIn
+      const _signInCallback = authConfig.callbacks?.signIn
 
       // Test with potentially malicious input
       const maliciousInput = {
@@ -361,20 +359,16 @@ describe('NextAuth Security Testing', () => {
     })
 
     it('should validate provider account IDs', async () => {
-      const signInCallback = authConfig.callbacks?.signIn
+      const _signInCallback = authConfig.callbacks?.signIn
 
-      const validProviderIds = [
-        'github-123456',
-        'google-987654321',
-        '12345',
-      ]
+      const validProviderIds = ['github-123456', 'google-987654321', '12345']
 
       const invalidProviderIds = [
         '',
         null,
         undefined,
         '<script>alert("xss")</script>',
-        'very-long-id-that-exceeds-reasonable-length-limits-' + 'x'.repeat(100),
+        `very-long-id-that-exceeds-reasonable-length-limits-${'x'.repeat(100)}`,
       ]
 
       // Valid IDs should be accepted
@@ -452,7 +446,7 @@ describe('NextAuth Security Testing', () => {
     it('should handle user data deletion requests', async () => {
       // Test that user data can be properly removed
       const mockSql = vi.mocked(await import('@/lib/db/config')).sql
-      
+
       // Mock user deletion
       mockSql.mockResolvedValueOnce([])
 
@@ -484,7 +478,7 @@ describe('NextAuth Security Testing', () => {
 
     it('should implement proper data retention policies', () => {
       const sessionConfig = authConfig.session
-      
+
       // Sessions should expire within reasonable timeframes
       expect(sessionConfig?.maxAge).toBeLessThanOrEqual(30 * 24 * 60 * 60) // Max 30 days
     })

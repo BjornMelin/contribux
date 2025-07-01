@@ -1,7 +1,7 @@
 /**
  * API Test Utilities
  * Reusable utilities for API route testing
- * 
+ *
  * Features:
  * - Request builders with type safety
  * - Response validators
@@ -11,20 +11,22 @@
  * - Rate limiting simulation
  */
 
-import { z } from 'zod'
 import type { HttpHandler } from 'msw'
 import { HttpResponse, http } from 'msw'
+import { z } from 'zod'
 
 // Common API response schemas
 export const ApiSuccessResponseSchema = z.object({
   success: z.literal(true),
   data: z.any(),
-  metadata: z.object({
-    query: z.string().optional(),
-    filters: z.record(z.any()).optional(),
-    execution_time_ms: z.number().optional(),
-    performance_note: z.string().optional(),
-  }).optional(),
+  metadata: z
+    .object({
+      query: z.string().optional(),
+      filters: z.record(z.any()).optional(),
+      execution_time_ms: z.number().optional(),
+      performance_note: z.string().optional(),
+    })
+    .optional(),
 })
 
 export const ApiErrorResponseSchema = z.object({
@@ -57,7 +59,7 @@ interface PerformanceMeasurement {
 class ApiPerformanceTracker {
   private measurements: PerformanceMeasurement[] = []
 
-  async measureRequest<T>(
+  async measureRequest<_T>(
     endpoint: string,
     method: string,
     requestFn: () => Promise<Response>,
@@ -85,16 +87,16 @@ class ApiPerformanceTracker {
   }
 
   getAverageDuration(endpoint?: string): number {
-    const filtered = endpoint 
+    const filtered = endpoint
       ? this.measurements.filter(m => m.endpoint === endpoint)
       : this.measurements
 
     if (filtered.length === 0) return 0
-    
+
     return filtered.reduce((sum, m) => sum + m.duration, 0) / filtered.length
   }
 
-  getSlowRequests(threshold: number = 1000): PerformanceMeasurement[] {
+  getSlowRequests(threshold = 1000): PerformanceMeasurement[] {
     return this.measurements.filter(m => m.duration > threshold)
   }
 
@@ -107,40 +109,50 @@ class ApiPerformanceTracker {
     averageDuration: number
     slowRequests: number
     errorRate: number
-    byEndpoint: Record<string, {
-      count: number
-      averageDuration: number
-      errorRate: number
-    }>
+    byEndpoint: Record<
+      string,
+      {
+        count: number
+        averageDuration: number
+        errorRate: number
+      }
+    >
   } {
     const total = this.measurements.length
     const errors = this.measurements.filter(m => m.status >= 400).length
     const slow = this.getSlowRequests().length
 
-    const byEndpoint = this.measurements.reduce((acc, measurement) => {
-      if (!acc[measurement.endpoint]) {
-        acc[measurement.endpoint] = {
-          measurements: [],
-          errors: 0,
+    const byEndpoint = this.measurements.reduce(
+      (acc, measurement) => {
+        if (!acc[measurement.endpoint]) {
+          acc[measurement.endpoint] = {
+            measurements: [],
+            errors: 0,
+          }
         }
-      }
-      
-      acc[measurement.endpoint].measurements.push(measurement)
-      if (measurement.status >= 400) {
-        acc[measurement.endpoint].errors++
-      }
-      
-      return acc
-    }, {} as Record<string, { measurements: PerformanceMeasurement[]; errors: number }>)
 
-    const endpointStats = Object.entries(byEndpoint).reduce((acc, [endpoint, data]) => {
-      acc[endpoint] = {
-        count: data.measurements.length,
-        averageDuration: data.measurements.reduce((sum, m) => sum + m.duration, 0) / data.measurements.length,
-        errorRate: data.errors / data.measurements.length,
-      }
-      return acc
-    }, {} as Record<string, { count: number; averageDuration: number; errorRate: number }>)
+        acc[measurement.endpoint].measurements.push(measurement)
+        if (measurement.status >= 400) {
+          acc[measurement.endpoint].errors++
+        }
+
+        return acc
+      },
+      {} as Record<string, { measurements: PerformanceMeasurement[]; errors: number }>
+    )
+
+    const endpointStats = Object.entries(byEndpoint).reduce(
+      (acc, [endpoint, data]) => {
+        acc[endpoint] = {
+          count: data.measurements.length,
+          averageDuration:
+            data.measurements.reduce((sum, m) => sum + m.duration, 0) / data.measurements.length,
+          errorRate: data.errors / data.measurements.length,
+        }
+        return acc
+      },
+      {} as Record<string, { count: number; averageDuration: number; errorRate: number }>
+    )
 
     return {
       totalRequests: total,
@@ -157,12 +169,12 @@ export class ApiRequestBuilder {
   private baseUrl: string
   private headers: Record<string, string> = {}
 
-  constructor(baseUrl: string = 'http://localhost:3000') {
+  constructor(baseUrl = 'http://localhost:3000') {
     this.baseUrl = baseUrl
   }
 
   withAuth(token: string): this {
-    this.headers['Authorization'] = `Bearer ${token}`
+    this.headers.Authorization = `Bearer ${token}`
     return this
   }
 
@@ -177,11 +189,11 @@ export class ApiRequestBuilder {
   }
 
   async get(
-    endpoint: string, 
+    endpoint: string,
     params?: Record<string, string | number | boolean>
   ): Promise<Response> {
     const url = new URL(`${this.baseUrl}${endpoint}`)
-    
+
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
         url.searchParams.set(key, String(value))
@@ -226,16 +238,18 @@ export class ApiRequestBuilder {
 
 // Response validators
 export class ApiResponseValidator {
-  static async validateSuccessResponse(response: Response): Promise<z.infer<typeof ApiSuccessResponseSchema>> {
+  static async validateSuccessResponse(
+    response: Response
+  ): Promise<z.infer<typeof ApiSuccessResponseSchema>> {
     expect(response.status).toBeGreaterThanOrEqual(200)
     expect(response.status).toBeLessThan(400)
-    
+
     const data = await response.json()
     return ApiSuccessResponseSchema.parse(data)
   }
 
   static async validateErrorResponse(
-    response: Response, 
+    response: Response,
     expectedStatus?: number
   ): Promise<z.infer<typeof ApiErrorResponseSchema>> {
     if (expectedStatus) {
@@ -243,17 +257,19 @@ export class ApiResponseValidator {
     } else {
       expect(response.status).toBeGreaterThanOrEqual(400)
     }
-    
+
     const data = await response.json()
     return ApiErrorResponseSchema.parse(data)
   }
 
   static async validatePaginatedResponse(
     response: Response
-  ): Promise<z.infer<typeof ApiSuccessResponseSchema> & { data: z.infer<typeof PaginatedResponseSchema> }> {
-    const validatedResponse = await this.validateSuccessResponse(response)
+  ): Promise<
+    z.infer<typeof ApiSuccessResponseSchema> & { data: z.infer<typeof PaginatedResponseSchema> }
+  > {
+    const validatedResponse = await ApiResponseValidator.validateSuccessResponse(response)
     const paginationData = PaginatedResponseSchema.parse(validatedResponse.data)
-    
+
     return {
       ...validatedResponse,
       data: paginationData,
@@ -271,11 +287,11 @@ export class ApiResponseValidator {
     if (thresholds.maxDuration) {
       expect(measurement.duration).toBeLessThanOrEqual(thresholds.maxDuration)
     }
-    
+
     if (thresholds.minDuration) {
       expect(measurement.duration).toBeGreaterThanOrEqual(thresholds.minDuration)
     }
-    
+
     if (thresholds.expectedStatus) {
       expect(measurement.status).toBe(thresholds.expectedStatus)
     }
@@ -288,7 +304,7 @@ export class ApiResponseValidator {
     Object.entries(expectedHeaders).forEach(([headerName, expectedValue]) => {
       const actualValue = response.headers.get(headerName)
       expect(actualValue).toBeDefined()
-      
+
       if (expectedValue instanceof RegExp) {
         expect(actualValue).toMatch(expectedValue)
       } else {
@@ -312,12 +328,12 @@ export class AuthTestHelper {
     }
 
     const encode = (obj: any) => Buffer.from(JSON.stringify(obj)).toString('base64url')
-    
+
     return `${encode(header)}.${encode(defaultPayload)}.mock-signature`
   }
 
   static generateExpiredJWT(): string {
-    return this.generateMockJWT({
+    return AuthTestHelper.generateMockJWT({
       exp: Math.floor(Date.now() / 1000) - 3600, // Expired 1 hour ago
     })
   }
@@ -328,7 +344,7 @@ export class AuthTestHelper {
 
   static createAuthenticatedRequest(token?: string): ApiRequestBuilder {
     const builder = new ApiRequestBuilder()
-    return builder.withAuth(token || this.generateMockJWT())
+    return builder.withAuth(token || AuthTestHelper.generateMockJWT())
   }
 
   static createUnauthenticatedRequest(): ApiRequestBuilder {
@@ -347,45 +363,47 @@ export class RateLimitSimulator {
     handler: (request: Request) => Response | Promise<Response>
   ): HttpHandler {
     return http.all(endpoint, async ({ request }) => {
-      const clientId = request.headers.get('X-Client-ID') || 
-                     request.headers.get('Authorization') || 
-                     'anonymous'
-      
+      const clientId =
+        request.headers.get('X-Client-ID') || request.headers.get('Authorization') || 'anonymous'
+
       const now = Date.now()
       let clientData = this.requestCounts.get(clientId)
-      
+
       if (!clientData || now > clientData.resetTime) {
         clientData = { count: 0, resetTime: now + windowMs }
         this.requestCounts.set(clientId, clientData)
       }
-      
+
       clientData.count++
-      
+
       const remaining = Math.max(0, maxRequests - clientData.count)
       const headers = {
         'X-RateLimit-Limit': String(maxRequests),
         'X-RateLimit-Remaining': String(remaining),
         'X-RateLimit-Reset': String(clientData.resetTime),
       }
-      
+
       if (clientData.count > maxRequests) {
-        return HttpResponse.json({
-          success: false,
-          error: {
-            code: 'RATE_LIMIT_EXCEEDED',
-            message: 'Rate limit exceeded. Please try again later.',
+        return HttpResponse.json(
+          {
+            success: false,
+            error: {
+              code: 'RATE_LIMIT_EXCEEDED',
+              message: 'Rate limit exceeded. Please try again later.',
+            },
           },
-        }, {
-          status: 429,
-          headers: {
-            ...headers,
-            'Retry-After': String(Math.ceil((clientData.resetTime - now) / 1000)),
-          },
-        })
+          {
+            status: 429,
+            headers: {
+              ...headers,
+              'Retry-After': String(Math.ceil((clientData.resetTime - now) / 1000)),
+            },
+          }
+        )
       }
-      
+
       const response = await handler(request)
-      
+
       if (response instanceof Response) {
         // Add rate limit headers to existing response
         Object.entries(headers).forEach(([key, value]) => {
@@ -393,7 +411,7 @@ export class RateLimitSimulator {
         })
         return response
       }
-      
+
       return new Response(response, { headers })
     })
   }
@@ -416,55 +434,64 @@ export class ErrorSimulator {
   }
 
   static create500Error(): HttpResponse {
-    return HttpResponse.json({
-      success: false,
-      error: {
-        code: 'INTERNAL_SERVER_ERROR',
-        message: 'An unexpected error occurred',
+    return HttpResponse.json(
+      {
+        success: false,
+        error: {
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'An unexpected error occurred',
+        },
       },
-    }, { status: 500 })
+      { status: 500 }
+    )
   }
 
   static createDatabaseError(): HttpResponse {
-    return HttpResponse.json({
-      success: false,
-      error: {
-        code: 'DATABASE_ERROR',
-        message: 'Database connection failed',
-        details: {
-          error_type: 'CONNECTION_FAILED',
-          retry_after: 5,
+    return HttpResponse.json(
+      {
+        success: false,
+        error: {
+          code: 'DATABASE_ERROR',
+          message: 'Database connection failed',
+          details: {
+            error_type: 'CONNECTION_FAILED',
+            retry_after: 5,
+          },
         },
       },
-    }, { status: 503 })
+      { status: 503 }
+    )
   }
 
   static createValidationError(fields: string[]): HttpResponse {
-    return HttpResponse.json({
-      success: false,
-      error: {
-        code: 'VALIDATION_ERROR',
-        message: 'Invalid input data',
-        details: fields.map(field => ({
-          path: [field],
-          message: `${field} is required`,
-        })),
+    return HttpResponse.json(
+      {
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid input data',
+          details: fields.map(field => ({
+            path: [field],
+            message: `${field} is required`,
+          })),
+        },
       },
-    }, { status: 400 })
+      { status: 400 }
+    )
   }
 }
 
 // Test data generators
 export class TestDataGenerator {
   static generateUUID(): string {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-      const r = Math.random() * 16 | 0
-      const v = c === 'x' ? r : (r & 0x3 | 0x8)
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = (Math.random() * 16) | 0
+      const v = c === 'x' ? r : (r & 0x3) | 0x8
       return v.toString(16)
     })
   }
 
-  static generateRandomString(length: number = 10): string {
+  static generateRandomString(length = 10): string {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
     let result = ''
     for (let i = 0; i < length; i++) {
@@ -474,10 +501,10 @@ export class TestDataGenerator {
   }
 
   static generateRandomEmail(): string {
-    return `${this.generateRandomString(8)}@${this.generateRandomString(5)}.com`
+    return `${TestDataGenerator.generateRandomString(8)}@${TestDataGenerator.generateRandomString(5)}.com`
   }
 
-  static generateRandomNumber(min: number = 0, max: number = 1000): number {
+  static generateRandomNumber(min = 0, max = 1000): number {
     return Math.floor(Math.random() * (max - min + 1)) + min
   }
 
@@ -485,15 +512,17 @@ export class TestDataGenerator {
     return Math.random() > 0.5
   }
 
-  static generatePaginationParams(overrides: Partial<{
-    page: number
-    per_page: number
-    total_count: number
-  }> = {}): { page: number; per_page: number; total_count: number; has_more: boolean } {
+  static generatePaginationParams(
+    overrides: Partial<{
+      page: number
+      per_page: number
+      total_count: number
+    }> = {}
+  ): { page: number; per_page: number; total_count: number; has_more: boolean } {
     const page = overrides.page || 1
     const per_page = overrides.per_page || 20
-    const total_count = overrides.total_count || this.generateRandomNumber(0, 1000)
-    const has_more = (page * per_page) < total_count
+    const total_count = overrides.total_count || TestDataGenerator.generateRandomNumber(0, 1000)
+    const has_more = page * per_page < total_count
 
     return { page, per_page, total_count, has_more }
   }
@@ -514,6 +543,4 @@ export const apiTestUtils = {
 export const performanceTracker = new ApiPerformanceTracker()
 
 // Type exports
-export type {
-  PerformanceMeasurement,
-}
+export type { PerformanceMeasurement }

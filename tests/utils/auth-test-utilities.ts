@@ -3,11 +3,11 @@
  * Comprehensive utilities for authentication state management, mocking, and test setup
  */
 
-import { vi, type MockedFunction } from 'vitest'
-import type { Session, JWT, Account, Profile } from 'next-auth'
 import type { NextRequest } from 'next/server'
+import type { Account, JWT, Profile, Session } from 'next-auth'
+import { type MockedFunction, vi } from 'vitest'
 import type { User as AuthUser } from '@/types/auth'
-import type { UUID, Email } from '@/types/base'
+import type { Email, UUID } from '@/types/base'
 
 // =============================================================================
 // Mock Data Factories
@@ -209,22 +209,22 @@ export class OAuthFlowSimulator {
    * Simulate GitHub OAuth flow
    */
   static simulateGitHubOAuth() {
-    const state = this.generateStateParameter()
-    const code = this.generateAuthorizationCode()
-    
+    const state = OAuthFlowSimulator.generateStateParameter()
+    const code = OAuthFlowSimulator.generateAuthorizationCode()
+
     return {
       // Step 1: Authorization URL
       getAuthorizationUrl: () => ({
         url: `https://github.com/login/oauth/authorize?client_id=test_client_id&scope=read:user%20user:email&state=${state}&redirect_uri=http://localhost:3000/api/auth/callback/github`,
         state,
       }),
-      
+
       // Step 2: Authorization callback
       getCallbackParams: () => ({
         code,
         state,
       }),
-      
+
       // Step 3: Token exchange
       mockTokenExchange: () => {
         global.fetch = vi.fn().mockResolvedValueOnce({
@@ -238,7 +238,7 @@ export class OAuthFlowSimulator {
           }),
         })
       },
-      
+
       // Step 4: User profile fetch
       mockProfileFetch: () => {
         global.fetch = vi.fn().mockResolvedValueOnce({
@@ -259,22 +259,22 @@ export class OAuthFlowSimulator {
    * Simulate Google OAuth flow
    */
   static simulateGoogleOAuth() {
-    const state = this.generateStateParameter()
-    const code = this.generateAuthorizationCode()
-    
+    const state = OAuthFlowSimulator.generateStateParameter()
+    const code = OAuthFlowSimulator.generateAuthorizationCode()
+
     return {
       // Step 1: Authorization URL
       getAuthorizationUrl: () => ({
         url: `https://accounts.google.com/oauth2/authorize?client_id=test_client_id&scope=openid%20email%20profile&state=${state}&redirect_uri=http://localhost:3000/api/auth/callback/google&response_type=code`,
         state,
       }),
-      
+
       // Step 2: Authorization callback
       getCallbackParams: () => ({
         code,
         state,
       }),
-      
+
       // Step 3: Token exchange
       mockTokenExchange: () => {
         global.fetch = vi.fn().mockResolvedValueOnce({
@@ -289,7 +289,7 @@ export class OAuthFlowSimulator {
           }),
         })
       },
-      
+
       // Step 4: User profile fetch
       mockProfileFetch: () => {
         global.fetch = vi.fn().mockResolvedValueOnce({
@@ -319,20 +319,16 @@ export class OAuthFlowSimulator {
     return {
       error: errorType,
       error_description: errorDescriptions[errorType],
-      state: this.generateStateParameter(),
+      state: OAuthFlowSimulator.generateStateParameter(),
     }
   }
 
   private static generateStateParameter(): string {
-    return Array.from({ length: 32 }, () => 
-      Math.floor(Math.random() * 16).toString(16)
-    ).join('')
+    return Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('')
   }
 
   private static generateAuthorizationCode(): string {
-    return Array.from({ length: 40 }, () => 
-      Math.floor(Math.random() * 36).toString(36)
-    ).join('')
+    return Array.from({ length: 40 }, () => Math.floor(Math.random() * 36).toString(36)).join('')
   }
 }
 
@@ -350,7 +346,7 @@ export class DatabaseMockHelper {
   /**
    * Mock user creation scenario
    */
-  mockUserCreation(user: AuthUser, account: Account): void {
+  mockUserCreation(user: AuthUser, _account: Account): void {
     this.mockSql
       .mockResolvedValueOnce([]) // No existing OAuth account
       .mockResolvedValueOnce([]) // No existing user by email
@@ -369,7 +365,7 @@ export class DatabaseMockHelper {
   /**
    * Mock account linking scenario
    */
-  mockAccountLinking(existingUser: AuthUser, newAccount: Account): void {
+  mockAccountLinking(existingUser: AuthUser, _newAccount: Account): void {
     this.mockSql
       .mockResolvedValueOnce([]) // No existing OAuth account for new provider
       .mockResolvedValueOnce([existingUser]) // Existing user by email
@@ -418,26 +414,27 @@ export class DatabaseMockHelper {
 // Request Mock Utilities
 // =============================================================================
 
-export const createMockRequest = (overrides: Partial<NextRequest> = {}): NextRequest => ({
-  url: 'https://contribux.example.com/test',
-  method: 'GET',
-  headers: new Headers(),
-  nextUrl: {
-    pathname: '/test',
-    search: '',
-    searchParams: new URLSearchParams(),
-    href: 'https://contribux.example.com/test',
-  },
-  ...overrides,
-} as NextRequest)
+export const createMockRequest = (overrides: Partial<NextRequest> = {}): NextRequest =>
+  ({
+    url: 'https://contribux.example.com/test',
+    method: 'GET',
+    headers: new Headers(),
+    nextUrl: {
+      pathname: '/test',
+      search: '',
+      searchParams: new URLSearchParams(),
+      href: 'https://contribux.example.com/test',
+    },
+    ...overrides,
+  }) as NextRequest
 
 export const createAuthenticatedRequest = (session: Session): NextRequest => {
   const sessionToken = `next-auth.session-token=mock-session-token-${session.user.id}`
-  
+
   return createMockRequest({
     headers: new Headers({
-      'cookie': sessionToken,
-      'authorization': `Bearer ${sessionToken}`,
+      cookie: sessionToken,
+      authorization: `Bearer ${sessionToken}`,
     }),
   })
 }
@@ -446,7 +443,7 @@ export const createCORSRequest = (origin: string): NextRequest => {
   return createMockRequest({
     method: 'OPTIONS',
     headers: new Headers({
-      'origin': origin,
+      origin: origin,
       'access-control-request-method': 'GET',
       'access-control-request-headers': 'authorization',
     }),
@@ -462,9 +459,7 @@ export class SecurityTestHelper {
    * Generate CSRF token
    */
   static generateCSRFToken(): string {
-    return Array.from({ length: 32 }, () => 
-      Math.floor(Math.random() * 16).toString(16)
-    ).join('')
+    return Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('')
   }
 
   /**
@@ -496,11 +491,7 @@ export class SecurityTestHelper {
         '..\\..\\..\\windows\\system32\\config\\sam',
         '%2e%2e%2f%2e%2e%2f%2e%2e%2fetc%2fpasswd',
       ],
-      oversizedInputs: [
-        'x'.repeat(10000),
-        'x'.repeat(100000),
-        'x'.repeat(1000000),
-      ],
+      oversizedInputs: ['x'.repeat(10000), 'x'.repeat(100000), 'x'.repeat(1000000)],
     }
   }
 
@@ -518,7 +509,8 @@ export class SecurityTestHelper {
           email: 'hijacker@malicious.com' as Email,
         },
       },
-      differentUserAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+      differentUserAgent:
+        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
       differentIPAddress: '192.168.1.100',
     }
   }
@@ -581,7 +573,7 @@ export class PerformanceTestHelper {
     successRate: number
   }> {
     const startTime = performance.now()
-    
+
     const promises = Array.from({ length: concurrentUsers }, async (_, i) => {
       try {
         const result = await authOperation()
@@ -593,9 +585,9 @@ export class PerformanceTestHelper {
 
     const results = await Promise.all(promises)
     const endTime = performance.now()
-    
+
     const successfulResults = results.filter(r => r.success)
-    
+
     return {
       results,
       totalDuration: endTime - startTime,
@@ -609,7 +601,7 @@ export class PerformanceTestHelper {
    */
   static trackMemoryUsage() {
     const measurements: Array<{ timestamp: number; usage: NodeJS.MemoryUsage }> = []
-    
+
     return {
       startTracking: () => {
         const interval = setInterval(() => {
@@ -618,15 +610,15 @@ export class PerformanceTestHelper {
             usage: process.memoryUsage(),
           })
         }, 100) // Every 100ms
-        
+
         return interval
       },
-      
+
       stopTracking: (interval: NodeJS.Timeout) => {
         clearInterval(interval)
         return measurements
       },
-      
+
       getMeasurements: () => measurements,
     }
   }

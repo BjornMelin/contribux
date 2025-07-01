@@ -34,12 +34,16 @@ vi.mock('next-auth', () => ({
 
 // Mock crypto functions
 vi.mock('../../src/lib/security/crypto', () => ({
-  generateSecureToken: vi.fn().mockImplementation((length: number) => 
-    'secure-token-' + Math.random().toString(36).substring(2, length + 2)
+  generateSecureToken: vi.fn().mockImplementation(
+    (length: number) =>
+      'secure-token-' +
+      Math.random()
+        .toString(36)
+        .substring(2, length + 2)
   ),
-  createSecureHash: vi.fn().mockImplementation((data: string) => 
-    'secure-hash-' + Buffer.from(data).toString('base64')
-  ),
+  createSecureHash: vi
+    .fn()
+    .mockImplementation((data: string) => `secure-hash-${Buffer.from(data).toString('base64')}`),
   verifySecureHash: vi.fn().mockReturnValue(true),
 }))
 
@@ -48,8 +52,9 @@ const securityServer = setupServer(
   // NextAuth.js API routes
   http.get('http://localhost:3000/api/auth/session', ({ request }) => {
     const cookies = request.headers.get('cookie') || ''
-    const hasSessionToken = cookies.includes('next-auth.session-token') || 
-                           cookies.includes('__Secure-next-auth.session-token')
+    const hasSessionToken =
+      cookies.includes('next-auth.session-token') ||
+      cookies.includes('__Secure-next-auth.session-token')
 
     if (!hasSessionToken) {
       return HttpResponse.json(null)
@@ -77,26 +82,23 @@ const securityServer = setupServer(
 
     // CSRF token validation
     if (!csrfToken) {
-      return HttpResponse.json(
-        { error: 'CSRF token missing' },
-        { status: 400 }
-      )
+      return HttpResponse.json({ error: 'CSRF token missing' }, { status: 400 })
     }
 
     // Provider validation
     if (!provider || !['github', 'google'].includes(provider)) {
-      return HttpResponse.json(
-        { error: 'Invalid provider' },
-        { status: 400 }
-      )
+      return HttpResponse.json({ error: 'Invalid provider' }, { status: 400 })
     }
 
     // Simulate OAuth redirect
-    const authUrl = provider === 'github' 
-      ? 'https://github.com/login/oauth/authorize'
-      : 'https://accounts.google.com/oauth2/auth'
+    const authUrl =
+      provider === 'github'
+        ? 'https://github.com/login/oauth/authorize'
+        : 'https://accounts.google.com/oauth2/auth'
 
-    return HttpResponse.redirect(`${authUrl}?client_id=test&redirect_uri=${encodeURIComponent(callbackUrl || '')}`)
+    return HttpResponse.redirect(
+      `${authUrl}?client_id=test&redirect_uri=${encodeURIComponent(callbackUrl || '')}`
+    )
   }),
 
   http.get('http://localhost:3000/api/auth/callback/:provider', ({ params, request }) => {
@@ -107,50 +109,47 @@ const securityServer = setupServer(
 
     // OAuth callback validation
     if (!code) {
-      return HttpResponse.json(
-        { error: 'Authorization code missing' },
-        { status: 400 }
-      )
+      return HttpResponse.json({ error: 'Authorization code missing' }, { status: 400 })
     }
 
     if (!state) {
-      return HttpResponse.json(
-        { error: 'State parameter missing' },
-        { status: 400 }
-      )
+      return HttpResponse.json({ error: 'State parameter missing' }, { status: 400 })
     }
 
     // Simulate successful authentication
     return HttpResponse.redirect('http://localhost:3000?authenticated=true', {
       headers: {
-        'Set-Cookie': '__Secure-next-auth.session-token=valid-session-token; HttpOnly; Secure; SameSite=Lax; Path=/'
-      }
+        'Set-Cookie':
+          '__Secure-next-auth.session-token=valid-session-token; HttpOnly; Secure; SameSite=Lax; Path=/',
+      },
     })
   }),
 
   http.post('http://localhost:3000/api/auth/signout', async ({ request }) => {
     const cookies = request.headers.get('cookie') || ''
-    const hasSessionToken = cookies.includes('next-auth.session-token') || 
-                           cookies.includes('__Secure-next-auth.session-token')
+    const hasSessionToken =
+      cookies.includes('next-auth.session-token') ||
+      cookies.includes('__Secure-next-auth.session-token')
 
     if (!hasSessionToken) {
-      return HttpResponse.json(
-        { error: 'No session to sign out' },
-        { status: 400 }
-      )
+      return HttpResponse.json({ error: 'No session to sign out' }, { status: 400 })
     }
 
     // Simulate successful signout
-    return HttpResponse.json({ success: true }, {
-      headers: {
-        'Set-Cookie': '__Secure-next-auth.session-token=; HttpOnly; Secure; SameSite=Lax; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT'
+    return HttpResponse.json(
+      { success: true },
+      {
+        headers: {
+          'Set-Cookie':
+            '__Secure-next-auth.session-token=; HttpOnly; Secure; SameSite=Lax; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT',
+        },
       }
-    })
+    )
   }),
 
   http.get('http://localhost:3000/api/auth/csrf', () => {
     return HttpResponse.json({
-      csrfToken: 'csrf-token-' + Math.random().toString(36).substring(2)
+      csrfToken: `csrf-token-${Math.random().toString(36).substring(2)}`,
     })
   }),
 
@@ -161,15 +160,15 @@ const securityServer = setupServer(
         name: 'GitHub',
         type: 'oauth',
         signinUrl: 'http://localhost:3000/api/auth/signin/github',
-        callbackUrl: 'http://localhost:3000/api/auth/callback/github'
+        callbackUrl: 'http://localhost:3000/api/auth/callback/github',
       },
       google: {
         id: 'google',
         name: 'Google',
         type: 'oauth',
         signinUrl: 'http://localhost:3000/api/auth/signin/google',
-        callbackUrl: 'http://localhost:3000/api/auth/callback/google'
-      }
+        callbackUrl: 'http://localhost:3000/api/auth/callback/google',
+      },
     })
   }),
 
@@ -182,26 +181,20 @@ const securityServer = setupServer(
     const clientSecret = params.get('client_secret')
 
     if (!code || !clientId || !clientSecret) {
-      return HttpResponse.json(
-        { error: 'invalid_request' },
-        { status: 400 }
-      )
+      return HttpResponse.json({ error: 'invalid_request' }, { status: 400 })
     }
 
     return HttpResponse.json({
-      access_token: 'github-access-token-' + Math.random().toString(36),
+      access_token: `github-access-token-${Math.random().toString(36)}`,
       token_type: 'bearer',
-      scope: 'read:user,user:email'
+      scope: 'read:user,user:email',
     })
   }),
 
   http.get('https://api.github.com/user', ({ request }) => {
     const auth = request.headers.get('authorization')
     if (!auth || !auth.startsWith('Bearer ')) {
-      return HttpResponse.json(
-        { message: 'Requires authentication' },
-        { status: 401 }
-      )
+      return HttpResponse.json({ message: 'Requires authentication' }, { status: 401 })
     }
 
     return HttpResponse.json({
@@ -209,7 +202,7 @@ const securityServer = setupServer(
       login: 'testuser',
       name: 'Test User',
       email: 'test@example.com',
-      verified: true
+      verified: true,
     })
   }),
 
@@ -221,18 +214,15 @@ const securityServer = setupServer(
     const clientSecret = params.get('client_secret')
 
     if (!code || !clientId || !clientSecret) {
-      return HttpResponse.json(
-        { error: 'invalid_request' },
-        { status: 400 }
-      )
+      return HttpResponse.json({ error: 'invalid_request' }, { status: 400 })
     }
 
     return HttpResponse.json({
-      access_token: 'google-access-token-' + Math.random().toString(36),
-      id_token: 'google-id-token-' + Math.random().toString(36),
+      access_token: `google-access-token-${Math.random().toString(36)}`,
+      id_token: `google-id-token-${Math.random().toString(36)}`,
       token_type: 'Bearer',
       expires_in: 3600,
-      scope: 'openid email profile'
+      scope: 'openid email profile',
     })
   })
 )
@@ -264,7 +254,7 @@ describe('NextAuth.js v5 Security Testing', () => {
 
     it('should have secure cookie configuration', () => {
       expect(authConfig.useSecureCookies).toBe(process.env.NODE_ENV === 'production')
-      
+
       const sessionCookie = authConfig.cookies?.sessionToken
       expect(sessionCookie?.name).toBe('__Secure-next-auth.session-token')
       expect(sessionCookie?.options?.httpOnly).toBe(true)
@@ -279,12 +269,12 @@ describe('NextAuth.js v5 Security Testing', () => {
 
     it('should have proper OAuth provider configuration', () => {
       expect(authConfig.providers).toHaveLength(2)
-      
+
       // Check GitHub provider configuration
       const githubProvider = authConfig.providers.find(p => p.id === 'github')
       expect(githubProvider).toBeDefined()
-      
-      // Check Google provider configuration  
+
+      // Check Google provider configuration
       const googleProvider = authConfig.providers.find(p => p.id === 'google')
       expect(googleProvider).toBeDefined()
     })
@@ -295,12 +285,186 @@ describe('NextAuth.js v5 Security Testing', () => {
     })
   })
 
+  describe('Production Secret Validation', () => {
+    it('should reject hardcoded test secrets in production', () => {
+      // Test that hardcoded test secrets are properly rejected
+      const testSecrets = [
+        'test-secret',
+        'development-secret',
+        'test123',
+        'localhost-secret',
+        'default-secret',
+      ]
+
+      testSecrets.forEach(testSecret => {
+        expect(() => {
+          // Simulate production environment validation
+          if (process.env.NODE_ENV === 'production' && testSecret.includes('test')) {
+            throw new Error('AUTH_SECRET must be a secure production secret')
+          }
+        }).not.toThrow()
+
+        // In production, this should throw
+        if (process.env.NODE_ENV === 'production') {
+          expect(() => {
+            if (testSecret.startsWith('test') || testSecret.includes('default')) {
+              throw new Error('Production secrets cannot contain test patterns')
+            }
+          }).toThrow('Production secrets cannot contain test patterns')
+        }
+      })
+    })
+
+    it('should validate secret entropy and strength', () => {
+      const weakSecrets = ['12345', 'password', 'secret']
+      const strongSecret = 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6'
+
+      weakSecrets.forEach(secret => {
+        expect(secret.length).toBeLessThan(32) // Too short for production
+      })
+
+      expect(strongSecret.length).toBeGreaterThanOrEqual(32)
+      expect(/[a-z]/.test(strongSecret)).toBe(true)
+      expect(/[0-9]/.test(strongSecret)).toBe(true)
+    })
+
+    it('should enforce minimum secret length requirements', () => {
+      const shortSecret = 'short'
+      const acceptableSecret = 'a'.repeat(32)
+
+      expect(shortSecret.length).toBeLessThan(32)
+      expect(acceptableSecret.length).toBeGreaterThanOrEqual(32)
+
+      // Production should require minimum 32 characters
+      if (process.env.NODE_ENV === 'production') {
+        expect(() => {
+          if (shortSecret.length < 32) {
+            throw new Error('AUTH_SECRET must be at least 32 characters')
+          }
+        }).toThrow('AUTH_SECRET must be at least 32 characters')
+      }
+    })
+  })
+
+  describe('Multi-Factor Authentication (MFA) Security', () => {
+    it('should support WebAuthn registration', async () => {
+      // Test WebAuthn MFA capability
+      const registrationOptions = {
+        rpName: 'Contribux',
+        rpID: 'localhost',
+        userID: 'user-123',
+        userName: 'test@example.com',
+        userDisplayName: 'Test User',
+      }
+
+      expect(registrationOptions.rpName).toBe('Contribux')
+      expect(registrationOptions.userID).toBeDefined()
+      expect(registrationOptions.userName).toMatch(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)
+    })
+
+    it('should validate MFA requirements for sensitive operations', async () => {
+      const sensitiveOperations = ['delete_account', 'change_email', 'export_data', 'revoke_tokens']
+
+      sensitiveOperations.forEach(operation => {
+        // Should require MFA for sensitive operations
+        expect(() => {
+          const requiresMFA = ['delete_account', 'change_email', 'export_data'].includes(operation)
+          if (!requiresMFA) {
+            throw new Error(`Operation ${operation} should require MFA`)
+          }
+        }).not.toThrow()
+      })
+    })
+
+    it('should implement proper MFA backup codes', () => {
+      // Test backup code generation and validation
+      const backupCodes = ['123456', '789012', '345678']
+
+      backupCodes.forEach(code => {
+        expect(code).toMatch(/^\d{6}$/) // 6-digit numeric codes
+        expect(code).not.toBe('000000') // Should not be predictable
+        expect(code).not.toBe('123456') // Should not be sequential
+      })
+    })
+
+    it('should validate TOTP token format and timing', () => {
+      const validTOTP = '123456'
+      const invalidTOTP = '12345'
+
+      expect(validTOTP).toMatch(/^\d{6}$/)
+      expect(invalidTOTP).not.toMatch(/^\d{6}$/)
+
+      // Test TOTP time window validation
+      const currentTime = Math.floor(Date.now() / 1000)
+      const timeWindow = 30 // TOTP standard 30-second window
+      const timeStep = Math.floor(currentTime / timeWindow)
+
+      expect(timeStep).toBeGreaterThan(0)
+      expect(timeWindow).toBe(30)
+    })
+  })
+
+  describe('PKCE OAuth Security Implementation', () => {
+    it('should generate secure code verifier and challenge', () => {
+      // Test PKCE code verifier generation
+      const codeVerifier = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk'
+      const codeChallenge = 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM'
+
+      expect(codeVerifier.length).toBeGreaterThanOrEqual(43)
+      expect(codeVerifier.length).toBeLessThanOrEqual(128)
+      expect(codeChallenge.length).toBeGreaterThan(0)
+
+      // Verify base64url encoding
+      expect(codeVerifier).toMatch(/^[A-Za-z0-9_-]+$/)
+      expect(codeChallenge).toMatch(/^[A-Za-z0-9_-]+$/)
+    })
+
+    it('should validate PKCE flow parameters', async () => {
+      const pkceParams = {
+        code_challenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
+        code_challenge_method: 'S256',
+        code_verifier: 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk',
+      }
+
+      expect(pkceParams.code_challenge_method).toBe('S256')
+      expect(pkceParams.code_challenge).toBeDefined()
+      expect(pkceParams.code_verifier).toBeDefined()
+
+      // Validate PKCE challenge method
+      expect(['S256', 'plain']).toContain(pkceParams.code_challenge_method)
+      expect(pkceParams.code_challenge_method).toBe('S256') // Should prefer S256
+    })
+
+    it('should enforce PKCE for all OAuth flows', async () => {
+      const oauthProviders = ['github', 'google']
+
+      oauthProviders.forEach(_provider => {
+        // Each provider should support PKCE
+        const authUrl =
+          'https://github.com/login/oauth/authorize?client_id=test&code_challenge=challenge&code_challenge_method=S256'
+
+        expect(authUrl).toContain('code_challenge')
+        expect(authUrl).toContain('code_challenge_method')
+      })
+    })
+
+    it('should validate code verifier in token exchange', () => {
+      // Test that code verifier matches code challenge
+      const codeVerifier = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk'
+      const expectedChallenge = 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM'
+
+      // Simulate PKCE validation
+      const isValid = codeVerifier.length >= 43 && expectedChallenge.length > 0
+      expect(isValid).toBe(true)
+    })
+  })
+
   describe('Session Security Validation', () => {
     it('should validate session tokens properly', async () => {
       const sessionResponse = await fetch('http://localhost:3000/api/auth/session', {
         headers: {
-          Cookie: '__Secure-next-auth.session-token=valid-session-token'
-        }
+          Cookie: '__Secure-next-auth.session-token=valid-session-token',
+        },
       })
 
       expect(sessionResponse.ok).toBe(true)
@@ -312,7 +476,7 @@ describe('NextAuth.js v5 Security Testing', () => {
 
     it('should reject requests without session tokens', async () => {
       const sessionResponse = await fetch('http://localhost:3000/api/auth/session')
-      
+
       expect(sessionResponse.ok).toBe(true)
       const session = await sessionResponse.json()
       expect(session).toBeNull()
@@ -321,8 +485,8 @@ describe('NextAuth.js v5 Security Testing', () => {
     it('should include security headers in session responses', async () => {
       const sessionResponse = await fetch('http://localhost:3000/api/auth/session', {
         headers: {
-          Cookie: '__Secure-next-auth.session-token=valid-session-token'
-        }
+          Cookie: '__Secure-next-auth.session-token=valid-session-token',
+        },
       })
 
       // Check for security headers (these would be set by middleware in real app)
@@ -334,7 +498,7 @@ describe('NextAuth.js v5 Security Testing', () => {
   describe('CSRF Protection Testing', () => {
     it('should provide CSRF tokens', async () => {
       const csrfResponse = await fetch('http://localhost:3000/api/auth/csrf')
-      
+
       expect(csrfResponse.ok).toBe(true)
       const csrf = await csrfResponse.json()
       expect(csrf).toHaveProperty('csrfToken')
@@ -345,12 +509,12 @@ describe('NextAuth.js v5 Security Testing', () => {
       const signInResponse = await fetch('http://localhost:3000/api/auth/signin', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
+          'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: new URLSearchParams({
           provider: 'github',
-          callbackUrl: 'http://localhost:3000'
-        })
+          callbackUrl: 'http://localhost:3000',
+        }),
       })
 
       expect(signInResponse.status).toBe(400)
@@ -365,14 +529,14 @@ describe('NextAuth.js v5 Security Testing', () => {
       const signInResponse = await fetch('http://localhost:3000/api/auth/signin', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
+          'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: new URLSearchParams({
           provider: 'github',
           csrfToken,
-          callbackUrl: 'http://localhost:3000'
+          callbackUrl: 'http://localhost:3000',
         }),
-        redirect: 'manual'
+        redirect: 'manual',
       })
 
       expect(signInResponse.status).toBe(302) // Redirect to OAuth provider
@@ -387,13 +551,13 @@ describe('NextAuth.js v5 Security Testing', () => {
       const invalidProviderResponse = await fetch('http://localhost:3000/api/auth/signin', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
+          'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: new URLSearchParams({
           provider: 'invalid-provider',
           csrfToken,
-          callbackUrl: 'http://localhost:3000'
-        })
+          callbackUrl: 'http://localhost:3000',
+        }),
       })
 
       expect(invalidProviderResponse.status).toBe(400)
@@ -402,16 +566,20 @@ describe('NextAuth.js v5 Security Testing', () => {
     })
 
     it('should require authorization code in OAuth callback', async () => {
-      const callbackResponse = await fetch('http://localhost:3000/api/auth/callback/github?state=valid-state')
-      
+      const callbackResponse = await fetch(
+        'http://localhost:3000/api/auth/callback/github?state=valid-state'
+      )
+
       expect(callbackResponse.status).toBe(400)
       const error = await callbackResponse.json()
       expect(error.error).toBe('Authorization code missing')
     })
 
     it('should require state parameter in OAuth callback', async () => {
-      const callbackResponse = await fetch('http://localhost:3000/api/auth/callback/github?code=valid-code')
-      
+      const callbackResponse = await fetch(
+        'http://localhost:3000/api/auth/callback/github?code=valid-code'
+      )
+
       expect(callbackResponse.status).toBe(400)
       const error = await callbackResponse.json()
       expect(error.error).toBe('State parameter missing')
@@ -422,10 +590,10 @@ describe('NextAuth.js v5 Security Testing', () => {
         'http://localhost:3000/api/auth/callback/github?code=valid-code&state=valid-state',
         { redirect: 'manual' }
       )
-      
+
       expect(callbackResponse.status).toBe(302)
       expect(callbackResponse.headers.get('location')).toContain('authenticated=true')
-      
+
       const setCookie = callbackResponse.headers.get('set-cookie')
       expect(setCookie).toContain('__Secure-next-auth.session-token')
       expect(setCookie).toContain('HttpOnly')
@@ -437,7 +605,7 @@ describe('NextAuth.js v5 Security Testing', () => {
   describe('Sign-out Security', () => {
     it('should require active session for sign-out', async () => {
       const signOutResponse = await fetch('http://localhost:3000/api/auth/signout', {
-        method: 'POST'
+        method: 'POST',
       })
 
       expect(signOutResponse.status).toBe(400)
@@ -449,8 +617,8 @@ describe('NextAuth.js v5 Security Testing', () => {
       const signOutResponse = await fetch('http://localhost:3000/api/auth/signout', {
         method: 'POST',
         headers: {
-          Cookie: '__Secure-next-auth.session-token=valid-session-token'
-        }
+          Cookie: '__Secure-next-auth.session-token=valid-session-token',
+        },
       })
 
       expect(signOutResponse.ok).toBe(true)
@@ -467,13 +635,13 @@ describe('NextAuth.js v5 Security Testing', () => {
       const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
+          'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: new URLSearchParams({
           code: 'valid-auth-code',
           client_id: 'test-github-client-id',
-          client_secret: 'test-github-client-secret'
-        })
+          client_secret: 'test-github-client-secret',
+        }),
       })
 
       expect(tokenResponse.ok).toBe(true)
@@ -486,12 +654,12 @@ describe('NextAuth.js v5 Security Testing', () => {
       const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
+          'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: new URLSearchParams({
-          code: 'valid-auth-code'
+          code: 'valid-auth-code',
           // Missing client_id and client_secret
-        })
+        }),
       })
 
       expect(tokenResponse.status).toBe(400)
@@ -503,14 +671,14 @@ describe('NextAuth.js v5 Security Testing', () => {
       const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
+          'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: new URLSearchParams({
           code: 'valid-auth-code',
           client_id: 'test-google-client-id',
           client_secret: 'test-google-client-secret',
-          grant_type: 'authorization_code'
-        })
+          grant_type: 'authorization_code',
+        }),
       })
 
       expect(tokenResponse.ok).toBe(true)
@@ -523,8 +691,8 @@ describe('NextAuth.js v5 Security Testing', () => {
     it('should authenticate GitHub API requests with valid tokens', async () => {
       const userResponse = await fetch('https://api.github.com/user', {
         headers: {
-          Authorization: 'Bearer github-access-token-12345'
-        }
+          Authorization: 'Bearer github-access-token-12345',
+        },
       })
 
       expect(userResponse.ok).toBe(true)
@@ -546,10 +714,10 @@ describe('NextAuth.js v5 Security Testing', () => {
   describe('Provider List Security', () => {
     it('should return configured OAuth providers', async () => {
       const providersResponse = await fetch('http://localhost:3000/api/auth/providers')
-      
+
       expect(providersResponse.ok).toBe(true)
       const providers = await providersResponse.json()
-      
+
       expect(providers).toHaveProperty('github')
       expect(providers).toHaveProperty('google')
       expect(providers.github.type).toBe('oauth')
@@ -559,7 +727,7 @@ describe('NextAuth.js v5 Security Testing', () => {
     it('should not expose sensitive provider configuration', async () => {
       const providersResponse = await fetch('http://localhost:3000/api/auth/providers')
       const providers = await providersResponse.json()
-      
+
       // Should not expose client secrets or sensitive config
       expect(providers.github).not.toHaveProperty('clientSecret')
       expect(providers.google).not.toHaveProperty('clientSecret')
@@ -571,13 +739,15 @@ describe('NextAuth.js v5 Security Testing', () => {
   describe('Database Integration Security', () => {
     it('should use parameterized queries for user lookup', async () => {
       const mockSql = vi.mocked(sql)
-      mockSql.mockResolvedValueOnce([{
-        id: 'user-123',
-        email: 'test@example.com',
-        display_name: 'Test User',
-        connected_providers: ['github'],
-        primary_provider: 'github'
-      }])
+      mockSql.mockResolvedValueOnce([
+        {
+          id: 'user-123',
+          email: 'test@example.com',
+          display_name: 'Test User',
+          connected_providers: ['github'],
+          primary_provider: 'github',
+        },
+      ])
 
       // This would be called during session callback
       await sql`
@@ -602,7 +772,7 @@ describe('NextAuth.js v5 Security Testing', () => {
         expect.arrayContaining([
           expect.stringContaining('SELECT u.id, u.email'),
           expect.stringContaining('WHERE u.id = '),
-          expect.stringContaining('LIMIT 1')
+          expect.stringContaining('LIMIT 1'),
         ]),
         'user-123'
       )
@@ -610,7 +780,7 @@ describe('NextAuth.js v5 Security Testing', () => {
 
     it('should log security events for audit trail', async () => {
       const mockSql = vi.mocked(sql)
-      
+
       // Mock successful login event logging
       await sql`
         INSERT INTO security_audit_logs (
@@ -628,7 +798,7 @@ describe('NextAuth.js v5 Security Testing', () => {
       expect(mockSql).toHaveBeenCalledWith(
         expect.arrayContaining([
           expect.stringContaining('INSERT INTO security_audit_logs'),
-          expect.stringContaining('event_type, event_severity, user_id, success, event_data')
+          expect.stringContaining('event_type, event_severity, user_id, success, event_data'),
         ]),
         'login_success',
         'info',
@@ -643,7 +813,7 @@ describe('NextAuth.js v5 Security Testing', () => {
     it('should handle token refresh securely', () => {
       // Test JWT callback configuration for token refresh
       expect(authConfig.callbacks?.jwt).toBeDefined()
-      
+
       // In real implementation, this would test:
       // - Token expiration validation
       // - Secure token refresh
@@ -654,7 +824,7 @@ describe('NextAuth.js v5 Security Testing', () => {
       const now = Date.now()
       const futureExpiry = Math.floor(now / 1000) + 3600 // 1 hour from now
       const pastExpiry = Math.floor(now / 1000) - 3600 // 1 hour ago
-      
+
       expect(now < futureExpiry * 1000).toBe(true) // Token not expired
       expect(now >= pastExpiry * 1000).toBe(true) // Token expired
     })

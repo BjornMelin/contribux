@@ -1,7 +1,7 @@
 /**
  * Database Integration Testing Suite
  * Comprehensive testing for API→Drizzle ORM integration
- * 
+ *
  * Focus Areas:
  * - API→Drizzle ORM integration
  * - Transaction handling in API routes
@@ -42,12 +42,14 @@ const DatabaseHealthSchema = z.object({
       status: z.enum(['healthy', 'degraded', 'unhealthy']),
       response_time_ms: z.number(),
       details: z.string().optional(),
-      connection_pool: z.object({
-        active: z.number(),
-        idle: z.number(),
-        total: z.number(),
-        max: z.number(),
-      }).optional(),
+      connection_pool: z
+        .object({
+          active: z.number(),
+          idle: z.number(),
+          total: z.number(),
+          max: z.number(),
+        })
+        .optional(),
     }),
     memory: z.object({
       status: z.enum(['healthy', 'degraded', 'unhealthy']),
@@ -174,7 +176,9 @@ describe('API→Drizzle ORM Integration', () => {
         })
       )
 
-      const response = await fetch('http://localhost:3000/api/search/repositories?q=typescript&page=1&per_page=20')
+      const response = await fetch(
+        'http://localhost:3000/api/search/repositories?q=typescript&page=1&per_page=20'
+      )
       expect(response.status).toBe(200)
 
       const data = await response.json()
@@ -182,10 +186,12 @@ describe('API→Drizzle ORM Integration', () => {
       expect(data.data.repositories).toHaveLength(2)
       expect(data.metadata.database_info.query_type).toBe('SELECT')
       expect(data.metadata.database_info.index_used).toBe('repositories_embedding_idx')
-      
+
       // Validate repository structure
       const firstRepo = data.data.repositories[0]
-      expect(firstRepo.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)
+      expect(firstRepo.id).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+      )
       expect(firstRepo.githubId).toBe(123456789)
       expect(firstRepo.fullName).toBe('test-org/test-repo')
       expect(firstRepo.metadata.language).toBe('TypeScript')
@@ -309,8 +315,10 @@ describe('API→Drizzle ORM Integration', () => {
       expect(data.data.opportunities).toHaveLength(1)
       expect(data.metadata.database_info.query_type).toBe('SELECT_JOIN')
       expect(data.metadata.database_info.tables).toEqual(['opportunities', 'repositories'])
-      expect(data.metadata.database_info.joins).toEqual(['opportunities.repository_id = repositories.id'])
-      
+      expect(data.metadata.database_info.joins).toEqual([
+        'opportunities.repository_id = repositories.id',
+      ])
+
       const opportunity = data.data.opportunities[0]
       expect(opportunity.repository.fullName).toBe('test-org/test-repo')
       expect(opportunity.metadata.difficulty).toBe('intermediate')
@@ -368,12 +376,19 @@ describe('API→Drizzle ORM Integration', () => {
           return HttpResponse.json({
             success: true,
             data: { repositories: [], total_count: 0, page: 1, per_page: 20, has_more: false },
-            metadata: { query, filters: {}, execution_time_ms: 15, performance_note: 'Standard text search' },
+            metadata: {
+              query,
+              filters: {},
+              execution_time_ms: 15,
+              performance_note: 'Standard text search',
+            },
           })
         })
       )
 
-      const response = await fetch('http://localhost:3000/api/search/repositories?q=machine learning tensorflow')
+      const response = await fetch(
+        'http://localhost:3000/api/search/repositories?q=machine learning tensorflow'
+      )
       expect(response.status).toBe(200)
 
       const data = await response.json()
@@ -390,8 +405,8 @@ describe('API→Drizzle ORM Integration', () => {
     it('should handle database transactions in write operations', async () => {
       server.use(
         http.post('http://localhost:3000/api/auth/set-primary', async ({ request }) => {
-          const body = await request.json() as { providerId: string }
-          
+          const _body = (await request.json()) as { providerId: string }
+
           // Simulate transaction-based operation
           return HttpResponse.json({
             success: true,
@@ -423,7 +438,7 @@ describe('API→Drizzle ORM Integration', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer valid-token',
+          Authorization: 'Bearer valid-token',
         },
         body: JSON.stringify({ providerId: 'github' }),
       })
@@ -439,30 +454,34 @@ describe('API→Drizzle ORM Integration', () => {
     it('should handle transaction rollback on errors', async () => {
       server.use(
         http.post('http://localhost:3000/api/auth/unlink', async ({ request }) => {
-          const body = await request.json() as { providerId: string; userId: string }
-          
+          const body = (await request.json()) as { providerId: string; userId: string }
+
           // Simulate transaction rollback due to constraint violation
           if (body.providerId === 'primary-provider') {
-            return HttpResponse.json({
-              success: false,
-              error: {
-                code: 'TRANSACTION_ROLLBACK',
-                message: 'Cannot unlink primary provider without setting another as primary first',
-                transaction_info: {
-                  transaction_id: `txn_${Date.now()}_rollback`,
-                  rollback_reason: 'CONSTRAINT_VIOLATION',
-                  operations_attempted: [
-                    {
-                      table: 'user_providers',
-                      operation: 'DELETE',
-                      condition: 'user_id = ? AND provider_id = ?',
-                      status: 'ROLLED_BACK',
-                    },
-                  ],
-                  execution_time_ms: 8,
+            return HttpResponse.json(
+              {
+                success: false,
+                error: {
+                  code: 'TRANSACTION_ROLLBACK',
+                  message:
+                    'Cannot unlink primary provider without setting another as primary first',
+                  transaction_info: {
+                    transaction_id: `txn_${Date.now()}_rollback`,
+                    rollback_reason: 'CONSTRAINT_VIOLATION',
+                    operations_attempted: [
+                      {
+                        table: 'user_providers',
+                        operation: 'DELETE',
+                        condition: 'user_id = ? AND provider_id = ?',
+                        status: 'ROLLED_BACK',
+                      },
+                    ],
+                    execution_time_ms: 8,
+                  },
                 },
               },
-            }, { status: 400 })
+              { status: 400 }
+            )
           }
 
           return HttpResponse.json({
@@ -499,21 +518,24 @@ describe('API→Drizzle ORM Integration', () => {
     it('should properly handle connection errors', async () => {
       server.use(
         http.get('http://localhost:3000/api/search/repositories', () => {
-          return HttpResponse.json({
-            success: false,
-            error: {
-              code: 'DATABASE_CONNECTION_ERROR',
-              message: 'Failed to connect to database',
-              details: {
-                error_type: 'CONNECTION_TIMEOUT',
-                database_host: 'neon-database.aws.com',
-                timeout_ms: 5000,
-                retry_count: 3,
-                last_error: 'Connection timed out after 5000ms',
+          return HttpResponse.json(
+            {
+              success: false,
+              error: {
+                code: 'DATABASE_CONNECTION_ERROR',
+                message: 'Failed to connect to database',
+                details: {
+                  error_type: 'CONNECTION_TIMEOUT',
+                  database_host: 'neon-database.aws.com',
+                  timeout_ms: 5000,
+                  retry_count: 3,
+                  last_error: 'Connection timed out after 5000ms',
+                },
               },
+              request_id: `req_${Date.now()}_conn_error`,
             },
-            request_id: `req_${Date.now()}_conn_error`,
-          }, { status: 503 })
+            { status: 503 }
+          )
         })
       )
 
@@ -535,33 +557,43 @@ describe('API→Drizzle ORM Integration', () => {
 
           // Simulate timeout for complex queries
           if (query && query.length > 100) {
-            return HttpResponse.json({
-              success: false,
-              error: {
-                code: 'DATABASE_QUERY_TIMEOUT',
-                message: 'Database query exceeded maximum execution time',
-                details: {
-                  timeout_ms: 30000,
-                  actual_execution_ms: 30001,
-                  query_complexity: 'HIGH',
-                  suggested_action: 'Simplify query or add more specific filters',
+            return HttpResponse.json(
+              {
+                success: false,
+                error: {
+                  code: 'DATABASE_QUERY_TIMEOUT',
+                  message: 'Database query exceeded maximum execution time',
+                  details: {
+                    timeout_ms: 30000,
+                    actual_execution_ms: 30001,
+                    query_complexity: 'HIGH',
+                    suggested_action: 'Simplify query or add more specific filters',
+                  },
                 },
+                request_id: `req_${Date.now()}_timeout`,
               },
-              request_id: `req_${Date.now()}_timeout`,
-            }, { status: 504 })
+              { status: 504 }
+            )
           }
 
           return HttpResponse.json({
             success: true,
             data: { opportunities: [], total_count: 0, page: 1, per_page: 20, has_more: false },
-            metadata: { query: query || '', filters: {}, execution_time_ms: 25, performance_note: 'Query executed successfully' },
+            metadata: {
+              query: query || '',
+              filters: {},
+              execution_time_ms: 25,
+              performance_note: 'Query executed successfully',
+            },
           })
         })
       )
 
       // Test timeout scenario
       const longQuery = 'a'.repeat(150)
-      const timeoutResponse = await fetch(`http://localhost:3000/api/search/opportunities?q=${longQuery}`)
+      const timeoutResponse = await fetch(
+        `http://localhost:3000/api/search/opportunities?q=${longQuery}`
+      )
       expect(timeoutResponse.status).toBe(504)
 
       const timeoutData = await timeoutResponse.json()
@@ -570,32 +602,37 @@ describe('API→Drizzle ORM Integration', () => {
       expect(validatedError.error.details.timeout_ms).toBe(30000)
 
       // Test normal query
-      const normalResponse = await fetch('http://localhost:3000/api/search/opportunities?q=typescript')
+      const normalResponse = await fetch(
+        'http://localhost:3000/api/search/opportunities?q=typescript'
+      )
       expect(normalResponse.status).toBe(200)
     })
 
     it('should handle constraint violation errors', async () => {
       server.use(
         http.post('http://localhost:3000/api/auth/providers', async ({ request }) => {
-          const body = await request.json() as { providerId: string; accountId: string }
+          const body = (await request.json()) as { providerId: string; accountId: string }
 
           // Simulate unique constraint violation
           if (body.accountId === 'existing-account-123') {
-            return HttpResponse.json({
-              success: false,
-              error: {
-                code: 'DATABASE_CONSTRAINT_VIOLATION',
-                message: 'Account already linked to another user',
-                details: {
-                  constraint_name: 'user_providers_account_id_unique',
-                  constraint_type: 'UNIQUE',
-                  table: 'user_providers',
-                  column: 'account_id',
-                  value: body.accountId,
-                  suggested_action: 'Use a different account or unlink the existing connection',
+            return HttpResponse.json(
+              {
+                success: false,
+                error: {
+                  code: 'DATABASE_CONSTRAINT_VIOLATION',
+                  message: 'Account already linked to another user',
+                  details: {
+                    constraint_name: 'user_providers_account_id_unique',
+                    constraint_type: 'UNIQUE',
+                    table: 'user_providers',
+                    column: 'account_id',
+                    value: body.accountId,
+                    suggested_action: 'Use a different account or unlink the existing connection',
+                  },
                 },
               },
-            }, { status: 409 })
+              { status: 409 }
+            )
           }
 
           return HttpResponse.json({
@@ -669,32 +706,35 @@ describe('API→Drizzle ORM Integration', () => {
 
       const data = await response.json()
       const validatedHealth = DatabaseHealthSchema.parse(data)
-      
+
       expect(validatedHealth.checks.database.connection_pool).toBeDefined()
-      expect(validatedHealth.checks.database.connection_pool!.active).toBe(5)
-      expect(validatedHealth.checks.database.connection_pool!.idle).toBe(15)
-      expect(validatedHealth.checks.database.connection_pool!.total).toBe(20)
-      expect(validatedHealth.checks.database.connection_pool!.max).toBe(25)
+      expect(validatedHealth.checks.database.connection_pool?.active).toBe(5)
+      expect(validatedHealth.checks.database.connection_pool?.idle).toBe(15)
+      expect(validatedHealth.checks.database.connection_pool?.total).toBe(20)
+      expect(validatedHealth.checks.database.connection_pool?.max).toBe(25)
     })
 
     it('should detect connection pool exhaustion', async () => {
       server.use(
         http.get('http://localhost:3000/api/search/repositories', () => {
-          return HttpResponse.json({
-            success: false,
-            error: {
-              code: 'CONNECTION_POOL_EXHAUSTED',
-              message: 'No database connections available',
-              details: {
-                active_connections: 25,
-                max_connections: 25,
-                waiting_requests: 15,
-                avg_wait_time_ms: 2500,
-                suggested_action: 'Increase connection pool size or optimize query performance',
+          return HttpResponse.json(
+            {
+              success: false,
+              error: {
+                code: 'CONNECTION_POOL_EXHAUSTED',
+                message: 'No database connections available',
+                details: {
+                  active_connections: 25,
+                  max_connections: 25,
+                  waiting_requests: 15,
+                  avg_wait_time_ms: 2500,
+                  suggested_action: 'Increase connection pool size or optimize query performance',
+                },
               },
+              request_id: `req_${Date.now()}_pool_exhausted`,
             },
-            request_id: `req_${Date.now()}_pool_exhausted`,
-          }, { status: 503 })
+            { status: 503 }
+          )
         })
       )
 
@@ -743,7 +783,7 @@ describe('API→Drizzle ORM Integration', () => {
                 total_rows_scanned: offset + perPage,
                 index_hit_ratio: 0.95,
                 cache_hit_ratio: offset === 0 ? 0.2 : 0.8, // First page likely not cached
-                memory_usage_mb: 15 + (offset / 100),
+                memory_usage_mb: 15 + offset / 100,
               },
             },
           })
@@ -751,7 +791,9 @@ describe('API→Drizzle ORM Integration', () => {
       )
 
       // Test first page (cold cache)
-      const firstPageResponse = await fetch('http://localhost:3000/api/search/repositories?page=1&per_page=20')
+      const firstPageResponse = await fetch(
+        'http://localhost:3000/api/search/repositories?page=1&per_page=20'
+      )
       expect(firstPageResponse.status).toBe(200)
 
       const firstPageData = await firstPageResponse.json()
@@ -759,12 +801,16 @@ describe('API→Drizzle ORM Integration', () => {
       expect(firstPageData.metadata.execution_time_ms).toBeLessThan(100)
 
       // Test later page (higher execution time)
-      const laterPageResponse = await fetch('http://localhost:3000/api/search/repositories?page=10&per_page=20')
+      const laterPageResponse = await fetch(
+        'http://localhost:3000/api/search/repositories?page=10&per_page=20'
+      )
       expect(laterPageResponse.status).toBe(200)
 
       const laterPageData = await laterPageResponse.json()
       expect(laterPageData.metadata.performance_metrics.cache_hit_ratio).toBe(0.8)
-      expect(laterPageData.metadata.execution_time_ms).toBeGreaterThan(firstPageData.metadata.execution_time_ms)
+      expect(laterPageData.metadata.execution_time_ms).toBeGreaterThan(
+        firstPageData.metadata.execution_time_ms
+      )
     })
 
     it('should identify slow queries and provide optimization suggestions', async () => {
@@ -800,7 +846,10 @@ describe('API→Drizzle ORM Integration', () => {
                     'Add indexes for frequently filtered columns',
                     'Consider using cached results for common queries',
                   ],
-                  affected_indexes: ['opportunities_difficulty_idx', 'opportunities_impact_score_idx'],
+                  affected_indexes: [
+                    'opportunities_difficulty_idx',
+                    'opportunities_impact_score_idx',
+                  ],
                   query_complexity_score: 8.5,
                 },
               },

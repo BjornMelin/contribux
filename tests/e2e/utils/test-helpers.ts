@@ -3,7 +3,7 @@
  * Comprehensive utilities for end-to-end testing across all user journeys
  */
 
-import { expect, type Page, type BrowserContext, type Locator } from '@playwright/test'
+import { expect, type Locator, type Page } from '@playwright/test'
 
 // Test data and fixtures
 export const testData = {
@@ -50,22 +50,24 @@ export class PageHelpers {
   async waitForFullLoad(timeout = 10000) {
     await this.page.waitForLoadState('domcontentloaded')
     await this.page.waitForLoadState('networkidle', { timeout })
-    
+
     // Wait for any React hydration to complete
-    await this.page.waitForFunction(
-      () => {
-        // Check if React has finished hydrating
-        const reactRoot = document.querySelector('[data-reactroot]')
-        if (reactRoot) return true
-        
-        // Check for Next.js hydration
-        return !document.documentElement.classList.contains('next-loading')
-      },
-      { timeout: 5000 }
-    ).catch(() => {
-      // Hydration check failed, but continue
-      console.log('Hydration check timed out, continuing...')
-    })
+    await this.page
+      .waitForFunction(
+        () => {
+          // Check if React has finished hydrating
+          const reactRoot = document.querySelector('[data-reactroot]')
+          if (reactRoot) return true
+
+          // Check for Next.js hydration
+          return !document.documentElement.classList.contains('next-loading')
+        },
+        { timeout: 5000 }
+      )
+      .catch(() => {
+        // Hydration check failed, but continue
+        console.log('Hydration check timed out, continuing...')
+      })
   }
 
   /**
@@ -74,13 +76,13 @@ export class PageHelpers {
   async takeScreenshot(name: string, options: { fullPage?: boolean; clip?: any } = {}) {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
     const filename = `test-results/screenshots/${name}-${timestamp}.png`
-    
+
     await this.page.screenshot({
       path: filename,
       fullPage: options.fullPage ?? true,
       clip: options.clip,
     })
-    
+
     return filename
   }
 
@@ -89,17 +91,17 @@ export class PageHelpers {
    */
   setupErrorMonitoring(): string[] {
     const errors: string[] = []
-    
+
     this.page.on('console', msg => {
       if (msg.type() === 'error') {
         errors.push(msg.text())
       }
     })
-    
+
     this.page.on('pageerror', error => {
       errors.push(`Page error: ${error.message}`)
     })
-    
+
     return errors
   }
 
@@ -108,7 +110,7 @@ export class PageHelpers {
    */
   setupNetworkMonitoring() {
     const requests: Array<{ url: string; method: string; status?: number }> = []
-    
+
     this.page.on('request', request => {
       if (request.url().includes('/api/')) {
         requests.push({
@@ -117,14 +119,14 @@ export class PageHelpers {
         })
       }
     })
-    
+
     this.page.on('response', response => {
       const request = requests.find(req => req.url === response.url())
       if (request) {
         request.status = response.status()
       }
     })
-    
+
     return requests
   }
 
@@ -146,7 +148,7 @@ export class PageHelpers {
       localStorage.clear()
       sessionStorage.clear()
     })
-    
+
     await this.page.context().clearCookies()
   }
 }
@@ -172,7 +174,7 @@ export class AuthHelpers {
       const response = await this.page.request.get('/api/auth/session')
       if (response.status() === 200) {
         const session = await response.json()
-        return session && session.user
+        return session?.user
       }
       return false
     } catch {
@@ -193,7 +195,7 @@ export class AuthHelpers {
         },
       })
     })
-    
+
     await this.page.route('/api/auth/session', async route => {
       await route.fulfill({
         status: 200,
@@ -213,10 +215,10 @@ export class AuthHelpers {
     const button = this.page.locator(`[data-provider="${provider}"], text=${provider}`, {
       hasText: new RegExp(provider, 'i'),
     })
-    
+
     await expect(button).toBeVisible()
     await expect(button).toBeEnabled()
-    
+
     return button
   }
 }
@@ -231,10 +233,10 @@ export class SearchHelpers {
   async performSearch(query: string, waitForResults = true) {
     const searchInput = this.page.locator('.search-input, [aria-label="Search input"]')
     const searchButton = this.page.locator('.search-button, [aria-label="Search"]')
-    
+
     await searchInput.fill(query)
     await searchButton.click()
-    
+
     if (waitForResults) {
       await this.waitForSearchResults()
     }
@@ -254,7 +256,9 @@ export class SearchHelpers {
    * Get search result count
    */
   async getResultCount(): Promise<number> {
-    const results = this.page.locator('.opportunity-card, .repository-card, [data-testid="result-item"]')
+    const results = this.page.locator(
+      '.opportunity-card, .repository-card, [data-testid="result-item"]'
+    )
     return await results.count()
   }
 
@@ -265,15 +269,15 @@ export class SearchHelpers {
     if (filters.language) {
       await this.page.selectOption('[data-filter="language"]', filters.language)
     }
-    
+
     if (filters.difficulty) {
       await this.page.selectOption('[data-filter="difficulty"]', filters.difficulty)
     }
-    
+
     if (filters.type) {
       await this.page.selectOption('[data-filter="type"]', filters.type)
     }
-    
+
     await this.waitForSearchResults()
   }
 
@@ -283,16 +287,16 @@ export class SearchHelpers {
   async testResultInteraction(index = 0) {
     const results = this.page.locator('.opportunity-card, .repository-card')
     const result = results.nth(index)
-    
+
     await expect(result).toBeVisible()
     await result.hover()
-    
+
     // Check if result is clickable
     const isClickable = await result.evaluate(el => {
       const style = window.getComputedStyle(el)
       return style.cursor === 'pointer' || el.getAttribute('role') === 'button'
     })
-    
+
     return { result, isClickable }
   }
 }
@@ -306,11 +310,11 @@ export class AccessibilityHelpers {
    */
   async testKeyboardNavigation() {
     const focusableElements: string[] = []
-    
+
     // Tab through all focusable elements
     for (let i = 0; i < 10; i++) {
       await this.page.keyboard.press('Tab')
-      
+
       const focused = await this.page.evaluate(() => {
         const element = document.activeElement
         if (element && element !== document.body) {
@@ -323,12 +327,12 @@ export class AccessibilityHelpers {
         }
         return null
       })
-      
+
       if (focused) {
         focusableElements.push(JSON.stringify(focused))
       }
     }
-    
+
     return focusableElements
   }
 
@@ -337,47 +341,47 @@ export class AccessibilityHelpers {
    */
   async checkAriaCompliance() {
     const issues: string[] = []
-    
+
     // Check buttons have accessible names
     const buttons = await this.page.locator('button').all()
     for (const button of buttons) {
       const ariaLabel = await button.getAttribute('aria-label')
       const text = await button.textContent()
-      
+
       if (!ariaLabel && !text?.trim()) {
         issues.push('Button without accessible name found')
       }
     }
-    
+
     // Check images have alt text
     const images = await this.page.locator('img').all()
     for (const img of images) {
       const alt = await img.getAttribute('alt')
       const ariaLabel = await img.getAttribute('aria-label')
-      
+
       if (!alt && !ariaLabel) {
         issues.push('Image without alt text found')
       }
     }
-    
+
     // Check form inputs have labels
     const inputs = await this.page.locator('input').all()
     for (const input of inputs) {
       const ariaLabel = await input.getAttribute('aria-label')
       const id = await input.getAttribute('id')
-      
+
       let hasLabel = false
       if (ariaLabel) hasLabel = true
       if (id) {
         const label = await this.page.locator(`label[for="${id}"]`).count()
         if (label > 0) hasLabel = true
       }
-      
+
       if (!hasLabel) {
         issues.push('Input without label found')
       }
     }
-    
+
     return issues
   }
 
@@ -387,8 +391,9 @@ export class AccessibilityHelpers {
   async checkColorContrast() {
     const elements = await this.page.locator('body *').all()
     const lowContrastElements: string[] = []
-    
-    for (const element of elements.slice(0, 20)) { // Check first 20 elements
+
+    for (const element of elements.slice(0, 20)) {
+      // Check first 20 elements
       const styles = await element.evaluate(el => {
         const style = window.getComputedStyle(el)
         return {
@@ -397,18 +402,23 @@ export class AccessibilityHelpers {
           tagName: el.tagName,
         }
       })
-      
+
       // Basic contrast check (simplified)
-      if (styles.color && styles.backgroundColor && 
-          styles.color !== 'rgba(0, 0, 0, 0)' && 
-          styles.backgroundColor !== 'rgba(0, 0, 0, 0)') {
+      if (
+        styles.color &&
+        styles.backgroundColor &&
+        styles.color !== 'rgba(0, 0, 0, 0)' &&
+        styles.backgroundColor !== 'rgba(0, 0, 0, 0)'
+      ) {
         // This is a simplified check - in real scenarios, use axe-core
         if (styles.color === styles.backgroundColor) {
-          lowContrastElements.push(`${styles.tagName}: ${styles.color} on ${styles.backgroundColor}`)
+          lowContrastElements.push(
+            `${styles.tagName}: ${styles.color} on ${styles.backgroundColor}`
+          )
         }
       }
     }
-    
+
     return lowContrastElements
   }
 }
@@ -422,29 +432,29 @@ export class PerformanceHelpers {
    */
   async measurePageLoad(url: string) {
     const startTime = Date.now()
-    
+
     await this.page.goto(url)
     await this.page.waitForLoadState('domcontentloaded')
-    
+
     const domContentLoaded = Date.now() - startTime
-    
+
     await this.page.waitForLoadState('networkidle')
     const networkIdle = Date.now() - startTime
-    
+
     // Get Core Web Vitals
     const vitals = await this.page.evaluate(() => {
       return new Promise(resolve => {
         let lcp = 0
-        let fid = 0
+        const fid = 0
         let cls = 0
-        
+
         // LCP (Largest Contentful Paint)
         new PerformanceObserver(list => {
           const entries = list.getEntries()
           const lastEntry = entries[entries.length - 1]
           lcp = lastEntry.startTime
         }).observe({ entryTypes: ['largest-contentful-paint'] })
-        
+
         // CLS (Cumulative Layout Shift)
         new PerformanceObserver(list => {
           for (const entry of list.getEntries()) {
@@ -453,11 +463,11 @@ export class PerformanceHelpers {
             }
           }
         }).observe({ entryTypes: ['layout-shift'] })
-        
+
         setTimeout(() => resolve({ lcp, fid, cls }), 2000)
       })
     })
-    
+
     return {
       domContentLoaded,
       networkIdle,
@@ -471,10 +481,10 @@ export class PerformanceHelpers {
    */
   async measureApiPerformance(endpoint: string, method = 'GET') {
     const startTime = Date.now()
-    
+
     const response = await this.page.request.fetch(endpoint, { method })
     const responseTime = Date.now() - startTime
-    
+
     return {
       endpoint,
       method,
@@ -498,7 +508,7 @@ export class PerformanceHelpers {
       }
       return null
     })
-    
+
     return memoryInfo
   }
 }
@@ -525,7 +535,7 @@ export class CompatibilityHelpers {
         fetch: typeof fetch !== 'undefined',
       }
     })
-    
+
     return features
   }
 
@@ -538,13 +548,13 @@ export class CompatibilityHelpers {
       { name: 'tablet', width: 768, height: 1024 },
       { name: 'desktop', width: 1920, height: 1080 },
     ]
-    
+
     const results = []
-    
+
     for (const viewport of viewports) {
       await this.page.setViewportSize({ width: viewport.width, height: viewport.height })
       await this.page.waitForTimeout(500) // Allow for responsive changes
-      
+
       const layout = await this.page.evaluate(() => {
         const body = document.body
         return {
@@ -553,14 +563,14 @@ export class CompatibilityHelpers {
           overflow: getComputedStyle(body).overflow,
         }
       })
-      
+
       results.push({
         viewport: viewport.name,
         size: viewport,
         layout,
       })
     }
-    
+
     return results
   }
 }
@@ -573,7 +583,7 @@ export class E2ETestUtils {
   public accessibility: AccessibilityHelpers
   public performance: PerformanceHelpers
   public compatibility: CompatibilityHelpers
-  
+
   constructor(page: Page) {
     this.page = new PageHelpers(page)
     this.auth = new AuthHelpers(page)
@@ -593,7 +603,7 @@ export const assertions = {
     expect(errors).toHaveLength(0)
     expect(page.url()).not.toContain('error')
   },
-  
+
   /**
    * Assert API response is valid
    */
@@ -604,14 +614,14 @@ export const assertions = {
       expect(data).toBeDefined()
     }
   },
-  
+
   /**
    * Assert element is accessible
    */
   async elementIsAccessible(element: Locator) {
     await expect(element).toBeVisible()
     await expect(element).toBeEnabled()
-    
+
     const ariaLabel = await element.getAttribute('aria-label')
     const text = await element.textContent()
     expect(ariaLabel || text).toBeTruthy()

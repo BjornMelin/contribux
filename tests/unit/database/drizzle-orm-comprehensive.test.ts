@@ -1,6 +1,6 @@
 /**
  * Comprehensive Drizzle ORM Testing Suite
- * 
+ *
  * Tests all aspects of the Drizzle ORM implementation including:
  * - Schema validation and type safety
  * - CRUD operations with timing
@@ -10,10 +10,10 @@
  * - Migration scenarios
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { eq, and, desc, count, sql } from 'drizzle-orm'
-import { db, schema, timedDb, vectorUtils, getDbStats } from '@/lib/db'
-import { UserQueries, type UserPreferences, type UserProfile } from '@/lib/db/queries/users'
+import { count, desc, eq } from 'drizzle-orm'
+import { beforeEach, describe, expect, it } from 'vitest'
+import { db, getDbStats, schema, timedDb, vectorUtils } from '@/lib/db'
+import { type UserPreferences, type UserProfile, UserQueries } from '@/lib/db/queries/users'
 import { createTestFactories } from '@/lib/test-utils/database-factories'
 import type { DatabaseConnection } from '@/lib/test-utils/test-database-manager'
 import { getTestDatabase } from '@/lib/test-utils/test-database-manager'
@@ -47,8 +47,16 @@ describe('Drizzle ORM Comprehensive Testing Suite', () => {
         `
 
         const expectedUserColumns = [
-          'id', 'github_id', 'username', 'email', 'name', 'avatar_url',
-          'profile', 'preferences', 'created_at', 'updated_at'
+          'id',
+          'github_id',
+          'username',
+          'email',
+          'name',
+          'avatar_url',
+          'profile',
+          'preferences',
+          'created_at',
+          'updated_at',
         ]
 
         const actualColumns = userColumns.map(col => col.column_name)
@@ -78,9 +86,9 @@ describe('Drizzle ORM Comprehensive Testing Suite', () => {
 
         // Should have relationships: opportunities->repositories, bookmarks->users, bookmarks->repositories
         expect(foreignKeys.length).toBeGreaterThanOrEqual(3)
-        
-        const opportunityFK = foreignKeys.find(fk => 
-          fk.table_name === 'opportunities' && fk.foreign_table_name === 'repositories'
+
+        const opportunityFK = foreignKeys.find(
+          fk => fk.table_name === 'opportunities' && fk.foreign_table_name === 'repositories'
         )
         expect(opportunityFK).toBeDefined()
       })
@@ -97,11 +105,13 @@ describe('Drizzle ORM Comprehensive Testing Suite', () => {
 
         // Should have optimized indexes for performance
         const indexNames = indexes.map(idx => idx.indexname)
-        expect(indexNames).toEqual(expect.arrayContaining([
-          'repositories_github_id_idx',
-          'repositories_full_name_idx',
-          'opportunities_repository_id_idx'
-        ]))
+        expect(indexNames).toEqual(
+          expect.arrayContaining([
+            'repositories_github_id_idx',
+            'repositories_full_name_idx',
+            'opportunities_repository_id_idx',
+          ])
+        )
       })
 
       it('should detect schema drift between TypeScript types and database', () => {
@@ -116,21 +126,21 @@ describe('Drizzle ORM Comprehensive Testing Suite', () => {
           profile: {
             bio: 'Test bio',
             location: 'Test location',
-            company: 'Test company'
+            company: 'Test company',
           },
           preferences: {
             theme: 'dark',
             emailNotifications: true,
-            difficultyPreference: 'intermediate'
+            difficultyPreference: 'intermediate',
           },
           createdAt: new Date(),
-          updatedAt: new Date()
+          updatedAt: new Date(),
         }
 
         const newUser: schema.NewUser = {
           githubId: 456,
           username: 'newuser',
-          email: 'new@example.com'
+          email: 'new@example.com',
         }
 
         // Runtime validation - these objects should match expected structure
@@ -155,16 +165,22 @@ describe('Drizzle ORM Comprehensive Testing Suite', () => {
         `
 
         const tableNames = tables.map(t => t.table_name)
-        expect(tableNames).toEqual(expect.arrayContaining([
-          'users', 'repositories', 'opportunities', 'bookmarks', 'user_activity'
-        ]))
+        expect(tableNames).toEqual(
+          expect.arrayContaining([
+            'users',
+            'repositories',
+            'opportunities',
+            'bookmarks',
+            'user_activity',
+          ])
+        )
       })
 
       it('should validate data integrity during migrations', async () => {
         // Create test data
         const user = await factories.users.create({
           github_username: 'migration-test-user',
-          email: 'migration@example.com'
+          email: 'migration@example.com',
         })
 
         // Verify data exists
@@ -185,11 +201,11 @@ describe('Drizzle ORM Comprehensive Testing Suite', () => {
         const { sql } = testDb
 
         await sql`BEGIN`
-        
+
         try {
           // Create test data
           await factories.users.create({
-            email: 'rollback-test@example.com'
+            email: 'rollback-test@example.com',
           })
 
           const beforeRollback = await sql`SELECT COUNT(*) FROM users`
@@ -211,10 +227,10 @@ describe('Drizzle ORM Comprehensive Testing Suite', () => {
 
         // Simulate large data migration
         const users = await Promise.all(
-          Array.from({ length: 100 }, (_, i) => 
+          Array.from({ length: 100 }, (_, i) =>
             factories.users.create({
               github_username: `perf-user-${i}`,
-              email: `perf-${i}@example.com`
+              email: `perf-${i}@example.com`,
             })
           )
         )
@@ -238,13 +254,13 @@ describe('Drizzle ORM Comprehensive Testing Suite', () => {
           profile: {
             bio: 'Test bio',
             location: 'Test City',
-            company: 'Test Corp'
+            company: 'Test Corp',
           } as UserProfile,
           preferences: {
             theme: 'dark' as const,
             emailNotifications: true,
-            difficultyPreference: 'intermediate' as const
-          } as UserPreferences
+            difficultyPreference: 'intermediate' as const,
+          } as UserPreferences,
         }
 
         const user = await UserQueries.upsert(userData)
@@ -272,24 +288,24 @@ describe('Drizzle ORM Comprehensive Testing Suite', () => {
         // Create test scenario
         const user = await factories.users.create({
           github_username: 'join-test-user',
-          email: 'join@example.com'
+          email: 'join@example.com',
         })
 
         const repo = await factories.repositories.create({
           name: 'test-repo',
-          language: 'TypeScript'
+          language: 'TypeScript',
         })
 
         // Add bookmark
         await UserQueries.addBookmark(user.id as string, repo.id as string, {
           tags: ['interesting', 'typescript'],
           priority: 'high',
-          notes: 'Great project to contribute to'
+          notes: 'Great project to contribute to',
         })
 
         // Get user with bookmarks
         const userWithBookmarks = await UserQueries.getById(user.id as string, {
-          includeBookmarks: true
+          includeBookmarks: true,
         })
 
         expect(userWithBookmarks?.bookmarks).toHaveLength(1)
@@ -307,7 +323,7 @@ describe('Drizzle ORM Comprehensive Testing Suite', () => {
             .values({
               githubId: 99999,
               username: 'transaction-user',
-              email: 'transaction@example.com'
+              email: 'transaction@example.com',
             })
             .returning()
         })
@@ -326,14 +342,14 @@ describe('Drizzle ORM Comprehensive Testing Suite', () => {
         await UserQueries.upsert({
           githubId: 777,
           username: 'duplicate-test',
-          email: 'dup1@example.com'
+          email: 'dup1@example.com',
         })
 
         // Should update existing user instead of failing
         const updated = await UserQueries.upsert({
           githubId: 777,
           username: 'duplicate-test-updated',
-          email: 'dup2@example.com'
+          email: 'dup2@example.com',
         })
 
         expect(updated.username).toBe('duplicate-test-updated')
@@ -356,7 +372,7 @@ describe('Drizzle ORM Comprehensive Testing Suite', () => {
         const repo = await factories.repositories.create({
           name: 'vector-test-repo',
           language: 'Python',
-          embedding: serializedEmbedding
+          embedding: serializedEmbedding,
         })
 
         // Test embedding storage and retrieval
@@ -374,16 +390,16 @@ describe('Drizzle ORM Comprehensive Testing Suite', () => {
         const { sql } = testDb
 
         // Create multiple repositories with embeddings
-        const embeddings = Array.from({ length: 50 }, () => 
+        const embeddings = Array.from({ length: 50 }, () =>
           Array.from({ length: 1536 }, () => Math.random())
         )
 
         const repos = await Promise.all(
-          embeddings.map((embedding, i) => 
+          embeddings.map((embedding, i) =>
             factories.repositories.create({
               name: `hnsw-repo-${i}`,
               language: 'TypeScript',
-              embedding: vectorUtils.serializeEmbedding(embedding)
+              embedding: vectorUtils.serializeEmbedding(embedding),
             })
           )
         )
@@ -418,26 +434,26 @@ describe('Drizzle ORM Comprehensive Testing Suite', () => {
             name: 'react-component-library',
             language: 'JavaScript',
             description: 'A comprehensive React component library',
-            embedding: Array.from({ length: 1536 }, () => 0.5) // High similarity
+            embedding: Array.from({ length: 1536 }, () => 0.5), // High similarity
           },
           {
             name: 'vue-components',
-            language: 'JavaScript', 
+            language: 'JavaScript',
             description: 'Vue.js component collection',
-            embedding: Array.from({ length: 1536 }, () => 0.4) // Medium similarity
+            embedding: Array.from({ length: 1536 }, () => 0.4), // Medium similarity
           },
           {
             name: 'python-data-analysis',
             language: 'Python',
             description: 'Data analysis tools for Python',
-            embedding: Array.from({ length: 1536 }, () => -0.5) // Low similarity
-          }
+            embedding: Array.from({ length: 1536 }, () => -0.5), // Low similarity
+          },
         ]
 
         for (const repo of testRepos) {
           await factories.repositories.create({
             ...repo,
-            embedding: vectorUtils.serializeEmbedding(repo.embedding)
+            embedding: vectorUtils.serializeEmbedding(repo.embedding),
           })
         }
 
@@ -499,7 +515,7 @@ describe('Drizzle ORM Comprehensive Testing Suite', () => {
           return await UserQueries.upsert({
             githubId: 1000 + i,
             username: `concurrent-user-${i}`,
-            email: `concurrent-${i}@example.com`
+            email: `concurrent-${i}@example.com`,
           })
         })
 
@@ -513,7 +529,7 @@ describe('Drizzle ORM Comprehensive Testing Suite', () => {
       it('should test timeout and retry logic', async () => {
         // Simulate slow query (if supported by test database)
         const start = performance.now()
-        
+
         const result = await timedDb.select(async () => {
           return await db.select().from(schema.users).limit(1)
         })
@@ -533,10 +549,10 @@ describe('Drizzle ORM Comprehensive Testing Suite', () => {
       it('should test branch-specific database configuration', () => {
         // Test environment-based database URL selection
         const originalEnv = process.env.NODE_ENV
-        
+
         // This tests the logic in db/index.ts
         expect(testDb.strategy).toBeOneOf(['pglite', 'neon-branch', 'neon-transaction'])
-        
+
         process.env.NODE_ENV = originalEnv
       })
 
@@ -551,7 +567,7 @@ describe('Drizzle ORM Comprehensive Testing Suite', () => {
             FROM pg_settings 
             WHERE name IN ('ssl', 'log_statement', 'shared_preload_libraries')
           `
-          
+
           // Should have security settings configured
           expect(settings).toBeDefined()
         } catch {
@@ -565,10 +581,10 @@ describe('Drizzle ORM Comprehensive Testing Suite', () => {
       it('should benchmark query execution times', async () => {
         // Create performance test dataset
         const users = await Promise.all(
-          Array.from({ length: 100 }, (_, i) => 
+          Array.from({ length: 100 }, (_, i) =>
             factories.users.create({
               github_username: `perf-user-${i}`,
-              email: `perf-${i}@example.com`
+              email: `perf-${i}@example.com`,
             })
           )
         )
@@ -582,32 +598,36 @@ describe('Drizzle ORM Comprehensive Testing Suite', () => {
             fn: async () => {
               return await db.select().from(schema.users).limit(10)
             },
-            expectedMaxTime: 50
+            expectedMaxTime: 50,
           },
           {
             name: 'WHERE with index',
             fn: async () => {
-              return await db.select().from(schema.users)
+              return await db
+                .select()
+                .from(schema.users)
                 .where(eq(schema.users.githubId, users[0]?.github_id as number))
             },
-            expectedMaxTime: 25
+            expectedMaxTime: 25,
           },
           {
             name: 'COUNT aggregation',
             fn: async () => {
               return await db.select({ count: count() }).from(schema.users)
             },
-            expectedMaxTime: 30
+            expectedMaxTime: 30,
           },
           {
             name: 'ORDER BY with LIMIT',
             fn: async () => {
-              return await db.select().from(schema.users)
+              return await db
+                .select()
+                .from(schema.users)
                 .orderBy(desc(schema.users.createdAt))
                 .limit(5)
             },
-            expectedMaxTime: 40
-          }
+            expectedMaxTime: 40,
+          },
         ]
 
         for (const benchmark of benchmarks) {
@@ -617,7 +637,7 @@ describe('Drizzle ORM Comprehensive Testing Suite', () => {
 
           expect(result).toBeDefined()
           expect(duration).toBeLessThan(benchmark.expectedMaxTime)
-          
+
           console.log(`📊 ${benchmark.name}: ${duration.toFixed(2)}ms`)
         }
       })
@@ -627,14 +647,14 @@ describe('Drizzle ORM Comprehensive Testing Suite', () => {
 
         // Create large dataset
         const largeDataset = await Promise.all(
-          Array.from({ length: 500 }, (_, i) => 
+          Array.from({ length: 500 }, (_, i) =>
             factories.users.create({
               github_username: `memory-user-${i}`,
               email: `memory-${i}@example.com`,
               preferences: {
                 topicPreferences: Array.from({ length: 20 }, (_, j) => `topic-${j}`),
-                languagePreferences: ['JavaScript', 'TypeScript', 'Python']
-              }
+                languagePreferences: ['JavaScript', 'TypeScript', 'Python'],
+              },
             })
           )
         )
@@ -654,14 +674,13 @@ describe('Drizzle ORM Comprehensive Testing Suite', () => {
           if (i % 2 === 0) {
             // Read operation
             return await UserQueries.getStats()
-          } else {
-            // Write operation
-            return await UserQueries.upsert({
-              githubId: 2000 + i,
-              username: `concurrent-${i}`,
-              email: `concurrent-${i}@example.com`
-            })
           }
+          // Write operation
+          return await UserQueries.upsert({
+            githubId: 2000 + i,
+            username: `concurrent-${i}`,
+            email: `concurrent-${i}@example.com`,
+          })
         })
 
         const results = await Promise.all(concurrentOps)
@@ -682,13 +701,13 @@ describe('Drizzle ORM Comprehensive Testing Suite', () => {
       it('should benchmark vector search performance', async () => {
         // Create repositories with embeddings
         const vectorRepos = await Promise.all(
-          Array.from({ length: 200 }, (_, i) => 
+          Array.from({ length: 200 }, (_, i) =>
             factories.repositories.create({
               name: `vector-repo-${i}`,
               language: 'TypeScript',
               embedding: vectorUtils.serializeEmbedding(
                 Array.from({ length: 1536 }, () => Math.random())
-              )
+              ),
             })
           )
         )
@@ -711,7 +730,7 @@ describe('Drizzle ORM Comprehensive Testing Suite', () => {
         `
 
         const duration = performance.now() - start
-        
+
         expect(vectorResults).toHaveLength(10)
         expect(duration).toBeLessThan(200) // Should be reasonably fast
 
@@ -730,13 +749,13 @@ describe('Drizzle ORM Comprehensive Testing Suite', () => {
         profile: {
           bio: 'Test bio with special chars: éñ中文🚀',
           followers: 150,
-          publicRepos: 25
+          publicRepos: 25,
         },
         preferences: {
           theme: 'dark',
           topicPreferences: ['javascript', 'typescript', 'react'],
-          emailNotifications: true
-        }
+          emailNotifications: true,
+        },
       })
 
       expect(validUser.profile?.bio).toContain('🚀')
@@ -761,19 +780,19 @@ describe('Drizzle ORM Comprehensive Testing Suite', () => {
       // Create old activity records
       const user = await factories.users.create({
         github_username: 'cleanup-test-user',
-        email: 'cleanup@example.com'
+        email: 'cleanup@example.com',
       })
 
       // Add some activities
       await UserQueries.logActivity(user.id as string, {
         type: 'search',
-        metadata: { query: 'test search', timestamp: new Date().toISOString() }
+        metadata: { query: 'test search', timestamp: new Date().toISOString() },
       })
 
       await UserQueries.logActivity(user.id as string, {
         type: 'view',
         target: { type: 'repository', id: 'repo-123', name: 'test-repo' },
-        metadata: { duration: 5000 }
+        metadata: { duration: 5000 },
       })
 
       // Test cleanup (with 0 days retention to clean everything)
@@ -790,46 +809,35 @@ describe('Drizzle ORM Comprehensive Testing Suite', () => {
     it('should test bookmark operations and constraints', async () => {
       const user = await factories.users.create({
         github_username: 'bookmark-user',
-        email: 'bookmark@example.com'
+        email: 'bookmark@example.com',
       })
 
       const repo = await factories.repositories.create({
         name: 'bookmark-repo',
-        language: 'Rust'
+        language: 'Rust',
       })
 
       // Add bookmark
-      const bookmark1 = await UserQueries.addBookmark(
-        user.id as string, 
-        repo.id as string,
-        {
-          tags: ['rust', 'systems'],
-          priority: 'high',
-          notes: 'Interesting systems programming project'
-        }
-      )
+      const bookmark1 = await UserQueries.addBookmark(user.id as string, repo.id as string, {
+        tags: ['rust', 'systems'],
+        priority: 'high',
+        notes: 'Interesting systems programming project',
+      })
 
       expect(bookmark1.metadata?.tags).toContain('rust')
 
       // Test upsert behavior - updating existing bookmark
-      const bookmark2 = await UserQueries.addBookmark(
-        user.id as string,
-        repo.id as string,
-        {
-          tags: ['rust', 'performance'],
-          priority: 'medium',
-          notes: 'Updated notes'
-        }
-      )
+      const bookmark2 = await UserQueries.addBookmark(user.id as string, repo.id as string, {
+        tags: ['rust', 'performance'],
+        priority: 'medium',
+        notes: 'Updated notes',
+      })
 
       expect(bookmark2.id).toBe(bookmark1.id) // Should be same bookmark
       expect(bookmark2.metadata?.notes).toBe('Updated notes')
 
       // Remove bookmark
-      const removed = await UserQueries.removeBookmark(
-        user.id as string,
-        repo.id as string
-      )
+      const removed = await UserQueries.removeBookmark(user.id as string, repo.id as string)
       expect(removed).toBeDefined()
 
       // Verify removal
@@ -842,7 +850,7 @@ describe('Drizzle ORM Comprehensive Testing Suite', () => {
     it('should test user activity analytics', async () => {
       const user = await factories.users.create({
         github_username: 'analytics-user',
-        email: 'analytics@example.com'
+        email: 'analytics@example.com',
       })
 
       // Create various activities
@@ -871,14 +879,12 @@ describe('Drizzle ORM Comprehensive Testing Suite', () => {
 
     it('should test database performance metrics', async () => {
       // Generate some database operations to collect metrics
-      await Promise.all(
-        Array.from({ length: 10 }, () => UserQueries.getStats())
-      )
+      await Promise.all(Array.from({ length: 10 }, () => UserQueries.getStats()))
 
       // Check if metrics were collected
       const selectStats = getDbStats('select')
       expect(selectStats).toBeDefined()
-      
+
       if (selectStats) {
         expect(selectStats.count).toBeGreaterThan(0)
         expect(selectStats.min).toBeGreaterThanOrEqual(0)
@@ -893,7 +899,7 @@ describe('Drizzle ORM Comprehensive Testing Suite', () => {
       const users = await Promise.all([
         factories.users.create({ github_username: 'stats-user-1', email: 'stats1@example.com' }),
         factories.users.create({ github_username: 'stats-user-2', email: 'stats2@example.com' }),
-        factories.users.create({ github_username: 'stats-user-3', email: 'stats3@example.com' })
+        factories.users.create({ github_username: 'stats-user-3', email: 'stats3@example.com' }),
       ])
 
       // Add bookmarks for some users

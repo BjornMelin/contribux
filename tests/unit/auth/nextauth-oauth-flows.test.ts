@@ -4,10 +4,9 @@
  * Covers PKCE, state validation, callback handling, and error scenarios
  */
 
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import type { Account, Profile } from 'next-auth'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { authConfig } from '@/lib/auth/config'
-import { env } from '@/lib/validation/env'
 
 // Mock database
 vi.mock('@/lib/db/config', () => ({
@@ -38,7 +37,7 @@ describe('NextAuth OAuth Flow Testing', () => {
   describe('GitHub OAuth Flow', () => {
     it('should have proper GitHub provider configuration', () => {
       const githubProvider = authConfig.providers[0]
-      
+
       expect(githubProvider).toBeDefined()
       expect(githubProvider.id).toBe('github')
       expect(githubProvider.name).toBe('GitHub')
@@ -47,7 +46,7 @@ describe('NextAuth OAuth Flow Testing', () => {
 
     it('should request correct GitHub OAuth scopes', () => {
       const githubProvider = authConfig.providers[0] as any
-      
+
       expect(githubProvider.authorization.params.scope).toBe('read:user user:email')
     })
 
@@ -57,16 +56,18 @@ describe('NextAuth OAuth Flow Testing', () => {
       // Mock successful OAuth flow
       mockSql.mockResolvedValueOnce([]) // No existing OAuth account
       mockSql.mockResolvedValueOnce([]) // No existing user
-      mockSql.mockResolvedValueOnce([{
-        id: 'new-user-id',
-        email: 'github-user@example.com',
-        display_name: 'GitHub User',
-        username: 'githubuser',
-        github_username: 'githubuser',
-        email_verified: true,
-        created_at: new Date(),
-        updated_at: new Date(),
-      }])
+      mockSql.mockResolvedValueOnce([
+        {
+          id: 'new-user-id',
+          email: 'github-user@example.com',
+          display_name: 'GitHub User',
+          username: 'githubuser',
+          github_username: 'githubuser',
+          email_verified: true,
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+      ])
       mockSql.mockResolvedValueOnce([]) // INSERT oauth_accounts
       mockSql.mockResolvedValueOnce([]) // INSERT security_audit_logs
 
@@ -107,7 +108,7 @@ describe('NextAuth OAuth Flow Testing', () => {
 
     it('should handle GitHub OAuth state parameter validation', async () => {
       // Test state parameter security
-      const mockAccount: Account = {
+      const _mockAccount: Account = {
         provider: 'github',
         providerAccountId: 'github-12345',
         type: 'oauth',
@@ -173,7 +174,7 @@ describe('NextAuth OAuth Flow Testing', () => {
   describe('Google OAuth Flow', () => {
     it('should have proper Google provider configuration', () => {
       const googleProvider = authConfig.providers[1]
-      
+
       expect(googleProvider).toBeDefined()
       expect(googleProvider.id).toBe('google')
       expect(googleProvider.name).toBe('Google')
@@ -182,7 +183,7 @@ describe('NextAuth OAuth Flow Testing', () => {
 
     it('should request correct Google OAuth scopes', () => {
       const googleProvider = authConfig.providers[1] as any
-      
+
       expect(googleProvider.authorization.params.scope).toBe('openid email profile')
       expect(googleProvider.authorization.params.prompt).toBe('consent')
       expect(googleProvider.authorization.params.access_type).toBe('offline')
@@ -195,16 +196,18 @@ describe('NextAuth OAuth Flow Testing', () => {
       // Mock successful OAuth flow
       mockSql.mockResolvedValueOnce([]) // No existing OAuth account
       mockSql.mockResolvedValueOnce([]) // No existing user
-      mockSql.mockResolvedValueOnce([{
-        id: 'new-user-id',
-        email: 'google-user@example.com',
-        display_name: 'Google User',
-        username: 'googleuser',
-        github_username: null,
-        email_verified: true,
-        created_at: new Date(),
-        updated_at: new Date(),
-      }])
+      mockSql.mockResolvedValueOnce([
+        {
+          id: 'new-user-id',
+          email: 'google-user@example.com',
+          display_name: 'Google User',
+          username: 'googleuser',
+          github_username: null,
+          email_verified: true,
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+      ])
       mockSql.mockResolvedValueOnce([]) // INSERT oauth_accounts
       mockSql.mockResolvedValueOnce([]) // INSERT security_audit_logs
 
@@ -244,7 +247,8 @@ describe('NextAuth OAuth Flow Testing', () => {
     })
 
     it('should validate Google ID token structure', () => {
-      const validIdToken = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWV9.signature'
+      const validIdToken =
+        'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWV9.signature'
       const invalidIdToken = 'invalid.token'
 
       expect(validIdToken.split('.')).toHaveLength(3)

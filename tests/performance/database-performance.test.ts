@@ -3,33 +3,32 @@
  * Comprehensive testing of Drizzle ORM, Neon PostgreSQL, and vector search performance
  */
 
-import { describe, expect, it, beforeAll, afterAll, beforeEach } from 'vitest'
-import { sql } from 'drizzle-orm'
+import { and, desc, eq, like, sql } from 'drizzle-orm'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { db } from '@/lib/db'
-import { users, repositories, searchQueries } from '@/lib/db/schema'
+import { repositories, searchQueries, users } from '@/lib/db/schema'
 import { TestDatabaseManager } from '@/lib/test-utils/test-database-manager'
-import { eq, and, or, like, desc, asc } from 'drizzle-orm'
 
 // Performance thresholds for database operations (in milliseconds)
 const DB_PERFORMANCE_THRESHOLDS = {
-  SIMPLE_QUERY: 50,           // Simple SELECT queries should be under 50ms
-  COMPLEX_QUERY: 200,         // Complex JOIN queries should be under 200ms
-  INSERT_OPERATION: 100,      // Single INSERT should be under 100ms
-  BULK_INSERT: 500,           // Bulk INSERT should be under 500ms
-  UPDATE_OPERATION: 100,      // Single UPDATE should be under 100ms
-  DELETE_OPERATION: 100,      // Single DELETE should be under 100ms
-  VECTOR_SEARCH: 300,         // Vector similarity search should be under 300ms
-  INDEX_LOOKUP: 25,           // Index-based lookups should be under 25ms
-  AGGREGATE_QUERY: 150,       // COUNT/SUM queries should be under 150ms
-  CONCURRENT_QUERY: 500,      // Concurrent queries should complete within 500ms
+  SIMPLE_QUERY: 50, // Simple SELECT queries should be under 50ms
+  COMPLEX_QUERY: 200, // Complex JOIN queries should be under 200ms
+  INSERT_OPERATION: 100, // Single INSERT should be under 100ms
+  BULK_INSERT: 500, // Bulk INSERT should be under 500ms
+  UPDATE_OPERATION: 100, // Single UPDATE should be under 100ms
+  DELETE_OPERATION: 100, // Single DELETE should be under 100ms
+  VECTOR_SEARCH: 300, // Vector similarity search should be under 300ms
+  INDEX_LOOKUP: 25, // Index-based lookups should be under 25ms
+  AGGREGATE_QUERY: 150, // COUNT/SUM queries should be under 150ms
+  CONCURRENT_QUERY: 500, // Concurrent queries should complete within 500ms
 }
 
 // Connection pool performance thresholds
 const CONNECTION_THRESHOLDS = {
-  ACQUIRE_CONNECTION: 50,     // Getting a connection should be under 50ms
-  QUERY_EXECUTION: 100,       // Query execution should be under 100ms
-  CONNECTION_RELEASE: 10,     // Releasing connection should be under 10ms
-  POOL_EXHAUSTION: 1000,      // Pool should handle exhaustion gracefully
+  ACQUIRE_CONNECTION: 50, // Getting a connection should be under 50ms
+  QUERY_EXECUTION: 100, // Query execution should be under 100ms
+  CONNECTION_RELEASE: 10, // Releasing connection should be under 10ms
+  POOL_EXHAUSTION: 1000, // Pool should handle exhaustion gracefully
 }
 
 // Load testing parameters
@@ -53,7 +52,7 @@ describe('Database Performance Testing', () => {
   beforeAll(async () => {
     testDbManager = new TestDatabaseManager()
     await testDbManager.setup()
-    
+
     // Ensure we have test data for performance testing
     await seedPerformanceTestData()
   })
@@ -72,7 +71,7 @@ describe('Database Performance Testing', () => {
     description: string
   ): Promise<{ result: T; metrics: QueryPerformanceMetrics }> {
     const startTime = performance.now()
-    
+
     try {
       const result = await queryFn()
       const endTime = performance.now()
@@ -97,7 +96,7 @@ describe('Database Performance Testing', () => {
 
   async function seedPerformanceTestData() {
     console.log('🌱 Seeding performance test data...')
-    
+
     // Create test users for performance testing
     const testUsers = Array.from({ length: 100 }, (_, i) => ({
       id: `perf-user-${i}`,
@@ -213,16 +212,17 @@ describe('Database Performance Testing', () => {
   describe('Complex Query Performance', () => {
     it('should execute JOIN queries within threshold', async () => {
       const { metrics } = await measureQuery(
-        () => db
-          .select({
-            userId: users.id,
-            username: users.username,
-            searchQuery: searchQueries.query,
-            resultCount: searchQueries.resultCount,
-          })
-          .from(users)
-          .innerJoin(searchQueries, eq(users.id, searchQueries.userId))
-          .limit(20),
+        () =>
+          db
+            .select({
+              userId: users.id,
+              username: users.username,
+              searchQuery: searchQueries.query,
+              resultCount: searchQueries.resultCount,
+            })
+            .from(users)
+            .innerJoin(searchQueries, eq(users.id, searchQueries.userId))
+            .limit(20),
         'JOIN query (users with search queries)'
       )
 
@@ -232,13 +232,14 @@ describe('Database Performance Testing', () => {
 
     it('should execute aggregate queries efficiently', async () => {
       const { metrics } = await measureQuery(
-        () => db
-          .select({
-            provider: users.primaryProvider,
-            userCount: sql<number>`count(*)::int`,
-          })
-          .from(users)
-          .groupBy(users.primaryProvider),
+        () =>
+          db
+            .select({
+              provider: users.primaryProvider,
+              userCount: sql<number>`count(*)::int`,
+            })
+            .from(users)
+            .groupBy(users.primaryProvider),
         'Aggregate query (user count by provider)'
       )
 
@@ -247,16 +248,17 @@ describe('Database Performance Testing', () => {
 
     it('should execute subqueries with good performance', async () => {
       const { metrics } = await measureQuery(
-        () => db
-          .select()
-          .from(repositories)
-          .where(
-            and(
-              eq(repositories.language, 'JavaScript'),
-              sql`${repositories.stars} > (SELECT AVG(stars) FROM ${repositories})`
+        () =>
+          db
+            .select()
+            .from(repositories)
+            .where(
+              and(
+                eq(repositories.language, 'JavaScript'),
+                sql`${repositories.stars} > (SELECT AVG(stars) FROM ${repositories})`
+              )
             )
-          )
-          .limit(10),
+            .limit(10),
         'Subquery (JavaScript repos above average stars)'
       )
 
@@ -268,9 +270,10 @@ describe('Database Performance Testing', () => {
     it('should execute vector similarity search within threshold', async () => {
       // Generate a random query vector
       const queryVector = Array.from({ length: 1536 }, () => Math.random() - 0.5)
-      
+
       const { metrics } = await measureQuery(
-        () => db.execute(sql`
+        () =>
+          db.execute(sql`
           SELECT id, full_name, 1 - (embedding <=> ${queryVector}::vector) AS similarity
           FROM repositories 
           WHERE embedding IS NOT NULL
@@ -285,9 +288,10 @@ describe('Database Performance Testing', () => {
 
     it('should execute vector search with filters efficiently', async () => {
       const queryVector = Array.from({ length: 1536 }, () => Math.random() - 0.5)
-      
+
       const { metrics } = await measureQuery(
-        () => db.execute(sql`
+        () =>
+          db.execute(sql`
           SELECT id, full_name, language, stars,
                  1 - (embedding <=> ${queryVector}::vector) AS similarity
           FROM repositories 
@@ -305,9 +309,10 @@ describe('Database Performance Testing', () => {
 
     it('should handle hybrid search (vector + text) efficiently', async () => {
       const queryVector = Array.from({ length: 1536 }, () => Math.random() - 0.5)
-      
+
       const { metrics } = await measureQuery(
-        () => db.execute(sql`
+        () =>
+          db.execute(sql`
           SELECT id, full_name, description,
                  1 - (embedding <=> ${queryVector}::vector) AS vector_similarity,
                  ts_rank(to_tsvector('english', description), plainto_tsquery('english', 'performance')) AS text_score
@@ -387,13 +392,14 @@ describe('Database Performance Testing', () => {
 
     it('should execute UPDATE operations efficiently', async () => {
       const { metrics } = await measureQuery(
-        () => db
-          .update(users)
-          .set({ 
-            displayName: 'Updated Performance User',
-            updatedAt: new Date(),
-          })
-          .where(eq(users.id, 'perf-user-0')),
+        () =>
+          db
+            .update(users)
+            .set({
+              displayName: 'Updated Performance User',
+              updatedAt: new Date(),
+            })
+            .where(eq(users.id, 'perf-user-0')),
         'Single UPDATE operation'
       )
 
@@ -434,15 +440,16 @@ describe('Database Performance Testing', () => {
 
       for (let i = 0; i < 10; i++) {
         const startTime = performance.now()
-        
+
         // Execute a simple query to test connection acquisition
         await db.execute(sql`SELECT 1`)
-        
+
         const endTime = performance.now()
         connectionTimes.push(endTime - startTime)
       }
 
-      const avgConnectionTime = connectionTimes.reduce((sum, time) => sum + time, 0) / connectionTimes.length
+      const avgConnectionTime =
+        connectionTimes.reduce((sum, time) => sum + time, 0) / connectionTimes.length
       console.log(`📊 Average connection time: ${avgConnectionTime.toFixed(2)}ms`)
 
       expect(avgConnectionTime).toBeLessThan(CONNECTION_THRESHOLDS.ACQUIRE_CONNECTION)
@@ -453,7 +460,11 @@ describe('Database Performance Testing', () => {
       const startTime = performance.now()
 
       const promises = Array.from({ length: concurrency }, (_, i) =>
-        db.select().from(users).where(eq(users.id, `perf-user-${i % 10}`)).limit(1)
+        db
+          .select()
+          .from(users)
+          .where(eq(users.id, `perf-user-${i % 10}`))
+          .limit(1)
       )
 
       const results = await Promise.all(promises)
@@ -474,11 +485,22 @@ describe('Database Performance Testing', () => {
         const queryType = i % 3
         switch (queryType) {
           case 0:
-            return db.select().from(users).where(eq(users.id, `perf-user-${i % 100}`))
+            return db
+              .select()
+              .from(users)
+              .where(eq(users.id, `perf-user-${i % 100}`))
           case 1:
-            return db.select().from(repositories).where(eq(repositories.language, 'JavaScript')).limit(5)
+            return db
+              .select()
+              .from(repositories)
+              .where(eq(repositories.language, 'JavaScript'))
+              .limit(5)
           case 2:
-            return db.select().from(searchQueries).where(eq(searchQueries.userId, `perf-user-${i % 100}`)).limit(3)
+            return db
+              .select()
+              .from(searchQueries)
+              .where(eq(searchQueries.userId, `perf-user-${i % 100}`))
+              .limit(3)
           default:
             return []
         }
@@ -488,7 +510,9 @@ describe('Database Performance Testing', () => {
       const endTime = performance.now()
       const totalDuration = endTime - startTime
 
-      console.log(`🔥 ${concurrency} mixed concurrent queries completed in ${totalDuration.toFixed(2)}ms`)
+      console.log(
+        `🔥 ${concurrency} mixed concurrent queries completed in ${totalDuration.toFixed(2)}ms`
+      )
 
       expect(results).toHaveLength(concurrency)
       expect(totalDuration).toBeLessThan(DB_PERFORMANCE_THRESHOLDS.CONCURRENT_QUERY * 1.5)
@@ -538,18 +562,18 @@ describe('Database Performance Testing', () => {
 
       for (let run = 0; run < runs; run++) {
         const { metrics } = await measureQuery(
-          () => db.select().from(repositories)
-            .where(and(
-              eq(repositories.language, 'TypeScript'),
-              sql`${repositories.stars} > 50`
-            ))
-            .orderBy(desc(repositories.stars))
-            .limit(20),
+          () =>
+            db
+              .select()
+              .from(repositories)
+              .where(and(eq(repositories.language, 'TypeScript'), sql`${repositories.stars} > 50`))
+              .orderBy(desc(repositories.stars))
+              .limit(20),
           `Performance consistency run ${run + 1}`
         )
 
         queryTimes.push(metrics.duration)
-        
+
         // Small delay between runs
         await new Promise(resolve => setTimeout(resolve, 100))
       }
@@ -557,7 +581,7 @@ describe('Database Performance Testing', () => {
       const avgTime = queryTimes.reduce((sum, time) => sum + time, 0) / runs
       const maxTime = Math.max(...queryTimes)
       const minTime = Math.min(...queryTimes)
-      const variance = queryTimes.reduce((sum, time) => sum + Math.pow(time - avgTime, 2), 0) / runs
+      const variance = queryTimes.reduce((sum, time) => sum + (time - avgTime) ** 2, 0) / runs
       const standardDeviation = Math.sqrt(variance)
       const coefficientOfVariation = standardDeviation / avgTime
 
@@ -593,17 +617,21 @@ describe('Database Performance Testing', () => {
 
       for (let offset = 0; offset < totalProcessed; offset += chunkSize) {
         const { metrics } = await measureQuery(
-          () => db.select().from(repositories)
-            .orderBy(repositories.createdAt)
-            .limit(chunkSize)
-            .offset(offset),
+          () =>
+            db
+              .select()
+              .from(repositories)
+              .orderBy(repositories.createdAt)
+              .limit(chunkSize)
+              .offset(offset),
           `Chunk processing: ${offset}-${offset + chunkSize}`
         )
 
         processingTimes.push(metrics.duration)
       }
 
-      const avgChunkTime = processingTimes.reduce((sum, time) => sum + time, 0) / processingTimes.length
+      const avgChunkTime =
+        processingTimes.reduce((sum, time) => sum + time, 0) / processingTimes.length
       console.log(`📦 Average chunk processing time: ${avgChunkTime.toFixed(2)}ms`)
 
       // Each chunk should process quickly
@@ -613,5 +641,5 @@ describe('Database Performance Testing', () => {
 })
 
 // Export performance utilities for other tests
-export { measureQuery, DB_PERFORMANCE_THRESHOLDS, CONNECTION_THRESHOLDS }
+export { type measureQuery, DB_PERFORMANCE_THRESHOLDS, CONNECTION_THRESHOLDS }
 export type { QueryPerformanceMetrics }

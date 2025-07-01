@@ -1,7 +1,7 @@
 /**
  * Security Validation Testing Suite
  * Comprehensive security testing for API routes
- * 
+ *
  * Focus Areas:
  * - Input validation and sanitization
  * - Rate limiting enforcement
@@ -37,14 +37,16 @@ const ValidationErrorSchema = z.object({
   error: z.object({
     code: z.literal('INVALID_PARAMETER'),
     message: z.string(),
-    details: z.array(z.object({
-      path: z.array(z.string()),
-      message: z.string(),
-    })),
+    details: z.array(
+      z.object({
+        path: z.array(z.string()),
+        message: z.string(),
+      })
+    ),
   }),
 })
 
-const RateLimitHeadersSchema = z.object({
+const _RateLimitHeadersSchema = z.object({
   'X-RateLimit-Limit': z.string(),
   'X-RateLimit-Remaining': z.string(),
   'X-RateLimit-Reset': z.string(),
@@ -72,7 +74,7 @@ describe('Input Validation & Sanitization', () => {
           if (query) {
             const sqlPatterns = [
               /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|UNION)\b)/i,
-              /(--|\#|\/\*|\*\/)/,
+              /(--|#|\/\*|\*\/)/,
               /(\bOR\b\s+\b\d+\s*=\s*\d+)/i,
               /(\bAND\b\s+\b\d+\s*=\s*\d+)/i,
               /(;\s*(SELECT|INSERT|UPDATE|DELETE|DROP))/i,
@@ -80,14 +82,17 @@ describe('Input Validation & Sanitization', () => {
 
             for (const pattern of sqlPatterns) {
               if (pattern.test(query)) {
-                return HttpResponse.json({
-                  success: false,
-                  error: {
-                    code: 'INVALID_INPUT',
-                    message: 'Invalid characters detected in query parameter',
-                    details: 'SQL injection attempt blocked',
+                return HttpResponse.json(
+                  {
+                    success: false,
+                    error: {
+                      code: 'INVALID_INPUT',
+                      message: 'Invalid characters detected in query parameter',
+                      details: 'SQL injection attempt blocked',
+                    },
                   },
-                }, { status: 400 })
+                  { status: 400 }
+                )
               }
             }
           }
@@ -95,13 +100,20 @@ describe('Input Validation & Sanitization', () => {
           return HttpResponse.json({
             success: true,
             data: { repositories: [], total_count: 0, page: 1, per_page: 20, has_more: false },
-            metadata: { query: query || '', filters: {}, execution_time_ms: 25, performance_note: 'Input validated' },
+            metadata: {
+              query: query || '',
+              filters: {},
+              execution_time_ms: 25,
+              performance_note: 'Input validated',
+            },
           })
         })
       )
 
       for (const payload of sqlInjectionPayloads) {
-        const response = await fetch(`http://localhost:3000/api/search/repositories?q=${encodeURIComponent(payload)}`)
+        const response = await fetch(
+          `http://localhost:3000/api/search/repositories?q=${encodeURIComponent(payload)}`
+        )
         expect(response.status).toBe(400)
 
         const data = await response.json()
@@ -110,7 +122,9 @@ describe('Input Validation & Sanitization', () => {
       }
 
       // Test legitimate query
-      const legitimateResponse = await fetch('http://localhost:3000/api/search/repositories?q=typescript')
+      const legitimateResponse = await fetch(
+        'http://localhost:3000/api/search/repositories?q=typescript'
+      )
       expect(legitimateResponse.status).toBe(200)
     })
 
@@ -123,22 +137,25 @@ describe('Input Validation & Sanitization', () => {
 
           // Check for dangerous characters in comma-separated values
           const dangerousPatterns = [
-            /[<>\"'&]/,  // XSS characters
-            /[\x00-\x1f\x7f]/,  // Control characters
-            /[;\|\`]/,  // Command injection characters
+            /[<>"'&]/, // XSS characters
+            /[\x00-\x1f\x7f]/, // Control characters
+            /[;|`]/, // Command injection characters
           ]
 
           for (const param of [labels, skillsRequired]) {
             if (param) {
               for (const pattern of dangerousPatterns) {
                 if (pattern.test(param)) {
-                  return HttpResponse.json({
-                    success: false,
-                    error: {
-                      code: 'INVALID_CHARACTERS',
-                      message: 'Invalid characters detected in filter parameters',
+                  return HttpResponse.json(
+                    {
+                      success: false,
+                      error: {
+                        code: 'INVALID_CHARACTERS',
+                        message: 'Invalid characters detected in filter parameters',
+                      },
                     },
-                  }, { status: 400 })
+                    { status: 400 }
+                  )
                 }
               }
             }
@@ -147,7 +164,12 @@ describe('Input Validation & Sanitization', () => {
           return HttpResponse.json({
             success: true,
             data: { opportunities: [], total_count: 0, page: 1, per_page: 20, has_more: false },
-            metadata: { query: '', filters: {}, execution_time_ms: 25, performance_note: 'Filters validated' },
+            metadata: {
+              query: '',
+              filters: {},
+              execution_time_ms: 25,
+              performance_note: 'Filters validated',
+            },
           })
         })
       )
@@ -161,12 +183,16 @@ describe('Input Validation & Sanitization', () => {
       ]
 
       for (const input of dangerousInputs) {
-        const response = await fetch(`http://localhost:3000/api/search/opportunities?labels=${encodeURIComponent(input)}`)
+        const response = await fetch(
+          `http://localhost:3000/api/search/opportunities?labels=${encodeURIComponent(input)}`
+        )
         expect(response.status).toBe(400)
       }
 
       // Test legitimate filter
-      const legitimateResponse = await fetch('http://localhost:3000/api/search/opportunities?labels=bug,feature,typescript')
+      const legitimateResponse = await fetch(
+        'http://localhost:3000/api/search/opportunities?labels=bug,feature,typescript'
+      )
       expect(legitimateResponse.status).toBe(200)
     })
   })
@@ -200,13 +226,16 @@ describe('Input Validation & Sanitization', () => {
 
             for (const pattern of xssPatterns) {
               if (pattern.test(query)) {
-                return HttpResponse.json({
-                  success: false,
-                  error: {
-                    code: 'XSS_ATTEMPT',
-                    message: 'Cross-site scripting attempt detected',
+                return HttpResponse.json(
+                  {
+                    success: false,
+                    error: {
+                      code: 'XSS_ATTEMPT',
+                      message: 'Cross-site scripting attempt detected',
+                    },
                   },
-                }, { status: 400 })
+                  { status: 400 }
+                )
               }
             }
           }
@@ -214,13 +243,20 @@ describe('Input Validation & Sanitization', () => {
           return HttpResponse.json({
             success: true,
             data: { repositories: [], total_count: 0, page: 1, per_page: 20, has_more: false },
-            metadata: { query: query || '', filters: {}, execution_time_ms: 25, performance_note: 'XSS check passed' },
+            metadata: {
+              query: query || '',
+              filters: {},
+              execution_time_ms: 25,
+              performance_note: 'XSS check passed',
+            },
           })
         })
       )
 
       for (const payload of xssPayloads) {
-        const response = await fetch(`http://localhost:3000/api/search/repositories?q=${encodeURIComponent(payload)}`)
+        const response = await fetch(
+          `http://localhost:3000/api/search/repositories?q=${encodeURIComponent(payload)}`
+        )
         expect(response.status).toBe(400)
 
         const data = await response.json()
@@ -242,78 +278,117 @@ describe('Input Validation & Sanitization', () => {
           // Validate page parameter
           if (page !== null) {
             const pageNum = Number(page)
-            if (isNaN(pageNum) || pageNum < 1 || !Number.isInteger(pageNum)) {
-              return HttpResponse.json({
-                success: false,
-                error: {
-                  code: 'INVALID_PARAMETER',
-                  message: 'Page must be a positive integer',
-                  details: [{ path: ['page'], message: 'Expected positive integer, received ' + page }],
+            if (Number.isNaN(pageNum) || pageNum < 1 || !Number.isInteger(pageNum)) {
+              return HttpResponse.json(
+                {
+                  success: false,
+                  error: {
+                    code: 'INVALID_PARAMETER',
+                    message: 'Page must be a positive integer',
+                    details: [
+                      { path: ['page'], message: `Expected positive integer, received ${page}` },
+                    ],
+                  },
                 },
-              }, { status: 400 })
+                { status: 400 }
+              )
             }
           }
 
           // Validate per_page parameter
           if (perPage !== null) {
             const perPageNum = Number(perPage)
-            if (isNaN(perPageNum) || perPageNum < 1 || perPageNum > 100 || !Number.isInteger(perPageNum)) {
-              return HttpResponse.json({
-                success: false,
-                error: {
-                  code: 'INVALID_PARAMETER',
-                  message: 'Per page must be an integer between 1 and 100',
-                  details: [{ path: ['per_page'], message: 'Expected integer 1-100, received ' + perPage }],
+            if (
+              Number.isNaN(perPageNum) ||
+              perPageNum < 1 ||
+              perPageNum > 100 ||
+              !Number.isInteger(perPageNum)
+            ) {
+              return HttpResponse.json(
+                {
+                  success: false,
+                  error: {
+                    code: 'INVALID_PARAMETER',
+                    message: 'Per page must be an integer between 1 and 100',
+                    details: [
+                      {
+                        path: ['per_page'],
+                        message: `Expected integer 1-100, received ${perPage}`,
+                      },
+                    ],
+                  },
                 },
-              }, { status: 400 })
+                { status: 400 }
+              )
             }
           }
 
           // Validate min_stars parameter
           if (minStars !== null) {
             const minStarsNum = Number(minStars)
-            if (isNaN(minStarsNum) || minStarsNum < 0 || !Number.isInteger(minStarsNum)) {
-              return HttpResponse.json({
-                success: false,
-                error: {
-                  code: 'INVALID_PARAMETER',
-                  message: 'Min stars must be a non-negative integer',
-                  details: [{ path: ['min_stars'], message: 'Expected non-negative integer, received ' + minStars }],
+            if (Number.isNaN(minStarsNum) || minStarsNum < 0 || !Number.isInteger(minStarsNum)) {
+              return HttpResponse.json(
+                {
+                  success: false,
+                  error: {
+                    code: 'INVALID_PARAMETER',
+                    message: 'Min stars must be a non-negative integer',
+                    details: [
+                      {
+                        path: ['min_stars'],
+                        message: `Expected non-negative integer, received ${minStars}`,
+                      },
+                    ],
+                  },
                 },
-              }, { status: 400 })
+                { status: 400 }
+              )
             }
           }
 
           return HttpResponse.json({
             success: true,
-            data: { repositories: [], total_count: 0, page: Number(page) || 1, per_page: Number(perPage) || 20, has_more: false },
-            metadata: { query: '', filters: {}, execution_time_ms: 25, performance_note: 'Parameters validated' },
+            data: {
+              repositories: [],
+              total_count: 0,
+              page: Number(page) || 1,
+              per_page: Number(perPage) || 20,
+              has_more: false,
+            },
+            metadata: {
+              query: '',
+              filters: {},
+              execution_time_ms: 25,
+              performance_note: 'Parameters validated',
+            },
           })
         })
       )
 
       // Test invalid numeric formats
       const invalidParams = [
-        'page=1.5',         // Float instead of integer
-        'page=-1',          // Negative number
-        'page=abc',         // String instead of number
-        'per_page=0',       // Below minimum
-        'per_page=101',     // Above maximum
-        'min_stars=-5',     // Negative stars
-        'min_stars=1e5',    // Scientific notation
+        'page=1.5', // Float instead of integer
+        'page=-1', // Negative number
+        'page=abc', // String instead of number
+        'per_page=0', // Below minimum
+        'per_page=101', // Above maximum
+        'min_stars=-5', // Negative stars
+        'min_stars=1e5', // Scientific notation
       ]
 
       for (const param of invalidParams) {
         const response = await fetch(`http://localhost:3000/api/search/repositories?${param}`)
         expect(response.status).toBe(400)
-        
+
         const data = await response.json()
         const validatedError = ValidationErrorSchema.parse(data)
         expect(validatedError.error.code).toBe('INVALID_PARAMETER')
       }
 
       // Test valid parameters
-      const validResponse = await fetch('http://localhost:3000/api/search/repositories?page=2&per_page=50&min_stars=100')
+      const validResponse = await fetch(
+        'http://localhost:3000/api/search/repositories?page=2&per_page=50&min_stars=100'
+      )
       expect(validResponse.status).toBe(200)
     })
 
@@ -326,45 +401,70 @@ describe('Input Validation & Sanitization', () => {
           const order = url.searchParams.get('order')
 
           // Validate difficulty enum
-          if (difficulty !== null && !['beginner', 'intermediate', 'advanced'].includes(difficulty)) {
-            return HttpResponse.json({
-              success: false,
-              error: {
-                code: 'INVALID_PARAMETER',
-                message: 'Invalid enum value',
-                details: [{ path: ['difficulty'], message: 'Expected beginner | intermediate | advanced, received ' + difficulty }],
+          if (
+            difficulty !== null &&
+            !['beginner', 'intermediate', 'advanced'].includes(difficulty)
+          ) {
+            return HttpResponse.json(
+              {
+                success: false,
+                error: {
+                  code: 'INVALID_PARAMETER',
+                  message: 'Invalid enum value',
+                  details: [
+                    {
+                      path: ['difficulty'],
+                      message: `Expected beginner | intermediate | advanced, received ${difficulty}`,
+                    },
+                  ],
+                },
               },
-            }, { status: 400 })
+              { status: 400 }
+            )
           }
 
           // Validate sort_by enum
-          if (sortBy !== null && !['difficulty', 'impact', 'match', 'created', 'updated', 'relevance'].includes(sortBy)) {
-            return HttpResponse.json({
-              success: false,
-              error: {
-                code: 'INVALID_PARAMETER',
-                message: 'Invalid enum value',
-                details: [{ path: ['sort_by'], message: 'Invalid sort field: ' + sortBy }],
+          if (
+            sortBy !== null &&
+            !['difficulty', 'impact', 'match', 'created', 'updated', 'relevance'].includes(sortBy)
+          ) {
+            return HttpResponse.json(
+              {
+                success: false,
+                error: {
+                  code: 'INVALID_PARAMETER',
+                  message: 'Invalid enum value',
+                  details: [{ path: ['sort_by'], message: `Invalid sort field: ${sortBy}` }],
+                },
               },
-            }, { status: 400 })
+              { status: 400 }
+            )
           }
 
           // Validate order enum
           if (order !== null && !['asc', 'desc'].includes(order)) {
-            return HttpResponse.json({
-              success: false,
-              error: {
-                code: 'INVALID_PARAMETER',
-                message: 'Invalid enum value',
-                details: [{ path: ['order'], message: 'Expected asc | desc, received ' + order }],
+            return HttpResponse.json(
+              {
+                success: false,
+                error: {
+                  code: 'INVALID_PARAMETER',
+                  message: 'Invalid enum value',
+                  details: [{ path: ['order'], message: `Expected asc | desc, received ${order}` }],
+                },
               },
-            }, { status: 400 })
+              { status: 400 }
+            )
           }
 
           return HttpResponse.json({
             success: true,
             data: { opportunities: [], total_count: 0, page: 1, per_page: 20, has_more: false },
-            metadata: { query: '', filters: {}, execution_time_ms: 25, performance_note: 'Enum validation passed' },
+            metadata: {
+              query: '',
+              filters: {},
+              execution_time_ms: 25,
+              performance_note: 'Enum validation passed',
+            },
           })
         })
       )
@@ -372,7 +472,7 @@ describe('Input Validation & Sanitization', () => {
       // Test invalid enum values
       const invalidEnums = [
         'difficulty=expert',
-        'difficulty=BEGINNER',  // Case sensitive
+        'difficulty=BEGINNER', // Case sensitive
         'sort_by=popularity',
         'sort_by=random',
         'order=ascending',
@@ -382,14 +482,16 @@ describe('Input Validation & Sanitization', () => {
       for (const param of invalidEnums) {
         const response = await fetch(`http://localhost:3000/api/search/opportunities?${param}`)
         expect(response.status).toBe(400)
-        
+
         const data = await response.json()
         const validatedError = ValidationErrorSchema.parse(data)
         expect(validatedError.error.code).toBe('INVALID_PARAMETER')
       }
 
       // Test valid enum values
-      const validResponse = await fetch('http://localhost:3000/api/search/opportunities?difficulty=intermediate&sort_by=impact&order=desc')
+      const validResponse = await fetch(
+        'http://localhost:3000/api/search/opportunities?difficulty=intermediate&sort_by=impact&order=desc'
+      )
       expect(validResponse.status).toBe(200)
     })
 
@@ -401,24 +503,38 @@ describe('Input Validation & Sanitization', () => {
 
           if (repositoryId !== null) {
             // UUID v4 format validation
-            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-            
+            const uuidRegex =
+              /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
             if (!uuidRegex.test(repositoryId)) {
-              return HttpResponse.json({
-                success: false,
-                error: {
-                  code: 'INVALID_PARAMETER',
-                  message: 'Invalid UUID format',
-                  details: [{ path: ['repository_id'], message: 'Expected valid UUID v4, received ' + repositoryId }],
+              return HttpResponse.json(
+                {
+                  success: false,
+                  error: {
+                    code: 'INVALID_PARAMETER',
+                    message: 'Invalid UUID format',
+                    details: [
+                      {
+                        path: ['repository_id'],
+                        message: `Expected valid UUID v4, received ${repositoryId}`,
+                      },
+                    ],
+                  },
                 },
-              }, { status: 400 })
+                { status: 400 }
+              )
             }
           }
 
           return HttpResponse.json({
             success: true,
             data: { opportunities: [], total_count: 0, page: 1, per_page: 20, has_more: false },
-            metadata: { query: '', filters: {}, execution_time_ms: 25, performance_note: 'UUID validation passed' },
+            metadata: {
+              query: '',
+              filters: {},
+              execution_time_ms: 25,
+              performance_note: 'UUID validation passed',
+            },
           })
         })
       )
@@ -427,7 +543,7 @@ describe('Input Validation & Sanitization', () => {
       const invalidUUIDs = [
         'repository_id=123',
         'repository_id=not-a-uuid',
-        'repository_id=123e4567-e89b-12d3-a456-42661417400',  // Missing character
+        'repository_id=123e4567-e89b-12d3-a456-42661417400', // Missing character
         'repository_id=123e4567-e89b-12d3-a456-42661417400g', // Invalid character
         'repository_id=123e4567-e89b-52d3-a456-426614174000', // Wrong version (5 instead of 4)
       ]
@@ -435,14 +551,16 @@ describe('Input Validation & Sanitization', () => {
       for (const param of invalidUUIDs) {
         const response = await fetch(`http://localhost:3000/api/search/opportunities?${param}`)
         expect(response.status).toBe(400)
-        
+
         const data = await response.json()
         const validatedError = ValidationErrorSchema.parse(data)
         expect(validatedError.error.code).toBe('INVALID_PARAMETER')
       }
 
       // Test valid UUID
-      const validResponse = await fetch('http://localhost:3000/api/search/opportunities?repository_id=123e4567-e89b-42d3-a456-426614174000')
+      const validResponse = await fetch(
+        'http://localhost:3000/api/search/opportunities?repository_id=123e4567-e89b-42d3-a456-426614174000'
+      )
       expect(validResponse.status).toBe(200)
     })
   })
@@ -477,26 +595,37 @@ describe('Rate Limiting Enforcement', () => {
           }
 
           if (userLimit.count > maxRequests) {
-            return HttpResponse.json({
-              success: false,
-              error: {
-                code: 'RATE_LIMIT_EXCEEDED',
-                message: 'Rate limit exceeded. Please try again later.',
+            return HttpResponse.json(
+              {
+                success: false,
+                error: {
+                  code: 'RATE_LIMIT_EXCEEDED',
+                  message: 'Rate limit exceeded. Please try again later.',
+                },
               },
-            }, { 
-              status: 429,
-              headers: {
-                ...headers,
-                'Retry-After': String(Math.ceil((userLimit.resetTime - now) / 1000)),
+              {
+                status: 429,
+                headers: {
+                  ...headers,
+                  'Retry-After': String(Math.ceil((userLimit.resetTime - now) / 1000)),
+                },
               }
-            })
+            )
           }
 
-          return HttpResponse.json({
-            success: true,
-            data: { repositories: [], total_count: 0, page: 1, per_page: 20, has_more: false },
-            metadata: { query: '', filters: {}, execution_time_ms: 25, performance_note: 'Rate limit check passed' },
-          }, { headers })
+          return HttpResponse.json(
+            {
+              success: true,
+              data: { repositories: [], total_count: 0, page: 1, per_page: 20, has_more: false },
+              metadata: {
+                query: '',
+                filters: {},
+                execution_time_ms: 25,
+                performance_note: 'Rate limit check passed',
+              },
+            },
+            { headers }
+          )
         })
       )
 
@@ -504,7 +633,7 @@ describe('Rate Limiting Enforcement', () => {
       let response: Response
       for (let i = 1; i <= 105; i++) {
         response = await fetch('http://localhost:3000/api/search/repositories')
-        
+
         if (i <= 100) {
           expect(response.status).toBe(200)
           expect(Number(response.headers.get('X-RateLimit-Remaining'))).toBe(100 - i)
@@ -512,7 +641,7 @@ describe('Rate Limiting Enforcement', () => {
           expect(response.status).toBe(429)
           expect(response.headers.get('X-RateLimit-Remaining')).toBe('0')
           expect(response.headers.get('Retry-After')).toBeDefined()
-          
+
           const data = await response.json()
           const validatedError = SecurityErrorSchema.parse(data)
           expect(validatedError.error.code).toBe('RATE_LIMIT_EXCEEDED')
@@ -534,7 +663,7 @@ describe('Rate Limiting Enforcement', () => {
           const endpoint = `/api/search/${params.endpoint}`
           const userId = 'test-user'
           const now = Date.now()
-          
+
           const config = endpointLimits[endpoint as keyof typeof endpointLimits]
           if (!config) return HttpResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -554,36 +683,47 @@ describe('Rate Limiting Enforcement', () => {
           const remaining = Math.max(0, config.max - endpointLimit.count)
 
           if (endpointLimit.count > config.max) {
-            return HttpResponse.json({
-              success: false,
-              error: {
-                code: 'RATE_LIMIT_EXCEEDED',
-                message: `Rate limit exceeded for ${endpoint}`,
+            return HttpResponse.json(
+              {
+                success: false,
+                error: {
+                  code: 'RATE_LIMIT_EXCEEDED',
+                  message: `Rate limit exceeded for ${endpoint}`,
+                },
               },
-            }, { 
-              status: 429,
-              headers: {
-                'X-RateLimit-Limit': String(config.max),
-                'X-RateLimit-Remaining': '0',
-                'X-RateLimit-Reset': String(endpointLimit.resetTime),
-                'Retry-After': String(Math.ceil((endpointLimit.resetTime - now) / 1000)),
+              {
+                status: 429,
+                headers: {
+                  'X-RateLimit-Limit': String(config.max),
+                  'X-RateLimit-Remaining': '0',
+                  'X-RateLimit-Reset': String(endpointLimit.resetTime),
+                  'Retry-After': String(Math.ceil((endpointLimit.resetTime - now) / 1000)),
+                },
               }
-            })
+            )
           }
 
-          return HttpResponse.json({
-            success: true,
-            data: endpoint.includes('repositories') 
-              ? { repositories: [], total_count: 0, page: 1, per_page: 20, has_more: false }
-              : { opportunities: [], total_count: 0, page: 1, per_page: 20, has_more: false },
-            metadata: { query: '', filters: {}, execution_time_ms: 25, performance_note: 'Endpoint rate limit check' },
-          }, {
-            headers: {
-              'X-RateLimit-Limit': String(config.max),
-              'X-RateLimit-Remaining': String(remaining),
-              'X-RateLimit-Reset': String(endpointLimit.resetTime),
+          return HttpResponse.json(
+            {
+              success: true,
+              data: endpoint.includes('repositories')
+                ? { repositories: [], total_count: 0, page: 1, per_page: 20, has_more: false }
+                : { opportunities: [], total_count: 0, page: 1, per_page: 20, has_more: false },
+              metadata: {
+                query: '',
+                filters: {},
+                execution_time_ms: 25,
+                performance_note: 'Endpoint rate limit check',
+              },
+            },
+            {
+              headers: {
+                'X-RateLimit-Limit': String(config.max),
+                'X-RateLimit-Remaining': String(remaining),
+                'X-RateLimit-Reset': String(endpointLimit.resetTime),
+              },
             }
-          })
+          )
         })
       )
 
@@ -613,44 +753,52 @@ describe('Rate Limiting Enforcement', () => {
 
       server.use(
         http.get('http://localhost:3000/api/search/repositories', ({ request }) => {
-          const now = Date.now()
+          const _now = Date.now()
           burstCount++
 
           // Reset burst count after window
           setTimeout(() => burstCount--, burstWindow)
 
           if (burstCount > burstThreshold) {
-            return HttpResponse.json({
-              success: false,
-              error: {
-                code: 'BURST_LIMIT_EXCEEDED',
-                message: 'Too many requests in a short time. Please slow down.',
+            return HttpResponse.json(
+              {
+                success: false,
+                error: {
+                  code: 'BURST_LIMIT_EXCEEDED',
+                  message: 'Too many requests in a short time. Please slow down.',
+                },
               },
-            }, { 
-              status: 429,
-              headers: {
-                'X-Burst-Limit': String(burstThreshold),
-                'X-Burst-Remaining': '0',
-                'Retry-After': '5',
+              {
+                status: 429,
+                headers: {
+                  'X-Burst-Limit': String(burstThreshold),
+                  'X-Burst-Remaining': '0',
+                  'Retry-After': '5',
+                },
               }
-            })
+            )
           }
 
           return HttpResponse.json({
             success: true,
             data: { repositories: [], total_count: 0, page: 1, per_page: 20, has_more: false },
-            metadata: { query: '', filters: {}, execution_time_ms: 25, performance_note: 'Burst protection check' },
+            metadata: {
+              query: '',
+              filters: {},
+              execution_time_ms: 25,
+              performance_note: 'Burst protection check',
+            },
           })
         })
       )
 
       // Send burst of requests
-      const burstRequests = Array.from({ length: 15 }, () => 
+      const burstRequests = Array.from({ length: 15 }, () =>
         fetch('http://localhost:3000/api/search/repositories')
       )
 
       const responses = await Promise.all(burstRequests)
-      
+
       // First 10 should succeed, rest should fail
       for (let i = 0; i < responses.length; i++) {
         if (i < burstThreshold) {
@@ -678,13 +826,13 @@ describe('CORS Policy Validation', () => {
       server.use(
         http.options('http://localhost:3000/api/search/repositories', ({ request }) => {
           const origin = request.headers.get('Origin')
-          
+
           if (!origin || !allowedOrigins.includes(origin)) {
-            return new HttpResponse(null, { 
+            return new HttpResponse(null, {
               status: 403,
               headers: {
                 'Access-Control-Allow-Origin': 'null',
-              }
+              },
             })
           }
 
@@ -747,7 +895,7 @@ describe('CORS Policy Validation', () => {
           // Validate headers
           const allowedHeaders = ['Content-Type', 'Authorization', 'X-CSRF-Token']
           const requestedHeaders = requestHeaders?.split(',').map(h => h.trim()) || []
-          
+
           for (const header of requestedHeaders) {
             if (!allowedHeaders.includes(header)) {
               return new HttpResponse(null, { status: 400 })
@@ -771,7 +919,7 @@ describe('CORS Policy Validation', () => {
       const validResponse = await fetch('http://localhost:3000/api/auth/unlink', {
         method: 'OPTIONS',
         headers: {
-          'Origin': 'http://localhost:3000',
+          Origin: 'http://localhost:3000',
           'Access-Control-Request-Method': 'POST',
           'Access-Control-Request-Headers': 'Content-Type, Authorization',
         },
@@ -782,7 +930,7 @@ describe('CORS Policy Validation', () => {
       const invalidMethodResponse = await fetch('http://localhost:3000/api/auth/unlink', {
         method: 'OPTIONS',
         headers: {
-          'Origin': 'http://localhost:3000',
+          Origin: 'http://localhost:3000',
           'Access-Control-Request-Method': 'DELETE',
         },
       })
@@ -792,7 +940,7 @@ describe('CORS Policy Validation', () => {
       const invalidHeadersResponse = await fetch('http://localhost:3000/api/auth/unlink', {
         method: 'OPTIONS',
         headers: {
-          'Origin': 'http://localhost:3000',
+          Origin: 'http://localhost:3000',
           'Access-Control-Request-Method': 'POST',
           'Access-Control-Request-Headers': 'Content-Type, X-Custom-Header',
         },
@@ -816,7 +964,7 @@ describe('Data Integrity Validation', () => {
                   id: 'invalid-uuid', // Invalid UUID format
                   fullName: 'test-repo',
                   // Missing required fields: githubId, name, owner, etc.
-                }
+                },
               ],
               total_count: 1,
               page: 1,
@@ -831,7 +979,7 @@ describe('Data Integrity Validation', () => {
       expect(response.status).toBe(200)
 
       const data = await response.json()
-      
+
       // In a real implementation, the API would validate the response schema
       // and return an error if it doesn't match the expected format
       expect(data.success).toBe(true)
@@ -847,13 +995,16 @@ describe('Data Integrity Validation', () => {
           const maxSize = 1024 * 1024 // 1MB limit
 
           if (contentLength && Number(contentLength) > maxSize) {
-            return HttpResponse.json({
-              success: false,
-              error: {
-                code: 'REQUEST_TOO_LARGE',
-                message: 'Request body exceeds maximum size limit',
+            return HttpResponse.json(
+              {
+                success: false,
+                error: {
+                  code: 'REQUEST_TOO_LARGE',
+                  message: 'Request body exceeds maximum size limit',
+                },
               },
-            }, { status: 413 })
+              { status: 413 }
+            )
           }
 
           return HttpResponse.json({

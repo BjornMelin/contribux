@@ -4,8 +4,8 @@
  * Phase 4: Developer Experience - Environment management utilities
  */
 
-import { beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest'
 import { config } from 'dotenv'
+import { afterAll, afterEach, beforeAll, beforeEach, vi } from 'vitest'
 import type { UUID } from '@/types/base'
 
 // Environment configuration interface
@@ -50,7 +50,7 @@ export class TestEnvironmentManager {
   private config: Required<TestEnvironmentConfig>
   private originalEnv: Record<string, string | undefined> = {}
   private originalConsole: typeof console = {} as typeof console
-  private memoryBaseline: number = 0
+  private memoryBaseline = 0
   private cleanupTasks: Array<() => void | Promise<void>> = []
 
   constructor(config: TestEnvironmentConfig = {}) {
@@ -188,7 +188,7 @@ export class TestEnvironmentManager {
    */
   createTestUUID(suffix?: string): UUID {
     const timestamp = Date.now().toString()
-    const random = Math.random().toString(36).substr(2, 9)
+    const _random = Math.random().toString(36).substr(2, 9)
     const testSuffix = suffix ? `-${suffix}` : ''
     return `550e8400-e29b-41d4-a716-${timestamp.slice(-12)}${testSuffix}` as UUID
   }
@@ -229,7 +229,7 @@ export class TestEnvironmentManager {
 
   private setupConsoleSuppression(): void {
     this.originalConsole = { ...console }
-    
+
     // Mock console methods to reduce test noise
     const mockMethods = ['log', 'info', 'warn', 'error', 'debug'] as const
     for (const method of mockMethods) {
@@ -328,7 +328,7 @@ export class TestEnvironmentManager {
     try {
       const { setupServer } = await import('msw/node')
       const { http, HttpResponse } = await import('msw')
-      
+
       const server = setupServer(
         // Default handlers for common endpoints
         http.get('*/api/health', () => {
@@ -337,7 +337,7 @@ export class TestEnvironmentManager {
       )
 
       server.listen({ onUnhandledRequest: 'bypass' })
-      
+
       this.addCleanupTask(() => {
         server.resetHandlers()
       })
@@ -354,7 +354,7 @@ export class TestEnvironmentManager {
     // Import database testing utilities
     try {
       const { TestDatabaseManager } = await import('@/lib/test-utils/test-database-manager')
-      
+
       // Setup test database
       const testDb = TestDatabaseManager.getInstance()
       await testDb.setup()
@@ -416,41 +416,45 @@ export function setupTestSuite(config?: TestEnvironmentConfig) {
  */
 
 // Unit test environment (minimal setup)
-export const setupUnitTestEnvironment = () => setupTestSuite({
-  isolationLevel: 'basic',
-  suppressConsole: true,
-})
+export const setupUnitTestEnvironment = () =>
+  setupTestSuite({
+    isolationLevel: 'basic',
+    suppressConsole: true,
+  })
 
 // Component test environment (with router and auth)
-export const setupComponentTestEnvironment = () => setupTestSuite({
-  useRouter: true,
-  useAuth: true,
-  isolationLevel: 'full',
-  suppressConsole: true,
-})
+export const setupComponentTestEnvironment = () =>
+  setupTestSuite({
+    useRouter: true,
+    useAuth: true,
+    isolationLevel: 'full',
+    suppressConsole: true,
+  })
 
 // Integration test environment (with database and MSW)
-export const setupIntegrationTestEnvironment = () => setupTestSuite({
-  useDatabase: true,
-  useMSW: true,
-  useAuth: true,
-  isolationLevel: 'full',
-  monitorMemory: true,
-})
+export const setupIntegrationTestEnvironment = () =>
+  setupTestSuite({
+    useDatabase: true,
+    useMSW: true,
+    useAuth: true,
+    isolationLevel: 'full',
+    monitorMemory: true,
+  })
 
 // E2E test environment (full setup)
-export const setupE2ETestEnvironment = () => setupTestSuite({
-  useDatabase: true,
-  useMSW: true,
-  useAuth: true,
-  useRouter: true,
-  useGitHubAPI: true,
-  isolationLevel: 'full',
-  monitorMemory: true,
-  env: {
-    NODE_ENV: 'test',
-    NEXTAUTH_SECRET: 'test-secret',
-    GITHUB_CLIENT_ID: 'test-client-id',
-    GITHUB_CLIENT_SECRET: 'test-client-secret',
-  },
-})
+export const setupE2ETestEnvironment = () =>
+  setupTestSuite({
+    useDatabase: true,
+    useMSW: true,
+    useAuth: true,
+    useRouter: true,
+    useGitHubAPI: true,
+    isolationLevel: 'full',
+    monitorMemory: true,
+    env: {
+      NODE_ENV: 'test',
+      NEXTAUTH_SECRET: 'test-secret',
+      GITHUB_CLIENT_ID: 'test-client-id',
+      GITHUB_CLIENT_SECRET: 'test-client-secret',
+    },
+  })

@@ -1,7 +1,7 @@
 /**
  * Core Security Testing Utilities
  * Essential security testing tools and attack simulation framework
- * 
+ *
  * Phase 2: API Security Testing Utilities
  * - Attack simulation and payload generation
  * - Input validation testing
@@ -10,13 +10,19 @@
  */
 
 import { z } from 'zod'
-import { HttpResponse, http } from 'msw'
-import type { HttpHandler } from 'msw'
 
 // Security test result schemas
 export const SecurityTestResultSchema = z.object({
   testName: z.string(),
-  category: z.enum(['AUTHENTICATION', 'AUTHORIZATION', 'INPUT_VALIDATION', 'INJECTION', 'XSS', 'CSRF', 'RATE_LIMITING']),
+  category: z.enum([
+    'AUTHENTICATION',
+    'AUTHORIZATION',
+    'INPUT_VALIDATION',
+    'INJECTION',
+    'XSS',
+    'CSRF',
+    'RATE_LIMITING',
+  ]),
   status: z.enum(['PASS', 'FAIL', 'WARNING', 'ERROR']),
   severity: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
   details: z.string(),
@@ -60,18 +66,18 @@ export class AttackSimulator {
       "' OR 1=1 --",
       "' OR '1'='1",
       "' UNION SELECT * FROM admin --",
-      
+
       // Time-based blind SQL injection
       "'; WAITFOR DELAY '00:00:05' --",
       "'; SELECT pg_sleep(5) --",
-      
+
       // Boolean-based blind SQL injection
       "' AND (SELECT COUNT(*) FROM users) > 0 --",
       "' AND SUBSTRING((SELECT password FROM users WHERE username='admin'),1,1)='a' --",
-      
+
       // Error-based SQL injection
       "' AND (SELECT * FROM (SELECT COUNT(*),concat(0x7e,(SELECT database()),0x7e,floor(rand(0)*2))x FROM information_schema.tables GROUP BY x)a) --",
-      
+
       // Advanced payloads
       "'; INSERT INTO admin_users VALUES ('hacker', 'password'); --",
       "' OR (SELECT user FROM mysql.user WHERE user = 'root') = 'root' --",
@@ -88,23 +94,23 @@ export class AttackSimulator {
       '<script>alert("XSS")</script>',
       '<img src="x" onerror="alert(1)">',
       '<svg onload="alert(1)">',
-      
+
       // Event-based XSS
       '<input onfocus="alert(1)" autofocus>',
       '<textarea onfocus="alert(1)" autofocus>',
       '<body onload="alert(1)">',
-      
+
       // Filter bypass attempts
       '<ScRiPt>alert("XSS")</ScRiPt>',
       '"><script>alert(String.fromCharCode(88,83,83))</script>',
       "javascript:alert('XSS')",
-      
+
       // Advanced payloads
       '<iframe src="javascript:alert(1)">',
       '<object data="javascript:alert(1)">',
       '<embed src="javascript:alert(1)">',
       '<link rel="stylesheet" href="javascript:alert(1)">',
-      
+
       // Data URI XSS
       'data:text/html,<script>alert(1)</script>',
       'data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==',
@@ -152,14 +158,14 @@ export class AttackSimulator {
    */
   generateAuthBypassPayloads(): { username: string; password: string }[] {
     return [
-      { username: "admin' --", password: "anything" },
-      { username: "admin' OR '1'='1' --", password: "password" },
-      { username: "' OR 1=1 --", password: "" },
-      { username: "admin", password: "' OR '1'='1" },
-      { username: "admin'; DROP TABLE users; --", password: "password" },
-      { username: "admin", password: "password' OR '1'='1' --" },
-      { username: "", password: "' OR 1=1 #" },
-      { username: "' UNION SELECT 'admin', 'password' --", password: "" },
+      { username: "admin' --", password: 'anything' },
+      { username: "admin' OR '1'='1' --", password: 'password' },
+      { username: "' OR 1=1 --", password: '' },
+      { username: 'admin', password: "' OR '1'='1" },
+      { username: "admin'; DROP TABLE users; --", password: 'password' },
+      { username: 'admin', password: "password' OR '1'='1' --" },
+      { username: '', password: "' OR 1=1 #" },
+      { username: "' UNION SELECT 'admin', 'password' --", password: '' },
     ]
   }
 
@@ -175,7 +181,7 @@ export class AttackSimulator {
       try {
         const url = new URL(endpoint)
         url.searchParams.set(parameter, payload)
-        
+
         const response = await fetch(url.toString())
         const responseText = await response.text()
 
@@ -200,7 +206,6 @@ export class AttackSimulator {
         if (response.status === 500 && responseText.includes('database')) {
           vulnerabilities.push(`Database error triggered with payload: ${payload}`)
         }
-
       } catch (error) {
         // Network errors might indicate successful attack
         if (error instanceof Error && error.message.includes('network')) {
@@ -216,16 +221,20 @@ export class AttackSimulator {
       category: 'INJECTION',
       status: vulnerabilities.length > 0 ? 'FAIL' : 'PASS',
       severity: vulnerabilities.length > 0 ? 'HIGH' : 'LOW',
-      details: vulnerabilities.length > 0 
-        ? `Found ${vulnerabilities.length} potential SQL injection vulnerabilities`
-        : 'No SQL injection vulnerabilities detected',
+      details:
+        vulnerabilities.length > 0
+          ? `Found ${vulnerabilities.length} potential SQL injection vulnerabilities`
+          : 'No SQL injection vulnerabilities detected',
       evidence: vulnerabilities,
-      recommendations: vulnerabilities.length > 0 ? [
-        'Use parameterized queries or prepared statements',
-        'Implement input validation and sanitization',
-        'Apply principle of least privilege to database accounts',
-        'Enable SQL query logging and monitoring',
-      ] : [],
+      recommendations:
+        vulnerabilities.length > 0
+          ? [
+              'Use parameterized queries or prepared statements',
+              'Implement input validation and sanitization',
+              'Apply principle of least privilege to database accounts',
+              'Enable SQL query logging and monitoring',
+            ]
+          : [],
       executionTime,
       timestamp: new Date(),
     }
@@ -243,7 +252,7 @@ export class AttackSimulator {
       try {
         const url = new URL(endpoint)
         url.searchParams.set(parameter, payload)
-        
+
         const response = await fetch(url.toString())
         const responseText = await response.text()
 
@@ -256,8 +265,7 @@ export class AttackSimulator {
         if (responseText.includes('<script>') && !responseText.includes('&lt;script&gt;')) {
           vulnerabilities.push(`Script tags not properly encoded with payload: ${payload}`)
         }
-
-      } catch (error) {
+      } catch (_error) {
         // Continue with next payload
       }
     }
@@ -269,16 +277,20 @@ export class AttackSimulator {
       category: 'XSS',
       status: vulnerabilities.length > 0 ? 'FAIL' : 'PASS',
       severity: vulnerabilities.length > 0 ? 'HIGH' : 'LOW',
-      details: vulnerabilities.length > 0 
-        ? `Found ${vulnerabilities.length} potential XSS vulnerabilities`
-        : 'No XSS vulnerabilities detected',
+      details:
+        vulnerabilities.length > 0
+          ? `Found ${vulnerabilities.length} potential XSS vulnerabilities`
+          : 'No XSS vulnerabilities detected',
       evidence: vulnerabilities,
-      recommendations: vulnerabilities.length > 0 ? [
-        'Implement proper output encoding/escaping',
-        'Use Content Security Policy (CSP) headers',
-        'Validate and sanitize all user inputs',
-        'Use framework-provided XSS protection features',
-      ] : [],
+      recommendations:
+        vulnerabilities.length > 0
+          ? [
+              'Implement proper output encoding/escaping',
+              'Use Content Security Policy (CSP) headers',
+              'Validate and sanitize all user inputs',
+              'Use framework-provided XSS protection features',
+            ]
+          : [],
       executionTime,
       timestamp: new Date(),
     }
@@ -310,8 +322,7 @@ export class AttackSimulator {
             vulnerabilities.push(`Authentication bypassed with: ${JSON.stringify(payload)}`)
           }
         }
-
-      } catch (error) {
+      } catch (_error) {
         // Continue with next payload
       }
     }
@@ -323,17 +334,21 @@ export class AttackSimulator {
       category: 'AUTHENTICATION',
       status: vulnerabilities.length > 0 ? 'FAIL' : 'PASS',
       severity: vulnerabilities.length > 0 ? 'CRITICAL' : 'LOW',
-      details: vulnerabilities.length > 0 
-        ? `Found ${vulnerabilities.length} authentication bypass vulnerabilities`
-        : 'No authentication bypass vulnerabilities detected',
+      details:
+        vulnerabilities.length > 0
+          ? `Found ${vulnerabilities.length} authentication bypass vulnerabilities`
+          : 'No authentication bypass vulnerabilities detected',
       evidence: vulnerabilities,
-      recommendations: vulnerabilities.length > 0 ? [
-        'Use parameterized queries for authentication',
-        'Implement proper password hashing (bcrypt, scrypt)',
-        'Add account lockout mechanisms',
-        'Enable multi-factor authentication',
-        'Log and monitor authentication attempts',
-      ] : [],
+      recommendations:
+        vulnerabilities.length > 0
+          ? [
+              'Use parameterized queries for authentication',
+              'Implement proper password hashing (bcrypt, scrypt)',
+              'Add account lockout mechanisms',
+              'Enable multi-factor authentication',
+              'Log and monitor authentication attempts',
+            ]
+          : [],
       executionTime,
       timestamp: new Date(),
     }
@@ -374,31 +389,31 @@ export class SecurityPayloadGenerator {
       '',
       'null',
       'undefined',
-      
+
       // Extremely long strings
       'A'.repeat(10000),
       'A'.repeat(100000),
-      
+
       // Special characters
       '!@#$%^&*()_+-=[]{}|;:,.<>?',
       '~`!@#$%^&*()_+-=[]{}\\|;:\'",.<>?/',
-      
+
       // Unicode and encoding
       'ÅÇÇÉæøå',
       '测试数据',
       '🚀🔥💻🎉',
-      
+
       // Control characters
       '\x00\x01\x02\x03\x04\x05',
       '\n\r\t\b\f',
-      
+
       // Format strings
       '%s%s%s%s',
       '%x%x%x%x',
       '%n%n%n%n',
-      
+
       // Buffer overflow attempts
-      'A' + 'B'.repeat(1024),
+      `A${'B'.repeat(1024)}`,
       '\x41'.repeat(2048),
     ]
   }
@@ -406,9 +421,11 @@ export class SecurityPayloadGenerator {
   /**
    * Generate payloads for specific vulnerability types
    */
-  generateVulnerabilityPayloads(type: 'SQL' | 'XSS' | 'PATH_TRAVERSAL' | 'COMMAND_INJECTION'): string[] {
+  generateVulnerabilityPayloads(
+    type: 'SQL' | 'XSS' | 'PATH_TRAVERSAL' | 'COMMAND_INJECTION'
+  ): string[] {
     const simulator = new AttackSimulator()
-    
+
     switch (type) {
       case 'SQL':
         return simulator.generateSQLInjectionPayloads()
@@ -434,27 +451,27 @@ export class SecurityAssertions {
   static assertNoSensitiveData(response: string): { passed: boolean; findings: string[] } {
     const sensitivePatterns = [
       // Credentials
-      /password\s*[:=]\s*["\']?[^"\s]+/gi,
-      /api[_-]?key\s*[:=]\s*["\']?[^"\s]+/gi,
-      /secret\s*[:=]\s*["\']?[^"\s]+/gi,
-      /token\s*[:=]\s*["\']?[^"\s]+/gi,
-      
+      /password\s*[:=]\s*["']?[^"\s]+/gi,
+      /api[_-]?key\s*[:=]\s*["']?[^"\s]+/gi,
+      /secret\s*[:=]\s*["']?[^"\s]+/gi,
+      /token\s*[:=]\s*["']?[^"\s]+/gi,
+
       // Database info
       /connection\s*string/gi,
-      /database\s*[:=]\s*["\']?[^"\s]+/gi,
-      
+      /database\s*[:=]\s*["']?[^"\s]+/gi,
+
       // System info
       /\/etc\/passwd/gi,
       /\/proc\/version/gi,
       /C:\\windows\\system32/gi,
-      
+
       // Stack traces
       /at\s+[\w.]+\([^)]+:\d+:\d+\)/gi,
       /Exception\s+in\s+thread/gi,
     ]
 
     const findings: string[] = []
-    
+
     for (const pattern of sensitivePatterns) {
       const matches = response.match(pattern)
       if (matches) {
@@ -481,7 +498,7 @@ export class SecurityAssertions {
     ]
 
     const missing: string[] = []
-    
+
     for (const header of requiredHeaders) {
       if (!headers.has(header)) {
         missing.push(header)
@@ -498,9 +515,9 @@ export class SecurityAssertions {
    * Assert that input validation is working
    */
   static assertInputValidation(
-    input: string, 
-    response: Response, 
-    expectedStatus: number = 400
+    _input: string,
+    response: Response,
+    expectedStatus = 400
   ): { passed: boolean; details: string } {
     if (response.status !== expectedStatus) {
       return {
@@ -523,32 +540,70 @@ export class SecurityTestDataFactory {
   /**
    * Create test user data with various edge cases
    */
-  static createTestUsers(): Array<{ username: string; email: string; password: string; expectValid: boolean }> {
+  static createTestUsers(): Array<{
+    username: string
+    email: string
+    password: string
+    expectValid: boolean
+  }> {
     return [
       // Valid users
-      { username: 'testuser', email: 'test@example.com', password: 'SecurePass123!', expectValid: true },
-      { username: 'admin', email: 'admin@company.com', password: 'AdminPass456!', expectValid: true },
-      
+      {
+        username: 'testuser',
+        email: 'test@example.com',
+        password: 'SecurePass123!',
+        expectValid: true,
+      },
+      {
+        username: 'admin',
+        email: 'admin@company.com',
+        password: 'AdminPass456!',
+        expectValid: true,
+      },
+
       // Invalid/malicious users
-      { username: "admin'; DROP TABLE users; --", email: 'hacker@evil.com', password: 'password', expectValid: false },
-      { username: '<script>alert("xss")</script>', email: 'xss@test.com', password: 'password', expectValid: false },
+      {
+        username: "admin'; DROP TABLE users; --",
+        email: 'hacker@evil.com',
+        password: 'password',
+        expectValid: false,
+      },
+      {
+        username: '<script>alert("xss")</script>',
+        email: 'xss@test.com',
+        password: 'password',
+        expectValid: false,
+      },
       { username: 'user', email: 'not-an-email', password: 'weak', expectValid: false },
       { username: '', email: 'empty@test.com', password: 'password', expectValid: false },
-      { username: 'A'.repeat(1000), email: 'long@test.com', password: 'password', expectValid: false },
+      {
+        username: 'A'.repeat(1000),
+        email: 'long@test.com',
+        password: 'password',
+        expectValid: false,
+      },
     ]
   }
 
   /**
    * Create test repository data with security edge cases
    */
-  static createTestRepositories(): Array<{ name: string; description: string; expectValid: boolean }> {
+  static createTestRepositories(): Array<{
+    name: string
+    description: string
+    expectValid: boolean
+  }> {
     return [
       // Valid repositories
       { name: 'test-repo', description: 'A test repository', expectValid: true },
       { name: 'my-awesome-project', description: 'An awesome project', expectValid: true },
-      
+
       // Invalid/malicious repositories
-      { name: "repo'; DROP TABLE repositories; --", description: 'SQL injection attempt', expectValid: false },
+      {
+        name: "repo'; DROP TABLE repositories; --",
+        description: 'SQL injection attempt',
+        expectValid: false,
+      },
       { name: '<script>alert("xss")</script>', description: 'XSS attempt', expectValid: false },
       { name: '', description: 'Empty name', expectValid: false },
       { name: 'A'.repeat(1000), description: 'Too long name', expectValid: false },

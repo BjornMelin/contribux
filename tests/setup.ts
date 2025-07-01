@@ -2,8 +2,9 @@
  * Main test setup file
  * Runs before each test file
  */
-import { beforeAll, afterAll, afterEach } from 'vitest'
+
 import { config } from 'dotenv'
+import { afterAll, afterEach, beforeAll } from 'vitest'
 
 // Load test environment
 config({ path: '.env.test' })
@@ -12,10 +13,10 @@ config({ path: '.env.test' })
 beforeAll(() => {
   // Ensure clean test environment
   process.env.NODE_ENV = 'test'
-  
+
   // Mock console methods to reduce noise in tests
   const originalConsole = { ...console }
-  
+
   // Store original console for restoration
   globalThis.__originalConsole = originalConsole
 })
@@ -36,5 +37,5 @@ afterAll(() => {
 
 // Export test utilities for reuse
 export * from './utils/modern-test-helpers'
-export * from './utils/test-factories'
 export * from './utils/test-assertions'
+export * from './utils/test-factories'

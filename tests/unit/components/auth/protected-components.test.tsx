@@ -5,7 +5,7 @@
 /**
  * Protected Component Testing Suite
  * Tests for components that require authentication and handle permissions
- * 
+ *
  * Features tested:
  * - Component behavior with/without authentication
  * - Permission-based rendering
@@ -15,15 +15,22 @@
  * - Role-based access control
  */
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanupComponentTest, createModernMockRouter, setupComponentTest } from '@/tests/utils/modern-test-helpers'
+import {
+  cleanupComponentTest,
+  createModernMockRouter,
+  setupComponentTest,
+} from '@/tests/utils/modern-test-helpers'
 
 // Mock components that require authentication
-const MockProtectedComponent = ({ requireAuth = true, requiredRole }: { 
+const MockProtectedComponent = ({
+  requireAuth = true,
+  requiredRole,
+}: {
   requireAuth?: boolean
-  requiredRole?: string 
+  requiredRole?: string
 }) => {
   const { useSession } = require('next-auth/react')
   const { data: session, status } = useSession()
@@ -44,9 +51,7 @@ const MockProtectedComponent = ({ requireAuth = true, requiredRole }: {
     <div>
       <h1>Protected Content</h1>
       <p>Welcome, {session?.user?.name || 'User'}!</p>
-      <button onClick={() => console.log('Action performed')}>
-        Perform Action
-      </button>
+      <button onClick={() => console.log('Action performed')}>Perform Action</button>
     </div>
   )
 }
@@ -78,7 +83,7 @@ const MockUserDashboard = () => {
         <h1>Dashboard</h1>
         <p>Welcome back, {session.user?.name}!</p>
       </header>
-      
+
       <section aria-label="Quick actions">
         <button type="button">View Opportunities</button>
         <button type="button">Manage Bookmarks</button>
@@ -307,7 +312,7 @@ describe('Protected Components', () => {
   describe('Session State Transitions', () => {
     it('handles transition from loading to authenticated', async () => {
       const { useSession } = await import('next-auth/react')
-      
+
       // Start with loading state
       vi.mocked(useSession).mockReturnValue(mockLoadingSession)
       const { rerender } = render(<MockUserDashboard />)
@@ -324,7 +329,7 @@ describe('Protected Components', () => {
 
     it('handles transition from loading to unauthenticated', async () => {
       const { useSession } = await import('next-auth/react')
-      
+
       // Start with loading state
       vi.mocked(useSession).mockReturnValue(mockLoadingSession)
       const { rerender } = render(<MockUserDashboard />)
@@ -341,7 +346,7 @@ describe('Protected Components', () => {
 
     it('handles user logout transition', async () => {
       const { useSession } = await import('next-auth/react')
-      
+
       // Start authenticated
       vi.mocked(useSession).mockReturnValue(mockAuthenticatedSession)
       const { rerender } = render(<MockUserDashboard />)
@@ -360,7 +365,7 @@ describe('Protected Components', () => {
   describe('Error State Handling', () => {
     it('handles corrupted session data gracefully', async () => {
       const { useSession } = await import('next-auth/react')
-      
+
       const corruptedSession = {
         data: {
           user: null, // Corrupted user data
@@ -380,7 +385,7 @@ describe('Protected Components', () => {
 
     it('handles session update errors', async () => {
       const { useSession } = await import('next-auth/react')
-      
+
       const sessionWithErrorUpdate = {
         ...mockAuthenticatedSession,
         update: vi.fn().mockRejectedValue(new Error('Update failed')),
@@ -396,7 +401,7 @@ describe('Protected Components', () => {
 
     it('handles network errors during authentication check', async () => {
       const { useSession } = await import('next-auth/react')
-      
+
       // Mock a session that throws an error
       vi.mocked(useSession).mockImplementation(() => {
         throw new Error('Network error')
@@ -406,7 +411,7 @@ describe('Protected Components', () => {
       const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
         try {
           return <>{children}</>
-        } catch (error) {
+        } catch (_error) {
           return <div>Authentication service unavailable</div>
         }
       }
@@ -451,10 +456,10 @@ describe('Protected Components', () => {
       // Check semantic structure
       expect(screen.getByRole('main')).toBeInTheDocument()
       expect(screen.getByRole('banner')).toBeInTheDocument() // header
-      
+
       const headings = screen.getAllByRole('heading')
       expect(headings).toHaveLength(2) // h1 and h2
-      
+
       const sections = screen.getAllByRole('region')
       expect(sections.length).toBeGreaterThanOrEqual(2) // Quick actions and Recent activity
     })
@@ -481,7 +486,7 @@ describe('Protected Components', () => {
   describe('Performance Considerations', () => {
     it('does not cause unnecessary re-renders', async () => {
       const { useSession } = await import('next-auth/react')
-      
+
       const renderSpy = vi.fn()
       const TestComponent = () => {
         renderSpy()
@@ -504,7 +509,7 @@ describe('Protected Components', () => {
 
     it('handles rapid session state changes', async () => {
       const { useSession } = await import('next-auth/react')
-      
+
       const { rerender } = render(<MockUserDashboard />)
 
       // Rapid state changes
