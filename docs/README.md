@@ -15,6 +15,14 @@ Technical implementation guides and standards for developers.
   Comprehensive guide for implementing features following KISS principles
 - **[Memory Optimization](./development/memory-optimization.md)** -
   Complete memory optimization strategies, results, and monitoring tools
+- **[Performance Optimization](./development/performance-optimization.md)** -
+  Comprehensive performance optimization strategies and best practices
+- **[GitHub Client Architecture](./development/github-client-architecture.md)** -
+  Technical architecture documentation for the GitHub API client implementation
+- **[Database Performance Monitoring](./development/database-performance-monitoring.md)** -
+  Database performance monitoring and optimization strategies
+- **[Next.js Performance Optimization](./development/nextjs-performance-optimization.md)** -
+  Next.js 15 specific performance optimization techniques
 - **[Solo Developer Guide](./development/solo-developer-guide.md)** - Complete maintenance guide for solo developers
 - **[Testing Infrastructure](./testing-infrastructure.md)** -
   Complete database testing guide with PGlite, Neon branching, and troubleshooting
@@ -24,8 +32,11 @@ Technical implementation guides and standards for developers.
 Documentation for platform features and capabilities.
 
 - **[Authentication System](./features/authentication.md)** - Multi-provider OAuth with NextAuth.js, including WebAuthn simplification
+- **[Authentication Implementation](./features/authentication-implementation.md)** - Detailed authentication implementation guide and best practices
 - **[API Documentation](./features/api-documentation.md)** -
   Complete REST API reference with endpoints, authentication, and examples
+- **[API Testing Guide](./features/api-testing-guide.md)** -
+  Comprehensive guide for testing API endpoints and authentication flows
 
 ### 🔄 Processes
 
@@ -33,12 +44,24 @@ Workflow and process documentation for project management.
 
 - **[Pull Request Workflow](./processes/pull-request-workflow.md)** - PR splitting strategies, templates, and review guidelines
 - **[Deployment Guide](./processes/deployment.md)** - Environment setup, deployment process, and monitoring
+- **[Vercel Deployment](./processes/vercel-deployment.md)** - Serverless deployment guide for Vercel platform
+- **[Monitoring & Alerting](./processes/monitoring-alerting.md)** - Cost-effective monitoring and alerting strategies
+
+### 🧪 Testing
+
+Testing documentation and best practices.
+
+- **[Testing Infrastructure](./testing-infrastructure.md)** -
+  Complete database testing guide with PGlite, Neon branching, and troubleshooting
+- **[Component Testing Best Practices](./testing/component-testing-best-practices.md)** -
+  Best practices for testing React components and UI interactions
 
 ### 📊 Reports
 
 Analysis reports and project status documentation.
 
 - **[Cleanup Reports](./reports/cleanup-reports.md)** - Parallel cleanup efforts, test improvements, and E2E testing results
+- **[Authentication Research](./reports/authentication-research.md)** - Comprehensive authentication framework analysis and implementation recommendations
 
 ## 🚀 Quick Start
 
@@ -46,21 +69,28 @@ Analysis reports and project status documentation.
 
 1. Read the [Implementation Guide](./development/implementation-guide.md) to understand the architecture
 2. Follow the [Authentication documentation](./features/authentication.md) to understand the OAuth system
-3. Review the [Testing Infrastructure](./testing-infrastructure.md) for PGlite and Neon testing patterns
-4. Check the [Solo Developer Guide](./development/solo-developer-guide.md) for maintenance workflows
-5. Review the [Deployment Guide](./processes/deployment.md) for environment setup
+3. Review the [GitHub Client Architecture](./development/github-client-architecture.md) for API integration patterns
+4. Check the [Testing Infrastructure](./testing-infrastructure.md) for PGlite and Neon testing patterns
+5. Review the [Performance Optimization](./development/performance-optimization.md) for best practices
+6. Check the [Solo Developer Guide](./development/solo-developer-guide.md) for maintenance workflows
+7. Review the [Deployment Guide](./processes/deployment.md) for environment setup
 
 ### For Contributors
 
 1. Review the [Pull Request Workflow](./processes/pull-request-workflow.md) for contribution guidelines
 2. Understand the [API Documentation](./features/api-documentation.md) for integration work
 3. Follow testing standards in [Testing Infrastructure](./testing-infrastructure.md)
+4. Check [Component Testing Best Practices](./testing/component-testing-best-practices.md) for UI testing
+5. Review [API Testing Guide](./features/api-testing-guide.md) for endpoint testing
 
 ### For Operators/DevOps
 
 1. Follow the [Deployment Guide](./processes/deployment.md) for production deployment
-2. Review [Memory Optimization](./development/memory-optimization.md) for performance monitoring
-3. Check [Cleanup Reports](./reports/cleanup-reports.md) for current system status
+2. Review [Vercel Deployment](./processes/vercel-deployment.md) for serverless deployment
+3. Check [Monitoring & Alerting](./processes/monitoring-alerting.md) for operational monitoring
+4. Review [Memory Optimization](./development/memory-optimization.md) for performance monitoring
+5. Check [Database Performance Monitoring](./development/database-performance-monitoring.md) for database optimization
+6. Review [Cleanup Reports](./reports/cleanup-reports.md) for current system status
 
 ## 🏗 Architecture Overview
 

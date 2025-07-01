@@ -310,7 +310,7 @@ WORKING_*.md
 *-working.*
 *-draft.*
 
-# Generated reports and documentation
+# Generated reports and documentation (working files only)
 *-REPORT.md
 *-SUMMARY.md
 *-report.md
@@ -327,6 +327,15 @@ DEPRECATED_*.md
 FINAL_*.md
 OAUTH_*.md
 TEST_*.md
+
+# Documentation working files and drafts
+*-working.*
+*-draft.*
+*-temp.*
+*.tmp
+WORKING_*.md
+DRAFT_*.md
+TEMP_*.md
 
 # Test output files
 test-output*.log
