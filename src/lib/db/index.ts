@@ -170,6 +170,8 @@ function withTiming<T>(operation: string, fn: () => Promise<T>): Promise<T> {
   })
 }
 
+// Security validator functionality is implemented in schema.ts
+
 // Export commonly used database operations with timing
 export const timedDb = {
   select: <T>(fn: () => Promise<T>) => withTiming('select', fn),

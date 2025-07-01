@@ -36,15 +36,29 @@ export interface HybridSearchOptions {
 export namespace RepositoryQueries {
   // Helper function to build text search conditions
   function buildTextSearchConditions(query: string) {
+    // Security: Sanitize search query to prevent SQL injection
+    const sanitizedQuery = query
+      .replace(/[%_\\]/g, '\\$&') // Escape LIKE special characters
+      .replace(/'/g, "''") // Escape single quotes
+      .trim()
+      .substring(0, 100) // Limit length to prevent DoS
+
+    if (!sanitizedQuery) {
+      // Return a condition that matches nothing for empty queries
+      return sql`FALSE`
+    }
+
+    const searchPattern = `%${sanitizedQuery}%`
+
     return or(
-      ilike(schema.repositories.name, `%${query}%`),
-      ilike(schema.repositories.description, `%${query}%`),
-      ilike(schema.repositories.fullName, `%${query}%`),
-      // Search in metadata
-      sql`${schema.repositories.metadata}->>'language' ILIKE ${`%${query}%`}`,
+      ilike(schema.repositories.name, searchPattern),
+      ilike(schema.repositories.description, searchPattern),
+      ilike(schema.repositories.fullName, searchPattern),
+      // Secure metadata search with proper parameterization
+      sql`${schema.repositories.metadata}->>'language' ILIKE ${searchPattern}`,
       sql`EXISTS (
         SELECT 1 FROM jsonb_array_elements_text(${schema.repositories.metadata}->'topics') AS topic
-        WHERE topic ILIKE ${`%${query}%`}
+        WHERE topic ILIKE ${searchPattern}
       )`
     )
   }
@@ -77,23 +91,46 @@ export namespace RepositoryQueries {
       beforeDate,
     } = options
 
+    // Security: Validate and sanitize language filters
     if (languages.length > 0) {
-      conditions.push(
-        or(
-          ...languages.map(
-            lang => sql`${schema.repositories.metadata}->>'language' ILIKE ${`%${lang}%`}`
+      // Limit to reasonable number of languages to prevent DoS
+      const sanitizedLanguages = languages
+        .slice(0, 10)
+        .map(lang =>
+          lang
+            .replace(/[%_\\]/g, '\\$&')
+            .replace(/'/g, "''")
+            .trim()
+        )
+        .filter(lang => lang.length > 0 && lang.length <= 50)
+
+      if (sanitizedLanguages.length > 0) {
+        conditions.push(
+          or(
+            ...sanitizedLanguages.map(
+              lang => sql`${schema.repositories.metadata}->>'language' ILIKE ${`%${lang}%`}`
+            )
           )
         )
-      )
+      }
     }
 
+    // Security: Validate and sanitize topic filters
     if (topics.length > 0) {
-      conditions.push(
-        sql`EXISTS (
-          SELECT 1 FROM jsonb_array_elements_text(${schema.repositories.metadata}->'topics') AS topic
-          WHERE topic = ANY(${topics})
-        )`
-      )
+      // Limit to reasonable number of topics and validate format
+      const sanitizedTopics = topics
+        .slice(0, 20)
+        .map(topic => topic.replace(/'/g, "''").trim())
+        .filter(topic => topic.length > 0 && topic.length <= 50 && /^[a-zA-Z0-9\-_.]+$/.test(topic))
+
+      if (sanitizedTopics.length > 0) {
+        conditions.push(
+          sql`EXISTS (
+            SELECT 1 FROM jsonb_array_elements_text(${schema.repositories.metadata}->'topics') AS topic
+            WHERE topic = ANY(${sanitizedTopics})
+          )`
+        )
+      }
     }
 
     if (hasIssues !== undefined) {
@@ -108,15 +145,27 @@ export namespace RepositoryQueries {
       )
     }
 
+    // Security: Sanitize license filter
     if (license) {
-      conditions.push(sql`${schema.repositories.metadata}->>'license' ILIKE ${`%${license}%`}`)
+      const sanitizedLicense = license
+        .replace(/[%_\\]/g, '\\$&')
+        .replace(/'/g, "''")
+        .trim()
+        .substring(0, 50)
+
+      if (sanitizedLicense) {
+        conditions.push(
+          sql`${schema.repositories.metadata}->>'license' ILIKE ${`%${sanitizedLicense}%`}`
+        )
+      }
     }
 
-    if (afterDate) {
+    // Security: Validate date ranges to prevent injection
+    if (afterDate && afterDate instanceof Date && !Number.isNaN(afterDate.getTime())) {
       conditions.push(sql`${schema.repositories.createdAt} >= ${afterDate}`)
     }
 
-    if (beforeDate) {
+    if (beforeDate && beforeDate instanceof Date && !Number.isNaN(beforeDate.getTime())) {
       conditions.push(sql`${schema.repositories.createdAt} <= ${beforeDate}`)
     }
 
@@ -125,21 +174,35 @@ export namespace RepositoryQueries {
 
   // Helper function to build order by clause
   function buildOrderBy(sortBy: string, order: string) {
-    const direction = order === 'desc' ? desc : <T>(col: T) => col
+    const _direction = order === 'desc' ? desc : <T>(col: T) => col
 
-    switch (sortBy) {
+    // Security: Whitelist allowed sort columns to prevent SQL injection
+    const allowedSortColumns = ['stars', 'updated', 'created', 'name', 'relevance']
+    const allowedOrders = ['asc', 'desc']
+
+    const safeSortBy = allowedSortColumns.includes(sortBy) ? sortBy : 'stars'
+    const safeOrder = allowedOrders.includes(order) ? order : 'desc'
+
+    const directionFunc = safeOrder === 'desc' ? desc : <T>(col: T) => col
+
+    switch (safeSortBy) {
       case 'stars':
-        return direction(
+        return directionFunc(
           sql`COALESCE(CAST(${schema.repositories.metadata}->>'stars' AS INTEGER), 0)`
         )
       case 'updated':
-        return direction(schema.repositories.updatedAt)
+        return directionFunc(schema.repositories.updatedAt)
       case 'created':
-        return direction(schema.repositories.createdAt)
+        return directionFunc(schema.repositories.createdAt)
       case 'name':
-        return direction(schema.repositories.name)
+        return directionFunc(schema.repositories.name)
+      case 'relevance':
+        // Default to stars for relevance sorting (can be enhanced with actual relevance scoring)
+        return directionFunc(
+          sql`COALESCE(CAST(${schema.repositories.metadata}->>'stars' AS INTEGER), 0)`
+        )
       default:
-        return direction(
+        return directionFunc(
           sql`COALESCE(CAST(${schema.repositories.metadata}->>'stars' AS INTEGER), 0)`
         )
     }
@@ -149,6 +212,19 @@ export namespace RepositoryQueries {
    * Search repositories with text and metadata (replacing 50+ lines of raw SQL)
    */
   export async function search(query: string, options: RepositorySearchOptions = {}) {
+    // Security: Input validation and sanitization
+    if (typeof query !== 'string') {
+      throw new Error('Search query must be a string')
+    }
+
+    // Trim and limit query length to prevent DoS attacks
+    const sanitizedQuery = query.trim().substring(0, 200)
+
+    if (!sanitizedQuery) {
+      return []
+    }
+
+    // Security: Validate numeric options to prevent injection
     const {
       limit = 30,
       offset = 0,
@@ -158,18 +234,25 @@ export namespace RepositoryQueries {
       maxStars,
     } = options
 
+    // Security: Validate and clamp numeric parameters
+    const safeLimit = Math.min(Math.max(1, Math.floor(Number(limit) || 30)), 100)
+    const safeOffset = Math.max(0, Math.floor(Number(offset) || 0))
+    const safeMinStars = Math.max(0, Math.floor(Number(minStars) || 0))
+    const safeMaxStars =
+      maxStars !== undefined ? Math.max(safeMinStars, Math.floor(Number(maxStars))) : undefined
+
     return timedDb.select(async () => {
-      // Build dynamic WHERE conditions
+      // Build dynamic WHERE conditions with sanitized inputs
       const conditions = [
-        // Basic text search
-        buildTextSearchConditions(query),
-        // Score filters
-        ...buildScoreFilters(minStars, maxStars),
-        // Optional filters
+        // Basic text search with sanitized query
+        buildTextSearchConditions(sanitizedQuery),
+        // Score filters with validated numbers
+        ...buildScoreFilters(safeMinStars, safeMaxStars),
+        // Optional filters (already sanitized in buildOptionalFilters)
         ...buildOptionalFilters(options),
       ]
 
-      // Build ORDER BY clause
+      // Build ORDER BY clause with whitelisted columns
       const orderByClause = buildOrderBy(sortBy, order)
 
       return await db
@@ -177,8 +260,8 @@ export namespace RepositoryQueries {
         .from(schema.repositories)
         .where(and(...conditions))
         .orderBy(orderByClause)
-        .limit(limit)
-        .offset(offset)
+        .limit(safeLimit)
+        .offset(safeOffset)
     })
   }
 
@@ -186,6 +269,7 @@ export namespace RepositoryQueries {
    * Vector similarity search for repositories
    */
   export async function vectorSearch(options: VectorSearchOptions) {
+    // Security: Validate vector search options
     const {
       embedding,
       threshold = appConfig.vectorSearch.similarityThreshold,
@@ -193,7 +277,28 @@ export namespace RepositoryQueries {
       includeMetadata = true,
     } = options
 
+    // Security: Validate embedding vector
+    if (!Array.isArray(embedding)) {
+      throw new Error('Embedding must be an array')
+    }
+
+    if (embedding.length === 0 || embedding.length > 2048) {
+      throw new Error('Embedding vector length must be between 1 and 2048')
+    }
+
+    // Security: Validate all embedding values are numbers
+    if (
+      !embedding.every(val => typeof val === 'number' && !Number.isNaN(val) && Number.isFinite(val))
+    ) {
+      throw new Error('All embedding values must be finite numbers')
+    }
+
+    // Security: Validate and clamp parameters
+    const safeThreshold = Math.min(Math.max(0, Number(threshold) || 0), 1)
+    const safeLimit = Math.min(Math.max(1, Math.floor(Number(limit) || 30)), 100)
+
     return timedDb.select(async () => {
+      // Security: Use serialized embedding for safe parameterization
       const embeddingText = vectorUtils.serializeEmbedding(embedding)
 
       // Use optimized vector search with HNSW index
@@ -209,13 +314,13 @@ export namespace RepositoryQueries {
         .where(
           and(
             isNotNull(schema.repositories.embedding),
-            sql`1 - (${schema.repositories.embedding}::vector <=> ${embeddingText}::vector) >= ${threshold}`
+            sql`1 - (${schema.repositories.embedding}::vector <=> ${embeddingText}::vector) >= ${safeThreshold}`
           )
         )
         .orderBy(
           desc(sql`1 - (${schema.repositories.embedding}::vector <=> ${embeddingText}::vector)`)
         )
-        .limit(limit)
+        .limit(safeLimit)
 
       return results.map(row => ({
         ...row.repository,
@@ -233,14 +338,46 @@ export namespace RepositoryQueries {
     embedding: number[],
     options: RepositorySearchOptions & HybridSearchOptions = {}
   ) {
+    // Security: Validate search query
+    if (typeof query !== 'string') {
+      throw new Error('Search query must be a string')
+    }
+
+    const sanitizedQuery = query.trim().substring(0, 200)
+    if (!sanitizedQuery) {
+      return []
+    }
+
+    // Security: Validate embedding vector (same as vectorSearch)
+    if (!Array.isArray(embedding)) {
+      throw new Error('Embedding must be an array')
+    }
+
+    if (embedding.length === 0 || embedding.length > 2048) {
+      throw new Error('Embedding vector length must be between 1 and 2048')
+    }
+
+    if (
+      !embedding.every(val => typeof val === 'number' && !Number.isNaN(val) && Number.isFinite(val))
+    ) {
+      throw new Error('All embedding values must be finite numbers')
+    }
+
     const {
       limit = 30,
       textWeight = appConfig.vectorSearch.textWeight,
       vectorWeight = appConfig.vectorSearch.vectorWeight,
     } = options
 
+    // Security: Validate and clamp parameters
+    const safeLimit = Math.min(Math.max(1, Math.floor(Number(limit) || 30)), 100)
+    const safeTextWeight = Math.min(Math.max(0, Number(textWeight) || 0.3), 1)
+    const safeVectorWeight = Math.min(Math.max(0, Number(vectorWeight) || 0.7), 1)
+
     return timedDb.select(async () => {
+      // Security: Use serialized embedding for safe parameterization
       const embeddingText = vectorUtils.serializeEmbedding(embedding)
+      const searchPattern = `%${sanitizedQuery.replace(/[%_\\]/g, '\\$&').replace(/'/g, "''")}%`
 
       // Hybrid search query combining text relevance and vector similarity
       const results = await db
@@ -248,9 +385,9 @@ export namespace RepositoryQueries {
           repository: schema.repositories,
           textScore: sql<number>`
             CASE 
-              WHEN ${schema.repositories.name} ILIKE ${`%${query}%`} THEN 1.0
-              WHEN ${schema.repositories.description} ILIKE ${`%${query}%`} THEN 0.8
-              WHEN ${schema.repositories.metadata}->>'language' ILIKE ${`%${query}%`} THEN 0.6
+              WHEN ${schema.repositories.name} ILIKE ${searchPattern} THEN 1.0
+              WHEN ${schema.repositories.description} ILIKE ${searchPattern} THEN 0.8
+              WHEN ${schema.repositories.metadata}->>'language' ILIKE ${searchPattern} THEN 0.6
               ELSE 0.0
             END
           `.as('text_score'),
@@ -264,15 +401,15 @@ export namespace RepositoryQueries {
           hybridScore: sql<number>`
             (
               CASE 
-                WHEN ${schema.repositories.name} ILIKE ${`%${query}%`} THEN 1.0
-                WHEN ${schema.repositories.description} ILIKE ${`%${query}%`} THEN 0.8
-                WHEN ${schema.repositories.metadata}->>'language' ILIKE ${`%${query}%`} THEN 0.6
+                WHEN ${schema.repositories.name} ILIKE ${searchPattern} THEN 1.0
+                WHEN ${schema.repositories.description} ILIKE ${searchPattern} THEN 0.8
+                WHEN ${schema.repositories.metadata}->>'language' ILIKE ${searchPattern} THEN 0.6
                 ELSE 0.0
-              END * ${textWeight}
+              END * ${safeTextWeight}
             ) + (
               CASE 
                 WHEN ${schema.repositories.embedding} IS NOT NULL 
-                THEN (1 - (${schema.repositories.embedding}::vector <=> ${embeddingText}::vector)) * ${vectorWeight}
+                THEN (1 - (${schema.repositories.embedding}::vector <=> ${embeddingText}::vector)) * ${safeVectorWeight}
                 ELSE 0.0
               END
             )
@@ -281,9 +418,9 @@ export namespace RepositoryQueries {
         .from(schema.repositories)
         .where(
           or(
-            ilike(schema.repositories.name, `%${query}%`),
-            ilike(schema.repositories.description, `%${query}%`),
-            sql`${schema.repositories.metadata}->>'language' ILIKE ${`%${query}%`}`,
+            ilike(schema.repositories.name, searchPattern),
+            ilike(schema.repositories.description, searchPattern),
+            sql`${schema.repositories.metadata}->>'language' ILIKE ${searchPattern}`,
             and(
               isNotNull(schema.repositories.embedding),
               sql`1 - (${schema.repositories.embedding}::vector <=> ${embeddingText}::vector) >= ${appConfig.vectorSearch.similarityThreshold}`
@@ -291,7 +428,7 @@ export namespace RepositoryQueries {
           )
         )
         .orderBy(desc(sql`hybrid_score`))
-        .limit(limit)
+        .limit(safeLimit)
 
       return results.map(row => ({
         ...row.repository,

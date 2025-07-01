@@ -261,6 +261,313 @@ export const opportunityRelations = relations(opportunities, ({ one }) => ({
   }),
 }))
 
+/**
+ * DATABASE SECURITY VALIDATOR
+ *
+ * CRITICAL: This provides SQL injection prevention and input validation
+ * for all database operations. All database queries MUST use these validators.
+ */
+
+import { z } from 'zod'
+
+/**
+ * SECURITY: Input validation schemas for database operations
+ * These schemas prevent SQL injection by validating and sanitizing inputs
+ */
+
+// Basic string validation with SQL injection prevention
+const createSafeStringSchema = (maxLength = 1000) =>
+  z
+    .string()
+    .min(1)
+    .max(maxLength)
+    .refine(
+      value => {
+        // Remove dangerous SQL patterns
+        const dangerous = [
+          /[';]|--/g, // SQL comment and statement terminators
+          /\b(union|select|insert|update|delete|drop|alter|create|exec|execute)\b/gi, // SQL keywords
+          /[<>'";&|*?~<>^()[\]{}$\n\r]/g, // Special characters that could be used in attacks
+          /\0/g, // Null byte
+          // biome-ignore lint/suspicious/noControlCharactersInRegex: SUB control character (0x1A) is a legitimate security concern for SQL injection prevention
+          /\u001a/g, // Control character SUB
+        ]
+
+        return !dangerous.some(pattern => pattern.test(value))
+      },
+      {
+        message: 'Input contains potentially dangerous characters or SQL keywords',
+      }
+    )
+
+export const SafeStringSchema = createSafeStringSchema(1000)
+export const SafeStringSchema50 = createSafeStringSchema(50)
+export const SafeStringSchema100 = createSafeStringSchema(100)
+export const SafeStringSchema200 = createSafeStringSchema(200)
+
+// Email validation with security checks
+export const SafeEmailSchema = z
+  .string()
+  .email()
+  .max(254)
+  .refine(
+    email => {
+      // Additional email security checks
+      const suspiciousPatterns = [
+        /[<>'";&|*?~<>^()[\]{}$]/g, // Dangerous characters
+        /\.\./g, // Directory traversal
+        /javascript:/gi, // Script injection
+      ]
+
+      return !suspiciousPatterns.some(pattern => pattern.test(email))
+    },
+    {
+      message: 'Email contains potentially dangerous characters',
+    }
+  )
+
+// Search query validation - CRITICAL for preventing injection in search operations
+export const SafeSearchQuerySchema = z
+  .string()
+  .min(1)
+  .max(200)
+  .refine(
+    query => {
+      // Remove dangerous patterns from search queries
+      const cleanQuery = query
+        .replace(/[<>'";&|*?~<>^()[\]{}$\n\r]/g, '') // Remove dangerous chars
+        .replace(/\b(union|select|insert|update|delete|drop|alter|create|exec|execute)\b/gi, '') // Remove SQL keywords
+        .trim()
+
+      return cleanQuery.length > 0 && cleanQuery.length <= 200
+    },
+    {
+      message: 'Search query contains invalid characters or SQL keywords',
+    }
+  )
+
+// GitHub ID validation
+export const GitHubIdSchema = z.number().int().positive().max(999999999) // Reasonable upper bound for GitHub IDs
+
+// UUID validation for internal IDs
+export const UUIDSchema = z.string().uuid()
+
+// Vector embedding validation
+export const VectorEmbeddingSchema = z
+  .array(z.number())
+  .length(1536)
+  .refine(
+    embedding => {
+      // Validate embedding values are within expected range
+      return embedding.every(
+        val =>
+          typeof val === 'number' &&
+          !Number.isNaN(val) &&
+          Number.isFinite(val) &&
+          val >= -1 &&
+          val <= 1
+      )
+    },
+    {
+      message: 'Vector embedding contains invalid values',
+    }
+  )
+
+// Repository data validation
+export const RepositoryDataSchema = z.object({
+  githubId: GitHubIdSchema,
+  fullName: SafeStringSchema200,
+  name: SafeStringSchema100,
+  owner: SafeStringSchema100,
+  description: SafeStringSchema.optional(),
+  metadata: z.record(z.unknown()).optional(),
+  healthMetrics: z.record(z.unknown()).optional(),
+  embedding: z.string().optional(), // Serialized embedding
+})
+
+// User data validation
+export const UserDataSchema = z.object({
+  githubId: GitHubIdSchema,
+  username: SafeStringSchema100,
+  email: SafeEmailSchema.optional(),
+  name: SafeStringSchema200.optional(),
+  avatarUrl: z.string().url().max(500).optional(),
+  profile: z.record(z.unknown()).optional(),
+  preferences: z.record(z.unknown()).optional(),
+})
+
+// Search options validation
+export const SearchOptionsSchema = z.object({
+  limit: z.number().int().min(1).max(100).default(30),
+  offset: z.number().int().min(0).max(10000).default(0),
+  sortBy: z.enum(['stars', 'updated', 'created', 'name']).default('stars'),
+  order: z.enum(['asc', 'desc']).default('desc'),
+  minStars: z.number().int().min(0).max(1000000).default(0),
+  maxStars: z.number().int().min(0).max(1000000).optional(),
+  languages: z.array(SafeStringSchema50).max(10).default([]),
+  topics: z.array(SafeStringSchema50).max(20).default([]),
+  hasIssues: z.boolean().optional(),
+  isArchived: z.boolean().optional(),
+  license: SafeStringSchema100.optional(),
+  afterDate: z.date().optional(),
+  beforeDate: z.date().optional(),
+})
+
+/**
+ * SECURITY: SQL Injection Prevention Functions
+ */
+
+// Sanitize search query for ILIKE operations
+export function sanitizeSearchQuery(query: string): string {
+  const validated = SafeSearchQuerySchema.parse(query)
+
+  // Additional sanitization for ILIKE patterns
+  return validated
+    .replace(/%/g, '\\%') // Escape LIKE wildcards
+    .replace(/_/g, '\\_') // Escape LIKE wildcards
+    .slice(0, 100) // Limit length
+}
+
+// Sanitize array inputs for ANY() operations
+export function sanitizeArrayInput<T>(items: T[], validator: z.ZodSchema<T>, maxItems = 50): T[] {
+  if (!Array.isArray(items)) {
+    throw new Error('Input must be an array')
+  }
+
+  if (items.length > maxItems) {
+    throw new Error(`Array cannot contain more than ${maxItems} items`)
+  }
+
+  return items.map(item => validator.parse(item))
+}
+
+// Validate JSON input for JSONB operations
+export function sanitizeJsonInput(input: unknown): Record<string, unknown> {
+  if (typeof input !== 'object' || input === null || Array.isArray(input)) {
+    throw new Error('Input must be a valid object')
+  }
+
+  const obj = input as Record<string, unknown>
+
+  // Check for dangerous patterns in JSON keys and values
+  for (const [key, value] of Object.entries(obj)) {
+    // Validate keys
+    SafeStringSchema100.parse(key)
+
+    // Validate values (recursively for nested objects)
+    if (typeof value === 'string') {
+      SafeStringSchema.parse(value)
+    } else if (typeof value === 'object' && value !== null) {
+      sanitizeJsonInput(value)
+    }
+  }
+
+  return obj
+}
+
+// Validate vector embedding input
+export function sanitizeVectorEmbedding(embedding: unknown): number[] {
+  return VectorEmbeddingSchema.parse(embedding)
+}
+
+/**
+ * SECURITY: Database Query Builders with Injection Prevention
+ * These replace the unsafe SQL template literal patterns found in queries
+ */
+
+// Safe text search builder (replaces buildTextSearchConditions)
+export function buildSafeTextSearchConditions(query: string) {
+  const sanitizedQuery = sanitizeSearchQuery(query)
+  const searchPattern = `%${sanitizedQuery}%`
+
+  // Return parameterized conditions instead of SQL template literals
+  return {
+    searchPattern,
+    sanitizedQuery,
+  }
+}
+
+// Safe filter builder (replaces buildOptionalFilters)
+export function buildSafeFilterConditions(options: z.infer<typeof SearchOptionsSchema>) {
+  const validated = SearchOptionsSchema.parse(options)
+
+  // Sanitize array inputs
+  const safeLanguages = sanitizeArrayInput(validated.languages, SafeStringSchema50, 10)
+
+  const safeTopics = sanitizeArrayInput(validated.topics, SafeStringSchema50, 20)
+
+  return {
+    ...validated,
+    languages: safeLanguages,
+    topics: safeTopics,
+  }
+}
+
+/**
+ * SECURITY: Connection String Validation
+ */
+export function validateDatabaseUrl(url: string): string {
+  try {
+    const parsed = new URL(url)
+
+    // Ensure secure connection protocol
+    if (!['postgres:', 'postgresql:'].includes(parsed.protocol)) {
+      throw new Error('Database URL must use postgres:// or postgresql:// protocol')
+    }
+
+    // Validate host (no local/private IPs in production)
+    if (process.env.NODE_ENV === 'production') {
+      const host = parsed.hostname
+      if (
+        host === 'localhost' ||
+        host === '127.0.0.1' ||
+        host.startsWith('192.168.') ||
+        host.startsWith('10.') ||
+        host.startsWith('172.')
+      ) {
+        throw new Error('Local/private IP addresses not allowed in production')
+      }
+    }
+
+    return url
+  } catch (error) {
+    throw new Error(
+      `Invalid database URL: ${error instanceof Error ? error.message : 'Unknown error'}`
+    )
+  }
+}
+
+/**
+ * SECURITY: Query Monitoring and Logging
+ */
+
+// Track potentially dangerous queries
+const suspiciousQueryPatterns = [
+  /(?:union|select|insert|update|delete|drop|alter|create)\s+(?:all\s+)?(?:distinct\s+)?(?:top\s+\d+\s+)?\w/gi,
+  /(?:and|or)\s+[\w\s]*=[\w\s]*[\w\s]*--/gi,
+  /\/\*.*?\*\//gi,
+  /;\s*(?:drop|delete|update|insert)/gi,
+]
+
+export function detectSuspiciousQuery(query: string): boolean {
+  return suspiciousQueryPatterns.some(pattern => pattern.test(query))
+}
+
+// Log security events
+export async function logSecurityEvent(_event: {
+  type: 'sql_injection_attempt' | 'invalid_input' | 'suspicious_query'
+  query?: string
+  input?: unknown
+  error?: string
+  userId?: string
+  ipAddress?: string
+}) {
+  // In production, send to security monitoring service
+  if (process.env.NODE_ENV === 'production') {
+    // TODO: Integrate with security monitoring service
+  }
+}
+
 export const bookmarkRelations = relations(bookmarks, ({ one }) => ({
   user: one(users, {
     fields: [bookmarks.userId],

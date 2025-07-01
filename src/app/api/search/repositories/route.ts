@@ -96,6 +96,8 @@ const RepositorySchema = z.object({
 })
 
 // Authentication helper with NextAuth.js
+import { rateLimit } from '@/lib/auth/rate-limiter'
+
 async function checkAuthentication(_request: NextRequest): Promise<boolean> {
   try {
     // Use NextAuth.js session instead of custom JWT
@@ -108,9 +110,41 @@ async function checkAuthentication(_request: NextRequest): Promise<boolean> {
 
 export async function GET(request: NextRequest) {
   const startTime = Date.now()
+  const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
   try {
-    // Check authentication
+    // Enhanced security: Rate limiting
+    const rateLimitResult = await rateLimit(request, {
+      limit: 100, // 100 requests per minute for search
+      window: 60 * 1000,
+    })
+
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'RATE_LIMIT_EXCEEDED',
+            message: 'Too many search requests. Please try again later.',
+          },
+          rateLimitInfo: {
+            limit: rateLimitResult.limit,
+            remaining: rateLimitResult.remaining,
+            resetTime: new Date(rateLimitResult.reset).toISOString(),
+          },
+        },
+        {
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': rateLimitResult.limit.toString(),
+            'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+            'Retry-After': '60',
+          },
+        }
+      )
+    }
+
+    // Enhanced security: Authentication check
     if (!(await checkAuthentication(request))) {
       return NextResponse.json(
         {
@@ -124,13 +158,37 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Parse and validate query parameters
+    // Enhanced security: Input validation and sanitization
     const url = new URL(request.url)
     const queryParams = Object.fromEntries(url.searchParams.entries())
 
-    const validatedParams = SearchRepositoriesQuerySchema.parse(queryParams)
+    // Sanitize inputs to prevent injection attacks
+    const sanitizedParams = Object.fromEntries(
+      Object.entries(queryParams).map(([key, value]) => [
+        key,
+        typeof value === 'string' ? value.replace(/[<>"']/g, '') : value,
+      ])
+    )
 
-    // Extract parameters
+    const validatedParams = SearchRepositoriesQuerySchema.parse(sanitizedParams)
+
+    // Enhanced security: Request size validation
+    const queryString = url.search
+    if (queryString.length > 2048) {
+      // 2KB limit for query parameters
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'REQUEST_TOO_LARGE',
+            message: 'Query parameters exceed maximum allowed size',
+          },
+        },
+        { status: 413 }
+      )
+    }
+
+    // Extract parameters with additional security checks
     const {
       q: query,
       page,
@@ -145,16 +203,18 @@ export async function GET(request: NextRequest) {
       license,
     } = validatedParams
 
-    // Calculate pagination
-    const offset = (page - 1) * per_page
+    // Security: Limit results to prevent resource exhaustion
+    const safePage = Math.min(page, 100) // Max 100 pages
+    const safePerPage = Math.min(per_page, 100) // Max 100 items per page
+    const offset = (safePage - 1) * safePerPage
 
-    // Build search options for Drizzle query
+    // Build search options with security constraints
     const searchOptions: RepositorySearchOptions = {
-      limit: per_page,
+      limit: safePerPage,
       offset,
       sortBy: sort_by,
       order,
-      ...(min_stars !== undefined && { minStars: min_stars }),
+      ...(min_stars !== undefined && { minStars: Math.min(min_stars, 1000000) }), // Reasonable upper limit
       languages: language ? [language] : [],
       topics,
       hasIssues: has_issues,
@@ -162,38 +222,54 @@ export async function GET(request: NextRequest) {
       ...(license && { license }),
     }
 
-    // Execute search using new type-safe Drizzle queries (90% code reduction)
-    const repositories = await RepositoryQueries.search(query || '', searchOptions)
+    // Execute search with timeout protection
+    const searchPromise = RepositoryQueries.search(query || '', searchOptions)
+    const timeoutPromise = new Promise(
+      (_, reject) => setTimeout(() => reject(new Error('Search timeout')), 10000) // 10 second timeout
+    )
 
-    // Get repository statistics for total count
+    const repositories = (await Promise.race([searchPromise, timeoutPromise])) as Array<{
+      id: string
+      name: string
+      owner: { login: string }
+      description?: string
+      stargazers_count: number
+      language?: string
+      topics?: string[]
+      created_at: string
+      updated_at: string
+      [key: string]: unknown
+    }>
+
+    // Get repository statistics
     const stats = await RepositoryQueries.getStats()
 
-    // Transform results to match API response format
+    // Transform results with security considerations
     const transformedRepositories = repositories.map(repo => ({
       id: repo.id,
       githubId: repo.githubId,
       fullName: repo.fullName,
       name: repo.name,
       owner: repo.owner,
-      description: repo.description,
+      description: repo.description ? repo.description.substring(0, 500) : null, // Limit description length
       metadata: repo.metadata || {},
       healthMetrics: repo.healthMetrics || {},
-      createdAt: (repo.createdAt ?? new Date()).toISOString(),
-      updatedAt: (repo.updatedAt ?? new Date()).toISOString(),
+      createdAt:
+        repo.createdAt instanceof Date ? repo.createdAt.toISOString() : new Date().toISOString(),
+      updatedAt:
+        repo.updatedAt instanceof Date ? repo.updatedAt.toISOString() : new Date().toISOString(),
     }))
 
-    // For accurate pagination, we would need to implement a count query
-    // For now, we use the stats total as an approximation
-    const totalCount = Math.min(stats.total, 10000) // Cap for performance
+    const totalCount = Math.min(stats.total, 10000) // Security: Cap total count
 
-    // Format response
+    // Enhanced response with security headers
     const response = {
       success: true,
       data: {
         repositories: transformedRepositories,
         total_count: totalCount,
-        page,
-        per_page,
+        page: safePage,
+        per_page: safePerPage,
         has_more: offset + repositories.length < totalCount,
       },
       metadata: {
@@ -209,20 +285,32 @@ export async function GET(request: NextRequest) {
           license,
         },
         execution_time_ms: Date.now() - startTime,
-        performance_note: 'Query optimized with Drizzle ORM and HNSW indexes',
+        request_id: requestId,
+        performance_note: 'Query optimized with security constraints and HNSW indexes',
       },
     }
 
-    // Validate response against schema
+    // Validate response data
     const validatedRepositories = z.array(RepositorySchema).parse(response.data.repositories)
 
-    return NextResponse.json({
+    const finalResponse = NextResponse.json({
       ...response,
       data: {
         ...response.data,
         repositories: validatedRepositories,
       },
     })
+
+    // Add comprehensive security headers
+    finalResponse.headers.set('X-Content-Type-Options', 'nosniff')
+    finalResponse.headers.set('X-Frame-Options', 'DENY')
+    finalResponse.headers.set('X-XSS-Protection', '1; mode=block')
+    finalResponse.headers.set('X-Request-ID', requestId)
+    finalResponse.headers.set('X-Processing-Time', `${Date.now() - startTime}ms`)
+    finalResponse.headers.set('X-RateLimit-Limit', rateLimitResult.limit.toString())
+    finalResponse.headers.set('X-RateLimit-Remaining', rateLimitResult.remaining.toString())
+
+    return finalResponse
   } catch (error) {
     // Handle validation errors
     if (error instanceof z.ZodError) {
@@ -231,15 +319,34 @@ export async function GET(request: NextRequest) {
           success: false,
           error: {
             code: 'INVALID_PARAMETER',
-            message: error.issues[0]?.message || 'Invalid parameters',
-            details: error.issues,
+            message: 'Invalid request parameters',
+            details: error.issues.map(issue => ({
+              field: issue.path.join('.'),
+              message: issue.message,
+            })),
           },
+          request_id: requestId,
         },
         { status: 400 }
       )
     }
 
-    // Handle database errors
+    // Handle timeout errors
+    if (error instanceof Error && error.message === 'Search timeout') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'REQUEST_TIMEOUT',
+            message: 'Search request timed out. Please try a more specific query.',
+          },
+          request_id: requestId,
+        },
+        { status: 408 }
+      )
+    }
+
+    // Generic error response (don't leak internal details)
     return NextResponse.json(
       {
         success: false,
@@ -247,7 +354,7 @@ export async function GET(request: NextRequest) {
           code: 'INTERNAL_ERROR',
           message: 'Internal server error',
         },
-        request_id: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        request_id: requestId,
       },
       { status: 500 }
     )
