@@ -205,6 +205,223 @@ export const UserSessionSchema = BaseEntitySchema.extend({
   userAgent: z.string().optional(),
   lastActiveAt: z.date(),
 })
+// =============================================================================
+// MFA TYPE DEFINITIONS
+// =============================================================================
+
+/**
+ * Multi-Factor Authentication method types
+ */
+export const MFAMethod = z.enum(['totp', 'webauthn', 'backup_code'])
+export type MFAMethod = z.infer<typeof MFAMethod>
+
+/**
+ * TOTP (Time-based One-Time Password) credential for MFA
+ */
+export interface TOTPCredential extends BaseEntity {
+  readonly userId: string
+  readonly secret: string // Base32 encoded secret
+  readonly algorithm: 'SHA1' | 'SHA256' | 'SHA512'
+  readonly digits: 6 | 8
+  readonly period: number // Time step in seconds (typically 30)
+  readonly issuer: string
+  readonly accountName: string
+  readonly qrCodeUrl?: string
+  readonly backupCodes: string[] // Encrypted backup codes
+  readonly lastUsedAt?: Date
+  readonly isVerified: boolean // Whether the TOTP setup was completed
+}
+
+export const TOTPCredentialSchema = z.object({
+  id: z.string().uuid(),
+  userId: z.string().uuid(),
+  secret: z.string().min(16).max(64), // Base32 encoded secret
+  algorithm: z.enum(['SHA1', 'SHA256', 'SHA512']).default('SHA1'),
+  digits: z.union([z.literal(6), z.literal(8)]).default(6),
+  period: z.number().int().min(15).max(300).default(30),
+  issuer: z.string().min(1).max(100),
+  accountName: z.string().min(1).max(255),
+  qrCodeUrl: z.string().url().optional(),
+  backupCodes: z.array(z.string()).max(10),
+  lastUsedAt: z.date().optional(),
+  isVerified: z.boolean().default(false),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+})
+
+/**
+ * WebAuthn credential for MFA (enhanced from existing)
+ */
+export interface WebAuthnCredential extends BaseEntity {
+  readonly userId: string
+  readonly credentialId: string // Base64URL encoded credential ID
+  readonly publicKey: string // Base64URL encoded public key
+  readonly counter: number // Signature counter
+  readonly deviceType: 'single_device' | 'multi_device'
+  readonly backedUp: boolean
+  readonly transports: AuthenticatorTransport[]
+  readonly userHandle?: string // Base64URL encoded user handle
+  readonly attestationType: 'none' | 'self' | 'basic' | 'ecdaa'
+  readonly lastUsedAt?: Date
+  readonly name?: string // User-assigned name for the device
+}
+
+export const WebAuthnCredentialSchema = z.object({
+  id: z.string().uuid(),
+  userId: z.string().uuid(),
+  credentialId: z.string().min(1),
+  publicKey: z.string().min(1),
+  counter: z.number().int().min(0),
+  deviceType: z.enum(['single_device', 'multi_device']),
+  backedUp: z.boolean(),
+  transports: z.array(z.enum(['usb', 'nfc', 'ble', 'hybrid', 'internal'])),
+  userHandle: z.string().optional(),
+  attestationType: z.enum(['none', 'self', 'basic', 'ecdaa']).default('none'),
+  lastUsedAt: z.date().optional(),
+  name: z.string().max(100).optional(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+})
+
+/**
+ * MFA backup codes for account recovery
+ */
+export interface MFABackupCode extends BaseEntity {
+  readonly userId: string
+  readonly code: string // Hashed backup code
+  readonly isUsed: boolean
+  readonly usedAt?: Date
+  readonly generatedAt: Date
+}
+
+export const MFABackupCodeSchema = z.object({
+  id: z.string().uuid(),
+  userId: z.string().uuid(),
+  code: z.string().length(8), // 8-character backup code
+  isUsed: z.boolean().default(false),
+  usedAt: z.date().optional(),
+  generatedAt: z.date(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+})
+
+/**
+ * MFA enrollment request
+ */
+export interface MFAEnrollmentRequest {
+  readonly method: MFAMethod
+  readonly deviceName?: string // For WebAuthn devices
+}
+
+export const MFAEnrollmentRequestSchema = z.object({
+  method: MFAMethod,
+  deviceName: z.string().min(1).max(100).optional(),
+})
+
+/**
+ * MFA verification request
+ */
+export interface MFAVerificationRequest {
+  readonly method: MFAMethod
+  readonly token?: string // For TOTP or backup codes
+  readonly credentialId?: string // For WebAuthn
+  readonly assertion?: object // WebAuthn assertion response
+}
+
+export const MFAVerificationRequestSchema = z
+  .object({
+    method: MFAMethod,
+    token: z.string().optional(),
+    credentialId: z.string().optional(),
+    assertion: z.object({}).optional(),
+  })
+  .strict()
+
+/**
+ * MFA enrollment response
+ */
+export interface MFAEnrollmentResponse {
+  readonly success: boolean
+  readonly method: MFAMethod
+  readonly secret?: string // Base32 TOTP secret for QR code generation
+  readonly qrCodeUrl?: string // TOTP QR code URL
+  readonly backupCodes?: string[] // Plaintext backup codes (show once)
+  readonly registrationOptions?: object // WebAuthn registration options
+  readonly error?: string
+}
+
+export const MFAEnrollmentResponseSchema = z.object({
+  success: z.boolean(),
+  method: MFAMethod,
+  secret: z.string().optional(),
+  qrCodeUrl: z.string().url().optional(),
+  backupCodes: z.array(z.string()).optional(),
+  registrationOptions: z.object({}).optional(),
+  error: z.string().optional(),
+})
+
+/**
+ * MFA verification response
+ */
+export interface MFAVerificationResponse {
+  readonly success: boolean
+  readonly method: MFAMethod
+  readonly remainingAttempts?: number
+  readonly lockoutDuration?: number // Seconds until next attempt allowed
+  readonly error?: string
+}
+
+export const MFAVerificationResponseSchema = z.object({
+  success: z.boolean(),
+  method: MFAMethod,
+  remainingAttempts: z.number().int().min(0).optional(),
+  lockoutDuration: z.number().int().min(0).optional(),
+  error: z.string().optional(),
+})
+
+/**
+ * MFA settings for a user
+ */
+export interface MFASettings {
+  readonly enabled: boolean
+  readonly primaryMethod?: MFAMethod
+  readonly enrolledMethods: MFAMethod[]
+  readonly backupCodesCount: number
+  readonly lastMFAUsed?: Date
+  readonly trustedDevices: string[] // Device fingerprints
+}
+
+export const MFASettingsSchema = z.object({
+  enabled: z.boolean(),
+  primaryMethod: MFAMethod.optional(),
+  enrolledMethods: z.array(MFAMethod),
+  backupCodesCount: z.number().int().min(0).max(10),
+  lastMFAUsed: z.date().optional(),
+  trustedDevices: z.array(z.string()),
+})
+
+/**
+ * Enhanced AuthenticationResult with detailed MFA information
+ */
+export interface EnhancedAuthenticationResult extends AuthenticationResult {
+  readonly mfaRequired: boolean
+  readonly mfaSettings?: MFASettings
+  readonly availableMethods?: MFAMethod[]
+  readonly mfaAttempts?: number
+  readonly mfaLockoutDuration?: number
+}
+
+// Will be defined after AuthenticationResultSchema
+export const EnhancedAuthenticationResultSchema: z.ZodType<EnhancedAuthenticationResult> = z.lazy(
+  () =>
+    AuthenticationResultSchema.extend({
+      mfaRequired: z.boolean(),
+      mfaSettings: MFASettingsSchema.optional(),
+      availableMethods: z.array(MFAMethod).optional(),
+      mfaAttempts: z.number().int().min(0).optional(),
+      mfaLockoutDuration: z.number().int().min(0).optional(),
+    })
+)
 
 /**
  * Refresh token for session management
@@ -559,6 +776,8 @@ export const AuthenticationResultSchema = z.object({
   requiresTwoFactor: z.boolean().optional(),
   requiresConsent: z.boolean().optional(),
 })
+
+// EnhancedAuthenticationResultSchema is initialized using z.lazy above
 
 /**
  * User registration data

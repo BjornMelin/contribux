@@ -467,6 +467,16 @@ export function requireAuth<T = unknown>(
 }
 
 /**
+ * Route-level authentication middleware function
+ * Used for API routes that need authentication validation
+ */
+export async function requireAuthentication(
+  request: NextRequest
+): Promise<NextResponse | undefined> {
+  return authMiddleware(request)
+}
+
+/**
  * Middleware decorator to require specific consents
  */
 export function requireConsent(consentTypes: string[]) {
