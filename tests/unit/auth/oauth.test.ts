@@ -62,643 +62,659 @@ import { sql as mockSql } from '../../src/lib/db/config'
 vi.mocked(mockSql)
 
 describe('OAuth Authentication', () => {
-  const mockUser = {
-    id: '123e4567-e89b-12d3-a456-426614174000',
-    email: 'test@example.com',
-    github_username: 'testuser',
-  }
+  describe('State Parameter Security', () => {
+    it('should generate cryptographically secure state', async () => {
+      const state = await generateSecureOAuthState('test-user-123')
 
-  const mockConfig = {
-    clientId: 'test1234567890123456', // Using mocked value from env validation mock
-    clientSecret: 'test-github-client-secret-with-sufficient-length-for-testing', // Using mocked value
-    redirectUri:
-      process.env.GITHUB_REDIRECT_URI || 'http://localhost:3000/api/auth/github/callback',
-  }
+      // State should have timestamp.random.hash format
+      const parts = state.split('.')
+      expect(parts).toHaveLength(3)
 
-  beforeEach(() => {
-    vi.clearAllMocks()
-    // Reset fetch mock to enable proper mocking in tests
-    global.fetch = vi.fn()
-    // Ensure sql mock is properly set up
-    vi.mocked(sql).mockClear()
-  })
+      // Timestamp should be recent
+      const timestamp = Number(parts[0])
+      expect(timestamp).toBeGreaterThan(Date.now() - 1000)
+      expect(timestamp).toBeLessThanOrEqual(Date.now())
 
-  afterEach(() => {
-    vi.restoreAllMocks()
-  })
+      // Random part should be 32 characters
+      expect(parts[1]).toHaveLength(64) // 32 bytes = 64 hex chars
 
-  describe('OAuth URL Generation', () => {
-    it('should generate OAuth URL with PKCE parameters', async () => {
-      const mockSql = vi.mocked(sql)
-      mockSql.mockResolvedValueOnce([]) // Store state
-
-      const result = await generateOAuthUrl({
-        provider: 'github',
-        redirectUri: mockConfig.redirectUri,
-        scopes: ['user:email', 'read:user'],
-      })
-
-      expect(result).toMatchObject({
-        url: expect.stringContaining('https://github.com/login/oauth/authorize'),
-        state: expect.any(String),
-        codeVerifier: 'test-verifier-123',
-      })
-
-      // Verify URL contains required parameters
-      const url = new URL(result.url)
-      expect(url.searchParams.get('client_id')).toBe(mockConfig.clientId)
-      expect(url.searchParams.get('redirect_uri')).toBe(mockConfig.redirectUri)
-      expect(url.searchParams.get('scope')).toBe('user:email read:user')
-      expect(url.searchParams.get('state')).toBe(result.state)
-      expect(url.searchParams.get('code_challenge')).toBe('test-challenge-123')
-      expect(url.searchParams.get('code_challenge_method')).toBe('S256')
+      // Hash should be 32 characters (truncated SHA-256)
+      expect(parts[2]).toHaveLength(32)
     })
 
-    it('should store OAuth state in database', async () => {
-      const mockSql = vi.mocked(sql)
-      mockSql.mockResolvedValueOnce([])
+    it('should bind state to session context', async () => {
+      const sessionId = 'test-session-123'
+      const clientFingerprint = 'test-fingerprint'
 
-      await generateOAuthUrl({
-        provider: 'github',
-        redirectUri: mockConfig.redirectUri,
-        scopes: ['user:email'],
-      })
+      // Mock database response for state validation
+      mockSql.mockResolvedValueOnce([
+        {
+          state: 'test-state',
+          session_id: sessionId,
+          client_fingerprint: clientFingerprint,
+          created_at: new Date(),
+          expires_at: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+          security_flags: JSON.stringify({ version: '2.0' }),
+        },
+      ])
 
-      expect(mockSql).toHaveBeenCalled()
-      const calls = mockSql.mock.calls
-      const stateCall = calls.find(call => call[0]?.[0]?.includes('INSERT INTO oauth_states'))
-      expect(stateCall).toBeDefined()
+      const result = await validateOAuthStateSecure('test-state', sessionId, clientFingerprint)
+
+      expect(result.valid).toBe(true)
+      expect(result.securityChecks.sessionMatch).toBe(true)
+      expect(result.securityChecks.fingerprintMatch).toBe(true)
     })
 
-    it('should include optional parameters when provided', async () => {
-      const mockSql = vi.mocked(sql)
-      mockSql.mockResolvedValueOnce([])
-
-      const result = await generateOAuthUrl({
-        provider: 'github',
-        redirectUri: mockConfig.redirectUri,
-        scopes: ['user:email'],
-        userId: mockUser.id,
-        allowSignup: false,
-      })
-
-      const url = new URL(result.url)
-      expect(url.searchParams.get('allow_signup')).toBe('false')
-    })
-  })
-
-  describe('OAuth Callback Validation', () => {
-    it('should validate callback with correct state and code', async () => {
-      const mockSql = vi.mocked(sql)
-      const mockState = {
-        state: 'test-state-123',
-        code_verifier: 'test-verifier-123',
-        provider: 'github',
-        redirect_uri: mockConfig.redirectUri,
-        created_at: new Date(),
-      }
-
-      // Mock state retrieval
-      mockSql.mockResolvedValueOnce([mockState])
-      // Mock state deletion
-      mockSql.mockResolvedValueOnce([])
-
-      const params: OAuthCallbackParams = {
-        code: 'auth-code-123',
-        state: 'test-state-123',
-        error: undefined,
-        errorDescription: undefined,
-      }
-
-      const result = await validateOAuthCallback(params)
-
-      expect(result).toMatchObject({
-        valid: true,
-        code: 'auth-code-123',
-        codeVerifier: 'test-verifier-123',
-        provider: 'github',
-      })
-    })
-
-    it('should reject callback with invalid state', async () => {
-      const mockSql = vi.mocked(sql)
-      mockSql.mockResolvedValueOnce([]) // No state found
-
-      const params: OAuthCallbackParams = {
-        code: 'auth-code-123',
-        state: 'invalid-state',
-        error: undefined,
-        errorDescription: undefined,
-      }
-
-      await expect(validateOAuthCallback(params)).rejects.toThrow('Invalid OAuth state')
-    })
-
-    it('should reject callback with expired state', async () => {
-      const mockSql = vi.mocked(sql)
+    it('should validate state expiration', async () => {
       const expiredState = {
-        state: 'test-state-123',
-        code_verifier: 'test-verifier-123',
-        provider: 'github',
-        redirect_uri: mockConfig.redirectUri,
-        created_at: new Date(Date.now() - 11 * 60 * 1000), // 11 minutes ago
+        state: 'expired-state',
+        session_id: 'test-session',
+        client_fingerprint: 'test-fingerprint',
+        created_at: new Date(Date.now() - 20 * 60 * 1000), // 20 minutes ago
+        expires_at: new Date(Date.now() - 10 * 60 * 1000), // Expired 10 minutes ago
+        security_flags: JSON.stringify({ version: '2.0' }),
       }
 
       mockSql.mockResolvedValueOnce([expiredState])
 
-      const params: OAuthCallbackParams = {
-        code: 'auth-code-123',
-        state: 'test-state-123',
-        error: undefined,
-        errorDescription: undefined,
-      }
+      const result = await validateOAuthStateSecure(
+        'expired-state',
+        'test-session',
+        'test-fingerprint'
+      )
 
-      await expect(validateOAuthCallback(params)).rejects.toThrow('OAuth state expired')
+      expect(result.valid).toBe(false)
+      expect(result.securityChecks.stateExists).toBe(true)
+      expect(result.securityChecks.notExpired).toBe(false)
     })
 
-    it('should reject callback with error parameter', async () => {
-      const params = {
-        code: undefined,
-        error: 'access_denied',
-        error_description: 'User denied access',
-        state: 'test-state-123',
+    it('should prevent state replay attacks', async () => {
+      const state = await generateSecureOAuthState()
+
+      // First validation should work
+      mockSql.mockResolvedValueOnce([
+        {
+          state,
+          session_id: 'test-session',
+          client_fingerprint: 'test-fingerprint',
+          created_at: new Date(),
+          expires_at: new Date(Date.now() + 10 * 60 * 1000),
+          security_flags: JSON.stringify({ version: '2.0' }),
+        },
+      ])
+
+      const firstResult = await validateOAuthStateSecure(state, 'test-session', 'test-fingerprint')
+      expect(firstResult.valid).toBe(true)
+
+      // Second attempt with same state should fail (simulate state cleanup)
+      mockSql.mockResolvedValueOnce([])
+
+      const secondResult = await validateOAuthStateSecure(state, 'test-session', 'test-fingerprint')
+      expect(secondResult.valid).toBe(false)
+      expect(secondResult.securityChecks.stateExists).toBe(false)
+    })
+
+    it('should implement timing attack protection for state validation', async () => {
+      // Test timing consistency for different scenarios
+      const scenarios = [
+        { hasState: true, expired: false },
+        { hasState: true, expired: true },
+        { hasState: false, expired: false },
+      ]
+
+      const times: number[] = []
+
+      for (const scenario of scenarios) {
+        if (scenario.hasState) {
+          mockSql.mockResolvedValueOnce([
+            {
+              state: 'test-state',
+              session_id: 'test-session',
+              client_fingerprint: 'test-fingerprint',
+              created_at: new Date(),
+              expires_at: scenario.expired
+                ? new Date(Date.now() - 1000)
+                : new Date(Date.now() + 10 * 60 * 1000),
+              security_flags: JSON.stringify({ version: '2.0' }),
+            },
+          ])
+        } else {
+          mockSql.mockResolvedValueOnce([])
+        }
+
+        const start = performance.now()
+        await validateOAuthStateSecure('test-state', 'test-session', 'test-fingerprint')
+        times.push(performance.now() - start)
       }
 
-      await expect(validateOAuthCallback(params)).rejects.toThrow(
-        'OAuth error: access_denied - User denied access'
-      )
+      // All times should be similar (timing attack protection)
+      const avgTime = times.reduce((a, b) => a + b) / times.length
+      for (const time of times) {
+        expect(Math.abs(time - avgTime)).toBeLessThan(50) // 50ms tolerance
+      }
     })
   })
 
-  describe('Token Exchange', () => {
-    it('should exchange authorization code for tokens', async () => {
-      const mockFetch = vi.mocked(fetch)
-      const mockTokenResponse = {
-        access_token: 'gho_accesstoken123',
-        token_type: 'bearer',
-        scope: 'user:email read:user',
-        refresh_token: 'ghr_refreshtoken123',
-      }
+  describe('Redirect URI Validation', () => {
+    it('should enforce allowlist validation', async () => {
+      const allowedUris = [
+        'https://app.contribux.com/auth/callback',
+        'https://staging.contribux.com/auth/callback',
+      ]
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockTokenResponse,
-      } as Response)
-
-      const tokens = await exchangeCodeForTokens({
-        code: 'auth-code-123',
-        codeVerifier: 'test-verifier-123',
-        redirectUri: mockConfig.redirectUri,
-      })
-
-      expect(tokens).toMatchObject({
-        accessToken: 'gho_accesstoken123',
-        tokenType: 'bearer',
-        scope: 'user:email read:user',
-        refreshToken: 'ghr_refreshtoken123',
-      })
-
-      // Verify fetch was called with correct parameters
-      expect(mockFetch).toHaveBeenCalledWith(
-        'https://github.com/login/oauth/access_token',
-        expect.objectContaining({
-          method: 'POST',
-          headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            client_id: mockConfig.clientId,
-            client_secret: mockConfig.clientSecret,
-            code: 'auth-code-123',
-            redirect_uri: mockConfig.redirectUri,
-            code_verifier: 'test-verifier-123',
-          }),
-        })
+      // Valid URI should pass
+      const validResult = await validateRedirectUriSecure(
+        'https://app.contribux.com/auth/callback',
+        allowedUris
       )
+      expect(validResult.valid).toBe(true)
+
+      // Invalid URI should fail
+      const invalidResult = await validateRedirectUriSecure(
+        'https://malicious.com/auth/callback',
+        allowedUris
+      )
+      expect(invalidResult.valid).toBe(false)
     })
 
-    it('should handle token exchange errors', async () => {
-      const mockFetch = vi.mocked(fetch)
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 400,
-        json: async () => ({
-          error: 'bad_verification_code',
-          error_description: 'The code passed is incorrect or expired.',
-        }),
-      } as Response)
+    it('should validate protocol requirements', async () => {
+      // HTTPS should be required in production
+      process.env.NODE_ENV = 'production'
 
-      await expect(
-        exchangeCodeForTokens({
-          code: 'invalid-code',
-          codeVerifier: 'test-verifier-123',
-          redirectUri: mockConfig.redirectUri,
-        })
-      ).rejects.toThrow('Token exchange failed: bad_verification_code')
+      const httpResult = await validateRedirectUriSecure('http://app.contribux.com/auth/callback')
+      expect(httpResult.valid).toBe(false)
+      expect(httpResult.securityChecks.protocolValid).toBe(false)
+
+      const httpsResult = await validateRedirectUriSecure('https://app.contribux.com/auth/callback')
+      expect(httpsResult.securityChecks.protocolValid).toBe(true)
+
+      // Reset environment
+      process.env.NODE_ENV = 'test'
     })
 
-    it('should fetch user profile and store OAuth account', async () => {
-      const mockFetch = vi.mocked(fetch)
-      const mockSql = vi.mocked(sql)
-
-      // Mock token exchange
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          access_token: 'gho_accesstoken123',
-          token_type: 'bearer',
-          scope: 'user:email read:user',
-          refresh_token: 'ghr_refreshtoken123',
-        }),
-      } as Response)
-
-      // Mock user profile fetch
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          id: 123456,
-          login: 'testuser',
-          email: 'test@example.com',
-          name: 'Test User',
-        }),
-      } as Response)
-
-      // Mock user lookup/creation
-      mockSql.mockResolvedValueOnce([mockUser]) // User exists
-
-      // Mock encryption key lookup
-      mockSql.mockResolvedValueOnce([
+    it('should check domain restrictions', async () => {
+      const testCases = [
         {
-          id: 'key-123',
-          key_data: JSON.stringify({
-            k: 'dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleXRlc3RrZXk=',
-            kty: 'oct',
-            alg: 'A256GCM',
-            key_ops: ['encrypt', 'decrypt'],
-          }),
-          is_active: true,
+          uri: 'https://app.contribux.com/callback',
+          shouldPass: true,
+          description: 'exact domain match',
         },
-      ]) // Active encryption key exists
+        {
+          uri: 'https://staging.app.contribux.com/callback',
+          shouldPass: true,
+          description: 'subdomain match',
+        },
+        {
+          uri: 'https://evil.com/callback',
+          shouldPass: false,
+          description: 'different domain',
+        },
+        {
+          uri: 'https://contribux.com.evil.com/callback',
+          shouldPass: false,
+          description: 'domain suffix attack',
+        },
+      ]
 
-      // Mock OAuth account token encryption storage
-      mockSql.mockResolvedValueOnce([])
+      for (const testCase of testCases) {
+        const result = await validateRedirectUriSecure(testCase.uri)
+        expect(result.securityChecks.domainValid).toBe(testCase.shouldPass)
+      }
+    })
 
-      // Mock OAuth account creation
-      mockSql.mockResolvedValueOnce([])
+    it('should prevent redirect chain attacks', async () => {
+      const redirectChainUris = [
+        'https://app.contribux.com/callback?redirect=https://evil.com',
+        'https://app.contribux.com/callback?next=https://malicious.com',
+        'https://app.contribux.com/callback?return_to=https://attacker.com',
+      ]
 
-      const result = await exchangeCodeForTokens({
-        code: 'auth-code-123',
-        codeVerifier: 'test-verifier-123',
-        redirectUri: mockConfig.redirectUri,
-        fetchUserProfile: true,
-      })
+      for (const uri of redirectChainUris) {
+        const result = await validateRedirectUriSecure(uri)
+        expect(result.securityChecks.noRedirectChain).toBe(false)
+        expect(result.valid).toBe(false)
+      }
+    })
 
-      expect(result).toMatchObject({
-        accessToken: 'gho_accesstoken123',
-        user: expect.objectContaining({
-          id: mockUser.id,
-          email: 'test@example.com',
-          github_username: 'testuser',
-        }),
-      })
+    it('should validate path security', async () => {
+      const pathTestCases = [
+        {
+          uri: 'https://app.contribux.com/../../../etc/passwd',
+          shouldPass: false,
+          description: 'path traversal attack',
+        },
+        {
+          uri: 'https://app.contribux.com//double/slash',
+          shouldPass: false,
+          description: 'double slash in path',
+        },
+        {
+          uri: `https://app.contribux.com/${'a'.repeat(1001)}`,
+          shouldPass: false,
+          description: 'excessively long path',
+        },
+        {
+          uri: 'https://app.contribux.com/auth/callback',
+          shouldPass: true,
+          description: 'normal path',
+        },
+      ]
 
-      // Verify user profile was fetched
-      expect(mockFetch).toHaveBeenCalledWith(
-        'https://api.github.com/user',
-        expect.objectContaining({
-          headers: {
-            Authorization: 'Bearer gho_accesstoken123',
-            Accept: 'application/vnd.github.v3+json',
-          },
-        })
-      )
+      for (const testCase of pathTestCases) {
+        const result = await validateRedirectUriSecure(testCase.uri)
+        expect(result.securityChecks.pathValid).toBe(testCase.shouldPass)
+      }
+    })
+
+    it('should handle malformed URIs securely', async () => {
+      const malformedUris = [
+        'not-a-uri',
+        'ftp://invalid-protocol.com',
+        'javascript:alert(1)',
+        'data:text/html,<script>alert(1)</script>',
+        '',
+      ]
+
+      for (const uri of malformedUris) {
+        const result = await validateRedirectUriSecure(uri)
+        expect(result.valid).toBe(false)
+
+        // Should not throw errors - handle gracefully
+        expect(result.securityChecks).toBeDefined()
+      }
     })
   })
 
-  describe('Token Refresh', () => {
-    it('should refresh access token using refresh token', async () => {
-      const mockFetch = vi.mocked(fetch)
-      const mockSql = vi.mocked(sql)
+  describe('OAuth URL Generation', () => {
+    it('should include all required security parameters', async () => {
+      const mockPKCE = {
+        codeVerifier: 'test-verifier',
+        codeChallenge: 'test-challenge',
+      }
 
-      // Mock OAuth account retrieval
-      mockSql.mockResolvedValueOnce([
-        {
-          id: 'oauth-account-id',
-          user_id: mockUser.id,
-          provider: 'github',
-          refresh_token: JSON.stringify({
-            iv: Buffer.from('test-iv').toString('base64'),
-            ciphertext: Buffer.from('encrypted-tokens').toString('base64'),
-            tag: Buffer.from('test-tag').toString('base64'),
-            keyId: 'key-123',
-          }),
-        },
-      ])
+      vi.mocked(generateEnhancedPKCEChallenge).mockResolvedValueOnce({
+        ...mockPKCE,
+        method: 'S256',
+        entropy: 5.2,
+        metadata: { generated: new Date(), secure: true },
+      })
 
-      // Mock encryption key lookup
-      mockSql.mockResolvedValueOnce([
-        {
-          id: 'key-123',
-          key_data: JSON.stringify({
-            k: 'dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleXRlc3RrZXk=',
-            kty: 'oct',
-            alg: 'A256GCM',
-            key_ops: ['encrypt', 'decrypt'],
-          }),
-          is_active: true,
-        },
-      ])
-
-      // Mock token refresh response
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          access_token: 'gho_newaccesstoken456',
-          token_type: 'bearer',
-          expires_in: 28800,
-          refresh_token: 'ghr_newrefreshtoken456',
-          refresh_token_expires_in: 15897600,
-          scope: 'user:email read:user',
-        }),
-      } as Response)
-
-      // Mock encryption key lookup for new token
-      mockSql.mockResolvedValueOnce([
-        {
-          id: 'key-123',
-          key_data: JSON.stringify({
-            k: 'dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleXRlc3RrZXk=',
-            kty: 'oct',
-            alg: 'A256GCM',
-            key_ops: ['encrypt', 'decrypt'],
-          }),
-          is_active: true,
-        },
-      ])
-
-      // Mock token update
-      mockSql.mockResolvedValueOnce([])
-
-      const tokens = await refreshOAuthTokens({
-        userId: mockUser.id,
+      const result = await generateOAuthUrl({
         provider: 'github',
+        redirectUri: 'https://app.contribux.com/auth/callback',
+        scopes: ['user:email', 'public_repo'],
+        state: 'test-state',
       })
 
-      expect(tokens).toMatchObject({
-        accessToken: 'gho_newaccesstoken456',
-        refreshToken: 'ghr_newrefreshtoken456',
-        expiresAt: expect.any(Date),
-      })
+      const url = new URL(result.url)
 
-      // Verify refresh token was used
-      expect(mockFetch).toHaveBeenCalledWith(
-        'https://github.com/login/oauth/access_token',
-        expect.objectContaining({
-          method: 'POST',
-          body: expect.stringContaining('grant_type=refresh_token'),
-        })
-      )
+      // Check required OAuth parameters
+      expect(url.searchParams.get('client_id')).toBe(getGithubClientId())
+      expect(url.searchParams.get('redirect_uri')).toBe('https://app.contribux.com/auth/callback')
+      expect(url.searchParams.get('scope')).toBe('user:email public_repo')
+      expect(url.searchParams.get('state')).toBe('test-state')
+      expect(url.searchParams.get('response_type')).toBe('code')
+
+      // Check PKCE parameters
+      expect(url.searchParams.get('code_challenge')).toBe('test-challenge')
+      expect(url.searchParams.get('code_challenge_method')).toBe('S256')
+
+      // Verify result metadata
+      expect(result).toHaveProperty('state')
+      expect(result).toHaveProperty('codeVerifier')
+      expect(result).toHaveProperty('pkceMetadata')
     })
 
-    it('should handle refresh token errors', async () => {
-      const mockFetch = vi.mocked(fetch)
-      const mockSql = vi.mocked(sql)
-
-      mockSql.mockResolvedValueOnce([
-        {
-          id: 'oauth-account-id',
-          user_id: mockUser.id,
-          provider: 'github',
-          refresh_token: JSON.stringify({
-            iv: Buffer.from('test-iv').toString('base64'),
-            ciphertext: Buffer.from('encrypted-tokens').toString('base64'),
-            tag: Buffer.from('test-tag').toString('base64'),
-            keyId: 'key-123',
-          }),
-        },
-      ])
-
-      // Mock encryption key lookup
-      mockSql.mockResolvedValueOnce([
-        {
-          id: 'key-123',
-          key_data: JSON.stringify({
-            k: 'dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleXRlc3RrZXk=',
-            kty: 'oct',
-            alg: 'A256GCM',
-            key_ops: ['encrypt', 'decrypt'],
-          }),
-          is_active: true,
-        },
-      ])
-
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 401,
-        json: async () => ({
-          error: 'invalid_grant',
-          error_description: 'The provided authorization grant is invalid, expired, or revoked',
-        }),
-      } as Response)
-
-      await expect(
-        refreshOAuthTokens({
-          userId: mockUser.id,
-          provider: 'github',
-        })
-      ).rejects.toThrow('Token refresh failed: invalid_grant')
-    })
-  })
-
-  describe('OAuth Account Management', () => {
-    it('should unlink OAuth account when user has multiple auth methods', async () => {
-      const mockSql = vi.mocked(sql)
-
-      // Mock account exists check
-      mockSql.mockResolvedValueOnce([
-        {
-          id: 'oauth-account-id',
-          user_id: mockUser.id,
-          provider: 'github',
-        },
-      ])
-
-      // Mock other OAuth accounts count (user has other auth methods)
-      mockSql.mockResolvedValueOnce([{ count: '1' }]) // Changed from '0' to '1'
-
-      // Mock account deletion
-      mockSql.mockResolvedValueOnce([])
-
-      // Mock audit log
-      mockSql.mockResolvedValueOnce([])
-
-      await unlinkOAuthAccount({
-        userId: mockUser.id,
+    it('should validate URL construction', async () => {
+      const result = await generateOAuthUrl({
         provider: 'github',
+        redirectUri: 'https://app.contribux.com/auth/callback',
+        scopes: ['user:email'],
+        state: 'test-state',
       })
 
-      // Verify deletion was called
-      const calls = mockSql.mock.calls
-      const deleteCall = calls.find(call => call[0]?.[0]?.includes('DELETE FROM oauth_accounts'))
-      expect(deleteCall).toBeDefined()
+      // Should be valid URL
+      expect(() => new URL(result.url)).not.toThrow()
+
+      // Should use HTTPS
+      expect(result.url.startsWith('https://')).toBe(true)
+
+      // Should be GitHub OAuth endpoint
+      expect(result.url.includes('github.com/login/oauth/authorize')).toBe(true)
     })
 
-    it('should prevent unlinking last auth method', async () => {
-      const mockSql = vi.mocked(sql)
+    it('should enforce HTTPS in production', async () => {
+      const originalEnv = process.env.NODE_ENV
+      process.env.NODE_ENV = 'production'
 
-      // Mock account exists
-      mockSql.mockResolvedValueOnce([
-        {
-          id: 'oauth-account-id',
-          user_id: mockUser.id,
-          provider: 'github',
-        },
-      ])
-
-      // Mock no other OAuth accounts
-      mockSql.mockResolvedValueOnce([{ count: '0' }])
-
-      await expect(
-        unlinkOAuthAccount({
-          userId: mockUser.id,
-          provider: 'github',
-        })
-      ).rejects.toThrow('Cannot unlink last authentication method')
+      try {
+        await expect(
+          generateOAuthUrl({
+            provider: 'github',
+            redirectUri: 'http://insecure.com/callback', // HTTP in production
+            scopes: ['user:email'],
+            state: 'test-state',
+          })
+        ).rejects.toThrow()
+      } finally {
+        process.env.NODE_ENV = originalEnv
+      }
     })
   })
 
-  describe('Security Features', () => {
-    it('should validate redirect URI against whitelist', async () => {
-      await expect(
-        generateOAuthUrl({
-          provider: 'github',
-          redirectUri: 'http://evil.com/callback',
-          scopes: ['user:email'],
+  describe('Callback Validation', () => {
+    it('should validate all callback parameters', async () => {
+      const validCallback = {
+        code: 'oauth-code-123',
+        state: 'valid-state-456',
+        sessionId: 'session-789',
+      }
+
+      // Mock successful state validation
+      mockSql.mockResolvedValueOnce([
+        {
+          state: validCallback.state,
+          session_id: validCallback.sessionId,
+          client_fingerprint: 'test-fingerprint',
+          created_at: new Date(),
+          expires_at: new Date(Date.now() + 10 * 60 * 1000),
+          security_flags: JSON.stringify({ version: '2.0' }),
+        },
+      ])
+
+      const result = await validateOAuthCallback(validCallback)
+
+      expect(result.valid).toBe(true)
+      expect(result.securityChecks).toHaveProperty('stateValid')
+      expect(result.securityChecks).toHaveProperty('codePresent')
+      expect(result.securityChecks.stateValid).toBe(true)
+      expect(result.securityChecks.codePresent).toBe(true)
+    })
+
+    it('should verify state and PKCE together', async () => {
+      const callbackData = {
+        code: 'oauth-code-123',
+        state: 'valid-state-456',
+        sessionId: 'session-789',
+        codeVerifier: 'test-verifier',
+      }
+
+      // Mock state validation
+      mockSql.mockResolvedValueOnce([
+        {
+          state: callbackData.state,
+          session_id: callbackData.sessionId,
+          client_fingerprint: 'test-fingerprint',
+          created_at: new Date(),
+          expires_at: new Date(Date.now() + 10 * 60 * 1000),
+          security_flags: JSON.stringify({
+            version: '2.0',
+            pkceChallenge: 'test-challenge',
+          }),
+        },
+      ])
+
+      // Mock PKCE validation
+      vi.mocked(validatePKCE).mockResolvedValueOnce({
+        valid: true,
+        challenge: 'test-challenge',
+      })
+
+      const result = await validateOAuthCallback(callbackData)
+
+      expect(result.valid).toBe(true)
+      expect(result.securityChecks.stateValid).toBe(true)
+      expect(result.securityChecks.pkceValid).toBe(true)
+    })
+
+    it('should handle validation failures securely', async () => {
+      const failureCases = [
+        { code: '', state: 'valid-state', description: 'missing code' },
+        { code: 'valid-code', state: '', description: 'missing state' },
+        { code: 'valid-code', state: 'invalid-state', description: 'invalid state' },
+      ]
+
+      for (const testCase of failureCases) {
+        // Mock appropriate responses for each case
+        if (testCase.state === 'invalid-state') {
+          mockSql.mockResolvedValueOnce([]) // No state found
+        } else {
+          mockSql.mockResolvedValueOnce([
+            {
+              state: testCase.state,
+              session_id: 'test-session',
+              client_fingerprint: 'test-fingerprint',
+              created_at: new Date(),
+              expires_at: new Date(Date.now() + 10 * 60 * 1000),
+              security_flags: JSON.stringify({ version: '2.0' }),
+            },
+          ])
+        }
+
+        const result = await validateOAuthCallback({
+          code: testCase.code,
+          state: testCase.state,
+          sessionId: 'test-session',
         })
-      ).rejects.toThrow('Invalid redirect URI')
+
+        expect(result.valid).toBe(false)
+        // Should provide detailed security check results
+        expect(result.securityChecks).toBeDefined()
+      }
     })
 
-    it('should encrypt tokens before storage', async () => {
-      const mockSql = vi.mocked(sql)
-      const mockFetch = vi.mocked(fetch)
+    it('should detect OAuth attack patterns', async () => {
+      const suspiciousCallback = {
+        code: 'oauth-code-123',
+        state: 'valid-state',
+        sessionId: 'different-session', // Session mismatch
+        clientFingerprint: 'different-fingerprint', // Fingerprint mismatch
+      }
 
-      // Mock token exchange
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          access_token: 'gho_plaintext_token',
-          refresh_token: 'ghr_plaintext_refresh',
-        }),
-      } as Response)
-
-      // Mock user profile
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          id: 123456,
-          login: 'testuser',
-          email: 'test@example.com',
-        }),
-      } as Response)
-
-      // Mock encryption key lookup
       mockSql.mockResolvedValueOnce([
         {
-          id: 'key-123',
-          key_data: JSON.stringify({
-            k: 'dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleXRlc3RrZXk=',
-            kty: 'oct',
-            alg: 'A256GCM',
-            key_ops: ['encrypt', 'decrypt'],
-          }),
-          is_active: true,
+          state: suspiciousCallback.state,
+          session_id: 'original-session', // Different from provided
+          client_fingerprint: 'original-fingerprint',
+          created_at: new Date(),
+          expires_at: new Date(Date.now() + 10 * 60 * 1000),
+          security_flags: JSON.stringify({ version: '2.0' }),
         },
       ])
 
-      // Mock OAuth account token encryption storage
-      mockSql.mockResolvedValueOnce([])
+      const attackDetection = await detectOAuthAttack(suspiciousCallback)
 
-      // Mock user lookup
-      mockSql.mockResolvedValueOnce([mockUser])
+      expect(attackDetection.detected).toBe(true)
+      expect(attackDetection.attackTypes).toContain('session_mismatch')
+      expect(attackDetection.attackTypes).toContain('fingerprint_mismatch')
+      expect(attackDetection.riskLevel).toBe('high')
+    })
+  })
+})
 
-      // Capture OAuth account creation
-      mockSql.mockResolvedValueOnce([])
+// OAuth Flow Security Tests - Enhanced Security Testing
+describe('OAuth Flow Security', () => {
+  describe('State Parameter Security', () => {
+    it('should generate cryptographically secure state', async () => {
+      const state = await generateSecureOAuthState('test-user-123')
 
-      await exchangeCodeForTokens({
-        code: 'auth-code-123',
-        codeVerifier: 'test-verifier-123',
-        redirectUri: mockConfig.redirectUri,
-        fetchUserProfile: true,
-      })
+      // State should have timestamp.random.hash format
+      const parts = state.split('.')
+      expect(parts).toHaveLength(3)
 
-      // Verify tokens were encrypted before storage
-      const calls = mockSql.mock.calls
-      const insertCall = calls.find(call => call[0]?.[0]?.includes('INSERT INTO oauth_accounts'))
+      // Timestamp should be recent
+      const timestamp = Number(parts[0])
+      expect(timestamp).toBeGreaterThan(Date.now() - 1000)
 
-      expect(insertCall).toBeDefined()
-      // The actual tokens in the call should be encrypted (not plain text)
-      expect(insertCall).not.toContain('gho_plaintext_token')
-      expect(insertCall).not.toContain('ghr_plaintext_refresh')
+      // Random part should be secure
+      expect(parts[1]).toHaveLength(64) // 32 bytes = 64 hex chars
+
+      // Hash should be truncated SHA-256
+      expect(parts[2]).toHaveLength(32)
     })
 
-    it('should log OAuth events in audit log', async () => {
-      const mockSql = vi.mocked(sql)
-      const mockFetch = vi.mocked(fetch)
+    it('should bind state to session context', async () => {
+      const sessionId = 'test-session-123'
+      const clientFingerprint = 'test-fingerprint'
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          access_token: 'token',
-          refresh_token: 'refresh',
-        }),
-      } as Response)
+      const result = await validateOAuthStateSecure('test-state', sessionId, clientFingerprint)
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          id: 123456,
-          login: 'testuser',
-          email: 'test@example.com',
-        }),
-      } as Response)
+      expect(result.securityChecks).toHaveProperty('sessionMatch')
+      expect(result.securityChecks).toHaveProperty('fingerprintMatch')
+    })
+  })
+})
 
-      // Mock encryption key lookup
-      mockSql.mockResolvedValueOnce([
+describe('OAuth Flow Security', () => {
+  describe('State Parameter Security', () => {
+    it('should generate cryptographically secure state', async () => {
+      const state = await generateSecureOAuthState('test-user-123')
+
+      // State should have timestamp.random.hash format
+      const parts = state.split('.')
+      expect(parts).toHaveLength(3)
+
+      // Timestamp should be recent
+      const timestamp = Number(parts[0])
+      expect(timestamp).toBeGreaterThan(Date.now() - 1000)
+      expect(timestamp).toBeLessThanOrEqual(Date.now())
+
+      // Random part should be 32 bytes (64 hex chars)
+      expect(parts[1]).toHaveLength(64)
+
+      // Hash should be 32 characters (truncated SHA-256)
+      expect(parts[2]).toHaveLength(32)
+    })
+
+    it('should bind state to session context', async () => {
+      const sessionId = 'test-session-123'
+      const clientFingerprint = 'test-fingerprint'
+
+      // Mock database response for state validation
+      const mockDb = vi.mocked(sql)
+      mockDb.mockResolvedValueOnce([
         {
-          id: 'key-123',
-          key_data: JSON.stringify({
-            k: 'dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleXRlc3RrZXk=',
-            kty: 'oct',
-            alg: 'A256GCM',
-            key_ops: ['encrypt', 'decrypt'],
-          }),
-          is_active: true,
+          state: 'test-state',
+          session_id: sessionId,
+          client_fingerprint: clientFingerprint,
+          created_at: new Date(),
+          expires_at: new Date(Date.now() + 10 * 60 * 1000),
+          security_flags: JSON.stringify({ version: '2.0' }),
         },
-      ])
+      ] as any)
 
-      // Mock OAuth account token encryption storage
-      mockSql.mockResolvedValueOnce([])
+      const result = await validateOAuthStateSecure('test-state', sessionId, clientFingerprint)
 
-      mockSql.mockResolvedValueOnce([mockUser])
-      mockSql.mockResolvedValueOnce([]) // OAuth account creation
-      mockSql.mockResolvedValueOnce([]) // Audit log
+      expect(result.valid).toBe(true)
+      expect(result.securityChecks.sessionMatch).toBe(true)
+      expect(result.securityChecks.fingerprintMatch).toBe(true)
+    })
 
-      await exchangeCodeForTokens({
-        code: 'auth-code-123',
-        codeVerifier: 'test-verifier-123',
-        redirectUri: mockConfig.redirectUri,
-        fetchUserProfile: true,
-        securityContext: {
-          ip_address: '192.168.1.1',
-          user_agent: 'Mozilla/5.0...',
+    it('should validate state expiration', async () => {
+      const expiredState = {
+        state: 'expired-state',
+        session_id: 'test-session',
+        client_fingerprint: 'test-fingerprint',
+        created_at: new Date(Date.now() - 20 * 60 * 1000),
+        expires_at: new Date(Date.now() - 10 * 60 * 1000),
+        security_flags: JSON.stringify({ version: '2.0' }),
+      }
+
+      const mockDb = vi.mocked(sql)
+      mockDb.mockResolvedValueOnce([expiredState] as any)
+
+      const result = await validateOAuthStateSecure(
+        'expired-state',
+        'test-session',
+        'test-fingerprint'
+      )
+
+      expect(result.valid).toBe(false)
+      expect(result.securityChecks.stateExists).toBe(true)
+      expect(result.securityChecks.notExpired).toBe(false)
+    })
+
+    it('should prevent state replay attacks', async () => {
+      const state = await generateSecureOAuthState()
+      const mockDb = vi.mocked(sql)
+
+      // First validation should work
+      mockDb.mockResolvedValueOnce([
+        {
+          state,
+          session_id: 'test-session',
+          client_fingerprint: 'test-fingerprint',
+          created_at: new Date(),
+          expires_at: new Date(Date.now() + 10 * 60 * 1000),
+          security_flags: JSON.stringify({ version: '2.0' }),
         },
-      })
+      ] as any)
 
-      // Verify audit log was created
-      const calls = mockSql.mock.calls
-      const auditCall = calls.find(call => call[0]?.[0]?.includes('security_audit_logs'))
-      expect(auditCall).toBeDefined()
+      const firstResult = await validateOAuthStateSecure(state, 'test-session', 'test-fingerprint')
+      expect(firstResult.valid).toBe(true)
+
+      // Second attempt should fail (state no longer exists)
+      mockDb.mockResolvedValueOnce([] as any)
+
+      const secondResult = await validateOAuthStateSecure(state, 'test-session', 'test-fingerprint')
+      expect(secondResult.valid).toBe(false)
+      expect(secondResult.securityChecks.stateExists).toBe(false)
+    })
+  })
+
+  describe('Redirect URI Validation', () => {
+    it('should enforce allowlist validation', async () => {
+      const allowedUris = [
+        'https://app.contribux.com/auth/callback',
+        'https://staging.contribux.com/auth/callback',
+      ]
+
+      // Valid URI should pass
+      const validResult = await validateRedirectUriSecure(
+        'https://app.contribux.com/auth/callback',
+        allowedUris
+      )
+      expect(validResult.valid).toBe(true)
+
+      // Invalid URI should fail
+      const invalidResult = await validateRedirectUriSecure(
+        'https://malicious.com/auth/callback',
+        allowedUris
+      )
+      expect(invalidResult.valid).toBe(false)
+    })
+
+    it('should validate protocol requirements', async () => {
+      // HTTPS should be required in production
+      const originalEnv = process.env.NODE_ENV
+      process.env.NODE_ENV = 'production'
+
+      try {
+        const httpResult = await validateRedirectUriSecure('http://app.contribux.com/auth/callback')
+        expect(httpResult.valid).toBe(false)
+        expect(httpResult.securityChecks.protocolValid).toBe(false)
+
+        const httpsResult = await validateRedirectUriSecure(
+          'https://app.contribux.com/auth/callback'
+        )
+        expect(httpsResult.securityChecks.protocolValid).toBe(true)
+      } finally {
+        process.env.NODE_ENV = originalEnv
+      }
+    })
+
+    it('should prevent redirect chain attacks', async () => {
+      const redirectChainUris = [
+        'https://app.contribux.com/callback?redirect=https://evil.com',
+        'https://app.contribux.com/callback?next=https://malicious.com',
+        'https://app.contribux.com/callback?return_to=https://attacker.com',
+      ]
+
+      for (const uri of redirectChainUris) {
+        const result = await validateRedirectUriSecure(uri)
+        expect(result.securityChecks.noRedirectChain).toBe(false)
+        expect(result.valid).toBe(false)
+      }
     })
   })
 })

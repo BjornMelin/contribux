@@ -138,10 +138,10 @@ export function getAppUrl(): string {
   return 'http://localhost:3000'
 }
 
-// Legacy compatibility exports for existing code
-export const isDevelopment = env.NODE_ENV === 'development'
-export const isProduction = env.NODE_ENV === 'production'
-export const isTest = env.NODE_ENV === 'test'
+// Legacy compatibility exports for existing code (function-based to avoid T3 Stack issues in tests)
+export const isDevelopment = () => env.NODE_ENV === 'development'
+export const isProduction = () => env.NODE_ENV === 'production'
+export const isTest = () => env.NODE_ENV === 'test'
 
 /**
  * Validates basic required environment variables

@@ -282,7 +282,7 @@ export function createMockDatabaseClient() {
  */
 export function setupTestEnvironment() {
   // NODE_ENV is already set to 'test' by the test runner
-  process.env.NEXTAUTH_SECRET = 'test-secret'
+  process.env.NEXTAUTH_SECRET = 'secure-test-token-32chars-minimum'
   process.env.NEXTAUTH_URL = 'http://localhost:3000'
   process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test'
 }

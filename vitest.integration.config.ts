@@ -32,7 +32,7 @@ export default defineConfig({
       'tests/unit/**/*',
       'tests/performance/**/*',
       'tests/e2e/**/*',
-      'tests/security/**/*',
+      'tests/security/**/*', // Exclude root security tests but allow integration/security tests
     ],
 
     setupFiles: ['./tests/setup.ts'],

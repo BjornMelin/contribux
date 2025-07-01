@@ -453,8 +453,6 @@ export const setupE2ETestEnvironment = () =>
     monitorMemory: true,
     env: {
       NODE_ENV: 'test',
-      NEXTAUTH_SECRET: 'test-secret',
-      GITHUB_CLIENT_ID: 'test-client-id',
-      GITHUB_CLIENT_SECRET: 'test-client-secret',
+      // Hardcoded test secrets removed - use environment variables or secure test utilities
     },
   })

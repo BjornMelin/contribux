@@ -28,7 +28,7 @@ vi.mock('../../src/lib/crypto-utils', () => ({
 // Mock environment
 vi.mock('../../src/lib/validation/env', () => ({
   env: {
-    NEXTAUTH_SECRET: 'test-secret',
+    NEXTAUTH_SECRET: 'secure-test-token-32chars-minimum',
     NODE_ENV: 'test',
   },
 }))

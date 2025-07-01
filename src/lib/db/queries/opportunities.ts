@@ -200,9 +200,14 @@ export namespace OpportunityQueries {
     if (difficultyCondition) conditions.push(difficultyCondition)
 
     // Add boolean filters - ensure proper type handling for exactOptionalPropertyTypes
-    const booleanFilterOptions: { goodFirstIssue?: boolean; mentorshipAvailable?: boolean; hacktoberfest?: boolean } = {}
+    const booleanFilterOptions: {
+      goodFirstIssue?: boolean
+      mentorshipAvailable?: boolean
+      hacktoberfest?: boolean
+    } = {}
     if (goodFirstIssue !== undefined) booleanFilterOptions.goodFirstIssue = goodFirstIssue
-    if (mentorshipAvailable !== undefined) booleanFilterOptions.mentorshipAvailable = mentorshipAvailable
+    if (mentorshipAvailable !== undefined)
+      booleanFilterOptions.mentorshipAvailable = mentorshipAvailable
     if (hacktoberfest !== undefined) booleanFilterOptions.hacktoberfest = hacktoberfest
     conditions.push(...buildBooleanFilters(booleanFilterOptions))
 

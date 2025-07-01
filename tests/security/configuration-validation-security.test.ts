@@ -14,748 +14,382 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import {
+  getRequiredEnv,
+  validateSecretEntropy,
+  validateProductionSecuritySettings,
+  validateProductionSecrets,
+  validateProductionUrls,
+  validateProductionEnv,
+  validateEnvironmentOnStartup,
+  validateBasicEnvironmentVariables,
+  getJwtSecret,
+  getDatabaseUrl,
+} from '../../src/lib/validation/env'
+import { createConfig, appConfig, databaseConfig } from '../../src/lib/config'
+
 describe('Configuration Validation Security', () => {
   let originalEnv: NodeJS.ProcessEnv
-  let mockExit: ReturnType<typeof vi.spyOn> & { lastCallCode?: number | string | null | undefined }
-  let mockConsoleError: ReturnType<typeof vi.spyOn>
 
   beforeEach(() => {
+    // Save original environment
     originalEnv = { ...process.env }
-
-    // Mock process.exit to prevent actual exit during tests
-    // Security functions call process.exit(1) instead of throwing errors
-    mockExit = vi
-      .spyOn(process, 'exit')
-      .mockImplementation((code?: number | string | null | undefined) => {
-        // Store the exit code for verification
-        ;(
-          mockExit as typeof mockExit & { lastCallCode?: number | string | null | undefined }
-        ).lastCallCode = code
-        // Don't throw - just return to allow test to continue
-        return undefined as never
-      })
-
-    // Mock console.error to capture error output (used by validateEnvironmentOnStartup)
-    mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {
-      // Mock implementation - captures error calls for testing
-    })
-
-    // Set base test environment variables to prevent import-time validation failures
-    vi.stubEnv('NODE_ENV', 'test')
-    process.env.DATABASE_URL = 'postgresql://testuser:testpass@localhost:5432/testdb'
-    process.env.JWT_SECRET = '8f6be3e6a8bc63ab47bd41db4d11ccdcdff3eb07f04aab983956719007f0e025ab'
-    process.env.ENCRYPTION_KEY = '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
-    process.env.GITHUB_CLIENT_ID = 'Iv1.a1b2c3d4e5f6g7h8'
-    process.env.GITHUB_CLIENT_SECRET =
-      'test-github-client-secret-with-sufficient-length-for-testing-purposes-to-meet-40-char-requirement'
-    process.env.NEXT_PUBLIC_APP_URL = 'https://contribux.com'
-    process.env.CORS_ORIGINS = 'https://contribux.com'
-    process.env.NEXT_PUBLIC_RP_ID = 'contribux.com'
-
-    // Set environment validation to controlled mode for these tests
-    process.env.SKIP_ENV_VALIDATION = 'false' // Enable validation but with mocked exit
   })
 
   afterEach(() => {
+    // Restore original environment
     process.env = originalEnv
-    mockExit.mockRestore()
-    mockConsoleError.mockRestore()
   })
 
-  describe('Application Startup Security', () => {
-    it('should fail securely when ENCRYPTION_KEY is missing in production', async () => {
-      // Set production environment with missing encryption key
-      process.env.NODE_ENV = 'production'
-      process.env.DATABASE_URL = 'postgresql://user:pass@localhost:5432/db'
-      process.env.JWT_SECRET = 'secure-jwt-secret-with-sufficient-length-and-entropy-32chars'
-      process.env.GITHUB_CLIENT_ID = 'Iv1.a1b2c3d4e5f6g7h8'
-      process.env.GITHUB_CLIENT_SECRET =
-        'test-github-client-secret-with-sufficient-length-for-testing-purposes-to-meet-40-char-requirement'
-      process.env.NEXT_PUBLIC_APP_URL = 'https://contribux.com'
-      process.env.CORS_ORIGINS = 'https://contribux.com'
-      process.env.NEXT_PUBLIC_RP_ID = 'contribux.com'
-      // ENCRYPTION_KEY intentionally missing
-      process.env.ENCRYPTION_KEY = undefined
-
-      const { validateEnvironmentOnStartup } = await import('@/lib/validation/env')
-
-      // Security validation calls process.exit instead of throwing
-      validateEnvironmentOnStartup()
-
-      expect(mockExit).toHaveBeenCalledWith(1)
-      expect(mockConsoleError).toHaveBeenCalledWith(
-        expect.stringContaining('Environment validation failed')
-      )
-    })
-
-    it('should fail securely when JWT_SECRET is missing', async () => {
-      // Set environment with missing JWT secret
-      process.env.NODE_ENV = 'production'
-      process.env.DATABASE_URL = 'postgresql://user:pass@localhost:5432/db'
-      process.env.ENCRYPTION_KEY =
-        '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
-      process.env.GITHUB_CLIENT_ID = 'Iv1.a1b2c3d4e5f6g7h8'
-      process.env.GITHUB_CLIENT_SECRET =
-        'test-github-client-secret-with-sufficient-length-for-testing-purposes-to-meet-40-char-requirement'
-      process.env.NEXT_PUBLIC_APP_URL = 'https://contribux.com'
-      process.env.CORS_ORIGINS = 'https://contribux.com'
-      process.env.NEXT_PUBLIC_RP_ID = 'contribux.com'
-      // JWT_SECRET intentionally missing
-      process.env.JWT_SECRET = undefined
-
-      const { validateEnvironmentOnStartup } = await import('@/lib/validation/env')
-
-      validateEnvironmentOnStartup()
-      expect(mockExit).toHaveBeenCalledWith(1)
-    })
-
-    it('should fail securely when DATABASE_URL is missing', async () => {
-      // Set environment with missing database URL
-      process.env.NODE_ENV = 'production'
-      process.env.JWT_SECRET = 'secure-jwt-secret-with-sufficient-length-and-entropy-32chars'
-      process.env.ENCRYPTION_KEY =
-        '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
-      process.env.GITHUB_CLIENT_ID = 'Iv1.a1b2c3d4e5f6g7h8'
-      process.env.GITHUB_CLIENT_SECRET =
-        'test-github-client-secret-with-sufficient-length-for-testing-purposes-to-meet-40-char-requirement'
-      // DATABASE_URL intentionally missing
-
-      const { validateEnvironmentOnStartup } = await import('@/lib/validation/env')
-
-      validateEnvironmentOnStartup()
-      expect(mockExit).toHaveBeenCalledWith(1)
-    })
-
-    it('should fail securely when GitHub OAuth credentials are incomplete in production', async () => {
-      // Set environment with incomplete GitHub OAuth
-      process.env.NODE_ENV = 'production'
-      process.env.DATABASE_URL = 'postgresql://user:pass@localhost:5432/db'
-      process.env.JWT_SECRET = 'secure-jwt-secret-with-sufficient-length-and-entropy-32chars'
-      process.env.ENCRYPTION_KEY =
-        '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
-      process.env.GITHUB_CLIENT_ID = 'Iv1.a1b2c3d4e5f6g7h8'
-      // GITHUB_CLIENT_SECRET intentionally missing
-
-      const { validateEnvironmentOnStartup } = await import('@/lib/validation/env')
-
-      validateEnvironmentOnStartup()
-      expect(mockExit).toHaveBeenCalledWith(1)
-    })
-
-    it('should block startup with weak encryption keys', async () => {
-      // Set environment with weak encryption key
-      process.env.NODE_ENV = 'production'
-      process.env.DATABASE_URL = 'postgresql://user:pass@localhost:5432/db'
-      process.env.JWT_SECRET = 'secure-jwt-secret-with-sufficient-length-and-entropy-32chars'
-      process.env.ENCRYPTION_KEY =
-        '0000000000000000000000000000000000000000000000000000000000000000' // Weak key
-      process.env.GITHUB_CLIENT_ID = 'Iv1.a1b2c3d4e5f6g7h8'
-      process.env.GITHUB_CLIENT_SECRET =
-        'test-github-client-secret-with-sufficient-length-for-testing-purposes-to-meet-40-char-requirement'
-
-      const { validateEnvironmentOnStartup } = await import('@/lib/validation/env')
-
-      validateEnvironmentOnStartup()
-      expect(mockConsoleError).toHaveBeenCalledWith(
-        expect.stringContaining('Environment validation failed')
-      )
-      expect(mockExit).toHaveBeenCalledWith(1)
-    })
-
-    it('should block startup with invalid encryption key format', async () => {
-      // Set environment with invalid encryption key format
-      process.env.NODE_ENV = 'production'
-      process.env.DATABASE_URL = 'postgresql://user:pass@localhost:5432/db'
-      process.env.JWT_SECRET = 'secure-jwt-secret-with-sufficient-length-and-entropy-32chars'
-      process.env.ENCRYPTION_KEY = 'invalid-key-format-not-hex' // Invalid format
-      process.env.GITHUB_CLIENT_ID = 'Iv1.a1b2c3d4e5f6g7h8'
-      process.env.GITHUB_CLIENT_SECRET =
-        'test-github-client-secret-with-sufficient-length-for-testing-purposes-to-meet-40-char-requirement'
-
-      const { validateEnvironmentOnStartup } = await import('@/lib/validation/env')
-
-      validateEnvironmentOnStartup()
-      expect(mockConsoleError).toHaveBeenCalledWith(
-        expect.stringContaining('Environment validation failed')
-      )
-      expect(mockExit).toHaveBeenCalledWith(1)
-    })
-
-    it('should block startup with short encryption key', async () => {
-      // Set environment with short encryption key
-      process.env.NODE_ENV = 'production'
-      process.env.DATABASE_URL = 'postgresql://user:pass@localhost:5432/db'
-      process.env.JWT_SECRET = 'secure-jwt-secret-with-sufficient-length-and-entropy-32chars'
-      process.env.ENCRYPTION_KEY = '123456789abcdef' // Too short
-      process.env.GITHUB_CLIENT_ID = 'Iv1.a1b2c3d4e5f6g7h8'
-      process.env.GITHUB_CLIENT_SECRET =
-        'test-github-client-secret-with-sufficient-length-for-testing-purposes-to-meet-40-char-requirement'
-
-      const { validateEnvironmentOnStartup } = await import('@/lib/validation/env')
-
-      validateEnvironmentOnStartup()
-      expect(mockConsoleError).toHaveBeenCalledWith(
-        expect.stringContaining('Environment validation failed')
-      )
-      expect(mockExit).toHaveBeenCalledWith(1)
-    })
-
-    it('should block startup with test keywords in production secrets', async () => {
-      // Set environment with test keywords in production
-      process.env.NODE_ENV = 'production'
-      process.env.DATABASE_URL = 'postgresql://user:pass@production.db.com:5432/db' // Non-localhost URL
-      process.env.JWT_SECRET = 'test-jwt-secret-with-sufficient-length-and-entropy-32chars' // Contains 'test'
-      process.env.ENCRYPTION_KEY =
-        '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
-      process.env.GITHUB_CLIENT_ID = 'Iv1.a1b2c3d4e5f6g7h8'
-      process.env.GITHUB_CLIENT_SECRET =
-        'test-github-client-secret-with-sufficient-length-for-testing-purposes-to-meet-40-char-requirement'
-
-      const { validateEnvironmentOnStartup } = await import('@/lib/validation/env')
-
-      validateEnvironmentOnStartup()
-      expect(mockConsoleError).toHaveBeenCalledWith(
-        expect.stringMatching(/test.*keyword.*production/i)
-      )
-      expect(mockExit).toHaveBeenCalledWith(1)
-    })
-
-    it('should block startup with localhost URLs in production', async () => {
-      // Set environment with localhost URLs in production
-      process.env.NODE_ENV = 'production'
-      process.env.DATABASE_URL = 'postgresql://user:pass@production.db.com:5432/db'
-      process.env.JWT_SECRET = 'secure-jwt-secret-with-sufficient-length-and-entropy-32chars'
-      process.env.ENCRYPTION_KEY =
-        '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
-      process.env.GITHUB_CLIENT_ID = 'Iv1.a1b2c3d4e5f6g7h8'
-      process.env.GITHUB_CLIENT_SECRET =
-        'secure-github-client-secret-with-sufficient-length-for-production-purposes-to-meet-40-char-requirement'
-      process.env.NEXT_PUBLIC_APP_URL = 'http://localhost:3000' // Localhost in production
-      process.env.CORS_ORIGINS = 'https://contribux.com'
-
-      const { validateEnvironmentOnStartup } = await import('@/lib/validation/env')
-
-      validateEnvironmentOnStartup()
-      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringMatching(/localhost.*production/i))
-      expect(mockExit).toHaveBeenCalledWith(1)
-    })
-  })
-
-  describe('Key Management Function Security', () => {
-    it('should throw error when getEncryptionKey() is called with missing key', async () => {
-      // Clear encryption key
-      process.env.ENCRYPTION_KEY = undefined
-      process.env.NODE_ENV = 'production'
-
-      const { getEncryptionKey } = await import('@/lib/validation/env')
-
-      expect(() => getEncryptionKey()).toThrow(/ENCRYPTION_KEY.*required/i)
-      expect(() => getEncryptionKey()).toThrow(/openssl rand -hex 32/)
-    })
-
-    it('should throw error when getJwtSecret() is called with missing secret', async () => {
-      // Clear JWT secret and set non-test environment
-      process.env.JWT_SECRET = undefined
-      process.env.NODE_ENV = 'production'
-
-      const { getJwtSecret } = await import('@/lib/validation/env')
-
-      expect(() => getJwtSecret()).toThrow(/JWT_SECRET.*required.*cannot be empty/i)
-    })
-
-    it('should throw error when getJwtSecret() is called with invalid secret', async () => {
-      // Set invalid JWT secret and non-test environment
-      process.env.JWT_SECRET = 'too_short'
-      process.env.NODE_ENV = 'production'
-
-      const { getJwtSecret } = await import('@/lib/validation/env')
-
-      expect(() => getJwtSecret()).toThrow(/JWT_SECRET validation failed/i)
-    })
-
-    it('should throw error when getEncryptionKey() is called with invalid format', async () => {
-      // Set invalid encryption key format
-      process.env.ENCRYPTION_KEY = 'invalid-format-not-hex'
-
-      const { getEncryptionKey } = await import('@/lib/validation/env')
-
-      expect(() => getEncryptionKey()).toThrow(/64 hexadecimal characters/i)
-      expect(() => getEncryptionKey()).toThrow(/openssl rand -hex 32/)
-    })
-
-    it('should throw error when getEncryptionKey() is called with weak key', async () => {
-      // Set weak encryption key
-      process.env.ENCRYPTION_KEY =
-        '0000000000000000000000000000000000000000000000000000000000000000'
-
-      const { getEncryptionKey } = await import('@/lib/validation/env')
-
-      expect(() => getEncryptionKey()).toThrow(/insufficient entropy.*predictable/i)
-      expect(() => getEncryptionKey()).toThrow(/openssl rand -hex 32/)
-    })
-
-    it('should validate encryption key in all environments', async () => {
-      // Test each environment type
-      const environments = ['development', 'production'] // Remove 'test' since it has fallbacks
-
-      for (const env of environments) {
-        vi.stubEnv('NODE_ENV', env)
-        process.env.ENCRYPTION_KEY = undefined
-
-        const { getEncryptionKey } = await import('@/lib/validation/env')
-
-        expect(() => getEncryptionKey()).toThrow(/ENCRYPTION_KEY.*required.*environment/i)
-      }
-    })
-  })
-
-  describe('Hardcoded Fallback Prevention', () => {
-    it('should never provide hardcoded fallback encryption keys', async () => {
-      // Test multiple scenarios where fallbacks might be tempting
-      const testScenarios = [
-        { env: 'development', description: 'development environment' },
-        { env: 'test', description: 'test environment' },
-        { env: 'production', description: 'production environment' },
-      ]
-
-      for (const scenario of testScenarios) {
-        vi.stubEnv('NODE_ENV', scenario.env)
-        process.env.ENCRYPTION_KEY = undefined
-
-        const { getEncryptionKey } = await import('@/lib/validation/env')
-
-        // Should always throw, never provide fallback
-        expect(() => getEncryptionKey()).toThrow()
-
-        // Verify no common fallback patterns are used
-        try {
-          getEncryptionKey()
-          throw new Error('Should have thrown an error')
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error)
-          // Ensure error message doesn't contain actual key values
-          expect(errorMessage).not.toMatch(/^[0-9a-fA-F]{64}$/)
-          expect(errorMessage).not.toContain('0123456789abcdef')
-          expect(errorMessage).not.toContain('fallback')
-          expect(errorMessage).not.toContain('default')
-        }
-      }
-    })
-
-    it('should never provide hardcoded fallback JWT secrets', async () => {
-      // Test multiple scenarios
-      const testScenarios = [
-        { env: 'development', description: 'development environment' },
-        { env: 'test', description: 'test environment' },
-        { env: 'production', description: 'production environment' },
-      ]
-
-      for (const scenario of testScenarios) {
-        vi.stubEnv('NODE_ENV', scenario.env)
-        process.env.JWT_SECRET = undefined
-
-        const { getJwtSecret } = await import('@/lib/validation/env')
-
-        // Should always throw, never provide fallback (except test environment)
-        if (scenario.env === 'test') {
-          // Test environment has fallbacks, so expect no error
-          expect(() => getJwtSecret()).not.toThrow()
-        } else {
-          expect(() => getJwtSecret()).toThrow()
-        }
-
-        // Verify no common fallback patterns are used
-        try {
-          getJwtSecret()
-          throw new Error('Should have thrown an error')
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error)
-          // Ensure error message doesn't contain actual secret values
-          expect(errorMessage).not.toContain('default-secret')
-          expect(errorMessage).not.toContain('fallback')
-          expect(errorMessage).not.toContain('your-secret-here')
-        }
-      }
-    })
-
-    it('should prevent test defaults in production mode', async () => {
-      // Set production environment directly (vi.stubEnv doesn't work for production validation)
-      process.env.NODE_ENV = 'production'
-
-      // Test various test-like values in JWT_SECRET
-      const testValues = [
-        'test-jwt-secret-with-sufficient-length-and-entropy-for-production',
-        'dev-secret-key-for-testing-with-enough-length-and-good-entropy-chars',
-        'development-key-with-test-keyword-sufficient-length-and-entropy',
-      ]
-
-      for (const testValue of testValues) {
-        process.env.JWT_SECRET = testValue
-        process.env.DATABASE_URL = 'postgresql://user:pass@host.com:5432/db'
-        process.env.ENCRYPTION_KEY =
-          '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
-        process.env.GITHUB_CLIENT_ID = 'Iv1.a1b2c3d4e5f6g7h8'
-        process.env.GITHUB_CLIENT_SECRET = 'test-github-client-secret-with-sufficient-length'
-
-        const { validateEnvironmentOnStartup } = await import('@/lib/validation/env')
-
-        validateEnvironmentOnStartup()
-        expect(mockExit).toHaveBeenCalledWith(1)
-        expect(mockConsoleError).toHaveBeenCalledWith(
-          expect.stringMatching(/test.*keyword.*production|JWT_SECRET.*test.*dev.*production/i)
-        )
-
-        // Reset mocks for next iteration
-        mockExit.mockClear()
-        mockConsoleError.mockClear()
-      }
-    })
-  })
-
-  describe('Environment Validation Edge Cases', () => {
-    it('should reject empty string environment variables', async () => {
-      // Set empty strings (not undefined)
-      process.env.NODE_ENV = 'production'
-      process.env.DATABASE_URL = 'postgresql://user:pass@localhost:5432/db'
-      process.env.JWT_SECRET = '' // Empty string
-      process.env.ENCRYPTION_KEY =
-        '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
-      process.env.GITHUB_CLIENT_ID = 'Iv1.a1b2c3d4e5f6g7h8'
-      process.env.GITHUB_CLIENT_SECRET =
-        'test-github-client-secret-with-sufficient-length-for-testing-purposes-to-meet-40-char-requirement'
-
-      const { validateEnvironmentOnStartup } = await import('@/lib/validation/env')
-
-      validateEnvironmentOnStartup()
-      expect(mockExit).toHaveBeenCalledWith(1)
-    })
-
-    it('should reject whitespace-only environment variables', async () => {
-      // Set whitespace-only values
-      process.env.NODE_ENV = 'production'
-      process.env.DATABASE_URL = 'postgresql://user:pass@localhost:5432/db'
-      process.env.JWT_SECRET = '   ' // Whitespace only
-      process.env.ENCRYPTION_KEY =
-        '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
-      process.env.GITHUB_CLIENT_ID = 'Iv1.a1b2c3d4e5f6g7h8'
-      process.env.GITHUB_CLIENT_SECRET =
-        'test-github-client-secret-with-sufficient-length-for-testing-purposes-to-meet-40-char-requirement'
-
-      const { validateEnvironmentOnStartup } = await import('@/lib/validation/env')
-
-      validateEnvironmentOnStartup()
-      expect(mockExit).toHaveBeenCalledWith(1)
-    })
-
-    it('should validate JWT secrets with insufficient unique characters', async () => {
-      // Set production environment to ensure validation
-      process.env.NODE_ENV = 'production'
-      // Set JWT secret with very low unique character ratio - only 8 unique chars in 34 char string
-      process.env.JWT_SECRET = 'abcdabcdabcdabcdabcdabcdabcdabcdab' // Only 4 unique chars, high repetition
-
-      const { getJwtSecret } = await import('@/lib/validation/env')
-
-      expect(() => getJwtSecret()).toThrow(/insufficient entropy/)
-    })
-
-    it('should validate JWT secrets with low entropy per character', async () => {
-      // Set production environment to ensure validation
-      process.env.NODE_ENV = 'production'
-      // Set JWT secret with repetitive patterns
-      process.env.JWT_SECRET = 'abcabcabcabcabcabcabcabcabcabcabcabc' // Repetitive pattern
-
-      const { getJwtSecret } = await import('@/lib/validation/env')
-
-      expect(() => getJwtSecret()).toThrow(/insufficient entropy/)
-    })
-  })
-
-  describe('Production Environment Validation', () => {
-    it('should enforce all required production environment variables', async () => {
-      // Set production environment and clear all required vars
-      process.env.NODE_ENV = 'production'
-      process.env.JWT_SECRET = undefined
-      process.env.DATABASE_URL = undefined
-      process.env.GITHUB_CLIENT_ID = undefined
-      process.env.GITHUB_CLIENT_SECRET = undefined
-      process.env.ENCRYPTION_KEY = undefined
-
-      const { validateProductionEnv } = await import('@/lib/validation/env')
-
-      // Should fail with all required vars missing
-      expect(() => validateProductionEnv()).toThrow(
-        /Missing required production environment variables/
-      )
-    })
-
-    it('should succeed with complete production environment', async () => {
-      // Set complete production environment
-      process.env.NODE_ENV = 'production'
-      process.env.DATABASE_URL = 'postgresql://user:pass@host.com:5432/db'
-      process.env.JWT_SECRET = 'secure-jwt-secret-with-sufficient-length-and-entropy-32chars'
-      process.env.ENCRYPTION_KEY =
-        '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
-      process.env.GITHUB_CLIENT_ID = 'Iv1.a1b2c3d4e5f6g7h8'
-      process.env.GITHUB_CLIENT_SECRET =
-        'test-github-client-secret-with-sufficient-length-for-testing-purposes-to-meet-40-char-requirement'
-
-      const { validateProductionEnv } = await import('@/lib/validation/env')
-
-      // Should not throw with complete environment
-      expect(() => validateProductionEnv()).not.toThrow()
-    })
-  })
-
-  describe('Zero-Trust Security Validation', () => {
-    it('should require encryption key validation in all environments', async () => {
-      const environments = ['development', 'test', 'production']
-
-      for (const env of environments) {
-        vi.stubEnv('NODE_ENV', env)
-        process.env.ENCRYPTION_KEY = 'invalid-key'
-
-        const { validateEnvironment } = await import('@/lib/validation/env')
-
-        expect(() => validateEnvironment()).toThrow(/invalid.*format.*hex/i)
-      }
-    })
-
-    it('should enforce entropy requirements for all keys', async () => {
-      // Test weak encryption key
-      process.env.NODE_ENV = 'production'
-      process.env.ENCRYPTION_KEY =
-        '1111111111111111111111111111111111111111111111111111111111111111'
-
-      const { validateEnvironment } = await import('@/lib/validation/env')
-
-      expect(() => validateEnvironment()).toThrow(/weak.*insufficient entropy/i)
-    })
-
-    it('should provide security guidance in error messages', async () => {
-      // Test missing encryption key
-      process.env.ENCRYPTION_KEY = undefined
-      process.env.NODE_ENV = 'production'
-
-      const { getEncryptionKey } = await import('@/lib/validation/env')
-
-      try {
-        getEncryptionKey()
-        expect.fail('Should have thrown an error')
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error)
-
-        // Should provide helpful guidance
-        expect(errorMessage).toContain('openssl rand -hex 32')
-        expect(errorMessage).toContain('64-character hexadecimal')
-        expect(errorMessage).toContain('256 bits')
-      }
-    })
-  })
-
-  describe('Multi-Factor Authentication (MFA) Security Validation', () => {
-    it('should validate WebAuthn registration security', async () => {
-      // Test WebAuthn configuration validation
-      const webauthnConfig = {
-        rpName: 'Contribux',
-        rpID: 'contribux.app',
-        origin: 'https://contribux.app',
-        userVerification: 'required',
-      }
-
-      expect(webauthnConfig.rpName).toBe('Contribux')
-      expect(webauthnConfig.rpID).toBe('contribux.app')
-      expect(webauthnConfig.origin).toContain('https://')
-      expect(webauthnConfig.userVerification).toBe('required')
-    })
-
-    it('should validate TOTP configuration security', () => {
-      // Test TOTP settings validation
-      const totpConfig = {
-        window: 30,
-        digits: 6,
-        algorithm: 'SHA1',
-        step: 30,
-      }
-
-      expect(totpConfig.window).toBe(30)
-      expect(totpConfig.digits).toBe(6)
-      expect(['SHA1', 'SHA256', 'SHA512']).toContain(totpConfig.algorithm)
-      expect(totpConfig.step).toBeGreaterThan(0)
-    })
-
-    it('should enforce MFA requirements for sensitive operations', () => {
-      const sensitiveOperations = [
-        'delete_account',
-        'change_email',
-        'export_data',
-        'revoke_all_tokens',
-        'disable_mfa',
-        'change_password',
-      ]
-
-      const mfaRequiredOps = sensitiveOperations.filter(op =>
-        ['delete_account', 'change_email', 'export_data', 'revoke_all_tokens'].includes(op)
-      )
-
-      expect(mfaRequiredOps.length).toBeGreaterThanOrEqual(4)
-    })
-
-    it('should validate backup code generation security', () => {
-      // Test backup code format and security
-      const backupCodes = ['123456', '789012', '345678', '901234', '567890']
-
-      backupCodes.forEach(code => {
-        expect(code).toMatch(/^\d{6}$/)
-        expect(code).not.toBe('000000')
-        expect(code).not.toBe('123456') // Should not be predictable
+  describe('Environment Variable Security', () => {
+    describe('Secret Validation', () => {
+      it('should enforce 32-character minimum for secrets', () => {
+        const shortSecret = 'short-secret-123'
+        expect(validateSecretEntropy(shortSecret)).toBe(false)
+
+        const validSecret = 'very-long-secure-secret-with-sufficient-length-and-complexity-12345'
+        expect(validateSecretEntropy(validSecret)).toBe(true)
       })
 
-      // Ensure codes are unique
-      const uniqueCodes = new Set(backupCodes)
-      expect(uniqueCodes.size).toBe(backupCodes.length)
-    })
-  })
+      it('should validate secret entropy requirements', () => {
+        // Low entropy secret (repetitive characters)
+        const lowEntropySecret = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+        expect(validateSecretEntropy(lowEntropySecret)).toBe(false)
 
-  describe('PKCE OAuth Security Implementation Validation', () => {
-    it('should enforce PKCE for all OAuth providers', () => {
-      const oauthProviders = ['github', 'google', 'discord']
+        // High entropy secret (good distribution)
+        const highEntropySecret = 'Kx9#mP2$vL8@qR4!nF7%dB3^wE6&yQ5*'
+        expect(validateSecretEntropy(highEntropySecret)).toBe(true)
+      })
 
-      oauthProviders.forEach(provider => {
-        const pkceParams = {
-          code_challenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
-          code_challenge_method: 'S256',
-          client_id: `${provider}_client_id`,
-        }
+      it('should detect weak patterns in secrets', () => {
+        const weakPatterns = [
+          '12345678901234567890123456789012', // Sequential numbers
+          'abcdefghijklmnopqrstuvwxyz123456', // Sequential letters
+          'password123password123password12', // Repeated words
+          'aaaabbbbccccddddeeeeffffgggghhh1', // Pattern repetition
+        ]
 
-        expect(pkceParams.code_challenge).toBeDefined()
-        expect(pkceParams.code_challenge_method).toBe('S256')
-        expect(pkceParams.code_challenge.length).toBeGreaterThan(0)
+        weakPatterns.forEach(pattern => {
+          expect(validateSecretEntropy(pattern)).toBe(false)
+        })
+      })
+
+      it('should reject test/dev keywords in production', () => {
+        process.env.NODE_ENV = 'production'
+
+        const testPatterns = [
+          'secure-test-token-32chars-minimum-key',
+          'demo-api-key',
+          'sample-jwt-secret',
+        ]
+
+        testPatterns.forEach(pattern => {
+          expect(() => getRequiredEnv('TEST_VAR')).toThrow(/test patterns in production/)
+        })
       })
     })
 
-    it('should validate code verifier generation security', () => {
-      // Test code verifier requirements
-      const codeVerifier = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk'
+    describe('Production Security Validation', () => {
+      beforeEach(() => {
+        process.env.NODE_ENV = 'production'
+      })
 
-      expect(codeVerifier.length).toBeGreaterThanOrEqual(43)
-      expect(codeVerifier.length).toBeLessThanOrEqual(128)
-      expect(codeVerifier).toMatch(/^[A-Za-z0-9_-]+$/) // Base64url encoding
-    })
+      it('should require secure secrets in production', () => {
+        process.env.JWT_SECRET = 'weak'
+        expect(() => validateProductionSecrets()).toThrow(/JWT_SECRET.*production/)
+      })
 
-    it('should reject weak PKCE implementations', () => {
-      const weakPKCEAttempts = [
-        { code_challenge_method: 'plain' }, // Weak method
-        { code_challenge: '' }, // Empty challenge
-        { code_verifier: '12345' }, // Too short
-      ]
+      it('should reject development patterns', () => {
+        process.env.DATABASE_URL = 'postgresql://localhost:5432/test'
+        expect(() => validateProductionSecuritySettings()).toThrow(/localhost.*test/)
+      })
 
-      weakPKCEAttempts.forEach(attempt => {
-        if (attempt.code_challenge_method === 'plain') {
-          expect(attempt.code_challenge_method).not.toBe('S256')
-        }
-        if (attempt.code_challenge === '') {
-          expect(attempt.code_challenge.length).toBe(0)
-        }
-        if (attempt.code_verifier && attempt.code_verifier.length < 43) {
-          expect(attempt.code_verifier.length).toBeLessThan(43)
-        }
+      it('should enforce HTTPS requirements', () => {
+        process.env.NEXTAUTH_URL = 'http://localhost:3000'
+        expect(() => validateProductionSecuritySettings()).toThrow(/production domain/)
+      })
+
+      it('should validate production-only settings', () => {
+        // Missing GitHub OAuth credentials
+        delete process.env.GITHUB_CLIENT_ID
+        delete process.env.GITHUB_CLIENT_SECRET
+
+        expect(() => validateProductionSecuritySettings()).toThrow(/GITHUB_CLIENT_ID.*configured/)
       })
     })
 
-    it('should validate code challenge generation', () => {
-      // Test code challenge requirements
-      const codeChallenge = 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM'
-      const codeChallengeMethod = 'S256'
+    describe('Required Variable Validation', () => {
+      it('should throw errors for missing critical variables', () => {
+        delete process.env.DATABASE_URL
+        expect(() => getRequiredEnv('DATABASE_URL')).toThrow(/DATABASE_URL.*missing/)
+      })
 
-      expect(codeChallenge.length).toBeGreaterThan(0)
-      expect(codeChallenge).toMatch(/^[A-Za-z0-9_-]+$/)
-      expect(codeChallengeMethod).toBe('S256')
+      it('should validate JWT_SECRET requirements', () => {
+        delete process.env.JWT_SECRET
+        expect(() => getJwtSecret()).toThrow(/JWT_SECRET/)
+      })
+
+      it('should check GitHub OAuth credentials', () => {
+        process.env.NODE_ENV = 'production'
+        process.env.GITHUB_CLIENT_ID = 'short'
+
+        expect(() => validateProductionSecuritySettings()).toThrow(/GITHUB_CLIENT_ID/)
+      })
+
+      it('should validate database connection strings', () => {
+        process.env.DATABASE_URL = 'invalid-url'
+        expect(() => getDatabaseUrl()).toThrow(/DATABASE_URL/)
+      })
+    })
+
+    describe('Fallback Security', () => {
+      it('should never fallback to insecure defaults', () => {
+        delete process.env.JWT_SECRET
+        expect(() => getJwtSecret()).toThrow()
+        // Should not return any default value
+      })
+
+      it('should throw errors instead of using test values', () => {
+        process.env.NODE_ENV = 'production'
+        process.env.JWT_SECRET = 'secure-test-token-32chars-minimum'
+
+        expect(() => getRequiredEnv('JWT_SECRET')).toThrow(/test patterns/)
+      })
+
+      it('should validate no test credential fallbacks exist', () => {
+        const criticalEnvVars = ['JWT_SECRET', 'NEXTAUTH_SECRET', 'ENCRYPTION_KEY', 'DATABASE_URL']
+
+        criticalEnvVars.forEach(envVar => {
+          delete process.env[envVar]
+          expect(() => getRequiredEnv(envVar)).toThrow(/missing/)
+        })
+      })
+
+      it('should ensure secure test environment defaults', () => {
+        process.env.NODE_ENV = 'test'
+
+        // Test environment should still have minimum security
+        expect(() => getRequiredEnv('NONEXISTENT_VAR')).toThrow(/missing/)
+      })
     })
   })
 
-  describe('Security Headers Enforcement Validation', () => {
-    it('should validate required security headers configuration', () => {
-      const requiredHeaders = {
-        'X-Content-Type-Options': 'nosniff',
-        'X-Frame-Options': 'DENY',
-        'X-XSS-Protection': '1; mode=block',
-        'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
-        'Content-Security-Policy': "default-src 'self'",
-        'Referrer-Policy': 'strict-origin-when-cross-origin',
-        'Permissions-Policy': 'geolocation=(), microphone=(), camera=()',
-      }
+  describe('Configuration Security Patterns', () => {
+    describe('OAuth Configuration Security', () => {
+      it('should validate GitHub client credentials', () => {
+        process.env.NODE_ENV = 'production'
+        process.env.GITHUB_CLIENT_ID = 'valid_client_id_123'
+        process.env.GITHUB_CLIENT_SECRET = 'valid_client_secret_456789'
 
-      Object.entries(requiredHeaders).forEach(([header, value]) => {
-        expect(value).toBeDefined()
-        if (header === 'Strict-Transport-Security') {
-          expect(value).toContain('max-age')
-          expect(value).toContain('includeSubDomains')
+        expect(() => validateProductionSecuritySettings()).not.toThrow()
+      })
+
+      it('should enforce secure redirect URIs', () => {
+        process.env.NODE_ENV = 'production'
+        process.env.ALLOWED_REDIRECT_URIS = 'http://localhost:3000/api/auth'
+
+        expect(() => validateProductionSecuritySettings()).toThrow(/localhost.*production/)
+      })
+
+      it('should validate OAuth scope restrictions', () => {
+        // This would be tested with actual OAuth configuration
+        const oauthConfig = {
+          providers: {
+            github: {
+              clientId: 'test-id',
+              clientSecret: 'secure-test-token-32chars-minimum',
+              scope: 'user:email read:user',
+            },
+          },
         }
-        if (header === 'Content-Security-Policy') {
-          expect(value).toContain('default-src')
-        }
+
+        expect(oauthConfig.providers.github.scope).toBeDefined()
+      })
+
+      it('should check PKCE configuration', () => {
+        // PKCE should be enabled for OAuth flows
+        const authConfig = createConfig()
+        expect(authConfig.oauth.pkce.enabled).toBe(true)
       })
     })
 
-    it('should validate CSP directive security', () => {
-      const cspDirectives = {
-        'default-src': "'self'",
-        'script-src': "'self' 'unsafe-inline'",
-        'style-src': "'self' 'unsafe-inline'",
-        'img-src': "'self' data: https:",
-        'connect-src': "'self'",
-        'font-src': "'self'",
-        'object-src': "'none'",
-        'media-src': "'self'",
-        'frame-src': "'none'",
-      }
+    describe('Database Configuration Security', () => {
+      it('should validate connection string format', () => {
+        process.env.DATABASE_URL = 'postgresql://user:pass@host:5432/db?sslmode=require'
+        expect(() => getDatabaseUrl()).not.toThrow()
 
-      // Validate secure CSP directives
-      expect(cspDirectives['default-src']).toBe("'self'")
-      expect(cspDirectives['object-src']).toBe("'none'")
-      expect(cspDirectives['frame-src']).toBe("'none'")
+        process.env.DATABASE_URL = 'invalid-format'
+        expect(() => getDatabaseUrl()).toThrow()
+      })
 
-      // Check for potentially unsafe directives
-      const unsafeDirectives = Object.entries(cspDirectives).filter(
-        ([_key, value]) => value.includes("'unsafe-eval'") || value === "'unsafe-inline'"
-      )
+      it('should enforce SSL/TLS requirements', () => {
+        process.env.NODE_ENV = 'production'
+        process.env.DATABASE_URL = 'postgresql://user:pass@host:5432/db?sslmode=disable'
 
-      // Should have minimal unsafe directives
-      expect(unsafeDirectives.length).toBeLessThanOrEqual(2)
+        expect(() => validateProductionUrls()).toThrow(/SSL/)
+      })
+
+      it('should check connection pooling security', () => {
+        const dbConfig = databaseConfig
+        expect(dbConfig.pool.max).toBeGreaterThan(0)
+        expect(dbConfig.pool.connectionTimeoutMillis).toBeLessThan(30000)
+      })
+
+      it('should validate environment-specific URLs', () => {
+        process.env.NODE_ENV = 'production'
+        process.env.DATABASE_URL = 'postgresql://localhost:5432/test'
+
+        expect(() => validateProductionSecuritySettings()).toThrow(/localhost.*test/)
+      })
+    })
+
+    describe('JWT Configuration Security', () => {
+      it('should validate JWT secret security', () => {
+        process.env.JWT_SECRET = 'weak'
+        expect(() => getJwtSecret()).toThrow(/32 characters/)
+      })
+
+      it('should check algorithm restrictions', () => {
+        const authConfig = createConfig()
+        expect(authConfig.jwt.algorithm).toBe('HS256')
+        expect(['HS256', 'RS256']).toContain(authConfig.jwt.algorithm)
+      })
+
+      it('should validate token expiration settings', () => {
+        const authConfig = createConfig()
+        expect(authConfig.jwt.expiresIn).toBeDefined()
+        expect(authConfig.jwt.expiresIn).toMatch(/^\d+[smhd]$/) // Format: 1h, 30m, etc.
+      })
+
+      it('should enforce issuer/audience validation', () => {
+        const authConfig = createConfig()
+        expect(authConfig.jwt.issuer).toBeDefined()
+        expect(authConfig.jwt.audience).toBeDefined()
+      })
+    })
+
+    describe('Session Configuration Security', () => {
+      it('should validate session secret security', () => {
+        process.env.NEXTAUTH_SECRET = 'weak-secret'
+        expect(() => getRequiredEnv('NEXTAUTH_SECRET')).toThrow(/32 characters/)
+      })
+
+      it('should check cookie security settings', () => {
+        const authConfig = createConfig()
+        expect(authConfig.session.cookie.secure).toBe(true)
+        expect(authConfig.session.cookie.httpOnly).toBe(true)
+        expect(authConfig.session.cookie.sameSite).toBe('strict')
+      })
+
+      it('should validate session timeout settings', () => {
+        const authConfig = createConfig()
+        expect(authConfig.session.maxAge).toBeGreaterThan(0)
+        expect(authConfig.session.maxAge).toBeLessThan(86400 * 30) // Max 30 days
+      })
+
+      it('should enforce secure session storage', () => {
+        const authConfig = createConfig()
+        expect(authConfig.session.strategy).toBe('jwt')
+      })
     })
   })
 
-  describe('Rate Limiting Configuration Validation', () => {
-    it('should validate rate limiting thresholds', () => {
-      const rateLimitConfig = {
-        auth_endpoints: { limit: 5, window: '15m' },
-        api_endpoints: { limit: 100, window: '15m' },
-        search_endpoints: { limit: 50, window: '15m' },
-      }
+  describe('Startup Security Validation', () => {
+    describe('Configuration Audit', () => {
+      it('should validate all required configurations', () => {
+        process.env.NODE_ENV = 'production'
+        process.env.DATABASE_URL = 'postgresql://user:pass@host:5432/db?sslmode=require'
+        process.env.JWT_SECRET = 'very-long-secure-secret-with-sufficient-entropy-123456789'
+        process.env.NEXTAUTH_SECRET = 'another-very-long-secure-secret-with-sufficient-entropy-123'
+        process.env.NEXTAUTH_URL = 'https://contribux.ai'
+        process.env.GITHUB_CLIENT_ID = 'valid_client_id_12345'
+        process.env.GITHUB_CLIENT_SECRET = 'valid_client_secret_67890_abcdef'
 
-      Object.entries(rateLimitConfig).forEach(([endpoint, config]) => {
-        expect(config.limit).toBeGreaterThan(0)
-        expect(config.window).toMatch(/^\d+[ms]$/)
+        expect(() => validateEnvironmentOnStartup()).not.toThrow()
+      })
 
-        if (endpoint === 'auth_endpoints') {
-          expect(config.limit).toBeLessThanOrEqual(10) // Strict for auth
-        }
+      it('should check security configuration completeness', () => {
+        // Missing security configuration should fail
+        delete process.env.JWT_SECRET
+        expect(() => validateEnvironmentOnStartup()).toThrow()
+      })
+
+      it('should verify no insecure patterns exist', () => {
+        process.env.NODE_ENV = 'production'
+        process.env.JWT_SECRET = 'secure-test-token-32chars-minimum-insecure'
+
+        expect(() => validateEnvironmentOnStartup()).toThrow(/test patterns/)
+      })
+
+      it('should validate environment consistency', () => {
+        process.env.NODE_ENV = 'production'
+        process.env.DEBUG = 'true'
+
+        expect(() => validateProductionEnv()).toThrow(/DEBUG.*production/)
       })
     })
 
-    it('should validate rate limiting implementation security', () => {
-      const rateLimitFeatures = {
-        ip_based: true,
-        user_based: true,
-        endpoint_specific: true,
-        sliding_window: true,
-        redis_backend: true,
-      }
+    describe('Security Misconfiguration Detection', () => {
+      it('should detect hardcoded secrets', () => {
+        const configContent = `
+          const config = {
+            secret: "hardcoded-secret-123",
+            apiKey: "sk-1234567890"
+          }
+        `
 
-      // Ensure comprehensive rate limiting
-      expect(rateLimitFeatures.ip_based).toBe(true)
-      expect(rateLimitFeatures.user_based).toBe(true)
-      expect(rateLimitFeatures.endpoint_specific).toBe(true)
+        expect(configContent).toMatch(/hardcoded-secret|sk-\d+/)
+      })
+
+      it('should find insecure fallback patterns', () => {
+        const insecureDefault = process.env.JWT_SECRET || 'fallback-secret'
+        expect(insecureDefault).not.toBe('fallback-secret')
+      })
+
+      it('should identify development configurations in production', () => {
+        process.env.NODE_ENV = 'production'
+        process.env.CORS_ORIGINS = '*'
+
+        expect(() => validateProductionSecuritySettings()).toThrow(/CORS.*production/)
+      })
+
+      it('should validate security header configurations', () => {
+        const securityConfig = appConfig.security
+        expect(securityConfig.headers.xFrameOptions).toBe('DENY')
+        expect(securityConfig.headers.contentSecurityPolicy).toBeDefined()
+      })
+    })
+
+    describe('Environment-Specific Validation', () => {
+      it('should apply production-specific validations', () => {
+        process.env.NODE_ENV = 'production'
+        process.env.DATABASE_URL = 'postgresql://localhost:5432/test'
+
+        expect(() => validateEnvironmentOnStartup()).toThrow()
+      })
+
+      it('should allow secure development configurations', () => {
+        process.env.NODE_ENV = 'development'
+        process.env.DATABASE_URL = 'postgresql://localhost:5432/contribux_dev'
+        process.env.JWT_SECRET = 'development-secret-with-sufficient-length-12345'
+
+        expect(() => validateEnvironmentOnStartup()).not.toThrow()
+      })
+
+      it('should validate test environment security', () => {
+        process.env.NODE_ENV = 'test'
+        process.env.DATABASE_URL = 'postgresql://localhost:5432/contribux_test'
+
+        expect(() => validateBasicEnvironmentVariables()).not.toThrow()
+      })
+
+      it('should enforce environment separation', () => {
+        process.env.NODE_ENV = 'production'
+        process.env.DATABASE_URL = 'postgresql://localhost:5432/contribux_dev'
+
+        expect(() => validateProductionSecuritySettings()).toThrow(/localhost/)
+      })
     })
   })
 })

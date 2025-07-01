@@ -89,7 +89,7 @@ export function createTestEnv() {
     GITHUB_TOKEN: 'test-github-token',
     OPENAI_API_KEY: 'test-openai-key',
     // Security settings
-    NEXTAUTH_SECRET: 'test-secret-key-min-32-chars-long',
+    NEXTAUTH_SECRET: 'secure-test-token-32chars-minimum-key-min-32-chars-long',
     NEXTAUTH_URL: 'http://localhost:3000',
     // Disable external services in tests
     DISABLE_ANALYTICS: 'true',

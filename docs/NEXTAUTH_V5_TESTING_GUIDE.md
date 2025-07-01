@@ -376,7 +376,7 @@ pnpm test:e2e
 
 ```bash
 # Test Environment Variables (.env.test)
-NEXTAUTH_SECRET=test-secret-key-32-chars-long
+NEXTAUTH_SECRET=secure-test-token-32chars-minimum-key-32-chars-long
 NEXTAUTH_URL=http://localhost:3000
 GITHUB_CLIENT_ID=test-github-client-id
 GITHUB_CLIENT_SECRET=test-github-client-secret

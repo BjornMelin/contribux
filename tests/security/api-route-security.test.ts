@@ -26,7 +26,7 @@ vi.mock('../../src/lib/security/crypto', () => ({
 // Mock environment validation
 vi.mock('../../src/lib/validation/env', () => ({
   env: {
-    NEXTAUTH_SECRET: 'test-secret-key-for-testing',
+    NEXTAUTH_SECRET: 'secure-test-token-32chars-minimum-key-for-testing',
     GITHUB_CLIENT_ID: 'test-github-client-id',
     GITHUB_CLIENT_SECRET: 'test-github-client-secret',
     DATABASE_URL: 'postgresql://test:test@localhost:5432/test_db',

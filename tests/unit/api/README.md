@@ -84,7 +84,7 @@ Tests include proper environment variable setup:
 
 ```typescript
 process.env.NODE_ENV = 'test'
-process.env.NEXTAUTH_SECRET = 'test-secret'
+process.env.NEXTAUTH_SECRET = 'secure-test-token-32chars-minimum'
 process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test'
 ```
 

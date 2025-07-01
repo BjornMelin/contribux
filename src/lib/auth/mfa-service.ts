@@ -179,7 +179,7 @@ async function enrollMFA(
         return await enrollTOTP(user)
 
       case 'webauthn':
-        return await enrollWebAuthn(user, request.deviceName, req)
+        return await enrollWebAuthn(user, request.deviceName || 'Default Device', req)
 
       default:
         return {
@@ -236,11 +236,11 @@ async function enrollTOTP(user: User): Promise<MFAEnrollmentResponse> {
       secret: enrollment.secret,
       backupCodes: enrollment.backupCodes, // Show once during enrollment
     }
-    
+
     if (enrollment.qrCodeUrl !== undefined) {
       response.qrCodeUrl = enrollment.qrCodeUrl
     }
-    
+
     return response
   }
 
@@ -265,9 +265,10 @@ async function enrollWebAuthn(
   if (enrollment.success && enrollment.registrationOptions) {
     // Store challenge for verification
     const challengeId = `webauthn:${user.id}:${Date.now()}`
+    const regOptions = enrollment.registrationOptions as any
     mfaChallenges.set(challengeId, {
       userId: user.id,
-      challenge: enrollment.registrationOptions.challenge,
+      challenge: regOptions.challenge,
       method: 'webauthn',
       expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
       registrationOptions: enrollment.registrationOptions,
@@ -312,7 +313,7 @@ async function verifyMFA(
       return {
         success: false,
         method: request.method,
-        lockoutDuration: lockoutCheck.remainingTime,
+        lockoutDuration: lockoutCheck.remainingTime || 0,
         error: 'Account temporarily locked due to too many failed attempts',
       }
     }

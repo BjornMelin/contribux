@@ -299,7 +299,7 @@ GITHUB_APP_ID=12345
 GITHUB_APP_PRIVATE_KEY=test-key
 
 # Auth
-NEXTAUTH_SECRET=test-secret
+NEXTAUTH_SECRET=secure-test-token-32chars-minimum
 ```
 
 ## Best Practices

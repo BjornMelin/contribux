@@ -7,7 +7,7 @@
 
 // NextAuth.js v5 configuration following industry best practices
 import * as jwt from 'jsonwebtoken'
-import type { JWT, NextAuthConfig } from 'next-auth'
+import type { NextAuthConfig, JWT } from 'next-auth'
 import NextAuth from 'next-auth'
 import GitHub from 'next-auth/providers/github'
 import { env } from '@/lib/env'
@@ -24,6 +24,8 @@ interface ExtendedJWT extends JWT {
   provider?: string
   login?: string
   githubId?: number
+  accessToken?: string
+  refreshToken?: string
   // Ensure index signature compatibility
   [key: string]: unknown
 }
@@ -78,11 +80,11 @@ const authConfig: NextAuthConfig = {
         audience: 'contribux-app',
       })
     },
-    decode({ token, secret }) {
+    decode: ({ token, secret }) => {
       try {
         // Ensure secret is a string
         const secretKey = Array.isArray(secret) ? secret[0] : secret
-        if (!secretKey) {
+        if (!secretKey || !token) {
           return null
         }
 
@@ -113,7 +115,7 @@ const authConfig: NextAuthConfig = {
   },
 
   callbacks: {
-    async jwt({ token, account, profile }) {
+    jwt: async ({ token, account, profile }) => {
       // Cast token to ExtendedJWT for type safety
       const extendedToken = token as ExtendedJWT
 
@@ -428,7 +430,7 @@ const authConfig: NextAuthConfig = {
       }
     },
   },
-} satisfies NextAuthConfig
+}
 
 // Export NextAuth.js v5 handlers and utilities
 const nextAuthResult = NextAuth(authConfig)

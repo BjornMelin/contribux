@@ -645,7 +645,8 @@ export const setupAuthTestEnvironment = () => {
   // Mock environment variables
   vi.mock('@/lib/validation/env', () => ({
     env: {
-      NEXTAUTH_SECRET: 'test-secret-key-that-is-32-characters-long-for-security',
+      NEXTAUTH_SECRET:
+        'secure-test-token-32chars-minimum-key-that-is-32-characters-long-for-security',
       NEXTAUTH_URL: 'https://contribux.example.com',
       GITHUB_CLIENT_ID: 'test-github-client-id',
       GITHUB_CLIENT_SECRET: 'test-github-client-secret',
