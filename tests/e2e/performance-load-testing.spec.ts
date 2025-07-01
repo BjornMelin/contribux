@@ -460,8 +460,12 @@ test.describe('Performance and Load Testing', () => {
 
       // Force garbage collection if available
       await page.evaluate(() => {
-        if ('gc' in window) {
-          ;(window as any).gc()
+        interface WindowWithGC extends Window {
+          gc?: () => void
+        }
+        const win = window as WindowWithGC
+        if (win.gc) {
+          win.gc()
         }
       })
 
@@ -558,7 +562,7 @@ test.describe('Performance and Load Testing', () => {
     })
   })
 
-  test.afterEach(async ({ page }) => {
+  test.afterEach(async () => {
     // Log final memory state
     const finalMemory = await utils.performance.measureMemoryUsage()
     if (finalMemory) {

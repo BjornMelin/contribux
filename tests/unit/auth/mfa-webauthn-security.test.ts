@@ -6,14 +6,14 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  generateWebAuthnRegistrationOptions,
-  verifyWebAuthnRegistration,
-  generateWebAuthnAuthenticationOptions,
-  verifyWebAuthnAuthentication,
   arrayBufferToBase64url,
   base64urlToArrayBuffer,
+  generateWebAuthnAuthenticationOptions,
+  generateWebAuthnRegistrationOptions,
+  verifyWebAuthnAuthentication,
+  verifyWebAuthnRegistration,
 } from '@/lib/auth/webauthn-enhanced'
-import type { WebAuthnCredential, User } from '@/types/auth'
+import type { User, WebAuthnCredential } from '@/types/auth'
 
 // Mock @simplewebauthn/server for controlled testing
 vi.mock('@simplewebauthn/server', () => ({

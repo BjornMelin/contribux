@@ -351,6 +351,16 @@ export function applyCSPHeaders(
   response.headers.set('X-XSS-Protection', '1; mode=block')
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
 
+  // Add HSTS header for production and secure contexts
+  const isProduction = process.env.NODE_ENV === 'production'
+  const isSecure = request.url.startsWith('https://')
+  if (isProduction || isSecure) {
+    response.headers.set(
+      'Strict-Transport-Security',
+      'max-age=31536000; includeSubDomains; preload'
+    )
+  }
+
   // Add Trusted Types header if enabled
   if (CSP_CORS_CONFIG.csp.enableTrustedTypes) {
     response.headers.set('Require-Trusted-Types-For', 'script')

@@ -22,13 +22,13 @@ import {
   OpportunityList,
   SearchBar,
   SearchFilters as SearchFiltersComponent,
-} from '../../src/components/features'
+} from '@/components/features'
 import {
   type Opportunity,
   OpportunitySchema,
   type SearchFilters,
   SearchFiltersSchema,
-} from '../../src/types/search'
+} from '@/types/search'
 import {
   asUUID,
   cleanupComponentTest,
@@ -36,8 +36,8 @@ import {
   createMockRepository,
   createModernMockRouter,
   selectOption,
-} from '../test-utils/modern-test-helpers'
-import { setupMSW } from '../test-utils/msw-unified'
+} from '../../utils/modern-test-helpers'
+import { setupMSW } from '../../utils/msw-unified'
 
 // Setup MSW for API mocking
 setupMSW()

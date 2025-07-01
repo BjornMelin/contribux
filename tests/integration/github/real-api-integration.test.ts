@@ -15,7 +15,7 @@
  */
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { GitHubClient } from '../../../src/lib/github/client'
+import { GitHubClient } from '@/lib/github/client'
 
 // Environment validation
 const REQUIRED_ENV_VARS = ['GITHUB_TEST_TOKEN', 'GITHUB_TEST_ORG'] as const

@@ -11,17 +11,35 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      // Fix Next.js module resolution for tests
+      'next/server': path.resolve(__dirname, 'node_modules/next/dist/server/index.js'),
+      'next/headers': path.resolve(
+        __dirname,
+        'node_modules/next/dist/client/components/headers.js'
+      ),
+      'next/navigation': path.resolve(
+        __dirname,
+        'node_modules/next/dist/client/components/navigation.js'
+      ),
     },
     extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
   },
 
   define: {
-    'import.meta.vitest': undefined,
+    'import.meta.vitest': 'undefined',
     global: 'globalThis',
+    // Fix for Next.js edge runtime compatibility
+    'process.env.NEXT_RUNTIME': '"nodejs"',
+    'process.env.__NEXT_PRIVATE_ORIGIN': '"http://localhost:3000"',
+  },
+
+  // MSW and test environment compatibility
+  ssr: {
+    noExternal: ['msw', '@testing-library/react'],
   },
 
   test: {
-    // Modern Vitest 3.2+ configuration for unit and security tests
+    // Modern Vitest 3.2+ configuration
     globals: true,
     environment: 'jsdom',
 
@@ -36,25 +54,35 @@ export default defineConfig({
       'tests/integration/**/*',
       'tests/performance/**/*',
       'tests/e2e/**/*',
+      'node_modules/**/*',
+      'dist/**/*',
+      '.next/**/*',
     ],
 
     setupFiles: ['./tests/setup.ts'],
 
-    // Performance optimized for unit tests
-    isolate: true,
+    // Optimized pool configuration for Vitest 3.2+
     pool: 'threads',
     poolOptions: {
       threads: {
         singleThread: false,
         minThreads: 1,
-        maxThreads: 4,
+        maxThreads: Math.min(4, require('os').cpus().length),
       },
     },
 
+    // Modern coverage configuration
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
-      exclude: [...(configDefaults.coverage.exclude || []), 'tests/**/*', '**/*.config.*'],
+      exclude: [
+        ...(configDefaults.coverage?.exclude || []),
+        'tests/**/*',
+        '**/*.config.*',
+        '**/*.d.ts',
+        'scripts/**/*',
+        '.next/**/*',
+      ],
       thresholds: {
         global: {
           branches: 80,
@@ -65,11 +93,20 @@ export default defineConfig({
       },
     },
 
-    testTimeout: 30000,
-    hookTimeout: 15000,
-    retry: 2,
+    // Reasonable timeouts
+    testTimeout: 15000,
+    hookTimeout: 10000,
+    retry: 1,
 
-    reporters: ['default', 'json'],
-    outputFile: { json: './test-results.json' },
+    // Modern reporter configuration
+    reporters: ['default'],
+    outputFile: {
+      json: './test-results.json',
+    },
+
+    // Environment configuration
+    env: {
+      NODE_ENV: 'test',
+    },
   },
 })

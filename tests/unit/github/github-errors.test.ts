@@ -16,7 +16,7 @@ import {
   isRateLimitError,
   isRequestError,
   isSecondaryRateLimitError,
-} from '../../src/lib/github/errors'
+} from '@/lib/github/errors'
 
 describe('GitHub Error Classes', () => {
   describe('GitHubClientError', () => {

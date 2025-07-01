@@ -4,7 +4,6 @@
  * digital signatures, and cryptographic operations for zero-trust architecture
  */
 
-import { timingSafeEqual } from 'node:crypto'
 import { z } from 'zod'
 
 // Note: This module provides enhanced crypto functions
@@ -321,7 +320,14 @@ export async function verifyDigitalSignature(
 export function generateSecureToken(length?: number): string {
   const tokenLength = length || ENHANCED_CRYPTO_CONFIG.random.tokenLength
   const randomBytes = crypto.getRandomValues(new Uint8Array(tokenLength))
-  return base64Encode(randomBytes).replace(/[+/=]/g, '')
+  const base64Token = base64Encode(randomBytes).replace(/[+/=]/g, '')
+
+  // For CSP nonces, ensure exact length match
+  if (length && length <= 24) {
+    return base64Token.substring(0, length)
+  }
+
+  return base64Token
 }
 
 /**
@@ -355,7 +361,7 @@ export async function createHMAC(message: string | Uint8Array, key: CryptoKey): 
 }
 
 /**
- * Verify HMAC signature
+ * Verify HMAC signature using timing-safe comparison
  */
 export async function verifyHMAC(
   message: string | Uint8Array,
@@ -364,13 +370,42 @@ export async function verifyHMAC(
 ): Promise<boolean> {
   try {
     const computedHmac = await createHMAC(message, key)
-    const expectedBuffer = Buffer.from(expectedHmac)
-    const computedBuffer = Buffer.from(computedHmac)
 
-    return timingSafeEqual(expectedBuffer, computedBuffer)
+    // Use Web Crypto API for timing-safe comparison
+    return await timingSafeEqual(expectedHmac, computedHmac)
   } catch {
     return false
   }
+}
+
+/**
+ * Timing-safe comparison using Web Crypto API
+ * Protects against timing attacks by ensuring constant-time comparison
+ */
+async function timingSafeEqual(a: string, b: string): Promise<boolean> {
+  // Convert strings to Uint8Arrays
+  const aBytes = new TextEncoder().encode(a)
+  const bBytes = new TextEncoder().encode(b)
+
+  // If lengths are different, return false (but still do work to maintain timing)
+  if (aBytes.length !== bBytes.length) {
+    // Perform a dummy comparison to maintain timing
+    const dummy = new Uint8Array(Math.max(aBytes.length, bBytes.length))
+    dummy.fill(0)
+    let _result = 0
+    for (let i = 0; i < dummy.length; i++) {
+      _result |= (dummy[i] ?? 0) ^ (i < aBytes.length ? (aBytes[i] ?? 0) : 0)
+    }
+    return false
+  }
+
+  // XOR all bytes and check if result is zero
+  let result = 0
+  for (let i = 0; i < aBytes.length; i++) {
+    result |= (aBytes[i] ?? 0) ^ (bBytes[i] ?? 0)
+  }
+
+  return result === 0
 }
 
 /**

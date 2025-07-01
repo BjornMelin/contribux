@@ -5,7 +5,7 @@
 
 import { HttpResponse, http } from 'msw'
 import { setupServer } from 'msw/node'
-import { GitHubClient, type GitHubClientConfig, type TokenInfo } from '../../../src/lib/github'
+import { GitHubClient, type GitHubClientConfig, type TokenInfo } from '@/lib/github'
 import { mswServer } from '../../github/msw-setup'
 import { createRateLimitHeaders } from '../../github/test-helpers'
 

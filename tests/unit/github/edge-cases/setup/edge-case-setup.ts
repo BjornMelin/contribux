@@ -6,10 +6,8 @@
  */
 
 import { afterEach, beforeEach } from 'vitest'
-import { GitHubClient } from '@/lib/github'
-import type { GitHubClientConfig } from '@/lib/github/client'
 import { mswServer } from '../../msw-setup'
-import { createTrackedClient, setupGitHubTestIsolation } from '../../test-helpers'
+import { type GitHubClientConfig, MockGitHubClient } from './mock-github-client'
 
 /**
  * Standard configuration for edge case testing
@@ -25,6 +23,7 @@ export const EDGE_CASE_CONFIG: Partial<GitHubClientConfig> = {
     maxAge: 100, // Short cache for testing
     maxSize: 3, // Small cache size to test eviction
   },
+  timeout: 1000, // 1 second timeout for edge case tests
 }
 
 /**
@@ -63,12 +62,7 @@ export const TIMEOUT_EDGE_CASE_CONFIG: Partial<GitHubClientConfig> = {
  * Setup enhanced edge case test isolation
  */
 export function setupEdgeCaseTestIsolation() {
-  // Use base GitHub test isolation
-  setupGitHubTestIsolation()
-
   beforeEach(() => {
-    // Additional edge case specific setup
-
     // Clear any edge case specific state
     if ((global as Record<string, unknown>).__edgeCaseTestState) {
       ;(global as Record<string, unknown>).__edgeCaseTestState = undefined
@@ -92,49 +86,53 @@ export function setupEdgeCaseTestIsolation() {
 /**
  * Create a client specifically configured for edge case testing
  */
-export function createEdgeCaseClient(config?: Partial<GitHubClientConfig>): GitHubClient {
+export function createEdgeCaseClient(config?: Partial<GitHubClientConfig>): MockGitHubClient {
   const mergedConfig = {
     ...EDGE_CASE_CONFIG,
     ...config,
   }
 
-  return createTrackedClient(GitHubClient, mergedConfig)
+  return new MockGitHubClient(mergedConfig)
 }
 
 /**
  * Create a client for authentication edge case testing
  */
-export function createAuthEdgeCaseClient(config?: Partial<GitHubClientConfig>): GitHubClient {
+export function createAuthEdgeCaseClient(config?: Partial<GitHubClientConfig>): MockGitHubClient {
   const mergedConfig = {
     ...AUTH_EDGE_CASE_CONFIG,
     ...config,
   }
 
-  return createTrackedClient(GitHubClient, mergedConfig)
+  return new MockGitHubClient(mergedConfig)
 }
 
 /**
  * Create a client for rate limiting edge case testing
  */
-export function createRateLimitEdgeCaseClient(config?: Partial<GitHubClientConfig>): GitHubClient {
+export function createRateLimitEdgeCaseClient(
+  config?: Partial<GitHubClientConfig>
+): MockGitHubClient {
   const mergedConfig = {
     ...RATE_LIMIT_EDGE_CASE_CONFIG,
     ...config,
   }
 
-  return createTrackedClient(GitHubClient, mergedConfig)
+  return new MockGitHubClient(mergedConfig)
 }
 
 /**
  * Create a client for timeout testing
  */
-export function createTimeoutEdgeCaseClient(config?: Partial<GitHubClientConfig>): GitHubClient {
+export function createTimeoutEdgeCaseClient(
+  config?: Partial<GitHubClientConfig>
+): MockGitHubClient {
   const mergedConfig = {
     ...TIMEOUT_EDGE_CASE_CONFIG,
     ...config,
   }
 
-  return createTrackedClient(GitHubClient, mergedConfig)
+  return new MockGitHubClient(mergedConfig)
 }
 
 /**

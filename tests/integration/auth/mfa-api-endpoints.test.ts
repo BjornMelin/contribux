@@ -4,11 +4,11 @@
  * Tests authentication, authorization, rate limiting, and input validation
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { type NextRequest, NextResponse } from 'next/server'
-import { POST as enrollPOST, GET as enrollGET } from '@/app/api/auth/mfa/enroll/route'
-import { POST as verifyPOST } from '@/app/api/auth/mfa/verify/route'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { GET as enrollGET, POST as enrollPOST } from '@/app/api/auth/mfa/enroll/route'
 import { GET as settingsGET, POST as settingsPOST } from '@/app/api/auth/mfa/settings/route'
+import { POST as verifyPOST } from '@/app/api/auth/mfa/verify/route'
 import type { User } from '@/types/auth'
 
 // Mock the MFA service and middleware

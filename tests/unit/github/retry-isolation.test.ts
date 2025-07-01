@@ -4,8 +4,8 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import { GitHubClient } from '../../src/lib/github/client'
-import { createRequestContext, GitHubError } from '../../src/lib/github/errors'
+import { GitHubClient } from '@/lib/github/client'
+import { createRequestContext, GitHubError } from '@/lib/github/errors'
 
 describe('GitHub Client Retry Context - Modern Octokit Patterns', () => {
   it('should configure Octokit with proper retry settings', async () => {

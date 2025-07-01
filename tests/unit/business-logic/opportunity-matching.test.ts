@@ -4,9 +4,9 @@
  */
 
 import { beforeEach, describe, expect, it } from 'vitest'
-import type { BusinessOpportunity, UserProfile } from '../../src/lib/business-logic'
-import { MatchScoreSchema, OpportunityMatcher } from '../../src/lib/business-logic'
-import type { UUID } from '../../src/types/base'
+import type { BusinessOpportunity, UserProfile } from '@/lib/business-logic'
+import { MatchScoreSchema, OpportunityMatcher } from '@/lib/business-logic'
+import type { UUID } from '@/types/base'
 
 describe('Opportunity Matching Business Logic', () => {
   let matcher: OpportunityMatcher

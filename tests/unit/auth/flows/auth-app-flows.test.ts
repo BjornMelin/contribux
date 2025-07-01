@@ -10,7 +10,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { GitHubAuthenticationError } from '../../../src/lib/github/errors'
+import { GitHubAuthenticationError } from '@/lib/github/errors'
 import type { IntegrationTestContext } from '../../integration/infrastructure/test-config'
 import { describeIntegration, integrationTest } from '../../integration/infrastructure/test-runner'
 import { jwtClaims } from './fixtures/auth-scenarios'

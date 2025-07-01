@@ -4,7 +4,7 @@
  */
 
 import { vi } from 'vitest'
-import type { Opportunity, SearchFilters } from '../../../../src/types/search'
+import type { Opportunity, SearchFilters } from '@/types/search'
 import { mockOpportunities, sharedMockOpportunity } from '../fixtures/search-component-data'
 
 // Mock search API responses

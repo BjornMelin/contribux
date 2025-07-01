@@ -1,6 +1,9 @@
 /**
  * MSW (Mock Service Worker) Setup and Handlers
  * Optimized for performance with cached handlers and streamlined initialization
+ *
+ * This is the unified MSW setup that consolidates all MSW configurations
+ * and fixes fetch/Node.js compatibility issues
  */
 
 import { type HttpHandler, HttpResponse, http } from 'msw'
@@ -15,6 +18,18 @@ import {
   type GitHubUserMock,
   resetAllGitHubMockCounters,
 } from './github-mocks'
+
+// Ensure global fetch is available for MSW
+if (typeof globalThis.fetch === 'undefined') {
+  throw new Error(
+    'fetch is not available. Make sure the setup.ts file is properly loaded before MSW.'
+  )
+}
+
+// Ensure TransformStream is available for MSW 2.x
+if (typeof globalThis.TransformStream === 'undefined') {
+  console.warn('TransformStream not available, MSW may not work correctly')
+}
 
 // Performance optimizations: Pre-compiled regex patterns for faster matching
 const XSS_PATTERNS = [/<script[^>]*>/i, /javascript:/i, /on\w+\s*=/i, /expression\s*\(/i]
@@ -242,19 +257,43 @@ export const githubHandlers = [
 export const server = setupServer(...githubHandlers)
 
 /**
- * Setup MSW for testing
+ * Setup MSW for testing with improved error handling and isolation
  */
 export function setupMSW() {
   beforeAll(() => {
-    server.listen({ onUnhandledRequest: 'warn' })
+    // Verify fetch is available before starting MSW
+    if (typeof globalThis.fetch === 'undefined') {
+      throw new Error('fetch polyfill not loaded. Ensure tests/setup.ts is properly configured.')
+    }
+
+    try {
+      server.listen({
+        onUnhandledRequest: 'warn',
+        onUnhandledError: error => {
+          console.warn('MSW unhandled error:', error)
+        },
+      })
+    } catch (error) {
+      console.error('Failed to start MSW server:', error)
+      throw error
+    }
   })
 
   afterEach(() => {
-    server.resetHandlers()
+    try {
+      server.resetHandlers()
+      resetAllGitHubMockCounters()
+    } catch (error) {
+      console.warn('Error resetting MSW handlers:', error)
+    }
   })
 
   afterAll(() => {
-    server.close()
+    try {
+      server.close()
+    } catch (error) {
+      console.warn('Error closing MSW server:', error)
+    }
   })
 }
 

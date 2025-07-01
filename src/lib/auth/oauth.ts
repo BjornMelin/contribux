@@ -3,8 +3,9 @@ import { oauthConfig } from '@/lib/config/oauth'
 import { sql } from '@/lib/db/config'
 import { env } from '@/lib/validation/env'
 import type { OAuthCallbackParams, OAuthTokens, User } from '@/types/auth'
+import { logSecurityEvent } from './audit'
 import { decryptOAuthToken, encryptOAuthToken } from './crypto'
-import { validatePKCESecure } from './pkce'
+import { generateEnhancedPKCEChallenge, validatePKCESecure } from './pkce'
 
 // OAuth configuration
 const GITHUB_AUTH_URL = 'https://github.com/login/oauth/authorize'
@@ -78,8 +79,8 @@ export async function generateOAuthUrl(
   const validated = GenerateOAuthUrlSchema.parse(params)
 
   // Enhanced redirect URI validation with security checks
-  const isValidRedirect = await validateRedirectUriSecure(validated.redirectUri)
-  if (!isValidRedirect) {
+  const redirectValidation = await validateRedirectUriSecure(validated.redirectUri)
+  if (!redirectValidation.valid) {
     throw new Error('Invalid or suspicious redirect URI')
   }
 
@@ -118,10 +119,15 @@ export async function generateOAuthUrl(
   `
 
   // Log security event for monitoring
-  await logSecurityEvent('oauth_url_generated', {
-    provider: validated.provider,
-    entropy: pkceResult.entropy,
-    user_id: validated.userId,
+  await logSecurityEvent({
+    event_type: 'oauth_url_generated',
+    event_severity: 'info',
+    ...(validated.userId && { user_id: validated.userId }),
+    event_data: {
+      provider: validated.provider,
+      entropy: pkceResult.entropy,
+    },
+    success: true,
   })
 
   // Build authorization URL with enhanced security parameters
@@ -238,89 +244,21 @@ async function generateSecureOAuthState(userId?: string): Promise<string> {
 /**
  * Enhanced PKCE challenge generation with configurable entropy
  */
-/**
- * Base64URL encode function
- */
-function base64urlEncode(buffer: Uint8Array): string {
-  return Buffer.from(buffer)
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=/g, '')
-}
-
-/**
- * Generate code challenge from verifier using SHA256
- */
-async function generateCodeChallenge(verifier: string): Promise<string> {
-  const encoder = new TextEncoder()
-  const data = encoder.encode(verifier)
-  const digest = await crypto.subtle.digest('SHA-256', data)
-  return base64urlEncode(new Uint8Array(digest))
-}
-
-async function generateEnhancedPKCEChallenge(): Promise<{
-  codeVerifier: string
-  codeChallenge: string
-  entropy: number
-}> {
-  // Use enhanced verifier length for better security
-  const verifierLength = 128 // RFC 7636 recommended maximum
-
-  let codeVerifier: string
-  let entropy: number
-
-  // Ensure sufficient entropy (retry if needed)
-  do {
-    const array = new Uint8Array(96) // Will produce 128 chars after base64url encoding
-    crypto.getRandomValues(array)
-    codeVerifier = base64urlEncode(array).substring(0, verifierLength)
-
-    // Calculate entropy
-    entropy = calculateStringEntropy(codeVerifier)
-  } while (entropy < 4.0) // Minimum entropy threshold
-
-  const codeChallenge = await generateCodeChallenge(codeVerifier)
-
-  return {
-    codeVerifier,
-    codeChallenge,
-    entropy,
-  }
-}
-
-/**
- * Calculate Shannon entropy for string randomness validation
- */
-function calculateStringEntropy(str: string): number {
-  const frequency: Record<string, number> = {}
-
-  // Count character frequencies
-  for (const char of str) {
-    frequency[char] = (frequency[char] || 0) + 1
-  }
-
-  // Calculate Shannon entropy
-  let entropy = 0
-  const length = str.length
-
-  for (const count of Object.values(frequency)) {
-    const probability = count / length
-    entropy -= probability * Math.log2(probability)
-  }
-
-  return entropy
-}
 
 // Helper function to validate OAuth errors
 async function validateOAuthErrors(validated: {
-  error?: string
-  error_description?: string
+  error?: string | undefined
+  error_description?: string | undefined
 }): Promise<void> {
   if (validated.error) {
-    await logSecurityEvent('oauth_callback_error', {
-      error: validated.error,
-      description: validated.error_description,
+    await logSecurityEvent({
+      event_type: 'oauth_callback_error',
+      event_severity: 'error',
+      event_data: {
+        error: validated.error,
+        description: validated.error_description,
+      },
+      success: false,
     })
 
     throw new Error(
@@ -363,14 +301,32 @@ async function fetchOAuthState(state: string): Promise<{
   }
 
   if (stateResult.length === 0) {
-    await logSecurityEvent('oauth_invalid_state', {
-      provided_state: `${state?.substring(0, 8)}...`,
-      ip_address: 'callback_request',
+    await logSecurityEvent({
+      event_type: 'oauth_invalid_state',
+      event_severity: 'warning',
+      event_data: {
+        provided_state: `${state?.substring(0, 8)}...`,
+        ip_address: 'callback_request',
+      },
+      success: false,
     })
     throw new Error('Invalid or expired OAuth state')
   }
 
-  return stateResult[0]
+  const result = stateResult[0]
+  if (!result) {
+    throw new Error('Invalid or expired OAuth state')
+  }
+
+  return result as {
+    state: string
+    code_verifier?: string
+    provider?: string
+    redirect_uri?: string
+    user_id?: string
+    created_at: Date
+    security_metadata?: string
+  }
 }
 
 // Helper function to validate security metadata
@@ -404,9 +360,14 @@ async function validatePKCE(codeVerifier: string, _validatedCode: string): Promi
   )
 
   if (!pkceValidation.valid || pkceValidation.entropy < 4.0) {
-    await logSecurityEvent('oauth_pkce_validation_failed', {
-      entropy: pkceValidation.entropy,
-      timing_safe: pkceValidation.timingSafe,
+    await logSecurityEvent({
+      event_type: 'oauth_pkce_validation_failed',
+      event_severity: 'error',
+      event_data: {
+        entropy: pkceValidation.entropy,
+        timing_safe: pkceValidation.timingSafe,
+      },
+      success: false,
     })
     throw new Error('PKCE validation failed')
   }
@@ -428,7 +389,10 @@ export async function validateOAuthCallback(params: OAuthCallbackParams): Promis
   const validated = ValidateCallbackSchema.parse(params)
 
   // Check for OAuth errors
-  await validateOAuthErrors(validated)
+  await validateOAuthErrors({
+    error: validated.error,
+    error_description: validated.error_description,
+  })
 
   // Fetch and validate OAuth state
   const stateData = await fetchOAuthState(validated.state)
@@ -440,16 +404,21 @@ export async function validateOAuthCallback(params: OAuthCallbackParams): Promis
   const securityChecks = {
     stateValid: true,
     timeValid: true,
-    securityMetadataValid: validateSecurityMetadata(stateData.security_metadata),
+    securityMetadataValid: validateSecurityMetadata(stateData.security_metadata ?? null),
   }
 
   // Validate state age with stricter timing
   const stateAge = Date.now() - new Date(stateData.created_at).getTime()
   if (stateAge > oauthConfig.stateExpiry) {
     securityChecks.timeValid = false
-    await logSecurityEvent('oauth_state_expired', {
-      state_age: stateAge,
-      max_age: oauthConfig.stateExpiry,
+    await logSecurityEvent({
+      event_type: 'oauth_state_expired',
+      event_severity: 'warning',
+      event_data: {
+        state_age: stateAge,
+        max_age: oauthConfig.stateExpiry,
+      },
+      success: false,
     })
     throw new Error('OAuth state expired')
   }
@@ -466,10 +435,15 @@ export async function validateOAuthCallback(params: OAuthCallbackParams): Promis
   `
 
   // Log successful validation
-  await logSecurityEvent('oauth_callback_validated', {
-    provider: stateData.provider,
-    user_id: stateData.user_id,
-    security_checks: securityChecks,
+  await logSecurityEvent({
+    event_type: 'oauth_callback_validated',
+    event_severity: 'info',
+    ...(stateData.user_id && { user_id: stateData.user_id }),
+    event_data: {
+      provider: stateData.provider,
+      security_checks: securityChecks,
+    },
+    success: true,
   })
 
   const result: {
@@ -493,32 +467,29 @@ export async function validateOAuthCallback(params: OAuthCallbackParams): Promis
   return result
 }
 
+// Helper types for OAuth state validation
+type OAuthStateData = {
+  state: string
+  session_id: string | null
+  client_fingerprint: string | null
+  created_at: Date
+  expires_at: Date
+  security_flags: string | null
+}
+
+type SecurityChecks = {
+  stateExists: boolean
+  notExpired: boolean
+  sessionMatch: boolean
+  fingerprintMatch: boolean
+  timingProtected: boolean
+}
+
 /**
- * Enhanced OAuth state validation with timing attack protection
+ * Retrieve OAuth state data from database
  */
-export async function validateOAuthStateSecure(
-  providedState: string,
-  sessionId: string,
-  clientFingerprint?: string
-): Promise<{
-  valid: boolean
-  securityChecks: {
-    stateExists: boolean
-    notExpired: boolean
-    sessionMatch: boolean
-    fingerprintMatch: boolean
-    timingProtected: boolean
-  }
-}> {
-  const startTime = Date.now()
-
-  let stateExists = false
-  let notExpired = false
-  let sessionMatch = false
-  let fingerprintMatch = true // Default to true if not enforced
-
+async function retrieveOAuthState(providedState: string): Promise<OAuthStateData | null> {
   try {
-    // Retrieve state with timing protection
     const stateResult = await sql`
       SELECT 
         state, 
@@ -533,36 +504,81 @@ export async function validateOAuthStateSecure(
     `
 
     if (stateResult.length > 0) {
-      stateExists = true
-      const stateData = stateResult[0]
-
-      // Check expiration
-      notExpired = new Date(stateData.expires_at) > new Date()
-
-      // Timing-safe session comparison
-      if (stateData.session_id && sessionId) {
-        sessionMatch = timingSafeStringCompare(stateData.session_id, sessionId)
-      }
-
-      // Client fingerprint validation if enabled
-      if (
-        oauthConfig.security.sessionBinding.enabled &&
-        oauthConfig.security.sessionBinding.bindToUserAgent &&
-        stateData.client_fingerprint &&
-        clientFingerprint
-      ) {
-        fingerprintMatch = timingSafeStringCompare(stateData.client_fingerprint, clientFingerprint)
-      }
+      return stateResult[0] as OAuthStateData
     }
+    return null
   } catch (error) {
-    // Log security event but don't expose internal errors
-    await logSecurityEvent('oauth_state_validation_error', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      providedState: `${providedState.substring(0, 8)}...`, // Log partial for debugging
+    await logSecurityEvent({
+      event_type: 'oauth_state_retrieval_error',
+      event_severity: 'error',
+      event_data: {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        providedState: `${providedState.substring(0, 8)}...`,
+      },
+      success: false,
     })
+    return null
   }
+}
 
-  // Implement timing attack protection
+/**
+ * Validate OAuth state security checks
+ */
+function validateSecurityChecks(
+  stateData: OAuthStateData | null,
+  sessionId: string,
+  clientFingerprint?: string
+): SecurityChecks {
+  const stateExists = stateData !== null
+  const notExpired = stateData ? new Date(stateData.expires_at) > new Date() : false
+
+  const sessionMatch =
+    stateData?.session_id && sessionId
+      ? timingSafeStringCompare(stateData.session_id, sessionId)
+      : false
+
+  const fingerprintMatch =
+    shouldValidateFingerprint(stateData, clientFingerprint) && stateData && clientFingerprint
+      ? validateFingerprint(stateData, clientFingerprint)
+      : true
+
+  return {
+    stateExists,
+    notExpired,
+    sessionMatch,
+    fingerprintMatch,
+    timingProtected: true,
+  }
+}
+
+/**
+ * Check if client fingerprint validation should be performed
+ */
+function shouldValidateFingerprint(
+  stateData: OAuthStateData | null,
+  clientFingerprint?: string
+): boolean {
+  return !!(
+    oauthConfig.security.sessionBinding.enabled &&
+    oauthConfig.security.sessionBinding.bindToUserAgent &&
+    stateData?.client_fingerprint &&
+    clientFingerprint
+  )
+}
+
+/**
+ * Validate client fingerprint using timing-safe comparison
+ */
+function validateFingerprint(stateData: OAuthStateData, clientFingerprint: string): boolean {
+  return stateData.client_fingerprint
+    ? timingSafeStringCompare(stateData.client_fingerprint, clientFingerprint)
+    : false
+}
+
+/**
+ * Apply timing attack protection
+ */
+async function applyTimingProtection(startTime: number): Promise<void> {
   const elapsedTime = Date.now() - startTime
   const minResponseTime = oauthConfig.security.timingAttackProtection.minResponseTime
   const jitter = Math.random() * oauthConfig.security.timingAttackProtection.maxJitter
@@ -570,18 +586,35 @@ export async function validateOAuthStateSecure(
   if (elapsedTime < minResponseTime) {
     await new Promise(resolve => setTimeout(resolve, minResponseTime - elapsedTime + jitter))
   }
+}
 
-  const valid = stateExists && notExpired && sessionMatch && fingerprintMatch
+/**
+ * Enhanced OAuth state validation with timing attack protection
+ */
+export async function validateOAuthStateSecure(
+  providedState: string,
+  sessionId: string,
+  clientFingerprint?: string
+): Promise<{
+  valid: boolean
+  securityChecks: SecurityChecks
+}> {
+  const startTime = Date.now()
+
+  // Retrieve state data
+  const stateData = await retrieveOAuthState(providedState)
+
+  // Perform security checks
+  const securityChecks = validateSecurityChecks(stateData, sessionId, clientFingerprint)
+
+  // Apply timing protection
+  await applyTimingProtection(startTime)
+
+  const valid = Object.values(securityChecks).every(check => check === true)
 
   return {
     valid,
-    securityChecks: {
-      stateExists,
-      notExpired,
-      sessionMatch,
-      fingerprintMatch,
-      timingProtected: true,
-    },
+    securityChecks,
   }
 }
 
@@ -607,7 +640,8 @@ export async function validateRedirectUriSecure(
     const url = new URL(redirectUri)
 
     // Protocol validation
-    const protocolValid = validation.allowedProtocols.includes(url.protocol.slice(0, -1))
+    const protocol = url.protocol.slice(0, -1) as 'http' | 'https'
+    const protocolValid = validation.allowedProtocols.includes(protocol)
 
     // In production, enforce HTTPS
     const httpsRequired =
@@ -621,7 +655,8 @@ export async function validateRedirectUriSecure(
 
     // Port validation (only for non-standard ports)
     const port = url.port ? Number.parseInt(url.port) : url.protocol === 'https:' ? 443 : 80
-    const portValid = validation.allowedPorts.includes(port) || port === 443 || port === 80 // Standard ports always allowed
+    const portValid =
+      validation.allowedPorts.includes(port as 3000 | 3001 | 8080) || port === 443 || port === 80 // Standard ports always allowed
 
     // Path validation (prevent suspicious paths)
     const pathValid =
@@ -683,7 +718,12 @@ export async function createOAuthSessionBinding(
     timestamp: number
   }
 }> {
-  const bindingData: Record<string, unknown> = {
+  const bindingData: {
+    sessionId: string
+    userAgentHash?: string
+    ipAddress?: string
+    timestamp: number
+  } = {
     sessionId,
     timestamp: Date.now(),
   }
@@ -761,22 +801,41 @@ export async function detectOAuthAttack(
 
   if (invalidStateAttempts[0]?.count > 5) {
     patterns.push('invalid_state_patterns')
-    riskLevel = riskLevel === 'critical' ? 'critical' : 'high'
+    // Escalate to high risk level
+    riskLevel = 'high'
   }
 
   // Check for suspicious User-Agent patterns
   if (!userAgent || userAgent.length < 10 || userAgent.includes('bot')) {
     patterns.push('suspicious_user_agent')
-    riskLevel = riskLevel === 'critical' ? 'critical' : 'medium'
+    // Only escalate to medium if not already high or critical
+    if (riskLevel === 'low') {
+      riskLevel = 'medium'
+    }
+  }
+
+  // Escalate to critical if multiple severe conditions are met
+  if (patterns.length >= 3 || (patterns.length >= 2 && riskLevel === 'high')) {
+    riskLevel = 'critical'
   }
 
   // Determine action based on risk level
   let action: 'allow' | 'rate_limit' | 'block' = 'allow'
 
-  if (riskLevel === 'critical') {
-    action = 'block'
-  } else if (riskLevel === 'high' || patterns.length >= 2) {
-    action = 'rate_limit'
+  switch (riskLevel) {
+    case 'critical':
+      action = 'block'
+      break
+    case 'high':
+      action = 'rate_limit'
+      break
+    case 'medium':
+      if (patterns.length >= 2) {
+        action = 'rate_limit'
+      }
+      break
+    default:
+      action = 'allow'
   }
 
   return {
@@ -1013,8 +1072,8 @@ async function logOAuthEvent(
     event_type: 'oauth_link',
     event_severity: 'info',
     user_id: user.id,
-    ip_address: securityContext?.ip_address ?? null,
-    user_agent: securityContext?.user_agent ?? null,
+    ip_address: securityContext?.ip_address ?? 'unknown',
+    user_agent: securityContext?.user_agent ?? 'unknown',
     event_data: {
       provider: 'github',
       github_username: githubUser.login,
@@ -1148,37 +1207,8 @@ export async function unlinkOAuthAccount(params: {
 
 // Helper functions
 
-function generateSecureRandomString(): string {
-  const array = new Uint8Array(32)
+function generateSecureRandomString(length: number): string {
+  const array = new Uint8Array(length)
   crypto.getRandomValues(array)
   return Buffer.from(array).toString('base64url')
-}
-
-async function logSecurityEvent(event: {
-  event_type: string
-  event_severity: string
-  user_id?: string
-  ip_address?: string | null
-  user_agent?: string | null
-  event_data?: Record<string, unknown>
-  success: boolean
-  error_message?: string
-}): Promise<void> {
-  await sql`
-    INSERT INTO security_audit_logs (
-      event_type, event_severity, user_id, ip_address,
-      user_agent, event_data, success, error_message, created_at
-    )
-    VALUES (
-      ${event.event_type},
-      ${event.event_severity},
-      ${event.user_id || null},
-      ${event.ip_address || null},
-      ${event.user_agent || null},
-      ${event.event_data || null},
-      ${event.success},
-      ${event.error_message || null},
-      CURRENT_TIMESTAMP
-    )
-  `
 }

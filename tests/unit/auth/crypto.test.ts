@@ -6,15 +6,15 @@ import {
   exportKey,
   generateEncryptionKey,
   importKey,
-} from '../../src/lib/auth/crypto'
+} from '@/lib/auth/crypto'
 
 // Mock database
-vi.mock('../../src/lib/db/config', () => ({
+vi.mock('@/lib/db/config', () => ({
   sql: vi.fn(),
 }))
 
 // Import the mocked sql function
-import { sql } from '../../src/lib/db/config'
+import { sql } from '@/lib/db/config'
 
 const mockSql = vi.mocked(sql)
 

@@ -4,7 +4,7 @@
  */
 
 import type { AdapterUser } from 'next-auth/adapters'
-import { generateUUID } from '../../src/lib/crypto-utils'
+import { generateUUID } from '@/lib/crypto-utils'
 import type {
   AccessTokenPayload,
   AuthEventType,
@@ -18,8 +18,8 @@ import type {
   UserConsent,
   UserDataExport,
   UserSession,
-} from '../../src/types/auth'
-import type { Email, GitHubUsername, UUID } from '../../src/types/base'
+} from '@/types/auth'
+import type { Email, GitHubUsername, UUID } from '@/types/base'
 
 // Counter for generating unique values
 let userCounter = 1

@@ -15,6 +15,23 @@ import type { HttpHandler } from 'msw'
 import { HttpResponse, http } from 'msw'
 import { z } from 'zod'
 
+// Type definitions for better type safety
+interface RequestMetadata extends Record<string, unknown> {
+  requestId?: string
+  userAgent?: string
+  timestamp?: string
+}
+
+interface JWTPayload extends Record<string, unknown> {
+  sub?: string
+  email?: string
+  iat?: number
+  exp?: number
+  [key: string]: unknown
+}
+
+type RequestBody = Record<string, unknown> | string | null | undefined
+
 // Common API response schemas
 export const ApiSuccessResponseSchema = z.object({
   success: z.literal(true),
@@ -53,7 +70,7 @@ interface PerformanceMeasurement {
   duration: number
   status: number
   timestamp: Date
-  metadata?: Record<string, any>
+  metadata?: RequestMetadata
 }
 
 class ApiPerformanceTracker {
@@ -63,7 +80,7 @@ class ApiPerformanceTracker {
     endpoint: string,
     method: string,
     requestFn: () => Promise<Response>,
-    metadata?: Record<string, any>
+    metadata?: RequestMetadata
   ): Promise<{ response: Response; measurement: PerformanceMeasurement }> {
     const start = performance.now()
     const response = await requestFn()
@@ -206,7 +223,7 @@ export class ApiRequestBuilder {
     })
   }
 
-  async post(endpoint: string, body?: any): Promise<Response> {
+  async post(endpoint: string, body?: RequestBody): Promise<Response> {
     return fetch(`${this.baseUrl}${endpoint}`, {
       method: 'POST',
       headers: {
@@ -217,7 +234,7 @@ export class ApiRequestBuilder {
     })
   }
 
-  async put(endpoint: string, body?: any): Promise<Response> {
+  async put(endpoint: string, body?: RequestBody): Promise<Response> {
     return fetch(`${this.baseUrl}${endpoint}`, {
       method: 'PUT',
       headers: {
@@ -237,119 +254,116 @@ export class ApiRequestBuilder {
 }
 
 // Response validators
-export class ApiResponseValidator {
-  static async validateSuccessResponse(
-    response: Response
-  ): Promise<z.infer<typeof ApiSuccessResponseSchema>> {
-    expect(response.status).toBeGreaterThanOrEqual(200)
-    expect(response.status).toBeLessThan(400)
+export async function validateSuccessResponse(
+  response: Response
+): Promise<z.infer<typeof ApiSuccessResponseSchema>> {
+  expect(response.status).toBeGreaterThanOrEqual(200)
+  expect(response.status).toBeLessThan(400)
 
-    const data = await response.json()
-    return ApiSuccessResponseSchema.parse(data)
+  const data = await response.json()
+  return ApiSuccessResponseSchema.parse(data)
+}
+
+export async function validateErrorResponse(
+  response: Response,
+  expectedStatus?: number
+): Promise<z.infer<typeof ApiErrorResponseSchema>> {
+  if (expectedStatus) {
+    expect(response.status).toBe(expectedStatus)
+  } else {
+    expect(response.status).toBeGreaterThanOrEqual(400)
   }
 
-  static async validateErrorResponse(
-    response: Response,
-    expectedStatus?: number
-  ): Promise<z.infer<typeof ApiErrorResponseSchema>> {
-    if (expectedStatus) {
-      expect(response.status).toBe(expectedStatus)
-    } else {
-      expect(response.status).toBeGreaterThanOrEqual(400)
-    }
+  const data = await response.json()
+  return ApiErrorResponseSchema.parse(data)
+}
 
-    const data = await response.json()
-    return ApiErrorResponseSchema.parse(data)
-  }
+export async function validatePaginatedResponse(
+  response: Response
+): Promise<
+  z.infer<typeof ApiSuccessResponseSchema> & { data: z.infer<typeof PaginatedResponseSchema> }
+> {
+  const validatedResponse = await validateSuccessResponse(response)
+  const paginationData = PaginatedResponseSchema.parse(validatedResponse.data)
 
-  static async validatePaginatedResponse(
-    response: Response
-  ): Promise<
-    z.infer<typeof ApiSuccessResponseSchema> & { data: z.infer<typeof PaginatedResponseSchema> }
-  > {
-    const validatedResponse = await ApiResponseValidator.validateSuccessResponse(response)
-    const paginationData = PaginatedResponseSchema.parse(validatedResponse.data)
-
-    return {
-      ...validatedResponse,
-      data: paginationData,
-    }
-  }
-
-  static validatePerformance(
-    measurement: PerformanceMeasurement,
-    thresholds: {
-      maxDuration?: number
-      minDuration?: number
-      expectedStatus?: number
-    }
-  ): void {
-    if (thresholds.maxDuration) {
-      expect(measurement.duration).toBeLessThanOrEqual(thresholds.maxDuration)
-    }
-
-    if (thresholds.minDuration) {
-      expect(measurement.duration).toBeGreaterThanOrEqual(thresholds.minDuration)
-    }
-
-    if (thresholds.expectedStatus) {
-      expect(measurement.status).toBe(thresholds.expectedStatus)
-    }
-  }
-
-  static validateHeaders(
-    response: Response,
-    expectedHeaders: Record<string, string | RegExp>
-  ): void {
-    Object.entries(expectedHeaders).forEach(([headerName, expectedValue]) => {
-      const actualValue = response.headers.get(headerName)
-      expect(actualValue).toBeDefined()
-
-      if (expectedValue instanceof RegExp) {
-        expect(actualValue).toMatch(expectedValue)
-      } else {
-        expect(actualValue).toBe(expectedValue)
-      }
-    })
+  return {
+    ...validatedResponse,
+    data: paginationData,
   }
 }
 
-// Authentication helpers
-export class AuthTestHelper {
-  static generateMockJWT(payload: Record<string, any> = {}): string {
-    // Generate a mock JWT for testing (not cryptographically secure)
-    const header = { alg: 'HS256', typ: 'JWT' }
-    const defaultPayload = {
-      sub: 'test-user-id',
-      email: 'test@example.com',
-      iat: Math.floor(Date.now() / 1000),
-      exp: Math.floor(Date.now() / 1000) + 3600, // 1 hour
-      ...payload,
+export function validatePerformance(
+  measurement: PerformanceMeasurement,
+  thresholds: {
+    maxDuration?: number
+    minDuration?: number
+    expectedStatus?: number
+  }
+): void {
+  if (thresholds.maxDuration) {
+    expect(measurement.duration).toBeLessThanOrEqual(thresholds.maxDuration)
+  }
+
+  if (thresholds.minDuration) {
+    expect(measurement.duration).toBeGreaterThanOrEqual(thresholds.minDuration)
+  }
+
+  if (thresholds.expectedStatus) {
+    expect(measurement.status).toBe(thresholds.expectedStatus)
+  }
+}
+
+export function validateHeaders(
+  response: Response,
+  expectedHeaders: Record<string, string | RegExp>
+): void {
+  Object.entries(expectedHeaders).forEach(([headerName, expectedValue]) => {
+    const actualValue = response.headers.get(headerName)
+    expect(actualValue).toBeDefined()
+
+    if (expectedValue instanceof RegExp) {
+      expect(actualValue).toMatch(expectedValue)
+    } else {
+      expect(actualValue).toBe(expectedValue)
     }
+  })
+}
 
-    const encode = (obj: any) => Buffer.from(JSON.stringify(obj)).toString('base64url')
-
-    return `${encode(header)}.${encode(defaultPayload)}.mock-signature`
+// Authentication helpers
+export function generateMockJWT(payload: JWTPayload = {}): string {
+  // Generate a mock JWT for testing (not cryptographically secure)
+  const header = { alg: 'HS256', typ: 'JWT' }
+  const defaultPayload = {
+    sub: 'test-user-id',
+    email: 'test@example.com',
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000) + 3600, // 1 hour
+    ...payload,
   }
 
-  static generateExpiredJWT(): string {
-    return AuthTestHelper.generateMockJWT({
-      exp: Math.floor(Date.now() / 1000) - 3600, // Expired 1 hour ago
-    })
-  }
+  const encode = (obj: JWTPayload | { alg: string; typ: string }) =>
+    Buffer.from(JSON.stringify(obj)).toString('base64url')
 
-  static generateInvalidJWT(): string {
-    return 'invalid.jwt.token'
-  }
+  return `${encode(header)}.${encode(defaultPayload)}.mock-signature`
+}
 
-  static createAuthenticatedRequest(token?: string): ApiRequestBuilder {
-    const builder = new ApiRequestBuilder()
-    return builder.withAuth(token || AuthTestHelper.generateMockJWT())
-  }
+export function generateExpiredJWT(): string {
+  return generateMockJWT({
+    exp: Math.floor(Date.now() / 1000) - 3600, // Expired 1 hour ago
+  })
+}
 
-  static createUnauthenticatedRequest(): ApiRequestBuilder {
-    return new ApiRequestBuilder()
-  }
+export function generateInvalidJWT(): string {
+  return 'invalid.jwt.token'
+}
+
+export function createAuthenticatedRequest(token?: string): ApiRequestBuilder {
+  const builder = new ApiRequestBuilder()
+  return builder.withAuth(token || generateMockJWT())
+}
+
+export function createUnauthenticatedRequest(): ApiRequestBuilder {
+  return new ApiRequestBuilder()
 }
 
 // Rate limiting utilities
@@ -422,121 +436,142 @@ export class RateLimitSimulator {
 }
 
 // Error simulation utilities
-export class ErrorSimulator {
-  static createNetworkError(): Promise<never> {
-    return Promise.reject(new Error('Network error'))
-  }
+export function createNetworkError(): Promise<never> {
+  return Promise.reject(new Error('Network error'))
+}
 
-  static createTimeoutError(): Promise<never> {
-    return new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Request timeout')), 100)
-    })
-  }
+export function createTimeoutError(): Promise<never> {
+  return new Promise((_, reject) => {
+    setTimeout(() => reject(new Error('Request timeout')), 100)
+  })
+}
 
-  static create500Error(): HttpResponse {
-    return HttpResponse.json(
-      {
-        success: false,
-        error: {
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'An unexpected error occurred',
+export function create500Error(): HttpResponse {
+  return HttpResponse.json(
+    {
+      success: false,
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'An unexpected error occurred',
+      },
+    },
+    { status: 500 }
+  )
+}
+
+export function createDatabaseError(): HttpResponse {
+  return HttpResponse.json(
+    {
+      success: false,
+      error: {
+        code: 'DATABASE_ERROR',
+        message: 'Database connection failed',
+        details: {
+          error_type: 'CONNECTION_FAILED',
+          retry_after: 5,
         },
       },
-      { status: 500 }
-    )
-  }
+    },
+    { status: 503 }
+  )
+}
 
-  static createDatabaseError(): HttpResponse {
-    return HttpResponse.json(
-      {
-        success: false,
-        error: {
-          code: 'DATABASE_ERROR',
-          message: 'Database connection failed',
-          details: {
-            error_type: 'CONNECTION_FAILED',
-            retry_after: 5,
-          },
-        },
+export function createValidationError(fields: string[]): HttpResponse {
+  return HttpResponse.json(
+    {
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid input data',
+        details: fields.map(field => ({
+          path: [field],
+          message: `${field} is required`,
+        })),
       },
-      { status: 503 }
-    )
-  }
-
-  static createValidationError(fields: string[]): HttpResponse {
-    return HttpResponse.json(
-      {
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Invalid input data',
-          details: fields.map(field => ({
-            path: [field],
-            message: `${field} is required`,
-          })),
-        },
-      },
-      { status: 400 }
-    )
-  }
+    },
+    { status: 400 }
+  )
 }
 
 // Test data generators
-export class TestDataGenerator {
-  static generateUUID(): string {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-      const r = (Math.random() * 16) | 0
-      const v = c === 'x' ? r : (r & 0x3) | 0x8
-      return v.toString(16)
-    })
-  }
+export function generateUUID(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = (Math.random() * 16) | 0
+    const v = c === 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
+}
 
-  static generateRandomString(length = 10): string {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-    let result = ''
-    for (let i = 0; i < length; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length))
-    }
-    return result
+export function generateRandomString(length = 10): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  let result = ''
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length))
   }
+  return result
+}
 
-  static generateRandomEmail(): string {
-    return `${TestDataGenerator.generateRandomString(8)}@${TestDataGenerator.generateRandomString(5)}.com`
-  }
+export function generateRandomEmail(): string {
+  return `${generateRandomString(8)}@${generateRandomString(5)}.com`
+}
 
-  static generateRandomNumber(min = 0, max = 1000): number {
-    return Math.floor(Math.random() * (max - min + 1)) + min
-  }
+export function generateRandomNumber(min = 0, max = 1000): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min
+}
 
-  static generateRandomBool(): boolean {
-    return Math.random() > 0.5
-  }
+export function generateRandomBool(): boolean {
+  return Math.random() > 0.5
+}
 
-  static generatePaginationParams(
-    overrides: Partial<{
-      page: number
-      per_page: number
-      total_count: number
-    }> = {}
-  ): { page: number; per_page: number; total_count: number; has_more: boolean } {
-    const page = overrides.page || 1
-    const per_page = overrides.per_page || 20
-    const total_count = overrides.total_count || TestDataGenerator.generateRandomNumber(0, 1000)
-    const has_more = page * per_page < total_count
+export function generatePaginationParams(
+  overrides: Partial<{
+    page: number
+    per_page: number
+    total_count: number
+  }> = {}
+): { page: number; per_page: number; total_count: number; has_more: boolean } {
+  const page = overrides.page || 1
+  const per_page = overrides.per_page || 20
+  const total_count = overrides.total_count || generateRandomNumber(0, 1000)
+  const has_more = page * per_page < total_count
 
-    return { page, per_page, total_count, has_more }
-  }
+  return { page, per_page, total_count, has_more }
 }
 
 // Export utilities
 export const apiTestUtils = {
   performanceTracker: ApiPerformanceTracker,
   requestBuilder: ApiRequestBuilder,
-  responseValidator: ApiResponseValidator,
-  authHelper: AuthTestHelper,
+  responseValidator: {
+    validateSuccessResponse,
+    validateErrorResponse,
+    validatePaginatedResponse,
+    validatePerformance,
+    validateHeaders,
+  },
+  authHelper: {
+    generateMockJWT,
+    generateExpiredJWT,
+    generateInvalidJWT,
+    createAuthenticatedRequest,
+    createUnauthenticatedRequest,
+  },
   rateLimitSimulator: RateLimitSimulator,
-  errorSimulator: ErrorSimulator,
-  dataGenerator: TestDataGenerator,
+  errorSimulator: {
+    createNetworkError,
+    createTimeoutError,
+    create500Error,
+    createDatabaseError,
+    createValidationError,
+  },
+  dataGenerator: {
+    generateUUID,
+    generateRandomString,
+    generateRandomEmail,
+    generateRandomNumber,
+    generateRandomBool,
+    generatePaginationParams,
+  },
 }
 
 // Export performance tracker instance for reuse

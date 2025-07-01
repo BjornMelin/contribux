@@ -3,7 +3,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { GitHubClient } from '../../src/lib/github'
+import { GitHubClient } from '@/lib/github'
 
 describe('Memory Profiling', () => {
   // Skip MSW setup to reduce memory overhead

@@ -11,7 +11,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createGitHubClient, GitHubClient } from '../../../src/lib/github/client'
+import { createGitHubClient, GitHubClient } from '@/lib/github/client'
 import { mockGitHubAPI } from '../msw-setup'
 import { setupGitHubTestIsolation } from '../test-helpers'
 

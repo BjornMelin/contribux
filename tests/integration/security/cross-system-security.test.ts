@@ -826,7 +826,9 @@ describe('Cross-System Security Integration', () => {
 
       // Check that sanitization was applied
       const sanitizationResults = maliciousData.data.validationResults[1].checks
-      const sanitizedFields = sanitizationResults.filter((check: any) => check.sanitized)
+      const sanitizedFields = sanitizationResults.filter(
+        (check: { sanitized: boolean }) => check.sanitized
+      )
       expect(sanitizedFields.length).toBeGreaterThan(0)
     })
   })
@@ -862,7 +864,7 @@ describe('Cross-System Security Integration', () => {
           for (const middleware of middlewareChain.executionOrder) {
             const start = performance.now()
             let passed = false
-            let details: Record<string, any> = {}
+            let details: Record<string, unknown> = {}
 
             switch (middleware) {
               case 'rate_limiter':
@@ -914,7 +916,8 @@ describe('Cross-System Security Integration', () => {
             if (!passed && ['auth_validator', 'permission_checker'].includes(middleware)) {
               middlewareChain.finalDecision = 'deny'
               break
-            }if (!passed && ['csrf_validator'].includes(middleware)) {
+            }
+            if (!passed && ['csrf_validator'].includes(middleware)) {
               middlewareChain.finalDecision = 'challenge'
             }
           }
@@ -1051,7 +1054,9 @@ describe('Cross-System Security Integration', () => {
       // Verify performance overhead tracking
       const successfulChain = successData.data.middlewareChain
       expect(successfulChain.totalSecurityOverhead).toBeGreaterThan(0)
-      expect(successfulChain.securityChecks.every((check: any) => check.executed)).toBe(true)
+      expect(
+        successfulChain.securityChecks.every((check: { executed: boolean }) => check.executed)
+      ).toBe(true)
     })
   })
 })

@@ -1,41 +1,86 @@
 /**
- * Main test setup file
+ * Modern test setup file for Vitest 3.2+
  * Runs before each test file
  */
 
 import { config } from 'dotenv'
-import { afterAll, afterEach, beforeAll } from 'vitest'
+import { afterEach, beforeAll, vi } from 'vitest'
+import '@testing-library/jest-dom'
 
-// Load test environment
+// Load test environment variables
 config({ path: '.env.test' })
 
-// Set up test environment globals
-beforeAll(() => {
+// Global test setup
+beforeAll(async () => {
   // Ensure clean test environment
   process.env.NODE_ENV = 'test'
 
-  // Mock console methods to reduce noise in tests
-  const originalConsole = { ...console }
+  // Setup fetch polyfill for Node.js MSW compatibility
+  const { fetch, Headers, Request, Response, FormData } = await import('undici')
+  Object.assign(globalThis, { fetch, Headers, Request, Response, FormData })
 
-  // Store original console for restoration
-  globalThis.__originalConsole = originalConsole
+  // Ensure TransformStream is available for MSW 2.x
+  if (typeof globalThis.TransformStream === 'undefined') {
+    try {
+      const { TransformStream } = await import('node:stream/web')
+      globalThis.TransformStream = TransformStream
+    } catch {
+      // Fallback for environments without stream/web
+      globalThis.TransformStream = class TransformStream {
+        // Minimal implementation for MSW compatibility
+      }
+    }
+  }
+
+  // Mock browser APIs that may be needed in tests
+  Object.defineProperty(globalThis, 'navigator', {
+    value: {
+      userAgent: 'test-user-agent',
+      clipboard: {
+        writeText: vi.fn().mockResolvedValue(undefined),
+        readText: vi.fn().mockResolvedValue(''),
+      },
+    },
+    writable: true,
+  })
+
+  // Mock location for tests that need it
+  Object.defineProperty(globalThis, 'location', {
+    value: {
+      href: 'http://localhost:3000',
+      origin: 'http://localhost:3000',
+      pathname: '/',
+      search: '',
+      hash: '',
+    },
+    writable: true,
+  })
+
+  // Mock matchMedia for responsive components
+  Object.defineProperty(globalThis, 'matchMedia', {
+    value: vi.fn().mockImplementation(query => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+    writable: true,
+  })
 })
 
+// Clean up after each test
 afterEach(() => {
-  // Clear any test state between tests
-  if (typeof globalThis.vi !== 'undefined') {
-    globalThis.vi.clearAllMocks()
-  }
-})
-
-afterAll(() => {
-  // Restore console if it was mocked
-  if (globalThis.__originalConsole) {
-    Object.assign(console, globalThis.__originalConsole)
-  }
+  // Clear all mocks between tests
+  vi.clearAllMocks()
+  // Reset modules to ensure clean state
+  vi.resetModules()
 })
 
 // Export test utilities for reuse
-export * from './utils/modern-test-helpers'
+export * from './utils/integration-test-helpers'
 export * from './utils/test-assertions'
 export * from './utils/test-factories'

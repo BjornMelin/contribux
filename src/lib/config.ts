@@ -60,6 +60,16 @@ export const appConfig = {
     enableAnalytics: env.NODE_ENV === 'production',
   },
 
+  // WebAuthn Configuration
+  webauthn: {
+    rpId:
+      env.NODE_ENV === 'production'
+        ? env.NEXTAUTH_URL?.replace(/^https?:\/\//, '') || 'localhost'
+        : 'localhost',
+    timeout: 60000, // 60 seconds
+    supportedAlgorithms: [-7, -257], // ES256, RS256
+  },
+
   // Performance Targets (Phase 3)
   performance: {
     queryTimeout: 100, // <100ms target

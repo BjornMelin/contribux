@@ -15,13 +15,26 @@ describe('Drizzle Migration Testing Suite', () => {
   let factories: ReturnType<typeof createTestFactories>
 
   beforeEach(async () => {
-    testDb = await getTestDatabase('migration-test', {
+    // Use a unique test ID for each test to ensure proper isolation
+    const testId = `migration-test-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    testDb = await getTestDatabase(testId, {
       strategy: 'pglite',
       cleanup: 'truncate',
-      verbose: true,
+      verbose: false, // Reduce verbosity for cleaner test output
     })
 
     factories = createTestFactories(testDb.sql)
+  })
+
+  afterEach(async () => {
+    // Ensure cleanup after each test
+    if (testDb) {
+      try {
+        await testDb.cleanup()
+      } catch (error) {
+        console.warn('Cleanup error in migration test:', error)
+      }
+    }
   })
 
   describe('Schema Evolution Testing', () => {
@@ -216,9 +229,8 @@ describe('Drizzle Migration Testing Suite', () => {
         )
       `
 
-      // Insert test data
+      // Insert test data with proper UUID generation
       const testData = Array.from({ length: 100 }, (_, i) => ({
-        user_id: `user-${i % 10}`,
         category: ['A', 'B', 'C'][i % 3],
         value: Math.floor(Math.random() * 1000),
       }))
@@ -226,7 +238,7 @@ describe('Drizzle Migration Testing Suite', () => {
       for (const data of testData) {
         await sql`
           INSERT INTO index_test_table (user_id, category, value)
-          VALUES (${data.user_id}, ${data.category}, ${data.value})
+          VALUES (gen_random_uuid(), ${data.category}, ${data.value})
         `
       }
 
@@ -330,38 +342,45 @@ describe('Drizzle Migration Testing Suite', () => {
     it('should test migrating vector embeddings format', async () => {
       const { sql } = testDb
 
-      // Create repository with old embedding format (array)
+      // Create repository first
       const repo = await factories.repositories.create({
         name: 'vector-migration-repo',
         language: 'JavaScript',
       })
 
+      // Create opportunity with embedding (opportunities table has embeddings, not repositories)
+      const opportunity = await factories.opportunities.create({
+        repository_id: repo.id,
+        title: 'Vector migration test',
+        issue_number: 1,
+      })
+
       // Simulate old format - direct array storage
       const oldEmbedding = [0.1, 0.2, 0.3, 0.4, 0.5]
       await sql`
-        UPDATE repositories 
+        UPDATE opportunities 
         SET embedding = ${JSON.stringify(oldEmbedding)}
-        WHERE id = ${repo.id}
+        WHERE id = ${opportunity.id}
       `
 
       // Test migration to new format (if needed)
       const beforeMigration = await sql`
-        SELECT embedding FROM repositories WHERE id = ${repo.id}
+        SELECT embedding FROM opportunities WHERE id = ${opportunity.id}
       `
 
-      expect(JSON.parse(beforeMigration[0]?.embedding)).toEqual(oldEmbedding)
+      expect(JSON.parse(beforeMigration[0]?.embedding || '[]')).toEqual(oldEmbedding)
 
       // Simulate migration - normalize to 1536 dimensions
       await sql`
-        UPDATE repositories 
+        UPDATE opportunities 
         SET embedding = ${JSON.stringify(
           Array.from({ length: 1536 }, (_, i) => (i < oldEmbedding.length ? oldEmbedding[i] : 0))
         )}
-        WHERE id = ${repo.id}
+        WHERE id = ${opportunity.id}
       `
 
       const afterMigration = await sql`
-        SELECT embedding FROM repositories WHERE id = ${repo.id}
+        SELECT embedding FROM opportunities WHERE id = ${opportunity.id}
       `
 
       const newEmbedding = JSON.parse(afterMigration[0]?.embedding)
@@ -574,7 +593,7 @@ describe('Drizzle Migration Testing Suite', () => {
       const { sql } = testDb
 
       // Create valid relationship
-      const user = await factories.users.create({
+      const _user = await factories.users.create({
         github_username: 'fk-test-user',
         email: 'fk@example.com',
       })
@@ -584,18 +603,18 @@ describe('Drizzle Migration Testing Suite', () => {
         language: 'Go',
       })
 
-      // Create valid bookmark
+      // Create valid opportunity (uses foreign key to repositories)
       await sql`
-        INSERT INTO bookmarks (user_id, repository_id)
-        VALUES (${user.id}, ${repo.id})
+        INSERT INTO opportunities (repository_id, issue_number, title, description, difficulty, estimated_hours)
+        VALUES (${repo.id}, 123, 'Test opportunity', 'Test description', 'beginner', 2)
       `
 
-      // Test foreign key constraint violation
+      // Test foreign key constraint violation with invalid repository ID
       let fkViolated = false
       try {
         await sql`
-          INSERT INTO bookmarks (user_id, repository_id)
-          VALUES ('invalid-uuid', ${repo.id})
+          INSERT INTO opportunities (repository_id, issue_number, title, description, difficulty, estimated_hours)
+          VALUES (gen_random_uuid(), 124, 'Invalid opportunity', 'Test description', 'beginner', 2)
         `
       } catch (_error) {
         fkViolated = true
@@ -604,11 +623,11 @@ describe('Drizzle Migration Testing Suite', () => {
       expect(fkViolated).toBe(true)
 
       // Test cascade behavior if implemented
-      const bookmarksBefore = await sql`
-        SELECT COUNT(*) FROM bookmarks WHERE user_id = ${user.id}
+      const opportunitiesBefore = await sql`
+        SELECT COUNT(*) FROM opportunities WHERE repository_id = ${repo.id}
       `
 
-      expect(Number(bookmarksBefore[0]?.count)).toBe(1)
+      expect(Number(opportunitiesBefore[0]?.count)).toBe(1)
     })
 
     it('should test unique constraint handling', async () => {
@@ -654,7 +673,7 @@ describe('Drizzle Migration Testing Suite', () => {
     it('should test JSONB schema validation patterns', async () => {
       const { sql } = testDb
 
-      // Test valid JSONB structures
+      // Test valid JSONB structures (using only existing columns)
       const validUser = await factories.users.create({
         github_username: 'jsonb-validation-user',
         email: 'jsonb-validation@example.com',
@@ -664,11 +683,6 @@ describe('Drizzle Migration Testing Suite', () => {
           topicPreferences: ['javascript', 'typescript'],
           difficultyPreference: 'intermediate',
         },
-        profile: {
-          bio: 'Test user bio',
-          location: 'Test City',
-          followers: 150,
-        },
       })
 
       // Test JSONB queries and validation
@@ -676,16 +690,16 @@ describe('Drizzle Migration Testing Suite', () => {
         SELECT 
           preferences->'theme' as theme,
           preferences->'topicPreferences' as topics,
-          profile->'followers' as followers,
+          preferences->'difficultyPreference' as difficulty,
           preferences ? 'emailNotifications' as has_email_prefs
         FROM users 
         WHERE id = ${validUser.id}
       `
 
       const result = jsonbQueries[0]
-      expect(result?.theme).toBe('"dark"') // JSON string
+      expect(result?.theme).toBe('dark') // Actual string value
       expect(result?.has_email_prefs).toBe(true)
-      expect(result?.followers).toBe('150')
+      expect(result?.difficulty).toBe('intermediate')
 
       // Test JSONB array operations
       const arrayQueries = await sql`

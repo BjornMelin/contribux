@@ -50,7 +50,17 @@ const AuthProviderSchema = z.object({
 })
 
 // Mock data generators
-const generateMockSession = (overrides: Partial<any> = {}) => ({
+interface MockSession {
+  user?: {
+    id: string
+    email: string
+    name: string
+    image: string
+  }
+  expires?: string
+}
+
+const generateMockSession = (overrides: Partial<MockSession> = {}) => ({
   user: {
     id: 'user_123456789',
     email: 'test.user@example.com',
@@ -62,7 +72,15 @@ const generateMockSession = (overrides: Partial<any> = {}) => ({
   ...overrides,
 })
 
-const generateMockJWT = (payload: any = {}) => {
+interface JWTPayload {
+  sub?: string
+  email?: string
+  iat?: number
+  exp?: number
+  [key: string]: unknown
+}
+
+const generateMockJWT = (payload: JWTPayload = {}) => {
   const header = { alg: 'HS256', typ: 'JWT' }
   const mockPayload = {
     sub: 'user_123456789',

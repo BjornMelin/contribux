@@ -10,8 +10,8 @@
 import { cleanup, render, within } from '@testing-library/react'
 import type React from 'react'
 import { vi } from 'vitest'
-import type { UUID } from '../../../../src/types/base'
-import type { Repository, SearchFilters } from '../../../../src/types/search'
+import type { UUID } from '@/types/base'
+import type { Repository, SearchFilters } from '@/types/search'
 
 // Simplified isolated render helper for search components - purely synchronous
 export function renderIsolated(component: React.ReactElement) {

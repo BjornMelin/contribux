@@ -6,7 +6,7 @@
 import type { NeonQueryFunction } from '@neondatabase/serverless'
 import { config } from 'dotenv'
 import { Client } from 'pg'
-import { TestDatabaseManager } from '../../src/lib/test-utils/test-database-manager'
+import { TestDatabaseManager } from '@/lib/test-utils/test-database-manager'
 
 // Load test environment variables
 config({ path: '.env.test' })

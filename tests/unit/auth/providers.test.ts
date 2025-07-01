@@ -14,7 +14,7 @@ import {
   LINKEDIN_PROVIDER,
   MICROSOFT_PROVIDER,
   normalizeUserData,
-} from '../../src/lib/auth/providers'
+} from '@/lib/auth/providers'
 
 describe('OAuth Provider Configuration', () => {
   describe('Provider Metadata', () => {

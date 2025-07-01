@@ -10,7 +10,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { GitHubClient } from '../../../src/lib/github/client'
+import { GitHubClient } from '@/lib/github/client'
 import type { IntegrationTestContext } from '../../integration/infrastructure/test-config'
 import {
   describeIntegration,

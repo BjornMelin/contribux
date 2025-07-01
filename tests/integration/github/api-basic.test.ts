@@ -6,7 +6,7 @@
  */
 
 import { afterEach, beforeEach, expect } from 'vitest'
-import { GitHubClient } from '../../../src/lib/github/client'
+import { GitHubClient } from '@/lib/github/client'
 import type { IntegrationTestContext } from '../infrastructure/test-config'
 import {
   describeIntegration,

@@ -8,7 +8,7 @@
  * - Performance measurement utilities
  */
 
-import type { GitHubClient } from '../../../../src/lib/github/client'
+import type { GitHubClient } from '@/lib/github/client'
 import type { IntegrationTestContext } from '../../../integration/infrastructure/test-config'
 
 export interface TokenInfo {

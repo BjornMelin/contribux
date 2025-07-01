@@ -7,7 +7,7 @@
 import { describe, expect, it } from 'vitest'
 
 // Import the validation functions directly to test them in isolation
-import { calculateShannonEntropy, validateJwtSecret } from '../../src/lib/validation/env'
+import { calculateShannonEntropy, validateJwtSecret } from '@/lib/validation/env'
 
 describe('Environment Validation Core Logic', () => {
   describe('JWT Secret Validation Functions', () => {

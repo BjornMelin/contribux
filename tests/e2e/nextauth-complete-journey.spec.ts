@@ -23,7 +23,7 @@ test.describe('NextAuth Complete Authentication Journey', () => {
   })
 
   test.describe('Complete OAuth Flow', () => {
-    test('should complete GitHub OAuth authentication flow', async ({ page, context }) => {
+    test('should complete GitHub OAuth authentication flow', async ({ page }) => {
       // Start from the sign-in page
       await page.goto('/auth/signin')
       await page.waitForLoadState('domcontentloaded')

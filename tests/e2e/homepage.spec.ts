@@ -26,11 +26,10 @@ test.describe('Homepage Tests', () => {
     await expect(page.locator('h1')).toContainText('Welcome to Contribux')
 
     // Check for technology stack information
-    await expect(page.locator('text=Next.js 15')).toBeVisible()
-    await expect(page.locator('text=TypeScript')).toBeVisible()
-    await expect(page.locator('text=Tailwind CSS')).toBeVisible()
-    await expect(page.locator('text=App Router')).toBeVisible()
-    await expect(page.locator('text=PWA support')).toBeVisible()
+    await expect(
+      page.locator('text=Next.js 15 • TypeScript • Tailwind CSS • App Router')
+    ).toBeVisible()
+    await expect(page.locator('text=Modern web application with PWA support')).toBeVisible()
 
     // Check that no console errors occurred
     if (errors.length > 0) {
@@ -54,8 +53,8 @@ test.describe('Homepage Tests', () => {
     const heading = page.locator('h1')
     await expect(heading).toHaveClass(/text-center font-bold text-4xl/)
 
-    // Check for responsive layout classes
-    await expect(page.locator('div').first()).toHaveClass(/z-10 w-full max-w-5xl/)
+    // Check for responsive layout classes - be more specific about which div
+    await expect(page.locator('div.z-10.w-full.max-w-5xl')).toBeVisible()
   })
 
   test('should be responsive on mobile', async ({ page }) => {
@@ -65,7 +64,9 @@ test.describe('Homepage Tests', () => {
 
     // Check that content is still visible and properly arranged
     await expect(page.locator('h1')).toBeVisible()
-    await expect(page.locator('text=Next.js 15')).toBeVisible()
+    await expect(
+      page.locator('text=Next.js 15 • TypeScript • Tailwind CSS • App Router')
+    ).toBeVisible()
 
     // Take mobile screenshot
     await page.screenshot({ path: 'test-results/homepage-mobile.png', fullPage: true })

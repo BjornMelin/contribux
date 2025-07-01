@@ -261,7 +261,7 @@ describe('Environment Variable Security', () => {
       for (const varName of requiredProdVars) {
         // Clear all variables
         requiredProdVars.forEach(v => delete process.env[v])
-        
+
         vi.resetModules()
         const { getRequiredEnv } = await import('../../src/lib/validation/env')
         expect(() => getRequiredEnv(varName)).toThrow(/missing or empty/)
@@ -290,7 +290,7 @@ describe('Environment Variable Security', () => {
     it('should validate JWT_SECRET requirements', async () => {
       vi.resetModules()
       const { getJwtSecret } = await import('../../src/lib/validation/env')
-      
+
       // Missing JWT_SECRET
       process.env.JWT_SECRET = undefined
       process.env.NEXTAUTH_SECRET = undefined
@@ -332,7 +332,7 @@ describe('Environment Variable Security', () => {
     it('should validate database connection string security', async () => {
       vi.resetModules()
       const { getRequiredEnv } = await import('../../src/lib/validation/env')
-      
+
       const invalidDatabaseUrls = [
         'invalid-url',
         'http://example.com',
@@ -410,7 +410,9 @@ describe('Environment Variable Security', () => {
     it('should ensure secure test environment defaults', async () => {
       vi.stubEnv('NODE_ENV', 'test')
       vi.resetModules()
-      const { getRequiredEnv, getJwtSecret, getEncryptionKey } = await import('../../src/lib/validation/env')
+      const { getRequiredEnv, getJwtSecret, getEncryptionKey } = await import(
+        '../../src/lib/validation/env'
+      )
 
       // Test environment should still have minimum security requirements
       expect(() => getRequiredEnv('NONEXISTENT_VAR')).toThrow(/missing or empty/)
@@ -429,7 +431,7 @@ describe('Environment Variable Security', () => {
     it('should validate environment variable injection prevention', async () => {
       vi.resetModules()
       const { getRequiredEnv } = await import('../../src/lib/validation/env')
-      
+
       // Test for potential injection patterns
       const injectionPatterns = [
         '${OTHER_VAR}',
@@ -451,7 +453,7 @@ describe('Environment Variable Security', () => {
     it('should validate configuration parsing security', async () => {
       vi.resetModules()
       const { getRequiredEnv } = await import('../../src/lib/validation/env')
-      
+
       // Test various edge cases in environment variable parsing
       const edgeCases = [
         { key: 'NULL_BYTE', value: 'secret\x00injection' },

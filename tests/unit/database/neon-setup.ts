@@ -8,9 +8,9 @@
 import type { NeonQueryFunction } from '@neondatabase/serverless'
 import { config } from 'dotenv'
 import { afterAll, beforeAll, beforeEach } from 'vitest'
-import type { DatabaseConnection } from '../../src/lib/test-utils/test-database-manager'
+import type { DatabaseConnection } from '@/lib/test-utils/test-database-manager'
 
-import { TestDatabaseManager } from '../../src/lib/test-utils/test-database-manager'
+import { TestDatabaseManager } from '@/lib/test-utils/test-database-manager'
 
 // Load test environment variables
 config({ path: '.env.test' })

@@ -12,12 +12,10 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
-    extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
   },
 
   define: {
-    'import.meta.vitest': undefined,
-    global: 'globalThis',
+    'import.meta.vitest': 'undefined',
   },
 
   test: {
@@ -32,17 +30,20 @@ export default defineConfig({
       'tests/unit/**/*',
       'tests/performance/**/*',
       'tests/e2e/**/*',
-      'tests/security/**/*', // Exclude root security tests but allow integration/security tests
+      'tests/security/**/*',
+      'node_modules/**/*',
+      'dist/**/*',
+      '.next/**/*',
     ],
 
     setupFiles: ['./tests/setup.ts'],
 
-    // Integration tests need more time and resources
-    testTimeout: 60000,
-    hookTimeout: 30000,
+    // Integration tests configuration
+    testTimeout: 45000,
+    hookTimeout: 20000,
     retry: 1,
 
-    // Sequential execution for integration tests to avoid conflicts
+    // Sequential execution for database integration tests
     pool: 'forks',
     poolOptions: {
       forks: {
@@ -50,14 +51,29 @@ export default defineConfig({
       },
     },
 
-    // Coverage for integration tests
+    // Coverage configuration
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json'],
-      exclude: [...configDefaults.coverage.exclude, 'tests/**/*', '**/*.config.*'],
+      exclude: [
+        ...(configDefaults.coverage?.exclude || []),
+        'tests/**/*',
+        '**/*.config.*',
+        '**/*.d.ts',
+        'scripts/**/*',
+        '.next/**/*',
+      ],
     },
 
-    reporters: ['default', 'json'],
-    outputFile: { json: './integration-test-results.json' },
+    // Reporter configuration
+    reporters: ['default'],
+    outputFile: {
+      json: './integration-test-results.json',
+    },
+
+    // Environment configuration
+    env: {
+      NODE_ENV: 'test',
+    },
   },
 })

@@ -5,18 +5,18 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { sql } from '../../src/lib/db/config'
+import { sql } from '@/lib/db/config'
+import { RepositoryQueries } from '@/lib/db/queries/repositories'
+import { UserQueries } from '@/lib/db/queries/users'
 import {
-  sanitizeSearchQuery,
-  detectSuspiciousQuery,
-  sanitizeVectorEmbedding,
   buildSafeFilterConditions,
-  sanitizeJsonInput,
+  detectSuspiciousQuery,
   SafeSearchQuerySchema,
+  sanitizeJsonInput,
+  sanitizeSearchQuery,
+  sanitizeVectorEmbedding,
   VectorEmbeddingSchema,
-} from '../../src/lib/db/schema'
-import { RepositoryQueries } from '../../src/lib/db/queries/repositories'
-import { UserQueries } from '../../src/lib/db/queries/users'
+} from '@/lib/db/schema'
 
 // Mock database connection
 vi.mock('../../src/lib/db/config', () => ({
@@ -61,7 +61,7 @@ describe('Database Security Testing', () => {
       })
 
       it('should limit query length to prevent DoS', () => {
-        const longQuery = 'a'.repeat(500) + "'; DROP TABLE users; --"
+        const longQuery = `${'a'.repeat(500)}'; DROP TABLE users; --`
         const sanitized = sanitizeSearchQuery(longQuery)
 
         expect(sanitized.length).toBeLessThanOrEqual(100)
@@ -443,7 +443,7 @@ describe('Database Security Testing', () => {
 
         const maliciousData = {
           githubId: 12345,
-          username: "user'; DROP TABLE users; --" + 'a'.repeat(200), // Long + malicious
+          username: `user'; DROP TABLE users; --${'a'.repeat(200)}`, // Long + malicious
           email: 'invalid-email-format', // Invalid format
           name: 'b'.repeat(300), // Too long
           avatarUrl: 'c'.repeat(600), // Too long
@@ -698,7 +698,7 @@ describe('Database Security Testing', () => {
     describe('Graceful Degradation', () => {
       it('should handle database connection failures securely', () => {
         // Simulate connection failure
-        const connectionError = new Error('Database unavailable')
+        const _connectionError = new Error('Database unavailable')
 
         // Should not expose internal details
         const userMessage = 'Service temporarily unavailable'
@@ -896,7 +896,7 @@ describe('Database Security Functions Testing', () => {
       })
 
       it('should limit query length to prevent DoS', () => {
-        const longQuery = 'a'.repeat(500) + "'; DROP TABLE users; --"
+        const longQuery = `${'a'.repeat(500)}'; DROP TABLE users; --`
         const sanitized = sanitizeSearchQuery(longQuery)
 
         expect(sanitized.length).toBeLessThanOrEqual(100)

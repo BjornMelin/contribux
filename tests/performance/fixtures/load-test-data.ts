@@ -3,7 +3,7 @@
  * Provides realistic data for GitHub API simulation
  */
 
-import type { TokenInfo } from '../../../src/lib/github'
+import type { TokenInfo } from '@/lib/github'
 
 // Test configuration constants
 export const LOAD_TEST_CONFIG = {

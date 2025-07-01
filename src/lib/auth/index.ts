@@ -7,7 +7,8 @@
 
 // NextAuth.js v5 configuration following industry best practices
 import * as jwt from 'jsonwebtoken'
-import type { NextAuthConfig, JWT } from 'next-auth'
+// Use the correct types from next-auth internals
+import type { Account, JWT, NextAuthConfig, Profile } from 'next-auth'
 import NextAuth from 'next-auth'
 import GitHub from 'next-auth/providers/github'
 import { env } from '@/lib/env'
@@ -26,8 +27,6 @@ interface ExtendedJWT extends JWT {
   githubId?: number
   accessToken?: string
   refreshToken?: string
-  // Ensure index signature compatibility
-  [key: string]: unknown
 }
 
 const authConfig: NextAuthConfig = {
@@ -58,7 +57,7 @@ const authConfig: NextAuthConfig = {
   // Enhanced JWT security
   jwt: {
     maxAge: 24 * 60 * 60, // 24 hours
-    encode: async ({ token, secret }) => {
+    encode: (async ({ token, secret }: { token: JWT; secret: string | string[] }) => {
       // Use secure JWT encoding with additional claims
       const payload = {
         ...token,
@@ -79,8 +78,9 @@ const authConfig: NextAuthConfig = {
         issuer: 'contribux',
         audience: 'contribux-app',
       })
-    },
-    decode: ({ token, secret }) => {
+      // biome-ignore lint/suspicious/noExplicitAny: Required for NextAuth v5 beta compatibility
+    }) as any,
+    decode: (async ({ token, secret }: { token: string; secret: string | string[] }) => {
       try {
         // Ensure secret is a string
         const secretKey = Array.isArray(secret) ? secret[0] : secret
@@ -106,7 +106,8 @@ const authConfig: NextAuthConfig = {
       } catch {
         return null
       }
-    },
+      // biome-ignore lint/suspicious/noExplicitAny: Required for NextAuth v5 beta compatibility
+    }) as any,
   },
 
   pages: {
@@ -115,7 +116,15 @@ const authConfig: NextAuthConfig = {
   },
 
   callbacks: {
-    jwt: async ({ token, account, profile }) => {
+    jwt: (async ({
+      token,
+      account,
+      profile,
+    }: {
+      token: JWT
+      account?: Account | null
+      profile?: Profile
+    }) => {
       // Cast token to ExtendedJWT for type safety
       const extendedToken = token as ExtendedJWT
 
@@ -161,7 +170,8 @@ const authConfig: NextAuthConfig = {
 
       // Return as JWT type for NextAuth compatibility
       return extendedToken as JWT
-    },
+      // biome-ignore lint/suspicious/noExplicitAny: Required for NextAuth v5 beta compatibility
+    }) as any,
 
     async session({ session, token }) {
       // Enhanced session with security validation

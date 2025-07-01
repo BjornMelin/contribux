@@ -1,15 +1,15 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  generatePKCEChallenge,
-  generateEnhancedPKCEChallenge,
+  calculateEntropy,
   generateCodeChallenge,
   generateCodeVerifier,
+  generateEnhancedPKCEChallenge,
+  generatePKCEChallenge,
+  timingSafeEqual,
   validatePKCESecure,
   verifyPKCEChallenge,
   verifyPKCEChallengeSecure,
-  calculateEntropy,
-  timingSafeEqual,
-} from '../../../src/lib/auth/pkce'
+} from '@/lib/auth/pkce'
 
 // Enhanced global crypto mock for comprehensive testing
 const mockCrypto = {
@@ -417,7 +417,7 @@ describe('PKCE Security Implementation - Enhanced Testing', () => {
       const { codeVerifier, codeChallenge } = await generatePKCEChallenge()
 
       // Attacker intercepts authorization code but doesn't have code_verifier
-      const attackerChallenge = await generateCodeChallenge('attacker-verifier')
+      const _attackerChallenge = await generateCodeChallenge('attacker-verifier')
 
       // Original challenge should only work with original verifier
       const legitimateResult = await verifyPKCEChallenge(codeVerifier, codeChallenge)

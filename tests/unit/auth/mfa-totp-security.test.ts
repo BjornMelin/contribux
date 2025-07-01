@@ -4,15 +4,15 @@
  * Tests cryptographic security, rate limiting, and attack prevention
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as crypto from 'node:crypto'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   generateTOTPEnrollment,
-  verifyTOTPToken,
-  verifyBackupCode,
   hashBackupCodes,
   regenerateBackupCodes,
   TOTP_DEFAULTS,
+  verifyBackupCode,
+  verifyTOTPToken,
 } from '@/lib/auth/totp'
 import type { TOTPCredential, User } from '@/types/auth'
 

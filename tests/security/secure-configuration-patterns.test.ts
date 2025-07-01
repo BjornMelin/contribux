@@ -62,7 +62,7 @@ describe('Secure Configuration Patterns', () => {
     it('should validate GitHub client credentials security', async () => {
       vi.resetModules()
       const { getRequiredEnv } = await import('../../src/lib/validation/env')
-      
+
       // Valid GitHub client ID formats
       const validClientIds = [
         'Iv1.a1b2c3d4e5f6g7h8', // OAuth App format
@@ -100,8 +100,10 @@ describe('Secure Configuration Patterns', () => {
 
     it('should enforce secure redirect URIs', async () => {
       vi.resetModules()
-      const { getSecureConfigValue, validateProductionSecuritySettings } = await import('../../src/lib/validation/env')
-      
+      const { getSecureConfigValue, validateProductionSecuritySettings } = await import(
+        '../../src/lib/validation/env'
+      )
+
       const secureRedirectUris = [
         'https://contribux.ai/api/auth/github/callback',
         'https://app.contribux.ai/api/auth/github/callback',
@@ -152,7 +154,7 @@ describe('Secure Configuration Patterns', () => {
     it('should validate OAuth scope restrictions', async () => {
       vi.resetModules()
       const { oauthConfig } = await import('../../src/lib/config')
-      
+
       // Secure OAuth scopes for GitHub
       const secureScopes = [
         'user:email',
@@ -199,7 +201,7 @@ describe('Secure Configuration Patterns', () => {
     it('should check PKCE configuration security', async () => {
       vi.resetModules()
       const { oauthConfig } = await import('../../src/lib/config')
-      
+
       // PKCE (Proof Key for Code Exchange) configuration
       const pkceConfig = {
         enabled: true,
@@ -231,7 +233,7 @@ describe('Secure Configuration Patterns', () => {
     it('should validate Google OAuth configuration security', async () => {
       vi.resetModules()
       const { getRequiredEnv } = await import('../../src/lib/validation/env')
-      
+
       // Valid Google OAuth client ID format
       const validGoogleClientIds = [
         '123456789-abcdefghijklmnopqrstuvwxyz.apps.googleusercontent.com',
@@ -263,7 +265,7 @@ describe('Secure Configuration Patterns', () => {
     it('should validate JWT secret security requirements', async () => {
       vi.resetModules()
       const { getJwtSecret, validateSecretEntropy } = await import('../../src/lib/validation/env')
-      
+
       // Test JWT secret length requirements
       const shortSecrets = [
         'short',
@@ -294,7 +296,7 @@ describe('Secure Configuration Patterns', () => {
     it('should check algorithm restrictions', async () => {
       vi.resetModules()
       const { authConfig } = await import('../../src/lib/config')
-      
+
       // Secure JWT algorithms
       const secureAlgorithms = [
         'HS256',
@@ -400,7 +402,7 @@ describe('Secure Configuration Patterns', () => {
       for (const secret of weakSecrets) {
         vi.resetModules()
         const { validateSecretEntropy, getJwtSecret } = await import('../../src/lib/validation/env')
-        
+
         if (secret.length >= 32) {
           expect(validateSecretEntropy(secret)).toBe(false)
         }
@@ -414,7 +416,7 @@ describe('Secure Configuration Patterns', () => {
       for (const secret of strongSecrets) {
         vi.resetModules()
         const { validateSecretEntropy, getJwtSecret } = await import('../../src/lib/validation/env')
-        
+
         expect(validateSecretEntropy(secret)).toBe(true)
 
         vi.stubEnv('JWT_SECRET', secret)
@@ -448,7 +450,9 @@ describe('Secure Configuration Patterns', () => {
       for (const secret of weakSecrets) {
         vi.stubEnv('NEXTAUTH_SECRET', secret)
         vi.resetModules()
-        const { getRequiredEnv, validateSecretEntropy } = await import('../../src/lib/validation/env')
+        const { getRequiredEnv, validateSecretEntropy } = await import(
+          '../../src/lib/validation/env'
+        )
         expect(() => getRequiredEnv('NEXTAUTH_SECRET')).not.toThrow() // getRequiredEnv doesn't validate length
         expect(validateSecretEntropy(secret)).toBe(false)
       }
@@ -456,7 +460,9 @@ describe('Secure Configuration Patterns', () => {
       for (const secret of strongSecrets) {
         vi.stubEnv('NEXTAUTH_SECRET', secret)
         vi.resetModules()
-        const { getRequiredEnv, validateSecretEntropy } = await import('../../src/lib/validation/env')
+        const { getRequiredEnv, validateSecretEntropy } = await import(
+          '../../src/lib/validation/env'
+        )
         expect(() => getRequiredEnv('NEXTAUTH_SECRET')).not.toThrow()
         expect(validateSecretEntropy(secret)).toBe(true)
       }

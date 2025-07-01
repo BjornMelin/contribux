@@ -21,7 +21,9 @@ import { userEvent } from '@testing-library/user-event'
 import { HttpResponse, http } from 'msw'
 import { setupServer } from 'msw/node'
 import { SessionProvider } from 'next-auth/react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { GitHubRepository } from '@/src/lib/github/types'
 import { cleanupComponentTest, setupComponentTest } from '@/tests/utils/modern-test-helpers'
 
 // Mock components representing the actual app components
@@ -40,27 +42,34 @@ const SearchBar = ({
   }
 
   return (
-    <form onSubmit={handleSubmit} role="search">
-      <input
-        type="text"
-        placeholder="Search repositories..."
-        value={query}
-        onChange={e => setQuery(e.target.value)}
-        disabled={isLoading}
-        aria-label="Search repositories"
-      />
-      <button type="submit" disabled={isLoading || !query.trim()}>
-        {isLoading ? 'Searching...' : 'Search'}
-      </button>
-    </form>
+    <search>
+      <form onSubmit={handleSubmit}>
+        <input
+          type="text"
+          placeholder="Search repositories..."
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          disabled={isLoading}
+          aria-label="Search repositories"
+        />
+        <button type="submit" disabled={isLoading || !query.trim()}>
+          {isLoading ? 'Searching...' : 'Search'}
+        </button>
+      </form>
+    </search>
   )
+}
+
+type TestRepository = GitHubRepository & {
+  is_bookmarked?: boolean
+  stars?: number
 }
 
 const RepositoryCard = ({
   repository,
   onBookmark,
 }: {
-  repository: any
+  repository: TestRepository
   onBookmark: (repoId: string) => void
 }) => {
   const [isBookmarked, setIsBookmarked] = React.useState(repository.is_bookmarked)
@@ -71,7 +80,7 @@ const RepositoryCard = ({
   }
 
   return (
-    <div role="article" aria-label={`Repository ${repository.name}`}>
+    <article aria-label={`Repository ${repository.name}`}>
       <h3>{repository.name}</h3>
       <p>{repository.description}</p>
       <div>
@@ -79,20 +88,30 @@ const RepositoryCard = ({
         <span>⭐ {repository.stars}</span>
       </div>
       <button
+        type="button"
         onClick={handleBookmark}
         aria-label={`${isBookmarked ? 'Remove' : 'Add'} bookmark for ${repository.name}`}
       >
         {isBookmarked ? '🔖' : '📌'} {isBookmarked ? 'Bookmarked' : 'Bookmark'}
       </button>
-    </div>
+    </article>
   )
+}
+
+type TestOpportunity = {
+  id: string
+  title: string
+  description: string
+  difficulty: string
+  skills_required: string[]
+  repository_name: string
 }
 
 const OpportunityCard = ({
   opportunity,
   userSkills,
 }: {
-  opportunity: any
+  opportunity: TestOpportunity
   userSkills: string[]
 }) => {
   const matchPercentage = React.useMemo(() => {
@@ -103,30 +122,37 @@ const OpportunityCard = ({
   }, [opportunity.skills_required, userSkills])
 
   return (
-    <div role="article" aria-label={`Opportunity ${opportunity.title}`}>
+    <article aria-label={`Opportunity ${opportunity.title}`}>
       <h3>{opportunity.title}</h3>
       <p>{opportunity.description}</p>
       <div>
         <span>Difficulty: {opportunity.difficulty}</span>
         <span>Match: {matchPercentage}%</span>
       </div>
-      <div role="list" aria-label="Required skills">
+      <ul aria-label="Required skills">
         {opportunity.skills_required.map((skill: string) => (
-          <span
+          <li
             key={skill}
-            role="listitem"
             className={userSkills.includes(skill) ? 'matched-skill' : 'unmatched-skill'}
           >
             {skill}
-          </span>
+          </li>
         ))}
-      </div>
-    </div>
+      </ul>
+    </article>
   )
 }
 
+type TestUserProfile = {
+  username: string
+  bio: string
+  avatar_url: string
+  location?: string
+  company?: string
+}
+
 const UserProfile = ({ userId }: { userId: string }) => {
-  const [profile, setProfile] = React.useState<any>(null)
+  const [profile, setProfile] = React.useState<TestUserProfile | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
 
@@ -148,24 +174,24 @@ const UserProfile = ({ userId }: { userId: string }) => {
     fetchProfile()
   }, [userId])
 
-  if (loading) return <div role="status">Loading profile...</div>
+  if (loading) return <output>Loading profile...</output>
   if (error) return <div role="alert">Error: {error}</div>
   if (!profile) return <div>No profile found</div>
 
   return (
-    <div role="region" aria-label="User profile">
+    <section aria-label="User profile">
       <h2>{profile.username}</h2>
       <p>{profile.bio}</p>
       <div>
         <span>Repositories: {profile.public_repos}</span>
         <span>Followers: {profile.followers}</span>
       </div>
-    </div>
+    </section>
   )
 }
 
-// Mock React import
-const React = {
+// Mock React functions (avoiding redeclaration)
+const _mockReact = {
   useState: vi.fn(),
   useEffect: vi.fn(),
   useMemo: vi.fn(),
@@ -212,17 +238,17 @@ describe('Component-API Integration Testing', () => {
   beforeEach(() => {
     setupComponentTest()
 
-    // Mock React hooks
-    React.useState.mockImplementation(initial => {
+    // Mock React hooks (proper implementation for test environment)
+    vi.spyOn(React, 'useState').mockImplementation((initial: unknown) => {
       const [state, setState] = useState(initial)
       return [state, setState]
     })
 
-    React.useEffect.mockImplementation((effect, deps) => {
+    vi.spyOn(React, 'useEffect').mockImplementation((effect, deps) => {
       useEffect(effect, deps)
     })
 
-    React.useMemo.mockImplementation((factory, deps) => {
+    vi.spyOn(React, 'useMemo').mockImplementation((factory, deps) => {
       return useMemo(factory, deps)
     })
   })
@@ -364,7 +390,9 @@ describe('Component-API Integration Testing', () => {
 
     it('handles search API errors gracefully', async () => {
       const user = userEvent.setup()
-      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {
+        // Suppress expected console errors during tests
+      })
 
       server.use(
         http.get('/api/search/repositories', () => {
@@ -744,7 +772,7 @@ describe('Component-API Integration Testing', () => {
           <div>
             {Array.from({ length: 50 }, (_, i) => (
               <RepositoryCard
-                key={i}
+                key={`repo-${i}`}
                 repository={{
                   id: `repo-${i}`,
                   name: `Test Repo ${i}`,
@@ -785,7 +813,9 @@ describe('Component-API Integration Testing', () => {
 
   describe('Error Boundary Integration', () => {
     it('handles component errors gracefully during API failures', async () => {
-      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {
+        // Suppress expected console errors during tests
+      })
 
       server.use(
         http.get('/api/users/:userId', () => {

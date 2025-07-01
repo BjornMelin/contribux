@@ -9,15 +9,15 @@ import {
   encryptToken,
   exportKey,
   generateEncryptionKey,
-} from '../../src/lib/auth/crypto'
-import { generateAccessToken, verifyAccessToken } from '../../src/lib/auth/jwt'
-import { validateJwtSecret } from '../../src/lib/validation/env-simplified'
-import type { User } from '../../src/types/auth'
-import type { Email, GitHubUsername } from '../../src/types/base'
-import { createTestUser, createTestUserSession } from '../helpers/auth-test-factories'
+} from '@/lib/auth/crypto'
+import { generateAccessToken, verifyAccessToken } from '@/lib/auth/jwt'
+import { validateJwtSecret } from '@/lib/validation/env-simplified'
+import type { User } from '@/types/auth'
+import type { Email, GitHubUsername } from '@/types/base'
+import { createTestUser, createTestUserSession } from '../../utils/auth-test-factories'
 
 // Mock database for testing
-vi.mock('../../src/lib/db/config', () => ({
+vi.mock('@/lib/db/config', () => ({
   sql: vi.fn(),
 }))
 

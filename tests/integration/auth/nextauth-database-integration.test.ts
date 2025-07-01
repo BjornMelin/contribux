@@ -3,16 +3,33 @@
  * Testing user creation, updates, account linking, session storage, and profile synchronization
  */
 
-import type { Account, Profile } from 'next-auth'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+// Mock database with factory function to avoid hoisting issues
+vi.mock('@/lib/db/config', () => ({
+  sql: vi.fn(),
+}))
+
+// Mock environment variables for server-side access
+vi.mock('@/lib/validation/env', () => ({
+  env: {
+    GITHUB_CLIENT_ID: 'test-github-client-id',
+    GITHUB_CLIENT_SECRET: 'test-github-client-secret',
+    GOOGLE_CLIENT_ID: 'test-google-client-id',
+    GOOGLE_CLIENT_SECRET: 'test-google-client-secret',
+    NEXTAUTH_SECRET: 'test-nextauth-secret',
+    DATABASE_URL: 'postgresql://test:test@localhost:5432/test',
+    NODE_ENV: 'test',
+  },
+}))
+
+import type { Account, Profile } from 'next-auth'
 import { authConfig } from '@/lib/auth/config'
+import { sql } from '@/lib/db/config'
 import type { User as AuthUser } from '@/types/auth'
 
-// Mock database
-const mockSql = vi.fn()
-vi.mock('@/lib/db/config', () => ({
-  sql: mockSql,
-}))
+// Get the mocked sql function
+const mockSql = vi.mocked(sql)
 
 describe('NextAuth Database Integration', () => {
   beforeEach(() => {
@@ -78,14 +95,55 @@ describe('NextAuth Database Integration', () => {
       expect(result).toBe(true)
       expect(mockSql).toHaveBeenCalledTimes(5)
 
-      // Verify user creation query
-      expect(mockSql).toHaveBeenCalledWith(
-        expect.arrayContaining([expect.stringContaining('INSERT INTO users')])
+      // Verify the sequence of SQL operations
+      // 1. Check for existing OAuth account
+      expect(mockSql).toHaveBeenNthCalledWith(
+        1,
+        expect.arrayContaining([expect.stringContaining('oauth_accounts')]),
+        'github',
+        'github-12345'
       )
 
-      // Verify OAuth account creation query
-      expect(mockSql).toHaveBeenCalledWith(
-        expect.arrayContaining([expect.stringContaining('INSERT INTO oauth_accounts')])
+      // 2. Check for existing user by email
+      expect(mockSql).toHaveBeenNthCalledWith(
+        2,
+        expect.arrayContaining([expect.stringContaining('SELECT * FROM users WHERE email')]),
+        'github-user@example.com'
+      )
+
+      // 3. Create new user
+      expect(mockSql).toHaveBeenNthCalledWith(
+        3,
+        expect.arrayContaining([expect.stringContaining('INSERT INTO users')]),
+        'github-user@example.com',
+        'GitHub User',
+        expect.any(String),
+        null,
+        true
+      )
+
+      // 4. Create OAuth account
+      expect(mockSql).toHaveBeenNthCalledWith(
+        4,
+        expect.arrayContaining([expect.stringContaining('INSERT INTO oauth_accounts')]),
+        'new-user-123',
+        'github',
+        'github-12345',
+        'gho_test_access_token',
+        'ghr_test_refresh_token',
+        expect.any(Date),
+        'bearer',
+        'read:user user:email'
+      )
+
+      // 5. Log security audit event
+      expect(mockSql).toHaveBeenNthCalledWith(
+        5,
+        expect.arrayContaining([expect.stringContaining('INSERT INTO security_audit_logs')]),
+        'login_success',
+        'new-user-123',
+        true,
+        expect.stringContaining('github')
       )
     })
 

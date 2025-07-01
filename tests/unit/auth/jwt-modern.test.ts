@@ -3,10 +3,10 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { generateAccessToken, verifyAccessToken } from '../../src/lib/auth/jwt'
-import type { User } from '../../src/types/auth'
-import type { Email, GitHubUsername } from '../../src/types/base'
-import { createTestUser, createTestUserSession } from '../helpers/auth-test-factories'
+import { generateAccessToken, verifyAccessToken } from '@/lib/auth/jwt'
+import type { User } from '@/types/auth'
+import type { Email, GitHubUsername } from '@/types/base'
+import { createTestUser, createTestUserSession } from '../../utils/auth-test-factories'
 
 // Modern 2025 test approach: Use node environment for crypto tests to avoid JSDOM Uint8Array issues
 // This fixes the "payload must be an instance of Uint8Array" error with jose library

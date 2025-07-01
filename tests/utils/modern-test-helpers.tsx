@@ -6,11 +6,18 @@
  */
 
 import { cleanup, render, screen } from '@testing-library/react'
-import { userEvent } from '@testing-library/user-event'
 import type React from 'react'
 import { afterEach, beforeEach, vi } from 'vitest'
 import type { UUID } from '@/types/base'
 import type { Repository, SearchFilters } from '@/types/search'
+
+// Conditionally import userEvent only when in DOM environment
+let userEvent: any = null
+if (typeof window !== 'undefined') {
+  import('@testing-library/user-event').then(module => {
+    userEvent = module.userEvent
+  })
+}
 
 /**
  * Modern render helper with automatic cleanup
@@ -23,7 +30,7 @@ export function renderComponent(component: React.ReactElement) {
   // Return standard result with enhanced user utilities
   return {
     ...result,
-    user: userEvent.setup(),
+    user: userEvent ? userEvent.setup() : null,
     // Use result-scoped queries instead of screen to avoid conflicts
     getByRole: result.getByRole,
     getByText: result.getByText,

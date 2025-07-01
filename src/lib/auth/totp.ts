@@ -102,13 +102,13 @@ function generateHOTP(secret: Buffer, counter: number, digits: number): string {
   counterBuffer.writeBigUInt64BE(BigInt(counter))
 
   const hash = hmac.update(counterBuffer).digest()
-  const offset = hash[hash.length - 1] & 0x0f
+  const offset = (hash[hash.length - 1] || 0) & 0x0f
 
   const code =
-    ((hash[offset] & 0x7f) << 24) |
-    ((hash[offset + 1] & 0xff) << 16) |
-    ((hash[offset + 2] & 0xff) << 8) |
-    (hash[offset + 3] & 0xff)
+    (((hash[offset] || 0) & 0x7f) << 24) |
+    (((hash[offset + 1] || 0) & 0xff) << 16) |
+    (((hash[offset + 2] || 0) & 0xff) << 8) |
+    ((hash[offset + 3] || 0) & 0xff)
 
   return (code % 10 ** digits).toString().padStart(digits, '0')
 }
@@ -283,8 +283,8 @@ export async function verifyTOTPToken(
       storedCredential.secret,
       undefined,
       TOTP_DEFAULTS.WINDOW,
-      storedCredential.period,
-      storedCredential.digits
+      storedCredential.period as 30,
+      storedCredential.digits as 6
     )
 
     if (!verification.valid) {
@@ -364,7 +364,7 @@ export async function verifyBackupCode(
 /**
  * Hash backup codes for secure storage
  */
-export function hashBackupCodes(plainTextCodes: string[]): string[] {
+function hashBackupCodesImpl(plainTextCodes: string[]): string[] {
   return plainTextCodes.map(code => crypto.createHash('sha256').update(code).digest('hex'))
 }
 
@@ -373,7 +373,7 @@ export function hashBackupCodes(plainTextCodes: string[]): string[] {
  */
 export function regenerateBackupCodes(): { plainText: string[]; hashed: string[] } {
   const plainText = generateBackupCodes()
-  const hashed = hashBackupCodes(plainText)
+  const hashed = hashBackupCodesImpl(plainText)
 
   return { plainText, hashed }
 }
@@ -386,7 +386,7 @@ export {
   generateTOTP,
   verifyTOTP,
   generateBackupCodes,
-  hashBackupCodes,
+  hashBackupCodesImpl as hashBackupCodes,
   generateQRCodeUrl,
   TOTP_DEFAULTS,
 }

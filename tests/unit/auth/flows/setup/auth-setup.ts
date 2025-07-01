@@ -10,8 +10,8 @@
 
 import nock from 'nock'
 import { afterEach, beforeEach } from 'vitest'
-import { GitHubClient } from '../../../../src/lib/github/client'
-import type { AuthConfig } from '../../../../src/lib/github/types'
+import { GitHubClient } from '@/lib/github/client'
+import type { AuthConfig } from '@/lib/github/types'
 import type { IntegrationTestContext } from '../../../integration/infrastructure/test-config'
 
 /**

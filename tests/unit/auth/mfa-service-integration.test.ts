@@ -4,18 +4,18 @@
  * Tests user enrollment flow, authentication flow, and recovery procedures
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { NextRequest } from 'next/server'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   enrollMFA,
-  verifyMFA,
-  getMFASettings,
-  updateMFASettings,
   generateDeviceFingerprint,
+  getMFASettings,
   MFA_SECURITY,
   regenerateBackupCodes,
+  updateMFASettings,
+  verifyMFA,
 } from '@/lib/auth/mfa-service'
-import type { User, MFAEnrollmentRequest, MFAVerificationRequest, MFASettings } from '@/types/auth'
-import type { NextRequest } from 'next/server'
+import type { MFAEnrollmentRequest, MFASettings, MFAVerificationRequest, User } from '@/types/auth'
 
 // Mock the MFA implementation modules
 vi.mock('@/lib/auth/totp', () => ({
@@ -485,7 +485,7 @@ describe('MFA Service Integration', () => {
       const results = await Promise.all(promises)
 
       // All should complete without race conditions
-      results.forEach((result, index) => {
+      results.forEach((result, _index) => {
         expect(result).toBeDefined()
         expect(typeof result.success).toBe('boolean')
       })
@@ -572,6 +572,7 @@ describe('MFA Service Integration', () => {
         const result = await verifyMFA(mockUser, verificationRequest, mockRequest)
 
         expect(result.success).toBe(false)
+        expect(result.remainingAttempts).toBeDefined()
         expect(result.remainingAttempts).toBe(MFA_SECURITY.MAX_ATTEMPTS - i - 1)
       }
     })

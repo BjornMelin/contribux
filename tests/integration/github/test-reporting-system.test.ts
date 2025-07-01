@@ -16,7 +16,7 @@
 import { existsSync, mkdirSync, readFileSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { GitHubClient } from '../../../src/lib/github/client'
+import { GitHubClient } from '@/lib/github/client'
 import { MemoryProfiler, MetricsCollector } from '../infrastructure/metrics-collector'
 
 // Test configuration

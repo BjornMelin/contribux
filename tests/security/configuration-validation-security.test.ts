@@ -12,22 +12,20 @@
  * 5. Test coverage for the security fixes implemented in env.ts
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { appConfig, createConfig, databaseConfig } from '@/lib/config'
 import {
-  getRequiredEnv,
-  validateSecretEntropy,
-  validateProductionSecuritySettings,
-  validateProductionSecrets,
-  validateProductionUrls,
-  validateProductionEnv,
-  validateEnvironmentOnStartup,
-  validateBasicEnvironmentVariables,
-  getJwtSecret,
   getDatabaseUrl,
-} from '../../src/lib/validation/env'
-import { createConfig, appConfig, databaseConfig } from '../../src/lib/config'
+  getJwtSecret,
+  getRequiredEnv,
+  validateBasicEnvironmentVariables,
+  validateEnvironmentOnStartup,
+  validateProductionEnv,
+  validateProductionSecrets,
+  validateProductionSecuritySettings,
+  validateProductionUrls,
+  validateSecretEntropy,
+} from '@/lib/validation/env'
 
 describe('Configuration Validation Security', () => {
   let originalEnv: NodeJS.ProcessEnv
@@ -84,7 +82,7 @@ describe('Configuration Validation Security', () => {
           'sample-jwt-secret',
         ]
 
-        testPatterns.forEach(pattern => {
+        testPatterns.forEach(_pattern => {
           expect(() => getRequiredEnv('TEST_VAR')).toThrow(/test patterns in production/)
         })
       })
@@ -112,8 +110,8 @@ describe('Configuration Validation Security', () => {
 
       it('should validate production-only settings', () => {
         // Missing GitHub OAuth credentials
-        delete process.env.GITHUB_CLIENT_ID
-        delete process.env.GITHUB_CLIENT_SECRET
+        process.env.GITHUB_CLIENT_ID = undefined
+        process.env.GITHUB_CLIENT_SECRET = undefined
 
         expect(() => validateProductionSecuritySettings()).toThrow(/GITHUB_CLIENT_ID.*configured/)
       })
@@ -121,12 +119,12 @@ describe('Configuration Validation Security', () => {
 
     describe('Required Variable Validation', () => {
       it('should throw errors for missing critical variables', () => {
-        delete process.env.DATABASE_URL
+        process.env.DATABASE_URL = undefined
         expect(() => getRequiredEnv('DATABASE_URL')).toThrow(/DATABASE_URL.*missing/)
       })
 
       it('should validate JWT_SECRET requirements', () => {
-        delete process.env.JWT_SECRET
+        process.env.JWT_SECRET = undefined
         expect(() => getJwtSecret()).toThrow(/JWT_SECRET/)
       })
 
@@ -145,7 +143,7 @@ describe('Configuration Validation Security', () => {
 
     describe('Fallback Security', () => {
       it('should never fallback to insecure defaults', () => {
-        delete process.env.JWT_SECRET
+        process.env.JWT_SECRET = undefined
         expect(() => getJwtSecret()).toThrow()
         // Should not return any default value
       })
@@ -311,7 +309,7 @@ describe('Configuration Validation Security', () => {
 
       it('should check security configuration completeness', () => {
         // Missing security configuration should fail
-        delete process.env.JWT_SECRET
+        process.env.JWT_SECRET = undefined
         expect(() => validateEnvironmentOnStartup()).toThrow()
       })
 

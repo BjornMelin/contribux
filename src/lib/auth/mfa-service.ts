@@ -16,6 +16,7 @@ import type {
   User,
   WebAuthnCredential,
 } from '@/types/auth'
+import type { UUID } from '@/types/base'
 
 // Import MFA implementations
 import { generateTOTPEnrollment, hashBackupCodes, verifyBackupCode, verifyTOTPToken } from './totp'
@@ -265,13 +266,19 @@ async function enrollWebAuthn(
   if (enrollment.success && enrollment.registrationOptions) {
     // Store challenge for verification
     const challengeId = `webauthn:${user.id}:${Date.now()}`
-    const regOptions = enrollment.registrationOptions as any
+    const regOptions = enrollment.registrationOptions as PublicKeyCredentialCreationOptions
     mfaChallenges.set(challengeId, {
       userId: user.id,
-      challenge: regOptions.challenge,
+      challenge: regOptions?.challenge
+        ? typeof regOptions.challenge === 'string'
+          ? regOptions.challenge
+          : regOptions.challenge instanceof ArrayBuffer
+            ? Buffer.from(new Uint8Array(regOptions.challenge)).toString('base64')
+            : Buffer.from(regOptions.challenge as Uint8Array).toString('base64')
+        : challengeId,
       method: 'webauthn',
       expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
-      registrationOptions: enrollment.registrationOptions,
+      registrationOptions: enrollment.registrationOptions as PublicKeyCredentialCreationOptions,
     })
 
     return {
@@ -353,10 +360,11 @@ async function verifyMFA(
       // Add remaining attempts to response
       const attempt = mfaAttempts.get(user.id)
       if (attempt) {
-        verificationResult.remainingAttempts = Math.max(
-          0,
-          MFA_SECURITY.MAX_ATTEMPTS - attempt.attempts
-        )
+        const remainingAttempts = Math.max(0, MFA_SECURITY.MAX_ATTEMPTS - attempt.attempts)
+        verificationResult = {
+          ...verificationResult,
+          remainingAttempts,
+        }
       }
     }
 
@@ -388,7 +396,7 @@ async function verifyTOTPMFA(
 
   // TODO: Get TOTP credential from database
   const totpCredential: TOTPCredential = {
-    id: 'mock',
+    id: '00000000-0000-0000-0000-000000000000' as UUID,
     userId: user.id,
     secret: 'mock-secret',
     algorithm: 'SHA1',
@@ -428,7 +436,7 @@ async function verifyWebAuthnMFA(
 
   // TODO: Get WebAuthn credential from database
   const webauthnCredential: WebAuthnCredential = {
-    id: 'mock',
+    id: '00000000-0000-0000-0000-000000000000' as UUID,
     userId: user.id,
     credentialId: request.credentialId,
     publicKey: 'mock-public-key',
@@ -468,7 +476,7 @@ async function verifyWebAuthnMFA(
     {
       userId: user.id,
       credentialId: request.credentialId,
-      assertion: request.assertion,
+      assertion: request.assertion as PublicKeyCredential,
     },
     webauthnCredential,
     challenge.challenge

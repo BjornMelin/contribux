@@ -14,13 +14,13 @@ import {
   logDataAccess,
   logSecurityEvent,
   logSessionActivity,
-} from '../../src/lib/auth/audit'
-import { sql } from '../../src/lib/db/config'
-import { brandAsUUID } from '../../src/types/base'
-import type { SQLFunction } from '../../src/types/database'
+} from '@/lib/auth/audit'
+import { sql } from '@/lib/db/config'
+import { brandAsUUID } from '@/types/base'
+import type { SQLFunction } from '@/types/database'
 
 // Mock database
-vi.mock('../../src/lib/db/config', () => ({
+vi.mock('@/lib/db/config', () => ({
   sql: vi.fn(),
 }))
 

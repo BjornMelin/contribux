@@ -3,7 +3,7 @@
  * Centralized test data for search component testing
  */
 
-import type { Opportunity, SearchFilters } from '../../../../src/types/search'
+import type { Opportunity, SearchFilters } from '@/types/search'
 import { asUUID, createMockRepository } from '../utils/search-test-helpers'
 
 // Shared mock opportunity for all tests

@@ -10,13 +10,8 @@
 import { fireEvent, screen, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  OpportunityCard,
-  OpportunityList,
-  SearchBar,
-  SearchFilters,
-} from '../../../src/components/features'
-import type { Opportunity, SearchFilters as SearchFiltersType } from '../../../src/types/search'
+import { OpportunityCard, OpportunityList, SearchBar, SearchFilters } from '@/components/features'
+import type { Opportunity, SearchFilters as SearchFiltersType } from '@/types/search'
 import {
   asUUID,
   createDefaultFilters,

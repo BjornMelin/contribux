@@ -53,7 +53,7 @@ describe('Zero-Trust Cryptographic Security', () => {
         const { getEncryptionKey } = await import('@/lib/validation/env')
 
         // Should require encryption key in production
-        expect(() => getEncryptionKey()).toThrow(/ENCRYPTION_KEY environment variable is required/i)
+        expect(() => getEncryptionKey()).toThrow(/ENCRYPTION_KEY is required in all environments/)
       } finally {
         process.env.NODE_ENV = originalNodeEnv
         if (originalEncryptionKey !== undefined) {
@@ -101,10 +101,10 @@ describe('Zero-Trust Cryptographic Security', () => {
         process.env.ENCRYPTION_KEY = undefined
 
         // Import and test the real function using ES module syntax
-        const { validateEnvironment } = await import('@/lib/validation/env')
+        const { getEncryptionKey } = await import('@/lib/validation/env')
 
         // Should throw error requiring encryption key in all environments
-        expect(() => validateEnvironment()).toThrow(/ENCRYPTION_KEY.*required/i)
+        expect(() => getEncryptionKey()).toThrow(/ENCRYPTION_KEY is required in all environments/)
       } finally {
         process.env.NODE_ENV = originalNodeEnv
         if (originalEncryptionKey !== undefined) {
@@ -126,8 +126,10 @@ describe('Zero-Trust Cryptographic Security', () => {
         // Import and test the real function using ES module syntax
         const { validateEnvironment } = await import('@/lib/validation/env')
 
-        // Should validate that key is proper hexadecimal format - this key is too short first
-        expect(() => validateEnvironment()).toThrow('Weak encryption key - insufficient entropy')
+        // Should validate that key is proper hexadecimal format - this key is invalid format
+        expect(() => validateEnvironment()).toThrow(
+          /ENCRYPTION_KEY has invalid format - must be hexadecimal/
+        )
       } finally {
         process.env.NODE_ENV = originalNodeEnv
         if (originalEncryptionKey !== undefined) {
@@ -150,7 +152,9 @@ describe('Zero-Trust Cryptographic Security', () => {
         const { validateEnvironment } = await import('@/lib/validation/env')
 
         // Should require 256-bit key (64 hex characters) - this key is too short
-        expect(() => validateEnvironment()).toThrow(/ENCRYPTION_KEY.*required/i)
+        expect(() => validateEnvironment()).toThrow(
+          /ENCRYPTION_KEY must be exactly 64 hexadecimal characters/
+        )
       } finally {
         process.env.NODE_ENV = originalNodeEnv
         if (originalEncryptionKey !== undefined) {

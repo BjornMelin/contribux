@@ -324,7 +324,7 @@ describe('Attack Scenario Simulation Security Tests', () => {
         http.post('http://localhost:3000/api/auth/signin', async ({ request }) => {
           const startTime = performance.now()
           const body = await request.json()
-          const { email, password } = body
+          const { email: _email, password } = body
           const clientIp = request.headers.get('X-Forwarded-For') || '127.0.0.1'
           const userAgent = request.headers.get('User-Agent') || 'unknown'
 

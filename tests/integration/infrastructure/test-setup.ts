@@ -7,7 +7,7 @@
 
 import { exec } from 'node:child_process'
 import { promisify } from 'node:util'
-import { GitHubClient } from '../../../src/lib/github/client'
+import { GitHubClient } from '@/lib/github/client'
 import { MetricsCollector } from './metrics-collector'
 import {
   type IntegrationTestContext,

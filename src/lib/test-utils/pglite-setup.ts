@@ -84,10 +84,14 @@ afterEach(async () => {
  * Setup database schema and extensions
  */
 async function setupTestSchema(db: PGlite): Promise<void> {
-  // Enable extensions
-  await db.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
-  await db.query('CREATE EXTENSION IF NOT EXISTS "vector"')
+  // PGlite 0.3.x has limited extension support - only enable what's available
+  try {
+    await db.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
+  } catch {
+    // PGlite may not support uuid-ossp, fall back to gen_random_uuid()
+  }
 
+  // PGlite doesn't support vector extension - use TEXT for embeddings
   // Create schema from schema.sql if it exists
   // For now, we'll create a basic schema for testing
   await db.query(`
@@ -95,15 +99,15 @@ async function setupTestSchema(db: PGlite): Promise<void> {
         id SERIAL PRIMARY KEY,
         name TEXT NOT NULL,
         data JSONB,
-        embedding vector(1536),
+        embedding TEXT,
         created_at TIMESTAMP DEFAULT NOW()
       )
     `)
 
-  // Create vector index for testing
+  // Create basic index instead of vector index
   await db.query(`
-      CREATE INDEX IF NOT EXISTS test_table_embedding_idx 
-      ON test_table USING hnsw (embedding vector_cosine_ops)
+      CREATE INDEX IF NOT EXISTS test_table_name_idx 
+      ON test_table (name)
     `)
 }
 

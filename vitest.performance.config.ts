@@ -12,12 +12,10 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
-    extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
   },
 
   define: {
-    'import.meta.vitest': undefined,
-    global: 'globalThis',
+    'import.meta.vitest': 'undefined',
   },
 
   test: {
@@ -33,13 +31,16 @@ export default defineConfig({
       'tests/integration/**/*',
       'tests/e2e/**/*',
       'tests/security/**/*',
+      'node_modules/**/*',
+      'dist/**/*',
+      '.next/**/*',
     ],
 
     setupFiles: ['./tests/setup.ts'],
 
     // Performance tests need extended timeouts
-    testTimeout: 120000,
-    hookTimeout: 60000,
+    testTimeout: 90000,
+    hookTimeout: 45000,
     retry: 0, // No retries for performance tests
 
     // Optimized for performance testing
@@ -48,20 +49,27 @@ export default defineConfig({
       threads: {
         singleThread: false,
         minThreads: 2,
-        maxThreads: 8,
+        maxThreads: Math.min(8, require('os').cpus().length),
       },
     },
 
-    // Minimal coverage for performance tests
+    // Disable coverage for performance tests
     coverage: {
       enabled: false,
     },
 
     // Performance-focused reporting
-    reporters: ['default', 'json'],
-    outputFile: { json: './performance-test-results.json' },
+    reporters: ['default'],
+    outputFile: {
+      json: './performance-test-results.json',
+    },
 
-    // Memory and resource limits
-    isolate: false, // Share environment for performance testing
+    // Environment configuration
+    env: {
+      NODE_ENV: 'test',
+    },
+
+    // Share environment for performance testing
+    isolate: false,
   },
 })

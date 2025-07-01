@@ -5,7 +5,7 @@
  * Provides common patterns for testing end-to-end GitHub operations.
  */
 
-import type { GitHubClient } from '../../../../src/lib/github/client'
+import type { GitHubClient } from '@/lib/github/client'
 
 export interface WorkflowTestResult<T = unknown> {
   success: boolean

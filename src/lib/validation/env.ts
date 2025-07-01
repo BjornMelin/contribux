@@ -371,7 +371,7 @@ export function validateEnvironmentOnStartup(): void {
     validateSecurityConfiguration()
 
     // Production-specific validations
-    const nodeEnv = process.env.NODE_ENV || 'development'
+    const nodeEnv = (typeof process !== 'undefined' && process.env?.NODE_ENV) || 'development'
     if (nodeEnv === 'production') {
       validateEncryptionKeyInProduction()
       validateProductionUrls()
@@ -382,7 +382,14 @@ export function validateEnvironmentOnStartup(): void {
     const errorMessage = error instanceof Error ? error.message : String(error)
     // biome-ignore lint/suspicious/noConsole: Required for security error logging during startup validation
     console.error(`🚨 SECURITY: Environment validation failed: ${errorMessage}`)
-    process.exit(1)
+
+    // Only exit if we're in Node.js runtime (not Edge Runtime)
+    if (typeof process !== 'undefined' && process.exit) {
+      process.exit(1)
+    } else {
+      // In Edge Runtime, throw the error to prevent application startup
+      throw error
+    }
   }
 }
 

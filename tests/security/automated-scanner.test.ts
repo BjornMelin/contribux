@@ -12,7 +12,7 @@ import {
   type SecurityScannerConfig,
   type ThreatDetection,
   type Vulnerability,
-} from '../../src/lib/security/automated-scanner'
+} from '@/lib/security/automated-scanner'
 
 // Mock crypto module
 vi.mock('../../src/lib/security/crypto', () => ({
@@ -588,8 +588,8 @@ import('../../src/lib/security/csp-cors')
 // COMPREHENSIVE CORS SECURITY TESTING SUITE
 // =======================================================================================
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { NextRequest, NextResponse } from 'next/server'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 describe('Comprehensive CORS Security Configuration', () => {
   beforeEach(() => {
@@ -1048,7 +1048,7 @@ describe('Comprehensive Security Headers Testing', () => {
 
   describe('Cache Control Headers', () => {
     it('should set no-cache for sensitive endpoints', async () => {
-      const request = new NextRequest('https://contribux.com/api/user/profile')
+      const _request = new NextRequest('https://contribux.com/api/user/profile')
       const response = new NextResponse()
 
       // Mock response for user profile (sensitive data)
@@ -1060,7 +1060,7 @@ describe('Comprehensive Security Headers Testing', () => {
     })
 
     it('should allow caching for public endpoints with limits', async () => {
-      const request = new NextRequest('https://contribux.com/api/health')
+      const _request = new NextRequest('https://contribux.com/api/health')
       const response = new NextResponse()
 
       // Mock response for health check (public data)

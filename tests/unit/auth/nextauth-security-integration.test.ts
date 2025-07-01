@@ -1,10 +1,66 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { authConfig } from '../../../src/lib/auth/index'
-import { sql } from '../../../src/lib/db/config'
+/**
+ * @vitest-environment node
+ */
+
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+// Mock Next.js modules first to prevent import issues
+vi.mock('next/server', () => ({
+  NextResponse: {
+    json: vi.fn(),
+    redirect: vi.fn(),
+  },
+}))
+
+// Mock NextAuth v5 modules
+vi.mock('next-auth', () => ({
+  default: vi.fn(),
+}))
+
+vi.mock('next-auth/providers/github', () => ({
+  default: vi.fn(() => ({
+    id: 'github',
+    name: 'GitHub',
+    type: 'oauth',
+    options: { pkce: true },
+  })),
+}))
+
+// Mock environment first
+vi.stubEnv('JWT_SECRET', 'test-jwt-secret-for-unit-tests-only-32-chars-minimum')
+vi.stubEnv('NEXTAUTH_SECRET', 'test-nextauth-secret-32chars-minimum')
+vi.stubEnv('GITHUB_TOKEN', 'test-github-token')
+vi.stubEnv('GITHUB_ID', 'test-github-id')
+vi.stubEnv('GITHUB_SECRET', 'test-github-secret')
+vi.stubEnv('NODE_ENV', 'test')
 
 // Mock dependencies
-vi.mock('../../../src/lib/db/config')
-vi.mock('../../../src/lib/validation/env')
+vi.mock('@/lib/db/config')
+vi.mock('@/lib/env', () => ({
+  env: {
+    JWT_SECRET: 'test-jwt-secret-for-unit-tests-only-32-chars-minimum',
+    NEXTAUTH_SECRET: 'test-nextauth-secret-32chars-minimum',
+    GITHUB_TOKEN: 'test-github-token',
+    GITHUB_ID: 'test-github-id',
+    GITHUB_SECRET: 'test-github-secret',
+    NODE_ENV: 'test',
+    DATABASE_URL: 'postgresql://test:test@localhost:5432/test',
+  },
+}))
+
+vi.mock('@/lib/validation/env', () => ({
+  env: {
+    JWT_SECRET: 'test-jwt-secret-for-unit-tests-only-32-chars-minimum',
+    NEXTAUTH_SECRET: 'test-nextauth-secret-32chars-minimum',
+    GITHUB_TOKEN: 'test-github-token',
+    GITHUB_ID: 'test-github-id',
+    GITHUB_SECRET: 'test-github-secret',
+    NODE_ENV: 'test',
+  },
+}))
+
+import { authConfig } from '@/lib/auth/index'
+import { sql } from '@/lib/db/config'
 
 describe('NextAuth OAuth Security Integration', () => {
   let mockSql: ReturnType<typeof vi.mocked>

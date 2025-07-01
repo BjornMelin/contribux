@@ -9,7 +9,7 @@ import { assertions, E2ETestUtils, testData } from './utils/test-helpers'
 test.describe('Complete User Journeys', () => {
   let utils: E2ETestUtils
   let errors: string[]
-  let networkRequests: any[]
+  let networkRequests: Array<{ url: string; method: string; status?: number }>
 
   test.beforeEach(async ({ page }) => {
     utils = new E2ETestUtils(page)
@@ -458,7 +458,7 @@ test.describe('Complete User Journeys', () => {
     })
   })
 
-  test.afterEach(async ({ page }) => {
+  test.afterEach(async () => {
     // Log any performance issues
     const memory = await utils.performance.measureMemoryUsage()
     if (memory) {

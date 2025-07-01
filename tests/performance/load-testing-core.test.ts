@@ -7,7 +7,7 @@
 
 import { HttpResponse, http } from 'msw'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { GitHubClient } from '../../src/lib/github'
+import { GitHubClient } from '@/lib/github'
 import { createRateLimitHeaders } from '../github/test-helpers'
 import { createMockUser, LOAD_TEST_CONFIG, PERFORMANCE_THRESHOLDS } from './fixtures/load-test-data'
 import { setupPerformanceTest } from './setup/performance-setup'

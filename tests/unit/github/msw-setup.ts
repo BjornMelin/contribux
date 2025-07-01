@@ -1,12 +1,17 @@
 /**
  * Modern MSW 2.x setup for GitHub API mocking
  * Replaces nock with modern HTTP mocking patterns
+ *
+ * Fixed version that addresses fetch and TransformStream compatibility issues
  */
 
-// MSW polyfill for Node.js environment - ensure TransformStream is globally available
-// @ts-ignore - Node.js 22+ has built-in TransformStream, ensure it's always accessible for MSW
-if (typeof TransformStream !== 'undefined') {
-  globalThis.TransformStream = TransformStream
+// Ensure TransformStream and fetch are available for MSW 2.x
+if (typeof globalThis.TransformStream === 'undefined') {
+  console.warn('TransformStream not available, MSW may not function correctly')
+}
+
+if (typeof globalThis.fetch === 'undefined') {
+  throw new Error('fetch polyfill not loaded. Ensure tests/setup.ts is properly configured.')
 }
 
 import { HttpResponse, http, passthrough } from 'msw'

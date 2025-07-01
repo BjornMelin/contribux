@@ -8,7 +8,7 @@ import {
   getRandomBytes,
   isEdgeRuntime,
   timingSafeEqual,
-} from '../../src/lib/crypto-utils'
+} from '@/lib/crypto-utils'
 
 describe('Crypto Integration Verification', () => {
   test('should perform SHA-256 hashing correctly', async () => {

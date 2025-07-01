@@ -31,7 +31,7 @@ interface ApiPerformanceMetrics {
   statusCode: number
   contentLength?: number
   headers?: Record<string, string>
-  body?: any
+  body?: unknown
   serverTiming?: Record<string, number>
 }
 
@@ -95,7 +95,7 @@ describe('API Performance Testing', () => {
         })
       }
 
-      let body: any
+      let body: unknown
       const contentType = response.headers.get('content-type')
       if (contentType?.includes('application/json')) {
         body = await response.json()

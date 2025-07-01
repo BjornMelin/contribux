@@ -1,13 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  exchangeCodeForTokens,
-  generateOAuthUrl,
-  refreshOAuthTokens,
-  unlinkOAuthAccount,
-  validateOAuthCallback,
-} from '../../src/lib/auth/oauth'
-import { sql } from '../../src/lib/db/config'
-import type { OAuthCallbackParams } from '../../src/types/auth'
+import { describe, expect, it, vi } from 'vitest'
+import { generateOAuthUrl, validateOAuthCallback } from '@/lib/auth/oauth'
+import { sql } from '@/lib/db/config'
 
 // Mock env validation for this test file
 vi.mock('../../src/lib/validation/env', () => ({
@@ -57,7 +50,7 @@ vi.mock('../../src/lib/auth/crypto', async () => {
 // Note: Database and fetch mocks are defined in tests/setup.ts
 
 // Import the sql mock to ensure it's available
-import { sql as mockSql } from '../../src/lib/db/config'
+import { sql as mockSql } from '@/lib/db/config'
 
 vi.mocked(mockSql)
 

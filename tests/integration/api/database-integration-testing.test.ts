@@ -60,7 +60,26 @@ const DatabaseHealthSchema = z.object({
 })
 
 // Mock data generators
-const generateMockRepository = (overrides: Partial<any> = {}) => ({
+interface MockRepository {
+  id?: string
+  githubId?: number
+  fullName?: string
+  name?: string
+  owner?: string
+  description?: string
+  metadata?: {
+    language?: string
+    primaryLanguage?: string
+    languages?: Record<string, number>
+    stars?: number
+    forks?: number
+    openIssues?: number
+    [key: string]: unknown
+  }
+  [key: string]: unknown
+}
+
+const generateMockRepository = (overrides: Partial<MockRepository> = {}) => ({
   id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
   githubId: 123456789,
   fullName: 'test-org/test-repo',

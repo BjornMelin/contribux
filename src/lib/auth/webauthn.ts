@@ -58,14 +58,14 @@ export async function generateRegistrationOptions(
     const { generateRegistrationOptions: generateOptions } = await import('@simplewebauthn/server')
 
     // Get WebAuthn configuration
-    const config = await import('@/lib/config')
-    const webauthnConfig = config.default.webauthn
+    const { appConfig } = await import('@/lib/config')
+    const webauthnConfig = appConfig.webauthn
 
     // Generate registration options using SimpleWebAuthn
     const options = await generateOptions({
       rpName: 'Contribux',
       rpID: webauthnConfig.rpId || 'localhost',
-      userID: params.userId,
+      userID: Buffer.from(params.userId),
       userName: params.userEmail,
       userDisplayName: params.userName,
       timeout: webauthnConfig.timeout || 60000,
@@ -75,7 +75,7 @@ export async function generateRegistrationOptions(
         userVerification: 'preferred',
         requireResidentKey: false,
       },
-      supportedAlgorithmIDs: webauthnConfig.supportedAlgorithms || [-7, -257], // ES256, RS256
+      supportedAlgorithmIDs: [...(webauthnConfig.supportedAlgorithms || [-7, -257])], // ES256, RS256
     })
 
     return {
@@ -86,10 +86,7 @@ export async function generateRegistrationOptions(
       },
       user: options.user,
       pubKeyCredParams: options.pubKeyCredParams,
-      timeout: options.timeout,
-      excludeCredentials: options.excludeCredentials,
-      authenticatorSelection: options.authenticatorSelection,
-      attestation: options.attestation,
+      timeout: options.timeout || 60000,
     }
   } catch (_error) {
     return {
@@ -112,7 +109,6 @@ export async function generateRegistrationOptions(
         authenticatorAttachment: 'cross-platform',
         userVerification: 'preferred',
       },
-      attestation: 'none',
     }
   }
 }

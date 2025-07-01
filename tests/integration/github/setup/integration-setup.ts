@@ -8,7 +8,7 @@
 import { HttpResponse, http } from 'msw'
 import { setupServer } from 'msw/node'
 import { afterAll, afterEach, beforeAll, beforeEach, vi } from 'vitest'
-import { GitHubClient } from '../../../../src/lib/github/client'
+import { GitHubClient } from '@/lib/github/client'
 
 /**
  * Integration test configuration

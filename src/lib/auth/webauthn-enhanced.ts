@@ -116,13 +116,13 @@ export async function generateWebAuthnRegistrationOptions(
       const { generateRegistrationOptions } = await import('@simplewebauthn/server')
 
       // Get WebAuthn configuration
-      const config = await import('@/lib/config')
-      const webauthnConfig = config.default.webauthn
+      const { appConfig } = await import('@/lib/config')
+      const webauthnConfig = appConfig.webauthn
 
       const options = await generateRegistrationOptions({
         rpName: 'Contribux',
         rpID: webauthnConfig.rpId || 'localhost',
-        userID: userId,
+        userID: Buffer.from(userId),
         userName: userEmail,
         userDisplayName: userName,
         timeout: webauthnConfig.timeout || 60000,
@@ -137,18 +137,28 @@ export async function generateWebAuthnRegistrationOptions(
           userVerification: 'preferred',
           residentKey: 'preferred',
         },
-        supportedAlgorithmIDs: webauthnConfig.supportedAlgorithms || [-7, -257],
+        supportedAlgorithmIDs: [...(webauthnConfig.supportedAlgorithms || [-7, -257])],
       })
 
       registrationOptions = {
         challenge: options.challenge,
-        rp: options.rp,
+        rp: {
+          id: options.rp.id || webauthnConfig.rpId || 'localhost',
+          name: options.rp.name,
+        },
         user: options.user,
         pubKeyCredParams: options.pubKeyCredParams,
-        timeout: options.timeout,
-        excludeCredentials: options.excludeCredentials,
-        authenticatorSelection: options.authenticatorSelection,
-        attestation: options.attestation,
+        timeout: options.timeout || 60000,
+        excludeCredentials:
+          options.excludeCredentials?.map(cred => ({
+            id: cred.id,
+            type: 'public-key' as const,
+            transports: cred.transports as AuthenticatorTransport[],
+          })) || [],
+        ...(options.authenticatorSelection && {
+          authenticatorSelection: options.authenticatorSelection,
+        }),
+        ...(options.attestation && { attestation: options.attestation }),
       }
     } catch (_importError) {
       // Fallback implementation if @simplewebauthn/server is not available
@@ -212,7 +222,8 @@ export async function verifyWebAuthnRegistration(
     const { verifyRegistrationResponse } = await import('@simplewebauthn/server')
 
     const verification = await verifyRegistrationResponse({
-      response: registrationResponse,
+      // biome-ignore lint/suspicious/noExplicitAny: SimpleWebAuthn type compatibility
+      response: registrationResponse as any, // Type assertion needed for SimpleWebAuthn compatibility
       expectedChallenge: challenge,
       expectedOrigin: `https://${rpId}`,
       expectedRPID: rpId,
@@ -220,18 +231,37 @@ export async function verifyWebAuthnRegistration(
     })
 
     if (verification.verified && verification.registrationInfo) {
+      const regInfo = verification.registrationInfo as {
+        credentialID?: string
+        credentialPublicKey?: Uint8Array
+        counter?: number
+        credentialDeviceType?: 'singleDevice' | 'multiDevice'
+        credentialBackedUp?: boolean
+        userVerified?: boolean
+        attestationType?: string
+        fmt?: string
+        credential?: {
+          id?: string
+          publicKey?: Uint8Array
+        }
+      }
       return {
         verified: true,
         registrationInfo: {
-          credentialID: verification.registrationInfo.credentialID,
+          credentialID: regInfo.credential?.id || regInfo.credentialID || '',
           credentialPublicKey: Buffer.from(
-            verification.registrationInfo.credentialPublicKey
+            regInfo.credentialPublicKey || regInfo.credential?.publicKey || new Uint8Array()
           ).toString('base64'),
-          counter: verification.registrationInfo.counter,
-          credentialDeviceType: verification.registrationInfo.credentialDeviceType,
-          credentialBackedUp: verification.registrationInfo.credentialBackedUp,
-          userVerified: verification.registrationInfo.userVerified,
-          attestationType: verification.registrationInfo.attestationType || 'none',
+          counter: regInfo.counter || 0,
+          credentialDeviceType:
+            regInfo.credentialDeviceType === 'singleDevice' ? 'single_device' : 'multi_device',
+          credentialBackedUp: regInfo.credentialBackedUp || false,
+          userVerified: regInfo.userVerified || false,
+          attestationType: (regInfo.attestationType || regInfo.fmt || 'none') as
+            | 'none'
+            | 'basic'
+            | 'self'
+            | 'ecdaa',
         },
       }
     }
@@ -274,10 +304,10 @@ export async function generateWebAuthnAuthenticationOptions(allowCredentials: st
     // Try to use @simplewebauthn/server
     const { generateAuthenticationOptions } = await import('@simplewebauthn/server')
 
-    const config = await import('@/lib/config')
-    const webauthnConfig = config.default.webauthn
+    const { appConfig } = await import('@/lib/config')
+    const webauthnConfig = appConfig.webauthn
 
-    return await generateAuthenticationOptions({
+    const options = await generateAuthenticationOptions({
       rpID: webauthnConfig.rpId || 'localhost',
       timeout: webauthnConfig.timeout || 60000,
       allowCredentials: allowCredentials.map(id => ({
@@ -287,6 +317,19 @@ export async function generateWebAuthnAuthenticationOptions(allowCredentials: st
       })),
       userVerification: 'preferred',
     })
+
+    return {
+      challenge: options.challenge,
+      timeout: options.timeout || 60000,
+      rpId: webauthnConfig.rpId || 'localhost',
+      allowCredentials:
+        options.allowCredentials ||
+        allowCredentials.map(id => ({
+          id,
+          type: 'public-key' as const,
+          transports: ['usb', 'nfc', 'ble', 'hybrid', 'internal'],
+        })),
+    }
   } catch (_error) {
     // Fallback implementation
     // Log WebAuthn authentication options fallback for monitoring (handled by application logging)
@@ -298,9 +341,8 @@ export async function generateWebAuthnAuthenticationOptions(allowCredentials: st
       allowCredentials: allowCredentials.map(id => ({
         id,
         type: 'public-key' as const,
-        transports: ['usb', 'nfc', 'ble', 'hybrid', 'internal'] as AuthenticatorTransport[],
+        transports: ['usb', 'nfc', 'ble', 'hybrid', 'internal'],
       })),
-      userVerification: 'preferred',
     }
   }
 }
@@ -323,17 +365,18 @@ export async function verifyWebAuthnAuthentication(
       // Try to use @simplewebauthn/server
       const { verifyAuthenticationResponse } = await import('@simplewebauthn/server')
 
-      const config = await import('@/lib/config')
-      const webauthnConfig = config.default.webauthn
+      const { appConfig } = await import('@/lib/config')
+      const webauthnConfig = appConfig.webauthn
 
       const verification = await verifyAuthenticationResponse({
-        response: assertion,
+        // biome-ignore lint/suspicious/noExplicitAny: SimpleWebAuthn type compatibility
+        response: assertion as any, // Type assertion needed for SimpleWebAuthn compatibility
         expectedChallenge: challenge,
         expectedOrigin: `https://${webauthnConfig.rpId || 'localhost'}`,
         expectedRPID: webauthnConfig.rpId || 'localhost',
-        authenticator: {
-          credentialID: storedCredential.credentialId,
-          credentialPublicKey: Buffer.from(storedCredential.publicKey, 'base64'),
+        credential: {
+          id: storedCredential.credentialId,
+          publicKey: Buffer.from(storedCredential.publicKey, 'base64'),
           counter: storedCredential.counter,
         },
         requireUserVerification: false,
@@ -341,23 +384,33 @@ export async function verifyWebAuthnAuthentication(
 
       verificationResult = {
         verified: verification.verified,
-        authenticationInfo: verification.verified
-          ? {
-              credentialID: assertion.id,
-              newCounter: verification.authenticationInfo.newCounter,
-              userVerified: verification.authenticationInfo.userVerified,
-            }
-          : undefined,
+      }
+
+      if (verification.verified && verification.authenticationInfo) {
+        verificationResult.authenticationInfo = {
+          credentialID: verification.authenticationInfo.credentialID.toString(),
+          newCounter: verification.authenticationInfo.newCounter,
+          userVerified: verification.authenticationInfo.userVerified,
+        }
       }
     } catch (_error) {
       // Fallback verification
       // Log WebAuthn authentication verification fallback for monitoring (handled by application logging)
 
       // Basic validation - in production, proper cryptographic verification is required
+      const assertionId = assertion?.id
+        ? typeof assertion.id === 'string'
+          ? assertion.id
+          : assertion.id instanceof ArrayBuffer
+            ? Buffer.from(new Uint8Array(assertion.id)).toString('base64')
+            : assertion.id instanceof Uint8Array
+              ? Buffer.from(assertion.id).toString('base64')
+              : ''
+        : ''
       verificationResult = {
-        verified: assertion?.id === storedCredential.credentialId,
+        verified: assertionId === storedCredential.credentialId,
         authenticationInfo: {
-          credentialID: assertion?.id || '',
+          credentialID: assertionId || storedCredential.credentialId,
           newCounter: storedCredential.counter + 1,
           userVerified: false,
         },
@@ -415,9 +468,4 @@ export function base64urlToArrayBuffer(base64url: string): ArrayBuffer {
 // EXPORTS
 // =============================================================================
 
-export {
-  generateWebAuthnRegistrationOptions,
-  verifyWebAuthnRegistration,
-  generateWebAuthnAuthenticationOptions,
-  verifyWebAuthnAuthentication,
-}
+// Note: Functions are exported inline above to avoid conflicts with webauthn.ts

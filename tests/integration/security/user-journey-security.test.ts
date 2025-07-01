@@ -877,7 +877,7 @@ describe('User Journey Security Integration Tests', () => {
         http.post('http://localhost:3000/api/search/repositories', async ({ request }) => {
           const body = await request.json()
           const { query } = body
-          const authHeader = request.headers.get('Authorization')
+          const _authHeader = request.headers.get('Authorization')
 
           const step = {
             stepId: 'rate_limit_check',

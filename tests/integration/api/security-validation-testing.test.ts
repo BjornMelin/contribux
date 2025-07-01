@@ -65,6 +65,8 @@ describe('Input Validation & Sanitization', () => {
         "'; EXEC xp_cmdshell('dir'); --",
       ]
 
+      // Reset handlers to ensure our test handlers take precedence
+      server.resetHandlers()
       server.use(
         http.get('http://localhost:3000/api/search/repositories', ({ request }) => {
           const url = new URL(request.url)
@@ -75,9 +77,11 @@ describe('Input Validation & Sanitization', () => {
             const sqlPatterns = [
               /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|UNION)\b)/i,
               /(--|#|\/\*|\*\/)/,
-              /(\bOR\b\s+\b\d+\s*=\s*\d+)/i,
-              /(\bAND\b\s+\b\d+\s*=\s*\d+)/i,
+              /(\bOR\b.*?\d+\s*=\s*\d+)/i,
+              /(\bAND\b.*?\d+\s*=\s*\d+)/i,
               /(;\s*(SELECT|INSERT|UPDATE|DELETE|DROP))/i,
+              /('.*?OR.*?'.*?=.*?')/i,
+              /(xp_cmdshell)/i,
             ]
 
             for (const pattern of sqlPatterns) {
@@ -268,6 +272,8 @@ describe('Input Validation & Sanitization', () => {
 
   describe('Parameter Validation', () => {
     it('should validate numeric parameters strictly', async () => {
+      // Reset handlers to ensure our test handlers take precedence
+      server.resetHandlers()
       server.use(
         http.get('http://localhost:3000/api/search/repositories', ({ request }) => {
           const url = new URL(request.url)
@@ -275,10 +281,48 @@ describe('Input Validation & Sanitization', () => {
           const perPage = url.searchParams.get('per_page')
           const minStars = url.searchParams.get('min_stars')
 
+          // Debug logging
+          console.log('Parameter validation handler called with:', {
+            page,
+            perPage,
+            minStars,
+            url: url.toString(),
+          })
+
           // Validate page parameter
           if (page !== null) {
+            // Reject scientific notation, decimals, or non-integer strings
+            if (/[eE.]/.test(page) || !/^\d+$/.test(page)) {
+              console.log('Page validation failed (invalid format), returning 400')
+              return HttpResponse.json(
+                {
+                  success: false,
+                  error: {
+                    code: 'INVALID_PARAMETER',
+                    message: 'Page must be a positive integer',
+                    details: [
+                      { path: ['page'], message: `Expected positive integer, received ${page}` },
+                    ],
+                  },
+                },
+                { status: 400 }
+              )
+            }
             const pageNum = Number(page)
-            if (Number.isNaN(pageNum) || pageNum < 1 || !Number.isInteger(pageNum)) {
+            console.log('Page validation:', {
+              page,
+              pageNum,
+              isNaN: Number.isNaN(pageNum),
+              lessThan1: pageNum < 1,
+              isInteger: Number.isInteger(pageNum),
+            })
+            if (
+              Number.isNaN(pageNum) ||
+              pageNum < 1 ||
+              !Number.isInteger(pageNum) ||
+              pageNum % 1 !== 0
+            ) {
+              console.log('Page validation failed, returning 400')
               return HttpResponse.json(
                 {
                   success: false,
@@ -297,13 +341,42 @@ describe('Input Validation & Sanitization', () => {
 
           // Validate per_page parameter
           if (perPage !== null) {
+            // Reject scientific notation, decimals, or non-integer strings
+            if (/[eE.]/.test(perPage) || !/^\d+$/.test(perPage)) {
+              console.log('PerPage validation failed (invalid format), returning 400')
+              return HttpResponse.json(
+                {
+                  success: false,
+                  error: {
+                    code: 'INVALID_PARAMETER',
+                    message: 'Per page must be an integer between 1 and 100',
+                    details: [
+                      {
+                        path: ['per_page'],
+                        message: `Expected integer 1-100, received ${perPage}`,
+                      },
+                    ],
+                  },
+                },
+                { status: 400 }
+              )
+            }
             const perPageNum = Number(perPage)
+            console.log('PerPage validation:', {
+              perPage,
+              perPageNum,
+              isNaN: Number.isNaN(perPageNum),
+              lessThan1: perPageNum < 1,
+              greaterThan100: perPageNum > 100,
+              isInteger: Number.isInteger(perPageNum),
+            })
             if (
               Number.isNaN(perPageNum) ||
               perPageNum < 1 ||
               perPageNum > 100 ||
               !Number.isInteger(perPageNum)
             ) {
+              console.log('PerPage validation failed, returning 400')
               return HttpResponse.json(
                 {
                   success: false,
@@ -325,8 +398,24 @@ describe('Input Validation & Sanitization', () => {
 
           // Validate min_stars parameter
           if (minStars !== null) {
+            // Reject scientific notation and other non-standard formats
+            const hasScientificNotation = /[eE]/i.test(minStars)
             const minStarsNum = Number(minStars)
-            if (Number.isNaN(minStarsNum) || minStarsNum < 0 || !Number.isInteger(minStarsNum)) {
+            console.log('MinStars validation:', {
+              minStars,
+              minStarsNum,
+              isNaN: Number.isNaN(minStarsNum),
+              lessThan0: minStarsNum < 0,
+              isInteger: Number.isInteger(minStarsNum),
+              hasScientificNotation,
+            })
+            if (
+              Number.isNaN(minStarsNum) ||
+              minStarsNum < 0 ||
+              !Number.isInteger(minStarsNum) ||
+              hasScientificNotation
+            ) {
+              console.log('MinStars validation failed, returning 400')
               return HttpResponse.json(
                 {
                   success: false,
@@ -346,6 +435,7 @@ describe('Input Validation & Sanitization', () => {
             }
           }
 
+          console.log('All validations passed, returning 200')
           return HttpResponse.json({
             success: true,
             data: {
@@ -659,7 +749,7 @@ describe('Rate Limiting Enforcement', () => {
       const rateLimitStore = new Map<string, Map<string, { count: number; resetTime: number }>>()
 
       server.use(
-        http.get('http://localhost:3000/api/search/:endpoint', ({ request, params }) => {
+        http.get('http://localhost:3000/api/search/:endpoint', ({ params }) => {
           const endpoint = `/api/search/${params.endpoint}`
           const userId = 'test-user'
           const now = Date.now()
@@ -752,7 +842,7 @@ describe('Rate Limiting Enforcement', () => {
       const burstWindow = 5000 // 5 seconds
 
       server.use(
-        http.get('http://localhost:3000/api/search/repositories', ({ request }) => {
+        http.get('http://localhost:3000/api/search/repositories', () => {
           const _now = Date.now()
           burstCount++
 

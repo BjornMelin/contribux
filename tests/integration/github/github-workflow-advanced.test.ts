@@ -12,8 +12,8 @@
 
 import { fc, test as fcTest } from '@fast-check/vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { GitHubClient } from '../../../src/lib/github/client'
-import { GitHubError } from '../../../src/lib/github/errors'
+import { GitHubClient } from '@/lib/github/client'
+import { GitHubError } from '@/lib/github/errors'
 import { mockGitHubAPI } from '../msw-setup'
 import { setupGitHubTestIsolation } from '../test-helpers'
 

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 // Setup for database tests
 import './setup'
-import { getTestDatabase } from '../../src/lib/test-utils/test-database-manager'
+import { getTestDatabase } from '@/lib/test-utils/test-database-manager'
 import { sql } from './db-client'
 
 describe('Hybrid Search Functions', () => {

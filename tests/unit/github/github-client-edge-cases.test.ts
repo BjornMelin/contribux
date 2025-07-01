@@ -26,9 +26,9 @@
 
 import { HttpResponse, http } from 'msw'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { GitHubClient } from '../../src/lib/github'
-import type { GitHubClientConfig } from '../../src/lib/github/client'
-import { GitHubError } from '../../src/lib/github/errors'
+import { GitHubClient } from '@/lib/github'
+import type { GitHubClientConfig } from '@/lib/github/client'
+import { GitHubError } from '@/lib/github/errors'
 import { mswServer, setupMSW } from './msw-setup'
 import { createTrackedClient, setupGitHubTestIsolation } from './test-helpers'
 

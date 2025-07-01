@@ -4,7 +4,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createMemoryMonitor, getMemoryUsage } from './test-utils/cleanup'
+import { createMemoryMonitor, getMemoryUsage } from '../utils/cleanup'
 
 describe('Vitest 3.2+ Memory Optimization', () => {
   let memoryMonitor: ReturnType<typeof createMemoryMonitor>

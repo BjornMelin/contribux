@@ -5,7 +5,7 @@
  * Provides realistic test scenarios and expected data patterns.
  */
 
-import type { Repository, SearchRepositoriesResult, User } from '../../../../src/types/github'
+import type { Repository, SearchRepositoriesResult, User } from '@/types/github'
 
 /**
  * Test repository configurations for integration testing

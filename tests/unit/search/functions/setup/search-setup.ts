@@ -3,8 +3,8 @@
  * Centralized setup utilities for search function testing
  */
 
-import type { DatabaseConnection } from '../../../../src/lib/test-utils/test-database-manager'
-import { TestDatabaseManager } from '../../../../src/lib/test-utils/test-database-manager'
+import type { DatabaseConnection } from '@/lib/test-utils/test-database-manager'
+import { TestDatabaseManager } from '@/lib/test-utils/test-database-manager'
 import { userPreferencesFixtures } from '../fixtures/search-data'
 import {
   cleanupTestData,

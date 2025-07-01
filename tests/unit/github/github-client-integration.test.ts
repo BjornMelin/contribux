@@ -14,9 +14,9 @@
 import { fc, test as fcTest } from '@fast-check/vitest'
 import { HttpResponse, http } from 'msw'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { GitHubClientConfig } from '../../src/lib/github/client'
-import { createGitHubClient, GitHubClient } from '../../src/lib/github/client'
-import { GitHubError } from '../../src/lib/github/errors'
+import type { GitHubClientConfig } from '@/lib/github/client'
+import { createGitHubClient, GitHubClient } from '@/lib/github/client'
+import { GitHubError } from '@/lib/github/errors'
 import { mockGitHubAPI, mswServer, setupMSW } from './msw-setup'
 import { setupGitHubTestIsolation } from './test-helpers'
 

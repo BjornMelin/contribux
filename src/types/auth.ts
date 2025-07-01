@@ -411,18 +411,6 @@ export interface EnhancedAuthenticationResult extends AuthenticationResult {
   readonly mfaLockoutDuration?: number
 }
 
-// Will be defined after AuthenticationResultSchema
-export const EnhancedAuthenticationResultSchema: z.ZodType<EnhancedAuthenticationResult> = z.lazy(
-  () =>
-    AuthenticationResultSchema.extend({
-      mfaRequired: z.boolean(),
-      mfaSettings: MFASettingsSchema.optional(),
-      availableMethods: z.array(MFAMethod).optional(),
-      mfaAttempts: z.number().int().min(0).optional(),
-      mfaLockoutDuration: z.number().int().min(0).optional(),
-    })
-)
-
 /**
  * Refresh token for session management
  */
@@ -777,7 +765,16 @@ export const AuthenticationResultSchema = z.object({
   requiresConsent: z.boolean().optional(),
 })
 
-// EnhancedAuthenticationResultSchema is initialized using z.lazy above
+/**
+ * Zod schema for enhanced authentication result validation
+ */
+export const EnhancedAuthenticationResultSchema = AuthenticationResultSchema.extend({
+  mfaRequired: z.boolean(),
+  mfaSettings: MFASettingsSchema.optional(),
+  availableMethods: z.array(MFAMethod).optional(),
+  mfaAttempts: z.number().int().min(0).optional(),
+  mfaLockoutDuration: z.number().int().min(0).optional(),
+})
 
 /**
  * User registration data

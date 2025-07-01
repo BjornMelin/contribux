@@ -5,6 +5,29 @@
 
 import { expect, type Locator, type Page } from '@playwright/test'
 
+// Type definitions for better type safety
+interface MemoryInfo {
+  usedJSHeapSize: number
+  totalJSHeapSize: number
+  jsHeapSizeLimit: number
+}
+
+interface PerformanceWithMemory extends Performance {
+  memory?: MemoryInfo
+}
+
+interface LayoutShiftEntry extends PerformanceEntry {
+  hadRecentInput: boolean
+  value: number
+}
+
+interface ScreenshotClip {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 // Test data and fixtures
 export const testData = {
   search: {
@@ -73,7 +96,7 @@ export class PageHelpers {
   /**
    * Take a full page screenshot with proper naming
    */
-  async takeScreenshot(name: string, options: { fullPage?: boolean; clip?: any } = {}) {
+  async takeScreenshot(name: string, options: { fullPage?: boolean; clip?: ScreenshotClip } = {}) {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
     const filename = `test-results/screenshots/${name}-${timestamp}.png`
 
@@ -458,8 +481,9 @@ export class PerformanceHelpers {
         // CLS (Cumulative Layout Shift)
         new PerformanceObserver(list => {
           for (const entry of list.getEntries()) {
-            if (!(entry as any).hadRecentInput) {
-              cls += (entry as any).value
+            const layoutShift = entry as LayoutShiftEntry
+            if (!layoutShift.hadRecentInput) {
+              cls += layoutShift.value
             }
           }
         }).observe({ entryTypes: ['layout-shift'] })
@@ -499,11 +523,12 @@ export class PerformanceHelpers {
    */
   async measureMemoryUsage() {
     const memoryInfo = await this.page.evaluate(() => {
-      if ('memory' in performance) {
+      const perf = performance as PerformanceWithMemory
+      if (perf.memory) {
         return {
-          usedJSHeapSize: (performance as any).memory.usedJSHeapSize,
-          totalJSHeapSize: (performance as any).memory.totalJSHeapSize,
-          jsHeapSizeLimit: (performance as any).memory.jsHeapSizeLimit,
+          usedJSHeapSize: perf.memory.usedJSHeapSize,
+          totalJSHeapSize: perf.memory.totalJSHeapSize,
+          jsHeapSizeLimit: perf.memory.jsHeapSizeLimit,
         }
       }
       return null
@@ -607,7 +632,7 @@ export const assertions = {
   /**
    * Assert API response is valid
    */
-  async apiResponseIsValid(response: any, expectedStatus = 200) {
+  async apiResponseIsValid(response: Response, expectedStatus = 200) {
     expect(response.status()).toBe(expectedStatus)
     if (expectedStatus === 200) {
       const data = await response.json()

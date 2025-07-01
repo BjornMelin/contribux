@@ -16,7 +16,7 @@ describe('Environment Validation', () => {
 
     // Clear any cached environment data
     try {
-      const { clearEnvCache } = await import('../../src/lib/validation/env')
+      const { clearEnvCache } = await import('@/lib/validation/env')
       clearEnvCache()
     } catch {
       // Ignore import errors during cleanup
@@ -30,7 +30,7 @@ describe('Environment Validation', () => {
 
     // Clear any cached environment data
     try {
-      const { clearEnvCache } = await import('../../src/lib/validation/env')
+      const { clearEnvCache } = await import('@/lib/validation/env')
       clearEnvCache()
     } catch {
       // Ignore import errors during cleanup
@@ -40,7 +40,7 @@ describe('Environment Validation', () => {
   // Helper to create a clean env schema for testing
   async function createTestSchema() {
     vi.resetModules()
-    const { envSchema, clearEnvCache } = await import('../../src/lib/validation/env')
+    const { envSchema, clearEnvCache } = await import('@/lib/validation/env')
     clearEnvCache() // Clear any cached environment data
     return envSchema
   }
@@ -144,7 +144,7 @@ describe('Environment Validation', () => {
       vi.stubEnv('JWT_SECRET', '') // Ensure it's empty to trigger default
 
       vi.resetModules()
-      const { getJwtSecret } = await import('../../src/lib/validation/env')
+      const { getJwtSecret } = await import('@/lib/validation/env')
 
       expect(getJwtSecret()).toBe(
         '8f6be3e6a8bc63ab47bd41db4d11ccdcdff3eb07f04aab983956719007f0e025ab'
@@ -376,7 +376,7 @@ describe('Environment Validation', () => {
       })
 
       vi.resetModules()
-      const { getJwtSecret } = await import('../../src/lib/validation/env')
+      const { getJwtSecret } = await import('@/lib/validation/env')
 
       expect(getJwtSecret()).toBe('a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6')
     })
@@ -387,7 +387,7 @@ describe('Environment Validation', () => {
       })
 
       vi.resetModules()
-      const { getJwtSecret } = await import('../../src/lib/validation/env')
+      const { getJwtSecret } = await import('@/lib/validation/env')
 
       expect(getJwtSecret()).toBe(
         '8f6be3e6a8bc63ab47bd41db4d11ccdcdff3eb07f04aab983956719007f0e025ab'
@@ -401,7 +401,7 @@ describe('Environment Validation', () => {
       })
 
       vi.resetModules()
-      const { getEncryptionKey } = await import('../../src/lib/validation/env')
+      const { getEncryptionKey } = await import('@/lib/validation/env')
 
       const key = getEncryptionKey()
       expect(key).toHaveLength(64) // 32 bytes hex-encoded
@@ -422,7 +422,7 @@ describe('Environment Validation', () => {
 
       vi.resetModules()
       await expect(async () => {
-        const { getEncryptionKey } = await import('../../src/lib/validation/env')
+        const { getEncryptionKey } = await import('@/lib/validation/env')
         getEncryptionKey()
       }).rejects.toThrow(/ENCRYPTION_KEY is required/)
     })
@@ -449,7 +449,7 @@ describe('Environment Validation', () => {
         process.env.JWT_SECRET = 'short'
 
         vi.resetModules()
-        const { validateEnvironmentOnStartup } = await import('../../src/lib/validation/env')
+        const { validateEnvironmentOnStartup } = await import('@/lib/validation/env')
 
         validateEnvironmentOnStartup()
 
