@@ -37,8 +37,8 @@ describe('Search Filtering', () => {
     })
 
     it('should find matching opportunities for user based on preferences', async () => {
-      const { pool, testIds } = context
-      const { rows } = await pool.query(
+      const { connection, testIds } = context
+      const { rows } = await connection.sql(
         `
         SELECT * FROM find_matching_opportunities_for_user(
           target_user_id := $1,
@@ -66,10 +66,10 @@ describe('Search Filtering', () => {
     })
 
     it('should filter by preferred contribution types', async () => {
-      const { pool, testIds } = context
+      const { connection, testIds } = context
 
       // Update preferences to only include bug fixes
-      await pool.query(
+      await connection.sql(
         `
         UPDATE user_preferences 
         SET preferred_contribution_types = ARRAY['bug_fix']::contribution_type[]
@@ -78,7 +78,7 @@ describe('Search Filtering', () => {
         [testIds.userId]
       )
 
-      const { rows } = await pool.query(
+      const { rows } = await connection.sql(
         `
         SELECT * FROM find_matching_opportunities_for_user(
           target_user_id := $1,
@@ -102,10 +102,10 @@ describe('Search Filtering', () => {
     })
 
     it('should respect max estimated hours preference', async () => {
-      const { pool, testIds } = context
+      const { connection, testIds } = context
 
       // Set very low max hours
-      await pool.query(
+      await connection.sql(
         `
         UPDATE user_preferences 
         SET max_estimated_hours = 3
@@ -114,7 +114,7 @@ describe('Search Filtering', () => {
         [testIds.userId]
       )
 
-      const { rows } = await pool.query(
+      const { rows } = await connection.sql(
         `
         SELECT * FROM find_matching_opportunities_for_user(
           target_user_id := $1,
@@ -140,10 +140,10 @@ describe('Search Filtering', () => {
     })
 
     it('should consider skill level compatibility', async () => {
-      const { pool, testIds } = context
+      const { connection, testIds } = context
 
       // Update opportunity difficulties to test skill matching
-      await pool.query(
+      await connection.sql(
         `
         UPDATE opportunities 
         SET difficulty = 'intermediate'
@@ -152,7 +152,7 @@ describe('Search Filtering', () => {
         [testIds.oppId1]
       )
 
-      await pool.query(
+      await connection.sql(
         `
         UPDATE opportunities 
         SET difficulty = 'expert'
@@ -161,7 +161,7 @@ describe('Search Filtering', () => {
         [testIds.oppId2]
       )
 
-      const { rows } = await pool.query(
+      const { rows } = await connection.sql(
         `
         SELECT * FROM find_matching_opportunities_for_user(
           target_user_id := $1,
@@ -177,10 +177,10 @@ describe('Search Filtering', () => {
     })
 
     it('should filter out overly difficult opportunities', async () => {
-      const { pool, testIds } = context
+      const { connection, testIds } = context
 
       // Set user skill level to beginner
-      await pool.query(
+      await connection.sql(
         `
         UPDATE users 
         SET skill_level = 'beginner'
@@ -190,7 +190,7 @@ describe('Search Filtering', () => {
       )
 
       // Set all opportunities to expert level
-      await pool.query(
+      await connection.sql(
         `
         UPDATE opportunities 
         SET difficulty = 'expert'
@@ -199,7 +199,7 @@ describe('Search Filtering', () => {
         [testIds.repoId]
       )
 
-      const { rows } = await pool.query(
+      const { rows } = await connection.sql(
         `
         SELECT * FROM find_matching_opportunities_for_user(
           target_user_id := $1,
@@ -220,13 +220,13 @@ describe('Search Filtering', () => {
 
   describe('Repository Exclusion Filtering', () => {
     it('should exclude opportunities from repositories user has contributed to', async () => {
-      const { pool, testIds } = context
+      const { connection, testIds } = context
       await setupUserPreferences(context)
 
       // Mark user as having contributed to the repository
       await addUserRepositoryInteraction(context, true)
 
-      const { rows } = await pool.query(
+      const { rows } = await connection.sql(
         `
         SELECT * FROM find_matching_opportunities_for_user(
           target_user_id := $1,
@@ -240,13 +240,13 @@ describe('Search Filtering', () => {
     })
 
     it('should include opportunities from repositories user has not contributed to', async () => {
-      const { pool, testIds } = context
+      const { connection, testIds } = context
       await setupUserPreferences(context)
 
       // Mark user as having interacted but not contributed
       await addUserRepositoryInteraction(context, false)
 
-      const { rows } = await pool.query(
+      const { rows } = await connection.sql(
         `
         SELECT * FROM find_matching_opportunities_for_user(
           target_user_id := $1,
@@ -262,10 +262,10 @@ describe('Search Filtering', () => {
 
   describe('Technology and Language Filtering', () => {
     it('should boost opportunities matching user preferred languages', async () => {
-      const { pool, testIds } = context
+      const { connection, testIds } = context
       await setupUserPreferences(context)
 
-      const { rows } = await pool.query(
+      const { rows } = await connection.sql(
         `
         SELECT * FROM find_matching_opportunities_for_user(
           target_user_id := $1,
@@ -285,10 +285,10 @@ describe('Search Filtering', () => {
     })
 
     it('should consider technology stack alignment', async () => {
-      const { pool, testIds } = context
+      const { connection, testIds } = context
 
       // Update user with different preferred languages
-      await pool.query(
+      await connection.sql(
         `
         UPDATE users 
         SET preferred_languages = ARRAY['Python', 'Go']
@@ -299,7 +299,7 @@ describe('Search Filtering', () => {
 
       await setupUserPreferences(context)
 
-      const { rows } = await pool.query(
+      const { rows } = await connection.sql(
         `
         SELECT * FROM find_matching_opportunities_for_user(
           target_user_id := $1,
@@ -321,10 +321,10 @@ describe('Search Filtering', () => {
 
   describe('Advanced Filtering Options', () => {
     it('should handle complex preference combinations', async () => {
-      const { pool, testIds } = context
+      const { connection, testIds } = context
 
       // Setup advanced preferences
-      await pool.query(
+      await connection.sql(
         `
         INSERT INTO user_preferences (
           user_id, preferred_contribution_types,
@@ -342,7 +342,7 @@ describe('Search Filtering', () => {
         ]
       )
 
-      const { rows } = await pool.query(
+      const { rows } = await connection.sql(
         `
         SELECT * FROM find_matching_opportunities_for_user(
           target_user_id := $1,
@@ -362,11 +362,11 @@ describe('Search Filtering', () => {
     })
 
     it('should validate user existence before filtering', async () => {
-      const { pool } = context
+      const { connection } = context
       const fakeUserId = '550e8400-e29b-41d4-a716-446655440099'
 
       await expect(
-        pool.query(
+        connection.sql(
           `
           SELECT * FROM find_matching_opportunities_for_user(
             target_user_id := $1
@@ -380,13 +380,13 @@ describe('Search Filtering', () => {
 
   describe('Filtering Performance', () => {
     it('should apply filters efficiently for large datasets', async () => {
-      const { pool, testIds } = context
+      const { connection, testIds } = context
       await setupUserPreferences(context)
 
       // Measure query performance
       const startTime = Date.now()
 
-      const { rows } = await pool.query(
+      const { rows } = await connection.sql(
         `
         SELECT * FROM find_matching_opportunities_for_user(
           target_user_id := $1,
@@ -404,10 +404,10 @@ describe('Search Filtering', () => {
     })
 
     it('should handle empty filter results gracefully', async () => {
-      const { pool, testIds } = context
+      const { connection, testIds } = context
 
       // Setup impossible preferences
-      await pool.query(
+      await connection.sql(
         `
         INSERT INTO user_preferences (
           user_id, preferred_contribution_types,
@@ -420,7 +420,7 @@ describe('Search Filtering', () => {
         [testIds.userId]
       )
 
-      const { rows } = await pool.query(
+      const { rows } = await connection.sql(
         `
         SELECT * FROM find_matching_opportunities_for_user(
           target_user_id := $1,

@@ -17,9 +17,9 @@
  * - Performance optimization
  */
 
-import React from 'react'
 import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
+import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   OpportunityCard,
@@ -454,10 +454,10 @@ describe('Advanced Search Components', () => {
       // Use getAllByText for technologies that appear in multiple opportunities
       const typescriptTags = screen.getAllByText('TypeScript')
       expect(typescriptTags.length).toBeGreaterThan(0)
-      
+
       const nodejsTags = screen.getAllByText('Node.js')
       expect(nodejsTags.length).toBeGreaterThan(0)
-      
+
       const jestTags = screen.getAllByText('Jest')
       expect(jestTags.length).toBeGreaterThan(0)
     })

@@ -3,7 +3,7 @@
     "lib": [
       "dom",
       "dom.iterable",
-      "es2022",
+      "es2024",
       "esnext"
     ],
     "allowJs": true,
@@ -35,7 +35,24 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": true,
-    "target": "ES2022"
+    "target": "ES2024",
+    "noImplicitAny": true,
+    "noImplicitThis": true,
+    "strictBindCallApply": true,
+    "strictFunctionTypes": true,
+    "strictPropertyInitialization": true,
+    "alwaysStrict": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noPropertyAccessFromIndexSignature": false,
+    "useUnknownInCatchVariables": true,
+    "noErrorTruncation": true,
+    "preserveWatchOutput": true,
+    "pretty": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipDefaultLibCheck": true,
+    "allowSyntheticDefaultImports": true,
+    "verbatimModuleSyntax": false
   },
   "include": [
     "next-env.d.ts",

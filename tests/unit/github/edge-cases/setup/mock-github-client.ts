@@ -6,6 +6,8 @@
  * in the test environment.
  */
 
+import { GitHubAuthenticationError, GitHubError } from '@/lib/github/errors'
+
 export interface GitHubClientConfig {
   auth?: {
     type: 'token' | 'app'
@@ -64,13 +66,13 @@ export class MockGitHubClient {
 
   constructor(config: Partial<GitHubClientConfig> = {}) {
     this.config = {
-      auth: { type: 'token', token: 'test_token' },
-      retry: { retries: 3 },
-      throttle: {
+      auth: config.auth || { type: 'token', token: 'test_token_mock' },
+      retry: config.retry || { retries: 3 },
+      throttle: config.throttle || {
         onRateLimit: () => true,
         onSecondaryRateLimit: () => true,
       },
-      cache: {
+      cache: config.cache || {
         maxAge: 300000, // 5 minutes
         maxSize: 100,
       },
@@ -93,7 +95,15 @@ export class MockGitHubClient {
     const response = await fetch(url, { headers })
 
     if (!response.ok) {
-      throw new Error(`GitHub API error: ${response.status} ${response.statusText}`)
+      if (response.status === 401) {
+        throw new GitHubAuthenticationError(`Authentication failed: ${response.statusText}`)
+      }
+      throw new GitHubError(
+        `GitHub API error: ${response.statusText}`,
+        `HTTP_${response.status}`,
+        response.status,
+        response
+      )
     }
 
     return await response.json()
@@ -102,7 +112,11 @@ export class MockGitHubClient {
   async getRepository(options: { owner: string; repo: string }): Promise<GitHubRepository> {
     const url = `https://api.github.com/repos/${options.owner}/${options.repo}`
 
-    const headers: Record<string, string> = {}
+    const headers: Record<string, string> = {
+      'User-Agent': 'Mock GitHub Client for Testing',
+    }
+
+    // Add authorization header if token is available
     if (this.config.auth?.token) {
       headers.Authorization = `token ${this.config.auth.token}`
     }
@@ -122,7 +136,15 @@ export class MockGitHubClient {
       if (timeoutId) clearTimeout(timeoutId)
 
       if (!response.ok) {
-        throw new Error(`GitHub API error: ${response.status} ${response.statusText}`)
+        if (response.status === 401) {
+          throw new GitHubAuthenticationError(`Authentication failed: ${response.statusText}`)
+        }
+        throw new GitHubError(
+          `GitHub API error: ${response.statusText}`,
+          `HTTP_${response.status}`,
+          response.status,
+          response
+        )
       }
 
       return await response.json()
@@ -130,7 +152,11 @@ export class MockGitHubClient {
       if (timeoutId) clearTimeout(timeoutId)
 
       if (error.name === 'AbortError') {
-        throw new Error(`Request timeout: Failed to fetch ${options.owner}/${options.repo}`)
+        throw new GitHubError(
+          `Request timeout: Failed to fetch ${options.owner}/${options.repo}`,
+          'TIMEOUT',
+          408
+        )
       }
 
       throw error

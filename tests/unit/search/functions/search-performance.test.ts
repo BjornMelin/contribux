@@ -34,11 +34,11 @@ describe('Search Performance', () => {
 
   describe('Query Performance Optimization', () => {
     it('should complete basic search queries within performance threshold', async () => {
-      const { pool } = context
+      const { connection } = context
 
       const startTime = Date.now()
 
-      const { rows } = await pool.query(`
+      const { rows } = await connection.sql(`
         SELECT * FROM hybrid_search_opportunities(
           search_text := 'TypeScript search debugging',
           text_weight := 0.5,
@@ -55,7 +55,7 @@ describe('Search Performance', () => {
     })
 
     it('should handle large result sets efficiently', async () => {
-      const { pool } = context
+      const { connection } = context
 
       // Insert additional test data for performance testing
       const additionalRepos = Array.from({ length: 20 }, (_, i) => ({
@@ -67,7 +67,7 @@ describe('Search Performance', () => {
 
       // Insert repositories in batch
       const insertPromises = additionalRepos.map(repo =>
-        pool.query(
+        connection.sql(
           `
           INSERT INTO repositories (
             id, github_id, full_name, name, description, url, clone_url,
@@ -95,7 +95,7 @@ describe('Search Performance', () => {
 
       const startTime = Date.now()
 
-      const { rows } = await pool.query(`
+      const { rows } = await connection.sql(`
         SELECT * FROM hybrid_search_repositories(
           search_text := 'performance testing',
           text_weight := 1.0,
@@ -112,12 +112,14 @@ describe('Search Performance', () => {
 
       // Clean up
       await Promise.all(
-        additionalRepos.map(repo => pool.query('DELETE FROM repositories WHERE id = $1', [repo.id]))
+        additionalRepos.map(repo =>
+          connection.sql('DELETE FROM repositories WHERE id = $1', [repo.id])
+        )
       )
     })
 
     it('should optimize vector similarity calculations', async () => {
-      const { pool } = context
+      const { connection } = context
 
       // Test vector search performance with multiple embeddings
       const testEmbeddings = [0.1, 0.2, 0.3, 0.4, 0.5].map(val => generateEmbedding(val))
@@ -125,7 +127,7 @@ describe('Search Performance', () => {
       const startTime = Date.now()
 
       const searchPromises = testEmbeddings.map(embedding =>
-        pool.query(`
+        connection.sql(`
           SELECT * FROM search_similar_users(
             query_embedding := ${embedding},
             similarity_threshold := 0.1,
@@ -145,12 +147,12 @@ describe('Search Performance', () => {
 
   describe('Repository Quality Scoring Performance', () => {
     it('should boost repository scores based on quality metrics efficiently', async () => {
-      const { pool, testIds } = context
+      const { connection, testIds } = context
       const lowQualityRepoId = await insertLowQualityRepository(context)
 
       const startTime = Date.now()
 
-      const { rows } = await pool.query(`
+      const { rows } = await connection.sql(`
         SELECT * FROM hybrid_search_repositories(
           search_text := 'AI search',
           text_weight := 1.0,
@@ -169,15 +171,15 @@ describe('Search Performance', () => {
       expect(rows[0].relevance_score).toBeGreaterThan(rows[1].relevance_score)
 
       // Clean up
-      await pool.query('DELETE FROM repositories WHERE id = $1', [lowQualityRepoId])
+      await connection.sql('DELETE FROM repositories WHERE id = $1', [lowQualityRepoId])
     })
 
     it('should calculate repository health metrics efficiently', async () => {
-      const { pool, testIds } = context
+      const { connection, testIds } = context
 
       const startTime = Date.now()
 
-      const { rows } = await pool.query('SELECT * FROM get_repository_health_metrics($1)', [
+      const { rows } = await connection.sql('SELECT * FROM get_repository_health_metrics($1)', [
         testIds.repoId,
       ])
 
@@ -202,11 +204,11 @@ describe('Search Performance', () => {
     })
 
     it('should calculate trending scores efficiently', async () => {
-      const { pool } = context
+      const { connection } = context
 
       const startTime = Date.now()
 
-      const { rows } = await pool.query(`
+      const { rows } = await connection.sql(`
         SELECT * FROM get_trending_opportunities(
           time_window_hours := 24,
           min_engagement := 1,
@@ -221,10 +223,10 @@ describe('Search Performance', () => {
     })
 
     it('should filter by time window efficiently', async () => {
-      const { pool, testIds } = context
+      const { connection, testIds } = context
 
       // Update one opportunity to be outside time window
-      await pool.query(
+      await connection.sql(
         `
         UPDATE opportunities
         SET created_at = NOW() - INTERVAL '8 days'
@@ -235,7 +237,7 @@ describe('Search Performance', () => {
 
       const startTime = Date.now()
 
-      const { rows } = await pool.query(`
+      const { rows } = await connection.sql(`
         SELECT * FROM get_trending_opportunities(
           time_window_hours := 168 -- 1 week
         )
@@ -249,11 +251,11 @@ describe('Search Performance', () => {
     })
 
     it('should handle engagement filtering efficiently', async () => {
-      const { pool } = context
+      const { connection } = context
 
       const startTime = Date.now()
 
-      const { rows } = await pool.query(`
+      const { rows } = await connection.sql(`
         SELECT * FROM get_trending_opportunities(
           min_engagement := 200
         )
@@ -268,10 +270,10 @@ describe('Search Performance', () => {
 
   describe('Index Usage and Optimization', () => {
     it('should use appropriate indexes for text search', async () => {
-      const { pool } = context
+      const { connection } = context
 
       // Check query plan for text search
-      const { rows } = await pool.query(`
+      const { rows } = await connection.sql(`
         EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)
         SELECT * FROM hybrid_search_opportunities(
           search_text := 'TypeScript',
@@ -293,10 +295,10 @@ describe('Search Performance', () => {
     })
 
     it('should use HNSW indexes for vector operations', async () => {
-      const { pool } = context
+      const { connection } = context
 
       // Verify HNSW indexes exist
-      const { rows: indexes } = await pool.query(`
+      const { rows: indexes } = await connection.sql(`
         SELECT indexname, indexdef 
         FROM pg_indexes 
         WHERE indexdef ILIKE '%hnsw%'
@@ -306,7 +308,7 @@ describe('Search Performance', () => {
       expect(indexes.length).toBeGreaterThan(0)
 
       // Check that vector search uses the index
-      const { rows } = await pool.query(`
+      const { rows } = await connection.sql(`
         EXPLAIN (ANALYZE, FORMAT JSON)
         SELECT * FROM search_similar_users(
           query_embedding := ${generateEmbedding(0.25)},
@@ -320,10 +322,10 @@ describe('Search Performance', () => {
     })
 
     it('should optimize composite queries with multiple filters', async () => {
-      const { pool, testIds } = context
+      const { connection, testIds } = context
 
       // Insert user preferences for complex filtering
-      await pool.query(
+      await connection.sql(
         `
         INSERT INTO user_preferences (
           user_id, preferred_contribution_types,
@@ -338,7 +340,7 @@ describe('Search Performance', () => {
 
       const startTime = Date.now()
 
-      const { rows } = await pool.query(
+      const { rows } = await connection.sql(
         `
         SELECT * FROM find_matching_opportunities_for_user(
           target_user_id := $1,
@@ -358,11 +360,11 @@ describe('Search Performance', () => {
 
   describe('Memory and Resource Usage', () => {
     it('should handle large embedding operations within memory limits', async () => {
-      const { pool } = context
+      const { connection } = context
 
       // Create multiple large embedding queries
       const largeQueries = Array.from({ length: 5 }, (_, i) =>
-        pool.query(`
+        connection.sql(`
           SELECT * FROM hybrid_search_opportunities(
             query_embedding := ${generateEmbedding(0.1 + i * 0.1)},
             text_weight := 0.0,
@@ -387,11 +389,11 @@ describe('Search Performance', () => {
     })
 
     it('should maintain performance with concurrent searches', async () => {
-      const { pool } = context
+      const { connection } = context
 
       // Run concurrent searches of different types
       const concurrentQueries = [
-        pool.query(`
+        connection.sql(`
           SELECT * FROM hybrid_search_opportunities(
             search_text := 'TypeScript',
             text_weight := 1.0,
@@ -399,7 +401,7 @@ describe('Search Performance', () => {
             similarity_threshold := 0.01
           )
         `),
-        pool.query(`
+        connection.sql(`
           SELECT * FROM hybrid_search_repositories(
             search_text := 'AI search',
             text_weight := 1.0,
@@ -407,13 +409,13 @@ describe('Search Performance', () => {
             similarity_threshold := 0.01
           )
         `),
-        pool.query(`
+        connection.sql(`
           SELECT * FROM search_similar_users(
             query_embedding := ${generateEmbedding(0.25)},
             similarity_threshold := 0.8
           )
         `),
-        pool.query(`
+        connection.sql(`
           SELECT * FROM get_trending_opportunities(
             time_window_hours := 24,
             min_engagement := 1

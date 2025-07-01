@@ -154,8 +154,8 @@ export async function GET(req: NextRequest) {
     const userCredentials: string[] = [] // Array of credential IDs
 
     // Generate authentication options
-    const { generateWebAuthnAuthenticationOptions } = await import('@/lib/auth/webauthn-enhanced')
-    const authenticationOptions = await generateWebAuthnAuthenticationOptions(userCredentials)
+    const { generateWebAuthnAuthentication } = await import('@/lib/security/webauthn/server')
+    const authenticationOptions = await generateWebAuthnAuthentication()
 
     return NextResponse.json({
       authenticationOptions,

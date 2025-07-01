@@ -35,8 +35,8 @@ describe('Search Core Algorithms', () => {
 
   describe('Text Search Algorithm', () => {
     it('should perform text-only search for opportunities', async () => {
-      const { pool, testIds } = context
-      const { rows } = await pool.query(
+      const { connection, testIds } = context
+      const { rows } = await connection.sql(
         `
         SELECT * FROM hybrid_search_opportunities(
           search_text := $1,
@@ -63,8 +63,8 @@ describe('Search Core Algorithms', () => {
     })
 
     it('should perform text-only search for repositories', async () => {
-      const { pool, testIds } = context
-      const { rows } = await pool.query(
+      const { connection, testIds } = context
+      const { rows } = await connection.sql(
         `
         SELECT * FROM hybrid_search_repositories(
           search_text := $1,
@@ -90,8 +90,8 @@ describe('Search Core Algorithms', () => {
     })
 
     it('should match repository topics in text search', async () => {
-      const { pool, testIds } = context
-      const { rows } = await pool.query(
+      const { connection, testIds } = context
+      const { rows } = await connection.sql(
         `
         SELECT * FROM hybrid_search_repositories(
           search_text := $1,
@@ -116,8 +116,8 @@ describe('Search Core Algorithms', () => {
 
   describe('Relevance Scoring', () => {
     it('should calculate relevance scores correctly', async () => {
-      const { pool } = context
-      const { rows } = await pool.query(
+      const { connection } = context
+      const { rows } = await connection.sql(
         `
         SELECT * FROM hybrid_search_opportunities(
           search_text := $1,
@@ -146,8 +146,8 @@ describe('Search Core Algorithms', () => {
     })
 
     it('should handle empty search text gracefully', async () => {
-      const { pool } = context
-      const { rows } = await pool.query(
+      const { connection } = context
+      const { rows } = await connection.sql(
         `
         SELECT * FROM hybrid_search_opportunities(
           search_text := $1,
@@ -175,8 +175,8 @@ describe('Search Core Algorithms', () => {
 
   describe('Search Threshold Management', () => {
     it('should respect similarity threshold', async () => {
-      const { pool } = context
-      const { rows } = await pool.query(
+      const { connection } = context
+      const { rows } = await connection.sql(
         `
         SELECT * FROM hybrid_search_opportunities(
           search_text := $1,
@@ -198,8 +198,8 @@ describe('Search Core Algorithms', () => {
     })
 
     it('should limit results correctly', async () => {
-      const { pool } = context
-      const { rows } = await pool.query(
+      const { connection } = context
+      const { rows } = await connection.sql(
         `
         SELECT * FROM hybrid_search_opportunities(
           search_text := $1,
@@ -216,9 +216,9 @@ describe('Search Core Algorithms', () => {
 
   describe('Algorithm Error Handling', () => {
     it('should throw error for invalid weight configuration', async () => {
-      const { pool } = context
+      const { connection } = context
       await expect(
-        pool.query(`
+        connection.sql(`
           SELECT * FROM hybrid_search_opportunities(
             text_weight := 0.0,
             vector_weight := 0.0
@@ -228,9 +228,9 @@ describe('Search Core Algorithms', () => {
     })
 
     it('should throw error for invalid result limit', async () => {
-      const { pool } = context
+      const { connection } = context
       await expect(
-        pool.query(`
+        connection.sql(`
           SELECT * FROM hybrid_search_opportunities(
             result_limit := 0
           )
@@ -239,11 +239,11 @@ describe('Search Core Algorithms', () => {
     })
 
     it('should throw error for negative result limit in user search', async () => {
-      const { pool } = context
+      const { connection } = context
       const queryEmbedding = 'array_fill(0.25::real, ARRAY[1536])::halfvec(1536)'
 
       await expect(
-        pool.query(`
+        connection.sql(`
           SELECT * FROM search_similar_users(
             query_embedding := ${queryEmbedding},
             result_limit := -1
@@ -255,8 +255,8 @@ describe('Search Core Algorithms', () => {
 
   describe('Query Processing', () => {
     it('should handle special characters in search text', async () => {
-      const { pool } = context
-      const { rows } = await pool.query(`
+      const { connection } = context
+      const { rows } = await connection.sql(`
         SELECT * FROM hybrid_search_opportunities(
           search_text := 'TypeScript & debugging @#$%',
           text_weight := 1.0,
@@ -270,8 +270,8 @@ describe('Search Core Algorithms', () => {
     })
 
     it('should be case insensitive for text search', async () => {
-      const { pool, testIds } = context
-      const { rows } = await pool.query(`
+      const { connection, testIds } = context
+      const { rows } = await connection.sql(`
         SELECT * FROM hybrid_search_opportunities(
           search_text := 'TYPESCRIPT TYPE ERRORS',
           text_weight := 1.0,
@@ -287,8 +287,8 @@ describe('Search Core Algorithms', () => {
 
   describe('Ranking Algorithm', () => {
     it('should rank results by relevance score', async () => {
-      const { pool } = context
-      const { rows } = await pool.query(`
+      const { connection } = context
+      const { rows } = await connection.sql(`
         SELECT * FROM hybrid_search_opportunities(
           search_text := 'search',
           text_weight := 1.0,
@@ -307,13 +307,13 @@ describe('Search Core Algorithms', () => {
     })
 
     it('should handle identical relevance scores consistently', async () => {
-      const { pool } = context
+      const { connection } = context
 
       // Run the same query multiple times
       const queries = Array(3)
         .fill(null)
         .map(() =>
-          pool.query(`
+          connection.sql(`
           SELECT * FROM hybrid_search_opportunities(
             search_text := 'search',
             text_weight := 1.0,

@@ -39,11 +39,16 @@ const nextConfig = {
     webpackMemoryOptimizations: true,
     // Enable test proxy for Playwright testing
     testProxy: true,
+    // Next.js 15 performance features
+    staleTimes: {
+      dynamic: 30,
+      static: 180,
+    },
     // Temporarily disabled - requires critters package
     // optimizeCss: true,
   },
 
-  // Server external packages (moved from experimental)
+  // Server external packages (moved from experimental in Next.js 15)
   serverExternalPackages: ['@neondatabase/serverless', 'ioredis', 'pg'],
 
   // Turbopack configuration for development builds
@@ -77,11 +82,81 @@ const nextConfig = {
       }
     }
 
-    // Enable tree shaking of unused exports
+    // Advanced optimization configuration
     config.optimization = {
       ...config.optimization,
       usedExports: true,
       sideEffects: false,
+      // Enhanced chunk splitting for better caching
+      splitChunks: {
+        chunks: 'all',
+        cacheGroups: {
+          // Framework chunks (Next.js, React)
+          framework: {
+            name: 'framework',
+            test: /[\\/]node_modules[\\/](react|react-dom|next)[\\/]/,
+            priority: 40,
+            enforce: true,
+          },
+          // Authentication libraries (optimized for jose consolidation)
+          auth: {
+            name: 'auth',
+            test: /[\\/]node_modules[\\/](next-auth|@auth|jose|@simplewebauthn)[\\/]/,
+            priority: 30,
+            enforce: true,
+          },
+          // Database and API clients (optimized for consolidated octokit)
+          database: {
+            name: 'database',
+            test: /[\\/]node_modules[\\/](@neondatabase|drizzle-orm|octokit|ioredis)[\\/]/,
+            priority: 25,
+            enforce: true,
+          },
+          // UI libraries
+          ui: {
+            name: 'ui',
+            test: /[\\/]node_modules[\\/](@radix-ui|lucide-react|framer-motion|class-variance-authority)[\\/]/,
+            priority: 20,
+            enforce: true,
+          },
+          // Vendor libraries
+          vendor: {
+            name: 'vendor',
+            test: /[\\/]node_modules[\\/]/,
+            priority: 10,
+            enforce: true,
+          },
+        },
+      },
+      // Enhanced minimization
+      minimizer: !isServer
+        ? [
+            // Keep existing minimizers and add optimization
+            ...(config.optimization.minimizer || []),
+          ]
+        : undefined,
+    }
+
+    // Performance optimizations
+    if (!isServer) {
+      // Optimize bundle size by resolving only necessary polyfills
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        // Only include necessary polyfills
+        buffer: false,
+        events: false,
+        util: false,
+        url: false,
+        querystring: false,
+      }
+
+      // Add performance hints
+      config.performance = {
+        ...config.performance,
+        maxAssetSize: 512000, // 500kb
+        maxEntrypointSize: 1024000, // 1MB
+        hints: process.env.NODE_ENV === 'production' ? 'warning' : false,
+      }
     }
 
     return config
@@ -122,9 +197,16 @@ const nextConfig = {
 
   // Module optimization for barrel files (icon libraries, etc)
   modularizeImports: {
-    // Remove lucide-react transform - modern versions use barrel exports
-    '@heroicons/react': {
+    // Optimize lucide-react imports for better tree shaking
+    'lucide-react': {
+      transform: 'lucide-react/dist/esm/icons/{{kebabCase member}}',
+      skipDefaultConversion: true,
+    },
+    '@heroicons/react/24/outline': {
       transform: '@heroicons/react/24/outline/{{member}}',
+    },
+    '@heroicons/react/24/solid': {
+      transform: '@heroicons/react/24/solid/{{member}}',
     },
   },
 }

@@ -6,7 +6,7 @@
 import { authConfig } from '@/lib/config/auth'
 import { timingSafeEqual } from '@/lib/crypto-utils'
 import { sql } from '@/lib/db/config'
-import { createSecureHash } from '@/lib/security/crypto'
+import { createSecureHash } from '@/lib/security/crypto-simple'
 import type {
   AnomalyDetection,
   AuditLogFilters,

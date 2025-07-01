@@ -36,11 +36,11 @@ describe('Search Integration', () => {
 
   describe('End-to-End Search Workflows', () => {
     it('should support complete opportunity discovery workflow', async () => {
-      const { pool, testIds } = context
+      const { connection, testIds } = context
       await setupUserPreferences(context)
 
       // 1. Find matching opportunities for user
-      const { rows: matchingOpps } = await pool.query(
+      const { rows: matchingOpps } = await connection.sql(
         `
         SELECT * FROM find_matching_opportunities_for_user(
           target_user_id := $1,
@@ -55,7 +55,7 @@ describe('Search Integration', () => {
       const selectedOpp = matchingOpps[0]
 
       // 2. Get repository health metrics for the opportunity
-      const { rows: healthMetrics } = await pool.query(
+      const { rows: healthMetrics } = await connection.sql(
         'SELECT * FROM get_repository_health_metrics($1)',
         [selectedOpp.repository_id]
       )
@@ -65,7 +65,7 @@ describe('Search Integration', () => {
       expect(healthMetrics[0].health_score).toBeGreaterThan(0)
 
       // 3. Search for similar opportunities
-      const { rows: similarOpps } = await pool.query(
+      const { rows: similarOpps } = await connection.sql(
         `
         SELECT * FROM hybrid_search_opportunities(
           search_text := $1,
@@ -84,7 +84,7 @@ describe('Search Integration', () => {
       // 4. Check trending opportunities for context
       await updateOpportunityEngagement(context, selectedOpp.id, 150, 15)
 
-      const { rows: trending } = await pool.query(`
+      const { rows: trending } = await connection.sql(`
         SELECT * FROM get_trending_opportunities(
           time_window_hours := 24,
           min_engagement := 1,
@@ -96,10 +96,10 @@ describe('Search Integration', () => {
     })
 
     it('should support complete user matching workflow', async () => {
-      const { pool, testIds } = context
+      const { connection, testIds } = context
 
       // 1. Search for users similar to current user
-      const { rows: similarUsers } = await pool.query(`
+      const { rows: similarUsers } = await connection.sql(`
         SELECT * FROM search_similar_users(
           query_embedding := ${generateEmbedding(0.25)},
           similarity_threshold := 0.9,
@@ -113,7 +113,7 @@ describe('Search Integration', () => {
       // 2. Find opportunities that would match similar users
       await setupUserPreferences(context)
 
-      const { rows: userOpportunities } = await pool.query(
+      const { rows: userOpportunities } = await connection.sql(
         `
         SELECT * FROM find_matching_opportunities_for_user(
           target_user_id := $1,
@@ -127,7 +127,7 @@ describe('Search Integration', () => {
 
       // 3. Cross-reference with repository quality
       for (const opp of userOpportunities) {
-        const { rows: repoHealth } = await pool.query(
+        const { rows: repoHealth } = await connection.sql(
           'SELECT * FROM get_repository_health_metrics($1)',
           [opp.repository_id]
         )
@@ -138,11 +138,11 @@ describe('Search Integration', () => {
     })
 
     it('should handle complete repository discovery workflow', async () => {
-      const { pool, testIds } = context
+      const { connection, testIds } = context
       const lowQualityRepoId = await insertLowQualityRepository(context)
 
       // 1. Search repositories by topic and quality
-      const { rows: qualityRepos } = await pool.query(`
+      const { rows: qualityRepos } = await connection.sql(`
         SELECT * FROM hybrid_search_repositories(
           search_text := 'AI search',
           text_weight := 1.0,
@@ -156,7 +156,7 @@ describe('Search Integration', () => {
 
       // 2. Get detailed health metrics for top repository
       const topRepo = qualityRepos[0]
-      const { rows: topRepoHealth } = await pool.query(
+      const { rows: topRepoHealth } = await connection.sql(
         'SELECT * FROM get_repository_health_metrics($1)',
         [topRepo.id]
       )
@@ -165,7 +165,7 @@ describe('Search Integration', () => {
       expect(topRepoHealth[0].health_score).toBeGreaterThan(80)
 
       // 3. Find opportunities in top repository
-      const { rows: repoOpportunities } = await pool.query(
+      const { rows: repoOpportunities } = await connection.sql(
         `
         SELECT * FROM opportunities 
         WHERE repository_id = $1 AND status = 'open'
@@ -176,7 +176,7 @@ describe('Search Integration', () => {
       expect(repoOpportunities.length).toBeGreaterThan(0)
 
       // 4. Search for similar high-quality repositories
-      const { rows: similarRepos } = await pool.query(`
+      const { rows: similarRepos } = await connection.sql(`
         SELECT * FROM hybrid_search_repositories(
           query_embedding := ${generateEmbedding(0.1)},
           text_weight := 0.0,
@@ -188,17 +188,17 @@ describe('Search Integration', () => {
       expect(similarRepos.length).toBeGreaterThan(1)
 
       // Clean up
-      await pool.query('DELETE FROM repositories WHERE id = $1', [lowQualityRepoId])
+      await connection.sql('DELETE FROM repositories WHERE id = $1', [lowQualityRepoId])
     })
   })
 
   describe('Cross-Function Integration', () => {
     it('should integrate user preferences with repository health metrics', async () => {
-      const { pool, testIds } = context
+      const { connection, testIds } = context
       await setupUserPreferences(context)
 
       // Get user matches
-      const { rows: matches } = await pool.query(
+      const { rows: matches } = await connection.sql(
         `
         SELECT * FROM find_matching_opportunities_for_user(
           target_user_id := $1,
@@ -212,7 +212,7 @@ describe('Search Integration', () => {
 
       // Verify each matched opportunity comes from a healthy repository
       for (const match of matches) {
-        const { rows: health } = await pool.query(
+        const { rows: health } = await connection.sql(
           'SELECT * FROM get_repository_health_metrics($1)',
           [match.repository_id]
         )
@@ -224,14 +224,14 @@ describe('Search Integration', () => {
     })
 
     it('should integrate trending scores with search relevance', async () => {
-      const { pool, testIds } = context
+      const { connection, testIds } = context
 
       // Update engagement metrics to make opportunities trending
       await updateOpportunityEngagement(context, testIds.oppId1, 200, 20)
       await updateOpportunityEngagement(context, testIds.oppId2, 75, 8, 1)
 
       // Get trending opportunities
-      const { rows: trending } = await pool.query(`
+      const { rows: trending } = await connection.sql(`
         SELECT * FROM get_trending_opportunities(
           time_window_hours := 24,
           min_engagement := 5,
@@ -242,7 +242,7 @@ describe('Search Integration', () => {
       expect(trending.length).toBeGreaterThan(0)
 
       // Search for the same opportunities using text search
-      const { rows: searchResults } = await pool.query(`
+      const { rows: searchResults } = await connection.sql(`
         SELECT * FROM hybrid_search_opportunities(
           search_text := 'TypeScript AI search',
           text_weight := 1.0,
@@ -262,10 +262,10 @@ describe('Search Integration', () => {
     })
 
     it('should integrate vector similarity with text search scoring', async () => {
-      const { pool } = context
+      const { connection } = context
 
       // Test hybrid search that combines text and vector signals
-      const { rows: hybridResults } = await pool.query(`
+      const { rows: hybridResults } = await connection.sql(`
         SELECT * FROM hybrid_search_opportunities(
           search_text := 'TypeScript debugging',
           query_embedding := ${generateEmbedding(0.2)},
@@ -278,7 +278,7 @@ describe('Search Integration', () => {
       expect(hybridResults.length).toBeGreaterThan(0)
 
       // Compare with text-only search
-      const { rows: textResults } = await pool.query(`
+      const { rows: textResults } = await connection.sql(`
         SELECT * FROM hybrid_search_opportunities(
           search_text := 'TypeScript debugging',
           text_weight := 1.0,
@@ -288,7 +288,7 @@ describe('Search Integration', () => {
       `)
 
       // Compare with vector-only search
-      const { rows: vectorResults } = await pool.query(`
+      const { rows: vectorResults } = await connection.sql(`
         SELECT * FROM hybrid_search_opportunities(
           query_embedding := ${generateEmbedding(0.2)},
           text_weight := 0.0,
@@ -310,17 +310,17 @@ describe('Search Integration', () => {
 
   describe('Data Consistency and Integrity', () => {
     it('should maintain data consistency across search functions', async () => {
-      const { pool, testIds } = context
+      const { connection, testIds } = context
 
       // Verify that the same opportunities appear in different search contexts
       const searchMethods = [
-        pool.query(`
+        connection.sql(`
           SELECT id, title FROM hybrid_search_opportunities(
             search_text := 'TypeScript',
             similarity_threshold := 0.01
           )
         `),
-        pool.query(
+        connection.sql(
           `
           SELECT id, title FROM opportunities 
           WHERE repository_id = $1 AND status = 'open'
@@ -346,14 +346,14 @@ describe('Search Integration', () => {
     })
 
     it('should handle cascading updates correctly', async () => {
-      const { pool, testIds } = context
+      const { connection, testIds } = context
       await setupUserPreferences(context)
 
       // Record contribution outcome
       await addContributionOutcome(context, testIds.oppId1, 3)
 
       // Verify health metrics reflect the contribution
-      const { rows: healthWithOutcome } = await pool.query(
+      const { rows: healthWithOutcome } = await connection.sql(
         'SELECT * FROM get_repository_health_metrics($1)',
         [testIds.repoId]
       )
@@ -362,7 +362,7 @@ describe('Search Integration', () => {
       expect(healthWithOutcome[0].avg_opportunity_completion_time).toBe(3)
 
       // Verify this doesn't break search functionality
-      const { rows: searchAfterOutcome } = await pool.query(`
+      const { rows: searchAfterOutcome } = await connection.sql(`
         SELECT * FROM hybrid_search_opportunities(
           search_text := 'TypeScript',
           similarity_threshold := 0.01
@@ -375,18 +375,18 @@ describe('Search Integration', () => {
 
   describe('Error Handling and Edge Cases', () => {
     it('should handle non-existent entities gracefully', async () => {
-      const { pool } = context
+      const { connection } = context
       const fakeRepoId = '550e8400-e29b-41d4-a716-446655440099'
       const fakeUserId = '550e8400-e29b-41d4-a716-446655440098'
 
       // Test repository health metrics with non-existent repo
       await expect(
-        pool.query('SELECT * FROM get_repository_health_metrics($1)', [fakeRepoId])
+        connection.sql('SELECT * FROM get_repository_health_metrics($1)', [fakeRepoId])
       ).rejects.toThrow(errorMessages.repositoryNotFound(fakeRepoId))
 
       // Test user matching with non-existent user
       await expect(
-        pool.query(
+        connection.sql(
           `
           SELECT * FROM find_matching_opportunities_for_user(
             target_user_id := $1
@@ -398,11 +398,11 @@ describe('Search Integration', () => {
     })
 
     it('should handle malformed search inputs gracefully', async () => {
-      const { pool } = context
+      const { connection } = context
 
       // Test with very long search text
       const longText = 'a'.repeat(1000)
-      const { rows } = await pool.query(
+      const { rows } = await connection.sql(
         `
         SELECT * FROM hybrid_search_opportunities(
           search_text := $1,
@@ -416,7 +416,7 @@ describe('Search Integration', () => {
 
       // Test with special characters and SQL injection attempts
       const maliciousText = "'; DROP TABLE opportunities; --"
-      const { rows: safeRows } = await pool.query(
+      const { rows: safeRows } = await connection.sql(
         `
         SELECT * FROM hybrid_search_opportunities(
           search_text := $1,
@@ -430,18 +430,18 @@ describe('Search Integration', () => {
     })
 
     it('should handle concurrent access correctly', async () => {
-      const { pool, testIds } = context
+      const { connection, testIds } = context
       await setupUserPreferences(context)
 
       // Run multiple concurrent operations
       const concurrentOperations = [
-        pool.query(`
+        connection.sql(`
           SELECT * FROM hybrid_search_opportunities(
             search_text := 'TypeScript',
             similarity_threshold := 0.01
           )
         `),
-        pool.query(
+        connection.sql(
           `
           SELECT * FROM find_matching_opportunities_for_user(
             target_user_id := $1,
@@ -450,13 +450,13 @@ describe('Search Integration', () => {
         `,
           [testIds.userId]
         ),
-        pool.query(
+        connection.sql(
           `
           SELECT * FROM get_repository_health_metrics($1)
         `,
           [testIds.repoId]
         ),
-        pool.query(`
+        connection.sql(`
           SELECT * FROM get_trending_opportunities(
             time_window_hours := 24,
             min_engagement := 1

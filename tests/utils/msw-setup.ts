@@ -9,6 +9,21 @@
 import { type HttpHandler, HttpResponse, http } from 'msw'
 import { setupServer } from 'msw/node'
 import { afterAll, afterEach, beforeAll } from 'vitest'
+// Import comprehensive handlers from unified setup
+import {
+  allHandlers,
+  coreHandlers,
+  externalHandlers,
+  mockFactories,
+  requestBuilders,
+  responseValidators,
+  setupAuthMSW,
+  setupComprehensiveMSW,
+  setupCustomMSW,
+  setupSearchMSW,
+  setupSecurityMSW,
+  testScenarios,
+} from '../mocks/unified-handlers'
 import {
   createGitHubRepositoryMock,
   createGitHubUserMock,
@@ -253,8 +268,24 @@ export const githubHandlers = [
 
 /**
  * Create and configure MSW server
+ * UPDATED: Now uses comprehensive handlers by default
  */
-export const server = setupServer(...githubHandlers)
+export const server = setupServer(...allHandlers)
+
+/**
+ * Legacy server with GitHub handlers only (for backward compatibility)
+ */
+export const githubOnlyServer = setupServer(...githubHandlers)
+
+/**
+ * Core application server (internal APIs only)
+ */
+export const coreServer = setupServer(...coreHandlers)
+
+/**
+ * External APIs server (GitHub, etc.)
+ */
+export const externalServer = setupServer(...externalHandlers)
 
 /**
  * Setup MSW for testing with improved error handling and isolation
@@ -577,3 +608,65 @@ export function setupRateLimitMSW() {
   const rateLimitHandlers = createRateLimitHandlers()
   server.use(...rateLimitHandlers)
 }
+
+/**
+ * New comprehensive MSW exports
+ * These provide enhanced functionality for complete API testing
+ */
+export {
+  // Setup functions for different testing scenarios
+  setupComprehensiveMSW,
+  setupCustomMSW,
+  setupAuthMSW,
+  setupSecurityMSW,
+  setupSearchMSW,
+  // Handler collections
+  allHandlers,
+  coreHandlers,
+  externalHandlers,
+  // Test utilities
+  testScenarios,
+  requestBuilders,
+  responseValidators,
+  mockFactories,
+}
+
+/**
+ * Quick setup for different testing scenarios
+ */
+export const MSWScenarios = {
+  // Complete application testing with all APIs
+  comprehensive: setupComprehensiveMSW,
+
+  // Authentication testing only
+  auth: setupAuthMSW,
+
+  // Security testing only
+  security: setupSecurityMSW,
+
+  // Search functionality testing
+  search: setupSearchMSW,
+
+  // Custom handler selection
+  custom: setupCustomMSW,
+}
+
+/**
+ * Test data builders for dynamic mock generation
+ */
+export const TestDataBuilders = mockFactories
+
+/**
+ * HTTP request builders for test scenarios
+ */
+export const HTTPBuilders = requestBuilders
+
+/**
+ * Response validation helpers
+ */
+export const ResponseValidators = responseValidators
+
+/**
+ * Predefined test scenarios with query parameters
+ */
+export const TestScenarios = testScenarios

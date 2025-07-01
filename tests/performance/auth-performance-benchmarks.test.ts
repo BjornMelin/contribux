@@ -4,6 +4,7 @@
  */
 
 import { performance } from 'node:perf_hooks'
+import type { MockedFunction } from 'vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { authConfig } from '@/lib/auth/config'
 import {
@@ -15,6 +16,20 @@ import {
   PerformanceTestHelper,
   setupAuthTestEnvironment,
 } from '../utils/auth-test-utilities'
+
+// Advanced TypeScript 5.8+ Type Definitions for Test Environment
+interface AuthTestEnvironment {
+  mockSql: MockedFunction<(...args: unknown[]) => Promise<unknown>>
+  mockAuth: MockedFunction<(...args: unknown[]) => Promise<unknown>>
+  authStateManager: AuthenticationStateManager
+  dbMockHelper: DatabaseMockHelper
+}
+
+type PerformanceTestPromise = Promise<{
+  timing: number
+  success: boolean
+  error?: string
+}>
 
 // Performance thresholds (in milliseconds)
 const PERFORMANCE_THRESHOLDS = {
@@ -35,13 +50,14 @@ const LOAD_TEST_PARAMS = {
 }
 
 describe('NextAuth Performance Benchmarks', () => {
-  let mockSql: any
-  let _mockAuth: any
+  let testEnv: AuthTestEnvironment
+  let mockSql: MockedFunction<(...args: unknown[]) => Promise<unknown>>
+  let _mockAuth: MockedFunction<(...args: unknown[]) => Promise<unknown>>
   let _authStateManager: AuthenticationStateManager
   let dbMockHelper: DatabaseMockHelper
 
   beforeEach(() => {
-    const testEnv = setupAuthTestEnvironment()
+    testEnv = setupAuthTestEnvironment()
     mockSql = testEnv.mockSql
     _mockAuth = testEnv.mockAuth
     _authStateManager = testEnv.authStateManager
@@ -98,7 +114,7 @@ describe('NextAuth Performance Benchmarks', () => {
     it('should handle rapid session creation bursts', async () => {
       // Setup for burst testing
       const burstSize = 20
-      const burstPromises: Promise<any>[] = []
+      const burstPromises: PerformanceTestPromise[] = []
 
       for (let i = 0; i < burstSize; i++) {
         dbMockHelper.mockUserRetrieval({
@@ -107,20 +123,23 @@ describe('NextAuth Performance Benchmarks', () => {
           display_name: `Burst User ${i}`,
           connected_providers: ['github'],
           primary_provider: 'github',
-        } as any)
+        })
 
         const sessionCallback = authConfig.callbacks?.session
+        const sessionPromise = sessionCallback?.({
+          session: {
+            ...createMockSession({
+              user: { ...createMockSession().user, id: `burst-user-${i}` },
+            }),
+            sessionToken: `burst-session-${i}`,
+            userId: `burst-user-${i}`,
+          },
+          token: createMockJWT({ sub: `burst-user-${i}` }),
+        })
+
         burstPromises.push(
-          sessionCallback?.({
-            session: {
-              ...createMockSession({
-                user: { ...createMockSession().user, id: `burst-user-${i}` as any },
-              }),
-              sessionToken: `burst-session-${i}`,
-              userId: `burst-user-${i}`,
-            },
-            token: createMockJWT({ sub: `burst-user-${i}` }),
-          })
+          sessionPromise?.then(() => ({ timing: 0, success: true })) ??
+            Promise.resolve({ timing: 0, success: false })
         )
       }
 
@@ -145,7 +164,7 @@ describe('NextAuth Performance Benchmarks', () => {
           createMockSession({
             user: {
               ...createMockSession().user,
-              id: `memory-user-${i}` as any,
+              id: `memory-user-${i}`,
             },
           })
         )
@@ -155,7 +174,7 @@ describe('NextAuth Performance Benchmarks', () => {
           email: 'memory@example.com',
           connected_providers: ['github'],
           primary_provider: 'github',
-        } as any)
+        })
 
         const { duration } = await PerformanceTestHelper.measureAuthOperation(async () => {
           const sessionCallback = authConfig.callbacks?.session

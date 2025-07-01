@@ -46,6 +46,7 @@ export default defineConfig({
     include: [
       'tests/unit/**/*.{test,spec}.{js,ts,tsx}',
       'tests/security/**/*.{test,spec}.{js,ts,tsx}',
+      'tests/mocks/**/*.{test,spec}.{js,ts,tsx}',
       'src/**/*.{test,spec}.{js,ts,tsx}',
     ],
 

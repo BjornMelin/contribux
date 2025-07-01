@@ -129,7 +129,9 @@ describe('Search Components - Accessibility Suite', () => {
       it('has proper fieldset for language selection', () => {
         const filters = createDefaultFilters()
         const onFiltersChange = vi.fn()
-        const renderResult = renderIsolated(<SearchFilters filters={filters} onFiltersChange={onFiltersChange} />)
+        const renderResult = renderIsolated(
+          <SearchFilters filters={filters} onFiltersChange={onFiltersChange} />
+        )
 
         const fieldset = renderResult.getByRole('group', { name: /languages/i })
         expect(fieldset).toBeInTheDocument()
@@ -138,12 +140,14 @@ describe('Search Components - Accessibility Suite', () => {
       it('has proper labels for all form controls', () => {
         const filters = createDefaultFilters()
         const onFiltersChange = vi.fn()
-        const { container: renderContainer } = renderIsolated(<SearchFilters filters={filters} onFiltersChange={onFiltersChange} />)
+        const { container: renderContainer } = renderIsolated(
+          <SearchFilters filters={filters} onFiltersChange={onFiltersChange} />
+        )
 
         // Use queryAll to find labels and check they exist (more flexible than exact label matches)
         const labels = renderContainer.querySelectorAll('label')
         expect(labels.length).toBeGreaterThan(0)
-        
+
         // Check for basic form controls exist
         const selects = renderContainer.querySelectorAll('select')
         const checkboxes = renderContainer.querySelectorAll('input[type="checkbox"]')
@@ -154,18 +158,21 @@ describe('Search Components - Accessibility Suite', () => {
       it('has accessible checkbox labels', () => {
         const filters = createDefaultFilters()
         const onFiltersChange = vi.fn()
-        const { container: renderContainer } = renderIsolated(<SearchFilters filters={filters} onFiltersChange={onFiltersChange} />)
+        const { container: renderContainer } = renderIsolated(
+          <SearchFilters filters={filters} onFiltersChange={onFiltersChange} />
+        )
 
         // Check that checkboxes have proper labels
         const checkboxes = renderContainer.querySelectorAll('input[type="checkbox"]')
         expect(checkboxes.length).toBeGreaterThan(0)
-        
+
         // Verify each checkbox has some form of accessible label
         checkboxes.forEach(checkbox => {
           const hasAriaLabel = checkbox.hasAttribute('aria-label')
           const hasAriaLabelledBy = checkbox.hasAttribute('aria-labelledby')
-          const hasAssociatedLabel = checkbox.id && renderContainer.querySelector(`label[for="${checkbox.id}"]`)
-          
+          const hasAssociatedLabel =
+            checkbox.id && renderContainer.querySelector(`label[for="${checkbox.id}"]`)
+
           expect(hasAriaLabel || hasAriaLabelledBy || hasAssociatedLabel).toBe(true)
         })
       })
@@ -176,12 +183,14 @@ describe('Search Components - Accessibility Suite', () => {
         const user = userEvent.setup()
         const filters = createDefaultFilters()
         const onFiltersChange = vi.fn()
-        const { container: renderContainer } = renderIsolated(<SearchFilters filters={filters} onFiltersChange={onFiltersChange} />)
+        const { container: renderContainer } = renderIsolated(
+          <SearchFilters filters={filters} onFiltersChange={onFiltersChange} />
+        )
 
         // Test that tab navigation works by checking multiple elements can receive focus
         const selects = renderContainer.querySelectorAll('select')
         const checkboxes = renderContainer.querySelectorAll('input[type="checkbox"]')
-        
+
         expect(selects.length).toBeGreaterThan(0)
         expect(checkboxes.length).toBeGreaterThan(0)
 
@@ -189,18 +198,22 @@ describe('Search Components - Accessibility Suite', () => {
         await user.tab()
         const firstFocusedElement = document.activeElement
         expect(firstFocusedElement).toBeDefined()
-        expect(['SELECT', 'INPUT', 'BUTTON'].includes(firstFocusedElement?.tagName || '')).toBe(true)
+        expect(['SELECT', 'INPUT', 'BUTTON'].includes(firstFocusedElement?.tagName || '')).toBe(
+          true
+        )
       })
 
       it('supports keyboard interaction with checkboxes', async () => {
         const user = userEvent.setup()
         const filters = createDefaultFilters()
         const onFiltersChange = vi.fn()
-        const { container: renderContainer } = renderIsolated(<SearchFilters filters={filters} onFiltersChange={onFiltersChange} />)
+        const { container: renderContainer } = renderIsolated(
+          <SearchFilters filters={filters} onFiltersChange={onFiltersChange} />
+        )
 
         const checkboxes = renderContainer.querySelectorAll('input[type="checkbox"]')
         expect(checkboxes.length).toBeGreaterThan(0)
-        
+
         // Test keyboard interaction with first checkbox
         const firstCheckbox = checkboxes[0] as HTMLInputElement
         firstCheckbox.focus()

@@ -13,14 +13,10 @@
  */
 
 import { HttpResponse, http } from 'msw'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { GitHubError } from '@/lib/github/errors'
 import { mswServer } from '../msw-setup'
-import {
-  malformedResponseHandlers,
-  serverErrorHandlers,
-  validationErrorHandlers,
-} from './mocks/error-api-mocks'
+import { allEdgeCaseHandlers } from './mocks/error-api-mocks'
 import {
   createEdgeCaseClient,
   EDGE_CASE_PARAMS,
@@ -31,6 +27,11 @@ import { testErrorPropagation, validateErrorResponse } from './utils/error-test-
 describe('GitHub API Error Handling', () => {
   // Setup MSW and enhanced test isolation
   setupEdgeCaseTestIsolation()
+
+  // Enable error response handlers for these tests
+  beforeEach(() => {
+    mswServer.use(...allEdgeCaseHandlers)
+  })
 
   describe('HTTP Status Code Handling', () => {
     it('should handle 500 Internal Server Error correctly', async () => {

@@ -37,7 +37,7 @@ function uint8ArrayToBase64url(bytes: Uint8Array): string {
 }
 
 /**
- * Legacy hashing function - use createSecureHash from @/lib/security/crypto instead
+ * Legacy hashing function - use createSecureHash from @/lib/security/crypto-simple instead
  * @deprecated Use createSecureHash from advanced crypto implementation
  */
 export async function createSHA256Hash(data: string): Promise<string> {
@@ -67,7 +67,7 @@ export function generateRandomToken(length = 32): string {
 }
 
 /**
- * Legacy timing-safe comparison - use timing-safe functions from @/lib/security/crypto instead
+ * Legacy timing-safe comparison - use timing-safe functions from @/lib/security/crypto-simple instead
  * @deprecated Use verifyHMAC or appropriate timing-safe functions from advanced crypto
  */
 export async function timingSafeEqual(a: string | Buffer, b: string | Buffer): Promise<boolean> {
