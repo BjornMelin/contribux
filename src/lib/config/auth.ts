@@ -7,7 +7,7 @@ export const authConfig = {
   jwt: {
     accessTokenExpiry: 15 * 60, // 15 minutes
     refreshTokenExpiry: 7 * 24 * 60 * 60, // 7 days
-    testSecret: 'test-secret',
+    // SECURITY: Removed hardcoded testSecret - must use environment variables
     issuer: 'contribux',
     audience: ['contribux-api'],
   },

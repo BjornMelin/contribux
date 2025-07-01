@@ -23,7 +23,7 @@ const configSchema = z.object({
     jwt: z.object({
       accessTokenExpiry: z.number().min(60).max(86400), // 1 minute to 24 hours
       refreshTokenExpiry: z.number().min(3600).max(2592000), // 1 hour to 30 days
-      testSecret: z.string().default('test-secret'),
+      // SECURITY: testSecret removed - must use proper JWT_SECRET environment variable
       issuer: z.string().default('contribux'),
       audience: z.array(z.string()).default(['contribux-api']),
     }),
@@ -122,7 +122,7 @@ function createConfig(): Config {
       jwt: {
         accessTokenExpiry: 15 * 60, // 15 minutes
         refreshTokenExpiry: 7 * 24 * 60 * 60, // 7 days
-        testSecret: 'test-secret',
+        // SECURITY: testSecret removed - must use proper JWT_SECRET environment variable
         issuer: 'contribux',
         audience: ['contribux-api'],
       },

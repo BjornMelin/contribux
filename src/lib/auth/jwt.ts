@@ -387,8 +387,15 @@ async function tryTestFallbackVerification(
   originalError: unknown,
   token: string
 ): Promise<AccessTokenPayload> {
+  // SECURITY: In test environment, use proper JWT secret validation
+  // No hardcoded secrets - use environment variable or throw error
   try {
-    const payload = await verifyJWT(token, new TextEncoder().encode('test-secret'))
+    const testSecret = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET
+    if (!testSecret) {
+      throw new Error('JWT_SECRET or NEXTAUTH_SECRET required for test verification')
+    }
+
+    const payload = await verifyJWT(token, new TextEncoder().encode(testSecret))
     return payload as unknown as AccessTokenPayload
   } catch (testError) {
     if (testError instanceof Error && testError.message === 'Token expired') {

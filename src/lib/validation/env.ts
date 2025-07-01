@@ -211,6 +211,154 @@ function validateProductionSecrets(): void {
 }
 
 /**
+ * Validates security configuration across all environments
+ */
+function validateSecurityConfiguration(): void {
+  // Validate that critical environment variables don't contain test values
+  const criticalEnvVars = [
+    'GITHUB_CLIENT_ID',
+    'GITHUB_CLIENT_SECRET',
+    'NEXTAUTH_SECRET',
+    'JWT_SECRET',
+    'DATABASE_URL',
+  ]
+
+  for (const envVar of criticalEnvVars) {
+    const value = process.env[envVar]
+    if (value && /test-|demo-|sample-|example-/i.test(value)) {
+      throw new Error(
+        `🚨 SECURITY: ${envVar} contains test/demo values: ${value.substring(0, 10)}...`
+      )
+    }
+  }
+}
+
+/**
+ * Enhanced production security validation
+ */
+function validateProductionSecuritySettings(): void {
+  const nodeEnv = process.env.NODE_ENV
+  if (nodeEnv !== 'production') return
+
+  // Validate OAuth configuration
+  const githubClientId = process.env.GITHUB_CLIENT_ID
+  const githubClientSecret = process.env.GITHUB_CLIENT_SECRET
+
+  if (!githubClientId || githubClientId.length < 10) {
+    throw new Error('🚨 PRODUCTION SECURITY: GITHUB_CLIENT_ID must be properly configured')
+  }
+
+  if (!githubClientSecret || githubClientSecret.length < 20) {
+    throw new Error('🚨 PRODUCTION SECURITY: GITHUB_CLIENT_SECRET must be properly configured')
+  }
+
+  // Validate database URLs don't contain localhost or test patterns
+  const dbUrl = process.env.DATABASE_URL
+  if (dbUrl && (dbUrl.includes('localhost') || dbUrl.includes('test'))) {
+    throw new Error('🚨 PRODUCTION SECURITY: DATABASE_URL cannot contain localhost or test values')
+  }
+
+  // Validate redirect URIs for production
+  const redirectUris = process.env.ALLOWED_REDIRECT_URIS
+  if (redirectUris?.includes('localhost')) {
+    throw new Error(
+      '🚨 PRODUCTION SECURITY: ALLOWED_REDIRECT_URIS cannot contain localhost in production'
+    )
+  }
+
+  // Ensure NEXTAUTH_URL is set for production
+  const nextAuthUrl = process.env.NEXTAUTH_URL
+  if (!nextAuthUrl || nextAuthUrl.includes('localhost')) {
+    throw new Error('🚨 PRODUCTION SECURITY: NEXTAUTH_URL must be set to production domain')
+  }
+}
+
+/**
+ * Secure configuration utilities - no test fallback patterns
+ */
+
+/**
+ * Safe environment variable getter with no insecure fallbacks
+ */
+export function getRequiredEnv(key: string): string {
+  const value = process.env[key]
+  if (!value || value.trim() === '') {
+    throw new Error(`🚨 REQUIRED: Environment variable ${key} is missing or empty`)
+  }
+
+  // Check for test patterns in production
+  if (process.env.NODE_ENV === 'production' && /test-|demo-|sample-/i.test(value)) {
+    throw new Error(`🚨 SECURITY: ${key} contains test patterns in production`)
+  }
+
+  return value
+}
+
+/**
+ * Safe environment variable getter with validation
+ */
+export function getOptionalEnv(
+  key: string,
+  validator?: (value: string) => boolean
+): string | undefined {
+  const value = process.env[key]
+  if (!value) return undefined
+
+  if (validator && !validator(value)) {
+    throw new Error(`🚨 VALIDATION: Environment variable ${key} failed validation`)
+  }
+
+  return value
+}
+
+/**
+ * Validates secret entropy for production security
+ */
+export function validateSecretEntropy(secret: string, minEntropy = 0.2): boolean {
+  if (secret.length < 32) return false
+
+  const uniqueChars = new Set(secret).size
+  const entropyRatio = uniqueChars / secret.length
+
+  return uniqueChars >= 8 && entropyRatio >= minEntropy
+}
+
+/**
+ * Production-safe configuration getter
+ */
+export function getSecureConfigValue(
+  key: string,
+  options: {
+    required?: boolean
+    minLength?: number
+    allowTestInProduction?: boolean
+  } = {}
+): string | undefined {
+  const { required = false, minLength = 1, allowTestInProduction = false } = options
+
+  const value = process.env[key]
+
+  if (required && (!value || value.trim() === '')) {
+    throw new Error(`🚨 REQUIRED: ${key} is missing or empty`)
+  }
+
+  if (!value) return undefined
+
+  if (value.length < minLength) {
+    throw new Error(`🚨 VALIDATION: ${key} must be at least ${minLength} characters`)
+  }
+
+  // Security check for production
+  if (process.env.NODE_ENV === 'production' && !allowTestInProduction) {
+    if (/test-|demo-|sample-|localhost/i.test(value)) {
+      throw new Error(`🚨 SECURITY: ${key} contains test/demo patterns in production`)
+    }
+  }
+
+  return value
+}
+
+/**
  * Validates environment configuration on startup
  * Used during application initialization
  */
@@ -219,19 +367,87 @@ export function validateEnvironmentOnStartup(): void {
     // Basic validation for all environments
     validateBasicEnvironmentVariables()
 
+    // Security configuration validation
+    validateSecurityConfiguration()
+
     // Production-specific validations
     const nodeEnv = process.env.NODE_ENV || 'development'
     if (nodeEnv === 'production') {
       validateEncryptionKeyInProduction()
       validateProductionUrls()
       validateProductionSecrets()
+      validateProductionSecuritySettings()
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
     // biome-ignore lint/suspicious/noConsole: Required for security error logging during startup validation
-    console.error(`Environment validation failed: ${errorMessage}`)
+    console.error(`🚨 SECURITY: Environment validation failed: ${errorMessage}`)
     process.exit(1)
   }
+}
+
+// Helper function to validate JWT secret exists and get it
+function validateJwtSecretExists(nodeEnv: string): string {
+  const jwtSecret = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET
+
+  if (!jwtSecret || jwtSecret.trim() === '') {
+    if (nodeEnv === 'test') {
+      throw new Error(
+        'JWT_SECRET or NEXTAUTH_SECRET is required even in test environment. Set JWT_SECRET in your test configuration.'
+      )
+    }
+    throw new Error('JWT_SECRET or NEXTAUTH_SECRET is required and cannot be empty')
+  }
+
+  return jwtSecret
+}
+
+// Helper function to validate JWT secret length
+function validateJwtSecretLength(jwtSecret: string): void {
+  if (jwtSecret.length < 32) {
+    throw new Error('JWT secret validation failed: must be at least 32 characters long')
+  }
+}
+
+// Helper function to validate JWT secret doesn't contain test/dev keywords
+function validateJwtSecretKeywords(jwtSecret: string): void {
+  if (/test|dev|development|demo|sample|example/i.test(jwtSecret)) {
+    throw new Error('🚨 SECURITY: JWT_SECRET contains test/dev keywords in production environment')
+  }
+}
+
+// Helper function to validate JWT secret entropy
+function validateJwtSecretEntropy(jwtSecret: string): void {
+  const uniqueChars = new Set(jwtSecret).size
+  const entropyRatio = uniqueChars / jwtSecret.length
+
+  if (uniqueChars < 8 || entropyRatio < 0.2) {
+    throw new Error(
+      '🚨 SECURITY: JWT_SECRET has insufficient entropy (too repetitive or predictable)'
+    )
+  }
+}
+
+// Helper function to validate JWT secret length limits
+function validateJwtSecretLengthLimits(jwtSecret: string): void {
+  if (jwtSecret.length > 256) {
+    throw new Error('🚨 SECURITY: JWT_SECRET is too long (maximum 256 characters)')
+  }
+}
+
+// Helper function to validate JWT secret doesn't contain weak patterns
+function validateJwtSecretPatterns(jwtSecret: string): void {
+  if (/^(.)\\1+$/.test(jwtSecret) || /123456|password|secret123/i.test(jwtSecret)) {
+    throw new Error('🚨 SECURITY: JWT_SECRET contains weak patterns')
+  }
+}
+
+// Helper function to perform all production validations
+function validateJwtSecretForProduction(jwtSecret: string): void {
+  validateJwtSecretKeywords(jwtSecret)
+  validateJwtSecretEntropy(jwtSecret)
+  validateJwtSecretLengthLimits(jwtSecret)
+  validateJwtSecretPatterns(jwtSecret)
 }
 
 /**
@@ -241,41 +457,15 @@ export function validateEnvironmentOnStartup(): void {
 export function getJwtSecret(): string {
   const nodeEnv = process.env.NODE_ENV || 'development'
 
-  // In test environment, allow fallback to NEXTAUTH_SECRET or test default
-  if (nodeEnv === 'test') {
-    return (
-      process.env.JWT_SECRET ||
-      process.env.NEXTAUTH_SECRET ||
-      'test-secret-with-sufficient-length-for-testing'
-    )
-  }
-
-  // In production and development, require JWT_SECRET specifically when this function is called
-  const jwtSecret = process.env.JWT_SECRET
-
-  if (!jwtSecret || jwtSecret.trim() === '') {
-    throw new Error('JWT_SECRET is required and cannot be empty')
-  }
+  // Get the secret from available sources - no insecure fallbacks
+  const jwtSecret = validateJwtSecretExists(nodeEnv)
 
   // Validate minimum length (32 characters for security)
-  if (jwtSecret.length < 32) {
-    throw new Error('JWT_SECRET validation failed: must be at least 32 characters long')
-  }
+  validateJwtSecretLength(jwtSecret)
 
-  // In production, perform entropy validation
+  // In production, perform strict security validation
   if (nodeEnv === 'production') {
-    // Check for test/dev keywords
-    if (/test|dev|development|demo|sample|example/i.test(jwtSecret)) {
-      throw new Error('JWT_SECRET contains test/dev keywords in production environment')
-    }
-
-    // Basic entropy check: require reasonable number of unique characters
-    const uniqueChars = new Set(jwtSecret).size
-    const entropyRatio = uniqueChars / jwtSecret.length
-
-    if (uniqueChars < 8 || entropyRatio < 0.2) {
-      throw new Error('JWT_SECRET has insufficient entropy (too repetitive or predictable)')
-    }
+    validateJwtSecretForProduction(jwtSecret)
   }
 
   return jwtSecret
