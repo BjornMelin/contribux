@@ -4,8 +4,10 @@
  */
 
 import { performance } from 'node:perf_hooks'
+
 import { and, desc, eq, ilike, isNotNull, or, sql } from 'drizzle-orm'
 import { Redis } from 'ioredis'
+
 import { db, schema, vectorConfig } from './config'
 
 // Cache configuration
@@ -17,7 +19,7 @@ interface CacheConfig {
 }
 
 const cacheConfig: CacheConfig = {
-  enabled: process.env.REDIS_URL ? true : false,
+  enabled: !!process.env.REDIS_URL,
   defaultTtl: 300, // 5 minutes
   maxCacheSize: 10000,
   keyPrefix: 'contribux:db:',
@@ -34,7 +36,7 @@ interface QueryMetrics {
 }
 
 // Intelligent cache key generator
-function generateCacheKey(queryType: string, params: Record<string, any>): string {
+function generateCacheKey(queryType: string, params: Record<string, unknown>): string {
   const normalizedParams = Object.keys(params)
     .sort()
     .reduce(
@@ -42,7 +44,7 @@ function generateCacheKey(queryType: string, params: Record<string, any>): strin
         acc[key] = typeof params[key] === 'object' ? JSON.stringify(params[key]) : params[key]
         return acc
       },
-      {} as Record<string, any>
+      {} as Record<string, unknown>
     )
 
   const paramString = JSON.stringify(normalizedParams)
@@ -55,14 +57,14 @@ function generateCacheKey(queryType: string, params: Record<string, any>): strin
 export class OptimizedQueryBuilder {
   private redis: Redis | null = null
   private metricsHistory: QueryMetrics[] = []
-  private queryCache = new Map<string, { data: any; timestamp: number; ttl: number }>()
+  private queryCache = new Map<string, { data: unknown; timestamp: number; ttl: number }>()
 
   constructor() {
     if (cacheConfig.enabled && process.env.REDIS_URL) {
       this.redis = new Redis(process.env.REDIS_URL, {
-        retryDelayOnFailover: 100,
-        maxRetriesPerRequest: 3,
         lazyConnect: true,
+        connectTimeout: 30000,
+        commandTimeout: 5000,
       })
     }
   }
@@ -78,7 +80,7 @@ export class OptimizedQueryBuilder {
   ): Promise<{ data: T; metrics: QueryMetrics }> {
     const startTime = performance.now()
     let cacheHit = false
-    let data: T
+    let data: T | null = null
 
     // Try cache first
     if (cacheKey) {
@@ -110,7 +112,7 @@ export class OptimizedQueryBuilder {
     }
 
     this.recordMetrics(metrics)
-    return { data, metrics }
+    return { data: data as T, metrics }
   }
 
   /**
@@ -125,10 +127,10 @@ export class OptimizedQueryBuilder {
       // Fallback to in-memory cache
       const cached = this.queryCache.get(key)
       if (cached && Date.now() - cached.timestamp < cached.ttl * 1000) {
-        return cached.data
+        return cached.data as T
       }
-    } catch (error) {
-      console.warn('Cache read error:', error)
+    } catch (_error) {
+      // Graceful degradation
     }
     return null
   }
@@ -148,11 +150,13 @@ export class OptimizedQueryBuilder {
         // Cleanup old entries
         if (this.queryCache.size > cacheConfig.maxCacheSize) {
           const oldestKey = this.queryCache.keys().next().value
-          this.queryCache.delete(oldestKey)
+          if (oldestKey !== undefined) {
+            this.queryCache.delete(oldestKey)
+          }
         }
       }
-    } catch (error) {
-      console.warn('Cache write error:', error)
+    } catch (_error) {
+      // Graceful degradation
     }
   }
 
@@ -169,9 +173,7 @@ export class OptimizedQueryBuilder {
 
     // Log slow queries
     if (metrics.executionTime > 1000) {
-      console.warn(
-        `Slow query detected: ${metrics.queryId} took ${metrics.executionTime.toFixed(2)}ms`
-      )
+      // Would implement slow query logging here
     }
   }
 
@@ -197,15 +199,7 @@ export class OptimizedQueryBuilder {
     return this.executeWithCache(
       'searchRepositories',
       async () => {
-        const {
-          query,
-          languages = [],
-          minStars = 0,
-          maxStars,
-          limit = 20,
-          offset = 0,
-          includeTrending = false,
-        } = params
+        const { query, languages = [], minStars = 0, maxStars, limit = 20, offset = 0 } = params
 
         // Build dynamic where conditions
         const conditions = []
@@ -224,21 +218,25 @@ export class OptimizedQueryBuilder {
 
         // Language filter with JSONB optimization
         if (languages.length > 0) {
-          conditions.push(or(...languages.map(lang => eq(schema.repositories.language, lang))))
+          conditions.push(
+            or(
+              ...languages.map(lang => sql`${schema.repositories.metadata}->>'language' = ${lang}`)
+            )
+          )
         }
 
         // Star range optimization
         if (minStars > 0) {
-          conditions.push(sql`${schema.repositories.stargazersCount} >= ${minStars}`)
+          conditions.push(sql`(${schema.repositories.metadata}->>'stars')::integer >= ${minStars}`)
         }
         if (maxStars) {
-          conditions.push(sql`${schema.repositories.stargazersCount} <= ${maxStars}`)
+          conditions.push(sql`(${schema.repositories.metadata}->>'stars')::integer <= ${maxStars}`)
         }
 
         // Base filters for quality
         conditions.push(
-          eq(schema.repositories.archived, false),
-          eq(schema.repositories.disabled, false)
+          sql`(${schema.repositories.metadata}->>'archived')::boolean = false`,
+          sql`(${schema.repositories.metadata}->>'disabled')::boolean = false`
         )
 
         // Execute optimized query
@@ -249,11 +247,11 @@ export class OptimizedQueryBuilder {
             name: schema.repositories.name,
             fullName: schema.repositories.fullName,
             description: schema.repositories.description,
-            language: schema.repositories.language,
-            stargazersCount: schema.repositories.stargazersCount,
-            forksCount: schema.repositories.forksCount,
-            openIssuesCount: schema.repositories.openIssuesCount,
-            healthScore: schema.repositories.healthScore,
+            language: sql<string>`${schema.repositories.metadata}->>'language'`,
+            stargazersCount: sql<number>`(${schema.repositories.metadata}->>'stars')::integer`,
+            forksCount: sql<number>`(${schema.repositories.metadata}->>'forks')::integer`,
+            openIssuesCount: sql<number>`(${schema.repositories.metadata}->>'openIssues')::integer`,
+            healthScore: schema.repositories.overallHealthScore,
             updatedAt: schema.repositories.updatedAt,
             // Calculate relevance score
             relevanceScore: sql<number>`
@@ -265,9 +263,9 @@ export class OptimizedQueryBuilder {
                     CASE WHEN ${schema.repositories.description} ILIKE ${`%${query}%`} THEN 0.2 ELSE 0 END
                   ) * 0.3 +
                   -- Quality score (40%)
-                  COALESCE(${schema.repositories.healthScore}, 50) / 100.0 * 0.4 +
+                  COALESCE(${schema.repositories.overallHealthScore}, 50) / 100.0 * 0.4 +
                   -- Popularity (20%)
-                  LEAST(LOG(GREATEST(${schema.repositories.stargazersCount}, 1)) / 20.0, 1.0) * 0.2 +
+                  LEAST(LOG(GREATEST(COALESCE((${schema.repositories.metadata}->>'stars')::integer, 0), 1)) / 20.0, 1.0) * 0.2 +
                   -- Recency (10%)
                   CASE 
                     WHEN ${schema.repositories.updatedAt} > NOW() - INTERVAL '30 days' THEN 0.1
@@ -276,8 +274,8 @@ export class OptimizedQueryBuilder {
                   END
                 ELSE 
                   -- Default scoring without text query
-                  COALESCE(${schema.repositories.healthScore}, 50) / 100.0 * 0.6 +
-                  LEAST(LOG(GREATEST(${schema.repositories.stargazersCount}, 1)) / 20.0, 1.0) * 0.4
+                  COALESCE(${schema.repositories.overallHealthScore}, 50) / 100.0 * 0.6 +
+                  LEAST(LOG(GREATEST(COALESCE((${schema.repositories.metadata}->>'stars')::integer, 0), 1)) / 20.0, 1.0) * 0.4
               END
             `.as('relevance_score'),
           })
@@ -285,8 +283,8 @@ export class OptimizedQueryBuilder {
           .where(and(...conditions))
           .orderBy(
             desc(sql`relevance_score`),
-            desc(schema.repositories.stargazersCount),
-            desc(schema.repositories.healthScore)
+            desc(sql`(${schema.repositories.metadata}->>'stars')::integer`),
+            desc(schema.repositories.overallHealthScore)
           )
           .limit(limit)
           .offset(offset)
@@ -343,14 +341,14 @@ export class OptimizedQueryBuilder {
           .where(
             and(
               isNotNull(schema.repositories.embedding),
-              eq(schema.repositories.archived, false),
+              sql`(${schema.repositories.metadata}->>'archived')::boolean = false`,
               sql`1 - (${schema.repositories.embedding} <=> ${embeddingVector}::vector) >= ${threshold}`
             )
           )
           .orderBy(desc(sql`1 - (${schema.repositories.embedding} <=> ${embeddingVector}::vector)`))
           .limit(limit)
 
-        return results.map(row => ({
+        return results.map((row: any) => ({
           ...row.repository,
           similarity: row.similarity,
           metadata: includeMetadata ? row.repository : undefined,
@@ -403,37 +401,14 @@ export class OptimizedQueryBuilder {
         const results = await db
           .select({
             repository: schema.repositories,
-            textScore: sql<number>`
-              CASE 
-                WHEN ${schema.repositories.name} ILIKE ${searchPattern} THEN 1.0
-                WHEN ${schema.repositories.fullName} ILIKE ${searchPattern} THEN 0.8
-                WHEN ${schema.repositories.description} ILIKE ${searchPattern} THEN 0.6
-                ELSE 0.0
-              END
-            `.as('text_score'),
-            vectorScore: sql<number>`
-              CASE 
-                WHEN ${schema.repositories.embedding} IS NOT NULL 
-                THEN 1 - (${schema.repositories.embedding} <=> ${embeddingVector}::vector)
-                ELSE 0.0
-              END
-            `.as('vector_score'),
-            hybridScore: sql<number>`
-              (
-                CASE 
-                  WHEN ${schema.repositories.name} ILIKE ${searchPattern} THEN 1.0
-                  WHEN ${schema.repositories.fullName} ILIKE ${searchPattern} THEN 0.8
-                  WHEN ${schema.repositories.description} ILIKE ${searchPattern} THEN 0.6
-                  ELSE 0.0
-                END * ${textWeight}
-              ) + (
-                CASE 
-                  WHEN ${schema.repositories.embedding} IS NOT NULL 
-                  THEN (1 - (${schema.repositories.embedding} <=> ${embeddingVector}::vector)) * ${vectorWeight}
-                  ELSE 0.0
-                END
-              )
-            `.as('hybrid_score'),
+            textScore: this.buildTextScoreSQL(searchPattern),
+            vectorScore: this.buildVectorScoreSQL(embeddingVector),
+            hybridScore: this.buildHybridScoreSQL(
+              searchPattern,
+              embeddingVector,
+              textWeight,
+              vectorWeight
+            ),
           })
           .from(schema.repositories)
           .where(
@@ -447,13 +422,13 @@ export class OptimizedQueryBuilder {
                   sql`1 - (${schema.repositories.embedding} <=> ${embeddingVector}::vector) >= ${vectorConfig.similarityThreshold}`
                 )
               ),
-              eq(schema.repositories.archived, false)
+              sql`(${schema.repositories.metadata}->>'archived')::boolean = false`
             )
           )
           .orderBy(desc(sql`hybrid_score`))
           .limit(limit)
 
-        return results.map(row => ({
+        return results.map((row: any) => ({
           ...row.repository,
           scores: {
             text: row.textScore,
@@ -497,12 +472,12 @@ export class OptimizedQueryBuilder {
         } = params
 
         // Get user profile for personalization
-        const userProfile = await db.query.users.findFirst({
+        const userProfile = await (db as any).query.users.findFirst({
           where: eq(schema.users.id, userId),
           columns: {
-            skillLevel: true,
-            preferredLanguages: true,
-            totalContributions: true,
+            id: true,
+            preferences: true,
+            profile: true,
           },
         })
 
@@ -515,18 +490,22 @@ export class OptimizedQueryBuilder {
 
         // Status filter
         if (!includeCompleted) {
-          conditions.push(eq(schema.opportunities.status, 'open'))
+          conditions.push(sql`${schema.opportunities.metadata}->>'state' = 'open'`)
         }
 
         // Skill level matching
-        const targetSkillLevel = skillLevel || userProfile.skillLevel
+        const targetSkillLevel = skillLevel || userProfile.preferences?.difficultyPreference
         if (targetSkillLevel) {
-          conditions.push(eq(schema.opportunities.skillLevel, targetSkillLevel))
+          conditions.push(
+            sql`${schema.opportunities.metadata}->>'difficulty' = ${targetSkillLevel}`
+          )
         }
 
         // Time constraint
         if (maxEstimatedHours) {
-          conditions.push(sql`${schema.opportunities.estimatedHours} <= ${maxEstimatedHours}`)
+          conditions.push(
+            sql`(${schema.opportunities.metadata}->>'estimatedHours')::integer <= ${maxEstimatedHours}`
+          )
         }
 
         // Execute with intelligent scoring
@@ -534,31 +513,7 @@ export class OptimizedQueryBuilder {
           .select({
             opportunity: schema.opportunities,
             repository: schema.repositories,
-            matchScore: sql<number>`
-              -- Skill level compatibility (40%)
-              CASE 
-                WHEN ${schema.opportunities.skillLevel} = ${targetSkillLevel} THEN 0.4
-                WHEN ${schema.opportunities.skillLevel} = 'beginner' AND ${targetSkillLevel} IN ('intermediate', 'advanced') THEN 0.3
-                WHEN ${schema.opportunities.skillLevel} = 'intermediate' AND ${targetSkillLevel} = 'advanced' THEN 0.35
-                ELSE 0.1
-              END +
-              
-              -- Language preference match (30%)
-              CASE 
-                WHEN ${schema.repositories.language} = ANY(${languages.length > 0 ? languages : userProfile.preferredLanguages || []}) THEN 0.3
-                ELSE 0.0
-              END +
-              
-              -- Repository quality (20%)
-              COALESCE(${schema.repositories.healthScore}, 50) / 100.0 * 0.2 +
-              
-              -- Beginner-friendly bonus (10%)
-              CASE 
-                WHEN ${schema.opportunities.goodFirstIssue} AND ${targetSkillLevel} = 'beginner' THEN 0.1
-                WHEN ${schema.opportunities.helpWanted} THEN 0.05
-                ELSE 0.0
-              END
-            `.as('match_score'),
+            matchScore: this.buildMatchScoreSQL(targetSkillLevel, languages, userProfile),
           })
           .from(schema.opportunities)
           .innerJoin(
@@ -568,7 +523,7 @@ export class OptimizedQueryBuilder {
           .where(and(...conditions))
           .orderBy(
             desc(sql`match_score`),
-            desc(schema.opportunities.priority),
+            desc(sql`${schema.opportunities.metadata}->>'priority'`),
             desc(schema.opportunities.createdAt)
           )
           .limit(limit)
@@ -602,30 +557,119 @@ export class OptimizedQueryBuilder {
     }
   }
 
+  // Helper functions for SQL building
+  private buildMatchScoreSQL(
+    targetSkillLevel: string | undefined,
+    languages: string[],
+    userProfile: { preferences?: { languagePreferences?: string[] } | null }
+  ) {
+    const languagePreferences =
+      languages.length > 0 ? languages : userProfile.preferences?.languagePreferences || []
+
+    return sql<number>`
+      -- Skill level compatibility (40%)
+      CASE 
+        WHEN (${schema.opportunities.metadata}->>'difficulty') = ${targetSkillLevel} THEN 0.4
+        WHEN (${schema.opportunities.metadata}->>'difficulty') = 'beginner' AND ${targetSkillLevel} IN ('intermediate', 'advanced') THEN 0.3
+        WHEN (${schema.opportunities.metadata}->>'difficulty') = 'intermediate' AND ${targetSkillLevel} = 'advanced' THEN 0.35
+        ELSE 0.1
+      END +
+      
+      -- Language preference match (30%)
+      CASE 
+        WHEN (${schema.repositories.metadata}->>'language') = ANY(${languagePreferences}) THEN 0.3
+        ELSE 0.0
+      END +
+      
+      -- Repository quality (20%)
+      COALESCE(${schema.repositories.overallHealthScore}, 50) / 100.0 * 0.2 +
+      
+      -- Beginner-friendly bonus (10%)
+      CASE 
+        WHEN (${schema.opportunities.metadata}->>'goodFirstIssue')::boolean = true AND ${targetSkillLevel} = 'beginner' THEN 0.1
+        WHEN (${schema.opportunities.metadata}->>'mentorshipAvailable')::boolean = true THEN 0.05
+        ELSE 0.0
+      END
+    `.as('match_score')
+  }
+
+  private buildTextScoreSQL(searchPattern: string) {
+    return sql<number>`
+      CASE 
+        WHEN ${schema.repositories.name} ILIKE ${searchPattern} THEN 1.0
+        WHEN ${schema.repositories.fullName} ILIKE ${searchPattern} THEN 0.8
+        WHEN ${schema.repositories.description} ILIKE ${searchPattern} THEN 0.6
+        ELSE 0.0
+      END
+    `.as('text_score')
+  }
+
+  private buildVectorScoreSQL(embeddingVector: string) {
+    return sql<number>`
+      CASE 
+        WHEN ${schema.repositories.embedding} IS NOT NULL 
+        THEN 1 - (${schema.repositories.embedding} <=> ${embeddingVector}::vector)
+        ELSE 0.0
+      END
+    `.as('vector_score')
+  }
+
+  private buildHybridScoreSQL(
+    searchPattern: string,
+    embeddingVector: string,
+    textWeight: number,
+    vectorWeight: number
+  ) {
+    return sql<number>`
+      (
+        CASE 
+          WHEN ${schema.repositories.name} ILIKE ${searchPattern} THEN 1.0
+          WHEN ${schema.repositories.fullName} ILIKE ${searchPattern} THEN 0.8
+          WHEN ${schema.repositories.description} ILIKE ${searchPattern} THEN 0.6
+          ELSE 0.0
+        END * ${textWeight}
+      ) + (
+        CASE 
+          WHEN ${schema.repositories.embedding} IS NOT NULL 
+          THEN (1 - (${schema.repositories.embedding} <=> ${embeddingVector}::vector)) * ${vectorWeight}
+          ELSE 0.0
+        END
+      )
+    `.as('hybrid_score')
+  }
+
+  // Helper functions for cache management
+  private async clearRedisCache(pattern?: string): Promise<void> {
+    if (!this.redis) return
+
+    if (pattern) {
+      const keys = await this.redis.keys(`${cacheConfig.keyPrefix}${pattern}*`)
+      if (keys.length > 0) {
+        await this.redis.del(...keys)
+      }
+    } else {
+      await this.redis.flushdb()
+    }
+  }
+
+  private clearMemoryCache(pattern?: string): void {
+    if (pattern) {
+      for (const key of this.queryCache.keys()) {
+        if (key.includes(pattern)) {
+          this.queryCache.delete(key)
+        }
+      }
+    } else {
+      this.queryCache.clear()
+    }
+  }
+
   /**
    * Clear cache
    */
   async clearCache(pattern?: string): Promise<void> {
-    if (this.redis) {
-      if (pattern) {
-        const keys = await this.redis.keys(`${cacheConfig.keyPrefix}${pattern}*`)
-        if (keys.length > 0) {
-          await this.redis.del(...keys)
-        }
-      } else {
-        await this.redis.flushdb()
-      }
-    } else {
-      if (pattern) {
-        for (const key of this.queryCache.keys()) {
-          if (key.includes(pattern)) {
-            this.queryCache.delete(key)
-          }
-        }
-      } else {
-        this.queryCache.clear()
-      }
-    }
+    await this.clearRedisCache(pattern)
+    this.clearMemoryCache(pattern)
   }
 
   /**

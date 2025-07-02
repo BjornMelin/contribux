@@ -1,14 +1,31 @@
+import { env } from '@/lib/validation/env'
 import { neon } from '@neondatabase/serverless'
 // Drizzle ORM Configuration - Modern Database Layer
 // Replaces raw SQL patterns with type-safe queries
 import { drizzle } from 'drizzle-orm/neon-http'
-import { env } from '@/lib/validation/env'
 // Import the consolidated schema from schema.ts
 import * as schema from './schema'
 
-// Create Neon connection
+// Create Neon connection lazily to avoid build-time issues
 // biome-ignore lint/style/noNonNullAssertion: DATABASE_URL is validated at startup
-export const sql = neon(env.DATABASE_URL!)
+const createSql = () => neon(env.DATABASE_URL!)
+
+// Export a getter function that creates the connection on first use
+let sqlInstance: any | null = null
+export const sql = new Proxy({} as any, {
+  get(target, prop) {
+    if (!sqlInstance) {
+      sqlInstance = createSql()
+    }
+    return Reflect.get(sqlInstance as any, prop)
+  },
+  apply(target, thisArg, argArray) {
+    if (!sqlInstance) {
+      sqlInstance = createSql()
+    }
+    return Reflect.apply(sqlInstance as any, thisArg, argArray)
+  }
+}) as any
 
 // Branch-specific connections for different environments with type safety
 export const getDatabaseUrl = (branch: 'main' | 'dev' | 'test' = 'main'): string => {
@@ -58,8 +75,16 @@ export const connectionConfig = {
   retryDelay: env.DB_RETRY_DELAY || 1000, // 1s base delay
 } as const
 
-// Create optimized Drizzle database instance with performance monitoring
-export const db = drizzle({ client: sql, schema })
+// Create optimized Drizzle database instance lazily to avoid build-time issues
+let dbInstance: any | null = null
+export const db = new Proxy({} as any, {
+  get(target, prop) {
+    if (!dbInstance) {
+      dbInstance = drizzle({ client: sql as any, schema })
+    }
+    return Reflect.get(dbInstance as any, prop)
+  }
+}) as any
 
 // Export database type for dependency injection
 export type Database = typeof db

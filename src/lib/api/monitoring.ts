@@ -12,8 +12,6 @@
  * - Real-time dashboards and alerts
  */
 
-import { z } from 'zod'
-
 // Performance metrics interfaces
 interface RequestMetrics {
   url: string
@@ -101,15 +99,16 @@ class MetricsStore {
 
     // Record errors
     if (metrics.statusCode >= 400) {
-      this.recordError({
+      const errorMetrics: ErrorMetrics = {
         type: this.categorizeError(metrics.statusCode),
         endpoint: this.normalizeEndpoint(metrics.url),
         statusCode: metrics.statusCode,
         message: metrics.error || `HTTP ${metrics.statusCode}`,
         timestamp: metrics.timestamp,
-        userId: metrics.userId ?? undefined,
         count: 1,
-      })
+        userId: metrics.userId,
+      }
+      this.recordError(errorMetrics)
     }
 
     this.checkAlerts()
@@ -232,14 +231,12 @@ class MetricsStore {
           responseTime: metrics.averageResponseTime,
           threshold: this.config.responseTimeThreshold,
         })
-        this.alerts.set(endpoint + '_response', now)
+        this.alerts.set(`${endpoint}_response`, now)
       }
     }
   }
 
-  private triggerAlert(type: string, data: any): void {
-    console.warn(`🚨 Alert [${type}]:`, data)
-
+  private triggerAlert(_type: string, _data: Record<string, unknown>): void {
     // In production, send to alerting service
     // Examples: PagerDuty, Slack, email, etc.
     if (process.env.NODE_ENV === 'production') {
@@ -274,7 +271,7 @@ class MetricsStore {
     )
   }
 
-  private getRecentHealthChecks(endpoint: string, timeWindow: number): HealthMetrics[] {
+  private getRecentHealthChecks(endpoint: string, _timeWindow: number): HealthMetrics[] {
     // Simplified - in practice, you'd store health check history
     const current = this.health.get(endpoint)
     return current ? [current] : []
@@ -286,22 +283,25 @@ class MetricsStore {
   }
 
   private startCleanupInterval(): void {
-    setInterval(() => {
-      const cutoff = Date.now() - this.config.metricsRetention
+    // Only start cleanup interval in browser environment
+    if (typeof window !== 'undefined') {
+      setInterval(() => {
+        const cutoff = Date.now() - this.config.metricsRetention
 
-      // Clean old requests
-      this.requests = this.requests.filter(r => r.timestamp > cutoff)
+        // Clean old requests
+        this.requests = this.requests.filter(r => r.timestamp > cutoff)
 
-      // Clean old errors
-      this.errors = this.errors.filter(e => e.timestamp > cutoff)
+        // Clean old errors
+        this.errors = this.errors.filter(e => e.timestamp > cutoff)
 
-      // Clean old alerts
-      for (const [key, timestamp] of this.alerts) {
-        if (timestamp < cutoff) {
-          this.alerts.delete(key)
+        // Clean old alerts
+        for (const [key, timestamp] of this.alerts) {
+          if (timestamp < cutoff) {
+            this.alerts.delete(key)
+          }
         }
-      }
-    }, 60000) // Every minute
+      }, 60000) // Every minute
+    }
   }
 
   // Getters for metrics
@@ -427,7 +427,7 @@ export class APIMonitoring {
 
       const responseTime = Date.now() - startTime
       this.store.recordHealthCheck(endpoint, isHealthy, responseTime)
-    } catch (error) {
+    } catch (_error) {
       const responseTime = Date.now() - startTime
       this.store.recordHealthCheck(endpoint, false, responseTime)
     }
@@ -440,21 +440,24 @@ export class APIMonitoring {
       '/api/search/opportunities',
     ]
 
-    setInterval(async () => {
-      for (const endpoint of healthCheckEndpoints) {
-        await this.performHealthCheck(endpoint, async () => {
-          try {
-            const response = await fetch(`http://localhost:3000${endpoint}?health=check`, {
-              method: 'GET',
-              headers: { Accept: 'application/json' },
-            })
-            return response.ok
-          } catch {
-            return false
-          }
-        })
-      }
-    }, defaultConfig.healthCheckInterval)
+    // Only start health checks in browser environment
+    if (typeof window !== 'undefined') {
+      setInterval(async () => {
+        for (const endpoint of healthCheckEndpoints) {
+          await this.performHealthCheck(endpoint, async () => {
+            try {
+              const response = await fetch(`http://localhost:3000${endpoint}?health=check`, {
+                method: 'GET',
+                headers: { Accept: 'application/json' },
+              })
+              return response.ok
+            } catch {
+              return false
+            }
+          })
+        }
+      }, defaultConfig.healthCheckInterval)
+    }
   }
 
   // Public API for getting metrics
@@ -497,18 +500,44 @@ export class APIMonitoring {
   }
 }
 
-// Global monitoring instance
-export const apiMonitoring = new APIMonitoring()
+// Global monitoring instance - lazy loaded to avoid build-time issues
+let apiMonitoringInstance: APIMonitoring | null = null
+export const apiMonitoring = new Proxy({} as APIMonitoring, {
+  get(target, prop) {
+    if (!apiMonitoringInstance) {
+      apiMonitoringInstance = new APIMonitoring()
+    }
+    return Reflect.get(apiMonitoringInstance, prop)
+  }
+})
+
+// Basic Express-like interfaces for middleware compatibility
+interface ExpressRequest {
+  url: string
+  method: string
+  user?: { id: string }
+  get(name: string): string | undefined
+  [key: string]: unknown
+}
+
+interface ExpressResponse {
+  statusCode: number
+  end: (...args: unknown[]) => void
+  get(name: string): string | undefined
+  [key: string]: unknown
+}
+
+type NextFunction = () => void
 
 // Express middleware for automatic request tracking
 export function createMonitoringMiddleware() {
-  return (req: any, res: any, next: any) => {
+  return (req: ExpressRequest, res: ExpressResponse, next: NextFunction) => {
     const startTime = Date.now()
 
     // Store original end function
     const originalEnd = res.end
 
-    res.end = (...args: any[]) => {
+    res.end = (...args: unknown[]) => {
       const duration = Date.now() - startTime
 
       apiMonitoring.trackRequest(req.url, req.method, res.statusCode, duration, {

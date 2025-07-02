@@ -2,11 +2,11 @@
  * Multi-provider auth helper functions with backward compatibility
  */
 
-import { headers } from 'next/headers'
-import { z } from 'zod'
 import { auth } from '@/lib/auth'
 import { sql } from '@/lib/db/config'
 import type { User } from '@/types/auth'
+import { headers } from 'next/headers'
+import { z } from 'zod'
 
 // Validation schemas for helper functions
 const HasOAuthScopeSchema = z.object({
@@ -86,11 +86,11 @@ export async function getCurrentUser(): Promise<User | null> {
       LIMIT 1
     `
 
-    if (userResult.length === 0) {
+    if ((userResult as any[]).length === 0) {
       return null
     }
 
-    return userResult[0] as User
+    return (userResult as any[])[0] as User
   } catch (_error) {
     return null
   }
@@ -129,11 +129,11 @@ export async function hasOAuthScope(
       LIMIT 1
     `
 
-    if (result.length === 0) {
+    if ((result as any[]).length === 0) {
       return false
     }
 
-    const scopes = result[0]?.scope?.split(' ') || []
+    const scopes = (result as any[])[0]?.scope?.split(' ') || []
     return scopes.includes(validated.scope)
   } catch (_error) {
     return false
@@ -159,11 +159,11 @@ export async function getOAuthAccessToken(
       LIMIT 1
     `
 
-    if (result.length === 0) {
+    if ((result as any[]).length === 0) {
       return null
     }
 
-    return result[0]?.access_token
+    return (result as any[])[0]?.access_token
   } catch (_error) {
     return null
   }
@@ -191,7 +191,7 @@ export async function getUserProviders(userId: string): Promise<string[]> {
       ORDER BY provider
     `
 
-    return result.map(row => row.provider)
+    return (result as any[]).map((row: any) => row.provider)
   } catch (_error) {
     return []
   }
@@ -214,8 +214,8 @@ export async function getPrimaryProvider(userId: string): Promise<string | null>
       LIMIT 1
     `
 
-    if (primaryResult.length > 0) {
-      return primaryResult[0]?.provider
+    if ((primaryResult as any[]).length > 0) {
+      return (primaryResult as any[])[0]?.provider
     }
 
     // Fall back to the first linked provider (by creation date)
@@ -226,7 +226,7 @@ export async function getPrimaryProvider(userId: string): Promise<string | null>
       LIMIT 1
     `
 
-    return fallbackResult.length > 0 ? fallbackResult[0]?.provider : null
+    return (fallbackResult as any[]).length > 0 ? (fallbackResult as any[])[0]?.provider : null
   } catch (_error) {
     return null
   }
@@ -316,7 +316,7 @@ export async function unlinkOAuthAccount(userId: string, provider: string): Prom
       RETURNING provider_account_id
     `
 
-  if (result.length === 0) {
+  if ((result as any[]).length === 0) {
     throw new Error('OAuth account not found')
   }
 
@@ -327,7 +327,7 @@ export async function unlinkOAuthAccount(userId: string, provider: string): Prom
     user_id: validated.userId,
     event_data: {
       provider: validated.provider,
-      provider_account_id: result[0]?.provider_account_id,
+      provider_account_id: (result as any[])[0]?.provider_account_id,
     },
     success: true,
   })
@@ -349,7 +349,7 @@ export async function setPrimaryProvider(userId: string, provider: string): Prom
       LIMIT 1
     `
 
-    if (providerExists.length === 0) {
+    if ((providerExists as any[]).length === 0) {
       throw new Error(`${validated.provider} account not linked to user`)
     }
     // Unset current primary
@@ -395,7 +395,7 @@ export async function canUnlinkProvider(userId: string, provider: string): Promi
       AND provider != ${validated.provider}
     `
 
-    const otherProvidersCount = Number(otherProvidersResult[0]?.count || 0)
+    const otherProvidersCount = Number((otherProvidersResult as any[])[0]?.count || 0)
     return otherProvidersCount > 0
   } catch (_error) {
     return false

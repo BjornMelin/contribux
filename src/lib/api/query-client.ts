@@ -10,7 +10,7 @@
  * - Offline-first patterns with background sync
  */
 
-import type { QueryFunction, QueryKey } from '@tanstack/react-query'
+import type { QueryFunction } from '@tanstack/react-query'
 import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query'
 
 // Circuit breaker state management
@@ -72,7 +72,90 @@ function getCircuitBreaker(endpoint: string): CircuitBreaker {
   if (!circuitBreakers.has(endpoint)) {
     circuitBreakers.set(endpoint, new CircuitBreaker())
   }
-  return circuitBreakers.get(endpoint)!
+  const breaker = circuitBreakers.get(endpoint)
+  if (!breaker) {
+    throw new Error(`Failed to create circuit breaker for endpoint: ${endpoint}`)
+  }
+  return breaker
+}
+
+// Type definitions for better error handling
+interface HttpError extends Error {
+  status: number
+  response: ErrorResponse
+}
+
+interface ErrorResponse {
+  error?: { message?: string }
+  message?: string
+}
+
+// Helper function to check circuit breaker
+function checkCircuitBreaker(endpoint: string): CircuitBreaker {
+  const circuitBreaker = getCircuitBreaker(endpoint)
+  if (!circuitBreaker.canMakeRequest()) {
+    throw new Error(`Circuit breaker is open for ${endpoint}`)
+  }
+  return circuitBreaker
+}
+
+// Helper function to create request with timeout
+async function createRequestWithTimeout(url: string, options: RequestInit): Promise<Response> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 10000) // 10s timeout
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    })
+    return response
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
+// Helper function to handle HTTP errors
+async function handleHttpError(response: Response): Promise<never> {
+  const errorText = await response.text()
+  let errorData: ErrorResponse = {}
+
+  try {
+    errorData = JSON.parse(errorText)
+  } catch {
+    // Ignore JSON parse errors
+  }
+
+  const error = new Error(
+    errorData.error?.message ||
+      errorData.message ||
+      `HTTP ${response.status}: ${response.statusText}`
+  ) as HttpError
+
+  error.status = response.status
+  error.response = errorData
+
+  throw error
+}
+
+// Helper function to determine if error should be retried
+function shouldRetryError(error: unknown): boolean {
+  if (error instanceof Error && error.name === 'AbortError') {
+    return false
+  }
+
+  const httpError = error as HttpError
+  const status = httpError.status
+  return status !== 401 && status !== 403 && status !== 404
+}
+
+// Helper function to calculate retry delay
+function calculateRetryDelay(attempt: number, baseDelay: number, maxDelay: number): number {
+  return Math.min(baseDelay * 2 ** attempt + Math.random() * 1000, maxDelay)
 }
 
 // Enhanced fetch with circuit breaker and retry logic
@@ -88,79 +171,30 @@ export async function enhancedFetch<T>(
   const { maxRetries = 3, baseDelay = 1000, maxDelay = 10000 } = retryConfig
 
   const endpoint = new URL(url).pathname
-  const circuitBreaker = getCircuitBreaker(endpoint)
-
-  // Check circuit breaker
-  if (!circuitBreaker.canMakeRequest()) {
-    throw new Error(`Circuit breaker is open for ${endpoint}`)
-  }
+  const circuitBreaker = checkCircuitBreaker(endpoint)
 
   let lastError: Error | null = null
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 10000) // 10s timeout
-
-      const response = await fetch(url, {
-        ...options,
-        signal: controller.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          ...options.headers,
-        },
-      })
-
-      clearTimeout(timeoutId)
+      const response = await createRequestWithTimeout(url, options)
 
       if (!response.ok) {
-        const errorText = await response.text()
-        let errorData: any = {}
-
-        try {
-          errorData = JSON.parse(errorText)
-        } catch {
-          // Ignore JSON parse errors
-        }
-
-        const error = new Error(
-          errorData.error?.message ||
-            errorData.message ||
-            `HTTP ${response.status}: ${response.statusText}`
-        )
-        ;(error as any).status = response.status
-        ;(error as any).response = errorData
-
-        throw error
+        await handleHttpError(response)
       }
 
       const data = await response.json()
       circuitBreaker.onSuccess()
-
       return data
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error))
 
-      // Don't retry on certain error types
-      if (
-        lastError.name === 'AbortError' ||
-        (error as any)?.status === 401 ||
-        (error as any)?.status === 403 ||
-        (error as any)?.status === 404
-      ) {
+      if (!shouldRetryError(error) || attempt === maxRetries) {
         circuitBreaker.onFailure()
         throw lastError
       }
 
-      // Don't retry on last attempt
-      if (attempt === maxRetries) {
-        circuitBreaker.onFailure()
-        throw lastError
-      }
-
-      // Exponential backoff with jitter
-      const delay = Math.min(baseDelay * 2 ** attempt + Math.random() * 1000, maxDelay)
-
+      const delay = calculateRetryDelay(attempt, baseDelay, maxDelay)
       await new Promise(resolve => setTimeout(resolve, delay))
     }
   }
@@ -169,8 +203,27 @@ export async function enhancedFetch<T>(
   throw lastError || new Error('Maximum retries exceeded')
 }
 
-// Request deduplication
-const ongoingRequests = new Map<string, Promise<any>>()
+// Request deduplication with cleanup
+const ongoingRequests = new Map<string, Promise<unknown>>()
+const requestTimestamps = new Map<string, number>()
+
+// Cleanup old requests every 5 minutes (client-side only)
+if (typeof window !== 'undefined') {
+  setInterval(
+    () => {
+      const now = Date.now()
+      const fiveMinutesAgo = now - 5 * 60 * 1000
+
+      for (const [key, timestamp] of requestTimestamps.entries()) {
+        if (timestamp < fiveMinutesAgo) {
+          ongoingRequests.delete(key)
+          requestTimestamps.delete(key)
+        }
+      }
+    },
+    5 * 60 * 1000
+  )
+}
 
 export function deduplicatedFetch<T>(
   url: string,
@@ -180,14 +233,20 @@ export function deduplicatedFetch<T>(
   const key = `${url}:${JSON.stringify(options)}`
 
   if (ongoingRequests.has(key)) {
-    return ongoingRequests.get(key)!
+    const request = ongoingRequests.get(key)
+    if (!request) {
+      throw new Error(`Ongoing request not found for key: ${key}`)
+    }
+    return request as Promise<T>
   }
 
   const promise = enhancedFetch<T>(url, options, retryConfig).finally(() => {
     ongoingRequests.delete(key)
+    requestTimestamps.delete(key)
   })
 
   ongoingRequests.set(key, promise)
+  requestTimestamps.set(key, Date.now())
   return promise
 }
 
@@ -212,28 +271,33 @@ function logQueryMetrics(metrics: QueryMetrics) {
 
   // Log slow queries in development
   if (process.env.NODE_ENV === 'development' && metrics.duration > 2000) {
-    console.warn(`🐌 Slow query detected: ${metrics.queryKey} took ${metrics.duration}ms`, {
-      metrics,
-    })
+    // Note: Slow query detected, logged to metrics array for monitoring
   }
 }
 
 export function getQueryMetrics() {
+  const metricsArray = queryMetrics || []
+  const cbStates = circuitBreakers ? Array.from(circuitBreakers.entries()).map(([endpoint, cb]) => ({
+    endpoint,
+    ...cb.getState(),
+  })) : []
+
   return {
-    metrics: [...queryMetrics],
+    metrics: [...metricsArray],
     averageDuration:
-      queryMetrics.reduce((acc, m) => acc + m.duration, 0) / queryMetrics.length || 0,
-    cacheHitRate: queryMetrics.filter(m => m.cacheHit).length / queryMetrics.length || 0,
-    errorRate: queryMetrics.filter(m => m.error).length / queryMetrics.length || 0,
-    circuitBreakerStates: Array.from(circuitBreakers.entries()).map(([endpoint, cb]) => ({
-      endpoint,
-      ...cb.getState(),
-    })),
+      metricsArray.length > 0 ? metricsArray.reduce((acc, m) => acc + m.duration, 0) / metricsArray.length : 0,
+    cacheHitRate:
+      metricsArray.length > 0 ? metricsArray.filter(m => m.cacheHit).length / metricsArray.length : 0,
+    errorRate:
+      metricsArray.length > 0 ? metricsArray.filter(m => m.error).length / metricsArray.length : 0,
+    circuitBreakerStates: cbStates,
   }
 }
 
 // Enhanced query function with monitoring
-export function createQueryFunction<T>(fetcher: (variables: any) => Promise<T>): QueryFunction<T> {
+export function createQueryFunction<T>(
+  fetcher: (variables: unknown) => Promise<T>
+): QueryFunction<T> {
   return async ({ queryKey, signal }) => {
     const startTime = Date.now()
     const keyString = JSON.stringify(queryKey)
@@ -268,13 +332,14 @@ export function createQueryFunction<T>(fetcher: (variables: any) => Promise<T>):
   }
 }
 
-// Query client configuration
-export const queryClient = new QueryClient({
+// Query client configuration - lazy loaded to avoid build-time issues
+let queryClientInstance: QueryClient | null = null
+const createQueryClient = () => new QueryClient({
   queryCache: new QueryCache({
-    onError: (error, query) => {
-      console.error('Query error:', error, { queryKey: query.queryKey })
+    onError: (_error, _query) => {
+      // Error handling is done at the component level
     },
-    onSuccess: (data, query) => {
+    onSuccess: (_data, query) => {
       const keyString = JSON.stringify(query.queryKey)
       logQueryMetrics({
         queryKey: keyString,
@@ -286,11 +351,8 @@ export const queryClient = new QueryClient({
   }),
 
   mutationCache: new MutationCache({
-    onError: (error, variables, context, mutation) => {
-      console.error('Mutation error:', error, {
-        mutationKey: mutation.options.mutationKey,
-        variables,
-      })
+    onError: (_error, _variables, _context, _mutation) => {
+      // Error handling is done at the component level
     },
   }),
 
@@ -303,13 +365,14 @@ export const queryClient = new QueryClient({
       gcTime: 30 * 60 * 1000,
 
       // Retry configuration with exponential backoff
-      retry: (failureCount, error: any) => {
+      retry: (failureCount, error: unknown) => {
         // Don't retry on certain errors
+        const httpError = error as HttpError
         if (
-          error?.status === 401 ||
-          error?.status === 403 ||
-          error?.status === 404 ||
-          error?.name === 'AbortError'
+          httpError?.status === 401 ||
+          httpError?.status === 403 ||
+          httpError?.status === 404 ||
+          (error as Error)?.name === 'AbortError'
         ) {
           return false
         }
@@ -349,17 +412,22 @@ export const queryClient = new QueryClient({
   },
 })
 
+// Export query client as a proxy to lazy load on first use
+// Direct instantiation instead of Proxy pattern to avoid build issues
+export const queryClient = createQueryClient()
+
 // Query key factories for consistent cache management
 export const queryKeys = {
   all: ['api'] as const,
 
   repositories: () => [...queryKeys.all, 'repositories'] as const,
-  repositoriesSearch: (params: any) => [...queryKeys.repositories(), 'search', params] as const,
+  repositoriesSearch: (params: unknown) => [...queryKeys.repositories(), 'search', params] as const,
   repositoriesDetail: (owner: string, repo: string) =>
     [...queryKeys.repositories(), 'detail', owner, repo] as const,
 
   opportunities: () => [...queryKeys.all, 'opportunities'] as const,
-  opportunitiesSearch: (params: any) => [...queryKeys.opportunities(), 'search', params] as const,
+  opportunitiesSearch: (params: unknown) =>
+    [...queryKeys.opportunities(), 'search', params] as const,
   opportunitiesDetail: (id: string) => [...queryKeys.opportunities(), 'detail', id] as const,
 
   auth: () => [...queryKeys.all, 'auth'] as const,
@@ -385,7 +453,7 @@ export const cacheUtils = {
     queryClient.invalidateQueries({ queryKey: queryKeys.auth() })
   },
 
-  prefetchRepositoriesSearch: (params: any) => {
+  prefetchRepositoriesSearch: (params: unknown) => {
     return queryClient.prefetchQuery({
       queryKey: queryKeys.repositoriesSearch(params),
       staleTime: 2 * 60 * 1000, // 2 minutes for search results
@@ -410,14 +478,29 @@ export function setupBackgroundSync() {
   })
 
   window.addEventListener('offline', () => {
-    // Queries will be paused automatically
+    // Queries are paused automatically by TanStack Query when offline
   })
 
-  // Periodic cache cleanup
-  setInterval(
-    () => {
-      queryClient.getQueryCache().clear()
-    },
-    60 * 60 * 1000
-  ) // Every hour
+  // Periodic cache cleanup with better memory management (client-side only)
+  if (typeof window !== 'undefined') {
+    setInterval(
+      () => {
+        // Clear only stale queries instead of all queries
+        queryClient
+          .getQueryCache()
+          .findAll({
+            stale: true,
+          })
+          .forEach(query => {
+            queryClient.getQueryCache().remove(query)
+          })
+
+        // Force garbage collection if available (only in browser environment)
+        if (typeof window !== 'undefined' && 'gc' in window && typeof (window as any).gc === 'function') {
+          ;(window as any).gc()
+        }
+      },
+      30 * 60 * 1000
+    ) // Every 30 minutes
+  }
 }

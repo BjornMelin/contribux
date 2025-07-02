@@ -1,8 +1,8 @@
-import { z } from 'zod'
 import { oauthConfig } from '@/lib/config/oauth'
 import { sql } from '@/lib/db/config'
 import { env } from '@/lib/validation/env'
 import type { OAuthCallbackParams, OAuthTokens, User } from '@/types/auth'
+import { z } from 'zod'
 import { logSecurityEvent } from './audit'
 import { decryptOAuthToken, encryptOAuthToken } from './crypto'
 import { generateEnhancedPKCEChallenge, validatePKCESecure } from './pkce'
@@ -785,7 +785,7 @@ export async function detectOAuthAttack(
     AND created_at > NOW() - INTERVAL '5 minutes'
   `
 
-  if (recentAttempts[0]?.count > 10) {
+  if ((recentAttempts as any[])[0]?.count > 10) {
     patterns.push('rapid_succession_attempts')
     riskLevel = 'high'
   }
@@ -799,7 +799,7 @@ export async function detectOAuthAttack(
     AND created_at > NOW() - INTERVAL '1 hour'
   `
 
-  if (invalidStateAttempts[0]?.count > 5) {
+  if ((invalidStateAttempts as any[])[0]?.count > 5) {
     patterns.push('invalid_state_patterns')
     // Escalate to high risk level
     riskLevel = 'high'
@@ -992,11 +992,11 @@ async function findOrCreateUser(githubUser: GitHubUserProfile): Promise<User> {
     LIMIT 1
   `
 
-  if (userResult.length === 0) {
+  if ((userResult as any[]).length === 0) {
     return await createNewUser(githubUser)
   }
 
-  const existingUser = userResult[0]
+  const existingUser = (userResult as any[])[0]
   if (!existingUser) {
     throw new Error('User data not found')
   }
@@ -1021,7 +1021,7 @@ async function createNewUser(githubUser: GitHubUserProfile): Promise<User> {
     RETURNING *
   `
 
-  const newUser = newUserResult[0]
+  const newUser = (newUserResult as any[])[0]
   if (!newUser) {
     throw new Error('Failed to create user')
   }
@@ -1097,11 +1097,11 @@ export async function refreshOAuthTokens(params: {
     LIMIT 1
   `
 
-  if (accountResult.length === 0) {
+  if ((accountResult as any[]).length === 0) {
     throw new Error('No refresh token available')
   }
 
-  const account = accountResult[0]
+  const account = (accountResult as any[])[0]
   if (!account) {
     throw new Error('OAuth account not found')
   }
@@ -1170,7 +1170,7 @@ export async function unlinkOAuthAccount(params: {
     LIMIT 1
   `
 
-  if (accountResult.length === 0) {
+  if ((accountResult as any[]).length === 0) {
     throw new Error('OAuth account not found')
   }
 
@@ -1182,7 +1182,7 @@ export async function unlinkOAuthAccount(params: {
     AND provider != ${params.provider}
   `
 
-  const otherOAuthCount = Number(otherOAuthCountResult[0]?.count || 0)
+  const otherOAuthCount = Number((otherOAuthCountResult as any[])[0]?.count || 0)
 
   if (otherOAuthCount === 0) {
     throw new Error('Cannot unlink last authentication method')

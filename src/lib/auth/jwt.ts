@@ -4,8 +4,6 @@
  * Using jose library for standards-compliant JWT handling
  */
 
-import { errors as joseErrors, jwtVerify, SignJWT } from 'jose'
-import { z } from 'zod'
 import { authConfig } from '@/lib/config/auth'
 import { base64url, generateRandomToken, generateUUID } from '@/lib/crypto-utils'
 import { sql } from '@/lib/db/config'
@@ -13,6 +11,8 @@ import { createSecureHash } from '@/lib/security/crypto-simple'
 import type { AccessTokenPayload, RefreshTokenPayload, User, UserSession } from '@/types/auth'
 import type { Email, GitHubUsername, UUID } from '@/types/base'
 import { brandAsUUID } from '@/types/base'
+import { SignJWT, errors as joseErrors, jwtVerify } from 'jose'
+import { z } from 'zod'
 
 // Token configuration from centralized config
 const ACCESS_TOKEN_EXPIRY = authConfig.jwt.accessTokenExpiry
@@ -460,11 +460,11 @@ async function fetchRefreshTokenData(tokenHash: string): Promise<RefreshTokenDat
     LIMIT 1
   `
 
-  if (result.length === 0) {
+  if ((result as any[]).length === 0) {
     throw new Error('Invalid refresh token')
   }
 
-  const tokenData = result[0] as RefreshTokenData | undefined
+  const tokenData = (result as any[])[0] as RefreshTokenData | undefined
   if (!tokenData) {
     throw new Error('Invalid refresh token')
   }

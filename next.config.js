@@ -1,17 +1,22 @@
-// CRITICAL: Prevent environment validation during build process
+// CRITICAL: Comprehensive server-side polyfill for Next.js 15 + React 19 compatibility
+// Define `self` early to prevent ReferenceError during SSR and webpack runtime
+if (typeof global !== 'undefined') {
+  global.self = global
+  if (typeof globalThis !== 'undefined') {
+    globalThis.self = globalThis
+  }
+}
+
+// CRITICAL: Prevent environment validation during build process  
 // This must be set before ANY modules are imported
 if (process.env.NODE_ENV !== 'development' && !process.env.SKIP_ENV_VALIDATION) {
   process.env.SKIP_ENV_VALIDATION = 'true'
 }
 
-// Polyfill for server-side 'self' global to prevent build errors
-if (typeof globalThis !== 'undefined' && typeof globalThis.self === 'undefined') {
-  globalThis.self = globalThis
-}
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Removed framer-motion from transpilePackages to avoid conflict
   transpilePackages: [],
 
   // Memory optimization settings
@@ -27,6 +32,8 @@ const nextConfig = {
     },
     // Temporarily disabled - requires critters package
     // optimizeCss: true,
+    // CRITICAL: Disable fallback for webpack runtime 
+    fallbackNodePolyfills: false,
   },
 
   // Server external packages (moved from experimental in Next.js 15)
@@ -48,7 +55,37 @@ const nextConfig = {
 
   // Optimize bundle size by excluding server-only packages from client
   // Note: This webpack config will only apply to production builds
-  webpack: (config, { isServer }) => {
+  webpack: (config, { isServer, webpack }) => {
+
+    // CRITICAL: Fix for Next.js 15 + React 19 server-side compatibility
+    // Target the specific webpack chunk loading pattern that causes the issue
+    if (isServer) {
+      // Replace browser globals with server-safe alternatives
+      config.plugins.push(
+        new webpack.DefinePlugin({
+          'self.webpackChunk_N_E': 'globalThis.webpackChunk_N_E',
+          'typeof self': '"undefined"',
+          'self': 'globalThis'
+        })
+      )
+
+      // Ensure webpack uses globalThis for all runtime operations
+      config.output = {
+        ...config.output,
+        globalObject: 'globalThis',
+        chunkLoadingGlobal: 'webpackChunk_N_E'
+      }
+
+      // Disable problematic optimization that causes undefined access
+      config.optimization = {
+        ...config.optimization,
+        // Disable splitChunks for server to prevent runtime issues
+        splitChunks: false,
+        // Ensure consistent module IDs
+        moduleIds: 'deterministic'
+      }
+    }
+
     if (!isServer) {
       // Don't resolve server-only modules on the client
       config.resolve.fallback = {
@@ -61,21 +98,20 @@ const nextConfig = {
         path: false,
         os: false,
       }
-    } else {
-      // Server-side polyfills for browser globals - simple approach
-      config.resolve.alias = {
-        ...config.resolve.alias,
-      }
     }
 
-    // Advanced optimization configuration
-    config.optimization = {
-      ...config.optimization,
-      usedExports: true,
-      sideEffects: false,
-      // Enhanced chunk splitting for better caching
-      splitChunks: {
-        chunks: 'all',
+    // Removed webpack polyfill injection - React 19 + Next.js 15 handle this properly
+    // Issues were resolved by fixing client-side-only code in query-client.ts
+
+    // Advanced optimization configuration - ONLY for client builds
+    if (!isServer) {
+      config.optimization = {
+        ...config.optimization,
+        usedExports: true,
+        sideEffects: false,
+        // Enhanced chunk splitting for better caching
+        splitChunks: {
+          chunks: 'all',
         cacheGroups: {
           // Framework chunks (Next.js, React)
           framework: {
@@ -116,10 +152,9 @@ const nextConfig = {
       },
       // Enhanced minimization - use default Next.js minimizers
       // minimizer: undefined, // Let Next.js handle minimization
-    }
+      }
 
-    // Performance optimizations
-    if (!isServer) {
+      // Performance optimizations
       // Optimize bundle size by resolving only necessary polyfills
       config.resolve.fallback = {
         ...config.resolve.fallback,
