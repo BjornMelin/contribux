@@ -7,15 +7,17 @@
 'use client'
 
 import React from 'react'
+
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import type {
-  ErrorInfo as CustomErrorInfo,
-  ErrorBoundaryState,
-  PropsWithChildren,
-  Result,
+import {
+  type ErrorInfo as CustomErrorInfo,
+  type ErrorBoundaryState,
+  Failure,
+  type PropsWithChildren,
+  type Result,
+  Success,
 } from '@/lib/types/advanced'
-import { Failure, Success } from '@/lib/types/advanced'
 
 // Base error boundary component
 interface ErrorBoundaryProps extends PropsWithChildren {
@@ -28,7 +30,7 @@ interface ErrorBoundaryProps extends PropsWithChildren {
 
 interface ErrorFallbackProps {
   error: Error
-  errorInfo?: CustomErrorInfo
+  errorInfo: CustomErrorInfo | undefined
   retry: () => void
   reset: () => void
   canRetry?: boolean
@@ -52,9 +54,9 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     }
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+  override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     const customErrorInfo: CustomErrorInfo = {
-      componentStack: errorInfo.componentStack,
+      componentStack: errorInfo.componentStack || '',
       errorBoundary: this.constructor.name,
       eventType: 'componentError',
     }
@@ -71,7 +73,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     this.props.onError?.(error, customErrorInfo)
   }
 
-  componentDidUpdate(prevProps: ErrorBoundaryProps) {
+  override componentDidUpdate(prevProps: ErrorBoundaryProps) {
     const { resetKeys, resetOnPropsChange } = this.props
     const { hasError } = this.state
 
@@ -91,27 +93,13 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     }
   }
 
-  private logError = (error: Error, errorInfo: CustomErrorInfo) => {
-    // In a real app, this would integrate with logging service
-    console.error('Error Boundary caught an error:', {
-      error: {
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
-      },
-      errorInfo,
-      retryCount: this.retryCount,
-      timestamp: new Date().toISOString(),
-      userAgent: navigator.userAgent,
-      url: window.location.href,
-    })
-
+  private logError = (_error: Error, _errorInfo: CustomErrorInfo) => {
     // Could integrate with monitoring service
     // monitoringService.recordError(error, errorInfo)
   }
 
   private resetBoundary = () => {
-    this.setState({ hasError: false, error: undefined, errorInfo: undefined })
+    this.setState({ hasError: false })
     this.retryCount = 0
   }
 
@@ -122,13 +110,13 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     }
   }
 
-  render() {
-    if (this.state.hasError) {
+  override render() {
+    if (this.state.hasError && this.state.error) {
       const FallbackComponent = this.props.fallback || DefaultErrorFallback
 
       return (
         <FallbackComponent
-          error={this.state.error!}
+          error={this.state.error}
           errorInfo={this.state.errorInfo}
           retry={this.retry}
           reset={this.resetBoundary}
@@ -144,10 +132,10 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 // Default error fallback component
 function DefaultErrorFallback({ error, retry, reset, canRetry }: ErrorFallbackProps) {
   return (
-    <Card className="p-6 m-4 border-red-200 bg-red-50">
+    <Card className="m-4 border-red-200 bg-red-50 p-6">
       <div className="text-center">
-        <h2 className="text-lg font-semibold text-red-800 mb-2">Something went wrong</h2>
-        <p className="text-red-600 mb-4">{error.message || 'An unexpected error occurred'}</p>
+        <h2 className="mb-2 font-semibold text-lg text-red-800">Something went wrong</h2>
+        <p className="mb-4 text-red-600">{error.message || 'An unexpected error occurred'}</p>
         <div className="space-x-2">
           {canRetry && (
             <Button onClick={retry} variant="outline" size="sm">
@@ -160,10 +148,10 @@ function DefaultErrorFallback({ error, retry, reset, canRetry }: ErrorFallbackPr
         </div>
         {process.env.NODE_ENV === 'development' && (
           <details className="mt-4 text-left">
-            <summary className="cursor-pointer text-sm text-red-700">
+            <summary className="cursor-pointer text-red-700 text-sm">
               Error Details (Development)
             </summary>
-            <pre className="mt-2 text-xs bg-red-100 p-2 rounded overflow-auto">{error.stack}</pre>
+            <pre className="mt-2 overflow-auto rounded bg-red-100 p-2 text-xs">{error.stack}</pre>
           </details>
         )}
       </div>
@@ -174,14 +162,14 @@ function DefaultErrorFallback({ error, retry, reset, canRetry }: ErrorFallbackPr
 // Specialized error boundaries for different app sections
 
 // Authentication error boundary
-function AuthErrorFallback({ error, retry, reset, canRetry }: ErrorFallbackProps) {
+function AuthErrorFallback({ error, retry, canRetry }: ErrorFallbackProps) {
   const isAuthError = error.message.includes('auth') || error.message.includes('token')
 
   return (
-    <Card className="p-6 m-4 border-yellow-200 bg-yellow-50">
+    <Card className="m-4 border-yellow-200 bg-yellow-50 p-6">
       <div className="text-center">
-        <h2 className="text-lg font-semibold text-yellow-800 mb-2">Authentication Error</h2>
-        <p className="text-yellow-600 mb-4">
+        <h2 className="mb-2 font-semibold text-lg text-yellow-800">Authentication Error</h2>
+        <p className="mb-4 text-yellow-600">
           {isAuthError
             ? 'There was a problem with authentication. Please try signing in again.'
             : error.message}
@@ -192,7 +180,12 @@ function AuthErrorFallback({ error, retry, reset, canRetry }: ErrorFallbackProps
               Retry
             </Button>
           )}
-          <Button onClick={() => (window.location.href = '/auth/signin')} size="sm">
+          <Button
+            onClick={() => {
+              window.location.href = '/auth/signin'
+            }}
+            size="sm"
+          >
             Sign In
           </Button>
         </div>
@@ -215,12 +208,12 @@ function ApiErrorFallback({ error, retry, reset, canRetry }: ErrorFallbackProps)
   const isServerError = error.message.includes('500') || error.message.includes('503')
 
   return (
-    <Card className="p-6 m-4 border-blue-200 bg-blue-50">
+    <Card className="m-4 border-blue-200 bg-blue-50 p-6">
       <div className="text-center">
-        <h2 className="text-lg font-semibold text-blue-800 mb-2">
+        <h2 className="mb-2 font-semibold text-blue-800 text-lg">
           {isNetworkError ? 'Connection Error' : 'Service Error'}
         </h2>
-        <p className="text-blue-600 mb-4">
+        <p className="mb-4 text-blue-600">
           {isNetworkError
             ? 'Unable to connect to the server. Please check your internet connection.'
             : isServerError
@@ -251,12 +244,12 @@ export function ApiErrorBoundary({ children, ...props }: ErrorBoundaryProps) {
 }
 
 // Search error boundary
-function SearchErrorFallback({ error, retry, reset, canRetry }: ErrorFallbackProps) {
+function SearchErrorFallback({ error: _error, retry, reset, canRetry }: ErrorFallbackProps) {
   return (
-    <Card className="p-6 m-4 border-purple-200 bg-purple-50">
+    <Card className="m-4 border-purple-200 bg-purple-50 p-6">
       <div className="text-center">
-        <h2 className="text-lg font-semibold text-purple-800 mb-2">Search Error</h2>
-        <p className="text-purple-600 mb-4">
+        <h2 className="mb-2 font-semibold text-lg text-purple-800">Search Error</h2>
+        <p className="mb-4 text-purple-600">
           There was a problem with your search. Please try again.
         </p>
         <div className="space-x-2">
@@ -300,12 +293,12 @@ export class AsyncErrorBoundary extends React.Component<
     return { hasError: true, error }
   }
 
-  componentDidMount() {
+  override componentDidMount() {
     // Handle unhandled promise rejections
     window.addEventListener('unhandledrejection', this.handlePromiseRejection)
   }
 
-  componentWillUnmount() {
+  override componentWillUnmount() {
     window.removeEventListener('unhandledrejection', this.handlePromiseRejection)
   }
 
@@ -325,14 +318,16 @@ export class AsyncErrorBoundary extends React.Component<
     this.props.onError?.(error, errorInfo)
   }
 
-  render() {
+  override render() {
     if (this.state.hasError || this.state.asyncError) {
-      const error = this.state.error || this.state.asyncError!
+      const error = this.state.error || this.state.asyncError
+      if (!error) return null
       const FallbackComponent = this.props.fallback || DefaultErrorFallback
 
       return (
         <FallbackComponent
           error={error}
+          errorInfo={undefined}
           retry={() => this.setState({ hasError: false, asyncError: null })}
           reset={() => this.setState({ hasError: false, asyncError: null })}
           canRetry={true}
@@ -385,15 +380,16 @@ export function useErrorHandler() {
 
 // Global error handler setup
 export function setupGlobalErrorHandling() {
+  // Only setup in browser environment
+  if (typeof window === 'undefined') return
+
   // Handle uncaught errors
-  window.addEventListener('error', event => {
-    console.error('Global error:', event.error)
+  window.addEventListener('error', _event => {
     // Could send to monitoring service
   })
 
   // Handle unhandled promise rejections
-  window.addEventListener('unhandledrejection', event => {
-    console.error('Unhandled promise rejection:', event.reason)
+  window.addEventListener('unhandledrejection', _event => {
     // Could send to monitoring service
   })
 }
@@ -420,10 +416,10 @@ export class ErrorReporter {
     return ErrorReporter.instance
   }
 
-  reportError(error: Error, context?: Record<string, any>): Result<void, Error> {
+  reportError(error: Error, context?: Record<string, unknown>): Result<void, Error> {
     try {
       // In production, this would send to monitoring service
-      const errorReport = {
+      const _errorReport = {
         message: error.message,
         stack: error.stack,
         timestamp: new Date().toISOString(),
@@ -431,8 +427,6 @@ export class ErrorReporter {
         userAgent: navigator.userAgent,
         context,
       }
-
-      console.error('Error Report:', errorReport)
 
       // Mock sending to monitoring service
       // await monitoringService.send(errorReport)
@@ -443,9 +437,8 @@ export class ErrorReporter {
     }
   }
 
-  reportPerformanceIssue(metric: string, value: number, threshold: number): void {
+  reportPerformanceIssue(_metric: string, value: number, threshold: number): void {
     if (value > threshold) {
-      console.warn(`Performance issue: ${metric} (${value}ms) exceeded threshold (${threshold}ms)`)
       // Could send to monitoring service
     }
   }

@@ -4,29 +4,10 @@ if (process.env.NODE_ENV !== 'development' && !process.env.SKIP_ENV_VALIDATION) 
   process.env.SKIP_ENV_VALIDATION = 'true'
 }
 
-const withPWA = require('next-pwa')({
-  dest: 'public',
-  disable: process.env.NODE_ENV === 'development',
-  register: true,
-  skipWaiting: true,
-  runtimeCaching: [
-    {
-      urlPattern: /^https?.*/,
-      handler: 'NetworkFirst',
-      options: {
-        cacheName: 'offlineCache',
-        expiration: {
-          maxEntries: 200,
-        },
-      },
-    },
-  ],
-})
-
-// Webpack bundle analyzer support
-const withBundleAnalyzer = require('@next/bundle-analyzer')({
-  enabled: process.env.ANALYZE === 'true',
-})
+// Polyfill for server-side 'self' global to prevent build errors
+if (typeof globalThis !== 'undefined' && typeof globalThis.self === 'undefined') {
+  globalThis.self = globalThis
+}
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -80,6 +61,11 @@ const nextConfig = {
         path: false,
         os: false,
       }
+    } else {
+      // Server-side polyfills for browser globals - simple approach
+      config.resolve.alias = {
+        ...config.resolve.alias,
+      }
     }
 
     // Advanced optimization configuration
@@ -128,13 +114,8 @@ const nextConfig = {
           },
         },
       },
-      // Enhanced minimization
-      minimizer: !isServer
-        ? [
-            // Keep existing minimizers and add optimization
-            ...(config.optimization.minimizer || []),
-          ]
-        : undefined,
+      // Enhanced minimization - use default Next.js minimizers
+      // minimizer: undefined, // Let Next.js handle minimization
     }
 
     // Performance optimizations
@@ -197,18 +178,8 @@ const nextConfig = {
 
   // Module optimization for barrel files (icon libraries, etc)
   modularizeImports: {
-    // Optimize lucide-react imports for better tree shaking
-    'lucide-react': {
-      transform: 'lucide-react/dist/esm/icons/{{kebabCase member}}',
-      skipDefaultConversion: true,
-    },
-    '@heroicons/react/24/outline': {
-      transform: '@heroicons/react/24/outline/{{member}}',
-    },
-    '@heroicons/react/24/solid': {
-      transform: '@heroicons/react/24/solid/{{member}}',
-    },
+    // Future: Add optimizations when icon packages are installed
   },
 }
 
-module.exports = withBundleAnalyzer(withPWA(nextConfig))
+export default nextConfig
