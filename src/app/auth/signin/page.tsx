@@ -1,7 +1,7 @@
 'use client'
 
-import { SimpleOAuthSignIn } from './simple-oauth-signin'
+import { OAuthSignIn } from './oauth-signin-component'
 
 export default function OAuthSignInPage() {
-  return <SimpleOAuthSignIn />
+  return <OAuthSignIn />
 }

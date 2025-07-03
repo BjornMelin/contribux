@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
+import type { ReactNode } from 'react'
 import './globals.css'
-import { QueryProvider } from '@/components/providers/query-provider'
+import { AppProviders } from '@/components/providers/app-providers'
+import { Navigation } from '@/components/layout/navigation'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -33,14 +35,17 @@ export const viewport: Viewport = {
 }
 
 interface RootLayoutProps {
-  children: React.ReactNode
+  children: ReactNode
 }
 
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en" className={inter.variable}>
       <body className={inter.className}>
-        <QueryProvider>{children}</QueryProvider>
+        <AppProviders>
+          <Navigation />
+          {children}
+        </AppProviders>
       </body>
     </html>
   )

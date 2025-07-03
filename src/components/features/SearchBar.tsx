@@ -1,8 +1,8 @@
 'use client'
 
+import type { SearchBarProps } from '@/types/search'
 import type { FormEvent } from 'react'
 import { useState } from 'react'
-import type { SearchBarProps } from '@/types/search'
 
 export function SearchBar({
   onSearch,

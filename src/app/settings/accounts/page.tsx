@@ -3,18 +3,16 @@
 // Force dynamic rendering for authentication-dependent page
 export const dynamic = 'force-dynamic'
 
-import { AnimatePresence, motion } from 'framer-motion'
 import { Check, X } from 'lucide-react'
 
-import { useRouter, useSearchParams } from 'next/navigation'
-import { useSession } from 'next-auth/react'
-import { useEffect, useState } from 'react'
 import { LinkedAccounts } from '@/components/auth/LinkedAccounts'
+import { MotionDiv, OptimizedAnimatePresence } from '@/components/motion'
+import { useSession } from '@/components/providers/app-providers'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
 export default function AccountSettingsPage() {
-  const sessionResult = useSession({
-    required: false,
-  })
+  const sessionResult = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
@@ -68,9 +66,9 @@ export default function AccountSettingsPage() {
           </div>
 
           {/* Success Message */}
-          <AnimatePresence>
+          <OptimizedAnimatePresence>
             {showSuccessMessage && (
-              <motion.div
+              <MotionDiv
                 initial={{ opacity: 0, y: -20, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -20, scale: 0.95 }}
@@ -87,9 +85,9 @@ export default function AccountSettingsPage() {
                 >
                   <X className="h-4 w-4" />
                 </button>
-              </motion.div>
+              </MotionDiv>
             )}
-          </AnimatePresence>
+          </OptimizedAnimatePresence>
 
           <LinkedAccounts userId={session.user.id} />
         </div>

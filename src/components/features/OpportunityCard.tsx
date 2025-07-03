@@ -1,115 +1,173 @@
 'use client'
 
-import type React from 'react'
-import type { OpportunityCardProps } from '@/types/search'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { cn } from '@/lib/utils'
+import type { Opportunity } from '@/types/search'
+import { AnimatePresence, motion } from 'framer-motion'
+import { Bookmark, ExternalLink, Star } from 'lucide-react'
+import * as React from 'react'
 
-export function OpportunityCard({ opportunity, onSelect, className = '' }: OpportunityCardProps) {
-  const handleClick = () => {
-    onSelect(opportunity)
+// Animated Bookmark Button
+const AnimatedBookmarkButton: React.FC<{ isSaved: boolean; onToggle: () => void }> = ({
+  isSaved,
+  onToggle,
+}) => {
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={onToggle}
+      className="h-8 w-8 hover:bg-blue-50 hover:text-blue-600"
+      aria-label={isSaved ? 'Remove bookmark' : 'Save opportunity'}
+    >
+      <motion.div
+        initial={{ scale: 1 }}
+        animate={{ scale: isSaved ? 1.1 : 1 }}
+        whileTap={{ scale: 0.9 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 15 }}
+        className="relative"
+      >
+        <Bookmark
+          size={16}
+          className={cn(
+            'transition-all duration-200',
+            isSaved ? 'fill-blue-600 text-blue-600' : 'text-muted-foreground'
+          )}
+        />
+        <AnimatePresence>
+          {isSaved && (
+            <motion.div
+              className="absolute inset-0 rounded-full bg-blue-500/20"
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 2, opacity: [0, 0.5, 0] }}
+              exit={{ scale: 0, opacity: 0 }}
+              transition={{ duration: 0.6 }}
+            />
+          )}
+        </AnimatePresence>
+      </motion.div>
+    </Button>
+  )
+}
+
+// Difficulty Badge Component
+const DifficultyBadge: React.FC<{ difficulty: string }> = ({ difficulty }) => {
+  const difficultyConfig: Record<string, { label: string; color: string }> = {
+    beginner: { label: 'Beginner', color: 'bg-green-100 text-green-800 border-green-200' },
+    intermediate: {
+      label: 'Intermediate',
+      color: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+    },
+    advanced: { label: 'Advanced', color: 'bg-red-100 text-red-800 border-red-200' },
+    expert: { label: 'Expert', color: 'bg-purple-100 text-purple-800 border-purple-200' },
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault()
+  const config = difficultyConfig[difficulty] || difficultyConfig.intermediate
+
+  return <Badge className={cn('border font-medium text-xs', config.color)}>{config.label}</Badge>
+}
+
+// Main Opportunity Card Component
+interface OpportunityCardProps {
+  opportunity: Opportunity
+  onSelect?: (opportunity: Opportunity) => void
+  className?: string
+}
+
+export const OpportunityCard: React.FC<OpportunityCardProps> = ({
+  opportunity,
+  onSelect,
+  className,
+}) => {
+  const [isSaved, setIsSaved] = React.useState(false)
+
+  const handleSaveToggle = () => {
+    setIsSaved(!isSaved)
+  }
+
+  const handleCardClick = () => {
+    if (onSelect) {
       onSelect(opportunity)
+    } else {
+      window.open(opportunity.url, '_blank')
     }
   }
 
   return (
-    <button
-      type="button"
-      className={`opportunity-card w-full cursor-pointer rounded-lg border border-gray-200 bg-white p-6 text-left transition-all hover:border-gray-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${className}`}
-      onClick={handleClick}
-      onKeyDown={handleKeyDown}
-      aria-label={`View opportunity: ${opportunity.title}`}
-      data-testid={`opportunity-${opportunity.id}`}
-    >
-      <div className="opportunity-header mb-4">
-        <h3 className="opportunity-title mb-2 font-semibold text-gray-900 text-lg">
-          {opportunity.title}
-        </h3>
-        <div className="opportunity-meta flex gap-2">
-          <span
-            className={`difficulty-badge ${opportunity.difficulty} inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 font-medium text-blue-800 text-xs`}
-          >
-            {opportunity.difficulty}
-          </span>
-          <span
-            className={`type-badge ${opportunity.type} inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 font-medium text-green-800 text-xs`}
-          >
-            {opportunity.type.replace('_', ' ')}
-          </span>
-        </div>
-      </div>
-
-      {opportunity.description && (
-        <p className="opportunity-description mb-4 text-gray-600 text-sm leading-relaxed">
-          {opportunity.description.length > 150
-            ? `${opportunity.description.substring(0, 150)}...`
-            : opportunity.description}
-        </p>
+    <Card
+      className={cn(
+        'group w-full max-w-md cursor-pointer transition-all duration-300 hover:shadow-lg',
+        className
       )}
+    >
+      <CardHeader className="pb-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <CardTitle
+              className="line-clamp-2 text-base leading-tight transition-colors group-hover:text-primary"
+              onClick={handleCardClick}
+            >
+              {opportunity.title}
+            </CardTitle>
+            <CardDescription className="mt-2 flex items-center gap-2 text-xs">
+              <span className="font-medium">{opportunity.repository.fullName}</span>
+              <span className="text-muted-foreground">#{opportunity.githubIssueId}</span>
+            </CardDescription>
+          </div>
+          <AnimatedBookmarkButton isSaved={isSaved} onToggle={handleSaveToggle} />
+        </div>
+      </CardHeader>
 
-      <div className="opportunity-details space-y-4">
-        <div className="repository-info">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="repository-name font-medium text-gray-900 text-sm">
-              {opportunity.repository.fullName}
-            </span>
-            <div className="flex items-center gap-3 text-gray-500 text-sm">
-              {opportunity.repository.language && (
-                <span className="repository-language">{opportunity.repository.language}</span>
-              )}
-              <span className="repository-stars flex items-center">
-                ⭐ {opportunity.repository.starsCount}
-              </span>
+      <CardContent className="space-y-4">
+        <p className="line-clamp-3 text-muted-foreground text-sm leading-relaxed">
+          {opportunity.description}
+        </p>
+
+        <div className="flex flex-wrap gap-2">
+          {opportunity.labels.map(label => (
+            <Badge key={label.id} variant="outline" className="text-xs">
+              <span
+                className="mr-1.5 h-2 w-2 rounded-full"
+                style={{ backgroundColor: `#${label.color}` }}
+              />
+              {label.name}
+            </Badge>
+          ))}
+        </div>
+
+        <div className="flex items-center justify-between pt-2">
+          <DifficultyBadge difficulty={opportunity.difficulty} />
+          <div className="flex items-center gap-3 text-muted-foreground text-xs">
+            <div className="flex items-center gap-1">
+              <Star size={12} />
+              <span>{opportunity.repository.starsCount.toLocaleString()}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="h-2 w-2 rounded-full bg-blue-500" />
+              <span>{opportunity.repository.language}</span>
             </div>
           </div>
         </div>
+      </CardContent>
 
-        <div className="opportunity-tags flex flex-wrap gap-2">
-          {opportunity.goodFirstIssue && (
-            <span className="tag good-first-issue inline-flex items-center rounded-md bg-purple-100 px-2 py-1 font-medium text-purple-800 text-xs">
-              Good First Issue
-            </span>
-          )}
-          {opportunity.helpWanted && (
-            <span className="tag help-wanted inline-flex items-center rounded-md bg-orange-100 px-2 py-1 font-medium text-orange-800 text-xs">
-              Help Wanted
-            </span>
-          )}
-          {opportunity.estimatedHours && (
-            <span className="tag estimated-time inline-flex items-center rounded-md bg-gray-100 px-2 py-1 font-medium text-gray-800 text-xs">
-              {opportunity.estimatedHours}h
-            </span>
-          )}
-        </div>
-
-        <div className="opportunity-skills">
-          <div className="mb-2 flex flex-wrap gap-1">
-            {opportunity.technologies.slice(0, 3).map(tech => (
-              <span
-                key={tech}
-                className="skill-tag inline-flex items-center rounded bg-indigo-100 px-2 py-1 font-medium text-indigo-800 text-xs"
-              >
-                {tech}
-              </span>
-            ))}
-            {opportunity.technologies.length > 3 && (
-              <span className="skill-tag more inline-flex items-center rounded bg-gray-100 px-2 py-1 font-medium text-gray-600 text-xs">
-                +{opportunity.technologies.length - 3} more
-              </span>
-            )}
-          </div>
-        </div>
-
-        <div className="relevance-score flex items-center justify-between border-gray-100 border-t pt-2">
-          <span className="score-label text-gray-500 text-sm">Relevance:</span>
-          <span className="score-value font-medium text-gray-900 text-sm">
-            {(opportunity.relevanceScore * 100).toFixed(0)}%
-          </span>
-        </div>
-      </div>
-    </button>
+      <CardFooter className="flex items-center justify-between pt-4">
+        <span className="text-muted-foreground text-xs">
+          Created {new Date(opportunity.createdAt).toLocaleDateString()}
+        </span>
+        <Button variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={handleCardClick}>
+          <ExternalLink size={12} className="mr-1" />
+          View Issue
+        </Button>
+      </CardFooter>
+    </Card>
   )
 }

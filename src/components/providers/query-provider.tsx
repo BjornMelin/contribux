@@ -12,10 +12,10 @@
 
 'use client'
 
+import { getQueryMetrics, queryClient, setupBackgroundSync } from '@/lib/api/query-client'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import React, { type ReactNode, useEffect, useState } from 'react'
-import { getQueryMetrics, queryClient, setupBackgroundSync } from '@/lib/api/query-client'
 
 interface QueryProviderProps {
   children: ReactNode
@@ -40,32 +40,32 @@ class QueryErrorBoundary extends React.Component<
     return { hasError: true, error }
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('Query Error Boundary caught an error:', error, errorInfo)
-
+  override componentDidCatch(_error: Error, _errorInfo: React.ErrorInfo) {
     // Log to external error service in production
     if (process.env.NODE_ENV === 'production') {
       // Example: Sentry.captureException(error, { extra: errorInfo })
     }
   }
 
-  render() {
+  override render() {
     if (this.state.hasError) {
       if (this.props.fallback) {
         return this.props.fallback
       }
 
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <div className="max-w-md w-full bg-white shadow-lg rounded-lg p-6">
-            <div className="flex items-center mb-4">
+        <div className="flex min-h-screen items-center justify-center bg-gray-50">
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
+            <div className="mb-4 flex items-center">
               <div className="flex-shrink-0">
                 <svg
                   className="h-8 w-8 text-red-400"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
+                  aria-label="Error"
                 >
+                  <title>Error Icon</title>
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -75,20 +75,20 @@ class QueryErrorBoundary extends React.Component<
                 </svg>
               </div>
               <div className="ml-3">
-                <h3 className="text-lg font-medium text-gray-900">Something went wrong</h3>
+                <h3 className="font-medium text-gray-900 text-lg">Something went wrong</h3>
               </div>
             </div>
 
-            <div className="text-sm text-gray-500 mb-4">
+            <div className="mb-4 text-gray-500 text-sm">
               We encountered an unexpected error. Please try refreshing the page.
             </div>
 
             {process.env.NODE_ENV === 'development' && this.state.error && (
               <details className="mb-4">
-                <summary className="text-sm font-medium text-gray-700 cursor-pointer">
+                <summary className="cursor-pointer font-medium text-gray-700 text-sm">
                   Error Details (Development)
                 </summary>
-                <pre className="mt-2 text-xs bg-gray-100 p-2 rounded overflow-auto max-h-32">
+                <pre className="mt-2 max-h-32 overflow-auto rounded bg-gray-100 p-2 text-xs">
                   {this.state.error.stack}
                 </pre>
               </details>
@@ -96,14 +96,16 @@ class QueryErrorBoundary extends React.Component<
 
             <div className="flex space-x-3">
               <button
+                type="button"
                 onClick={() => window.location.reload()}
-                className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
+                className="flex-1 rounded-md bg-blue-600 px-4 py-2 font-medium text-sm text-white transition-colors hover:bg-blue-700"
               >
                 Refresh Page
               </button>
               <button
-                onClick={() => this.setState({ hasError: false, error: undefined })}
-                className="flex-1 bg-gray-200 text-gray-800 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-300 transition-colors"
+                type="button"
+                onClick={() => this.setState({ hasError: false })}
+                className="flex-1 rounded-md bg-gray-200 px-4 py-2 font-medium text-gray-800 text-sm transition-colors hover:bg-gray-300"
               >
                 Try Again
               </button>
@@ -124,26 +126,23 @@ function QueryPerformanceMonitor() {
       const interval = setInterval(() => {
         const metrics = getQueryMetrics()
 
-        if (metrics.metrics.length > 0) {
-          console.group('🔍 Query Performance Metrics')
-          console.log('Average Duration:', `${metrics.averageDuration.toFixed(2)}ms`)
-          console.log('Cache Hit Rate:', `${(metrics.cacheHitRate * 100).toFixed(1)}%`)
-          console.log('Error Rate:', `${(metrics.errorRate * 100).toFixed(1)}%`)
-
-          if (metrics.circuitBreakerStates.length > 0) {
-            console.log('Circuit Breakers:', metrics.circuitBreakerStates)
+        if (metrics && metrics.metrics && metrics.metrics.length > 0) {
+          if (metrics.circuitBreakerStates && metrics.circuitBreakerStates.length > 0) {
+            // Handle circuit breaker states for monitoring
           }
 
           const slowQueries = metrics.metrics.filter(m => m.duration > 2000)
-          if (slowQueries.length > 0) {
-            console.warn('Slow Queries:', slowQueries)
+          if (slowQueries && slowQueries.length > 0) {
+            // Handle slow query detection for monitoring
           }
-
-          console.groupEnd()
         }
       }, 30000) // Every 30 seconds
 
       return () => clearInterval(interval)
+    }
+    // Return cleanup function even in non-development
+    return () => {
+      // Cleanup function for non-development environment
     }
   }, [])
 
@@ -181,9 +180,16 @@ function NetworkStatusIndicator() {
   if (!showOfflineMessage) return null
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-500 text-white px-4 py-2 text-center text-sm">
+    <div className="fixed top-0 right-0 left-0 z-50 bg-yellow-500 px-4 py-2 text-center text-sm text-white">
       <div className="flex items-center justify-center">
-        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg
+          className="mr-2 h-4 w-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          aria-label="Warning"
+        >
+          <title>Warning</title>
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -226,18 +232,7 @@ export function QueryProvider({ children }: QueryProviderProps) {
 
         {/* Development tools - only in development */}
         {process.env.NODE_ENV === 'development' && (
-          <ReactQueryDevtools
-            initialIsOpen={false}
-            position="bottom-right"
-            toggleButtonProps={{
-              style: {
-                position: 'fixed',
-                bottom: '20px',
-                right: '20px',
-                zIndex: 99999,
-              },
-            }}
-          />
+          <ReactQueryDevtools initialIsOpen={false} position="bottom" />
         )}
       </QueryErrorBoundary>
     </QueryClientProvider>
