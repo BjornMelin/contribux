@@ -3,11 +3,11 @@
  * Comprehensive testing of Drizzle ORM, Neon PostgreSQL, and vector search performance
  */
 
-import { and, desc, eq, like, sql } from 'drizzle-orm'
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { db } from '@/lib/db'
 import { repositories, searchQueries, users } from '@/lib/db/schema'
 import { TestDatabaseManager } from '@/lib/test-utils/test-database-manager'
+import { and, desc, eq, like, sql } from 'drizzle-orm'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 // Performance thresholds for database operations (in milliseconds)
 const DB_PERFORMANCE_THRESHOLDS = {
@@ -640,6 +640,4 @@ describe('Database Performance Testing', () => {
   })
 })
 
-// Export performance utilities for other tests
-export { type measureQuery, DB_PERFORMANCE_THRESHOLDS, CONNECTION_THRESHOLDS }
-export type { QueryPerformanceMetrics }
+// Internal test utilities - moved to separate utility file if needed for sharing

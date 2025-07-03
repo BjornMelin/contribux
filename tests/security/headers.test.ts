@@ -2,6 +2,7 @@
  * @vitest-environment node
  */
 
+import { NextRequest } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
@@ -25,7 +26,7 @@ vi.mock('next/server', () => {
   }
 
   MockNextRequest.prototype.headers = {
-    get: vi.fn((key: string) => null),
+    get: vi.fn((_key: string) => null),
     set: vi.fn(),
   }
 
@@ -50,7 +51,7 @@ vi.mock('next/server', () => {
   }
 
   MockNextResponse.prototype.headers = {
-    get: vi.fn((key: string) => null),
+    get: vi.fn((_key: string) => null),
     set: vi.fn(),
   }
 

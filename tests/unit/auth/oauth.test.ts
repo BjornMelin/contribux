@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from 'vitest'
 import { generateOAuthUrl, validateOAuthCallback } from '@/lib/auth/oauth'
 import { sql } from '@/lib/db/config'
+import { describe, expect, it, vi } from 'vitest'
 
 // Mock env validation for this test file
 vi.mock('../../src/lib/validation/env', () => ({

@@ -14,8 +14,8 @@
  * in CI/CD environments with proper secret management.
  */
 
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { GitHubClient } from '@/lib/github/client'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 // Environment validation
 const REQUIRED_ENV_VARS = ['GITHUB_TEST_TOKEN', 'GITHUB_TEST_ORG'] as const

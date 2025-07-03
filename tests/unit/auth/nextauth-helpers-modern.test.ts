@@ -2,10 +2,10 @@
  * @vitest-environment node
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getCurrentUser, getOAuthAccessToken, hasOAuthScope, requireAuth } from '@/lib/auth/helpers'
 import type { User } from '@/types/auth'
 import type { Email, GitHubUsername, UUID } from '@/types/base'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Modern Auth.js v5 test patterns - use node environment to avoid JSDOM issues
 

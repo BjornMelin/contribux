@@ -12,7 +12,8 @@
  */
 
 import type { HttpHandler } from 'msw'
-import { HttpResponse, http } from 'msw'
+import { http, HttpResponse } from 'msw'
+import { expect } from 'vitest'
 import { z } from 'zod'
 
 // Type definitions for better type safety

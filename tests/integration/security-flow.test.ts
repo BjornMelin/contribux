@@ -14,7 +14,7 @@
  * - Cross-component security coordination
  */
 
-import { HttpResponse, http } from 'msw'
+import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
@@ -489,7 +489,7 @@ describe('Security Flow Integration Tests', () => {
                   'Retry-After': '60',
                   'X-RateLimit-Limit': maxRequestsPerMinute.toString(),
                   'X-RateLimit-Remaining': '0',
-                  'X-RateLimit-Reset': Math.floor(counter.blockUntil!.getTime() / 1000).toString(),
+                  'X-RateLimit-Reset': Math.floor(counter.blockUntil?.getTime() / 1000).toString(),
                 },
               }
             )
@@ -1395,8 +1395,7 @@ describe('Security Flow Integration Tests', () => {
           )
           const hasRecentCriticalIncident = resolvedIncidents.some(
             i =>
-              i.severity === 'critical' &&
-              new Date().getTime() - i.timestamp.getTime() < 24 * 60 * 60 * 1000
+              i.severity === 'critical' && Date.now() - i.timestamp.getTime() < 24 * 60 * 60 * 1000
           )
 
           return HttpResponse.json({

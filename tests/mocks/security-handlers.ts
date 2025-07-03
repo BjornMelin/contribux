@@ -3,7 +3,7 @@
  * Comprehensive mocking for security endpoints including health checks and WebAuthn
  */
 
-import { HttpResponse, http } from 'msw'
+import { http, HttpResponse } from 'msw'
 
 // Base URLs
 const BASE_URL = 'http://localhost:3000'

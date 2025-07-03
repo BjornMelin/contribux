@@ -4,7 +4,7 @@
  * authorization, input validation, and attack prevention
  */
 
-import { HttpResponse, http } from 'msw'
+import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
@@ -12,10 +12,9 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 vi.mock('../../src/lib/security/crypto', () => ({
   generateSecureToken: vi.fn().mockImplementation(
     (length: number) =>
-      'secure-token-' +
-      Math.random()
+      `secure-token-${Math.random()
         .toString(36)
-        .substring(2, length + 2)
+        .substring(2, length + 2)}`
   ),
   createSecureHash: vi
     .fn()

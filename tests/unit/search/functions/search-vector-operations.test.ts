@@ -13,11 +13,11 @@ import {
   teardownSearchTestContext,
 } from './setup/search-setup'
 import {
+  OpportunitySearchResultSchema,
+  UserSearchResultSchema,
   formatVector,
   generateEmbedding,
   generateOrthogonalEmbedding,
-  OpportunitySearchResultSchema,
-  UserSearchResultSchema,
 } from './utils/search-test-helpers'
 
 describe('Search Vector Operations', () => {

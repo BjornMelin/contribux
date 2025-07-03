@@ -3,8 +3,8 @@
  * Demonstrates improved memory leak prevention with Vitest 3.2+ patterns
  */
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { GitHubClient } from '@/lib/github/client'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   createMemoryMonitor,
   getMemoryUsage,

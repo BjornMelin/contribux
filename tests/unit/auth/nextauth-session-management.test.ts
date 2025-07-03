@@ -3,10 +3,10 @@
  * Comprehensive testing for session creation, validation, persistence, expiration, refresh, and cleanup
  */
 
-import type { JWT, Session } from 'next-auth'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { authConfig } from '@/lib/auth/config'
 import type { Email, UUID } from '@/types/base'
+import type { JWT, Session } from 'next-auth'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock database
 vi.mock('@/lib/db/config', () => ({

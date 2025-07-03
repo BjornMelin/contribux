@@ -3,7 +3,7 @@
  * Comprehensive utilities for end-to-end testing across all user journeys
  */
 
-import { expect, type Locator, type Page } from '@playwright/test'
+import { type Locator, type Page, expect } from '@playwright/test'
 
 // Type definitions for better type safety
 interface MemoryInfo {

@@ -3,10 +3,10 @@
  * Tests for AI-powered opportunity recommendation algorithms
  */
 
-import { beforeEach, describe, expect, it } from 'vitest'
 import type { BusinessOpportunity, UserProfile } from '@/lib/business-logic'
 import { MatchScoreSchema, OpportunityMatcher } from '@/lib/business-logic'
 import type { UUID } from '@/types/base'
+import { beforeEach, describe, expect, it } from 'vitest'
 
 describe('Opportunity Matching Business Logic', () => {
   let matcher: OpportunityMatcher

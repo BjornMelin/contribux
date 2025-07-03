@@ -1,8 +1,5 @@
-import type { RequestError } from '@octokit/types'
-import { describe, expect, it } from 'vitest'
 import {
   ErrorMessages,
-  extractErrorMessage,
   GitHubAuthenticationError,
   GitHubCacheError,
   GitHubClientError,
@@ -13,10 +10,13 @@ import {
   GitHubWebhookError,
   GitHubWebhookPayloadError,
   GitHubWebhookSignatureError,
+  extractErrorMessage,
   isRateLimitError,
   isRequestError,
   isSecondaryRateLimitError,
 } from '@/lib/github/errors'
+import type { RequestError } from '@octokit/types'
+import { describe, expect, it } from 'vitest'
 
 describe('GitHub Error Classes', () => {
   describe('GitHubClientError', () => {

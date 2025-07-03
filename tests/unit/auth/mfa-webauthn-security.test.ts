@@ -4,7 +4,6 @@
  * Tests credential registration, authentication, and security controls
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   arrayBufferToBase64url,
   base64urlToArrayBuffer,
@@ -14,6 +13,7 @@ import {
   verifyWebAuthnRegistration,
 } from '@/lib/auth/webauthn-enhanced'
 import type { User, WebAuthnCredential } from '@/types/auth'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock @simplewebauthn/server for controlled testing
 vi.mock('@simplewebauthn/server', () => ({

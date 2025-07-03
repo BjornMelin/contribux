@@ -2,10 +2,10 @@
  * @vitest-environment node
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { generateAccessToken, verifyAccessToken } from '@/lib/auth/jwt'
 import type { User } from '@/types/auth'
 import type { Email, GitHubUsername } from '@/types/base'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createTestUser, createTestUserSession } from '../../utils/auth-test-factories'
 
 // Modern 2025 test approach: Use node environment for crypto tests to avoid JSDOM Uint8Array issues

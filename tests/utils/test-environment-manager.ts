@@ -4,9 +4,9 @@
  * Phase 4: Developer Experience - Environment management utilities
  */
 
+import type { UUID } from '@/types/base'
 import { config } from 'dotenv'
 import { afterAll, afterEach, beforeAll, beforeEach, vi } from 'vitest'
-import type { UUID } from '@/types/base'
 
 // Environment configuration interface
 export interface TestEnvironmentConfig {

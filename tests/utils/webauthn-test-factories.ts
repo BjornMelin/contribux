@@ -60,112 +60,126 @@ export function generatePublicKey(): string {
  */
 export function generatePublicKeyBytea(): string {
   const randomBytes = crypto.getRandomValues(new Uint8Array(32))
-  return (
-    '\\x' +
-    Array.from(randomBytes)
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('')
+  return `\\x${Array.from(randomBytes)
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('')}`
+}
+
+/**
+ * Factory functions for creating test user data
+ */
+
+// Counter for generating unique test users
+let userIdCounter = 0
+
+export function createUser(overrides: Partial<NewUser> = {}): NewUser {
+  userIdCounter++
+
+  return {
+    githubId: generateTestGitHubId(),
+    username: generateTestUsername(),
+    email: generateTestEmail(),
+    name: `Test User ${userIdCounter}`,
+    avatarUrl: `https://github.com/images/test-avatar-${userIdCounter}.png`,
+    profile: {
+      bio: `Test user ${userIdCounter} for WebAuthn testing`,
+      location: 'Test City',
+      company: 'Test Company',
+      publicRepos: 10,
+      followers: 5,
+      following: 3,
+    },
+    preferences: {
+      theme: 'light' as const,
+      emailNotifications: true,
+      pushNotifications: false,
+      difficultyPreference: 'intermediate' as const,
+    },
+    ...overrides,
+  }
+}
+
+export function createMinimalUser(
+  overrides: Partial<NewUser> = {}
+): Pick<NewUser, 'githubId' | 'username'> & Partial<NewUser> {
+  return {
+    githubId: generateTestGitHubId(),
+    username: generateTestUsername(),
+    ...overrides,
+  }
+}
+
+// Legacy exports for backward compatibility
+export const UserFactory = {
+  create: createUser,
+  createMinimal: createMinimalUser,
+} as const
+
+/**
+ * Factory functions for creating WebAuthn credential test data
+ */
+
+// Counter for generating unique test credentials
+let credentialIdCounter = 0
+
+export function createWebAuthnCredential(
+  userId: string,
+  overrides: Partial<NewWebAuthnCredential> = {}
+): NewWebAuthnCredential {
+  credentialIdCounter++
+
+  return {
+    userId,
+    credentialId: generateCredentialId(),
+    publicKey: generatePublicKey(),
+    counter: 0,
+    deviceName: `Test Device ${credentialIdCounter}`,
+    ...overrides,
+  }
+}
+
+export function createMinimalWebAuthnCredential(
+  userId: string,
+  overrides: Partial<NewWebAuthnCredential> = {}
+): NewWebAuthnCredential {
+  return {
+    userId,
+    credentialId: generateCredentialId(),
+    publicKey: generatePublicKey(),
+    counter: 0,
+    ...overrides,
+  }
+}
+
+export function createMultipleWebAuthnCredentials(
+  userId: string,
+  count: number
+): NewWebAuthnCredential[] {
+  return Array.from({ length: count }, (_, index) =>
+    createWebAuthnCredential(userId, {
+      deviceName: `Test Device ${index + 1}`,
+      counter: index,
+    })
   )
 }
 
-/**
- * Factory for creating test user data
- */
-export class UserFactory {
-  private static idCounter = 0
-
-  static create(overrides: Partial<NewUser> = {}): NewUser {
-    UserFactory.idCounter++
-
-    return {
-      githubId: generateTestGitHubId(),
-      username: generateTestUsername(),
-      email: generateTestEmail(),
-      name: `Test User ${UserFactory.idCounter}`,
-      avatarUrl: `https://github.com/images/test-avatar-${UserFactory.idCounter}.png`,
-      profile: {
-        bio: `Test user ${UserFactory.idCounter} for WebAuthn testing`,
-        location: 'Test City',
-        company: 'Test Company',
-        publicRepos: 10,
-        followers: 5,
-        following: 3,
-      },
-      preferences: {
-        theme: 'light' as const,
-        emailNotifications: true,
-        pushNotifications: false,
-        difficultyPreference: 'intermediate' as const,
-      },
-      ...overrides,
-    }
-  }
-
-  static createMinimal(
-    overrides: Partial<NewUser> = {}
-  ): Pick<NewUser, 'githubId' | 'username'> & Partial<NewUser> {
-    return {
-      githubId: generateTestGitHubId(),
-      username: generateTestUsername(),
-      ...overrides,
-    }
+export function createWebAuthnCredentialWithBytea(
+  userId: string,
+  overrides: Partial<Omit<NewWebAuthnCredential, 'publicKey'>> & { publicKey?: string } = {}
+): Omit<NewWebAuthnCredential, 'publicKey'> & { publicKey: string } {
+  return {
+    ...createMinimalWebAuthnCredential(userId, overrides),
+    publicKey: generatePublicKeyBytea(),
   }
 }
 
-/**
- * Factory for creating WebAuthn credential test data
- */
-export class WebAuthnCredentialFactory {
-  private static idCounter = 0
-
-  static create(
-    userId: string,
-    overrides: Partial<NewWebAuthnCredential> = {}
-  ): NewWebAuthnCredential {
-    WebAuthnCredentialFactory.idCounter++
-
-    return {
-      userId,
-      credentialId: generateCredentialId(),
-      publicKey: generatePublicKey(),
-      counter: 0,
-      deviceName: `Test Device ${WebAuthnCredentialFactory.idCounter}`,
-      ...overrides,
-    }
-  }
-
-  static createMinimal(
-    userId: string,
-    overrides: Partial<NewWebAuthnCredential> = {}
-  ): NewWebAuthnCredential {
-    return {
-      userId,
-      credentialId: generateCredentialId(),
-      publicKey: generatePublicKey(),
-      counter: 0,
-      ...overrides,
-    }
-  }
-
-  static createMultiple(userId: string, count: number): NewWebAuthnCredential[] {
-    return Array.from({ length: count }, (_, index) =>
-      WebAuthnCredentialFactory.create(userId, {
-        deviceName: `Test Device ${index + 1}`,
-        counter: index,
-      })
-    )
-  }
-
-  static createWithBytea(
-    userId: string,
-    overrides: Partial<Omit<NewWebAuthnCredential, 'publicKey'>> & { publicKey?: string } = {}
-  ): Omit<NewWebAuthnCredential, 'publicKey'> & { publicKey: string } {
-    return {
-      ...WebAuthnCredentialFactory.createMinimal(userId, overrides),
-      publicKey: generatePublicKeyBytea(),
-    }
-  }
-}
+// Legacy exports for backward compatibility
+export const WebAuthnCredentialFactory = {
+  create: createWebAuthnCredential,
+  createMinimal: createMinimalWebAuthnCredential,
+  createMultiple: createMultipleWebAuthnCredentials,
+  createWithBytea: createWebAuthnCredentialWithBytea,
+} as const
 
 /**
  * Test data seeder for WebAuthn scenarios
@@ -378,254 +392,263 @@ export class WebAuthnTestSeeder {
 }
 
 /**
- * Mock WebAuthn authentication data for testing
+ * Mock WebAuthn authentication data utility functions
  */
-export class WebAuthnMockData {
-  /**
-   * Generate mock WebAuthn registration data
-   */
-  static generateRegistrationData() {
-    return {
-      credentialId: generateCredentialId(),
-      publicKey: generatePublicKey(),
-      counter: 0,
-      attestationObject: btoa('mock_attestation_object'),
-      clientDataJSON: btoa(
-        JSON.stringify({
-          type: 'webauthn.create',
-          challenge: 'mock_challenge',
-          origin: 'https://localhost:3000',
-        })
-      ),
-    }
-  }
 
-  /**
-   * Generate mock WebAuthn authentication data
-   */
-  static generateAuthenticationData(credentialId: string, counter = 1) {
-    return {
-      credentialId,
-      signature: btoa('mock_signature_data'),
-      authenticatorData: btoa('mock_authenticator_data'),
-      clientDataJSON: btoa(
-        JSON.stringify({
-          type: 'webauthn.get',
-          challenge: 'mock_auth_challenge',
-          origin: 'https://localhost:3000',
-        })
-      ),
-      counter,
-    }
-  }
-
-  /**
-   * Generate mock challenge for WebAuthn operations
-   */
-  static generateChallenge(): string {
-    const randomBytes = crypto.getRandomValues(new Uint8Array(32))
-    return btoa(String.fromCharCode(...randomBytes))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=/g, '')
+/**
+ * Generate mock WebAuthn registration data
+ */
+export function generateWebAuthnRegistrationData() {
+  return {
+    credentialId: generateCredentialId(),
+    publicKey: generatePublicKey(),
+    counter: 0,
+    attestationObject: btoa('mock_attestation_object'),
+    clientDataJSON: btoa(
+      JSON.stringify({
+        type: 'webauthn.create',
+        challenge: 'mock_challenge',
+        origin: 'https://localhost:3000',
+      })
+    ),
   }
 }
 
 /**
- * Database transaction helper for WebAuthn tests
+ * Generate mock WebAuthn authentication data
  */
-export class WebAuthnTestTransaction {
-  /**
-   * Run a test function within a database transaction that will be rolled back
-   * Note: This requires a PostgreSQL connection that supports transactions
-   */
-  static async withRollback<T>(testFn: (seeder: WebAuthnTestSeeder) => Promise<T>): Promise<T> {
-    const seeder = new WebAuthnTestSeeder()
-
-    try {
-      const result = await testFn(seeder)
-      return result
-    } finally {
-      await seeder.cleanup()
-    }
+export function generateWebAuthnAuthenticationData(credentialId: string, counter = 1) {
+  return {
+    credentialId,
+    signature: btoa('mock_signature_data'),
+    authenticatorData: btoa('mock_authenticator_data'),
+    clientDataJSON: btoa(
+      JSON.stringify({
+        type: 'webauthn.get',
+        challenge: 'mock_auth_challenge',
+        origin: 'https://localhost:3000',
+      })
+    ),
+    counter,
   }
+}
+
+/**
+ * Generate mock challenge for WebAuthn operations
+ */
+export function generateWebAuthnChallenge(): string {
+  const randomBytes = crypto.getRandomValues(new Uint8Array(32))
+  return btoa(String.fromCharCode(...randomBytes))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '')
+}
+
+// Legacy exports for backward compatibility
+export const WebAuthnMockData = {
+  generateRegistrationData: generateWebAuthnRegistrationData,
+  generateAuthenticationData: generateWebAuthnAuthenticationData,
+  generateChallenge: generateWebAuthnChallenge,
+} as const
+
+/**
+ * Database transaction helper utility for WebAuthn tests
+ */
+
+/**
+ * Run a test function within a database transaction that will be rolled back
+ * Note: This requires a PostgreSQL connection that supports transactions
+ */
+export async function withWebAuthnTestRollback<T>(
+  testFn: (seeder: WebAuthnTestSeeder) => Promise<T>
+): Promise<T> {
+  const seeder = new WebAuthnTestSeeder()
+
+  try {
+    const result = await testFn(seeder)
+    return result
+  } finally {
+    await seeder.cleanup()
+  }
+}
+
+// Legacy class wrapper for backward compatibility
+export class WebAuthnTestTransaction {
+  static withRollback = withWebAuthnTestRollback
 }
 
 /**
  * Performance testing utilities for WebAuthn operations
  */
-export class WebAuthnPerformanceHelper {
-  /**
-   * Measure query execution time
-   */
-  static async measureQueryTime<T>(
-    queryFn: () => Promise<T>
-  ): Promise<{ result: T; duration: number }> {
-    const startTime = process.hrtime.bigint()
-    const result = await queryFn()
-    const endTime = process.hrtime.bigint()
 
-    const duration = Number(endTime - startTime) / 1_000_000 // Convert to milliseconds
+/**
+ * Measure query execution time
+ */
+export async function measureQueryTime<T>(
+  queryFn: () => Promise<T>
+): Promise<{ result: T; duration: number }> {
+  const startTime = process.hrtime.bigint()
+  const result = await queryFn()
+  const endTime = process.hrtime.bigint()
 
-    return { result, duration }
+  const duration = Number(endTime - startTime) / 1_000_000 // Convert to milliseconds
+
+  return { result, duration }
+}
+
+/**
+ * Create bulk test data for performance testing
+ */
+export async function createBulkTestData(
+  seeder: WebAuthnTestSeeder,
+  userCount: number,
+  credentialsPerUser: number
+): Promise<{
+  users: Array<{ id: string; githubId: number; username: string }>
+  totalCredentials: number
+}> {
+  const users = []
+  let totalCredentials = 0
+
+  for (let i = 0; i < userCount; i++) {
+    const user = await seeder.createMinimalUser()
+    const credentials = await seeder.createMultipleCredentials(user.id, credentialsPerUser)
+
+    users.push(user)
+    totalCredentials += credentials.length
   }
 
-  /**
-   * Create bulk test data for performance testing
-   */
-  static async createBulkTestData(
-    seeder: WebAuthnTestSeeder,
-    userCount: number,
-    credentialsPerUser: number
-  ): Promise<{
-    users: Array<{ id: string; githubId: number; username: string }>
-    totalCredentials: number
-  }> {
-    const users = []
-    let totalCredentials = 0
+  return { users, totalCredentials }
+}
 
-    for (let i = 0; i < userCount; i++) {
-      const user = await seeder.createMinimalUser()
-      const credentials = await seeder.createMultipleCredentials(user.id, credentialsPerUser)
+/**
+ * Run performance benchmark for a specific operation
+ */
+export async function benchmark<T>(
+  name: string,
+  operation: () => Promise<T>,
+  iterations = 10
+): Promise<{
+  name: string
+  averageDuration: number
+  minDuration: number
+  maxDuration: number
+  totalDuration: number
+  iterations: number
+}> {
+  const durations: number[] = []
 
-      users.push(user)
-      totalCredentials += credentials.length
-    }
-
-    return { users, totalCredentials }
+  for (let i = 0; i < iterations; i++) {
+    const { duration } = await measureQueryTime(operation)
+    durations.push(duration)
   }
 
-  /**
-   * Run performance benchmark for a specific operation
-   */
-  static async benchmark<T>(
-    name: string,
-    operation: () => Promise<T>,
-    iterations = 10
-  ): Promise<{
-    name: string
-    averageDuration: number
-    minDuration: number
-    maxDuration: number
-    totalDuration: number
-    iterations: number
-  }> {
-    const durations: number[] = []
+  const totalDuration = durations.reduce((sum, d) => sum + d, 0)
+  const averageDuration = totalDuration / iterations
+  const minDuration = Math.min(...durations)
+  const maxDuration = Math.max(...durations)
 
-    for (let i = 0; i < iterations; i++) {
-      const { duration } = await WebAuthnPerformanceHelper.measureQueryTime(operation)
-      durations.push(duration)
-    }
-
-    const totalDuration = durations.reduce((sum, d) => sum + d, 0)
-    const averageDuration = totalDuration / iterations
-    const minDuration = Math.min(...durations)
-    const maxDuration = Math.max(...durations)
-
-    return {
-      name,
-      averageDuration,
-      minDuration,
-      maxDuration,
-      totalDuration,
-      iterations,
-    }
+  return {
+    name,
+    averageDuration,
+    minDuration,
+    maxDuration,
+    totalDuration,
+    iterations,
   }
 }
 
 /**
  * Validation helper for WebAuthn test assertions
  */
-export class WebAuthnTestValidator {
-  /**
-   * Validate UUID format
-   */
-  static isValidUUID(uuid: string): boolean {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-    return uuidRegex.test(uuid)
+
+/**
+ * Validate UUID format
+ */
+export function isValidUUID(uuid: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  return uuidRegex.test(uuid)
+}
+
+/**
+ * Validate base64url format
+ */
+export function isValidBase64Url(str: string): boolean {
+  const base64urlRegex = /^[A-Za-z0-9_-]+$/
+  return base64urlRegex.test(str)
+}
+
+/**
+ * Validate base64 format
+ */
+export function isValidBase64(str: string): boolean {
+  const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/
+  return base64Regex.test(str)
+}
+
+/**
+ * Validate timestamp format
+ */
+export function isValidTimestamp(timestamp: string | Date): boolean {
+  const date = new Date(timestamp)
+  return !Number.isNaN(date.getTime())
+}
+
+/**
+ * Validate WebAuthn credential structure
+ */
+export function validateCredentialStructure(credential: unknown): {
+  isValid: boolean
+  errors: string[]
+} {
+  const errors: string[] = []
+
+  // Type guard to ensure credential is an object
+  if (!credential || typeof credential !== 'object') {
+    errors.push('Credential must be an object')
+    return { isValid: false, errors }
   }
 
-  /**
-   * Validate base64url format
-   */
-  static isValidBase64Url(str: string): boolean {
-    const base64urlRegex = /^[A-Za-z0-9_-]+$/
-    return base64urlRegex.test(str)
+  const cred = credential as Record<string, unknown>
+
+  if (!cred.id || !isValidUUID(cred.id as string)) {
+    errors.push('Invalid or missing credential ID (UUID)')
   }
 
-  /**
-   * Validate base64 format
-   */
-  static isValidBase64(str: string): boolean {
-    const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/
-    return base64Regex.test(str)
+  if (!cred.user_id || !isValidUUID(cred.user_id as string)) {
+    errors.push('Invalid or missing user ID (UUID)')
   }
 
-  /**
-   * Validate timestamp format
-   */
-  static isValidTimestamp(timestamp: string | Date): boolean {
-    const date = new Date(timestamp)
-    return !isNaN(date.getTime())
+  if (!cred.credential_id || typeof cred.credential_id !== 'string') {
+    errors.push('Invalid or missing credential_id')
   }
 
-  /**
-   * Validate WebAuthn credential structure
-   */
-  static validateCredentialStructure(credential: any): {
-    isValid: boolean
-    errors: string[]
-  } {
-    const errors: string[] = []
+  if (!cred.public_key || typeof cred.public_key !== 'string') {
+    errors.push('Invalid or missing public_key')
+  }
 
-    if (!credential.id || !WebAuthnTestValidator.isValidUUID(credential.id)) {
-      errors.push('Invalid or missing credential ID (UUID)')
-    }
+  if (cred.counter === undefined || cred.counter === null || Number.isNaN(Number(cred.counter))) {
+    errors.push('Invalid or missing counter')
+  }
 
-    if (!credential.user_id || !WebAuthnTestValidator.isValidUUID(credential.user_id)) {
-      errors.push('Invalid or missing user ID (UUID)')
-    }
+  if (Number(cred.counter) < 0) {
+    errors.push('Counter must be non-negative')
+  }
 
-    if (!credential.credential_id || typeof credential.credential_id !== 'string') {
-      errors.push('Invalid or missing credential_id')
-    }
+  if (cred.created_at && !isValidTimestamp(cred.created_at as string | Date)) {
+    errors.push('Invalid created_at timestamp')
+  }
 
-    if (!credential.public_key || typeof credential.public_key !== 'string') {
-      errors.push('Invalid or missing public_key')
-    }
+  if (cred.last_used_at && !isValidTimestamp(cred.last_used_at as string | Date)) {
+    errors.push('Invalid last_used_at timestamp')
+  }
 
-    if (
-      credential.counter === undefined ||
-      credential.counter === null ||
-      isNaN(Number(credential.counter))
-    ) {
-      errors.push('Invalid or missing counter')
-    }
-
-    if (Number(credential.counter) < 0) {
-      errors.push('Counter must be non-negative')
-    }
-
-    if (credential.created_at && !WebAuthnTestValidator.isValidTimestamp(credential.created_at)) {
-      errors.push('Invalid created_at timestamp')
-    }
-
-    if (
-      credential.last_used_at &&
-      !WebAuthnTestValidator.isValidTimestamp(credential.last_used_at)
-    ) {
-      errors.push('Invalid last_used_at timestamp')
-    }
-
-    return {
-      isValid: errors.length === 0,
-      errors,
-    }
+  return {
+    isValid: errors.length === 0,
+    errors,
   }
 }
 
 // Export singleton instances for convenience
 export const webauthnSeeder = new WebAuthnTestSeeder()
 export const webauthnMockData = WebAuthnMockData
-export const webauthnPerformance = WebAuthnPerformanceHelper
-export const webauthnValidator = WebAuthnTestValidator

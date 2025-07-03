@@ -3,7 +3,7 @@
  * Mock Service Worker handlers for comprehensive WebAuthn testing
  */
 
-import { HttpResponse, http } from 'msw'
+import { http, HttpResponse } from 'msw'
 import { z } from 'zod'
 
 // Type definitions for WebAuthn requests/responses
@@ -111,7 +111,7 @@ export const webauthnRegisterOptionsHandler = http.post(
         options,
         challenge,
       })
-    } catch (error) {
+    } catch (_error) {
       return HttpResponse.json(
         { error: 'Failed to generate registration options' },
         { status: 500 }
@@ -201,7 +201,7 @@ export const webauthnRegisterVerifyHandler = http.post(
       mockCredentialStore.set(credentialId, {
         userId: challengeData.userId!,
         credentialId,
-        publicKey: 'mock-public-key-' + credentialId,
+        publicKey: `mock-public-key-${credentialId}`,
         counter: 0,
         deviceName: validatedData.deviceName,
         createdAt: new Date(),
@@ -284,7 +284,7 @@ export const webauthnAuthenticateOptionsHandler = http.post(
         options,
         challenge,
       })
-    } catch (error) {
+    } catch (_error) {
       return HttpResponse.json(
         { error: 'Failed to generate authentication options' },
         { status: 500 }
@@ -419,7 +419,7 @@ export const webauthnCredentialsHandler = http.get(
         success: true,
         credentials: userCredentials,
       })
-    } catch (error) {
+    } catch (_error) {
       return HttpResponse.json({ error: 'Failed to retrieve credentials' }, { status: 500 })
     }
   }
@@ -452,7 +452,7 @@ export const webauthnRemoveCredentialHandler = http.delete(
         success: true,
         message: 'Credential removed successfully',
       })
-    } catch (error) {
+    } catch (_error) {
       return HttpResponse.json({ error: 'Failed to remove credential' }, { status: 500 })
     }
   }

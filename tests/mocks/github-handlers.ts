@@ -3,7 +3,7 @@
  * Replaces nock interceptors with modern MSW 2.x patterns
  */
 
-import { HttpResponse, http } from 'msw'
+import { http, HttpResponse } from 'msw'
 
 // GitHub API base URL
 const GITHUB_API_BASE = 'https://api.github.com'

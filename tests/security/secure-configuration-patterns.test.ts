@@ -13,6 +13,12 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { authConfig } from '@/lib/auth'
+import {
+  getRequiredEnv,
+  validateProductionEnv as validateProductionSecuritySettings,
+} from '@/lib/validation/env'
+
 describe('Secure Configuration Patterns', () => {
   let originalEnv: NodeJS.ProcessEnv
   let mockExit: ReturnType<typeof vi.spyOn>

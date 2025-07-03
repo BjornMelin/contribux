@@ -5,16 +5,16 @@
  */
 
 import type * as crypto from 'node:crypto'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  TOTP_DEFAULTS,
   generateTOTPEnrollment,
   hashBackupCodes,
   regenerateBackupCodes,
-  TOTP_DEFAULTS,
   verifyBackupCode,
   verifyTOTPToken,
 } from '@/lib/auth/totp'
 import type { TOTPCredential, User } from '@/types/auth'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock crypto for controlled testing
 vi.mock('node:crypto', async () => {

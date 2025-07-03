@@ -13,9 +13,6 @@
  * - Form interaction failures ("eTaycpteScri" garbled input issue)
  */
 
-import { fireEvent, render } from '@testing-library/react'
-import { userEvent } from '@testing-library/user-event'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // Import actual components
 import {
   OpportunityCard,
@@ -29,6 +26,9 @@ import {
   type SearchFilters,
   SearchFiltersSchema,
 } from '@/types/search'
+import { fireEvent, render } from '@testing-library/react'
+import { userEvent } from '@testing-library/user-event'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   asUUID,
   cleanupComponentTest,

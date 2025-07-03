@@ -13,7 +13,7 @@
  * - Error recovery and security incident handling
  */
 
-import { HttpResponse, http } from 'msw'
+import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
@@ -70,6 +70,18 @@ interface WebAuthnCredential {
   transports: string[]
 }
 
+// Type for security audit event details
+interface SecurityAuditEventDetails {
+  provider?: string
+  credentialId?: string
+  deviceName?: string
+  securityLevel?: string
+  riskFactors?: string[]
+  errorType?: string
+  errorMessage?: string
+  [key: string]: string | string[] | number | boolean | undefined
+}
+
 interface SecurityAuditEvent {
   eventId: string
   eventType:
@@ -85,9 +97,63 @@ interface SecurityAuditEvent {
   timestamp: Date
   ipAddress: string
   userAgent: string
-  details: Record<string, any>
+  details: SecurityAuditEventDetails
   riskScore: number
   actionTaken?: string
+}
+
+// Request body interfaces for HTTP handlers
+interface WebAuthnRegisterVerifyRequest {
+  id: string
+  rawId: string
+  type: string
+  response: {
+    attestationObject: string
+    clientDataJSON: string
+  }
+  authenticatorAttachment?: string
+  getClientExtensionResults?: Record<string, unknown>
+}
+
+interface WebAuthnAuthenticateVerifyRequest {
+  id: string
+  rawId: string
+  type: string
+  response: {
+    authenticatorData: string
+    clientDataJSON: string
+    signature: string
+    userHandle?: string
+  }
+  credentialId: string
+}
+
+interface LinkProviderRequest {
+  provider: string
+  accessToken?: string
+  idToken?: string
+  code?: string
+  state?: string
+}
+
+interface SetPrimaryProviderRequest {
+  provider: string
+}
+
+interface SessionRotateRequest {
+  currentSessionId: string
+  reason?: string
+  deviceFingerprint?: string
+}
+
+interface ProviderInfo {
+  provider: string
+  isPrimary: boolean
+  linkedAt: string
+}
+
+interface GenericRequestBody {
+  [key: string]: unknown
 }
 
 // Schemas for validation
@@ -124,7 +190,7 @@ const CompleteUserProfileSchema = z.object({
   updatedAt: z.string().datetime(),
 })
 
-const AuthenticationJourneySchema = z.object({
+const _AuthenticationJourneySchema = z.object({
   journeyId: z.string().uuid(),
   userId: z.string().uuid(),
   stages: z.array(
@@ -187,7 +253,7 @@ describe('Complete Authentication Flow Integration', () => {
       // Stage 1: OAuth Initiation
       server.use(
         http.get('http://localhost:3000/api/auth/signin/github', ({ request }) => {
-          const url = new URL(request.url)
+          const _url = new URL(request.url)
           const state = crypto.randomUUID()
           const codeVerifier = crypto.randomUUID()
 
@@ -310,7 +376,7 @@ describe('Complete Authentication Flow Integration', () => {
         http.post(
           'http://localhost:3000/api/security/webauthn/register/verify',
           async ({ request }) => {
-            const body = (await request.json()) as any
+            const body = (await request.json()) as WebAuthnRegisterVerifyRequest
             const credentialId = crypto.randomUUID()
 
             const credential: WebAuthnCredential = {
@@ -664,7 +730,7 @@ describe('Complete Authentication Flow Integration', () => {
         http.post(
           'http://localhost:3000/api/security/webauthn/authenticate/verify',
           async ({ request }) => {
-            const body = (await request.json()) as any
+            const body = (await request.json()) as WebAuthnAuthenticateVerifyRequest
 
             if (body.credentialId !== existingCredentialId) {
               return HttpResponse.json(
@@ -717,7 +783,7 @@ describe('Complete Authentication Flow Integration', () => {
 
         // Session Restoration
         http.post('http://localhost:3000/api/auth/session/restore', async ({ request }) => {
-          const body = (await request.json()) as any
+          const _body = (await request.json()) as GenericRequestBody
           const sessionId = crypto.randomUUID()
           const sessionToken = crypto.randomUUID()
 
@@ -877,7 +943,7 @@ describe('Complete Authentication Flow Integration', () => {
       server.use(
         // Link additional provider
         http.post('http://localhost:3000/api/auth/link-provider', async ({ request }) => {
-          const body = (await request.json()) as any
+          const body = (await request.json()) as LinkProviderRequest
           const sessionToken = request.headers.get('Authorization')?.replace('Bearer ', '')
 
           if (sessionToken !== 'existing-session-token') {
@@ -937,7 +1003,7 @@ describe('Complete Authentication Flow Integration', () => {
 
         // Set primary provider
         http.post('http://localhost:3000/api/auth/set-primary', async ({ request }) => {
-          const body = (await request.json()) as any
+          const body = (await request.json()) as SetPrimaryProviderRequest
           const sessionToken = request.headers.get('Authorization')?.replace('Bearer ', '')
 
           if (sessionToken !== 'existing-session-token') {
@@ -1053,7 +1119,7 @@ describe('Complete Authentication Flow Integration', () => {
       expect(statusData.success).toBe(true)
       expect(statusData.data.user.providers).toHaveLength(2)
       expect(
-        statusData.data.user.providers.find((p: any) => p.provider === 'google')?.isPrimary
+        statusData.data.user.providers.find((p: ProviderInfo) => p.provider === 'google')?.isPrimary
       ).toBe(true)
 
       console.log('✅ Account status verified - Multi-provider journey complete!')
@@ -1149,7 +1215,7 @@ describe('Complete Authentication Flow Integration', () => {
 
         // Session rotation endpoint
         http.post('http://localhost:3000/api/auth/session/rotate', async ({ request }) => {
-          const body = (await request.json()) as any
+          const body = (await request.json()) as SessionRotateRequest
           const newSessionId = crypto.randomUUID()
           const newSessionToken = crypto.randomUUID()
 

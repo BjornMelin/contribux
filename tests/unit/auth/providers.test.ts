@@ -1,20 +1,20 @@
-/**
- * Tests for OAuth provider configuration and utilities
- */
-import { describe, expect, it } from 'vitest'
 import {
   GITHUB_PROVIDER,
   GOOGLE_PROVIDER,
+  LINKEDIN_PROVIDER,
+  MICROSOFT_PROVIDER,
   getProviderDisplayInfo,
   getProviderEndpoints,
   getProviderMetadata,
   getProviderScopes,
   getSupportedProviders,
   isProviderSupported,
-  LINKEDIN_PROVIDER,
-  MICROSOFT_PROVIDER,
   normalizeUserData,
 } from '@/lib/auth/providers'
+/**
+ * Tests for OAuth provider configuration and utilities
+ */
+import { describe, expect, it } from 'vitest'
 
 describe('OAuth Provider Configuration', () => {
   describe('Provider Metadata', () => {

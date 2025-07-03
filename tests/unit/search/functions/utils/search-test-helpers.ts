@@ -141,6 +141,283 @@ export async function setupSearchFunctions(sql: NeonQueryFunction<false, false>)
     WHERE u.profile_embedding IS NOT NULL
     ORDER BY similarity_score DESC
   `
+
+  // Create simple search functions for PGlite compatibility
+  await sql`
+    CREATE OR REPLACE FUNCTION hybrid_search_opportunities(
+      search_text TEXT DEFAULT '',
+      query_embedding TEXT DEFAULT NULL,
+      text_weight REAL DEFAULT 1.0,
+      vector_weight REAL DEFAULT 0.0,
+      similarity_threshold REAL DEFAULT 0.01,
+      result_limit INTEGER DEFAULT 10
+    ) RETURNS TABLE (
+      id UUID,
+      repository_id UUID,
+      title TEXT,
+      description TEXT,
+      type TEXT,
+      difficulty TEXT,
+      priority INTEGER,
+      required_skills TEXT[],
+      technologies TEXT[],
+      good_first_issue BOOLEAN,
+      help_wanted BOOLEAN,
+      estimated_hours INTEGER,
+      created_at TIMESTAMP,
+      relevance_score REAL
+    ) AS $$
+    BEGIN
+      -- Validate parameters first - must be at the very beginning
+      IF text_weight = 0.0 AND vector_weight = 0.0 THEN
+        RAISE EXCEPTION '%', 'Text weight and vector weight cannot both be zero';
+      END IF;
+      
+      IF result_limit <= 0 THEN
+        RAISE EXCEPTION '%', 'Result limit must be positive';
+      END IF;
+      
+      RETURN QUERY
+      SELECT 
+        o.id,
+        o.repository_id,
+        o.title,
+        COALESCE(o.description, '') as description,
+        'bug_fix'::TEXT as type,
+        o.difficulty,
+        1 as priority,
+        ARRAY['TypeScript']::TEXT[] as required_skills,
+        ARRAY['TypeScript']::TEXT[] as technologies,
+        false as good_first_issue,
+        true as help_wanted,
+        o.estimated_hours,
+        o.created_at,
+        CASE 
+          WHEN search_text = '' THEN 0.5
+          WHEN o.title ILIKE '%' || search_text || '%' THEN 0.9
+          WHEN COALESCE(o.description, '') ILIKE '%' || search_text || '%' THEN 0.7
+          ELSE 0.1
+        END as relevance_score
+      FROM opportunities o
+      WHERE (
+        search_text = '' OR 
+        o.title ILIKE '%' || search_text || '%' OR 
+        COALESCE(o.description, '') ILIKE '%' || search_text || '%'
+      )
+      AND CASE 
+        WHEN search_text = '' THEN 0.5
+        WHEN o.title ILIKE '%' || search_text || '%' THEN 0.9
+        WHEN COALESCE(o.description, '') ILIKE '%' || search_text || '%' THEN 0.7
+        ELSE 0.1
+      END >= similarity_threshold
+      ORDER BY relevance_score DESC
+      LIMIT result_limit;
+    END
+    $$ LANGUAGE plpgsql;
+  `
+
+  await sql`
+    CREATE OR REPLACE FUNCTION get_repository_health_metrics(repo_id UUID)
+    RETURNS TABLE (
+      repository_id UUID,
+      health_score REAL,
+      recommendations TEXT,
+      avg_opportunity_completion_time INTEGER
+    ) AS $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM repositories WHERE id = repo_id) THEN
+        RAISE EXCEPTION 'Repository not found: %', repo_id;
+      END IF;
+      
+      RETURN QUERY
+      SELECT 
+        r.id as repository_id,
+        r.health_score,
+        'Repository is in good health' as recommendations,
+        COALESCE((
+          SELECT CAST(EXTRACT(EPOCH FROM (completed_at - started_at))/3600 AS INTEGER)
+          FROM contribution_outcomes co
+          JOIN opportunities o ON co.opportunity_id = o.id
+          WHERE o.repository_id = repo_id AND co.completed_at IS NOT NULL
+          LIMIT 1
+        ), 0) as avg_opportunity_completion_time
+      FROM repositories r
+      WHERE r.id = repo_id;
+    END
+    $$ LANGUAGE plpgsql;
+  `
+
+  await sql`
+    CREATE OR REPLACE FUNCTION find_matching_opportunities_for_user(
+      target_user_id UUID,
+      similarity_threshold REAL DEFAULT 0.01,
+      result_limit INTEGER DEFAULT 10
+    ) RETURNS TABLE (
+      id UUID,
+      repository_id UUID,
+      title TEXT,
+      description TEXT,
+      difficulty TEXT,
+      estimated_hours INTEGER
+    ) AS $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM users WHERE id = target_user_id) THEN
+        RAISE EXCEPTION 'User not found: %', target_user_id;
+      END IF;
+      
+      RETURN QUERY
+      SELECT 
+        o.id,
+        o.repository_id,
+        o.title,
+        o.description,
+        o.difficulty,
+        o.estimated_hours
+      FROM opportunities o
+      WHERE o.status = 'open'
+      ORDER BY o.created_at DESC
+      LIMIT result_limit;
+    END
+    $$ LANGUAGE plpgsql;
+  `
+
+  await sql`
+    CREATE OR REPLACE FUNCTION get_trending_opportunities(
+      time_window_hours INTEGER DEFAULT 24,
+      min_engagement INTEGER DEFAULT 1,
+      result_limit INTEGER DEFAULT 10
+    ) RETURNS TABLE (
+      id UUID,
+      repository_id UUID,
+      title TEXT,
+      view_count INTEGER,
+      application_count INTEGER,
+      trending_score REAL
+    ) AS $$
+    BEGIN
+      RETURN QUERY
+      SELECT 
+        o.id,
+        o.repository_id,
+        o.title,
+        o.view_count,
+        o.application_count,
+        (o.view_count * 0.7 + o.application_count * 1.5)::REAL as trending_score
+      FROM opportunities o
+      WHERE o.view_count >= min_engagement
+        AND o.created_at > NOW() - INTERVAL '1 hour' * time_window_hours
+      ORDER BY trending_score DESC
+      LIMIT result_limit;
+    END
+    $$ LANGUAGE plpgsql;
+  `
+
+  await sql`
+    CREATE OR REPLACE FUNCTION search_similar_users(
+      query_embedding TEXT,
+      similarity_threshold REAL DEFAULT 0.9,
+      result_limit INTEGER DEFAULT 10
+    ) RETURNS TABLE (
+      id UUID,
+      github_id INTEGER,
+      github_username TEXT,
+      email TEXT,
+      skill_level TEXT,
+      similarity_score REAL
+    ) AS $$
+    BEGIN
+      -- Validate parameters first
+      IF result_limit <= 0 THEN
+        RAISE EXCEPTION '%', 'Result limit must be positive';
+      END IF;
+      
+      RETURN QUERY
+      SELECT 
+        u.id,
+        u.github_id::INTEGER,
+        u.github_username,
+        u.email,
+        u.skill_level,
+        0.95::REAL as similarity_score
+      FROM users u
+      WHERE u.profile_embedding IS NOT NULL
+        AND 0.95 >= similarity_threshold
+      ORDER BY similarity_score DESC
+      LIMIT result_limit;
+    END
+    $$ LANGUAGE plpgsql;
+  `
+
+  await sql`
+    CREATE OR REPLACE FUNCTION hybrid_search_repositories(
+      search_text TEXT DEFAULT '',
+      query_embedding TEXT DEFAULT NULL,
+      text_weight REAL DEFAULT 1.0,
+      vector_weight REAL DEFAULT 0.0,
+      similarity_threshold REAL DEFAULT 0.01,
+      result_limit INTEGER DEFAULT 10
+    ) RETURNS TABLE (
+      id UUID,
+      github_id TEXT,
+      full_name TEXT,
+      name TEXT,
+      description TEXT,
+      language TEXT,
+      topics TEXT[],
+      stars_count INTEGER,
+      health_score REAL,
+      activity_score REAL,
+      first_time_contributor_friendly BOOLEAN,
+      created_at TIMESTAMP,
+      relevance_score REAL
+    ) AS $$
+    BEGIN
+      -- Validate parameters first
+      IF text_weight = 0.0 AND vector_weight = 0.0 THEN
+        RAISE EXCEPTION '%', 'Text weight and vector weight cannot both be zero';
+      END IF;
+      
+      IF result_limit <= 0 THEN
+        RAISE EXCEPTION '%', 'Result limit must be positive';
+      END IF;
+      
+      RETURN QUERY
+      SELECT 
+        r.id,
+        r.github_id,
+        r.full_name,
+        r.name,
+        COALESCE(r.description, '') as description,
+        r.language,
+        ARRAY['testing', 'ai', 'search']::TEXT[] as topics,
+        r.stars as stars_count,
+        r.health_score,
+        85.0::REAL as activity_score,
+        true as first_time_contributor_friendly,
+        NOW() as created_at,
+        CASE 
+          WHEN search_text = '' THEN 0.5
+          WHEN COALESCE(r.description, '') ILIKE '%' || search_text || '%' THEN 0.9
+          WHEN r.name ILIKE '%' || search_text || '%' THEN 0.8
+          ELSE 0.1
+        END as relevance_score
+      FROM repositories r
+      WHERE (
+        search_text = '' OR 
+        COALESCE(r.description, '') ILIKE '%' || search_text || '%' OR 
+        r.name ILIKE '%' || search_text || '%'
+      )
+      AND CASE 
+        WHEN search_text = '' THEN 0.5
+        WHEN COALESCE(r.description, '') ILIKE '%' || search_text || '%' THEN 0.9
+        WHEN r.name ILIKE '%' || search_text || '%' THEN 0.8
+        ELSE 0.1
+      END >= similarity_threshold
+      ORDER BY relevance_score DESC, r.health_score DESC
+      LIMIT result_limit;
+    END
+    $$ LANGUAGE plpgsql;
+  `
 }
 
 export async function cleanupTestData(
@@ -232,21 +509,21 @@ export async function insertTestOpportunities(
 ) {
   const { repoId, oppId1, oppId2 } = testIds
 
-  // Use only columns that exist in PGlite schema
+  // Use all required columns including those added for schema compatibility
   await sql`
     INSERT INTO opportunities (
       id, repository_id, issue_number, title, description,
-      difficulty, estimated_hours, embedding
+      difficulty, estimated_hours, embedding, view_count, application_count, status
     ) VALUES 
     (
       ${oppId1}, ${repoId}, 1, 'Fix TypeScript type errors in search module',
       'Several type errors need to be fixed in the search functionality',
-      'intermediate', 4, ${formatVector(generateEmbedding(0.2))}
+      'intermediate', 4, ${formatVector(generateEmbedding(0.2))}, 100, 10, 'open'
     ),
     (
       ${oppId2}, ${repoId}, 2, 'Add AI-powered search capabilities',
       'Implement vector search using embeddings for better search results',
-      'advanced', 16, ${formatVector(generateEmbedding(0.3))}
+      'advanced', 16, ${formatVector(generateEmbedding(0.3))}, 50, 5, 'open'
     )
   `
 }

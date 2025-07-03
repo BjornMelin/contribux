@@ -16,18 +16,52 @@
  * - Database connection efficiency: <10ms pool checkout
  */
 
-import { sql } from 'drizzle-orm'
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { cacheLayer } from '@/lib/api/cache-layer'
 import { db } from '@/lib/db/connection'
 import { OptimizedQueryBuilder } from '@/lib/db/optimized-query-builder'
-import { opportunities, repositories, users } from '@/lib/db/schema'
+import { repositories } from '@/lib/db/schema'
 import { AdvancedDatabaseMonitor } from '@/lib/monitoring/advanced-database-monitor'
+import { sql } from 'drizzle-orm'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+
+// Type definitions for database objects
+interface DatabaseConstraint {
+  constraint_name: string
+  constraint_type: string
+  table_name: string
+}
+
+interface VectorIndex {
+  indexname: string
+  indexdef: string
+  tablename: string
+}
+
+interface PerformanceMetrics {
+  queryPerformance: {
+    averageLatency: number
+    totalQueries: number
+  }
+  connectionPool: {
+    averageCheckoutTime: number
+    activeConnections: number
+  }
+  vectorSearch: {
+    averageQueryTime: number
+    totalVectorQueries: number
+  }
+}
+
+interface CacheStats {
+  totalHitRate: {
+    combined: number
+  }
+}
 
 describe('Database Performance Validation', () => {
   let queryBuilder: OptimizedQueryBuilder
   let monitor: AdvancedDatabaseMonitor
-  let performanceBaseline: any
+  let performanceBaseline: PerformanceMetrics
 
   beforeAll(async () => {
     // Initialize components
@@ -50,7 +84,7 @@ describe('Database Performance Validation', () => {
     const report = await monitor.generateAdvancedReport()
 
     console.log('📈 Final Performance Metrics:', finalMetrics)
-    console.log('📋 Performance Report Summary:', report.slice(0, 500) + '...')
+    console.log('📋 Performance Report Summary:', `${report.slice(0, 500)}...`)
   })
 
   describe('Schema Optimization Validation', () => {
@@ -134,7 +168,7 @@ describe('Database Performance Validation', () => {
       expect(constraints.length).toBeGreaterThan(0)
 
       // Verify specific constraints exist
-      const constraintNames = constraints.map((c: any) => c.constraint_name)
+      const constraintNames = (constraints as DatabaseConstraint[]).map(c => c.constraint_name)
       expect(constraintNames).toContain('health_score_range')
       expect(constraintNames).toContain('github_id_positive')
     })
@@ -144,7 +178,7 @@ describe('Database Performance Validation', () => {
     it('should demonstrate optimized HNSW vector search performance', async () => {
       // Generate test vector embedding (1536 dimensions)
       const testEmbedding = Array.from({ length: 1536 }, () => Math.random() * 2 - 1)
-      const embeddingString = `[${testEmbedding.join(',')}]`
+      const _embeddingString = `[${testEmbedding.join(',')}]`
 
       const startTime = Date.now()
 
@@ -201,12 +235,14 @@ describe('Database Performance Validation', () => {
       `)
 
       const vectorIndexes = indexQuery.rows
-      console.log(`✅ Vector Indexes: ${vectorIndexes.length} vector indexes configured`)
-
-      // Validate index configuration
-      vectorIndexes.forEach((idx: any) => {
-        console.log(`📋 Index: ${idx.indexname} - ${idx.indexdef}`)
-      })
+      console
+        .log(`✅ Vector Indexes: ${vectorIndexes.length} vector indexes configured`)(
+          // Validate index configuration
+          vectorIndexes as VectorIndex[]
+        )
+        .forEach(idx => {
+          console.log(`📋 Index: ${idx.indexname} - ${idx.indexdef}`)
+        })
 
       expect(vectorIndexes.length).toBeGreaterThan(0)
     })
@@ -506,7 +542,7 @@ describe('Database Performance Validation', () => {
 })
 
 // Helper function to calculate performance grade
-function calculatePerformanceGrade(metrics: any, cacheStats: any): string {
+function _calculatePerformanceGrade(metrics: PerformanceMetrics, cacheStats: CacheStats): string {
   const scores = [
     metrics.queryPerformance.averageLatency < 100
       ? 100

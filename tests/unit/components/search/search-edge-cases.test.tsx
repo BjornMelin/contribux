@@ -7,11 +7,11 @@
  * Tests boundary conditions, error scenarios, and edge cases
  */
 
+import { OpportunityCard, OpportunityList, SearchBar, SearchFilters } from '@/components/features'
+import type { Opportunity, SearchFilters as SearchFiltersType } from '@/types/search'
 import { fireEvent, screen, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { OpportunityCard, OpportunityList, SearchBar, SearchFilters } from '@/components/features'
-import type { Opportunity, SearchFilters as SearchFiltersType } from '@/types/search'
 import {
   asUUID,
   createDefaultFilters,

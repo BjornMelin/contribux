@@ -5,16 +5,16 @@
  * Focuses on end-to-end workflows and system stability under load.
  */
 
-import { HttpResponse, http } from 'msw'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { GitHubClient } from '@/lib/github'
+import { http, HttpResponse } from 'msw'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { createRateLimitHeaders } from '../github/test-helpers'
 import {
   BATCH_CONFIG,
-  createMockUser,
-  createWebhookPayloads,
   LOAD_TEST_CONFIG,
   PERFORMANCE_THRESHOLDS,
+  createMockUser,
+  createWebhookPayloads,
 } from './fixtures/load-test-data'
 import { setupPerformanceTest } from './setup/performance-setup'
 import { addTestHandlers, createTrackedClient } from './utils/load-test-helpers'

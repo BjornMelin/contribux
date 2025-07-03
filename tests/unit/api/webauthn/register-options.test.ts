@@ -3,8 +3,8 @@
  * Tests for /api/security/webauthn/register/options endpoint
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { POST } from '@/app/api/security/webauthn/register/options/route'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { setupDatabaseMock, setupWebAuthnServerMock } from '../../../utils/mocks'
 
 // Mock dependencies

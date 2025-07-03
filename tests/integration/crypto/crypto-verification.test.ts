@@ -1,4 +1,3 @@
-import { describe, expect, test } from 'vitest'
 import {
   adaptiveCreateHash,
   base64url,
@@ -9,6 +8,7 @@ import {
   isEdgeRuntime,
   timingSafeEqual,
 } from '@/lib/crypto-utils'
+import { describe, expect, test } from 'vitest'
 
 describe('Crypto Integration Verification', () => {
   test('should perform SHA-256 hashing correctly', async () => {

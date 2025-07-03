@@ -4,14 +4,14 @@
  * Tests SQL injection prevention in table truncation operations
  */
 
+import type { DatabaseConnection } from '@/lib/test-utils/test-database-manager'
+import { TestDatabaseManager } from '@/lib/test-utils/test-database-manager'
 import type { PGlite } from '@electric-sql/pglite'
 import type { NeonQueryFunction } from '@neondatabase/serverless'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { DatabaseConnection } from '@/lib/test-utils/test-database-manager'
-import { TestDatabaseManager } from '@/lib/test-utils/test-database-manager'
 
 // Type-safe interface for accessing private methods in tests
-interface TestDatabaseManagerInternal {
+interface TestDatabaseManagerInternal extends TestDatabaseManager {
   truncateAllTables(sql: NeonQueryFunction<false, false>): Promise<void>
   truncateAllTablesPGlite(db: PGlite): Promise<void>
   validateTableName(tableName: unknown): void
@@ -79,7 +79,27 @@ describe('TestDatabaseManager Security', () => {
             try {
               // This should throw for malicious table names
               this.validateTableName(table)
-              await sqlClient`TRUNCATE TABLE ${table} CASCADE`
+
+              // Use switch statement like the real implementation to avoid SQL injection
+              switch (table) {
+                case 'user_skills':
+                  await sqlClient`TRUNCATE TABLE user_skills CASCADE`
+                  break
+                case 'opportunities':
+                  await sqlClient`TRUNCATE TABLE opportunities CASCADE`
+                  break
+                case 'repositories':
+                  await sqlClient`TRUNCATE TABLE repositories CASCADE`
+                  break
+                case 'users':
+                  await sqlClient`TRUNCATE TABLE users CASCADE`
+                  break
+                default:
+                  // This should never be reached for valid table names due to validation
+                  throw new Error(
+                    `Invalid table name: ${table}. Only predefined tables are allowed for truncation.`
+                  )
+              }
             } catch (error) {
               if (error instanceof Error && error.message.includes('Invalid table name')) {
                 throw error
@@ -136,7 +156,27 @@ describe('TestDatabaseManager Security', () => {
             try {
               // This should throw for malicious table names
               this.validateTableName(table)
-              await db.query(`TRUNCATE TABLE ${table} CASCADE`)
+
+              // Use switch statement like the real implementation to avoid SQL injection
+              switch (table) {
+                case 'user_skills':
+                  await db.query('TRUNCATE TABLE user_skills CASCADE')
+                  break
+                case 'opportunities':
+                  await db.query('TRUNCATE TABLE opportunities CASCADE')
+                  break
+                case 'repositories':
+                  await db.query('TRUNCATE TABLE repositories CASCADE')
+                  break
+                case 'users':
+                  await db.query('TRUNCATE TABLE users CASCADE')
+                  break
+                default:
+                  // This should never be reached for valid table names due to validation
+                  throw new Error(
+                    `Invalid table name: ${table}. Only predefined tables are allowed for truncation.`
+                  )
+              }
             } catch (error) {
               if (error instanceof Error && error.message.includes('Invalid table name')) {
                 throw error

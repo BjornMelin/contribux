@@ -15,9 +15,10 @@ beforeAll(async () => {
   // Ensure clean test environment
   process.env.NODE_ENV = 'test'
 
-  // Setup fetch polyfill for Node.js MSW compatibility
-  const { fetch, Headers, Request, Response, FormData } = await import('undici')
-  Object.assign(globalThis, { fetch, Headers, Request, Response, FormData })
+  // Use Node.js built-in fetch (Node 18+) if available
+  if (typeof globalThis.fetch === 'undefined') {
+    console.warn('No fetch implementation available. Some tests may fail.')
+  }
 
   // Ensure TransformStream is available for MSW 2.x
   if (typeof globalThis.TransformStream === 'undefined') {

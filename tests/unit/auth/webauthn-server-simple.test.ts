@@ -13,8 +13,8 @@ setupWebAuthnServerMock()
 // Import after mocks are set up
 import {
   generateWebAuthnRegistration,
-  verifyWebAuthnRegistration,
   getUserWebAuthnCredentials,
+  verifyWebAuthnRegistration,
 } from '@/lib/security/webauthn/server'
 
 describe('WebAuthn Server Core Functions', () => {

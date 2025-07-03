@@ -11,7 +11,7 @@
  * - Data integrity validation
  */
 
-import { HttpResponse, http } from 'msw'
+import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { z } from 'zod'
@@ -142,14 +142,21 @@ describe('Input Validation & Sanitization', () => {
           // Check for dangerous characters in comma-separated values
           const dangerousPatterns = [
             /[<>"'&]/, // XSS characters
-            /[\x00-\x1f\x7f]/, // Control characters
+            // Control characters check using charCode ranges
+            (str: string) =>
+              str.split('').some(char => {
+                const code = char.charCodeAt(0)
+                return (code >= 0 && code <= 31) || code === 127
+              }),
             /[;|`]/, // Command injection characters
           ]
 
           for (const param of [labels, skillsRequired]) {
             if (param) {
               for (const pattern of dangerousPatterns) {
-                if (pattern.test(param)) {
+                const hasMatch =
+                  typeof pattern === 'function' ? pattern(param) : pattern.test(param)
+                if (hasMatch) {
                   return HttpResponse.json(
                     {
                       success: false,

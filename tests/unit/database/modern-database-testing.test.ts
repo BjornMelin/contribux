@@ -5,10 +5,10 @@
  * Shows automatic database strategy selection and modern testing patterns.
  */
 
-import { beforeEach, describe, expect, it } from 'vitest'
 import { createTestFactories } from '@/lib/test-utils/database-factories'
 import type { DatabaseConnection } from '@/lib/test-utils/test-database-manager'
 import { getTestDatabase } from '@/lib/test-utils/test-database-manager'
+import { beforeEach, describe, expect, it } from 'vitest'
 
 describe('Modern Database Testing Infrastructure', () => {
   let db: DatabaseConnection
@@ -274,7 +274,7 @@ describe('Modern Database Testing Infrastructure', () => {
       expect(vectorScenario.opportunities).toHaveLength(3)
 
       // Test semantic similarity search for ML opportunities (simplified for PGlite compatibility)
-      const mlQuery = Array.from({ length: 1536 }, () => 0.5) // Similar to first two opportunities
+      const _mlQuery = Array.from({ length: 1536 }, () => 0.5) // Similar to first two opportunities
 
       // Simplified query for PGlite - instead of vector operations, use title-based sorting
       const semanticallyRelated = await sql`

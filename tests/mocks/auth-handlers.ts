@@ -3,7 +3,7 @@
  * Comprehensive mocking for NextAuth.js and authentication endpoints
  */
 
-import { HttpResponse, http } from 'msw'
+import { http, HttpResponse } from 'msw'
 
 // Base URLs
 const BASE_URL = 'http://localhost:3000'

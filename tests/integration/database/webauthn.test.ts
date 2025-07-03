@@ -3,7 +3,6 @@
  * Tests for WebAuthn credential storage and retrieval operations
  */
 
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { sql } from '@/lib/db/config'
 import {
   generateWebAuthnAuthentication,
@@ -13,6 +12,7 @@ import {
   verifyWebAuthnAuthentication,
   verifyWebAuthnRegistration,
 } from '@/lib/security/webauthn/server'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock the security feature flags
 vi.mock('@/lib/security/feature-flags', () => ({
@@ -70,7 +70,7 @@ vi.mock('@simplewebauthn/server', () => ({
 }))
 
 describe('WebAuthn Database Integration', () => {
-  const testUserId = 'test-user-integration-' + Math.random().toString(36).substring(7)
+  const testUserId = `test-user-integration-${Math.random().toString(36).substring(7)}`
   const testUserEmail = 'test-integration@example.com'
   let testCredentialId: string | null = null
 
@@ -129,7 +129,9 @@ describe('WebAuthn Database Integration', () => {
 
       expect(result.verified).toBe(true)
       expect(result.credentialId).toBeDefined()
-      testCredentialId = result.credentialId!
+      if (result.credentialId) {
+        testCredentialId = result.credentialId
+      }
 
       // Verify credential was stored in database
       const storedCredentials = await sql`
@@ -245,13 +247,15 @@ describe('WebAuthn Database Integration', () => {
         setupCredential,
         'setup-challenge'
       )
-      testCredentialId = result.credentialId!
+      if (result.credentialId) {
+        testCredentialId = result.credentialId
+      }
     })
 
     it('should verify authentication and update counter', async () => {
       // Mock authentication response
       const mockAuthResponse = {
-        id: testCredentialId!,
+        id: testCredentialId || 'fallback-credential-id',
         rawId: 'auth-raw-id',
         response: {
           clientDataJSON: 'auth-client-data',
@@ -378,7 +382,7 @@ describe('WebAuthn Database Integration', () => {
     })
 
     it('should prevent removing other users credentials', async () => {
-      const otherUserId = 'other-user-' + Math.random().toString(36).substring(7)
+      const otherUserId = `other-user-${Math.random().toString(36).substring(7)}`
       const credentials = await getUserWebAuthnCredentials(testUserId)
       const credentialId = credentials[0].credential_id
 
@@ -403,7 +407,7 @@ describe('WebAuthn Database Integration', () => {
 
   describe('Database Constraints and Validation', () => {
     it('should enforce foreign key constraint on user_id', async () => {
-      const nonExistentUserId = 'non-existent-user-' + Math.random().toString(36).substring(7)
+      const nonExistentUserId = `non-existent-user-${Math.random().toString(36).substring(7)}`
       const mockResponse = {
         id: 'constraint-test-credential',
         rawId: 'constraint-test-raw-id',
@@ -566,8 +570,8 @@ describe('WebAuthn Database Integration', () => {
 
     it('should handle database connection failures gracefully', async () => {
       // Mock database failure
-      const originalSql = sql
-      const mockFailingSql = vi.fn().mockRejectedValue(new Error('Connection timeout'))
+      const _originalSql = sql
+      const _mockFailingSql = vi.fn().mockRejectedValue(new Error('Connection timeout'))
 
       // This test would require more complex mocking of the sql import
       // In a real scenario, you'd test with actual connection failures

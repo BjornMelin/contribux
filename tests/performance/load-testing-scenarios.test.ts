@@ -5,15 +5,15 @@
  * Focuses on real-world usage scenarios and concurrent operations.
  */
 
-import { HttpResponse, http } from 'msw'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { GitHubClient } from '@/lib/github'
+import { http, HttpResponse } from 'msw'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { createRateLimitHeaders } from '../github/test-helpers'
 import {
-  createMockUser,
-  createMockViewer,
   LOAD_SCENARIOS,
   LOAD_TEST_CONFIG,
+  createMockUser,
+  createMockViewer,
 } from './fixtures/load-test-data'
 import { setupPerformanceTest } from './setup/performance-setup'
 import {

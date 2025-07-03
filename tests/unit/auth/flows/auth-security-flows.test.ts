@@ -9,8 +9,8 @@
  * - Attack prevention and protection
  */
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { GitHubClient } from '@/lib/github/client'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { IntegrationTestContext } from '../../integration/infrastructure/test-config'
 import {
   describeIntegration,

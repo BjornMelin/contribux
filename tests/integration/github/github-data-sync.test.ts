@@ -10,8 +10,8 @@
  * - Cache statistics and monitoring
  */
 
+import { GitHubClient, createGitHubClient } from '@/lib/github/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createGitHubClient, GitHubClient } from '@/lib/github/client'
 import { mockGitHubAPI } from '../msw-setup'
 import { setupGitHubTestIsolation } from '../test-helpers'
 

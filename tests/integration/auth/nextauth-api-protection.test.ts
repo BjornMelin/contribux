@@ -3,10 +3,10 @@
  * Testing authenticated vs unauthenticated access, middleware validation, and role-based access
  */
 
-import type { NextRequest } from 'next/server'
-import type { Session } from 'next-auth'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { auth } from '@/lib/auth'
+import type { Session } from 'next-auth'
+import type { NextRequest } from 'next/server'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock NextAuth auth function
 vi.mock('@/lib/auth', () => ({

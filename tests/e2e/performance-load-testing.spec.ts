@@ -4,7 +4,7 @@
  */
 
 import { expect, test } from '@playwright/test'
-import { assertions, E2ETestUtils } from './utils/test-helpers'
+import { E2ETestUtils, assertions } from './utils/test-helpers'
 
 test.describe('Performance and Load Testing', () => {
   let utils: E2ETestUtils

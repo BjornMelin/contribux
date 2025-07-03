@@ -1,6 +1,6 @@
 const express = require('express')
 const bodyParser = require('body-parser')
-const crypto = require('crypto')
+const crypto = require('node:crypto')
 
 const app = express()
 const PORT = process.env.PORT || 3001

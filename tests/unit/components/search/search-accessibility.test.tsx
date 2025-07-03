@@ -7,10 +7,10 @@
  * Comprehensive accessibility testing for search components
  */
 
+import { OpportunityCard, OpportunityList, SearchBar, SearchFilters } from '@/components/features'
 import { screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { OpportunityCard, OpportunityList, SearchBar, SearchFilters } from '@/components/features'
 import { mockOpportunities, sharedMockOpportunity } from './fixtures/search-component-data'
 import {
   createDefaultFilters,

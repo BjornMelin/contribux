@@ -15,16 +15,16 @@
  * - Performance monitoring
  */
 
+import type { GitHubRepository } from '@/src/lib/github/types'
+import { cleanupComponentTest, setupComponentTest } from '@/tests/utils/modern-test-helpers'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import { HttpResponse, http } from 'msw'
+import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
 import { SessionProvider } from 'next-auth/react'
 import React, { useEffect, useMemo, useState } from 'react'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { GitHubRepository } from '@/src/lib/github/types'
-import { cleanupComponentTest, setupComponentTest } from '@/tests/utils/modern-test-helpers'
 
 // Mock components representing the actual app components
 const SearchBar = ({
@@ -770,20 +770,23 @@ describe('Component-API Integration Testing', () => {
       const { unmount } = render(
         <TestWrapper>
           <div>
-            {Array.from({ length: 50 }, (_, i) => (
-              <RepositoryCard
-                key={`repo-${i}`}
-                repository={{
-                  id: `repo-${i}`,
-                  name: `Test Repo ${i}`,
-                  description: 'Test description',
-                  language: 'TypeScript',
-                  stars: 100,
-                  is_bookmarked: false,
-                }}
-                onBookmark={vi.fn()}
-              />
-            ))}
+            {Array.from({ length: 50 }, (_, i) => {
+              const repoId = `repo-${i}`
+              return (
+                <RepositoryCard
+                  key={repoId}
+                  repository={{
+                    id: repoId,
+                    name: `Test Repo ${i}`,
+                    description: 'Test description',
+                    language: 'TypeScript',
+                    stars: 100,
+                    is_bookmarked: false,
+                  }}
+                  onBookmark={vi.fn()}
+                />
+              )
+            })}
           </div>
         </TestWrapper>
       )

@@ -4,19 +4,19 @@
  * connection security, data access control, and encryption validation
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { sql } from '@/lib/db/config'
 import { RepositoryQueries } from '@/lib/db/queries/repositories'
 import { UserQueries } from '@/lib/db/queries/users'
 import {
+  SafeSearchQuerySchema,
+  VectorEmbeddingSchema,
   buildSafeFilterConditions,
   detectSuspiciousQuery,
-  SafeSearchQuerySchema,
   sanitizeJsonInput,
   sanitizeSearchQuery,
   sanitizeVectorEmbedding,
-  VectorEmbeddingSchema,
 } from '@/lib/db/schema'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock database connection
 vi.mock('../../src/lib/db/config', () => ({
@@ -729,7 +729,7 @@ describe('Database Security Testing', () => {
 
         await sql`
           INSERT INTO user_profiles (user_id, preferences, created_at)
-          VALUES (${'user-123'}, ${'{\"theme\": \"dark\"}'}, CURRENT_TIMESTAMP)
+          VALUES (${'user-123'}, ${'{"theme": "dark"}'}, CURRENT_TIMESTAMP)
         `
 
         await sql`COMMIT`
@@ -812,7 +812,7 @@ describe('Database Security Testing', () => {
         )
         VALUES (
           ${operation}, ${'high'}, ${userId}, ${ipAddress},
-          ${'Mozilla/5.0'}, ${true}, ${'{\"method\": \"oauth_reset\"}'}, 
+          ${'Mozilla/5.0'}, ${true}, ${'{"method": "oauth_reset"}'}, 
           CURRENT_TIMESTAMP
         )
       `
@@ -828,7 +828,7 @@ describe('Database Security Testing', () => {
         ipAddress,
         'Mozilla/5.0',
         true,
-        '{\"method\": \"oauth_reset\"}'
+        '{"method": "oauth_reset"}'
       )
     })
 
@@ -846,7 +846,7 @@ describe('Database Security Testing', () => {
         )
         VALUES (
           ${'login_attempt'}, ${'warning'}, ${email}, ${ipAddress},
-          ${false}, ${'{\"reason\": \"invalid_credentials\"}'}, 
+          ${false}, ${'{"reason": "invalid_credentials"}'}, 
           CURRENT_TIMESTAMP
         )
       `
@@ -861,7 +861,7 @@ describe('Database Security Testing', () => {
         email,
         ipAddress,
         false,
-        '{\"reason\": \"invalid_credentials\"}'
+        '{"reason": "invalid_credentials"}'
       )
     })
   })

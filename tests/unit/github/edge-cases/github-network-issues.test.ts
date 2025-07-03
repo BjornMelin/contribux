@@ -13,12 +13,12 @@
  * - Proxy and Firewall Issues
  */
 
-import { HttpResponse, http } from 'msw'
+import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 import { mswServer } from '../msw-setup'
 import {
-  createEdgeCaseClient,
   EDGE_CASE_CONFIG,
+  createEdgeCaseClient,
   setupEdgeCaseTestIsolation,
 } from './setup/edge-case-setup'
 import { RetryFailureSimulator } from './utils/error-test-helpers'

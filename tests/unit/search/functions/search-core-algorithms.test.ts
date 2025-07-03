@@ -36,23 +36,16 @@ describe('Search Core Algorithms', () => {
   describe('Text Search Algorithm', () => {
     it('should perform text-only search for opportunities', async () => {
       const { connection, testIds } = context
-      const { rows } = await connection.sql(
-        `
+      const { rows } = await connection.sql`
         SELECT * FROM hybrid_search_opportunities(
-          search_text := $1,
-          text_weight := $2,
-          vector_weight := $3,
-          similarity_threshold := $4,
-          result_limit := 10
+          ${searchQueries.text.typescript},
+          NULL,
+          ${searchParameters.textOnly.text_weight},
+          ${searchParameters.textOnly.vector_weight},
+          ${searchParameters.textOnly.similarity_threshold},
+          10
         )
-      `,
-        [
-          searchQueries.text.typescript,
-          searchParameters.textOnly.text_weight,
-          searchParameters.textOnly.vector_weight,
-          searchParameters.textOnly.similarity_threshold,
-        ]
-      )
+      `
 
       expect(rows).toHaveLength(1)
       expect(rows[0].id).toBe(testIds.oppId1)
@@ -64,22 +57,16 @@ describe('Search Core Algorithms', () => {
 
     it('should perform text-only search for repositories', async () => {
       const { connection, testIds } = context
-      const { rows } = await connection.sql(
-        `
+      const { rows } = await connection.sql`
         SELECT * FROM hybrid_search_repositories(
-          search_text := $1,
-          text_weight := $2,
-          vector_weight := $3,
-          similarity_threshold := $4
+          ${searchQueries.text.aiSearch},
+          NULL,
+          ${searchParameters.textOnly.text_weight},
+          ${searchParameters.textOnly.vector_weight},
+          ${searchParameters.textOnly.similarity_threshold},
+          10
         )
-      `,
-        [
-          searchQueries.text.aiSearch,
-          searchParameters.textOnly.text_weight,
-          searchParameters.textOnly.vector_weight,
-          searchParameters.textOnly.similarity_threshold,
-        ]
-      )
+      `
 
       expect(rows).toHaveLength(1)
       expect(rows[0].id).toBe(testIds.repoId)
@@ -91,22 +78,16 @@ describe('Search Core Algorithms', () => {
 
     it('should match repository topics in text search', async () => {
       const { connection, testIds } = context
-      const { rows } = await connection.sql(
-        `
+      const { rows } = await connection.sql`
         SELECT * FROM hybrid_search_repositories(
-          search_text := $1,
-          text_weight := $2,
-          vector_weight := $3,
-          similarity_threshold := $4
+          ${searchQueries.text.testing},
+          NULL,
+          ${searchParameters.textOnly.text_weight},
+          ${searchParameters.textOnly.vector_weight},
+          ${searchParameters.textOnly.similarity_threshold},
+          10
         )
-      `,
-        [
-          searchQueries.text.testing,
-          searchParameters.textOnly.text_weight,
-          searchParameters.textOnly.vector_weight,
-          searchParameters.textOnly.similarity_threshold,
-        ]
-      )
+      `
 
       expect(rows).toHaveLength(1)
       expect(rows[0].id).toBe(testIds.repoId)
@@ -117,22 +98,16 @@ describe('Search Core Algorithms', () => {
   describe('Relevance Scoring', () => {
     it('should calculate relevance scores correctly', async () => {
       const { connection } = context
-      const { rows } = await connection.sql(
-        `
+      const { rows } = await connection.sql`
         SELECT * FROM hybrid_search_opportunities(
-          search_text := $1,
-          text_weight := $2,
-          vector_weight := $3,
-          similarity_threshold := $4
+          ${searchQueries.text.typescript},
+          NULL,
+          ${searchParameters.textOnly.text_weight},
+          ${searchParameters.textOnly.vector_weight},
+          ${searchParameters.textOnly.similarity_threshold},
+          10
         )
-      `,
-        [
-          searchQueries.text.typescript,
-          searchParameters.textOnly.text_weight,
-          searchParameters.textOnly.vector_weight,
-          searchParameters.textOnly.similarity_threshold,
-        ]
-      )
+      `
 
       expect(rows).toHaveLength(1)
       const result = rows[0]
@@ -147,22 +122,16 @@ describe('Search Core Algorithms', () => {
 
     it('should handle empty search text gracefully', async () => {
       const { connection } = context
-      const { rows } = await connection.sql(
-        `
+      const { rows } = await connection.sql`
         SELECT * FROM hybrid_search_opportunities(
-          search_text := $1,
-          text_weight := $2,
-          vector_weight := $3,
-          similarity_threshold := $4
+          ${searchQueries.text.empty},
+          NULL,
+          ${searchParameters.hybrid.text_weight},
+          ${searchParameters.hybrid.vector_weight},
+          ${searchParameters.hybrid.similarity_threshold},
+          10
         )
-      `,
-        [
-          searchQueries.text.empty,
-          searchParameters.hybrid.text_weight,
-          searchParameters.hybrid.vector_weight,
-          searchParameters.hybrid.similarity_threshold,
-        ]
-      )
+      `
 
       expect(rows).toHaveLength(2)
       // All should have moderate scores for empty search
@@ -176,39 +145,32 @@ describe('Search Core Algorithms', () => {
   describe('Search Threshold Management', () => {
     it('should respect similarity threshold', async () => {
       const { connection } = context
-      const { rows } = await connection.sql(
-        `
+      const { rows } = await connection.sql`
         SELECT * FROM hybrid_search_opportunities(
-          search_text := $1,
-          text_weight := $2,
-          vector_weight := $3,
-          similarity_threshold := $4,
-          result_limit := 10
+          ${searchQueries.text.unrelated},
+          NULL,
+          ${searchParameters.strict.text_weight},
+          ${searchParameters.strict.vector_weight},
+          ${searchParameters.strict.similarity_threshold},
+          10
         )
-      `,
-        [
-          searchQueries.text.unrelated,
-          searchParameters.strict.text_weight,
-          searchParameters.strict.vector_weight,
-          searchParameters.strict.similarity_threshold,
-        ]
-      )
+      `
 
       expect(rows).toHaveLength(0)
     })
 
     it('should limit results correctly', async () => {
       const { connection } = context
-      const { rows } = await connection.sql(
-        `
+      const { rows } = await connection.sql`
         SELECT * FROM hybrid_search_opportunities(
-          search_text := $1,
-          similarity_threshold := $2,
-          result_limit := 1
+          ${searchQueries.text.typescript},
+          NULL,
+          1.0,
+          0.0,
+          ${searchParameters.textOnly.similarity_threshold},
+          1
         )
-      `,
-        [searchQueries.text.typescript, searchParameters.textOnly.similarity_threshold]
-      )
+      `
 
       expect(rows).toHaveLength(1)
     })
@@ -218,23 +180,32 @@ describe('Search Core Algorithms', () => {
     it('should throw error for invalid weight configuration', async () => {
       const { connection } = context
       await expect(
-        connection.sql(`
+        connection.sql`
           SELECT * FROM hybrid_search_opportunities(
-            text_weight := 0.0,
-            vector_weight := 0.0
+            '',
+            NULL,
+            0.0,
+            0.0,
+            0.01,
+            10
           )
-        `)
+        `
       ).rejects.toThrow(errorMessages.zeroWeights)
     })
 
     it('should throw error for invalid result limit', async () => {
       const { connection } = context
       await expect(
-        connection.sql(`
+        connection.sql`
           SELECT * FROM hybrid_search_opportunities(
-            result_limit := 0
+            '',
+            NULL,
+            1.0,
+            0.0,
+            0.01,
+            0
           )
-        `)
+        `
       ).rejects.toThrow(errorMessages.invalidLimit)
     })
 
@@ -243,12 +214,13 @@ describe('Search Core Algorithms', () => {
       const queryEmbedding = 'array_fill(0.25::real, ARRAY[1536])::halfvec(1536)'
 
       await expect(
-        connection.sql(`
+        connection.sql`
           SELECT * FROM search_similar_users(
-            query_embedding := ${queryEmbedding},
-            result_limit := -1
+            ${queryEmbedding},
+            0.9,
+            -1
           )
-        `)
+        `
       ).rejects.toThrow(errorMessages.invalidLimit)
     })
   })
@@ -256,14 +228,16 @@ describe('Search Core Algorithms', () => {
   describe('Query Processing', () => {
     it('should handle special characters in search text', async () => {
       const { connection } = context
-      const { rows } = await connection.sql(`
+      const { rows } = await connection.sql`
         SELECT * FROM hybrid_search_opportunities(
-          search_text := 'TypeScript & debugging @#$%',
-          text_weight := 1.0,
-          vector_weight := 0.0,
-          similarity_threshold := 0.01
+          'TypeScript & debugging @#$%',
+          NULL,
+          1.0,
+          0.0,
+          0.01,
+          10
         )
-      `)
+      `
 
       // Should still find the TypeScript opportunity
       expect(rows.length).toBeGreaterThanOrEqual(1)
@@ -271,14 +245,16 @@ describe('Search Core Algorithms', () => {
 
     it('should be case insensitive for text search', async () => {
       const { connection, testIds } = context
-      const { rows } = await connection.sql(`
+      const { rows } = await connection.sql`
         SELECT * FROM hybrid_search_opportunities(
-          search_text := 'TYPESCRIPT TYPE ERRORS',
-          text_weight := 1.0,
-          vector_weight := 0.0,
-          similarity_threshold := 0.01
+          'TYPESCRIPT TYPE ERRORS',
+          NULL,
+          1.0,
+          0.0,
+          0.01,
+          10
         )
-      `)
+      `
 
       expect(rows).toHaveLength(1)
       expect(rows[0].id).toBe(testIds.oppId1)
@@ -288,14 +264,16 @@ describe('Search Core Algorithms', () => {
   describe('Ranking Algorithm', () => {
     it('should rank results by relevance score', async () => {
       const { connection } = context
-      const { rows } = await connection.sql(`
+      const { rows } = await connection.sql`
         SELECT * FROM hybrid_search_opportunities(
-          search_text := 'search',
-          text_weight := 1.0,
-          vector_weight := 0.0,
-          similarity_threshold := 0.01
+          'search',
+          NULL,
+          1.0,
+          0.0,
+          0.01,
+          10
         ) ORDER BY relevance_score DESC
-      `)
+      `
 
       // Should have multiple results
       expect(rows.length).toBeGreaterThan(1)
@@ -312,15 +290,18 @@ describe('Search Core Algorithms', () => {
       // Run the same query multiple times
       const queries = Array(3)
         .fill(null)
-        .map(() =>
-          connection.sql(`
+        .map(
+          () =>
+            connection.sql`
           SELECT * FROM hybrid_search_opportunities(
-            search_text := 'search',
-            text_weight := 1.0,
-            vector_weight := 0.0,
-            similarity_threshold := 0.01
+            'search',
+            NULL,
+            1.0,
+            0.0,
+            0.01,
+            10
           ) ORDER BY relevance_score DESC, id
-        `)
+        `
         )
 
       const results = await Promise.all(queries)

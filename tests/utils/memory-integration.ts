@@ -6,12 +6,12 @@
 
 import { afterAll, beforeAll } from 'vitest'
 import {
+  type MemoryMonitorConfig,
+  type MemorySnapshot,
   analyzeMemoryTrends,
   cleanupMemoryMonitoring,
   getMemoryMonitoringStats,
   initializeMemoryMonitoring,
-  type MemoryMonitorConfig,
-  type MemorySnapshot,
   takeMemorySnapshot,
 } from './memory-monitor'
 

@@ -3,7 +3,6 @@
  * Comprehensive test suite for WebAuthn server functions
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   generateWebAuthnAuthentication,
   generateWebAuthnRegistration,
@@ -12,6 +11,7 @@ import {
   verifyWebAuthnAuthentication,
   verifyWebAuthnRegistration,
 } from '@/lib/security/webauthn/server'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { setupDatabaseMock, setupWebAuthnServerMock } from '../../utils/mocks'
 
 // Mock the database and WebAuthn server

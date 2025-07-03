@@ -3,8 +3,8 @@
  * Comprehensive testing of Next.js API routes, serverless function performance, and API response times
  */
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { TestDatabaseManager } from '@/lib/test-utils/test-database-manager'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 // API Performance thresholds (in milliseconds)
 const API_PERFORMANCE_THRESHOLDS = {
@@ -591,6 +591,4 @@ describe('API Performance Testing', () => {
   })
 })
 
-// Export utilities for other test files
-export { type measureApiCall, type runLoadTest, API_PERFORMANCE_THRESHOLDS }
-export type { ApiPerformanceMetrics, LoadTestResults }
+// Internal test utilities - moved to separate utility file if needed for sharing

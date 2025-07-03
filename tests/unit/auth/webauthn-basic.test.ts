@@ -3,7 +3,13 @@
  * Tests the core WebAuthn functions with proper mocking
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+// Mock environment variables before any imports
+vi.stubEnv('NODE_ENV', 'test')
+vi.stubEnv('WEBAUTHN_RP_ID', 'localhost')
+vi.stubEnv('WEBAUTHN_ORIGIN', 'http://localhost:3000')
+vi.stubEnv('ENABLE_WEBAUTHN', 'true')
 
 describe('WebAuthn Basic Functionality', () => {
   beforeEach(() => {

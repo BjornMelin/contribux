@@ -25,7 +25,7 @@ vi.mock('next/server', () => {
   }
 
   MockNextRequest.prototype.headers = {
-    get: vi.fn((key: string) => null),
+    get: vi.fn((_key: string) => null),
     set: vi.fn(),
   }
 
@@ -50,7 +50,7 @@ vi.mock('next/server', () => {
   }
 
   MockNextResponse.prototype.headers = {
-    get: vi.fn((key: string) => null),
+    get: vi.fn((_key: string) => null),
     set: vi.fn(),
   }
 
@@ -311,7 +311,6 @@ describe('Main Middleware', () => {
       const { enhancedSecurityMiddleware } = await import(
         '../../src/lib/security/enhanced-middleware'
       )
-
       ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
 
       const request = createMockRequest('https://example.com/api/search', {
@@ -327,7 +326,6 @@ describe('Main Middleware', () => {
       const { enhancedSecurityMiddleware } = await import(
         '../../src/lib/security/enhanced-middleware'
       )
-
       ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
 
       const request = createMockRequest('https://example.com/api/repositories', {
@@ -347,7 +345,6 @@ describe('Main Middleware', () => {
       const { enhancedSecurityMiddleware } = await import(
         '../../src/lib/security/enhanced-middleware'
       )
-
       ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
 
       const request = createMockRequest('https://example.com/api/bookmarks/123', {
@@ -363,7 +360,6 @@ describe('Main Middleware', () => {
       const { enhancedSecurityMiddleware } = await import(
         '../../src/lib/security/enhanced-middleware'
       )
-
       ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
 
       const request = createMockRequest('https://example.com/api/bookmarks/123', {
@@ -403,7 +399,6 @@ describe('Main Middleware', () => {
       const { enhancedSecurityMiddleware } = await import(
         '../../src/lib/security/enhanced-middleware'
       )
-
       ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
 
       const apiRoutes = ['/api/search', '/api/repositories', '/api/bookmarks', '/api/auth/callback']
@@ -421,7 +416,6 @@ describe('Main Middleware', () => {
       const { enhancedSecurityMiddleware } = await import(
         '../../src/lib/security/enhanced-middleware'
       )
-
       ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
 
       const pageRoutes = ['/', '/search', '/repository/123', '/profile']
@@ -439,7 +433,6 @@ describe('Main Middleware', () => {
       const { enhancedSecurityMiddleware } = await import(
         '../../src/lib/security/enhanced-middleware'
       )
-
       ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
 
       const request = createMockRequest(
@@ -464,7 +457,6 @@ describe('Main Middleware', () => {
       const { enhancedSecurityMiddleware } = await import(
         '../../src/lib/security/enhanced-middleware'
       )
-
       ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
 
       const request = createMockRequest('https://example.com/api/test')
@@ -516,7 +508,6 @@ describe('Main Middleware', () => {
       const { enhancedSecurityMiddleware } = await import(
         '../../src/lib/security/enhanced-middleware'
       )
-
       ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
 
       const requests = Array.from({ length: 10 }, (_, i) =>
@@ -536,7 +527,6 @@ describe('Main Middleware', () => {
       const { enhancedSecurityMiddleware } = await import(
         '../../src/lib/security/enhanced-middleware'
       )
-
       ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
 
       const request = createMockRequest('https://example.com/api/test')
@@ -553,7 +543,6 @@ describe('Main Middleware', () => {
       const { enhancedSecurityMiddleware } = await import(
         '../../src/lib/security/enhanced-middleware'
       )
-
       ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
 
       // Simulate many rapid requests
@@ -606,7 +595,6 @@ describe('Main Middleware', () => {
       const { enhancedSecurityMiddleware } = await import(
         '../../src/lib/security/enhanced-middleware'
       )
-
       ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
 
       const authRequest = createMockRequest(
@@ -629,7 +617,6 @@ describe('Main Middleware', () => {
       const { enhancedSecurityMiddleware } = await import(
         '../../src/lib/security/enhanced-middleware'
       )
-
       ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
 
       const searchRequest = createMockRequest(
@@ -652,7 +639,6 @@ describe('Main Middleware', () => {
       const { enhancedSecurityMiddleware } = await import(
         '../../src/lib/security/enhanced-middleware'
       )
-
       ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
 
       const bookmarkRequest = createMockRequest(

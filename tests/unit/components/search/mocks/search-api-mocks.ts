@@ -3,8 +3,8 @@
  * Mock API responses and handlers for search component testing
  */
 
-import { vi } from 'vitest'
 import type { Opportunity, SearchFilters } from '@/types/search'
+import { vi } from 'vitest'
 import { mockOpportunities, sharedMockOpportunity } from '../fixtures/search-component-data'
 
 // Mock search API responses

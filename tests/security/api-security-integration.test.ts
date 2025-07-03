@@ -3,7 +3,7 @@
  * Tests security patterns and validation logic for API endpoints
  */
 
-import { HttpResponse, http } from 'msw'
+import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mswServer } from '../github/msw-setup'

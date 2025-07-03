@@ -3,13 +3,13 @@
  * Demonstrates how to use the comprehensive MSW handlers in different scenarios
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
+  requestBuilders as HTTPBuilders,
+  mockFactories as TestDataBuilders,
+  responseValidators,
   setupComprehensiveMSW,
   testScenarios,
-  responseValidators,
-  mockFactories as TestDataBuilders,
-  requestBuilders as HTTPBuilders,
 } from './unified-handlers'
 
 // Setup comprehensive MSW for all tests

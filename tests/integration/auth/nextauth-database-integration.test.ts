@@ -23,10 +23,10 @@ vi.mock('@/lib/validation/env', () => ({
   },
 }))
 
-import type { Account, Profile } from 'next-auth'
 import { authConfig } from '@/lib/auth/config'
 import { sql } from '@/lib/db/config'
 import type { User as AuthUser } from '@/types/auth'
+import type { Account, Profile } from 'next-auth'
 
 // Get the mocked sql function
 const mockSql = vi.mocked(sql)

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 // Setup for database tests
 import './setup'
-import { sql, TEST_DATABASE_URL } from './db-client'
+import { TEST_DATABASE_URL, sql } from './db-client'
 
 describe('Database Configuration', () => {
   describe('Connection URLs', () => {

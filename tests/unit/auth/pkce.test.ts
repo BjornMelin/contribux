@@ -1,23 +1,43 @@
+import {
+  generatePKCEChallenge,
+  generateCodeChallenge,
+  verifyPKCEChallenge,
+  validatePKCESecure,
+  calculateEntropy,
+  generateEnhancedPKCEChallenge,
+} from '@/lib/auth/pkce'
 import { describe, expect, it, vi } from 'vitest'
-import { generatePKCEChallenge } from '@/lib/auth/pkce'
 
-// Mock crypto.getRandomValues
+// Mock crypto.getRandomValues with truly random values for unique generation
 vi.stubGlobal('crypto', {
-  getRandomValues: vi.fn(arr => {
-    // Fill with predictable values for testing
+  getRandomValues: vi.fn((arr: Uint8Array) => {
     if (arr instanceof Uint8Array) {
       for (let i = 0; i < arr.length; i++) {
-        arr[i] = i % 256
+        arr[i] = Math.floor(Math.random() * 256) // Use Math.random for true uniqueness
       }
     }
     return arr
   }),
   subtle: {
-    digest: vi.fn(async (_algorithm, _data) => {
-      // Return a mock hash
+    digest: vi.fn(async (_algorithm: string, data: ArrayBuffer | Uint8Array) => {
+      // Convert Uint8Array to ArrayBuffer if needed
+      const buffer =
+        data instanceof Uint8Array
+          ? data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)
+          : data
+
+      // Return a mock hash based on input data
+      const inputView = new Uint8Array(buffer)
       const mockHash = new Uint8Array(32)
+
+      // Create a hash that varies based on the input content
+      let seed = 0
+      for (let i = 0; i < Math.min(inputView.length, 8); i++) {
+        seed += inputView[i] * (i + 1)
+      }
+
       for (let i = 0; i < 32; i++) {
-        mockHash[i] = (i * 2) % 256
+        mockHash[i] = (seed + i * 7) % 256
       }
       return mockHash.buffer
     }),

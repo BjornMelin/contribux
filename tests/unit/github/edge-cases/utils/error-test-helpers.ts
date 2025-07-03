@@ -5,10 +5,10 @@
  * and failure recovery in GitHub client edge cases.
  */
 
-import { HttpResponse, http } from 'msw'
-import { vi } from 'vitest'
 import type { GitHubClient } from '@/lib/github'
 import { GitHubError } from '@/lib/github/errors'
+import { http, HttpResponse } from 'msw'
+import { vi } from 'vitest'
 import { mswServer } from '../../msw-setup'
 
 /**

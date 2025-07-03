@@ -1,9 +1,9 @@
-// Database monitoring tests
-import { beforeAll, describe, expect, it } from 'vitest'
 import { DatabaseMonitor } from '@/lib/monitoring/database-monitor'
 import { DatabaseMonitorLocal } from '@/lib/monitoring/database-monitor-local'
 import { DatabaseMonitorPGlite } from '@/lib/monitoring/database-monitor-pglite'
 import { TestDatabaseManager } from '@/lib/test-utils/test-database-manager'
+// Database monitoring tests
+import { beforeAll, describe, expect, it } from 'vitest'
 
 // Setup for database tests
 import './setup'

@@ -3,9 +3,9 @@
  * Tests GitHub client retry behavior with modern Octokit patterns
  */
 
-import { describe, expect, it } from 'vitest'
 import { GitHubClient } from '@/lib/github/client'
-import { createRequestContext, GitHubError } from '@/lib/github/errors'
+import { GitHubError, createRequestContext } from '@/lib/github/errors'
+import { describe, expect, it } from 'vitest'
 
 describe('GitHub Client Retry Context - Modern Octokit Patterns', () => {
   it('should configure Octokit with proper retry settings', async () => {

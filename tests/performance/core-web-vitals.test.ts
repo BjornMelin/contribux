@@ -386,6 +386,4 @@ describe('Core Web Vitals Performance', () => {
   })
 })
 
-// Export for use in other test files
-export { type measureCoreWebVitals, CORE_WEB_VITALS_THRESHOLDS }
-export type { CoreWebVitalsMetrics }
+// Internal test utilities - moved to separate utility file if needed for sharing

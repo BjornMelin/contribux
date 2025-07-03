@@ -2,8 +2,8 @@
  * Memory leak detection tests for GitHub client
  */
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { GitHubClient } from '@/lib/github'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 describe('Memory Leak Detection', () => {
   // Skip MSW to reduce memory overhead

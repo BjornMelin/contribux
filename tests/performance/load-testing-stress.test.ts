@@ -5,11 +5,11 @@
  * Focuses on system behavior under extreme conditions and error scenarios.
  */
 
-import { HttpResponse, http } from 'msw'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { GitHubClient } from '@/lib/github'
+import { http, HttpResponse } from 'msw'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { createRateLimitHeaders } from '../github/test-helpers'
-import { createMockUser, ERROR_SCENARIOS, LOAD_TEST_CONFIG } from './fixtures/load-test-data'
+import { ERROR_SCENARIOS, LOAD_TEST_CONFIG, createMockUser } from './fixtures/load-test-data'
 import { setupPerformanceTest } from './setup/performance-setup'
 import { addTestHandlers, createTrackedClient } from './utils/load-test-helpers'
 

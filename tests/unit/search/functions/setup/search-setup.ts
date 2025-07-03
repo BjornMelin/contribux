@@ -25,7 +25,7 @@ export interface SearchTestContext {
 export async function createSearchTestContext(): Promise<SearchTestContext> {
   const dbManager = TestDatabaseManager.getInstance()
   const connection = await dbManager.getConnection('search-vector-test', {
-    strategy: 'pglite', // Force PGlite for vector tests
+    // Let TestDatabaseManager choose optimal strategy (respects TEST_DB_STRATEGY env var)
     cleanup: 'rollback',
     verbose: false,
   })
@@ -64,7 +64,7 @@ export async function setupUserPreferences(
       user_id, preferred_contribution_types,
       max_estimated_hours, notification_frequency
     ) VALUES (
-      ${testIds.userId}, ${preferences.preferred_contribution_types}::contribution_type[],
+      ${testIds.userId}, ${preferences.preferred_contribution_types},
       ${preferences.max_estimated_hours}, ${preferences.notification_frequency}
     )
   `
