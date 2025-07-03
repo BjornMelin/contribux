@@ -3,10 +3,10 @@
  * Verify WebAuthn authentication responses
  */
 
-import { type NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
 import { securityFeatures } from '@/lib/security/feature-flags'
 import { verifyWebAuthnAuthentication } from '@/lib/security/webauthn/server'
+import { type NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 
 const AuthenticationRequestSchema = z.object({
   response: z.object({
@@ -19,6 +19,7 @@ const AuthenticationRequestSchema = z.object({
       userHandle: z.string().optional(),
     }),
     type: z.literal('public-key'),
+    clientExtensionResults: z.record(z.unknown()).optional().default({}),
   }),
   expectedChallenge: z.string(),
 })
@@ -56,8 +57,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { status: 401 }
     )
   } catch (error) {
-    console.error('WebAuthn authentication verification error:', error)
-
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Invalid request data', details: error.errors },

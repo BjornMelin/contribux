@@ -3,11 +3,10 @@
  * Handles enrollment for TOTP and WebAuthn methods
  */
 
+import { enrollMFA } from '@/lib/auth/mfa-service'
+import { MFAEnrollmentRequestSchema, type User } from '@/types/auth'
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { enrollMFA } from '@/lib/auth/mfa-service'
-import { requireAuthentication } from '@/lib/auth/middleware'
-import { MFAEnrollmentRequestSchema, type User } from '@/types/auth'
 
 const EnrollmentRequestSchema = MFAEnrollmentRequestSchema.extend({
   deviceName: z.string().min(1).max(100).optional().default('Security Key'),
@@ -108,5 +107,5 @@ export async function GET() {
   })
 }
 
-// Apply authentication middleware
-export const middleware = [requireAuthentication]
+// Authentication should be handled within the route handlers
+// Middleware export is not compatible with Next.js API routes

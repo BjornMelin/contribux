@@ -3,11 +3,10 @@
  * Handles MFA settings management (get, update, disable)
  */
 
+import { getMFASettings, regenerateBackupCodes, updateMFASettings } from '@/lib/auth/mfa-service'
+import type { User } from '@/types/auth'
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { getMFASettings, regenerateBackupCodes, updateMFASettings } from '@/lib/auth/mfa-service'
-import { requireAuthentication } from '@/lib/auth/middleware'
-import type { User } from '@/types/auth'
 
 const UpdateMFASettingsSchema = z.object({
   enabled: z.boolean().optional(),
@@ -254,5 +253,5 @@ async function disableMFACompletely(_userId: string) {
   // 6. Log security audit event
 }
 
-// Apply authentication middleware
-export const middleware = [requireAuthentication]
+// Authentication should be handled within the route handlers
+// Middleware export is not compatible with Next.js API routes

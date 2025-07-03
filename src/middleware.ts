@@ -1,7 +1,8 @@
 import { type NextRequest, NextResponse } from 'next/server'
+
+import { monitoringMiddleware } from './lib/middleware/monitoring-middleware'
 import { enhancedSecurityMiddleware } from './lib/security/enhanced-middleware'
 import { addSecurityHeaders, handleCorsOptions } from './lib/security/headers'
-import { monitoringMiddleware } from './lib/middleware/monitoring-middleware'
 
 /**
  * Portfolio middleware

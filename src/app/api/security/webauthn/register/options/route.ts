@@ -3,13 +3,12 @@
  * Generate registration options for new WebAuthn credentials
  */
 
-import { type NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authConfig } from '@/lib/config/auth'
+import { auth } from '@/lib/auth/index'
 import { securityFeatures } from '@/lib/security/feature-flags'
 import { generateWebAuthnRegistration } from '@/lib/security/webauthn/server'
+import { type NextRequest, NextResponse } from 'next/server'
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export async function POST(_request: NextRequest): Promise<NextResponse> {
   // Check if WebAuthn is enabled
   if (!securityFeatures.webauthn) {
     return NextResponse.json({ error: 'WebAuthn is not enabled' }, { status: 403 })
@@ -17,7 +16,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   try {
     // Get authenticated session
-    const session = await getServerSession(authConfig)
+    const session = await auth()
     if (!session?.user?.id || !session?.user?.email) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
@@ -34,9 +33,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       options,
       challenge: options.challenge, // Include for client verification
     })
-  } catch (error) {
-    console.error('WebAuthn registration options error:', error)
-
+  } catch (_error) {
     return NextResponse.json({ error: 'Failed to generate registration options' }, { status: 500 })
   }
 }

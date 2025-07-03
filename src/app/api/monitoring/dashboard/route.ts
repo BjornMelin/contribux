@@ -3,10 +3,10 @@
  * Aggregates data from health, performance, and monitoring systems
  */
 
-import { type NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
 import { apiMonitoring } from '@/lib/api/monitoring'
 import { sql } from '@/lib/db/config'
+import { type NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 
 // Dashboard response types
 interface ServiceHealth {

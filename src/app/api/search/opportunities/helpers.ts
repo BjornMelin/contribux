@@ -3,10 +3,10 @@
  * Extracted helper functions to reduce cognitive complexity
  */
 
+import { sql } from '@/lib/db/config'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import { sql } from '@/lib/db/config'
 
 // Request validation schema
 export const SearchOpportunitiesQuerySchema = z.object({

@@ -7,7 +7,9 @@
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+
 import { auth } from '@/lib/auth'
+import { rateLimit } from '@/lib/auth/rate-limiter'
 import { RepositoryQueries, type RepositorySearchOptions } from '@/lib/db/queries/repositories'
 
 // Request validation schema
@@ -20,7 +22,7 @@ const SearchRepositoriesQuerySchema = z.object({
   topics: z
     .string()
     .optional()
-    .transform(str => str?.split(',').filter(Boolean) || []),
+    .transform(str => (str ? str.split(',').filter(Boolean) : [])),
   sort_by: z.enum(['stars', 'updated', 'created', 'name', 'relevance']).optional().default('stars'),
   order: z.enum(['asc', 'desc']).optional().default('desc'),
   has_issues: z
@@ -96,8 +98,6 @@ const RepositorySchema = z.object({
 })
 
 // Authentication helper with NextAuth.js
-import { rateLimit } from '@/lib/auth/rate-limiter'
-
 async function checkAuthentication(_request: NextRequest): Promise<boolean> {
   try {
     // Use NextAuth.js session instead of custom JWT

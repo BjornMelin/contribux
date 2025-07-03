@@ -4,11 +4,11 @@
  * Phase 3: Migrated to Drizzle ORM with type-safe queries
  */
 
+import { auth } from '@/lib/auth'
+import { OpportunityQueries, type OpportunitySearchOptions } from '@/lib/db/queries/opportunities'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import { auth } from '@/lib/auth'
-import { OpportunityQueries, type OpportunitySearchOptions } from '@/lib/db/queries/opportunities'
 
 // Request validation schema
 const SearchOpportunitiesQuerySchema = z.object({
@@ -36,11 +36,11 @@ const SearchOpportunitiesQuerySchema = z.object({
   labels: z
     .string()
     .optional()
-    .transform(str => str?.split(',').filter(Boolean) || []),
+    .transform(str => (str ? str.split(',').filter(Boolean) : [])),
   skills_required: z
     .string()
     .optional()
-    .transform(str => str?.split(',').filter(Boolean) || []),
+    .transform(str => (str ? str.split(',').filter(Boolean) : [])),
   sort_by: z
     .enum(['difficulty', 'impact', 'match', 'created', 'updated', 'relevance'])
     .optional()
@@ -151,8 +151,8 @@ function buildSearchOptions(
     ...(good_first_issue !== undefined && { goodFirstIssue: good_first_issue }),
     ...(mentorship_available !== undefined && { mentorshipAvailable: mentorship_available }),
     ...(hacktoberfest !== undefined && { hacktoberfest }),
-    ...(labels.length > 0 && { labels }),
-    ...(skills_required.length > 0 && { skillsRequired: skills_required }),
+    ...(labels && labels.length > 0 && { labels }),
+    ...(skills_required && skills_required.length > 0 && { skillsRequired: skills_required }),
   }
 }
 

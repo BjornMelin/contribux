@@ -3,11 +3,10 @@
  * Handles verification for TOTP, WebAuthn, and backup codes
  */
 
+import { generateDeviceFingerprint, verifyMFA } from '@/lib/auth/mfa-service'
+import { type MFAVerificationRequest, MFAVerificationRequestSchema, type User } from '@/types/auth'
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { generateDeviceFingerprint, verifyMFA } from '@/lib/auth/mfa-service'
-import { requireAuthentication } from '@/lib/auth/middleware'
-import { type MFAVerificationRequest, MFAVerificationRequestSchema, type User } from '@/types/auth'
 
 /**
  * POST /api/auth/mfa/verify
@@ -71,7 +70,7 @@ export async function POST(req: NextRequest) {
     const deviceFingerprint = generateDeviceFingerprint(req)
 
     // Create MFA session token (valid for current session)
-    const mfaSessionToken = generateMFASessionToken(user.id, result.method)
+    const mfaSessionToken = await generateMFASessionToken(user.id, result.method)
 
     // Log successful verification for security monitoring (handled by application logging)
     // Monitoring service will capture successful MFA verifications
@@ -113,8 +112,8 @@ export async function POST(req: NextRequest) {
 /**
  * Generate MFA session token
  */
-function generateMFASessionToken(userId: string, method: string): string {
-  const crypto = require('node:crypto')
+async function generateMFASessionToken(userId: string, method: string): Promise<string> {
+  const crypto = await import('node:crypto')
   const timestamp = Date.now()
   const randomBytes = crypto.randomBytes(16).toString('hex')
 
@@ -151,7 +150,7 @@ export async function GET(req: NextRequest) {
     const { user: _user } = authReq.auth
 
     // TODO: Get user's WebAuthn credentials from database
-    const userCredentials: string[] = [] // Array of credential IDs
+    const _userCredentials: string[] = [] // Array of credential IDs
 
     // Generate authentication options
     const { generateWebAuthnAuthentication } = await import('@/lib/security/webauthn/server')
@@ -167,5 +166,5 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// Apply authentication middleware
-export const middleware = [requireAuthentication]
+// Authentication should be handled within the route handlers
+// Middleware export is not compatible with Next.js API routes
