@@ -4,7 +4,7 @@
  * Addresses OWASP A05 Security Misconfiguration
  */
 
-import { env } from '@/lib/env'
+import { env } from '@/lib/validation/env'
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'critical'
 

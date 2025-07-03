@@ -1,9 +1,9 @@
 // Contribux Database Client - Drizzle ORM
 // Phase 3: Simplified connection management replacing 270+ lines of custom pooling
 
+import { env } from '@/lib/validation/env'
 import { neon } from '@neondatabase/serverless'
 import { drizzle } from 'drizzle-orm/neon-http'
-import { env } from '@/lib/env'
 import * as schema from './schema'
 
 // Create connection based on environment

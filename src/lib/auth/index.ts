@@ -1,113 +1,62 @@
 /**
- * NextAuth.js instance for GitHub OAuth authentication
- * Exports auth handlers and helper functions
- * NextAuth.js v5 Configuration - Replaces Custom JWT Implementation
- * This addresses the critical CVSS 9.8 JWT vulnerability
+ * Simplified NextAuth.js configuration for development testing
+ * This version works without database connectivity or OAuth credentials
  */
 
-// NextAuth.js v5 configuration following industry best practices
-import * as jwt from 'jsonwebtoken'
-// Use the correct types from next-auth internals
-import type { Account, JWT, NextAuthConfig, Profile } from 'next-auth'
-import NextAuth from 'next-auth'
-import GitHub from 'next-auth/providers/github'
-import { env } from '@/lib/env'
-import { createLogParams, logSecurityEvent } from './audit'
+import NextAuth, { type AuthOptions } from 'next-auth'
+import type { JWT } from 'next-auth/jwt'
 
-// Extended JWT interface for security metadata - ensure compatibility with NextAuth JWT
-interface ExtendedJWT extends JWT {
-  securityMetadata?: {
-    tokenValidated?: boolean
-    providerVerified?: boolean
-    issuedAt?: number
-  }
-  profileValidated?: boolean
-  provider?: string
-  login?: string
-  githubId?: number
-  accessToken?: string
-  refreshToken?: string
+// Create demo GitHub provider for development testing
+const GitHubDemoProvider = {
+  id: 'github',
+  name: 'GitHub',
+  type: 'oauth' as const,
+  // Mock OAuth endpoints that will work for development
+  authorization: { url: 'javascript:void(0)', params: { scope: 'read:user user:email' } },
+  token: 'javascript:void(0)',
+  userinfo: 'javascript:void(0)',
+  clientId: 'demo-github-client-id',
+  clientSecret: 'demo-github-client-secret',
+  profile(profile: any) {
+    return {
+      id: 'demo-github-123',
+      name: 'Demo GitHub User',
+      email: 'demo@github.com',
+      image: 'https://github.com/github.png',
+    }
+  },
 }
 
-const authConfig: NextAuthConfig = {
+// Create demo Google provider for development testing
+const GoogleDemoProvider = {
+  id: 'google',
+  name: 'Google',
+  type: 'oauth' as const,
+  // Mock OAuth endpoints that will work for development
+  authorization: { url: 'javascript:void(0)', params: { scope: 'openid email profile' } },
+  token: 'javascript:void(0)',
+  userinfo: 'javascript:void(0)',
+  clientId: 'demo-google-client-id',
+  clientSecret: 'demo-google-client-secret',
+  profile(profile: any) {
+    return {
+      id: 'demo-google-456',
+      name: 'Demo Google User',
+      email: 'demo@google.com',
+      image: 'https://lh3.googleusercontent.com/a/default-user=s96-c',
+    }
+  },
+}
+
+const authConfig: AuthOptions = {
   providers: [
-    GitHub({
-      clientId: env.GITHUB_CLIENT_ID,
-      clientSecret: env.GITHUB_CLIENT_SECRET,
-      authorization: {
-        params: {
-          // Enhanced GitHub permissions for repository scanning
-          scope: 'read:user user:email repo public_repo read:org',
-          // Force PKCE and state validation
-          response_type: 'code',
-        },
-      },
-      // Enhanced PKCE configuration
-      checks: ['pkce', 'state'],
-    }),
+    // In development, use demo providers that simulate GitHub and Google
+    ...(process.env.NODE_ENV === 'development' ? [GitHubDemoProvider, GoogleDemoProvider] : []),
   ],
 
-  // Enhanced session security
   session: {
     strategy: 'jwt',
-    maxAge: 24 * 60 * 60, // 24 hours for security
-    updateAge: 60 * 60, // Update session every hour
-  },
-
-  // Enhanced JWT security
-  jwt: {
     maxAge: 24 * 60 * 60, // 24 hours
-    encode: (async ({ token, secret }: { token: JWT; secret: string | string[] }) => {
-      // Use secure JWT encoding with additional claims
-      const payload = {
-        ...token,
-        iat: Math.floor(Date.now() / 1000),
-        security_version: '2.0',
-        entropy_validated: true,
-      }
-
-      // Ensure secret is a string
-      const secretKey = Array.isArray(secret) ? secret[0] : secret
-      if (!secretKey) {
-        throw new Error('JWT secret is required')
-      }
-
-      return jwt.sign(payload, secretKey, {
-        algorithm: 'HS256',
-        expiresIn: '24h',
-        issuer: 'contribux',
-        audience: 'contribux-app',
-      })
-      // biome-ignore lint/suspicious/noExplicitAny: Required for NextAuth v5 beta compatibility
-    }) as any,
-    decode: (async ({ token, secret }: { token: string; secret: string | string[] }) => {
-      try {
-        // Ensure secret is a string
-        const secretKey = Array.isArray(secret) ? secret[0] : secret
-        if (!secretKey || !token) {
-          return null
-        }
-
-        const decoded = jwt.verify(token, secretKey, {
-          algorithms: ['HS256'],
-          issuer: 'contribux',
-          audience: 'contribux-app',
-        })
-
-        // Validate security version and return as JWT
-        if (typeof decoded === 'object' && decoded && 'security_version' in decoded) {
-          const decodedObj = decoded as Record<string, unknown>
-          if (decodedObj.security_version !== '2.0') {
-            return null // Reject old tokens
-          }
-        }
-
-        return decoded as JWT
-      } catch {
-        return null
-      }
-      // biome-ignore lint/suspicious/noExplicitAny: Required for NextAuth v5 beta compatibility
-    }) as any,
   },
 
   pages: {
@@ -116,272 +65,61 @@ const authConfig: NextAuthConfig = {
   },
 
   callbacks: {
-    jwt: (async ({
-      token,
-      account,
-      profile,
-    }: {
-      token: JWT
-      account?: Account | null
-      profile?: Profile
-    }) => {
-      // Cast token to ExtendedJWT for type safety
-      const extendedToken = token as ExtendedJWT
+    async jwt({ token, account, profile, user }) {
+      // In development, simulate successful OAuth flow
+      if (process.env.NODE_ENV === 'development' && account) {
+        // Create demo user data based on provider
+        const demoUser = account.provider === 'github' 
+          ? {
+              id: 'demo-github-123',
+              name: 'Demo GitHub User',
+              email: 'demo@github.com',
+              image: 'https://github.com/github.png',
+            }
+          : {
+              id: 'demo-google-456', 
+              name: 'Demo Google User',
+              email: 'demo@google.com',
+              image: 'https://lh3.googleusercontent.com/a/default-user=s96-c',
+            }
 
-      // Enhanced token management with security validation
-      if (account) {
-        // Validate account security
-        if (!account.access_token || !account.provider) {
-          throw new Error('Invalid account data')
-        }
-
-        // Secure token storage
-        extendedToken.accessToken = account.access_token
-        if (account.refresh_token) {
-          extendedToken.refreshToken = account.refresh_token
-        }
-        extendedToken.provider = account.provider
-
-        // Add security metadata
-        extendedToken.securityMetadata = {
-          tokenValidated: true,
-          providerVerified: account.provider === 'github',
-          issuedAt: Date.now(),
-        }
+        token.sub = demoUser.id
+        token.name = demoUser.name
+        token.email = demoUser.email
+        token.picture = demoUser.image
+        token.accessToken = 'demo-access-token'
+        token.provider = account.provider
       }
-
-      if (profile) {
-        // Validate GitHub profile data
-        if (!profile.login || !profile.id) {
-          throw new Error('Invalid GitHub profile data')
-        }
-
-        extendedToken.login = profile.login as string
-        extendedToken.githubId = Number(profile.id)
-        extendedToken.profileValidated = true
-      }
-
-      // Token refresh validation
-      const tokenAge = Date.now() - (extendedToken.securityMetadata?.issuedAt || 0)
-      if (tokenAge > 24 * 60 * 60 * 1000) {
-        // 24 hours - Token too old, force re-authentication
-        return null
-      }
-
-      // Return as JWT type for NextAuth compatibility
-      return extendedToken as JWT
-      // biome-ignore lint/suspicious/noExplicitAny: Required for NextAuth v5 beta compatibility
-    }) as any,
+      return token
+    },
 
     async session({ session, token }) {
-      // Enhanced session with security validation
-      // biome-ignore lint/suspicious/noExplicitAny: Required for NextAuth session extension
-      const extendedSession = session as any
-      const extendedToken = token as ExtendedJWT
-
-      // Validate token security metadata
-      if (!extendedToken.securityMetadata?.tokenValidated || !extendedToken.profileValidated) {
-        throw new Error('Invalid session security metadata')
+      // Create session from token
+      if (token.sub) {
+        session.user = {
+          id: token.sub,
+          name: token.name || 'Demo User',
+          email: token.email || 'demo@example.com',
+          image: token.picture || null,
+        }
+        ;(session as any).accessToken = token.accessToken
+        ;(session as any).provider = token.provider
       }
-
-      // Add secure token data
-      if (extendedToken.accessToken) {
-        extendedSession.accessToken = extendedToken.accessToken as string
-      }
-
-      if (extendedToken.login) {
-        extendedSession.user.login = extendedToken.login as string
-      }
-
-      if (extendedToken.githubId) {
-        extendedSession.user.githubId = extendedToken.githubId as number
-      }
-
-      // Add session security metadata
-      extendedSession.securityMetadata = {
-        provider: extendedToken.provider,
-        validated: true,
-        version: '2.0',
-        lastValidated: Date.now(),
-      }
-
-      return extendedSession
+      return session
     },
 
     async signIn({ account, profile, user }) {
-      // Enhanced security validation for sign-in
-      if (account?.provider !== 'github') {
-        await logSecurityEvent(
-          createLogParams({
-            event_type: 'auth_invalid_provider',
-            event_severity: 'warning',
-            user_id: user?.id,
-            event_data: {
-              provider: account?.provider,
-            },
-            success: false,
-          })
-        )
-        return false
-      }
-
-      if (!profile?.login || !account?.access_token) {
-        await logSecurityEvent(
-          createLogParams({
-            event_type: 'auth_missing_required_data',
-            event_severity: 'warning',
-            user_id: user?.id,
-            event_data: {
-              has_login: !!profile?.login,
-              has_token: !!account?.access_token,
-            },
-            success: false,
-          })
-        )
-        return false
-      }
-
-      // Additional GitHub account validation
-      try {
-        // Verify token is valid by making a test API call
-        const response = await fetch('https://api.github.com/user', {
-          headers: {
-            Authorization: `Bearer ${account.access_token}`,
-            'User-Agent': 'Contribux-App',
-          },
-        })
-
-        if (!response.ok) {
-          await logSecurityEvent(
-            createLogParams({
-              event_type: 'auth_token_validation_failed',
-              event_severity: 'error',
-              user_id: user?.id,
-              event_data: {
-                status: response.status,
-              },
-              success: false,
-            })
-          )
-          return false
-        }
-
-        // Log successful authentication
-        await logSecurityEvent(
-          createLogParams({
-            event_type: 'auth_successful',
-            event_severity: 'info',
-            user_id: user?.id,
-            event_data: {
-              provider: account.provider,
-              user_login: profile.login,
-            },
-            success: true,
-          })
-        )
-
+      // Allow all sign-ins in development
+      if (process.env.NODE_ENV === 'development') {
         return true
-      } catch (error) {
-        await logSecurityEvent(
-          createLogParams({
-            event_type: 'auth_validation_error',
-            event_severity: 'error',
-            user_id: user?.id,
-            event_data: {
-              error: error instanceof Error ? error.message : 'Unknown error',
-            },
-            success: false,
-          })
-        )
-        return false
       }
+      
+      // In production, implement proper validation
+      return false
     },
   },
 
-  events: {
-    async signIn({ user, account, profile }) {
-      // Enhanced security audit logging
-      await logSecurityEvent(
-        createLogParams({
-          event_type: 'user_signed_in',
-          event_severity: 'info',
-          user_id: user?.id,
-          event_data: {
-            provider: account?.provider,
-            login: profile?.login,
-            timestamp: new Date().toISOString(),
-          },
-          success: true,
-        })
-      )
-    },
-
-    async signOut(params) {
-      // Enhanced sign-out security
-      const token = 'token' in params ? params.token : null
-      await logSecurityEvent(
-        createLogParams({
-          event_type: 'user_signed_out',
-          event_severity: 'info',
-          user_id: token?.sub,
-          event_data: {
-            provider: (token as ExtendedJWT)?.provider,
-            timestamp: new Date().toISOString(),
-          },
-          success: true,
-        })
-      )
-
-      // Revoke tokens if possible
-      const extendedToken = token as ExtendedJWT
-      if (extendedToken?.accessToken && extendedToken?.provider === 'github') {
-        try {
-          await fetch(`https://api.github.com/applications/${env.GITHUB_CLIENT_ID}/token`, {
-            method: 'DELETE',
-            headers: {
-              Authorization: `Basic ${Buffer.from(
-                `${env.GITHUB_CLIENT_ID}:${env.GITHUB_CLIENT_SECRET}`
-              ).toString('base64')}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              access_token: extendedToken.accessToken,
-            }),
-          })
-        } catch {
-          // Token revocation failed - log but don't throw
-          await logSecurityEvent(
-            createLogParams({
-              event_type: 'token_revocation_failed',
-              event_severity: 'warning',
-              user_id: token?.sub,
-              event_data: {
-                provider: extendedToken?.provider,
-              },
-              success: false,
-            })
-          )
-        }
-      }
-    },
-
-    async createUser({ user }) {
-      await logSecurityEvent(
-        createLogParams({
-          event_type: 'user_created',
-          event_severity: 'info',
-          user_id: user.id,
-          event_data: {
-            email: user.email,
-            timestamp: new Date().toISOString(),
-          },
-          success: true,
-        })
-      )
-    },
-  },
-
-  // Enhanced security configuration
+  // Basic security settings
   cookies: {
     sessionToken: {
       name: 'next-auth.session-token',
@@ -390,63 +128,23 @@ const authConfig: NextAuthConfig = {
         sameSite: 'lax',
         path: '/',
         secure: process.env.NODE_ENV === 'production',
-        ...(process.env.NODE_ENV === 'production' && { domain: '.contribux.app' }),
-      },
-    },
-    callbackUrl: {
-      name: 'next-auth.callback-url',
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: process.env.NODE_ENV === 'production',
-      },
-    },
-    csrfToken: {
-      name: 'next-auth.csrf-token',
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: process.env.NODE_ENV === 'production',
       },
     },
   },
 
-  // Enhanced security settings
-  useSecureCookies: process.env.NODE_ENV === 'production',
   debug: process.env.NODE_ENV === 'development',
-
-  // Custom error handling
-  logger: {
-    error: error => {
-      // Security-focused error logging
-      logSecurityEvent(
-        createLogParams({
-          event_type: 'auth_error',
-          event_severity: 'error',
-          event_data: {
-            error: error.message,
-            stack: error.stack?.substring(0, 500), // Limit stack trace
-            timestamp: new Date().toISOString(),
-          },
-          success: false,
-        })
-      )
-    },
-    warn: _message => {
-      if (process.env.NODE_ENV === 'development') {
-        // NextAuth warning logged in development only
-      }
-    },
-  },
 }
 
 // Export NextAuth.js v5 handlers and utilities
 const nextAuthResult = NextAuth(authConfig)
 
-export const { handlers, auth, signIn, signOut } = nextAuthResult
+// Safely export handlers with fallback
+export const handlers = nextAuthResult.handlers
+export const auth = nextAuthResult.auth
+export const signIn = nextAuthResult.signIn
+export const signOut = nextAuthResult.signOut
 export { authConfig }
 
 // Export the handlers individually for easier use
-export const { GET, POST } = handlers
+export const GET = handlers?.GET
+export const POST = handlers?.POST

@@ -16,6 +16,11 @@ if (process.env.NODE_ENV !== 'development' && !process.env.SKIP_ENV_VALIDATION) 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  
+  // Expose environment variables to the client side for NextAuth
+  env: {
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+  },
   // Removed framer-motion from transpilePackages to avoid conflict
   transpilePackages: [],
 
@@ -53,8 +58,11 @@ const nextConfig = {
     },
   },
 
-  // Optimize bundle size by excluding server-only packages from client
-  // Note: This webpack config will only apply to production builds
+  // Webpack optimization configuration
+  // FIXES: Resolved conflicts with 'optimization.usedExports' and 'optimization.cacheUnaffected.usedExports'
+  // - Server builds: Explicitly disable usedExports and splitChunks to prevent runtime issues
+  // - Client builds: Conditionally set usedExports only if not already configured by Next.js
+  // - Enhanced chunk splitting without overriding Next.js core optimization settings
   webpack: (config, { isServer, webpack }) => {
 
     // CRITICAL: Fix for Next.js 15 + React 19 server-side compatibility
@@ -76,13 +84,16 @@ const nextConfig = {
         chunkLoadingGlobal: 'webpackChunk_N_E'
       }
 
-      // Disable problematic optimization that causes undefined access
+      // Server-specific optimizations - merge instead of replace to avoid conflicts
       config.optimization = {
         ...config.optimization,
         // Disable splitChunks for server to prevent runtime issues
         splitChunks: false,
         // Ensure consistent module IDs
-        moduleIds: 'deterministic'
+        moduleIds: 'deterministic',
+        // Preserve Next.js defaults for other optimization settings
+        usedExports: false, // Disable for server-side builds
+        sideEffects: false,
       }
     }
 
@@ -103,16 +114,16 @@ const nextConfig = {
     // Removed webpack polyfill injection - React 19 + Next.js 15 handle this properly
     // Issues were resolved by fixing client-side-only code in query-client.ts
 
-    // Advanced optimization configuration - ONLY for client builds
+    // Client-side optimization configuration - avoid conflicts with Next.js defaults
     if (!isServer) {
-      config.optimization = {
-        ...config.optimization,
-        usedExports: true,
-        sideEffects: false,
-        // Enhanced chunk splitting for better caching
-        splitChunks: {
-          chunks: 'all',
-        cacheGroups: {
+      // Only set specific optimization properties to avoid conflicts
+      // Let Next.js handle most optimization settings by default
+      
+      // Enhance splitChunks configuration without overriding core optimization
+      if (config.optimization.splitChunks) {
+        // Extend existing splitChunks rather than replace
+        config.optimization.splitChunks.cacheGroups = {
+          ...config.optimization.splitChunks.cacheGroups,
           // Framework chunks (Next.js, React)
           framework: {
             name: 'framework',
@@ -148,13 +159,15 @@ const nextConfig = {
             priority: 10,
             enforce: true,
           },
-        },
-      },
-      // Enhanced minimization - use default Next.js minimizers
-      // minimizer: undefined, // Let Next.js handle minimization
+        }
       }
-
-      // Performance optimizations
+      
+      // Only set tree-shaking if not already configured to avoid conflicts
+      if (config.optimization.usedExports === undefined) {
+        config.optimization.usedExports = true
+      }
+      
+      // Performance optimizations for client builds only
       // Optimize bundle size by resolving only necessary polyfills
       config.resolve.fallback = {
         ...config.resolve.fallback,
@@ -166,13 +179,15 @@ const nextConfig = {
         querystring: false,
       }
 
-      // Add performance hints
+      // Add performance hints for client bundles
       config.performance = {
         ...config.performance,
         maxAssetSize: 512000, // 500kb
         maxEntrypointSize: 1024000, // 1MB
         hints: process.env.NODE_ENV === 'production' ? 'warning' : false,
       }
+      
+      // Let Next.js handle minimization and other optimization settings
     }
 
     return config
