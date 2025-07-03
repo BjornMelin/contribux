@@ -1,10 +1,9 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import { MotionDiv } from '@/components/motion'
 import { AlertTriangle, Check, Github, Link2, Mail, Shield, Star, Unlink2 } from 'lucide-react'
+import type { ReactNode } from 'react'
 
-import { signIn } from 'next-auth/react'
-import { useCallback, useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -17,11 +16,13 @@ import {
 } from '@/components/ui/dialog'
 // Client-side helper functions for OAuth management
 import { cn } from '@/lib/utils'
+import { useSession } from '@/components/providers/app-providers'
+import { useCallback, useEffect, useState } from 'react'
 
 interface OAuthProvider {
   id: string
   name: string
-  icon: React.ReactNode
+  icon: ReactNode
   color: string
   gradientFrom: string
   gradientTo: string
@@ -62,6 +63,7 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
   }>({ isOpen: false, type: 'unlink' })
   const [isLoading, setIsLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const { signIn } = useSession()
 
   const loadProviders = useCallback(async () => {
     try {
@@ -123,9 +125,9 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
   const handleLink = async (provider: OAuthProvider) => {
     setIsLoading(provider.id)
     try {
-      await signIn(provider.id, {
-        callbackUrl: '/settings/accounts?linked=true',
-      })
+      await signIn(provider.id)
+      // After successful sign-in, redirect to show success message
+      window.location.href = '/settings/accounts?linked=true'
     } catch (_error) {
       setError(`Failed to connect ${provider.name}`)
     } finally {
@@ -196,14 +198,14 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
 
       {/* Error Message */}
       {error && (
-        <motion.div
+        <MotionDiv
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           className="flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-destructive"
         >
           <AlertTriangle className="h-5 w-5" />
           <p className="text-sm">{error}</p>
-        </motion.div>
+        </MotionDiv>
       )}
 
       {/* Linked Providers */}
@@ -215,7 +217,7 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
           </h3>
           <div className="grid gap-4">
             {linkedProviders.map(provider => (
-              <motion.div
+              <MotionDiv
                 key={provider.id}
                 initial={{ opacity: 0, y: 20, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -248,7 +250,7 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
                         {/* Provider icon with glow */}
-                        <motion.div
+                        <MotionDiv
                           className={cn(
                             'relative rounded-xl border border-border/20 p-3',
                             'bg-background/60 shadow-lg backdrop-blur-sm'
@@ -261,7 +263,7 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
                             className="absolute inset-0 rounded-xl opacity-20 blur-md"
                             style={{ backgroundColor: provider.color }}
                           />
-                        </motion.div>
+                        </MotionDiv>
 
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
@@ -308,7 +310,7 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
                           className="text-xs hover:bg-destructive/10 hover:text-destructive"
                         >
                           {isLoading === provider.id ? (
-                            <motion.div
+                            <MotionDiv
                               animate={{ rotate: 360 }}
                               transition={{
                                 duration: 1,
@@ -316,7 +318,9 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
                                 ease: 'linear',
                               }}
                               className="h-3 w-3 rounded-full border border-current border-t-transparent"
-                            />
+                            >
+                              <span className="sr-only">Loading</span>
+                            </MotionDiv>
                           ) : (
                             <Unlink2 className="mr-1 h-3 w-3" />
                           )}
@@ -326,7 +330,7 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
                     </div>
                   </div>
                 </div>
-              </motion.div>
+              </MotionDiv>
             ))}
           </div>
         </div>
@@ -341,7 +345,7 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
           </h3>
           <div className="grid gap-4">
             {unlinkedProviders.map(provider => (
-              <motion.div
+              <MotionDiv
                 key={provider.id}
                 initial={{ opacity: 0, y: 20, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -382,7 +386,7 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
                         size="sm"
                       >
                         {isLoading === provider.id ? (
-                          <motion.div
+                          <MotionDiv
                             animate={{ rotate: 360 }}
                             transition={{
                               duration: 1,
@@ -390,7 +394,9 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
                               ease: 'linear',
                             }}
                             className="mr-2 h-3 w-3 rounded-full border border-current border-t-transparent"
-                          />
+                          >
+                            <span className="sr-only">Loading</span>
+                          </MotionDiv>
                         ) : (
                           <Link2 className="mr-2 h-3 w-3" />
                         )}
@@ -399,7 +405,7 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
                     </div>
                   </div>
                 </div>
-              </motion.div>
+              </MotionDiv>
             ))}
           </div>
         </div>
@@ -444,7 +450,7 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
               disabled={isLoading === confirmDialog.provider?.id}
             >
               {isLoading === confirmDialog.provider?.id ? (
-                <motion.div
+                <MotionDiv
                   animate={{ rotate: 360 }}
                   transition={{
                     duration: 1,
@@ -452,7 +458,9 @@ export function LinkedAccounts({ userId: _userId, className }: LinkedAccountsPro
                     ease: 'linear',
                   }}
                   className="mr-2 h-4 w-4 rounded-full border border-current border-t-transparent"
-                />
+                >
+                  <span className="sr-only">Loading</span>
+                </MotionDiv>
               ) : confirmDialog.type === 'unlink' ? (
                 <Unlink2 className="mr-2 h-4 w-4" />
               ) : (
