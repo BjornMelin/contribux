@@ -3,9 +3,9 @@
  * Portfolio demonstration of security monitoring and observability
  */
 
-import { type NextRequest, NextResponse } from 'next/server'
-import { sql } from '@/lib/db/config'
+import { sql } from '@/lib/db'
 import { getSecurityConfig, securityFeatures } from '@/lib/security/feature-flags'
+import { type NextRequest, NextResponse } from 'next/server'
 
 /**
  * Security health check data structure
@@ -44,8 +44,7 @@ async function checkDatabase(): Promise<'connected' | 'disconnected' | 'error'> 
   try {
     await sql`SELECT 1`
     return 'connected'
-  } catch (error) {
-    console.error('Database health check failed:', error)
+  } catch (_error) {
     return 'error'
   }
 }
@@ -78,22 +77,21 @@ async function getSecurityMetrics() {
     // Get WebAuthn credential count
     const webauthnCount = await sql`
       SELECT COUNT(*) as count FROM webauthn_credentials
-    `
+    ` as { count: number }[]
 
     // Get active user sessions (from NextAuth sessions)
     const sessionCount = await sql`
       SELECT COUNT(*) as count 
       FROM sessions 
       WHERE expires > NOW()
-    `
+    ` as { count: number }[]
 
     return {
-      totalWebAuthnCredentials: Number(webauthnCount?.[0]?.count || 0),
-      activeUserSessions: Number(sessionCount?.[0]?.count || 0),
+      totalWebAuthnCredentials: Number(webauthnCount[0]?.count || 0),
+      activeUserSessions: Number(sessionCount[0]?.count || 0),
       recentSecurityEvents: 0, // Placeholder for security event counting
     }
-  } catch (error) {
-    console.error('Failed to get security metrics:', error)
+  } catch (_error) {
     return {
       totalWebAuthnCredentials: 0,
       activeUserSessions: 0,
@@ -119,7 +117,7 @@ function getSecurityLevel(): 'basic' | 'enhanced' | 'enterprise' {
  * GET /api/security/health
  * Returns security system health status
  */
-export async function GET(request: NextRequest): Promise<NextResponse> {
+export async function GET(_request: NextRequest): Promise<NextResponse> {
   try {
     // Perform health checks
     const databaseStatus = await checkDatabase()
@@ -173,8 +171,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       },
     })
   } catch (error) {
-    console.error('Security health check error:', error)
-
     return NextResponse.json(
       {
         timestamp: new Date().toISOString(),

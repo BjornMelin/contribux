@@ -26,9 +26,9 @@ export const env = createEnv({
     NEXTAUTH_SECRET: z.string().min(1),
     NEXTAUTH_URL: z.string().url().optional(),
 
-    // GitHub OAuth configuration
-    GITHUB_CLIENT_ID: z.string().min(1),
-    GITHUB_CLIENT_SECRET: z.string().min(1),
+    // GitHub OAuth configuration (optional in development)
+    GITHUB_CLIENT_ID: z.string().min(1).optional(),
+    GITHUB_CLIENT_SECRET: z.string().min(1).optional(),
 
     // Google OAuth configuration
     GOOGLE_CLIENT_ID: z.string().optional(),
@@ -45,7 +45,13 @@ export const env = createEnv({
 
     // Vector database configuration
     HNSW_EF_SEARCH: z.string().pipe(z.coerce.number().int().min(1)).optional(),
+    HNSW_EF_CONSTRUCTION: z.string().pipe(z.coerce.number().int().min(1)).optional(),
+    HNSW_M_CONNECTIONS: z.string().pipe(z.coerce.number().int().min(1)).optional(),
     VECTOR_SIMILARITY_THRESHOLD: z.string().pipe(z.coerce.number().min(0).max(1)).optional(),
+    VECTOR_MAX_RESULTS: z.string().pipe(z.coerce.number().int().min(1)).optional(),
+    VECTOR_BATCH_SIZE: z.string().pipe(z.coerce.number().int().min(1)).optional(),
+    VECTOR_CACHE_SIZE: z.string().pipe(z.coerce.number().int().min(1)).optional(),
+    VECTOR_CACHE_TTL: z.string().pipe(z.coerce.number().int().min(1)).optional(),
     HYBRID_SEARCH_TEXT_WEIGHT: z.string().pipe(z.coerce.number().min(0).max(1)).optional(),
     HYBRID_SEARCH_VECTOR_WEIGHT: z.string().pipe(z.coerce.number().min(0).max(1)).optional(),
 
@@ -59,6 +65,13 @@ export const env = createEnv({
     DB_POOL_MIN: z.string().pipe(z.coerce.number().int().min(0)).optional(),
     DB_POOL_MAX: z.string().pipe(z.coerce.number().int().min(1)).optional(),
     DB_POOL_IDLE_TIMEOUT: z.string().pipe(z.coerce.number().int().min(1000)).optional(),
+
+    // Database connection and query timeouts
+    DB_CONNECTION_TIMEOUT: z.string().pipe(z.coerce.number().int().min(1000)).optional(),
+    DB_QUERY_TIMEOUT: z.string().pipe(z.coerce.number().int().min(1000)).optional(),
+    DB_HEALTH_CHECK_INTERVAL: z.string().pipe(z.coerce.number().int().min(1000)).optional(),
+    DB_MAX_RETRIES: z.string().pipe(z.coerce.number().int().min(0)).optional(),
+    DB_RETRY_DELAY: z.string().pipe(z.coerce.number().int().min(100)).optional(),
 
     // Optional integrations
     SENTRY_DSN: z.string().url().optional(),
@@ -92,7 +105,13 @@ export const env = createEnv({
     ALLOWED_REDIRECT_URIS: process.env.ALLOWED_REDIRECT_URIS,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     HNSW_EF_SEARCH: process.env.HNSW_EF_SEARCH,
+    HNSW_EF_CONSTRUCTION: process.env.HNSW_EF_CONSTRUCTION,
+    HNSW_M_CONNECTIONS: process.env.HNSW_M_CONNECTIONS,
     VECTOR_SIMILARITY_THRESHOLD: process.env.VECTOR_SIMILARITY_THRESHOLD,
+    VECTOR_MAX_RESULTS: process.env.VECTOR_MAX_RESULTS,
+    VECTOR_BATCH_SIZE: process.env.VECTOR_BATCH_SIZE,
+    VECTOR_CACHE_SIZE: process.env.VECTOR_CACHE_SIZE,
+    VECTOR_CACHE_TTL: process.env.VECTOR_CACHE_TTL,
     HYBRID_SEARCH_TEXT_WEIGHT: process.env.HYBRID_SEARCH_TEXT_WEIGHT,
     HYBRID_SEARCH_VECTOR_WEIGHT: process.env.HYBRID_SEARCH_VECTOR_WEIGHT,
     DB_MAIN_BRANCH: process.env.DB_MAIN_BRANCH,
@@ -102,6 +121,11 @@ export const env = createEnv({
     DB_POOL_MIN: process.env.DB_POOL_MIN,
     DB_POOL_MAX: process.env.DB_POOL_MAX,
     DB_POOL_IDLE_TIMEOUT: process.env.DB_POOL_IDLE_TIMEOUT,
+    DB_CONNECTION_TIMEOUT: process.env.DB_CONNECTION_TIMEOUT,
+    DB_QUERY_TIMEOUT: process.env.DB_QUERY_TIMEOUT,
+    DB_HEALTH_CHECK_INTERVAL: process.env.DB_HEALTH_CHECK_INTERVAL,
+    DB_MAX_RETRIES: process.env.DB_MAX_RETRIES,
+    DB_RETRY_DELAY: process.env.DB_RETRY_DELAY,
     SENTRY_DSN: process.env.SENTRY_DSN,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     NEXT_PUBLIC_VERCEL_URL: process.env.NEXT_PUBLIC_VERCEL_URL,
@@ -153,8 +177,9 @@ function validateBasicEnvironmentVariables(): void {
   if (!process.env.NEXTAUTH_SECRET) {
     throw new Error('NEXTAUTH_SECRET is required')
   }
-  if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
-    throw new Error('GitHub OAuth configuration is required')
+  // GitHub OAuth is optional in development for testing
+  if (process.env.NODE_ENV === 'production' && (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET)) {
+    throw new Error('GitHub OAuth configuration is required in production')
   }
 }
 
