@@ -1,15 +1,36 @@
-# Deployment Guide
+# Comprehensive Deployment Guide
 
-Comprehensive deployment guide for the Contribux platform covering environment setup, deployment process, and monitoring.
+> **Consolidated Deployment Documentation** - This guide combines general deployment strategies, Vercel-specific optimization, and serverless best practices into a single comprehensive resource.
+
+Comprehensive deployment guide for the Contribux platform covering environment setup, deployment process, monitoring, and serverless optimization.
 
 ## Table of Contents
 
+- [Overview](#overview)
 - [Environment Configuration](#environment-configuration)
+- [Vercel Deployment (Primary)](#vercel-deployment-primary)
 - [Pre-deployment Checklist](#pre-deployment-checklist)
 - [Deployment Process](#deployment-process)
+- [Serverless Optimization](#serverless-optimization)
 - [Post-deployment Verification](#post-deployment-verification)
 - [Monitoring & Maintenance](#monitoring--maintenance)
 - [Troubleshooting](#troubleshooting)
+
+## Overview
+
+Contribux is optimized for serverless deployment on Vercel, leveraging:
+
+- **Next.js 15 App Router** for optimal serverless performance
+- **Neon PostgreSQL** for serverless-compatible database
+- **Edge Functions** for authentication and middleware
+- **Vector search** with pgvector for AI-powered features
+
+### **What's Included in This Guide:**
+- **General Deployment** - Environment setup and configuration
+- **Vercel Optimization** - Serverless-specific deployment strategies
+- **Database Integration** - Neon PostgreSQL configuration
+- **Security Configuration** - OAuth setup and environment variables
+- **Performance Optimization** - Edge functions and caching strategies
 
 ## Environment Configuration
 
@@ -61,6 +82,199 @@ DATABASE_URL_TEST=postgresql://user:pass@host:5432/test_database
 3. Create OAuth 2.0 Client ID credentials
 4. Set Authorized redirect URI: `https://your-domain.com/api/auth/callback/google`
 5. Copy Client ID and Client Secret to environment variables
+
+## Vercel Deployment (Primary)
+
+> **Serverless Optimization** - Contribux is specifically optimized for Vercel's serverless platform with Next.js 15 App Router and edge functions.
+
+### Prerequisites
+
+- Vercel account with Pro plan (recommended for production)
+- Neon PostgreSQL database with pgvector extension
+- GitHub OAuth app configured
+- Domain name (optional but recommended for production)
+
+### Environment Variables Setup in Vercel
+
+Add these environment variables in Vercel dashboard (Project Settings → Environment Variables):
+
+```bash
+# Database
+DATABASE_URL=postgresql://user:password@host.neon.tech/database?sslmode=require
+
+# Authentication
+NEXTAUTH_SECRET=your-secure-random-string-minimum-32-characters
+NEXTAUTH_URL=https://your-domain.vercel.app
+
+# GitHub OAuth
+GITHUB_CLIENT_ID=your_github_oauth_app_client_id
+GITHUB_CLIENT_SECRET=your_github_oauth_app_client_secret
+
+# Application
+NEXT_PUBLIC_APP_URL=https://your-domain.vercel.app
+NODE_ENV=production
+```
+
+### Next.js Configuration for Vercel
+
+Optimize `next.config.js` for Vercel deployment:
+
+```javascript
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  // Serverless optimization
+  experimental: {
+    serverComponentsExternalPackages: ['@neondatabase/serverless'],
+    esmExternals: true,
+  },
+  
+  // Enhanced compression for Vercel CDN
+  compress: true,
+  
+  // Optimize for Vercel's build system
+  swcMinify: true,
+  
+  // Configure for Vercel Functions
+  serverExternalPackages: [
+    '@neondatabase/serverless',
+    'ioredis', 
+    'pg',
+    'bcryptjs',
+    'jsonwebtoken'
+  ],
+}
+
+module.exports = nextConfig
+```
+
+### Edge Functions Optimization
+
+#### When to Use Edge Functions
+
+Edge Functions are ideal for:
+- Authentication and authorization
+- Request/response transformation
+- Lightweight data processing
+- Geographic routing
+- A/B testing logic
+
+#### Edge Function Implementation
+
+```typescript
+// app/api/auth/verify/route.ts
+export const runtime = 'edge'
+
+export async function POST(request: Request) {
+  const { token } = await request.json()
+  
+  // Lightweight JWT verification
+  const payload = await verifyJWT(token)
+  
+  return Response.json({ valid: !!payload })
+}
+```
+
+### Serverless Function Optimization
+
+#### Minimal Dependencies Pattern
+
+```typescript
+// app/api/search/route.ts
+export const runtime = 'edge'
+
+// Use only edge-compatible libraries
+import { z } from 'zod'
+
+const SearchSchema = z.object({
+  query: z.string().min(1).max(100),
+  filters: z.object({
+    difficulty: z.enum(['beginner', 'intermediate', 'advanced']).optional(),
+    type: z.enum(['bug_fix', 'feature', 'documentation']).optional(),
+  }).optional()
+})
+
+export async function GET(request: Request) {
+  const url = new URL(request.url)
+  const query = url.searchParams.get('q')
+  
+  // Validate input
+  const validatedInput = SearchSchema.parse({ 
+    query: query || '',
+    filters: JSON.parse(url.searchParams.get('filters') || '{}')
+  })
+  
+  // Process request
+  return Response.json({ results: await searchOpportunities(validatedInput) })
+}
+```
+
+### Vercel Deployment Commands
+
+```bash
+# Install Vercel CLI
+pnpm add -g vercel
+
+# Deploy to preview
+vercel
+
+# Deploy to production
+vercel --prod
+
+# Set environment variables
+vercel env add NEXTAUTH_SECRET production
+```
+
+### Domain Configuration
+
+1. **Custom Domain Setup:**
+   - Add domain in Vercel dashboard
+   - Configure DNS records
+   - SSL certificates are automatically managed
+
+2. **Subdomain Strategy:**
+   ```
+   https://app.contribux.dev     # Production
+   https://staging.contribux.dev # Staging
+   https://preview.contribux.dev # Preview deployments
+   ```
+
+### Performance Optimization for Vercel
+
+#### Bundle Size Optimization
+
+```bash
+# Analyze bundle size before deployment
+ANALYZE=true pnpm build
+
+# Optimize dependencies
+pnpm deps:analyze
+```
+
+#### Caching Strategy
+
+```typescript
+// API route caching
+export async function GET(request: Request) {
+  const data = await fetchOpportunities()
+  
+  return Response.json(data, {
+    headers: {
+      'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+    },
+  })
+}
+```
+
+#### Database Connection Optimization
+
+```typescript
+// Optimized for serverless
+import { neon } from '@neondatabase/serverless'
+
+const sql = neon(process.env.DATABASE_URL!, {
+  poolQueryViaFetch: true, // Use HTTP for better serverless performance
+})
+```
 
 ## Pre-deployment Checklist
 
