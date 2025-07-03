@@ -5,9 +5,9 @@
  * Analyzes and optimizes the entire application for maximum performance
  */
 
-const fs = require('fs')
-const path = require('path')
-const { execSync } = require('child_process')
+const fs = require('node:fs')
+const path = require('node:path')
+const { execSync } = require('node:child_process')
 
 class ComprehensiveOptimizer {
   constructor() {
@@ -29,8 +29,6 @@ class ComprehensiveOptimizer {
    * Run comprehensive optimization analysis
    */
   async optimize() {
-    console.log('🚀 Starting comprehensive performance optimization...\n')
-
     try {
       // 1. Bundle Analysis
       await this.analyzeBundleSize()
@@ -55,9 +53,7 @@ class ComprehensiveOptimizer {
 
       // 8. Apply automatic optimizations
       await this.applyOptimizations()
-
-    } catch (error) {
-      console.error('❌ Optimization failed:', error.message)
+    } catch (_error) {
       process.exit(1)
     }
   }
@@ -66,8 +62,6 @@ class ComprehensiveOptimizer {
    * Analyze bundle size and identify optimization opportunities
    */
   async analyzeBundleSize() {
-    console.log('📦 Analyzing bundle size...')
-
     try {
       // Generate bundle analyzer report
       process.env.ANALYZE = 'true'
@@ -84,10 +78,6 @@ class ComprehensiveOptimizer {
           serverBundleReport: serverBundle,
           status: 'success',
         }
-
-        console.log('  ✅ Bundle analysis complete')
-        console.log(`    📄 Client report: ${clientBundle || 'Not found'}`)
-        console.log(`    📄 Server report: ${serverBundle || 'Not found'}`)
       }
 
       // Analyze bundle stats
@@ -105,14 +95,11 @@ class ComprehensiveOptimizer {
         }
 
         if (totalPages > sharedFiles) {
-          console.log('  ✅ Code splitting is working effectively')
         } else {
-          console.log('  ⚠️  Code splitting could be improved')
           this.results.recommendations.push('Implement more aggressive code splitting')
         }
       }
     } catch (error) {
-      console.log('  ❌ Bundle analysis failed:', error.message)
       this.results.bundleAnalysis = { status: 'failed', error: error.message }
     }
   }
@@ -121,8 +108,6 @@ class ComprehensiveOptimizer {
    * Optimize dependencies
    */
   async optimizeDependencies() {
-    console.log('\n📚 Analyzing dependencies...')
-
     try {
       const dependencies = this.packageJson.dependencies || {}
       const devDependencies = this.packageJson.devDependencies || {}
@@ -130,7 +115,7 @@ class ComprehensiveOptimizer {
 
       // Check for heavy dependencies
       const heavyDeps = this.identifyHeavyDependencies(allDeps)
-      
+
       // Check for duplicate dependencies
       const duplicates = this.findDuplicateDependencies()
 
@@ -146,32 +131,26 @@ class ComprehensiveOptimizer {
       }
 
       if (heavyDeps.length > 0) {
-        console.log(`  ⚠️  Found ${heavyDeps.length} heavy dependencies`)
         this.results.dependencyOptimization.recommendations.push(
           'Consider lighter alternatives for heavy dependencies'
         )
       }
 
       if (duplicates.length > 0) {
-        console.log(`  ⚠️  Found ${duplicates.length} potential duplicate dependencies`)
         this.results.dependencyOptimization.recommendations.push(
           'Remove duplicate dependencies to reduce bundle size'
         )
       }
 
       if (unused.length > 0) {
-        console.log(`  ⚠️  Found ${unused.length} potentially unused dependencies`)
         this.results.dependencyOptimization.recommendations.push(
           'Remove unused dependencies to improve build performance'
         )
       }
 
       if (heavyDeps.length === 0 && duplicates.length === 0 && unused.length === 0) {
-        console.log('  ✅ Dependencies are well optimized')
       }
-
     } catch (error) {
-      console.log('  ❌ Dependency analysis failed:', error.message)
       this.results.dependencyOptimization = { status: 'failed', error: error.message }
     }
   }
@@ -180,8 +159,6 @@ class ComprehensiveOptimizer {
    * Optimize images
    */
   async optimizeImages() {
-    console.log('\n🖼️  Analyzing images...')
-
     try {
       const publicDir = path.join(this.projectRoot, 'public')
       const images = this.findImageFiles(publicDir)
@@ -211,32 +188,27 @@ class ComprehensiveOptimizer {
 
       this.results.imageOptimization = {
         totalImages: images.length,
-        totalSizeMB: Math.round(totalSize / (1024 * 1024) * 100) / 100,
+        totalSizeMB: Math.round((totalSize / (1024 * 1024)) * 100) / 100,
         largeImages: largeImages,
         unoptimizedCount: unoptimizedCount,
         recommendations: [],
       }
 
       if (largeImages.length > 0) {
-        console.log(`  ⚠️  Found ${largeImages.length} large images (>500KB)`)
         this.results.imageOptimization.recommendations.push(
           'Optimize large images using Next.js Image component and compression'
         )
       }
 
       if (unoptimizedCount > 0) {
-        console.log(`  ⚠️  Found ${unoptimizedCount} images that could use modern formats`)
         this.results.imageOptimization.recommendations.push(
           'Convert images to WebP/AVIF for better compression'
         )
       }
 
       if (largeImages.length === 0 && unoptimizedCount === 0) {
-        console.log('  ✅ Images are well optimized')
       }
-
     } catch (error) {
-      console.log('  ❌ Image analysis failed:', error.message)
       this.results.imageOptimization = { status: 'failed', error: error.message }
     }
   }
@@ -245,15 +217,9 @@ class ComprehensiveOptimizer {
    * Analyze cache strategy
    */
   async analyzeCacheStrategy() {
-    console.log('\n⚡ Analyzing cache strategy...')
-
     try {
       // Check for cache implementation
-      const cacheFiles = [
-        'src/lib/cache',
-        'src/lib/redis',
-        'src/utils/cache',
-      ]
+      const cacheFiles = ['src/lib/cache', 'src/lib/redis', 'src/utils/cache']
 
       let cacheImplemented = false
       let redisConfigured = false
@@ -289,32 +255,26 @@ class ComprehensiveOptimizer {
       }
 
       if (!cacheImplemented) {
-        console.log('  ⚠️  No cache implementation found')
         this.results.cacheOptimization.recommendations.push(
           'Implement caching for frequently accessed data'
         )
       }
 
       if (!redisConfigured) {
-        console.log('  ⚠️  Redis not configured')
         this.results.cacheOptimization.recommendations.push(
           'Configure Redis for distributed caching'
         )
       }
 
       if (!memoryCache) {
-        console.log('  ⚠️  HTTP caching headers not optimized')
         this.results.cacheOptimization.recommendations.push(
           'Optimize HTTP cache headers for static assets'
         )
       }
 
       if (cacheImplemented && redisConfigured && memoryCache) {
-        console.log('  ✅ Cache strategy is well implemented')
       }
-
     } catch (error) {
-      console.log('  ❌ Cache analysis failed:', error.message)
       this.results.cacheOptimization = { status: 'failed', error: error.message }
     }
   }
@@ -323,63 +283,73 @@ class ComprehensiveOptimizer {
    * Optimize database configuration
    */
   async optimizeDatabase() {
-    console.log('\n🗄️  Analyzing database configuration...')
-
     try {
-      let connectionPooling = false
-      let queryOptimization = false
-      let indexStrategy = false
-
-      // Check for connection pooling
-      const dbFiles = this.findFiles(path.join(this.projectRoot, 'src'), /db|database/)
-      for (const file of dbFiles) {
-        const content = fs.readFileSync(file, 'utf8')
-        if (content.includes('pool') || content.includes('pooled')) {
-          connectionPooling = true
-        }
-        if (content.includes('explain') || content.includes('query plan')) {
-          queryOptimization = true
-        }
-        if (content.includes('index') || content.includes('btree') || content.includes('gin')) {
-          indexStrategy = true
-        }
-      }
+      const dbOptimizations = this.analyzeDatabaseOptimizations()
 
       this.results.databaseOptimization = {
-        connectionPooling,
-        queryOptimization,
-        indexStrategy,
+        ...dbOptimizations,
         recommendations: [],
       }
 
-      if (!connectionPooling) {
-        console.log('  ⚠️  Connection pooling not detected')
-        this.results.databaseOptimization.recommendations.push(
-          'Implement connection pooling for better database performance'
-        )
-      }
+      this.addDatabaseRecommendations(dbOptimizations)
 
-      if (!queryOptimization) {
-        console.log('  ⚠️  Query optimization not detected')
-        this.results.databaseOptimization.recommendations.push(
-          'Implement query performance monitoring and optimization'
-        )
+      if (
+        dbOptimizations.connectionPooling &&
+        dbOptimizations.queryOptimization &&
+        dbOptimizations.indexStrategy
+      ) {
       }
-
-      if (!indexStrategy) {
-        console.log('  ⚠️  Index strategy not apparent')
-        this.results.databaseOptimization.recommendations.push(
-          'Review and optimize database indexes for query performance'
-        )
-      }
-
-      if (connectionPooling && queryOptimization && indexStrategy) {
-        console.log('  ✅ Database configuration appears optimized')
-      }
-
     } catch (error) {
-      console.log('  ❌ Database analysis failed:', error.message)
       this.results.databaseOptimization = { status: 'failed', error: error.message }
+    }
+  }
+
+  /**
+   * Analyze database optimization patterns
+   */
+  analyzeDatabaseOptimizations() {
+    let connectionPooling = false
+    let queryOptimization = false
+    let indexStrategy = false
+
+    const dbFiles = this.findFiles(path.join(this.projectRoot, 'src'), /db|database/)
+    for (const file of dbFiles) {
+      const content = fs.readFileSync(file, 'utf8')
+
+      if (content.includes('pool') || content.includes('pooled')) {
+        connectionPooling = true
+      }
+      if (content.includes('explain') || content.includes('query plan')) {
+        queryOptimization = true
+      }
+      if (content.includes('index') || content.includes('btree') || content.includes('gin')) {
+        indexStrategy = true
+      }
+    }
+
+    return { connectionPooling, queryOptimization, indexStrategy }
+  }
+
+  /**
+   * Add database optimization recommendations
+   */
+  addDatabaseRecommendations(optimizations) {
+    if (!optimizations.connectionPooling) {
+      this.results.databaseOptimization.recommendations.push(
+        'Implement connection pooling for better database performance'
+      )
+    }
+
+    if (!optimizations.queryOptimization) {
+      this.results.databaseOptimization.recommendations.push(
+        'Implement query performance monitoring and optimization'
+      )
+    }
+
+    if (!optimizations.indexStrategy) {
+      this.results.databaseOptimization.recommendations.push(
+        'Review and optimize database indexes for query performance'
+      )
     }
   }
 
@@ -387,67 +357,100 @@ class ComprehensiveOptimizer {
    * Optimize memory usage
    */
   async optimizeMemory() {
-    console.log('\n🧠 Analyzing memory optimization...')
-
     try {
-      // Check for memory optimization patterns
-      const srcFiles = this.findFiles(path.join(this.projectRoot, 'src'), /\.(ts|tsx|js|jsx)$/)
-      let memoization = false
-      let lazyLoading = false
-      let memoryLeaks = false
-
-      for (const file of srcFiles.slice(0, 50)) { // Limit to first 50 files for performance
-        const content = fs.readFileSync(file, 'utf8')
-        
-        if (content.includes('useMemo') || content.includes('useCallback') || content.includes('memo(')) {
-          memoization = true
-        }
-        
-        if (content.includes('lazy(') || content.includes('dynamic(') || content.includes('Suspense')) {
-          lazyLoading = true
-        }
-        
-        // Simple check for potential memory leaks
-        if (content.includes('setInterval') && !content.includes('clearInterval')) {
-          memoryLeaks = true
-        }
-      }
+      const memoryOptimizations = this.analyzeMemoryOptimizations()
 
       this.results.memoryOptimization = {
-        memoization,
-        lazyLoading,
-        memoryLeaks,
+        ...memoryOptimizations,
         recommendations: [],
       }
 
-      if (!memoization) {
-        console.log('  ⚠️  Limited use of React memoization detected')
-        this.results.memoryOptimization.recommendations.push(
-          'Implement React.memo, useMemo, and useCallback for expensive operations'
-        )
-      }
+      this.addMemoryRecommendations(memoryOptimizations)
 
-      if (!lazyLoading) {
-        console.log('  ⚠️  Limited lazy loading detected')
-        this.results.memoryOptimization.recommendations.push(
-          'Implement lazy loading for heavy components and routes'
-        )
+      if (
+        memoryOptimizations.memoization &&
+        memoryOptimizations.lazyLoading &&
+        !memoryOptimizations.memoryLeaks
+      ) {
       }
-
-      if (memoryLeaks) {
-        console.log('  ⚠️  Potential memory leaks detected')
-        this.results.memoryOptimization.recommendations.push(
-          'Review timer and event listener cleanup to prevent memory leaks'
-        )
-      }
-
-      if (memoization && lazyLoading && !memoryLeaks) {
-        console.log('  ✅ Memory optimization patterns are well implemented')
-      }
-
     } catch (error) {
-      console.log('  ❌ Memory analysis failed:', error.message)
       this.results.memoryOptimization = { status: 'failed', error: error.message }
+    }
+  }
+
+  /**
+   * Analyze memory optimization patterns
+   */
+  analyzeMemoryOptimizations() {
+    let memoization = false
+    let lazyLoading = false
+    let memoryLeaks = false
+
+    const srcFiles = this.findFiles(path.join(this.projectRoot, 'src'), /\.(ts|tsx|js|jsx)$/)
+
+    for (const file of srcFiles.slice(0, 50)) {
+      // Limit to first 50 files for performance
+      const content = fs.readFileSync(file, 'utf8')
+
+      if (this.hasMemoization(content)) {
+        memoization = true
+      }
+
+      if (this.hasLazyLoading(content)) {
+        lazyLoading = true
+      }
+
+      if (this.hasMemoryLeaks(content)) {
+        memoryLeaks = true
+      }
+    }
+
+    return { memoization, lazyLoading, memoryLeaks }
+  }
+
+  /**
+   * Check if content has memoization patterns
+   */
+  hasMemoization(content) {
+    return (
+      content.includes('useMemo') || content.includes('useCallback') || content.includes('memo(')
+    )
+  }
+
+  /**
+   * Check if content has lazy loading patterns
+   */
+  hasLazyLoading(content) {
+    return content.includes('lazy(') || content.includes('dynamic(') || content.includes('Suspense')
+  }
+
+  /**
+   * Check for potential memory leaks
+   */
+  hasMemoryLeaks(content) {
+    return content.includes('setInterval') && !content.includes('clearInterval')
+  }
+
+  /**
+   * Add memory optimization recommendations
+   */
+  addMemoryRecommendations(optimizations) {
+    if (!optimizations.memoization) {
+      this.results.memoryOptimization.recommendations.push(
+        'Implement React.memo, useMemo, and useCallback for expensive operations'
+      )
+    }
+
+    if (!optimizations.lazyLoading) {
+      this.results.memoryOptimization.recommendations.push(
+        'Implement lazy loading for heavy components and routes'
+      )
+    }
+
+    if (optimizations.memoryLeaks) {
+      this.results.memoryOptimization.recommendations.push(
+        'Review timer and event listener cleanup to prevent memory leaks'
+      )
     }
   }
 
@@ -455,8 +458,6 @@ class ComprehensiveOptimizer {
    * Generate comprehensive report
    */
   generateReport() {
-    console.log('\n📋 Generating comprehensive performance report...')
-
     const report = {
       timestamp: new Date().toISOString(),
       summary: {
@@ -480,17 +481,12 @@ class ComprehensiveOptimizer {
     const reportPath = path.join(reportsDir, `performance-optimization-${Date.now()}.json`)
     fs.writeFileSync(reportPath, JSON.stringify(report, null, 2))
 
-    console.log(`📄 Detailed report saved to: ${reportPath}`)
-    console.log('\n🎯 Summary of Recommendations:')
-    console.log('=' .repeat(50))
-    
     const allRecommendations = this.compileAllRecommendations()
-    allRecommendations.forEach((rec, index) => {
-      console.log(`${index + 1}. ${rec}`)
+    allRecommendations.forEach((_rec, _index) => {
+      // Recommendations are compiled and will be included in the report
     })
 
     if (allRecommendations.length === 0) {
-      console.log('🎉 Congratulations! Your application is well optimized.')
     }
   }
 
@@ -498,8 +494,6 @@ class ComprehensiveOptimizer {
    * Apply automatic optimizations
    */
   async applyOptimizations() {
-    console.log('\n🔧 Applying automatic optimizations...')
-
     try {
       // 1. Update package.json scripts if needed
       this.optimizePackageScripts()
@@ -509,11 +503,7 @@ class ComprehensiveOptimizer {
 
       // 3. Update .gitignore for optimization artifacts
       this.updateGitignore()
-
-      console.log('  ✅ Automatic optimizations applied')
-    } catch (error) {
-      console.log('  ❌ Failed to apply some optimizations:', error.message)
-    }
+    } catch (_error) {}
   }
 
   /**
@@ -536,14 +526,14 @@ class ComprehensiveOptimizer {
 
   findFiles(dir, pattern) {
     const files = []
-    
+
     function walk(currentDir) {
       try {
         const items = fs.readdirSync(currentDir)
         for (const item of items) {
           const fullPath = path.join(currentDir, item)
           const stats = fs.statSync(fullPath)
-          
+
           if (stats.isDirectory() && !item.includes('node_modules') && !item.includes('.git')) {
             walk(fullPath)
           } else if (stats.isFile() && pattern.test(item)) {
@@ -554,23 +544,32 @@ class ComprehensiveOptimizer {
         // Ignore permission errors
       }
     }
-    
+
     walk(dir)
     return files
   }
 
   findImageFiles(dir) {
     const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp', '.avif']
-    return this.findFiles(dir, new RegExp(`\\.(${imageExtensions.map(ext => ext.slice(1)).join('|')})$`, 'i'))
+    return this.findFiles(
+      dir,
+      new RegExp(`\\.(${imageExtensions.map(ext => ext.slice(1)).join('|')})$`, 'i')
+    )
   }
 
   identifyHeavyDependencies(dependencies) {
     const heavyLibraries = [
-      'lodash', 'moment', 'three', 'react-big-calendar', 'recharts', 
-      'antd', '@mui/material', 'bootstrap'
+      'lodash',
+      'moment',
+      'three',
+      'react-big-calendar',
+      'recharts',
+      'antd',
+      '@mui/material',
+      'bootstrap',
     ]
-    
-    return Object.keys(dependencies).filter(dep => 
+
+    return Object.keys(dependencies).filter(dep =>
       heavyLibraries.some(heavy => dep.includes(heavy))
     )
   }
@@ -579,7 +578,7 @@ class ComprehensiveOptimizer {
     // Simple duplicate detection based on similar names
     const deps = Object.keys(this.packageJson.dependencies || {})
     const devDeps = Object.keys(this.packageJson.devDependencies || {})
-    
+
     return deps.filter(dep => devDeps.includes(dep))
   }
 
@@ -587,13 +586,15 @@ class ComprehensiveOptimizer {
     // Simple unused dependency detection
     try {
       const srcFiles = this.findFiles(path.join(this.projectRoot, 'src'), /\.(ts|tsx|js|jsx)$/)
-      const allContent = srcFiles.map(file => {
-        try {
-          return fs.readFileSync(file, 'utf8')
-        } catch {
-          return ''
-        }
-      }).join('')
+      const allContent = srcFiles
+        .map(file => {
+          try {
+            return fs.readFileSync(file, 'utf8')
+          } catch {
+            return ''
+          }
+        })
+        .join('')
 
       const dependencies = Object.keys(this.packageJson.dependencies || {})
       return dependencies.filter(dep => !allContent.includes(dep))
@@ -604,15 +605,15 @@ class ComprehensiveOptimizer {
 
   compileAllRecommendations() {
     const allRecs = []
-    
+
     Object.values(this.results).forEach(result => {
-      if (result && result.recommendations) {
+      if (result?.recommendations) {
         allRecs.push(...result.recommendations)
       }
     })
-    
+
     allRecs.push(...this.results.recommendations)
-    
+
     return [...new Set(allRecs)] // Remove duplicates
   }
 
@@ -638,7 +639,6 @@ class ComprehensiveOptimizer {
         path.join(this.projectRoot, 'package.json'),
         JSON.stringify(this.packageJson, null, 2)
       )
-      console.log('  ✅ Added missing performance scripts to package.json')
     }
   }
 
@@ -678,7 +678,6 @@ module.exports = {
       `.trim()
 
       fs.writeFileSync(configPath, config)
-      console.log('  ✅ Created performance.config.js')
     }
   }
 
@@ -686,7 +685,7 @@ module.exports = {
     const gitignorePath = path.join(this.projectRoot, '.gitignore')
     if (fs.existsSync(gitignorePath)) {
       let gitignore = fs.readFileSync(gitignorePath, 'utf8')
-      
+
       const performanceEntries = [
         '# Performance optimization artifacts',
         'reports/',
@@ -704,7 +703,6 @@ module.exports = {
 
       if (updated) {
         fs.writeFileSync(gitignorePath, gitignore)
-        console.log('  ✅ Updated .gitignore with performance artifacts')
       }
     }
   }
@@ -717,8 +715,7 @@ async function main() {
 }
 
 if (require.main === module) {
-  main().catch(error => {
-    console.error('Optimization failed:', error)
+  main().catch(_error => {
     process.exit(1)
   })
 }

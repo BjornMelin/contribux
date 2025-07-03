@@ -1,11 +1,9 @@
-const { neon } = require('@neondatabase/serverless');
+const { neon } = require('@neondatabase/serverless')
 
 async function applyAuthIndexes() {
-  const sql = neon(process.env.DATABASE_URL);
-  
+  const sql = neon(process.env.DATABASE_URL)
+
   try {
-    console.log('🔄 Creating authentication indexes...');
-    
     const indexes = [
       'idx_webauthn_credentials_user_id ON webauthn_credentials(user_id)',
       'idx_webauthn_credentials_credential_id ON webauthn_credentials(credential_id)',
@@ -30,21 +28,15 @@ async function applyAuthIndexes() {
       'idx_refresh_tokens_user_id ON refresh_tokens(user_id)',
       'idx_refresh_tokens_session_id ON refresh_tokens(session_id)',
       'idx_refresh_tokens_token_hash ON refresh_tokens(token_hash)',
-      'idx_refresh_tokens_expires_at ON refresh_tokens(expires_at)'
-    ];
+      'idx_refresh_tokens_expires_at ON refresh_tokens(expires_at)',
+    ]
 
     for (const index of indexes) {
-      await sql`CREATE INDEX IF NOT EXISTS ${sql(index)}`;
-      console.log(`✅ Index created: ${index.split(' ON ')[0]}`);
+      await sql`CREATE INDEX IF NOT EXISTS ${sql(index)}`
     }
-    
-    console.log('🎉 All authentication indexes created successfully!');
-    
-  } catch (error) {
-    console.error('❌ Error creating indexes:', error.message);
-    console.error('Stack:', error.stack);
-    process.exit(1);
+  } catch (_error) {
+    process.exit(1)
   }
 }
 
-applyAuthIndexes();
+applyAuthIndexes()

@@ -5,58 +5,52 @@
  * Tests database operations, vector search performance, and caching efficiency
  */
 
-const { neon } = require('@neondatabase/serverless');
-const Redis = require('ioredis');
+const { neon } = require('@neondatabase/serverless')
+const Redis = require('ioredis')
 
 class PerformanceBenchmarks {
   constructor(databaseUrl, redisUrl) {
-    this.sql = neon(databaseUrl);
-    this.redis = redisUrl ? new Redis(redisUrl) : null;
-    this.results = {};
+    this.sql = neon(databaseUrl)
+    this.redis = redisUrl ? new Redis(redisUrl) : null
+    this.results = {}
   }
 
   async runAllBenchmarks() {
-    console.log('🚀 Starting performance benchmark suite...\n');
-    
     try {
       // Database benchmarks
-      await this.benchmarkBasicQueries();
-      await this.benchmarkVectorSearch();
-      await this.benchmarkComplexJoins();
-      await this.benchmarkIndexPerformance();
-      
+      await this.benchmarkBasicQueries()
+      await this.benchmarkVectorSearch()
+      await this.benchmarkComplexJoins()
+      await this.benchmarkIndexPerformance()
+
       // Cache benchmarks (if Redis is available)
       if (this.redis) {
-        await this.benchmarkCacheOperations();
+        await this.benchmarkCacheOperations()
       }
-      
+
       // Generate comprehensive report
-      this.generateReport();
-      
-    } catch (error) {
-      console.error('❌ Benchmark suite failed:', error.message);
-      process.exit(1);
+      this.generateReport()
+    } catch (_error) {
+      process.exit(1)
     }
   }
 
   async benchmarkBasicQueries() {
-    console.log('📊 Benchmarking basic database queries...');
-    
     const queries = [
       {
         name: 'Select all users',
         query: () => this.sql`SELECT * FROM users LIMIT 100`,
-        iterations: 50
+        iterations: 50,
       },
       {
         name: 'Select users by skill level',
         query: () => this.sql`SELECT * FROM users WHERE skill_level = 'advanced' LIMIT 50`,
-        iterations: 50
+        iterations: 50,
       },
       {
         name: 'Count repositories by language',
         query: () => this.sql`SELECT language, COUNT(*) FROM repositories GROUP BY language`,
-        iterations: 30
+        iterations: 30,
       },
       {
         name: 'Select opportunities with filters',
@@ -65,35 +59,31 @@ class PerformanceBenchmarks {
           WHERE difficulty = 'intermediate' AND good_first_issue = true 
           LIMIT 20
         `,
-        iterations: 40
-      }
-    ];
+        iterations: 40,
+      },
+    ]
 
-    this.results.basicQueries = {};
-    
+    this.results.basicQueries = {}
+
     for (const queryTest of queries) {
-      const times = [];
-      
+      const times = []
+
       for (let i = 0; i < queryTest.iterations; i++) {
-        const start = performance.now();
-        await queryTest.query();
-        const end = performance.now();
-        times.push(end - start);
+        const start = performance.now()
+        await queryTest.query()
+        const end = performance.now()
+        times.push(end - start)
       }
-      
-      const stats = this.calculateStats(times);
-      this.results.basicQueries[queryTest.name] = stats;
-      
-      console.log(`  ✅ ${queryTest.name}: ${stats.avg.toFixed(2)}ms avg (${stats.min.toFixed(2)}-${stats.max.toFixed(2)}ms)`);
+
+      const stats = this.calculateStats(times)
+      this.results.basicQueries[queryTest.name] = stats
     }
   }
 
   async benchmarkVectorSearch() {
-    console.log('\n🔍 Benchmarking vector search operations...');
-    
     // Generate a test query vector
-    const queryVector = Array.from({ length: 1536 }, () => (Math.random() - 0.5) * 2);
-    
+    const queryVector = Array.from({ length: 1536 }, () => (Math.random() - 0.5) * 2)
+
     const vectorQueries = [
       {
         name: 'User profile similarity (HNSW)',
@@ -104,7 +94,7 @@ class PerformanceBenchmarks {
           ORDER BY profile_embedding <=> ${queryVector}
           LIMIT 10
         `,
-        iterations: 20
+        iterations: 20,
       },
       {
         name: 'Repository similarity (HNSW)',
@@ -115,7 +105,7 @@ class PerformanceBenchmarks {
           ORDER BY description_embedding <=> ${queryVector}
           LIMIT 10
         `,
-        iterations: 20
+        iterations: 20,
       },
       {
         name: 'Opportunity title similarity (HNSW)',
@@ -126,7 +116,7 @@ class PerformanceBenchmarks {
           ORDER BY title_embedding <=> ${queryVector}
           LIMIT 10
         `,
-        iterations: 20
+        iterations: 20,
       },
       {
         name: 'Combined opportunity search (title + description)',
@@ -139,32 +129,28 @@ class PerformanceBenchmarks {
           ORDER BY combined_distance
           LIMIT 10
         `,
-        iterations: 15
-      }
-    ];
+        iterations: 15,
+      },
+    ]
 
-    this.results.vectorSearch = {};
-    
+    this.results.vectorSearch = {}
+
     for (const queryTest of vectorQueries) {
-      const times = [];
-      
+      const times = []
+
       for (let i = 0; i < queryTest.iterations; i++) {
-        const start = performance.now();
-        await queryTest.query();
-        const end = performance.now();
-        times.push(end - start);
+        const start = performance.now()
+        await queryTest.query()
+        const end = performance.now()
+        times.push(end - start)
       }
-      
-      const stats = this.calculateStats(times);
-      this.results.vectorSearch[queryTest.name] = stats;
-      
-      console.log(`  ✅ ${queryTest.name}: ${stats.avg.toFixed(2)}ms avg (${stats.min.toFixed(2)}-${stats.max.toFixed(2)}ms)`);
+
+      const stats = this.calculateStats(times)
+      this.results.vectorSearch[queryTest.name] = stats
     }
   }
 
   async benchmarkComplexJoins() {
-    console.log('\n🔗 Benchmarking complex join operations...');
-    
     const joinQueries = [
       {
         name: 'Opportunities with repository info',
@@ -175,7 +161,7 @@ class PerformanceBenchmarks {
           WHERE r.health_score > 70
           LIMIT 50
         `,
-        iterations: 25
+        iterations: 25,
       },
       {
         name: 'User preferences with matching opportunities',
@@ -188,7 +174,7 @@ class PerformanceBenchmarks {
           WHERE r.language = ANY(up.preferred_languages)
           LIMIT 30
         `,
-        iterations: 20
+        iterations: 20,
       },
       {
         name: 'Contribution outcomes with user and opportunity details',
@@ -207,7 +193,7 @@ class PerformanceBenchmarks {
           WHERE co.status IN ('accepted', 'merged')
           LIMIT 40
         `,
-        iterations: 20
+        iterations: 20,
       },
       {
         name: 'User repository interactions with aggregations',
@@ -226,35 +212,31 @@ class PerformanceBenchmarks {
           ORDER BY conversion_rate DESC NULLS LAST
           LIMIT 25
         `,
-        iterations: 20
-      }
-    ];
+        iterations: 20,
+      },
+    ]
 
-    this.results.complexJoins = {};
-    
+    this.results.complexJoins = {}
+
     for (const queryTest of joinQueries) {
-      const times = [];
-      
+      const times = []
+
       for (let i = 0; i < queryTest.iterations; i++) {
-        const start = performance.now();
-        await queryTest.query();
-        const end = performance.now();
-        times.push(end - start);
+        const start = performance.now()
+        await queryTest.query()
+        const end = performance.now()
+        times.push(end - start)
       }
-      
-      const stats = this.calculateStats(times);
-      this.results.complexJoins[queryTest.name] = stats;
-      
-      console.log(`  ✅ ${queryTest.name}: ${stats.avg.toFixed(2)}ms avg (${stats.min.toFixed(2)}-${stats.max.toFixed(2)}ms)`);
+
+      const stats = this.calculateStats(times)
+      this.results.complexJoins[queryTest.name] = stats
     }
   }
 
   async benchmarkIndexPerformance() {
-    console.log('\n📈 Benchmarking index performance...');
-    
     // First, check index usage
-    await this.analyzeIndexUsage();
-    
+    await this.analyzeIndexUsage()
+
     const indexQueries = [
       {
         name: 'GIN index on preferred_languages',
@@ -262,7 +244,7 @@ class PerformanceBenchmarks {
           SELECT * FROM users 
           WHERE preferred_languages @> ARRAY['JavaScript']
         `,
-        iterations: 30
+        iterations: 30,
       },
       {
         name: 'GIN index on repository topics',
@@ -270,7 +252,7 @@ class PerformanceBenchmarks {
           SELECT * FROM repositories 
           WHERE topics @> ARRAY['machine-learning']
         `,
-        iterations: 30
+        iterations: 30,
       },
       {
         name: 'Trigram index on repository names',
@@ -278,7 +260,7 @@ class PerformanceBenchmarks {
           SELECT * FROM repositories 
           WHERE name ILIKE '%search%'
         `,
-        iterations: 25
+        iterations: 25,
       },
       {
         name: 'Composite index on opportunities',
@@ -288,26 +270,24 @@ class PerformanceBenchmarks {
           ORDER BY priority DESC
           LIMIT 20
         `,
-        iterations: 30
-      }
-    ];
+        iterations: 30,
+      },
+    ]
 
-    this.results.indexPerformance = {};
-    
+    this.results.indexPerformance = {}
+
     for (const queryTest of indexQueries) {
-      const times = [];
-      
+      const times = []
+
       for (let i = 0; i < queryTest.iterations; i++) {
-        const start = performance.now();
-        await queryTest.query();
-        const end = performance.now();
-        times.push(end - start);
+        const start = performance.now()
+        await queryTest.query()
+        const end = performance.now()
+        times.push(end - start)
       }
-      
-      const stats = this.calculateStats(times);
-      this.results.indexPerformance[queryTest.name] = stats;
-      
-      console.log(`  ✅ ${queryTest.name}: ${stats.avg.toFixed(2)}ms avg (${stats.min.toFixed(2)}-${stats.max.toFixed(2)}ms)`);
+
+      const stats = this.calculateStats(times)
+      this.results.indexPerformance[queryTest.name] = stats
     }
   }
 
@@ -327,202 +307,203 @@ class PerformanceBenchmarks {
         FROM pg_stat_user_indexes 
         WHERE schemaname = 'public'
         ORDER BY idx_tup_read DESC
-      `;
-      
-      console.log('  📊 Index usage statistics:');
-      indexStats.slice(0, 10).forEach(stat => {
-        console.log(`    ${stat.indexname}: ${stat.idx_tup_read} reads, ${stat.selectivity_percent?.toFixed(1)}% selectivity`);
-      });
-      
-    } catch (error) {
-      console.log('  ℹ️  Index statistics not available (pg_stat_statements may not be enabled)');
-    }
+      `
+      indexStats.slice(0, 10).forEach(_stat => {})
+    } catch (_error) {}
   }
 
   async benchmarkCacheOperations() {
-    console.log('\n⚡ Benchmarking cache operations...');
-    
     const cacheOperations = [
       {
         name: 'Redis SET operations',
         operation: async () => {
-          await this.redis.set(`test:key:${Math.random()}`, JSON.stringify({ test: 'data', timestamp: Date.now() }));
+          await this.redis.set(
+            `test:key:${Math.random()}`,
+            JSON.stringify({ test: 'data', timestamp: Date.now() })
+          )
         },
-        iterations: 100
+        iterations: 100,
       },
       {
         name: 'Redis GET operations',
         setup: async () => {
           for (let i = 0; i < 50; i++) {
-            await this.redis.set(`test:get:${i}`, JSON.stringify({ id: i, data: 'test' }));
+            await this.redis.set(`test:get:${i}`, JSON.stringify({ id: i, data: 'test' }))
           }
         },
         operation: async () => {
-          const key = `test:get:${Math.floor(Math.random() * 50)}`;
-          await this.redis.get(key);
+          const key = `test:get:${Math.floor(Math.random() * 50)}`
+          await this.redis.get(key)
         },
-        iterations: 100
+        iterations: 100,
       },
       {
         name: 'Redis Hash operations (HSET/HGET)',
         operation: async () => {
-          const hashKey = `test:hash:${Math.floor(Math.random() * 10)}`;
-          await this.redis.hset(hashKey, `field:${Math.random()}`, JSON.stringify({ timestamp: Date.now() }));
-          await this.redis.hget(hashKey, `field:${Math.random()}`);
+          const hashKey = `test:hash:${Math.floor(Math.random() * 10)}`
+          await this.redis.hset(
+            hashKey,
+            `field:${Math.random()}`,
+            JSON.stringify({ timestamp: Date.now() })
+          )
+          await this.redis.hget(hashKey, `field:${Math.random()}`)
         },
-        iterations: 100
+        iterations: 100,
       },
       {
         name: 'Cache vs Database query comparison',
         setup: async () => {
           // Cache a query result
-          const result = await this.sql`SELECT * FROM users LIMIT 10`;
-          await this.redis.setex('cached:users:limit10', 300, JSON.stringify(result));
+          const result = await this.sql`SELECT * FROM users LIMIT 10`
+          await this.redis.setex('cached:users:limit10', 300, JSON.stringify(result))
         },
         operation: async () => {
           // Alternate between cache hit and database query
           if (Math.random() > 0.5) {
-            await this.redis.get('cached:users:limit10');
+            await this.redis.get('cached:users:limit10')
           } else {
-            await this.sql`SELECT * FROM users LIMIT 10`;
+            await this.sql`SELECT * FROM users LIMIT 10`
           }
         },
-        iterations: 50
-      }
-    ];
+        iterations: 50,
+      },
+    ]
 
-    this.results.cacheOperations = {};
-    
+    this.results.cacheOperations = {}
+
     for (const test of cacheOperations) {
       if (test.setup) {
-        await test.setup();
+        await test.setup()
       }
-      
-      const times = [];
-      
+
+      const times = []
+
       for (let i = 0; i < test.iterations; i++) {
-        const start = performance.now();
-        await test.operation();
-        const end = performance.now();
-        times.push(end - start);
+        const start = performance.now()
+        await test.operation()
+        const end = performance.now()
+        times.push(end - start)
       }
-      
-      const stats = this.calculateStats(times);
-      this.results.cacheOperations[test.name] = stats;
-      
-      console.log(`  ✅ ${test.name}: ${stats.avg.toFixed(2)}ms avg (${stats.min.toFixed(2)}-${stats.max.toFixed(2)}ms)`);
+
+      const stats = this.calculateStats(times)
+      this.results.cacheOperations[test.name] = stats
     }
-    
+
     // Cleanup test keys
-    const keys = await this.redis.keys('test:*');
+    const keys = await this.redis.keys('test:*')
     if (keys.length > 0) {
-      await this.redis.del(...keys);
+      await this.redis.del(...keys)
     }
   }
 
   calculateStats(times) {
-    const sorted = times.sort((a, b) => a - b);
-    const sum = times.reduce((a, b) => a + b, 0);
-    
+    const sorted = times.sort((a, b) => a - b)
+    const sum = times.reduce((a, b) => a + b, 0)
+
     return {
       min: Math.min(...times),
       max: Math.max(...times),
       avg: sum / times.length,
       median: sorted[Math.floor(sorted.length / 2)],
       p95: sorted[Math.floor(sorted.length * 0.95)],
-      p99: sorted[Math.floor(sorted.length * 0.99)]
-    };
+      p99: sorted[Math.floor(sorted.length * 0.99)],
+    }
   }
 
   generateReport() {
-    console.log('\n📋 Performance Benchmark Report');
-    console.log('=====================================\n');
-    
-    console.log('🎯 Performance Summary:');
-    console.log('-----------------------');
-    
     // Basic queries summary
     if (this.results.basicQueries) {
-      const avgBasic = Object.values(this.results.basicQueries)
-        .reduce((sum, stats) => sum + stats.avg, 0) / Object.keys(this.results.basicQueries).length;
-      console.log(`📊 Basic Queries: ${avgBasic.toFixed(2)}ms average`);
+      const _avgBasic =
+        Object.values(this.results.basicQueries).reduce((sum, stats) => sum + stats.avg, 0) /
+        Object.keys(this.results.basicQueries).length
     }
-    
+
     // Vector search summary
     if (this.results.vectorSearch) {
-      const avgVector = Object.values(this.results.vectorSearch)
-        .reduce((sum, stats) => sum + stats.avg, 0) / Object.keys(this.results.vectorSearch).length;
-      console.log(`🔍 Vector Search: ${avgVector.toFixed(2)}ms average`);
+      const _avgVector =
+        Object.values(this.results.vectorSearch).reduce((sum, stats) => sum + stats.avg, 0) /
+        Object.keys(this.results.vectorSearch).length
     }
-    
+
     // Complex joins summary
     if (this.results.complexJoins) {
-      const avgJoins = Object.values(this.results.complexJoins)
-        .reduce((sum, stats) => sum + stats.avg, 0) / Object.keys(this.results.complexJoins).length;
-      console.log(`🔗 Complex Joins: ${avgJoins.toFixed(2)}ms average`);
+      const _avgJoins =
+        Object.values(this.results.complexJoins).reduce((sum, stats) => sum + stats.avg, 0) /
+        Object.keys(this.results.complexJoins).length
     }
-    
+
     // Cache operations summary
     if (this.results.cacheOperations) {
-      const avgCache = Object.values(this.results.cacheOperations)
-        .reduce((sum, stats) => sum + stats.avg, 0) / Object.keys(this.results.cacheOperations).length;
-      console.log(`⚡ Cache Operations: ${avgCache.toFixed(2)}ms average`);
+      const _avgCache =
+        Object.values(this.results.cacheOperations).reduce((sum, stats) => sum + stats.avg, 0) /
+        Object.keys(this.results.cacheOperations).length
     }
-    
-    console.log('\n📈 Performance Recommendations:');
-    console.log('--------------------------------');
-    
+
     // Generate recommendations based on results
-    this.generateRecommendations();
-    
+    this.generateRecommendations()
+
     // Save results to file
-    this.saveResults();
+    this.saveResults()
   }
 
   generateRecommendations() {
-    const recommendations = [];
-    
+    const recommendations = []
+
     // Vector search recommendations
     if (this.results.vectorSearch) {
-      const slowestVector = Math.max(...Object.values(this.results.vectorSearch).map(s => s.avg));
+      const slowestVector = Math.max(...Object.values(this.results.vectorSearch).map(s => s.avg))
       if (slowestVector > 50) {
-        recommendations.push('🔍 Vector search performance could be improved. Consider adjusting HNSW parameters (ef_search, m).');
+        recommendations.push(
+          '🔍 Vector search performance could be improved. Consider adjusting HNSW parameters (ef_search, m).'
+        )
       }
     }
-    
+
     // Basic query recommendations
     if (this.results.basicQueries) {
-      const slowestBasic = Math.max(...Object.values(this.results.basicQueries).map(s => s.avg));
+      const slowestBasic = Math.max(...Object.values(this.results.basicQueries).map(s => s.avg))
       if (slowestBasic > 20) {
-        recommendations.push('📊 Some basic queries are slow. Review indexes and query optimization.');
+        recommendations.push(
+          '📊 Some basic queries are slow. Review indexes and query optimization.'
+        )
       }
     }
-    
+
     // Join recommendations
     if (this.results.complexJoins) {
-      const slowestJoin = Math.max(...Object.values(this.results.complexJoins).map(s => s.avg));
+      const slowestJoin = Math.max(...Object.values(this.results.complexJoins).map(s => s.avg))
       if (slowestJoin > 100) {
-        recommendations.push('🔗 Complex joins are slow. Consider query optimization or denormalization.');
+        recommendations.push(
+          '🔗 Complex joins are slow. Consider query optimization or denormalization.'
+        )
       }
     }
-    
+
     // Cache recommendations
     if (this.results.cacheOperations && this.results.basicQueries) {
-      const avgCache = Object.values(this.results.cacheOperations)
-        .reduce((sum, stats) => sum + stats.avg, 0) / Object.keys(this.results.cacheOperations).length;
-      const avgDB = Object.values(this.results.basicQueries)
-        .reduce((sum, stats) => sum + stats.avg, 0) / Object.keys(this.results.basicQueries).length;
-      
+      const avgCache =
+        Object.values(this.results.cacheOperations).reduce((sum, stats) => sum + stats.avg, 0) /
+        Object.keys(this.results.cacheOperations).length
+      const avgDB =
+        Object.values(this.results.basicQueries).reduce((sum, stats) => sum + stats.avg, 0) /
+        Object.keys(this.results.basicQueries).length
+
       if (avgCache < avgDB * 0.1) {
-        recommendations.push('⚡ Cache is significantly faster than database. Consider more aggressive caching.');
+        recommendations.push(
+          '⚡ Cache is significantly faster than database. Consider more aggressive caching.'
+        )
       }
     }
-    
+
     if (recommendations.length === 0) {
-      recommendations.push('✅ All performance metrics look good! No immediate optimizations needed.');
+      recommendations.push(
+        '✅ All performance metrics look good! No immediate optimizations needed.'
+      )
     }
-    
-    recommendations.forEach(rec => console.log(rec));
+
+    recommendations.forEach(_rec => {
+      // Process recommendation
+    })
   }
 
   saveResults() {
@@ -534,54 +515,52 @@ class PerformanceBenchmarks {
         environment: {
           node_version: process.version,
           database: 'PostgreSQL with pgvector',
-          cache: this.redis ? 'Redis' : 'None'
-        }
-      }
-    };
-    
-    const fs = require('fs');
-    const path = require('path');
-    
-    const reportsDir = path.join(__dirname, '../reports');
-    if (!fs.existsSync(reportsDir)) {
-      fs.mkdirSync(reportsDir, { recursive: true });
+          cache: this.redis ? 'Redis' : 'None',
+        },
+      },
     }
-    
-    const filename = `performance-report-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
-    const filepath = path.join(reportsDir, filename);
-    
-    fs.writeFileSync(filepath, JSON.stringify(report, null, 2));
-    console.log(`\n💾 Detailed report saved to: ${filepath}`);
+
+    const fs = require('node:fs')
+    const path = require('node:path')
+
+    const reportsDir = path.join(__dirname, '../reports')
+    if (!fs.existsSync(reportsDir)) {
+      fs.mkdirSync(reportsDir, { recursive: true })
+    }
+
+    const filename = `performance-report-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
+    const filepath = path.join(reportsDir, filename)
+
+    fs.writeFileSync(filepath, JSON.stringify(report, null, 2))
   }
 
   async cleanup() {
     if (this.redis) {
-      await this.redis.quit();
+      await this.redis.quit()
     }
   }
 }
 
 // CLI Interface
 async function main() {
-  const databaseUrl = process.env.DATABASE_URL_TEST || process.env.DATABASE_URL;
-  const redisUrl = process.env.REDIS_URL_TEST || process.env.REDIS_URL;
-  
+  const databaseUrl = process.env.DATABASE_URL_TEST || process.env.DATABASE_URL
+  const redisUrl = process.env.REDIS_URL_TEST || process.env.REDIS_URL
+
   if (!databaseUrl) {
-    console.error('❌ DATABASE_URL_TEST or DATABASE_URL environment variable is required');
-    process.exit(1);
+    process.exit(1)
   }
 
-  const benchmarks = new PerformanceBenchmarks(databaseUrl, redisUrl);
-  
+  const benchmarks = new PerformanceBenchmarks(databaseUrl, redisUrl)
+
   try {
-    await benchmarks.runAllBenchmarks();
+    await benchmarks.runAllBenchmarks()
   } finally {
-    await benchmarks.cleanup();
+    await benchmarks.cleanup()
   }
 }
 
 if (require.main === module) {
-  main();
+  main()
 }
 
-module.exports = { PerformanceBenchmarks };
+module.exports = { PerformanceBenchmarks }

@@ -3,7 +3,7 @@
 /**
  * Database schema migration for Multi-Factor Authentication (MFA)
  * Adds TOTP credentials and backup codes tables
- * 
+ *
  * Usage: node scripts/apply-mfa-schema.js
  */
 
@@ -12,19 +12,14 @@ const { Client } = require('pg')
 const DATABASE_URL = process.env.DATABASE_URL || process.env.DATABASE_URL_DEV
 
 if (!DATABASE_URL) {
-  console.error('❌ DATABASE_URL environment variable is required')
   process.exit(1)
 }
 
 async function applyMFASchema() {
   const client = new Client({ connectionString: DATABASE_URL })
-  
+
   try {
     await client.connect()
-    console.log('✅ Connected to database')
-
-    // Create TOTP credentials table
-    console.log('\n🔐 Creating TOTP credentials table...')
     await client.query(`
       CREATE TABLE IF NOT EXISTS totp_credentials (
         id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -47,10 +42,6 @@ async function applyMFASchema() {
         CONSTRAINT unique_totp_per_user UNIQUE (user_id)
       )
     `)
-    console.log('✅ totp_credentials table created')
-
-    // Create MFA backup codes table
-    console.log('\n🔐 Creating MFA backup codes table...')
     await client.query(`
       CREATE TABLE IF NOT EXISTS mfa_backup_codes (
         id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -66,10 +57,6 @@ async function applyMFASchema() {
         CONSTRAINT unique_backup_code_per_user UNIQUE (user_id, code_hash)
       )
     `)
-    console.log('✅ mfa_backup_codes table created')
-
-    // Update users table to include MFA settings
-    console.log('\n🔐 Adding MFA settings to users table...')
     try {
       // Add MFA columns if they don't exist
       await client.query(`
@@ -81,17 +68,13 @@ async function applyMFASchema() {
         ADD COLUMN IF NOT EXISTS mfa_backup_codes_count INTEGER NOT NULL DEFAULT 0,
         ADD COLUMN IF NOT EXISTS trusted_device_fingerprints TEXT[] DEFAULT '{}'
       `)
-      console.log('✅ MFA columns added to users table')
     } catch (error) {
       if (error.message.includes('already exists')) {
-        console.log('✅ MFA columns already exist in users table')
+        // Column already exists, skip addition
       } else {
         throw error
       }
     }
-
-    // Create indexes for performance
-    console.log('\n📊 Creating indexes...')
     const indexes = [
       'CREATE INDEX IF NOT EXISTS idx_totp_credentials_user_id ON totp_credentials(user_id)',
       'CREATE INDEX IF NOT EXISTS idx_totp_credentials_last_used ON totp_credentials(last_used_at)',
@@ -101,16 +84,12 @@ async function applyMFASchema() {
       'CREATE INDEX IF NOT EXISTS idx_mfa_backup_codes_generated ON mfa_backup_codes(generated_at)',
       'CREATE INDEX IF NOT EXISTS idx_users_mfa_enabled ON users(mfa_enabled)',
       'CREATE INDEX IF NOT EXISTS idx_users_primary_mfa_method ON users(primary_mfa_method)',
-      'CREATE INDEX IF NOT EXISTS idx_users_last_mfa_used ON users(last_mfa_used_at)'
+      'CREATE INDEX IF NOT EXISTS idx_users_last_mfa_used ON users(last_mfa_used_at)',
     ]
 
     for (const indexQuery of indexes) {
       await client.query(indexQuery)
     }
-    console.log('✅ All indexes created')
-
-    // Create updated timestamp triggers
-    console.log('\n⏰ Creating updated_at triggers...')
     await client.query(`
       CREATE OR REPLACE FUNCTION update_updated_at_column()
       RETURNS TRIGGER AS $$
@@ -130,10 +109,6 @@ async function applyMFASchema() {
           FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
       `)
     }
-    console.log('✅ Updated timestamp triggers created')
-
-    // Update audit_logs table to support MFA events
-    console.log('\n📋 Updating audit_logs for MFA events...')
     try {
       await client.query(`
         ALTER TABLE audit_logs 
@@ -141,18 +116,14 @@ async function applyMFASchema() {
         ADD COLUMN IF NOT EXISTS mfa_success BOOLEAN,
         ADD COLUMN IF NOT EXISTS device_fingerprint TEXT
       `)
-      console.log('✅ Audit logs updated for MFA events')
     } catch (error) {
       if (error.message.includes('already exists')) {
-        console.log('✅ MFA columns already exist in audit_logs table')
+        // Audit log columns already exist, skip addition
       } else {
         throw error
       }
     }
 
-    // Create MFA-specific constraints and checks
-    console.log('\n🔒 Adding security constraints...')
-    
     // Constraint: Users with MFA enabled must have at least one method
     await client.query(`
       ALTER TABLE users 
@@ -179,21 +150,7 @@ async function applyMFASchema() {
       ADD CONSTRAINT IF NOT EXISTS check_backup_codes_count_valid 
       CHECK (mfa_backup_codes_count >= 0 AND mfa_backup_codes_count <= 10)
     `)
-
-    console.log('✅ Security constraints added')
-
-    console.log('\n🎉 MFA schema migration completed successfully!')
-    console.log('\n📊 Summary:')
-    console.log('   • totp_credentials table created')
-    console.log('   • mfa_backup_codes table created')
-    console.log('   • users table updated with MFA columns')
-    console.log('   • audit_logs table updated for MFA events')
-    console.log('   • Performance indexes created')
-    console.log('   • Security constraints added')
-    console.log('   • Updated timestamp triggers configured')
-
-  } catch (error) {
-    console.error('❌ Error applying MFA schema:', error)
+  } catch (_error) {
     process.exit(1)
   } finally {
     await client.end()

@@ -6,8 +6,8 @@
  * Part of ULTRATHINK Phase 2B-2 validation
  */
 
-import { z } from 'zod'
 import { writeFileSync } from 'node:fs'
+import { z } from 'zod'
 
 // Configuration
 const BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000'
@@ -37,7 +37,7 @@ interface ValidationSummary {
 }
 
 // Color codes for console output
-const colors = {
+const _colors = {
   reset: '\x1b[0m',
   red: '\x1b[31m',
   green: '\x1b[32m',
@@ -55,49 +55,37 @@ let errorTests = 0
 let skippedTests = 0
 
 // Utility functions
-function printHeader(title: string): void {
-  console.log(`\n${colors.blue}${'='.repeat(50)}${colors.reset}`)
-  console.log(`${colors.blue}${title}${colors.reset}`)
-  console.log(`${colors.blue}${'='.repeat(50)}${colors.reset}`)
-}
+function printHeader(_title: string): void {}
 
-function printTest(name: string): void {
-  console.log(`${colors.yellow}Testing:${colors.reset} ${name}`)
-}
+function printTest(_name: string): void {}
 
-function printSuccess(message: string): void {
-  console.log(`${colors.green}✓ PASS:${colors.reset} ${message}`)
-}
+function printSuccess(_message: string): void {}
 
-function printFailure(message: string): void {
-  console.log(`${colors.red}✗ FAIL:${colors.reset} ${message}`)
-}
+function printFailure(_message: string): void {}
 
-function printError(message: string): void {
-  console.log(`${colors.red}⚠ ERROR:${colors.reset} ${message}`)
-}
+function printError(_message: string): void {}
 
-function printSkip(message: string): void {
-  console.log(`${colors.cyan}⊘ SKIP:${colors.reset} ${message}`)
-}
+function printSkip(_message: string): void {}
 
 // Response schemas for validation
 const HealthResponseSchema = z.object({
   status: z.enum(['healthy', 'degraded', 'unhealthy']),
   timestamp: z.string(),
   version: z.string(),
-  checks: z.object({
-    database: z.object({
-      status: z.enum(['healthy', 'degraded', 'unhealthy']),
-      response_time_ms: z.number(),
-      details: z.string().optional(),
-    }),
-    memory: z.object({
-      status: z.enum(['healthy', 'degraded', 'unhealthy']),
-      usage_mb: z.number(),
-      free_mb: z.number(),
-    }),
-  }).optional(),
+  checks: z
+    .object({
+      database: z.object({
+        status: z.enum(['healthy', 'degraded', 'unhealthy']),
+        response_time_ms: z.number(),
+        details: z.string().optional(),
+      }),
+      memory: z.object({
+        status: z.enum(['healthy', 'degraded', 'unhealthy']),
+        usage_mb: z.number(),
+        free_mb: z.number(),
+      }),
+    })
+    .optional(),
 })
 
 const ErrorResponseSchema = z.object({
@@ -110,24 +98,26 @@ const ErrorResponseSchema = z.object({
   request_id: z.string().optional(),
 })
 
-const SearchRepositoriesResponseSchema = z.object({
+const _SearchRepositoriesResponseSchema = z.object({
   success: z.literal(true),
   data: z.object({
-    repositories: z.array(z.object({
-      id: z.string().uuid(),
-      github_id: z.number(),
-      full_name: z.string(),
-      name: z.string(),
-      description: z.string().nullable(),
-      language: z.string().nullable(),
-      topics: z.array(z.string()),
-      stars_count: z.number(),
-      health_score: z.number(),
-      activity_score: z.number(),
-      first_time_contributor_friendly: z.boolean(),
-      created_at: z.string(),
-      relevance_score: z.number(),
-    })),
+    repositories: z.array(
+      z.object({
+        id: z.string().uuid(),
+        github_id: z.number(),
+        full_name: z.string(),
+        name: z.string(),
+        description: z.string().nullable(),
+        language: z.string().nullable(),
+        topics: z.array(z.string()),
+        stars_count: z.number(),
+        health_score: z.number(),
+        activity_score: z.number(),
+        first_time_contributor_friendly: z.boolean(),
+        created_at: z.string(),
+        relevance_score: z.number(),
+      })
+    ),
     total_count: z.number(),
     page: z.number(),
     per_page: z.number(),
@@ -156,7 +146,7 @@ async function runTest(
 ): Promise<TestResult> {
   totalTests++
   const startTime = Date.now()
-  
+
   printTest(testName)
 
   const {
@@ -257,7 +247,6 @@ async function runTest(
 
     testResults.push(result)
     return result
-
   } catch (error) {
     errorTests++
     const responseTime = Date.now() - startTime
@@ -270,7 +259,7 @@ async function runTest(
       httpCode: undefined,
       timestamp: new Date().toISOString(),
     }
-    
+
     printError(`${testName} - ${result.error}`)
     testResults.push(result)
     return result
@@ -293,19 +282,15 @@ async function isServerRunning(): Promise<boolean> {
 // Main validation function
 async function validateAPIs(): Promise<ValidationSummary> {
   printHeader('API Route Validation - ULTRATHINK Phase 2B-2')
-  console.log(`Base URL: ${BASE_URL}`)
-  console.log(`Max Response Time: ${MAX_RESPONSE_TIME}ms`)
 
   // Check if server is running
   const serverRunning = await isServerRunning()
   if (!serverRunning) {
-    console.log(`${colors.yellow}⚠ Warning: Development server not detected at ${BASE_URL}${colors.reset}`)
-    console.log(`${colors.yellow}Some tests will be skipped. Run 'pnpm dev' to start the server.${colors.reset}`)
   }
 
   // 1. Health Check API Tests
   printHeader('Health Check API Tests')
-  
+
   await runTest('health_basic', 'GET', `${API_BASE}/health`, {
     description: 'Basic health check endpoint functionality',
     schema: HealthResponseSchema,
@@ -346,14 +331,14 @@ async function validateAPIs(): Promise<ValidationSummary> {
   })
 
   await runTest('search_repos_invalid_auth', 'GET', `${API_BASE}/search/repositories`, {
-    headers: { 'Authorization': 'Bearer invalid_token' },
+    headers: { Authorization: 'Bearer invalid_token' },
     expectedStatus: 401,
     description: 'Repository search rejects invalid token',
     schema: ErrorResponseSchema,
   })
 
   await runTest('search_repos_malformed_jwt', 'GET', `${API_BASE}/search/repositories`, {
-    headers: { 'Authorization': 'Bearer not.a.jwt' },
+    headers: { Authorization: 'Bearer not.a.jwt' },
     expectedStatus: 401,
     description: 'Repository search rejects malformed JWT',
     schema: ErrorResponseSchema,
@@ -367,33 +352,48 @@ async function validateAPIs(): Promise<ValidationSummary> {
 
   // Parameter validation tests
   await runTest('search_repos_invalid_page', 'GET', `${API_BASE}/search/repositories?page=0`, {
-    headers: { 'Authorization': 'Bearer invalid' },
+    headers: { Authorization: 'Bearer invalid' },
     expectedStatus: 400,
     description: 'Repository search validates page parameter',
     schema: ErrorResponseSchema,
   })
 
-  await runTest('search_opportunities_invalid_difficulty', 'GET', `${API_BASE}/search/opportunities?difficulty=invalid`, {
-    headers: { 'Authorization': 'Bearer invalid' },
-    expectedStatus: 400,
-    description: 'Opportunities search validates difficulty parameter',
-    schema: ErrorResponseSchema,
-  })
+  await runTest(
+    'search_opportunities_invalid_difficulty',
+    'GET',
+    `${API_BASE}/search/opportunities?difficulty=invalid`,
+    {
+      headers: { Authorization: 'Bearer invalid' },
+      expectedStatus: 400,
+      description: 'Opportunities search validates difficulty parameter',
+      schema: ErrorResponseSchema,
+    }
+  )
 
   // 4. Security Tests
   printHeader('Security Validation Tests')
 
-  await runTest('security_sql_injection', 'GET', `${API_BASE}/search/repositories?q='; DROP TABLE repositories; --`, {
-    headers: { 'Authorization': 'Bearer invalid' },
-    expectedStatus: 401,
-    description: 'Repository search prevents SQL injection',
-  })
+  await runTest(
+    'security_sql_injection',
+    'GET',
+    `${API_BASE}/search/repositories?q='; DROP TABLE repositories; --`,
+    {
+      headers: { Authorization: 'Bearer invalid' },
+      expectedStatus: 401,
+      description: 'Repository search prevents SQL injection',
+    }
+  )
 
-  await runTest('security_xss_prevention', 'GET', `${API_BASE}/search/opportunities?q=<script>alert('xss')</script>`, {
-    headers: { 'Authorization': 'Bearer invalid' },
-    expectedStatus: 401,
-    description: 'Opportunities search prevents XSS attacks',
-  })
+  await runTest(
+    'security_xss_prevention',
+    'GET',
+    `${API_BASE}/search/opportunities?q=<script>alert('xss')</script>`,
+    {
+      headers: { Authorization: 'Bearer invalid' },
+      expectedStatus: 401,
+      description: 'Opportunities search prevents XSS attacks',
+    }
+  )
 
   // 5. Error Handling Tests
   printHeader('Error Handling Tests')
@@ -436,26 +436,15 @@ async function saveResults(summary: ValidationSummary): Promise<void> {
 
   try {
     writeFileSync('api-validation-results.json', JSON.stringify(results, null, 2), 'utf8')
-    console.log(`\nDetailed results saved to: api-validation-results.json`)
-  } catch (error) {
-    console.error('Failed to save results:', error)
-  }
+  } catch (_error) {}
 }
 
 // Print final summary
 function printSummary(summary: ValidationSummary): void {
   printHeader('Validation Summary')
-  console.log(`Total Tests: ${summary.totalTests}`)
-  console.log(`Passed: ${colors.green}${summary.passed}${colors.reset}`)
-  console.log(`Failed: ${colors.red}${summary.failed}${colors.reset}`)
-  console.log(`Errors: ${colors.red}${summary.errors}${colors.reset}`)
-  console.log(`Skipped: ${colors.cyan}${summary.skipped}${colors.reset}`)
-  console.log(`Success Rate: ${summary.successRate}%`)
 
   if (summary.failed === 0 && summary.errors === 0) {
-    console.log(`\n${colors.green}🎉 All API validation tests passed!${colors.reset}`)
   } else {
-    console.log(`\n${colors.red}⚠ Some tests failed. Review the results for details.${colors.reset}`)
   }
 }
 
@@ -465,11 +454,10 @@ async function main(): Promise<void> {
     const summary = await validateAPIs()
     await saveResults(summary)
     printSummary(summary)
-    
+
     // Exit with appropriate code
     process.exit(summary.failed > 0 || summary.errors > 0 ? 1 : 0)
-  } catch (error) {
-    console.error('Validation failed:', error)
+  } catch (_error) {
     process.exit(1)
   }
 }

@@ -1,12 +1,10 @@
-const fs = require('fs');
-const { neon } = require('@neondatabase/serverless');
+const _fs = require('node:fs')
+const { neon } = require('@neondatabase/serverless')
 
 async function applyAuthSchema() {
-  const sql = neon(process.env.DATABASE_URL);
-  
+  const sql = neon(process.env.DATABASE_URL)
+
   try {
-    console.log('🔄 Applying authentication schema...');
-    
     // Create webauthn_credentials table
     await sql`
       CREATE TABLE IF NOT EXISTS webauthn_credentials (
@@ -23,8 +21,7 @@ async function applyAuthSchema() {
         name TEXT,
         CONSTRAINT unique_credential_id UNIQUE(credential_id)
       )
-    `;
-    console.log('✅ webauthn_credentials table created');
+    `
 
     // Create auth_challenges table
     await sql`
@@ -37,8 +34,7 @@ async function applyAuthSchema() {
         expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
         used BOOLEAN DEFAULT false
       )
-    `;
-    console.log('✅ auth_challenges table created');
+    `
 
     // Create user_sessions table
     await sql`
@@ -52,8 +48,7 @@ async function applyAuthSchema() {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
         last_active_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       )
-    `;
-    console.log('✅ user_sessions table created');
+    `
 
     // Create oauth_accounts table
     await sql`
@@ -71,8 +66,7 @@ async function applyAuthSchema() {
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
         CONSTRAINT unique_provider_account UNIQUE(provider, provider_account_id)
       )
-    `;
-    console.log('✅ oauth_accounts table created');
+    `
 
     // Create security_audit_logs table
     await sql`
@@ -88,8 +82,7 @@ async function applyAuthSchema() {
         error_message TEXT,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       )
-    `;
-    console.log('✅ security_audit_logs table created');
+    `
 
     // Create user_consents table
     await sql`
@@ -103,8 +96,7 @@ async function applyAuthSchema() {
         ip_address INET,
         user_agent TEXT
       )
-    `;
-    console.log('✅ user_consents table created');
+    `
 
     // Create refresh_tokens table
     await sql`
@@ -119,12 +111,8 @@ async function applyAuthSchema() {
         replaced_by UUID REFERENCES refresh_tokens(id) ON DELETE SET NULL,
         CONSTRAINT unique_token_hash UNIQUE(token_hash)
       )
-    `;
-    console.log('✅ refresh_tokens table created');
+    `
 
-    // Create indexes
-    console.log('🔄 Creating indexes...');
-    
     const indexes = [
       'CREATE INDEX IF NOT EXISTS idx_webauthn_credentials_user_id ON webauthn_credentials(user_id)',
       'CREATE INDEX IF NOT EXISTS idx_webauthn_credentials_credential_id ON webauthn_credentials(credential_id)',
@@ -149,21 +137,15 @@ async function applyAuthSchema() {
       'CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id)',
       'CREATE INDEX IF NOT EXISTS idx_refresh_tokens_session_id ON refresh_tokens(session_id)',
       'CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token_hash ON refresh_tokens(token_hash)',
-      'CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at ON refresh_tokens(expires_at)'
-    ];
+      'CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at ON refresh_tokens(expires_at)',
+    ]
 
     for (const indexSql of indexes) {
-      await sql([indexSql]);
+      await sql([indexSql])
     }
-    console.log('✅ All indexes created');
-
-    console.log('🎉 Authentication schema applied successfully!');
-    
-  } catch (error) {
-    console.error('❌ Error applying auth schema:', error.message);
-    console.error('Stack:', error.stack);
-    process.exit(1);
+  } catch (_error) {
+    process.exit(1)
   }
 }
 
-applyAuthSchema();
+applyAuthSchema()

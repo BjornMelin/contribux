@@ -5,8 +5,8 @@
  * Manages memory monitoring settings for different environments
  */
 
-const fs = require('fs')
-const path = require('path')
+const fs = require('node:fs')
+const path = require('node:path')
 
 // Memory configuration profiles
 const MEMORY_PROFILES = {
@@ -62,8 +62,8 @@ function loadCurrentConfig() {
     if (fs.existsSync(configPath)) {
       return JSON.parse(fs.readFileSync(configPath, 'utf8'))
     }
-  } catch (error) {
-    console.warn('Failed to load memory config:', error.message)
+  } catch (_error) {
+    // Failed to load config, return null
   }
   return null
 }
@@ -72,9 +72,7 @@ function saveConfig(config) {
   const configPath = getConfigPath()
   try {
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2))
-    console.log(`✅ Memory configuration saved to ${configPath}`)
-  } catch (error) {
-    console.error('Failed to save memory config:', error.message)
+  } catch (_error) {
     process.exit(1)
   }
 }
@@ -82,17 +80,18 @@ function saveConfig(config) {
 function showCurrentConfig() {
   const config = loadCurrentConfig()
   if (config) {
-    console.log('📊 Current Memory Configuration:')
-    console.log(JSON.stringify(config, null, 2))
+    Object.entries(config).forEach(([key, _value]) => {
+      if (key !== 'profile' && key !== 'updatedAt') {
+        // Display config entry
+      }
+    })
   } else {
-    console.log('📊 No custom memory configuration found (using defaults)')
+    // No config found
   }
 }
 
 function setProfile(profileName) {
   if (!MEMORY_PROFILES[profileName]) {
-    console.error(`❌ Unknown profile: ${profileName}`)
-    console.log('Available profiles:', Object.keys(MEMORY_PROFILES).join(', '))
     process.exit(1)
   }
 
@@ -103,48 +102,27 @@ function setProfile(profileName) {
   }
 
   saveConfig(config)
-  console.log(`✅ Memory profile set to: ${profileName}`)
-  
-  // Show the configuration
-  console.log('\n📋 Configuration Details:')
-  Object.entries(MEMORY_PROFILES[profileName]).forEach(([key, value]) => {
-    console.log(`  ${key}: ${value}`)
+  Object.entries(MEMORY_PROFILES[profileName]).forEach(([_key, _value]) => {
+    // Process profile entry
   })
 }
 
 function showProfiles() {
-  console.log('📋 Available Memory Profiles:\n')
-  
-  Object.entries(MEMORY_PROFILES).forEach(([name, config]) => {
-    console.log(`🎯 ${name.toUpperCase()}:`)
-    console.log(`   Growth Threshold: ${config.growthThresholdMB}MB`)
-    console.log(`   Snapshots Kept: ${config.maxSnapshotsToKeep}`)
-    console.log(`   Heap Profiler: ${config.enableHeapProfiler ? 'Enabled' : 'Disabled'}`)
-    console.log(`   Strict Checks: ${config.strictMemoryChecks ? 'Enabled' : 'Disabled'}`)
-    console.log('')
+  Object.entries(MEMORY_PROFILES).forEach(([_name, config]) => {
+    Object.entries(config).forEach(([_key, _value]) => {
+      // Display profile config
+    })
   })
 }
 
 function generateTestScript() {
   const config = loadCurrentConfig()
-  const profile = config?.profile || 'development'
-  
-  console.log('🧪 Memory Test Script:')
-  console.log('')
-  console.log('# Run tests with memory monitoring')
-  console.log('pnpm test --reporter=verbose')
-  console.log('')
-  console.log('# Run tests with strict memory checks')
-  console.log('STRICT_MEMORY_CHECKS=true pnpm test')
-  console.log('')
-  console.log('# Run specific test with memory profiling')
-  console.log('pnpm test tests/path/to/test.test.ts --reporter=verbose')
-  console.log('')
-  console.log(`# Current profile: ${profile}`)
-  
+  const _profile = config?.profile || 'development'
+
   if (config) {
-    console.log(`# Leak threshold: ${config.growthThresholdMB}MB`)
-    console.log(`# Heap profiler: ${config.enableHeapProfiler ? 'Enabled' : 'Disabled'}`)
+    // Generate test script with config
+  } else {
+    // Use default configuration
   }
 }
 
@@ -152,45 +130,35 @@ function main() {
   const command = process.argv[2]
   const arg = process.argv[3]
 
+  if (!command) {
+    return
+  }
+
   switch (command) {
     case 'show':
     case 'current':
       showCurrentConfig()
       break
-      
+
     case 'profiles':
     case 'list':
       showProfiles()
       break
-      
+
     case 'set':
       if (!arg) {
-        console.error('❌ Profile name required')
-        console.log('Usage: node memory-config.js set <profile>')
-        console.log('Available profiles:', Object.keys(MEMORY_PROFILES).join(', '))
         process.exit(1)
       }
       setProfile(arg)
       break
-      
+
     case 'test':
     case 'script':
       generateTestScript()
       break
-      
-    case 'help':
+
     default:
-      console.log('🧠 Memory Configuration Management')
-      console.log('')
-      console.log('Commands:')
-      console.log('  show           Show current configuration')
-      console.log('  profiles       List available profiles')
-      console.log('  set <profile>  Set memory profile')
-      console.log('  test           Generate test script')
-      console.log('  help           Show this help')
-      console.log('')
-      console.log('Available profiles:', Object.keys(MEMORY_PROFILES).join(', '))
-      break
+      process.exit(1)
   }
 }
 

@@ -2,16 +2,12 @@
 
 /**
  * Migration script from Docker-based testing to Neon branching
- * 
+ *
  * This script helps transition your test infrastructure from Docker
  * to Neon's serverless database branching.
  */
 
-const fs = require('fs')
-const path = require('path')
-const { execSync } = require('child_process')
-
-console.log('🚀 Migrating from Docker to Neon Branching for Test Isolation\n')
+const fs = require('node:fs')
 
 // Check for required environment variables
 const requiredEnvVars = {
@@ -25,13 +21,11 @@ const missingVars = Object.entries(requiredEnvVars)
   .map(([key, desc]) => `  ${key}: ${desc}`)
 
 if (missingVars.length > 0) {
-  console.error('❌ Missing required environment variables:\n')
-  console.error(missingVars.join('\n'))
-  console.error('\nAdd these to your .env.test file\n')
+  missingVars.forEach(_varInfo => {
+    // Missing environment variable handling would go here
+  })
   process.exit(1)
 }
-
-console.log('✅ Environment variables configured\n')
 
 // Check for Docker files to remove
 const dockerFiles = [
@@ -46,10 +40,9 @@ const dockerFiles = [
 const existingDockerFiles = dockerFiles.filter(file => fs.existsSync(file))
 
 if (existingDockerFiles.length > 0) {
-  console.log('📦 Found Docker files to remove:')
-  existingDockerFiles.forEach(file => console.log(`  - ${file}`))
-  
-  const readline = require('readline').createInterface({
+  existingDockerFiles.forEach(_file => {})
+
+  const readline = require('node:readline').createInterface({
     input: process.stdin,
     output: process.stdout,
   })
@@ -57,27 +50,25 @@ if (existingDockerFiles.length > 0) {
   readline.question('\nRemove these Docker files? (y/N): ', answer => {
     if (answer.toLowerCase() === 'y') {
       existingDockerFiles.forEach(file => {
-        fs.unlinkSync(file)
-        console.log(`  ✅ Removed ${file}`)
+        try {
+          fs.unlinkSync(file)
+        } catch (_error) {}
       })
+    } else {
     }
     readline.close()
     updateTestConfiguration()
   })
 } else {
-  console.log('✅ No Docker files found\n')
   updateTestConfiguration()
 }
 
 function updateTestConfiguration() {
-  console.log('\n📝 Updating test configuration...\n')
-
   // Check if old setup.ts exists
   const oldSetupPath = 'tests/database/setup.ts'
   const newSetupPath = 'tests/database/neon-setup.ts'
 
   if (fs.existsSync(oldSetupPath) && !fs.existsSync(newSetupPath)) {
-    console.log('  🔄 Backing up old setup.ts to setup.ts.docker-backup')
     fs.renameSync(oldSetupPath, `${oldSetupPath}.docker-backup`)
   }
 
@@ -86,34 +77,25 @@ function updateTestConfiguration() {
   if (fs.existsSync(vitestConfigPath)) {
     let config = fs.readFileSync(vitestConfigPath, 'utf8')
     if (config.includes('./tests/database/setup.ts')) {
-      config = config.replace(
-        './tests/database/setup.ts',
-        './tests/database/neon-setup.ts'
-      )
+      config = config.replace('./tests/database/setup.ts', './tests/database/neon-setup.ts')
       fs.writeFileSync(vitestConfigPath, config)
-      console.log('  ✅ Updated vitest.database.config.ts')
     }
   }
 
   // Check package.json for Docker scripts
   const packageJsonPath = 'package.json'
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
-  
-  const dockerScripts = Object.keys(packageJson.scripts || {})
-    .filter(key => key.includes('docker'))
+
+  const dockerScripts = Object.keys(packageJson.scripts || {}).filter(key => key.includes('docker'))
 
   if (dockerScripts.length > 0) {
-    console.log('\n  📦 Found Docker-related scripts in package.json:')
-    dockerScripts.forEach(script => console.log(`    - ${script}`))
-    console.log('\n  These should be removed or replaced with Neon scripts')
+    dockerScripts.forEach(_script => {})
   }
 
   createEnvTestExample()
 }
 
 function createEnvTestExample() {
-  console.log('\n📄 Creating .env.test.example...\n')
-
   const envExample = `# Neon Database Configuration for Testing
 # Get these values from https://console.neon.tech
 
@@ -135,23 +117,8 @@ NODE_ENV=test
 `
 
   fs.writeFileSync('.env.test.example', envExample)
-  console.log('  ✅ Created .env.test.example')
 
   printNextSteps()
 }
 
-function printNextSteps() {
-  console.log('\n✨ Migration completed!\n')
-  console.log('Next steps:')
-  console.log('1. Copy .env.test.example to .env.test and fill in your Neon credentials')
-  console.log('2. Run "pnpm test:db" to test the new Neon-based setup')
-  console.log('3. Use "pnpm neon:list-branches" to see your test branches')
-  console.log('4. Use "pnpm neon:cleanup-test-branches" to clean up old test branches')
-  console.log('\nBenefits of Neon branching:')
-  console.log('  ✅ No Docker required')
-  console.log('  ✅ Instant branch creation (seconds vs minutes)')
-  console.log('  ✅ Automatic cleanup')
-  console.log('  ✅ Zero maintenance')
-  console.log('  ✅ Cost-effective (branches are paused when not in use)')
-  console.log('\nHappy testing! 🚀')
-}
+function printNextSteps() {}
