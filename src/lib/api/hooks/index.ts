@@ -34,24 +34,24 @@ export {
 } from '../query-client'
 // Opportunity hooks
 export {
-  opportunityCacheUtils,
   useApplyToOpportunity,
   useBeginnerOpportunities,
   useOpportunitiesInfinite,
   useOpportunitiesSearch,
   useOpportunityDetail,
+  useOpportunityMutations,
   usePrefetchOpportunities,
   useSaveOpportunity,
   useUserOpportunities,
 } from './use-opportunities'
 // Repository hooks
 export {
-  repositoryCacheUtils,
   usePrefetchRepositories,
   useRepositoriesInfinite,
   useRepositoriesSearch,
   useRepositoryBookmark,
   useRepositoryDetail,
+  useRepositoryMutations,
 } from './use-repositories'
 // WebSocket hooks for real-time features
 export {

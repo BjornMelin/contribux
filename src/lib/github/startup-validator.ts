@@ -3,7 +3,7 @@
  * Streamlined validation for GitHub configuration
  */
 
-import { gitHubRuntimeValidator, type ValidationResult } from './runtime-validator'
+import { type ValidationResult, gitHubRuntimeValidator } from './runtime-validator'
 
 export interface StartupValidationOptions {
   failOnUnhealthy?: boolean

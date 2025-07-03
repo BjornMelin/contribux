@@ -22,6 +22,7 @@ import {
   index,
   integer,
   jsonb,
+  pgEnum,
   pgTable,
   real,
   serial,
@@ -31,14 +32,26 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core'
 
+// Contribution type enum
+export const contributionTypeEnum = pgEnum('contribution_type', [
+  'bug_fix',
+  'feature',
+  'documentation',
+  'testing',
+  'maintenance',
+  'enhancement',
+])
+
 // Users table
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   githubId: integer('github_id').unique().notNull(),
   username: text('username').notNull(),
+  githubLogin: text('github_login').notNull(),
   email: text('email').unique(),
   name: text('name'),
   avatarUrl: text('avatar_url'),
+  lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
 
   // Consolidated profile data using JSONB
   profile: jsonb('profile').$type<{
@@ -105,6 +118,34 @@ export const webauthnCredentials = pgTable(
     publicKeyNotEmptyCheck: check(
       'public_key_not_empty',
       sql`length(trim(${table.publicKey})) > 0`
+    ),
+  })
+)
+
+// User preferences table for search filtering and personalization
+export const userPreferences = pgTable(
+  'user_preferences',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .references(() => users.id, { onDelete: 'cascade' })
+      .notNull()
+      .unique(),
+    preferredContributionTypes: contributionTypeEnum('preferred_contribution_types').array(),
+    maxEstimatedHours: integer('max_estimated_hours').default(10),
+    notificationFrequency: integer('notification_frequency').default(24), // hours
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  },
+  table => ({
+    // Index for efficient user lookups
+    userIdIdx: index('idx_user_preferences_user_id').on(table.userId),
+
+    // Check constraints for data integrity
+    maxHoursPositiveCheck: check('max_hours_positive', sql`${table.maxEstimatedHours} > 0`),
+    notificationFreqPositiveCheck: check(
+      'notification_freq_positive',
+      sql`${table.notificationFrequency} > 0`
     ),
   })
 )
@@ -348,15 +389,23 @@ export const userActivity = pgTable(
 )
 
 // Relations for type-safe joins
-export const userRelations = relations(users, ({ many }) => ({
+export const userRelations = relations(users, ({ one, many }) => ({
   bookmarks: many(bookmarks),
   activities: many(userActivity),
   webauthnCredentials: many(webauthnCredentials),
+  preferences: one(userPreferences),
 }))
 
 export const webauthnCredentialsRelations = relations(webauthnCredentials, ({ one }) => ({
   user: one(users, {
     fields: [webauthnCredentials.userId],
+    references: [users.id],
+  }),
+}))
+
+export const userPreferencesRelations = relations(userPreferences, ({ one }) => ({
+  user: one(users, {
+    fields: [userPreferences.userId],
     references: [users.id],
   }),
 }))

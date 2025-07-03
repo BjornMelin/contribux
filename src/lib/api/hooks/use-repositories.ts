@@ -42,13 +42,13 @@ interface Repository {
     topics?: string[]
     defaultBranch?: string
     homepage?: string
-    [key: string]: any
+    [key: string]: unknown
   }
   healthMetrics?: {
     overallScore?: number
     maintainerResponsiveness?: number
     activityLevel?: number
-    [key: string]: any
+    [key: string]: unknown
   }
   createdAt: string
   updatedAt: string
@@ -148,18 +148,17 @@ export function useRepositoriesInfinite(
 ) {
   const { enabled = true, pageSize = 20 } = options
 
-  return useInfiniteQuery({
+  return useInfiniteQuery<RepositorySearchResponse>({
     queryKey: [...queryKeys.repositoriesSearch(baseParams), 'infinite'],
-    queryFn: createQueryFunction(({ pageParam = 1 }) =>
-      fetchRepositories({ ...baseParams, page: pageParam, per_page: pageSize })
-    ),
+    queryFn: ({ pageParam = 1 }) =>
+      fetchRepositories({ ...baseParams, page: pageParam as number, per_page: pageSize }),
     enabled: enabled && !!baseParams.q,
     initialPageParam: 1,
-    getNextPageParam: lastPage => {
+    getNextPageParam: (lastPage: RepositorySearchResponse) => {
       const { page, has_more } = lastPage.data
       return has_more ? page + 1 : undefined
     },
-    getPreviousPageParam: firstPage => {
+    getPreviousPageParam: (firstPage: RepositorySearchResponse) => {
       const { page } = firstPage.data
       return page > 1 ? page - 1 : undefined
     },
@@ -240,29 +239,32 @@ export function useRepositoryBookmark() {
       const previousData = queryClient.getQueryData(queryKeys.repositories())
 
       // Optimistically update the cache
-      queryClient.setQueriesData({ queryKey: queryKeys.repositories() }, (old: any) => {
-        if (!old) return old
+      queryClient.setQueriesData(
+        { queryKey: queryKeys.repositories() },
+        (old: RepositorySearchResponse | undefined) => {
+          if (!old) return old
 
-        // Update bookmarked status in search results
-        if (old.data?.repositories) {
-          return {
-            ...old,
-            data: {
-              ...old.data,
-              repositories: old.data.repositories.map((repo: Repository) =>
-                repo.id === repositoryId ? { ...repo, isBookmarked: action === 'add' } : repo
-              ),
-            },
+          // Update bookmarked status in search results
+          if (old.data?.repositories) {
+            return {
+              ...old,
+              data: {
+                ...old.data,
+                repositories: old.data.repositories.map((repo: Repository) =>
+                  repo.id === repositoryId ? { ...repo, isBookmarked: action === 'add' } : repo
+                ),
+              },
+            }
           }
-        }
 
-        return old
-      })
+          return old
+        }
+      )
 
       return { previousData }
     },
 
-    onError: (err, variables, context) => {
+    onError: (_err, _variables, context) => {
       // Rollback the optimistic update
       if (context?.previousData) {
         queryClient.setQueryData(queryKeys.repositories(), context.previousData)
@@ -280,65 +282,68 @@ export function useRepositoryBookmark() {
   })
 }
 
-// Repository cache management utilities
-export const repositoryCacheUtils = {
-  // Invalidate all repository queries
-  invalidateAll: () => cacheUtils.invalidateRepositories(),
+// Repository cache management custom hook
+export function useRepositoryMutations() {
+  const queryClient = useQueryClient()
 
-  // Update repository in cache
-  updateRepository: (repository: Repository) => {
-    const queryClient = useQueryClient()
+  return {
+    // Invalidate all repository queries
+    invalidateAll: () => cacheUtils.invalidateRepositories(),
 
-    // Update detail cache
-    queryClient.setQueryData(
-      queryKeys.repositoriesDetail(repository.owner, repository.name),
-      repository
-    )
+    // Update repository in cache
+    updateRepository: (repository: Repository) => {
+      // Update detail cache
+      queryClient.setQueryData(
+        queryKeys.repositoriesDetail(repository.owner, repository.name),
+        repository
+      )
 
-    // Update search caches
-    queryClient.setQueriesData({ queryKey: queryKeys.repositories() }, (old: any) => {
-      if (!old?.data?.repositories) return old
+      // Update search caches
+      queryClient.setQueriesData(
+        { queryKey: queryKeys.repositories() },
+        (old: RepositorySearchResponse | undefined) => {
+          if (!old?.data?.repositories) return old
 
-      return {
-        ...old,
-        data: {
-          ...old.data,
-          repositories: old.data.repositories.map((repo: Repository) =>
-            repo.id === repository.id ? repository : repo
-          ),
-        },
-      }
-    })
-  },
+          return {
+            ...old,
+            data: {
+              ...old.data,
+              repositories: old.data.repositories.map((repo: Repository) =>
+                repo.id === repository.id ? repository : repo
+              ),
+            },
+          }
+        }
+      )
+    },
 
-  // Prefetch trending repositories
-  prefetchTrending: () => {
-    const queryClient = useQueryClient()
-    return queryClient.prefetchQuery({
-      queryKey: queryKeys.repositoriesSearch({
-        sort_by: 'stars',
-        order: 'desc',
-        per_page: 10,
-      }),
-      queryFn: createQueryFunction(() =>
-        fetchRepositories({
+    // Prefetch trending repositories
+    prefetchTrending: () => {
+      return queryClient.prefetchQuery({
+        queryKey: queryKeys.repositoriesSearch({
           sort_by: 'stars',
           order: 'desc',
           per_page: 10,
-        })
-      ),
-      staleTime: 5 * 60 * 1000, // 5 minutes for trending
-    })
-  },
+        }),
+        queryFn: createQueryFunction(() =>
+          fetchRepositories({
+            sort_by: 'stars',
+            order: 'desc',
+            per_page: 10,
+          })
+        ),
+        staleTime: 5 * 60 * 1000, // 5 minutes for trending
+      })
+    },
 
-  // Clear search cache for new searches
-  clearSearchCache: () => {
-    const queryClient = useQueryClient()
-    queryClient.removeQueries({
-      queryKey: queryKeys.repositories(),
-      predicate: query => query.queryKey.includes('search'),
-    })
-  },
+    // Clear search cache for new searches
+    clearSearchCache: () => {
+      queryClient.removeQueries({
+        queryKey: queryKeys.repositories(),
+        predicate: query => query.queryKey.includes('search'),
+      })
+    },
+  }
 }
 
 // Export search params type for components

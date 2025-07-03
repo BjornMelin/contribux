@@ -829,9 +829,7 @@ export function getEncryptionKey(): string {
   // No fallbacks allowed - encryption key must always be provided
   if (!encryptionKey || encryptionKey.trim() === '') {
     throw new Error(
-      `ENCRYPTION_KEY environment variable is required in ${envNodeEnv} environment. ` +
-        'Please set a secure 64-character hexadecimal encryption key (256 bits). ' +
-        'Generate one using: openssl rand -hex 32'
+      `ENCRYPTION_KEY environment variable is required in ${envNodeEnv} environment. Please set a secure 64-character hexadecimal encryption key (256 bits). Generate one using: openssl rand -hex 32`
     )
   }
 

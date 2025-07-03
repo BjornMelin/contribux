@@ -11,8 +11,14 @@
  * - Compression for large cache entries
  */
 
+import {
+  type CacheMetrics,
+  type CacheTierMetrics,
+  generateCacheKey,
+  recordOperationTime,
+} from '@/lib/utils/cache-utils'
+import { estimateObjectSize } from '@/lib/utils/object-transformation'
 import { Redis } from 'ioredis'
-import { z } from 'zod'
 
 // Cache configuration
 interface CacheConfig {
@@ -21,7 +27,7 @@ interface CacheConfig {
     ttl: number // Default TTL in milliseconds
   }
   redis: {
-    url?: string
+    url?: string | undefined
     ttl: number // Default TTL in seconds
     keyPrefix: string
   }
@@ -37,7 +43,7 @@ const defaultConfig: CacheConfig = {
     ttl: 5 * 60 * 1000, // 5 minutes
   },
   redis: {
-    url: process.env.REDIS_URL,
+    url: process.env.REDIS_URL || undefined,
     ttl: 30 * 60, // 30 minutes
     keyPrefix: 'contribux:api:',
   },
@@ -57,24 +63,7 @@ interface CacheEntry<T> {
   size: number
 }
 
-// Cache metrics
-interface CacheMetrics {
-  memory: {
-    hits: number
-    misses: number
-    size: number
-    evictions: number
-  }
-  redis: {
-    hits: number
-    misses: number
-    errors: number
-  }
-  performance: {
-    averageGetTime: number
-    averageSetTime: number
-  }
-}
+// Cache metrics interface is imported from cache-utils
 
 // Cache key strategy
 interface CacheKeyStrategy {
@@ -94,7 +83,7 @@ class MemoryCache<T> {
   private cache = new Map<string, CacheEntry<T>>()
   private accessOrder = new Map<string, number>()
   private accessCounter = 0
-  private metrics: CacheMetrics['memory'] = {
+  private metrics: CacheTierMetrics = {
     hits: 0,
     misses: 0,
     size: 0,
@@ -107,10 +96,7 @@ class MemoryCache<T> {
     return Date.now() - entry.timestamp > entry.ttl
   }
 
-  private evictLRU(): void {
-    if (this.cache.size === 0) return
-
-    // Find least recently used entry
+  private findLRUKey(): string {
     let lruKey = ''
     let lruAccess = Number.POSITIVE_INFINITY
 
@@ -121,10 +107,19 @@ class MemoryCache<T> {
       }
     }
 
-    if (lruKey) {
-      this.cache.delete(lruKey)
-      this.accessOrder.delete(lruKey)
-      this.metrics.evictions++
+    return lruKey
+  }
+
+  private evictLRU(): void {
+    if (this.cache.size === 0) return
+
+    const lruKey = this.findLRUKey()
+    if (!lruKey) return
+
+    this.cache.delete(lruKey)
+    this.accessOrder.delete(lruKey)
+    if (this.metrics) {
+      this.metrics.evictions = (this.metrics.evictions || 0) + 1
     }
   }
 
@@ -190,12 +185,8 @@ class MemoryCache<T> {
     return { ...this.metrics }
   }
 
-  private estimateSize(data: any): number {
-    try {
-      return JSON.stringify(data).length * 2 // Rough estimate
-    } catch {
-      return 1000 // Default size for non-serializable data
-    }
+  private estimateSize(data: unknown): number {
+    return estimateObjectSize(data)
   }
 
   // Get cache statistics
@@ -217,13 +208,16 @@ class MemoryCache<T> {
 // Redis cache implementation
 class RedisCache {
   private redis: Redis | null = null
-  private metrics: CacheMetrics['redis'] = {
+  private metrics: CacheTierMetrics = {
     hits: 0,
     misses: 0,
     errors: 0,
   }
 
-  constructor(private config: CacheConfig['redis']) {
+  constructor(
+    private config: CacheConfig['redis'],
+    private compressionConfig: CacheConfig['compression']
+  ) {
     this.initialize()
   }
 
@@ -232,29 +226,32 @@ class RedisCache {
 
     try {
       this.redis = new Redis(this.config.url, {
-        retryDelayOnFailover: 100,
         enableReadyCheck: false,
         maxRetriesPerRequest: 3,
         lazyConnect: true,
       })
 
-      this.redis.on('error', error => {
-        console.error('Redis cache error:', error)
-        this.metrics.errors++
+      this.redis.on('error', _error => {
+        if (this.metrics) {
+          this.metrics.errors = (this.metrics.errors || 0) + 1
+        }
       })
 
       this.redis.on('connect', () => {
-        console.log('Redis cache connected')
+        // Connection established
       })
-    } catch (error) {
-      console.error('Failed to initialize Redis cache:', error)
-      this.metrics.errors++
+    } catch (_error) {
+      if (this.metrics) {
+        this.metrics.errors = (this.metrics.errors || 0) + 1
+      }
     }
   }
 
   async get<T>(key: string): Promise<T | null> {
     if (!this.redis) {
-      this.metrics.misses++
+      if (this.metrics) {
+        this.metrics.misses = (this.metrics.misses || 0) + 1
+      }
       return null
     }
 
@@ -274,12 +271,15 @@ class RedisCache {
         // For now, just return the data as-is
       }
 
-      this.metrics.hits++
+      if (this.metrics) {
+        this.metrics.hits = (this.metrics.hits || 0) + 1
+      }
       return parsed.data
-    } catch (error) {
-      console.error('Redis get error:', error)
-      this.metrics.errors++
-      this.metrics.misses++
+    } catch (_error) {
+      if (this.metrics) {
+        this.metrics.errors = (this.metrics.errors || 0) + 1
+        this.metrics.misses = (this.metrics.misses || 0) + 1
+      }
       return null
     }
   }
@@ -292,19 +292,17 @@ class RedisCache {
       let serialized = JSON.stringify(payload)
 
       // Compress large entries if enabled
-      if (
-        this.config.compression?.enabled &&
-        serialized.length > this.config.compression.threshold
-      ) {
+      if (this.compressionConfig.enabled && serialized.length > this.compressionConfig.threshold) {
         // Would implement compression here
         payload.compressed = true
         serialized = JSON.stringify(payload)
       }
 
       await this.redis.setex(this.config.keyPrefix + key, ttl, serialized)
-    } catch (error) {
-      console.error('Redis set error:', error)
-      this.metrics.errors++
+    } catch (_error) {
+      if (this.metrics) {
+        this.metrics.errors = (this.metrics.errors || 0) + 1
+      }
     }
   }
 
@@ -314,9 +312,10 @@ class RedisCache {
     try {
       const result = await this.redis.del(this.config.keyPrefix + key)
       return result > 0
-    } catch (error) {
-      console.error('Redis delete error:', error)
-      this.metrics.errors++
+    } catch (_error) {
+      if (this.metrics) {
+        this.metrics.errors = (this.metrics.errors || 0) + 1
+      }
       return false
     }
   }
@@ -331,9 +330,10 @@ class RedisCache {
       if (keys.length > 0) {
         await this.redis.del(...keys)
       }
-    } catch (error) {
-      console.error('Redis clear error:', error)
-      this.metrics.errors++
+    } catch (_error) {
+      if (this.metrics) {
+        this.metrics.errors = (this.metrics.errors || 0) + 1
+      }
     }
   }
 
@@ -341,14 +341,13 @@ class RedisCache {
     return { ...this.metrics }
   }
 
-  async getInfo(): Promise<any> {
+  async getInfo(): Promise<string | null> {
     if (!this.redis) return null
 
     try {
       const info = await this.redis.info('memory')
       return info
-    } catch (error) {
-      console.error('Redis info error:', error)
+    } catch (_error) {
       return null
     }
   }
@@ -356,21 +355,26 @@ class RedisCache {
 
 // Main cache layer class
 export class CacheLayer {
-  private memoryCache: MemoryCache<any>
+  private memoryCache: MemoryCache<unknown>
   private redisCache: RedisCache
   private performanceMetrics = {
     getOperations: [] as number[],
     setOperations: [] as number[],
+    maxOperations: 100,
   }
 
   constructor(private config: CacheConfig = defaultConfig) {
     this.memoryCache = new MemoryCache(config.memory)
-    this.redisCache = new RedisCache(config.redis)
+    this.redisCache = new RedisCache(config.redis, config.compression)
   }
 
   // Generate cache key
   private generateKey(components: string[]): string {
-    return [keyStrategy.prefix, keyStrategy.version, ...components].join(keyStrategy.separator)
+    return generateCacheKey(components, {
+      prefix: keyStrategy.prefix,
+      separator: keyStrategy.separator,
+      version: keyStrategy.version,
+    })
   }
 
   // Get from cache (memory first, then Redis)
@@ -380,7 +384,7 @@ export class CacheLayer {
 
     try {
       // Try memory cache first
-      const memoryResult = this.memoryCache.get<T>(key)
+      const memoryResult = this.memoryCache.get(key) as T | null
       if (memoryResult !== null) {
         this.recordGetTime(Date.now() - startTime)
         return memoryResult
@@ -397,8 +401,7 @@ export class CacheLayer {
 
       this.recordGetTime(Date.now() - startTime)
       return null
-    } catch (error) {
-      console.error('Cache get error:', error)
+    } catch (_error) {
       this.recordGetTime(Date.now() - startTime)
       return null
     }
@@ -424,8 +427,7 @@ export class CacheLayer {
       await this.redisCache.set(key, data, options.redisTtl || this.config.redis.ttl)
 
       this.recordSetTime(Date.now() - startTime)
-    } catch (error) {
-      console.error('Cache set error:', error)
+    } catch (_error) {
       this.recordSetTime(Date.now() - startTime)
     }
   }
@@ -437,8 +439,8 @@ export class CacheLayer {
     try {
       this.memoryCache.delete(key)
       await this.redisCache.delete(key)
-    } catch (error) {
-      console.error('Cache delete error:', error)
+    } catch (_error) {
+      // Graceful degradation
     }
   }
 
@@ -447,8 +449,8 @@ export class CacheLayer {
     try {
       this.memoryCache.clear()
       await this.redisCache.clear(pattern)
-    } catch (error) {
-      console.error('Cache clear error:', error)
+    } catch (_error) {
+      // Graceful degradation
     }
   }
 
@@ -458,14 +460,26 @@ export class CacheLayer {
     dataFetcher: () => Promise<T>,
     options?: { memoryTtl?: number; redisTtl?: number }
   ): Promise<T> {
-    try {
-      const data = await dataFetcher()
-      await this.set(keyComponents, data, options)
-      return data
-    } catch (error) {
-      console.error('Cache warming error:', error)
-      throw error
-    }
+    const data = await dataFetcher()
+    await this.set(keyComponents, data, options)
+    return data
+  }
+
+  // Helper functions for calculations
+  private calculateAverage(values: number[]): number {
+    return values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0
+  }
+
+  private calculateHitRate(hits: number, misses: number): number {
+    const total = hits + misses
+    return total > 0 ? hits / total : 0
+  }
+
+  private calculateCombinedHitRate(metrics: CacheMetrics): number {
+    const totalHits = metrics.memory.hits + metrics.redis.hits
+    const totalRequests =
+      metrics.memory.hits + metrics.memory.misses + metrics.redis.hits + metrics.redis.misses
+    return totalRequests > 0 ? totalHits / totalRequests : 0
   }
 
   // Get comprehensive cache metrics
@@ -473,24 +487,38 @@ export class CacheLayer {
     const memory = this.memoryCache.getMetrics()
     const redis = this.redisCache.getMetrics()
 
-    const avgGetTime =
-      this.performanceMetrics.getOperations.length > 0
-        ? this.performanceMetrics.getOperations.reduce((a, b) => a + b, 0) /
-          this.performanceMetrics.getOperations.length
-        : 0
-
-    const avgSetTime =
-      this.performanceMetrics.setOperations.length > 0
-        ? this.performanceMetrics.setOperations.reduce((a, b) => a + b, 0) /
-          this.performanceMetrics.setOperations.length
-        : 0
-
     return {
       memory,
       redis,
       performance: {
-        averageGetTime: avgGetTime,
-        averageSetTime: avgSetTime,
+        operations: [
+          ...this.performanceMetrics.getOperations,
+          ...this.performanceMetrics.setOperations,
+        ],
+        maxOperations: this.performanceMetrics.maxOperations,
+        averageGetTime: this.calculateAverage(this.performanceMetrics.getOperations),
+        averageSetTime: this.calculateAverage(this.performanceMetrics.setOperations),
+        getOperations: this.performanceMetrics.getOperations,
+        setOperations: this.performanceMetrics.setOperations,
+      },
+      combined: {
+        hitRate: this.calculateCombinedHitRate({
+          memory,
+          redis,
+          performance: {
+            operations: [],
+            maxOperations: 100,
+            getOperations: this.performanceMetrics.getOperations,
+            setOperations: this.performanceMetrics.setOperations,
+          },
+          combined: {
+            hitRate: 0,
+            totalHits: memory.hits + redis.hits,
+            totalMisses: memory.misses + redis.misses,
+          },
+        }),
+        totalHits: memory.hits + redis.hits,
+        totalMisses: memory.misses + redis.misses,
       },
     }
   }
@@ -510,41 +538,43 @@ export class CacheLayer {
       performance: metrics.performance,
       totalHitRate: {
         memory: memoryStats.hitRate,
-        redis: metrics.redis.hits / (metrics.redis.hits + metrics.redis.misses) || 0,
-        combined:
-          (metrics.memory.hits + metrics.redis.hits) /
-            (metrics.memory.hits +
-              metrics.memory.misses +
-              metrics.redis.hits +
-              metrics.redis.misses) || 0,
+        redis: this.calculateHitRate(metrics.redis.hits, metrics.redis.misses),
+        combined: this.calculateCombinedHitRate(metrics),
       },
     }
   }
 
   private recordGetTime(time: number): void {
-    this.performanceMetrics.getOperations.push(time)
-
-    // Keep only last 1000 operations
-    if (this.performanceMetrics.getOperations.length > 1000) {
-      this.performanceMetrics.getOperations.shift()
-    }
+    const updated = recordOperationTime(
+      { operations: this.performanceMetrics.getOperations, maxOperations: 1000 },
+      time
+    )
+    this.performanceMetrics.getOperations = updated.operations
   }
 
   private recordSetTime(time: number): void {
-    this.performanceMetrics.setOperations.push(time)
-
-    // Keep only last 1000 operations
-    if (this.performanceMetrics.setOperations.length > 1000) {
-      this.performanceMetrics.setOperations.shift()
-    }
+    const updated = recordOperationTime(
+      { operations: this.performanceMetrics.setOperations, maxOperations: 1000 },
+      time
+    )
+    this.performanceMetrics.setOperations = updated.operations
   }
 }
 
 // Global cache instance
-export const cacheLayer = new CacheLayer()
+// Export cache layer as lazy-loaded singleton to avoid build-time issues
+let cacheLayerInstance: CacheLayer | null = null
+export const cacheLayer = new Proxy({} as CacheLayer, {
+  get(target, prop) {
+    if (!cacheLayerInstance) {
+      cacheLayerInstance = new CacheLayer()
+    }
+    return Reflect.get(cacheLayerInstance, prop)
+  }
+})
 
 // Cache decorators for API functions
-export function cached<T extends any[], R>(
+export function cached<T extends unknown[], R>(
   keyFactory: (...args: T) => string[],
   options: {
     memoryTtl?: number
@@ -552,7 +582,7 @@ export function cached<T extends any[], R>(
     skipCache?: boolean
   } = {}
 ) {
-  return (target: any, propertyKey: string, descriptor: PropertyDescriptor) => {
+  return (_target: object, _propertyKey: string, descriptor: PropertyDescriptor) => {
     const originalMethod = descriptor.value
 
     descriptor.value = async function (...args: T): Promise<R> {
@@ -572,10 +602,10 @@ export function cached<T extends any[], R>(
       const result = await originalMethod.apply(this, args)
 
       // Cache the result
-      await cacheLayer.set(keyComponents, result, {
-        memoryTtl: options.memoryTtl,
-        redisTtl: options.redisTtl,
-      })
+      const setOptions: { memoryTtl?: number; redisTtl?: number } = {}
+      if (options.memoryTtl !== undefined) setOptions.memoryTtl = options.memoryTtl
+      if (options.redisTtl !== undefined) setOptions.redisTtl = options.redisTtl
+      await cacheLayer.set(keyComponents, result, setOptions)
 
       return result
     }
@@ -584,15 +614,40 @@ export function cached<T extends any[], R>(
   }
 }
 
+// Types for cache key parameters
+interface RepositorySearchParams {
+  q?: string
+  language?: string
+  min_stars?: number
+  page?: number
+  per_page?: number
+  sort?: string
+  order?: 'asc' | 'desc'
+}
+
+interface OpportunitySearchParams {
+  q?: string
+  difficulty?: 'beginner' | 'intermediate' | 'advanced'
+  good_first_issue?: boolean
+  page?: number
+  per_page?: number
+  sort?: string
+  order?: 'asc' | 'desc'
+}
+
 // Cache key factories for common patterns
 export const cacheKeys = {
   repositories: {
-    search: (params: any) => ['repositories', 'search', JSON.stringify(params)],
+    search: (params: RepositorySearchParams) => ['repositories', 'search', JSON.stringify(params)],
     detail: (owner: string, repo: string) => ['repositories', 'detail', owner, repo],
     issues: (owner: string, repo: string) => ['repositories', 'issues', owner, repo],
   },
   opportunities: {
-    search: (params: any) => ['opportunities', 'search', JSON.stringify(params)],
+    search: (params: OpportunitySearchParams) => [
+      'opportunities',
+      'search',
+      JSON.stringify(params),
+    ],
     detail: (id: string) => ['opportunities', 'detail', id],
     user: (userId: string, status?: string) => ['opportunities', 'user', userId, status || 'all'],
   },

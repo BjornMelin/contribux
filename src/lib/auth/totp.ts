@@ -4,8 +4,8 @@
  */
 
 import * as crypto from 'node:crypto'
-import { z } from 'zod'
 import type { MFAEnrollmentResponse, MFAVerificationResponse, TOTPCredential } from '@/types/auth'
+import { z } from 'zod'
 
 // =============================================================================
 // SECURITY CONSTANTS

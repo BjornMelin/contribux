@@ -1,9 +1,9 @@
 // User Queries - Drizzle ORM
 // Phase 3: Type-safe queries replacing raw SQL patterns
 
-import { and, count, desc, eq, sql } from 'drizzle-orm'
 import { db, schema, timedDb } from '@/lib/db'
 import type { NewUserActivity } from '@/lib/db/schema'
+import { and, count, desc, eq, sql } from 'drizzle-orm'
 
 export interface UserPreferences {
   emailNotifications?: boolean
@@ -117,6 +117,7 @@ export namespace UserQueries {
   export async function upsert(data: {
     githubId: number
     username: string
+    githubLogin: string
     email?: string
     name?: string
     avatarUrl?: string
@@ -136,10 +137,15 @@ export namespace UserQueries {
       throw new Error('Invalid username: must be a non-empty string')
     }
 
+    if (typeof data.githubLogin !== 'string' || !data.githubLogin.trim()) {
+      throw new Error('Invalid githubLogin: must be a non-empty string')
+    }
+
     // Security: Sanitize string inputs
     const sanitizedData = {
       ...data,
       username: data.username.trim().substring(0, 100),
+      githubLogin: data.githubLogin.trim().substring(0, 100),
       email: data.email?.trim().substring(0, 255),
       name: data.name?.trim().substring(0, 255),
       avatarUrl: data.avatarUrl?.trim().substring(0, 500),

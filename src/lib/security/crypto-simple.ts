@@ -7,10 +7,12 @@
  * Generate a secure random token
  */
 export function generateSecureToken(length = 32): string {
-  const crypto = globalThis.crypto || require('node:crypto')
+  // Use Web Crypto API available in both browser and Edge Runtime
   const bytes = new Uint8Array(length)
   crypto.getRandomValues(bytes)
-  return Buffer.from(bytes).toString('base64url')
+  // Convert to base64url without using Buffer (not available in Edge Runtime)
+  const base64 = btoa(String.fromCharCode(...bytes))
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
 }
 
 /**
@@ -19,7 +21,11 @@ export function generateSecureToken(length = 32): string {
 export async function createSecureHash(data: string): Promise<string> {
   const encoder = new TextEncoder()
   const buffer = await crypto.subtle.digest('SHA-256', encoder.encode(data))
-  return Buffer.from(buffer).toString('hex')
+  // Convert ArrayBuffer to hex string without using Buffer
+  const bytes = new Uint8Array(buffer)
+  return Array.from(bytes)
+    .map(byte => byte.toString(16).padStart(2, '0'))
+    .join('')
 }
 
 /**
@@ -49,14 +55,18 @@ export async function verifyHash(data: string, hash: string): Promise<boolean> {
  */
 export function generateRandomString(length = 16): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-  const crypto = globalThis.crypto || require('node:crypto')
+  
+  // Use Web Crypto API available in both browser and Edge Runtime
   const randomBytes = new Uint8Array(length)
   crypto.getRandomValues(randomBytes)
-
+  
   let result = ''
   for (let i = 0; i < length; i++) {
-    const index = randomBytes[i] % chars.length
-    result += chars.charAt(index)
+    const byte = randomBytes[i]
+    if (byte !== undefined) {
+      const index = byte % chars.length
+      result += chars.charAt(index)
+    }
   }
   return result
 }

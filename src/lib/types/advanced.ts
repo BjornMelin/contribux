@@ -3,6 +3,8 @@
  * Provides branded types, utility types, and conditional types for better DX
  */
 
+import type React from 'react'
+
 // Branded types for enhanced type safety
 export type Brand<T, B> = T & { readonly __brand: B }
 
@@ -12,6 +14,11 @@ export type RepositoryId = Brand<string, 'RepositoryId'>
 export type GitHubToken = Brand<string, 'GitHubToken'>
 export type SearchQuery = Brand<string, 'SearchQuery'>
 export type DatabaseConnectionString = Brand<string, 'DatabaseConnectionString'>
+
+// Search criteria interface
+export interface SearchCriteria {
+  [key: string]: unknown
+}
 
 // Utility to create branded types
 export const createBrand = <T, B>(value: T): Brand<T, B> => value as Brand<T, B>
@@ -175,9 +182,9 @@ export interface Container {
 }
 
 // Component prop utilities
-export type PropsWithClassName<T = {}> = T & { className?: string }
-export type PropsWithChildren<T = {}> = T & { children?: React.ReactNode }
-export type PropsWithTestId<T = {}> = T & { testId?: string }
+export type PropsWithClassName<T = object> = T & { className?: string }
+export type PropsWithChildren<T = object> = T & { children?: React.ReactNode }
+export type PropsWithTestId<T = object> = T & { testId?: string }
 
 // Compound component utilities
 export type CompoundComponent<P, S> = React.FC<P> & S
@@ -225,14 +232,14 @@ export const isDefined = <T>(value: Optional<T>): value is T =>
 
 // Utility functions
 export const pipe =
-  <T extends unknown[], R>(...fns: Array<(arg: any) => any>) =>
+  <T extends unknown[], R>(...fns: Array<(arg: unknown) => unknown>) =>
   (...args: T): R =>
-    fns.reduce((acc, fn) => fn(acc), args[0])
+    fns.reduce((acc, fn) => fn(acc), args[0]) as R
 
 export const compose =
-  <T extends unknown[], R>(...fns: Array<(arg: any) => any>) =>
+  <T extends unknown[], R>(...fns: Array<(arg: unknown) => unknown>) =>
   (...args: T): R =>
-    fns.reduceRight((acc, fn) => fn(acc), args[0])
+    fns.reduceRight((acc, fn) => fn(acc), args[0]) as R
 
 export const memoize = <T extends unknown[], R>(
   fn: (...args: T) => R,
@@ -244,7 +251,10 @@ export const memoize = <T extends unknown[], R>(
     const key = keyFn ? keyFn(...args) : JSON.stringify(args)
 
     if (cache.has(key)) {
-      return cache.get(key)!
+      const cached = cache.get(key)
+      if (cached !== undefined) {
+        return cached
+      }
     }
 
     const result = fn(...args)
@@ -260,7 +270,7 @@ export const timeout = <T>(promise: Promise<T>, ms: number): Promise<T> =>
   Promise.race([promise, sleep(ms).then(() => Promise.reject(new Error(`Timeout after ${ms}ms`)))])
 
 export const retry = async <T>(fn: () => Promise<T>, maxAttempts = 3, delay = 1000): Promise<T> => {
-  let lastError: Error
+  let lastError: Error = new Error('Unknown error')
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
@@ -274,5 +284,5 @@ export const retry = async <T>(fn: () => Promise<T>, maxAttempts = 3, delay = 10
     }
   }
 
-  throw lastError!
+  throw lastError
 }

@@ -3,7 +3,6 @@
  * Type definitions for AI-powered opportunity matching algorithms
  */
 
-import { z } from 'zod'
 import { type UUID, UUIDSchema } from '@/types/base'
 import {
   type DifficultyLevel,
@@ -12,6 +11,7 @@ import {
   OpportunityTypeSchema,
   type Opportunity as SearchOpportunity,
 } from '@/types/search'
+import { z } from 'zod'
 
 // Business logic schemas aligned with foundation types
 export const UserProfileSchema = z.object({

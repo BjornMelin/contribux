@@ -173,7 +173,8 @@ export async function logSecurityEvent(params: {
   `
 
   // Map database result to TypeScript interface
-  const dbResult = result[0]
+  const resultArray = result as any[]
+  const dbResult = resultArray[0]
   if (!dbResult) {
     throw new Error('Failed to create security audit log')
   }
@@ -233,7 +234,7 @@ export async function logAuthenticationAttempt(params: {
       AND event_type = 'login_failure'
       AND created_at > ${new Date(Date.now() - authConfig.security.failedLoginWindow)}
       ORDER BY created_at DESC
-    `
+    ` as any[]
 
     recentFailures = failedAttempts.length
 
@@ -336,7 +337,7 @@ async function fetchExistingSession(sessionId: string) {
     FROM user_sessions
     WHERE id = ${sessionId}
     LIMIT 1
-  `
+  ` as any[]
 
   return result.length > 0 ? result[0] : null
 }
@@ -614,8 +615,8 @@ export async function getSecurityMetrics(params: {
     `,
   ])
 
-  const totalLoginCount = Number.parseInt(totalLogins[0]?.count || '0')
-  const failedLoginCount = Number.parseInt(failedLogins[0]?.count || '0')
+  const totalLoginCount = Number.parseInt((totalLogins as any[])?.[0]?.count || '0')
+  const failedLoginCount = Number.parseInt((failedLogins as any[])?.[0]?.count || '0')
 
   const endDate = new Date()
   const startDate = new Date(
@@ -628,8 +629,8 @@ export async function getSecurityMetrics(params: {
         ? Math.round(((totalLoginCount - failedLoginCount) / totalLoginCount) * 100)
         : 100,
     failedLoginCount,
-    lockedAccountCount: Number.parseInt(lockedAccounts[0]?.count || '0'),
-    anomalyCount: Number.parseInt(anomalies[0]?.count || '0'),
+    lockedAccountCount: Number.parseInt((lockedAccounts as any[])?.[0]?.count || '0'),
+    anomalyCount: Number.parseInt((anomalies as any[])?.[0]?.count || '0'),
     periodStart: startDate,
     periodEnd: endDate,
   }
@@ -648,7 +649,7 @@ export async function getSecurityMetrics(params: {
 
     return {
       ...metrics,
-      timeline: timelineData.map(row => ({
+      timeline: (timelineData as any[]).map(row => ({
         date: new Date(row.date),
         count: Number.parseInt(row.count),
       })),
@@ -690,8 +691,8 @@ export async function detectAnomalies(params: {
     `
 
     // If most activity is during typical hours, flag this as unusual
-    if (typicalPattern.length > 0) {
-      const typicalHours = typicalPattern.map(p => Number.parseInt(p.hour))
+    if ((typicalPattern as any[]).length > 0) {
+      const typicalHours = (typicalPattern as any[]).map(p => Number.parseInt(p.hour))
       if (!typicalHours.includes(hour)) {
         unusualTime = true
       }
@@ -710,7 +711,7 @@ export async function detectAnomalies(params: {
     ORDER BY created_at DESC
   `
 
-  if (recentEvents.length >= authConfig.security.rapidSuccessionThreshold) {
+  if ((recentEvents as any[]).length >= authConfig.security.rapidSuccessionThreshold) {
     rapidSuccession = true
   }
 
@@ -850,7 +851,7 @@ export async function exportAuditReport(params: {
         start: params.startDate,
         end: params.endDate,
       },
-      total_events: Number.parseInt(totalEvents[0]?.count || '0'),
+      total_events: Number.parseInt((totalEvents as any[])?.[0]?.count || '0'),
     },
     summary: {
       event_distribution: eventDistribution as Array<{
@@ -877,11 +878,11 @@ export async function deleteAuditLog(logId: string): Promise<void> {
     LIMIT 1
   `
 
-  if (log.length === 0) {
+  if ((log as any[]).length === 0) {
     throw new Error('Audit log not found')
   }
 
-  const auditLog = log[0]
+  const auditLog = (log as any[])[0]
   if (!auditLog) {
     throw new Error('Audit log not found')
   }
@@ -911,11 +912,11 @@ export async function verifyAuditLogIntegrity(logId: string): Promise<boolean> {
     LIMIT 1
   `
 
-  if (log.length === 0 || !log[0]?.checksum) {
+  if ((log as any[]).length === 0 || !(log as any[])[0]?.checksum) {
     return true // No checksum to verify
   }
 
-  const auditLog = log[0]
+  const auditLog = (log as any[])[0]
   if (!auditLog) {
     return true
   }

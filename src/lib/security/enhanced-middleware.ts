@@ -31,13 +31,15 @@ function checkRateLimit(ip: string): boolean {
     if (rateLimitMap.size >= MAX_RATE_LIMIT_ENTRIES) {
       // Remove oldest entries (simple LRU-like cleanup)
       const entries = Array.from(rateLimitMap.entries())
-      entries.sort((a, b) => a[1].resetTime - b[1].resetTime)
-      // Remove oldest 20% of entries
-      const toRemove = Math.floor(entries.length * 0.2)
-      for (let i = 0; i < toRemove && i < entries.length; i++) {
-        const entry = entries[i]
-        if (entry) {
-          rateLimitMap.delete(entry[0])
+      if (entries && entries.length > 0) {
+        entries.sort((a, b) => a[1].resetTime - b[1].resetTime)
+        // Remove oldest 20% of entries
+        const toRemove = Math.floor(entries.length * 0.2)
+        for (let i = 0; i < toRemove && i < entries.length; i++) {
+          const entry = entries[i]
+          if (entry) {
+            rateLimitMap.delete(entry[0])
+          }
         }
       }
     }
@@ -63,9 +65,11 @@ function checkRateLimit(ip: string): boolean {
  */
 function cleanupRateLimitMap(now: number): void {
   const entries = Array.from(rateLimitMap.entries())
-  for (const [key, value] of entries) {
-    if (now > value.resetTime) {
-      rateLimitMap.delete(key)
+  if (entries && entries.length > 0) {
+    for (const [key, value] of entries) {
+      if (now > value.resetTime) {
+        rateLimitMap.delete(key)
+      }
     }
   }
 }
@@ -188,47 +192,67 @@ function applySecurityHeaders(response: NextResponse, nonce: string): void {
 }
 
 /**
- * Basic request validation
+ * Check request size limits
  */
-function validateRequest(request: NextRequest): { valid: boolean; message?: string } {
-  // URL parsing available for future validation rules
-  const _url = new URL(request.url)
-
-  // Check request size
+function validateRequestSize(request: NextRequest): { valid: boolean; message?: string } {
   const contentLength = request.headers.get('content-length')
   if (contentLength && Number.parseInt(contentLength) > 10 * 1024 * 1024) {
-    // 10MB
     return { valid: false, message: 'Request too large' }
   }
+  return { valid: true }
+}
 
-  // Validate content type for POST requests
-  if (request.method === 'POST') {
-    const contentType = request.headers.get('content-type')
-    if (
-      !contentType ||
-      (!contentType.includes('application/json') &&
-        !contentType.includes('application/x-www-form-urlencoded') &&
-        !contentType.includes('multipart/form-data'))
-    ) {
-      return { valid: false, message: 'Invalid content type' }
-    }
+/**
+ * Validate content type for POST requests
+ */
+function validateContentType(request: NextRequest): { valid: boolean; message?: string } {
+  if (request.method !== 'POST') {
+    return { valid: true }
   }
 
-  // Check for suspicious patterns in headers
-  const suspiciousPatterns = [/<script/i, /javascript:/i, /vbscript:/i, /onload=/i, /onerror=/i]
+  const contentType = request.headers.get('content-type')
+  const validTypes = [
+    'application/json',
+    'application/x-www-form-urlencoded',
+    'multipart/form-data',
+  ]
 
-  // Check common headers for suspicious patterns
+  if (!contentType || !validTypes.some(type => contentType.includes(type))) {
+    return { valid: false, message: 'Invalid content type' }
+  }
+
+  return { valid: true }
+}
+
+/**
+ * Check headers for suspicious patterns
+ */
+function validateHeaders(request: NextRequest): { valid: boolean; message?: string } {
+  const suspiciousPatterns = [/<script/i, /javascript:/i, /vbscript:/i, /onload=/i, /onerror=/i]
   const headersToCheck = ['user-agent', 'referer', 'x-forwarded-for', 'x-real-ip']
+
   for (const headerName of headersToCheck) {
     const value = request.headers.get(headerName)
-    if (value) {
-      for (const pattern of suspiciousPatterns) {
-        if (pattern.test(value)) {
-          return { valid: false, message: 'Suspicious header content' }
-        }
-      }
+    if (value && suspiciousPatterns.some(pattern => pattern.test(value))) {
+      return { valid: false, message: 'Suspicious header content' }
     }
   }
+
+  return { valid: true }
+}
+
+/**
+ * Basic request validation - orchestrates all validations
+ */
+function validateRequest(request: NextRequest): { valid: boolean; message?: string } {
+  const sizeValidation = validateRequestSize(request)
+  if (!sizeValidation.valid) return sizeValidation
+
+  const contentTypeValidation = validateContentType(request)
+  if (!contentTypeValidation.valid) return contentTypeValidation
+
+  const headerValidation = validateHeaders(request)
+  if (!headerValidation.valid) return headerValidation
 
   return { valid: true }
 }

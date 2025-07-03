@@ -113,11 +113,11 @@ export interface GitHubClientTest {
  * - Zero-maintenance serverless architecture
  */
 
+import { auth } from '@/lib/auth'
 import { retry } from '@octokit/plugin-retry'
 import { throttling } from '@octokit/plugin-throttling'
 import { Octokit } from '@octokit/rest'
 import { z } from 'zod'
-import { auth } from '@/lib/auth'
 
 // Enhanced Octokit with plugins
 const EnhancedOctokit = Octokit.plugin(retry, throttling)

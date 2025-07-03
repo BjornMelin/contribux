@@ -74,12 +74,12 @@ export type Curry<T extends readonly unknown[], R> = T extends readonly [infer H
   : R
 
 // Function composition with type-level computation
-export type Compose<F extends readonly ((...args: any[]) => any)[]> = F extends readonly [
-  (...args: any[]) => infer R,
+export type Compose<F extends readonly ((...args: unknown[]) => unknown)[]> = F extends readonly [
+  (...args: unknown[]) => infer R,
 ]
-  ? (...args: any[]) => R
-  : F extends readonly [(...args: any[]) => any, ...infer Rest]
-    ? Rest extends readonly ((...args: any[]) => any)[]
+  ? (...args: unknown[]) => R
+  : F extends readonly [(...args: unknown[]) => unknown, ...infer Rest]
+    ? Rest extends readonly ((...args: unknown[]) => unknown)[]
       ? Compose<Rest>
       : never
     : never
@@ -290,10 +290,8 @@ export function typedKeys<T extends Record<string, unknown>>(obj: T): Array<keyo
 }
 
 // Type-safe object entries
-export function typedEntries<T extends Record<string, unknown>>(
-  obj: T
-): Array<[keyof T, T[keyof T]]> {
-  return Object.entries(obj) as Array<[keyof T, T[keyof T]]>
+export function typedEntries<T extends Record<string, unknown>>(obj: T): [keyof T, T[keyof T]][] {
+  return Object.entries(obj) as [keyof T, T[keyof T]][]
 }
 
 // Create branded type constructor

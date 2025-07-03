@@ -28,6 +28,9 @@ const cacheConfigSchema = z.object({
 
 type CacheConfig = z.infer<typeof cacheConfigSchema>
 
+// Cache strategy type
+type CacheStrategy = 'memory-first' | 'redis-first' | 'memory-only' | 'redis-only'
+
 interface CacheItem<T = unknown> {
   data: T
   timestamp: number
@@ -86,33 +89,27 @@ class AdvancedCache {
 
     try {
       this.redis = new Redis(this.config.redis.url, {
-        maxRetriesPerRequest: this.config.redis.maxRetriesPerRequest,
-        retryDelayOnFailover: this.config.redis.retryDelayOnFailover,
-        maxRetriesPerRequest: this.config.redis.maxRetriesPerRequest,
         lazyConnect: true,
-        reconnectOnError: err => {
-          console.warn('Redis reconnecting on error:', err.message)
+        connectTimeout: this.config.redis.maxRetryTime,
+        commandTimeout: 5000,
+        reconnectOnError: _err => {
           return true
         },
       })
 
       this.redis.on('connect', () => {
         this.metrics.redisConnected = true
-        console.log('✅ Redis cache connected')
       })
 
-      this.redis.on('error', err => {
+      this.redis.on('error', _err => {
         this.metrics.redisConnected = false
         this.metrics.errors++
-        console.warn('Redis cache error:', err.message)
       })
 
       this.redis.on('close', () => {
         this.metrics.redisConnected = false
-        console.warn('Redis cache disconnected')
       })
-    } catch (error) {
-      console.error('Failed to initialize Redis:', error)
+    } catch (_error) {
       this.redis = null
     }
   }
@@ -200,46 +197,87 @@ class AdvancedCache {
   }
 
   /**
+   * Handle memory-only and memory-first strategy
+   */
+  private async handleMemoryStrategy<T>(
+    key: string,
+    strategy: CacheStrategy,
+    _options: CacheOptions
+  ): Promise<T | null> {
+    const memoryResult = this.getFromMemory<T>(key)
+    if (memoryResult !== null) {
+      this.metrics.hits++
+      return memoryResult
+    }
+
+    if (strategy === 'memory-only') {
+      this.metrics.misses++
+      return null
+    }
+
+    return null
+  }
+
+  /**
+   * Handle Redis strategy with optional memory caching
+   */
+  private async handleRedisStrategy<T>(
+    key: string,
+    strategy: CacheStrategy,
+    options: CacheOptions
+  ): Promise<T | null> {
+    if (!this.redis || !this.metrics.redisConnected) {
+      return null
+    }
+
+    const redisResult = await this.getFromRedis<T>(key)
+    if (redisResult !== null) {
+      this.metrics.hits++
+
+      // Cache in memory for faster future access
+      if (strategy === 'redis-first' && this.config.memory.enabled) {
+        this.setInMemory(key, redisResult, options.ttl || this.config.memory.ttl)
+      }
+
+      return redisResult
+    }
+
+    return null
+  }
+
+  /**
    * Get value from cache with intelligent strategy
    */
   async get<T = unknown>(key: string, options: CacheOptions = {}): Promise<T | null> {
     const strategy = options.strategy || 'memory-first'
 
     try {
-      // Memory-first strategy
-      if (strategy === 'memory-first' || strategy === 'memory-only') {
-        const memoryResult = this.getFromMemory<T>(key)
-        if (memoryResult !== null) {
-          this.metrics.hits++
-          return memoryResult
-        }
+      // Handle memory-only strategy
+      if (strategy === 'memory-only') {
+        const result = await this.handleMemoryStrategy<T>(key, strategy, options)
+        return result // Return directly for memory-only, even if null
+      }
 
-        if (strategy === 'memory-only') {
-          this.metrics.misses++
-          return null
+      // Handle memory-first strategy
+      if (strategy === 'memory-first') {
+        const result = await this.handleMemoryStrategy<T>(key, strategy, options)
+        if (result !== null) {
+          return result
         }
       }
 
-      // Redis fallback or redis-first
-      if (this.redis && this.metrics.redisConnected && strategy !== 'memory-only') {
-        const redisResult = await this.getFromRedis<T>(key)
-        if (redisResult !== null) {
-          this.metrics.hits++
-
-          // Cache in memory for faster future access
-          if (strategy === 'redis-first' && this.config.memory.enabled) {
-            this.setInMemory(key, redisResult, options.ttl || this.config.memory.ttl)
-          }
-
-          return redisResult
+      // Handle Redis strategies (redis-first, redis-only, or fallback from memory-first)
+      if (strategy === 'redis-first' || strategy === 'redis-only' || strategy === 'memory-first') {
+        const result = await this.handleRedisStrategy<T>(key, strategy, options)
+        if (result !== null) {
+          return result
         }
       }
 
       this.metrics.misses++
       return null
-    } catch (error) {
+    } catch (_error) {
       this.metrics.errors++
-      console.error(`Cache get error for key ${key}:`, error)
       return null
     }
   }
@@ -268,9 +306,8 @@ class AdvancedCache {
       }
 
       return success
-    } catch (error) {
+    } catch (_error) {
       this.metrics.errors++
-      console.error(`Cache set error for key ${key}:`, error)
       return false
     }
   }
@@ -344,8 +381,8 @@ class AdvancedCache {
       if (!result) return null
 
       return this.deserialize<T>(result)
-    } catch (error) {
-      console.error('Redis get error:', error)
+    } catch (_error) {
+      this.metrics.errors++
       return null
     }
   }
@@ -360,8 +397,8 @@ class AdvancedCache {
       const serialized = this.serialize(value)
       const result = await this.redis.setex(key, ttl, serialized)
       return result === 'OK'
-    } catch (error) {
-      console.error('Redis set error:', error)
+    } catch (_error) {
+      this.metrics.errors++
       return false
     }
   }
@@ -394,9 +431,8 @@ class AdvancedCache {
       }
 
       return success
-    } catch (error) {
+    } catch (_error) {
       this.metrics.errors++
-      console.error(`Cache delete error for key ${key}:`, error)
       return false
     }
   }
@@ -417,9 +453,8 @@ class AdvancedCache {
       if (this.redis && this.metrics.redisConnected) {
         await this.redis.flushall()
       }
-    } catch (error) {
+    } catch (_error) {
       this.metrics.errors++
-      console.error('Cache clear error:', error)
     }
   }
 
@@ -489,8 +524,8 @@ class AdvancedCache {
       // Clear memory cache
       this.memoryCache.clear()
       this.memoryUsage = 0
-    } catch (error) {
-      console.error('Cache shutdown error:', error)
+    } catch (_error) {
+      // Clear operations can fail safely - ignore errors
     }
   }
 }
@@ -507,6 +542,9 @@ export function getCache(): AdvancedCache {
       redis: {
         url: process.env.REDIS_URL,
         enabled: !!process.env.REDIS_URL,
+        maxRetryTime: Number.parseInt(process.env.REDIS_MAX_RETRY_TIME || '30000'),
+        retryDelayOnFailover: Number.parseInt(process.env.REDIS_RETRY_DELAY || '100'),
+        maxRetriesPerRequest: Number.parseInt(process.env.REDIS_MAX_RETRIES || '3'),
       },
       memory: {
         enabled: true,
@@ -529,7 +567,7 @@ export function cached<T extends (...args: unknown[]) => Promise<unknown>>(
   keyGenerator: (...args: Parameters<T>) => string,
   options: CacheOptions = {}
 ) {
-  return (target: unknown, propertyKey: string, descriptor: PropertyDescriptor) => {
+  return (_target: unknown, _propertyKey: string, descriptor: PropertyDescriptor) => {
     const originalMethod = descriptor.value
 
     descriptor.value = async function (...args: Parameters<T>) {

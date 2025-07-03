@@ -191,6 +191,36 @@ export interface IAnalyticsRepository {
   getDashboardMetrics(): Promise<DashboardMetrics>
 }
 
+export interface AnalyticsEventProperties {
+  // Common properties
+  page?: string
+  referrer?: string
+  userAgent?: string
+  ip?: string
+
+  // Search properties
+  query?: string
+  filters?: SearchCriteria
+  resultsCount?: number
+
+  // Repository/Opportunity properties
+  repositoryId?: RepositoryId
+  repositoryName?: string
+  opportunityId?: string
+  opportunityType?: Opportunity['type']
+
+  // User properties
+  isNewUser?: boolean
+  userRole?: string
+
+  // Session properties
+  sessionDuration?: number
+  pageLoadTime?: number
+
+  // Custom properties
+  [key: string]: string | number | boolean | object | undefined
+}
+
 export interface AnalyticsEvent {
   id: string
   type:
@@ -202,7 +232,7 @@ export interface AnalyticsEvent {
     | 'user_login'
   userId?: UserId
   sessionId: string
-  properties: Record<string, any>
+  properties: AnalyticsEventProperties
   timestamp: Date
 }
 
@@ -266,9 +296,17 @@ export interface IBatchRepository {
   batchDeleteRepositories(ids: RepositoryId[]): Promise<void>
 }
 
+// Database transaction type
+export interface DatabaseTransaction {
+  readonly isTransaction: true
+  query: (sql: string, params?: unknown[]) => Promise<unknown[]>
+  commit: () => Promise<void>
+  rollback: () => Promise<void>
+}
+
 // Transaction support
 export interface ITransactionRepository {
-  executeInTransaction<T>(fn: (trx: any) => Promise<T>): Promise<Result<T, Error>>
+  executeInTransaction<T>(fn: (trx: DatabaseTransaction) => Promise<T>): Promise<Result<T, Error>>
   rollback(): Promise<void>
   commit(): Promise<void>
 }

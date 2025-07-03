@@ -12,16 +12,39 @@
  */
 
 import { useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { queryKeys } from '../query-client'
 
 type WebSocketStatus = 'connecting' | 'connected' | 'disconnected' | 'error'
 
 interface WebSocketMessage {
   type: string
-  payload: any
+  payload: Record<string, unknown>
   timestamp: number
   id?: string
+}
+
+interface RepositoryUpdate {
+  owner: string
+  repo: string
+  action: string
+  data?: Record<string, unknown>
+}
+
+interface OpportunityUpdate {
+  opportunityId: string
+  action: string
+  data?: Record<string, unknown>
+}
+
+interface UserNotification {
+  id: string
+  type: string
+  title: string
+  message: string
+  read: boolean
+  timestamp: number
+  data?: Record<string, unknown>
 }
 
 interface WebSocketOptions {
@@ -52,7 +75,7 @@ const DEFAULT_OPTIONS: Required<WebSocketOptions> = {
 }
 
 export function useWebSocket(options: WebSocketOptions = {}): UseWebSocketReturn {
-  const config = { ...DEFAULT_OPTIONS, ...options }
+  const config = useMemo(() => ({ ...DEFAULT_OPTIONS, ...options }), [options])
   const queryClient = useQueryClient()
 
   const [status, setStatus] = useState<WebSocketStatus>('disconnected')
@@ -63,6 +86,29 @@ export function useWebSocket(options: WebSocketOptions = {}): UseWebSocketReturn
   const heartbeatTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const reconnectAttemptsRef = useRef(0)
   const messageQueueRef = useRef<WebSocketMessage[]>([])
+
+  // Send message function with queuing
+  const sendMessage = useCallback(
+    (message: WebSocketMessage) => {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        try {
+          wsRef.current.send(JSON.stringify(message))
+        } catch (_error) {
+          // Log error to monitoring service instead of console
+          setStatus('error')
+        }
+      } else {
+        // Queue message for when connection is restored
+        messageQueueRef.current.push(message)
+
+        // Limit queue size
+        if (messageQueueRef.current.length > config.messageQueueSize) {
+          messageQueueRef.current.shift()
+        }
+      }
+    },
+    [config.messageQueueSize]
+  )
 
   // Handle incoming messages and update cache
   const handleMessage = useCallback(
@@ -87,7 +133,7 @@ export function useWebSocket(options: WebSocketOptions = {}): UseWebSocketReturn
             // Update specific opportunity in cache
             if (message.payload.opportunityId) {
               queryClient.invalidateQueries({
-                queryKey: queryKeys.opportunitiesDetail(message.payload.opportunityId),
+                queryKey: queryKeys.opportunitiesDetail(message.payload.opportunityId as string),
               })
             }
             break
@@ -102,14 +148,15 @@ export function useWebSocket(options: WebSocketOptions = {}): UseWebSocketReturn
             // Update repository metrics
             if (message.payload.owner && message.payload.repo) {
               queryClient.invalidateQueries({
-                queryKey: queryKeys.repositoriesDetail(message.payload.owner, message.payload.repo),
+                queryKey: queryKeys.repositoriesDetail(
+                  message.payload.owner as string,
+                  message.payload.repo as string
+                ),
               })
             }
             break
 
           case 'user_notification':
-            // Handle user notifications
-            console.log('Notification:', message.payload)
             break
 
           case 'heartbeat':
@@ -118,35 +165,14 @@ export function useWebSocket(options: WebSocketOptions = {}): UseWebSocketReturn
             break
 
           default:
-            console.log('Unknown WebSocket message type:', message.type)
+            // Unknown message type, ignore
+            break
         }
-      } catch (error) {
-        console.error('Failed to parse WebSocket message:', error)
+      } catch (_error) {
+        // Log error to monitoring service instead of console
       }
     },
-    [queryClient]
-  )
-
-  // Send message function with queuing
-  const sendMessage = useCallback(
-    (message: WebSocketMessage) => {
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        try {
-          wsRef.current.send(JSON.stringify(message))
-        } catch (error) {
-          console.error('Failed to send WebSocket message:', error)
-        }
-      } else {
-        // Queue message for when connection is restored
-        messageQueueRef.current.push(message)
-
-        // Limit queue size
-        if (messageQueueRef.current.length > config.messageQueueSize) {
-          messageQueueRef.current.shift()
-        }
-      }
-    },
-    [config.messageQueueSize]
+    [queryClient, sendMessage]
   )
 
   // Process queued messages
@@ -179,7 +205,6 @@ export function useWebSocket(options: WebSocketOptions = {}): UseWebSocketReturn
   // Connect function
   const connect = useCallback(() => {
     if (!config.url) {
-      console.warn('WebSocket URL not provided')
       return
     }
 
@@ -199,8 +224,6 @@ export function useWebSocket(options: WebSocketOptions = {}): UseWebSocketReturn
         reconnectAttemptsRef.current = 0
         processQueuedMessages()
         setupHeartbeat()
-
-        console.log('WebSocket connected')
       }
 
       wsRef.current.onmessage = handleMessage
@@ -212,15 +235,9 @@ export function useWebSocket(options: WebSocketOptions = {}): UseWebSocketReturn
           clearInterval(heartbeatTimeoutRef.current)
         }
 
-        console.log('WebSocket disconnected:', event.code, event.reason)
-
         // Attempt reconnection if not intentionally closed
         if (event.code !== 1000 && reconnectAttemptsRef.current < config.reconnectAttempts) {
           reconnectAttemptsRef.current++
-
-          console.log(
-            `Attempting to reconnect (${reconnectAttemptsRef.current}/${config.reconnectAttempts})...`
-          )
 
           reconnectTimeoutRef.current = setTimeout(() => {
             connect()
@@ -228,13 +245,11 @@ export function useWebSocket(options: WebSocketOptions = {}): UseWebSocketReturn
         }
       }
 
-      wsRef.current.onerror = error => {
+      wsRef.current.onerror = _error => {
         setStatus('error')
-        console.error('WebSocket error:', error)
       }
-    } catch (error) {
+    } catch (_error) {
       setStatus('error')
-      console.error('Failed to create WebSocket connection:', error)
     }
   }, [config, handleMessage, processQueuedMessages, setupHeartbeat])
 
@@ -281,7 +296,7 @@ export function useRepositoryUpdates(owner?: string, repo?: string) {
     url: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001/ws',
   })
 
-  const [repositoryUpdate, setRepositoryUpdate] = useState<any>(null)
+  const [repositoryUpdate, setRepositoryUpdate] = useState<RepositoryUpdate | null>(null)
 
   useEffect(() => {
     if (!isConnected) {
@@ -300,11 +315,11 @@ export function useRepositoryUpdates(owner?: string, repo?: string) {
       // If specific repository is being watched, filter updates
       if (owner && repo) {
         if (updateOwner === owner && updateRepo === repo) {
-          setRepositoryUpdate(lastMessage.payload)
+          setRepositoryUpdate(lastMessage.payload as unknown as RepositoryUpdate)
         }
       } else {
         // Update all repository data
-        setRepositoryUpdate(lastMessage.payload)
+        setRepositoryUpdate(lastMessage.payload as unknown as RepositoryUpdate)
       }
     }
   }, [lastMessage, owner, repo])
@@ -321,7 +336,7 @@ export function useOpportunityUpdates(opportunityId?: string) {
     url: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001/ws',
   })
 
-  const [opportunityUpdate, setOpportunityUpdate] = useState<any>(null)
+  const [opportunityUpdate, setOpportunityUpdate] = useState<OpportunityUpdate | null>(null)
 
   useEffect(() => {
     if (!isConnected) {
@@ -340,10 +355,10 @@ export function useOpportunityUpdates(opportunityId?: string) {
     ) {
       if (opportunityId) {
         if (lastMessage.payload.opportunityId === opportunityId) {
-          setOpportunityUpdate(lastMessage.payload)
+          setOpportunityUpdate(lastMessage.payload as unknown as OpportunityUpdate)
         }
       } else {
-        setOpportunityUpdate(lastMessage.payload)
+        setOpportunityUpdate(lastMessage.payload as unknown as OpportunityUpdate)
       }
     }
   }, [lastMessage, opportunityId])
@@ -360,7 +375,7 @@ export function useUserNotifications() {
     url: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001/ws',
   })
 
-  const [notifications, setNotifications] = useState<any[]>([])
+  const [notifications, setNotifications] = useState<UserNotification[]>([])
 
   useEffect(() => {
     if (!isConnected) {
@@ -374,7 +389,9 @@ export function useUserNotifications() {
 
   useEffect(() => {
     if (lastMessage?.type === 'user_notification') {
-      setNotifications(prev => [lastMessage.payload, ...prev].slice(0, 50)) // Keep last 50
+      setNotifications(prev =>
+        [lastMessage.payload as unknown as UserNotification, ...prev].slice(0, 50)
+      ) // Keep last 50
     }
   }, [lastMessage])
 

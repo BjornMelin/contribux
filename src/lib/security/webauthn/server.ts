@@ -3,17 +3,17 @@
  * Portfolio showcase feature demonstrating modern passwordless authentication
  */
 
+import { sql } from '@/lib/db'
 import {
   type GenerateAuthenticationOptionsOpts,
   type GenerateRegistrationOptionsOpts,
-  generateAuthenticationOptions,
-  generateRegistrationOptions,
   type VerifyAuthenticationResponseOpts,
   type VerifyRegistrationResponseOpts,
+  generateAuthenticationOptions,
+  generateRegistrationOptions,
   verifyAuthenticationResponse,
   verifyRegistrationResponse,
 } from '@simplewebauthn/server'
-import { sql } from '@/lib/db/config'
 import { getSecurityConfig } from '../feature-flags'
 
 // Types for WebAuthn credentials
@@ -26,6 +26,49 @@ export interface WebAuthnCredential {
   deviceName?: string
   createdAt: Date
   lastUsedAt?: Date
+}
+
+// Database result types
+interface DatabaseCredentialRecord {
+  credential_id: string
+  user_id: string
+  public_key: Buffer
+  counter: number
+  device_name?: string
+  created_at: Date
+  last_used_at?: Date
+}
+
+// WebAuthn response types
+interface WebAuthnRegistrationResponse {
+  id: string
+  rawId: string
+  response: {
+    clientDataJSON: string
+    attestationObject: string
+  }
+  type: 'public-key'
+  clientExtensionResults: Record<string, unknown>
+}
+
+interface WebAuthnAuthenticationResponse {
+  id: string
+  rawId: string
+  response: {
+    authenticatorData: string
+    clientDataJSON: string
+    signature: string
+    userHandle?: string
+  }
+  type: 'public-key'
+  clientExtensionResults: Record<string, unknown>
+}
+
+// Credential descriptor for allow/exclude lists
+interface CredentialDescriptor {
+  id: string
+  type: 'public-key'
+  transports?: Array<'usb' | 'nfc' | 'ble' | 'hybrid' | 'internal'>
 }
 
 /**
@@ -48,10 +91,10 @@ export async function generateWebAuthnRegistration(userId: string, userEmail: st
     userID: Buffer.from(userId),
     timeout: config.webauthn.timeout,
     attestationType: 'none',
-    excludeCredentials: existingCredentials.map((cred: any) => ({
+    excludeCredentials: (existingCredentials as DatabaseCredentialRecord[]).map(cred => ({
       id: cred.credential_id,
-      type: 'public-key',
-      transports: ['usb', 'nfc', 'ble', 'hybrid', 'internal'],
+      type: 'public-key' as const,
+      transports: ['usb', 'nfc', 'ble', 'hybrid', 'internal'] as const,
     })),
     authenticatorSelection: {
       authenticatorAttachment: 'platform',
@@ -69,7 +112,7 @@ export async function generateWebAuthnRegistration(userId: string, userEmail: st
  */
 export async function verifyWebAuthnRegistration(
   userId: string,
-  response: any,
+  response: WebAuthnRegistrationResponse,
   expectedChallenge: string
 ) {
   const config = getSecurityConfig()
@@ -85,7 +128,7 @@ export async function verifyWebAuthnRegistration(
   const verification = await verifyRegistrationResponse(opts)
 
   if (verification.verified && verification.registrationInfo) {
-    const { credentialID, credentialPublicKey, counter } = verification.registrationInfo
+    const { credential } = verification.registrationInfo
 
     // Store credential in database
     await sql`
@@ -97,14 +140,14 @@ export async function verifyWebAuthnRegistration(
         created_at
       ) VALUES (
         ${userId},
-        ${Buffer.from(credentialID).toString('base64url')},
-        ${credentialPublicKey},
-        ${counter},
+        ${Buffer.from(credential.id).toString('base64url')},
+        ${Buffer.from(credential.publicKey)},
+        ${credential.counter},
         NOW()
       )
     `
 
-    return { verified: true, credentialId: Buffer.from(credentialID).toString('base64url') }
+    return { verified: true, credentialId: Buffer.from(credential.id).toString('base64url') }
   }
 
   return { verified: false, error: 'Registration verification failed' }
@@ -116,7 +159,7 @@ export async function verifyWebAuthnRegistration(
 export async function generateWebAuthnAuthentication(userId?: string) {
   const config = getSecurityConfig()
 
-  let allowCredentials: any[] = []
+  let allowCredentials: CredentialDescriptor[] = []
 
   if (userId) {
     // Get user's credentials
@@ -126,17 +169,17 @@ export async function generateWebAuthnAuthentication(userId?: string) {
       WHERE user_id = ${userId}
     `
 
-    allowCredentials = credentials.map((cred: any) => ({
+    allowCredentials = (credentials as DatabaseCredentialRecord[]).map(cred => ({
       id: cred.credential_id,
       type: 'public-key' as const,
-      transports: ['usb', 'nfc', 'ble', 'hybrid', 'internal'],
+      transports: ['usb', 'nfc', 'ble', 'hybrid', 'internal'] as const,
     }))
   }
 
   const options: GenerateAuthenticationOptionsOpts = {
     rpID: config.webauthn.rpId,
     timeout: config.webauthn.timeout,
-    allowCredentials: allowCredentials.length > 0 ? allowCredentials : undefined,
+    ...(allowCredentials.length > 0 && { allowCredentials }),
     userVerification: 'preferred',
   }
 
@@ -146,7 +189,10 @@ export async function generateWebAuthnAuthentication(userId?: string) {
 /**
  * Verify WebAuthn authentication response
  */
-export async function verifyWebAuthnAuthentication(response: any, expectedChallenge: string) {
+export async function verifyWebAuthnAuthentication(
+  response: WebAuthnAuthenticationResponse,
+  expectedChallenge: string
+) {
   const config = getSecurityConfig()
 
   // Get credential from database
@@ -156,7 +202,7 @@ export async function verifyWebAuthnAuthentication(response: any, expectedChalle
     FROM webauthn_credentials 
     WHERE credential_id = ${credentialId}
   `
-  const credential = credentialResult[0]
+  const credential = (credentialResult as DatabaseCredentialRecord[])[0]
 
   if (!credential) {
     return { verified: false, error: 'Credential not found' }

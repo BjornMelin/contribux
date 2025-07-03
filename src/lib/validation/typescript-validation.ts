@@ -8,7 +8,6 @@
 
 import type {
   AppError,
-  Brand,
   DeepPropertyAccess,
   Email,
   MetricKey,
@@ -25,15 +24,10 @@ import type {
 function validateBrandedTypes(): void {
   // Create branded types
   const userId = 'user-123' as UserId
-  const email = 'test@example.com' as Email
+  const _email = 'test@example.com' as Email
 
   // This should work - same branded type
-  const anotherUserId: UserId = userId
-
-  // This would fail at compile time - different branded types
-  // const invalidAssignment: Email = userId // TypeScript error
-
-  console.log('Branded types validation:', { userId, email, anotherUserId })
+  const _anotherUserId: UserId = userId
 }
 
 // =============================================================================
@@ -79,10 +73,8 @@ function validateDeepPropertyAccess(): void {
   type ThemeType = DeepPropertyAccess<TestObject, 'user.profile.settings.theme'> // 'light' | 'dark'
   type VersionType = DeepPropertyAccess<TestObject, 'config.api.version'> // string
 
-  const theme: ThemeType = testObj.user.profile.settings.theme
-  const version: VersionType = testObj.config.api.version
-
-  console.log('Deep property access validation:', { theme, version })
+  const _theme: ThemeType = testObj.user.profile.settings.theme
+  const _version: VersionType = testObj.config.api.version
 }
 
 // =============================================================================
@@ -108,11 +100,13 @@ function validateResultTypes(): void {
 
   // Handle results with proper type narrowing
   if (successResult.success) {
-    console.log('Success:', successResult.data) // TypeScript knows this is string
+    // Type narrowed: successResult.data is available
+    void successResult.data
   }
 
   if (!errorResult.success) {
-    console.log('Error:', errorResult.error) // TypeScript knows this is AppError
+    // Type narrowed: errorResult.error is available
+    void errorResult.error
   }
 }
 
@@ -132,7 +126,7 @@ function validateAdvancedErrorHandling(): Result<number, AppError> {
       success: true,
       data: Math.floor(value * 100),
     }
-  } catch (error) {
+  } catch (_error) {
     return {
       success: false,
       error: {
@@ -186,15 +180,9 @@ function validateEventSystem(): void {
   const emitter = new TestEventEmitter()
 
   // Type-safe event listening
-  emitter.on('user:created', payload => {
-    // TypeScript knows payload has userId and email properties
-    console.log('User created:', payload.userId, payload.email)
-  })
+  emitter.on('user:created', _payload => void 0)
 
-  emitter.on('auth:login', payload => {
-    // TypeScript knows payload has userId and sessionToken properties
-    console.log('User logged in:', payload.userId, payload.sessionToken)
-  })
+  emitter.on('auth:login', _payload => void 0)
 
   // Type-safe event emission
   emitter.emit('user:created', {
@@ -232,12 +220,7 @@ function validatePerformanceMetrics(): void {
   }
 
   // Type-safe metric key usage
-  const metricKeys: MetricKey[] = Object.keys(metrics) as MetricKey[]
-
-  console.log('Performance metrics validation:', {
-    keys: metricKeys,
-    metrics,
-  })
+  const _metricKeys: MetricKey[] = Object.keys(metrics) as MetricKey[]
 }
 
 // =============================================================================
@@ -248,13 +231,8 @@ type HttpEndpoint = import('@/types/advanced').ApiEndpoint<'GET', 'v1', 'users'>
 type PostEndpoint = import('@/types/advanced').ApiEndpoint<'POST', 'v2', 'repositories'>
 
 function validateTemplateLiteralTypes(): void {
-  const getEndpoint: HttpEndpoint = 'GET /api/v1/users'
-  const postEndpoint: PostEndpoint = 'POST /api/v2/repositories'
-
-  console.log('Template literal types validation:', {
-    getEndpoint,
-    postEndpoint,
-  })
+  const _getEndpoint: HttpEndpoint = 'GET /api/v1/users'
+  const _postEndpoint: PostEndpoint = 'POST /api/v2/repositories'
 }
 
 // =============================================================================
@@ -265,10 +243,7 @@ type TestUnion = 'admin' | 'user' | 'guest'
 type AdminOnly = import('@/types/advanced').StrictExtract<TestUnion, 'admin'>
 
 function validateConditionalTypes(): void {
-  const adminRole: AdminOnly = 'admin'
-  // const invalidRole: AdminOnly = 'user' // TypeScript error
-
-  console.log('Conditional types validation:', { adminRole })
+  const _adminRole: AdminOnly = 'admin'
 }
 
 // =============================================================================
@@ -284,13 +259,11 @@ interface UserSettings {
 type PartialUserSettings = import('@/types/advanced').PartialBy<UserSettings, 'autoSave'>
 
 function validateMappedTypes(): void {
-  const settings: PartialUserSettings = {
+  const _settings: PartialUserSettings = {
     theme: 'dark',
     notifications: true,
     // autoSave is optional due to PartialBy
   }
-
-  console.log('Mapped types validation:', settings)
 }
 
 // =============================================================================
@@ -303,27 +276,17 @@ function validateMappedTypes(): void {
  * are working correctly with our enhanced configuration
  */
 export function validateAllTypeScriptFeatures(): void {
-  console.log('🚀 Starting TypeScript 5.8+ Advanced Features Validation')
+  validateBrandedTypes()
+  validateDeepPropertyAccess()
+  validateResultTypes()
 
-  try {
-    validateBrandedTypes()
-    validateDeepPropertyAccess()
-    validateResultTypes()
+  const _result = validateAdvancedErrorHandling()
 
-    const result = validateAdvancedErrorHandling()
-    console.log('Advanced error handling result:', result)
-
-    validateEventSystem()
-    validatePerformanceMetrics()
-    validateTemplateLiteralTypes()
-    validateConditionalTypes()
-    validateMappedTypes()
-
-    console.log('✅ All TypeScript advanced features validated successfully!')
-  } catch (error) {
-    console.error('❌ TypeScript validation failed:', error)
-    throw error
-  }
+  validateEventSystem()
+  validatePerformanceMetrics()
+  validateTemplateLiteralTypes()
+  validateConditionalTypes()
+  validateMappedTypes()
 }
 
 // =============================================================================

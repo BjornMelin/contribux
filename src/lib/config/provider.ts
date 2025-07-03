@@ -4,9 +4,9 @@
  * Follows Singleton pattern for consistent configuration access
  */
 
-import { z } from 'zod'
-import type { ConfigBuilder, Result, ServiceFactory, ValidationRule } from '@/lib/types/advanced'
+import type { Result, ServiceFactory } from '@/lib/types/advanced'
 import { Failure, Success } from '@/lib/types/advanced'
+import { z } from 'zod'
 
 // Environment schema validation
 const environmentSchema = z.object({
@@ -196,9 +196,11 @@ export class ConfigProvider {
       return Success(env)
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const issues = error.issues
-          .map(issue => `${issue.path.join('.')}: ${issue.message}`)
-          .join(', ')
+        const issues = error.issues && error.issues.length > 0
+          ? error.issues
+              .map(issue => `${issue.path.join('.')}: ${issue.message}`)
+              .join(', ')
+          : 'Unknown validation error'
         return Failure(new Error(`Environment validation failed: ${issues}`))
       }
       return Failure(error instanceof Error ? error : new Error(String(error)))
@@ -290,9 +292,11 @@ export class ConfigProvider {
       return Success(validated)
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const issues = error.issues
-          .map(issue => `${issue.path.join('.')}: ${issue.message}`)
-          .join(', ')
+        const issues = error.issues && error.issues.length > 0
+          ? error.issues
+              .map(issue => `${issue.path.join('.')}: ${issue.message}`)
+              .join(', ')
+          : 'Unknown validation error'
         return Failure(new Error(`Application config validation failed: ${issues}`))
       }
       return Failure(error instanceof Error ? error : new Error(String(error)))
@@ -374,14 +378,16 @@ export class ConfigProvider {
 
       // Re-validate the section
       const sectionSchema = applicationConfigSchema.shape[section]
-      const validated = sectionSchema.parse(updatedConfig)
+      const validated = sectionSchema.parse(updatedConfig) as ApplicationConfig[K]
 
       return Success(validated)
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const issues = error.issues
-          .map(issue => `${issue.path.join('.')}: ${issue.message}`)
-          .join(', ')
+        const issues = error.issues && error.issues.length > 0
+          ? error.issues
+              .map(issue => `${issue.path.join('.')}: ${issue.message}`)
+              .join(', ')
+          : 'Unknown validation error'
         return Failure(new Error(`Config update validation failed: ${issues}`))
       }
       return Failure(error instanceof Error ? error : new Error(String(error)))
@@ -402,15 +408,15 @@ export class ConfigProvider {
   /**
    * Export configuration for debugging
    */
-  exportConfig(includeSecrets = false): Record<string, any> {
+  exportConfig(includeSecrets = false): Record<string, unknown> {
     const config = this.getConfig()
 
     if (!includeSecrets) {
       // Remove sensitive information
       const sanitized = JSON.parse(JSON.stringify(config))
-      delete sanitized.auth.secret
-      delete sanitized.github.clientSecret
-      delete sanitized.github.token
+      sanitized.auth.secret = undefined
+      sanitized.github.clientSecret = undefined
+      sanitized.github.token = undefined
       return sanitized
     }
 
@@ -461,7 +467,15 @@ export const configValidators = {
   },
 }
 
-// Export singleton instance for easy access
-export const config = ConfigProvider.getInstance()
+// Export singleton instance for easy access - lazy loaded to avoid build-time issues
+let configInstance: ConfigProvider | null = null
+export const config = new Proxy({} as ConfigProvider, {
+  get(target, prop) {
+    if (!configInstance) {
+      configInstance = ConfigProvider.getInstance()
+    }
+    return Reflect.get(configInstance, prop)
+  }
+})
 
 export type { EnvironmentConfig, ApplicationConfig }

@@ -60,7 +60,7 @@ interface Opportunity {
     goodFirstIssue?: boolean
     hacktoberfest?: boolean
     priority?: 'low' | 'medium' | 'high'
-    [key: string]: any
+    [key: string]: unknown
   }
   difficultyScore: number
   impactScore: number
@@ -97,6 +97,15 @@ interface OpportunityApplyRequest {
   estimatedCompletionTime?: string
   relevantExperience?: string
 }
+
+// Type for query data that might be undefined or have various shapes
+type QueryData<T> = T | undefined
+
+// Type for opportunity detail query data
+type OpportunityDetailQueryData = QueryData<Opportunity>
+
+// Type for opportunities search query data
+type OpportunitiesQueryData = QueryData<OpportunitySearchResponse>
 
 // API functions
 async function fetchOpportunities(
@@ -193,18 +202,17 @@ export function useOpportunitiesInfinite(
 ) {
   const { enabled = true, pageSize = 20 } = options
 
-  return useInfiniteQuery({
+  return useInfiniteQuery<OpportunitySearchResponse>({
     queryKey: [...queryKeys.opportunitiesSearch(baseParams), 'infinite'],
-    queryFn: createQueryFunction(({ pageParam = 1 }) =>
-      fetchOpportunities({ ...baseParams, page: pageParam, per_page: pageSize })
-    ),
+    queryFn: ({ pageParam = 1 }) =>
+      fetchOpportunities({ ...baseParams, page: pageParam as number, per_page: pageSize }),
     enabled,
     initialPageParam: 1,
-    getNextPageParam: lastPage => {
+    getNextPageParam: (lastPage: OpportunitySearchResponse) => {
       const { page, has_more } = lastPage.data
       return has_more ? page + 1 : undefined
     },
-    getPreviousPageParam: firstPage => {
+    getPreviousPageParam: (firstPage: OpportunitySearchResponse) => {
       const { page } = firstPage.data
       return page > 1 ? page - 1 : undefined
     },
@@ -303,22 +311,25 @@ export function useApplyToOpportunity() {
       )
 
       // Optimistically update the opportunity
-      queryClient.setQueryData(queryKeys.opportunitiesDetail(request.opportunityId), (old: any) => {
-        if (!old) return old
-        return {
-          ...old,
-          metadata: {
-            ...old.metadata,
-            hasApplied: true,
-            applicationStatus: 'pending',
-          },
+      queryClient.setQueryData(
+        queryKeys.opportunitiesDetail(request.opportunityId),
+        (old: OpportunityDetailQueryData) => {
+          if (!old) return old
+          return {
+            ...old,
+            metadata: {
+              ...old.metadata,
+              hasApplied: true,
+              applicationStatus: 'pending',
+            },
+          }
         }
-      })
+      )
 
       return { previousOpportunity }
     },
 
-    onError: (err, variables, context) => {
+    onError: (_err, variables, context) => {
       // Rollback the optimistic update
       if (context?.previousOpportunity) {
         queryClient.setQueryData(
@@ -328,7 +339,7 @@ export function useApplyToOpportunity() {
       }
     },
 
-    onSuccess: (data, variables) => {
+    onSuccess: (_data, variables) => {
       // Invalidate and refetch user opportunities
       queryClient.invalidateQueries({
         queryKey: [...queryKeys.opportunities(), 'user'],
@@ -370,34 +381,37 @@ export function useSaveOpportunity() {
       const previousData = queryClient.getQueryData(queryKeys.opportunities())
 
       // Optimistically update all opportunity queries
-      queryClient.setQueriesData({ queryKey: queryKeys.opportunities() }, (old: any) => {
-        if (!old) return old
+      queryClient.setQueriesData(
+        { queryKey: queryKeys.opportunities() },
+        (old: OpportunitiesQueryData) => {
+          if (!old) return old
 
-        // Update search results
-        if (old.data?.opportunities) {
-          return {
-            ...old,
-            data: {
-              ...old.data,
-              opportunities: old.data.opportunities.map((opp: Opportunity) =>
-                opp.id === opportunityId ? { ...opp, isSaved: action === 'save' } : opp
-              ),
-            },
+          // Update search results
+          if (old.data?.opportunities) {
+            return {
+              ...old,
+              data: {
+                ...old.data,
+                opportunities: old.data.opportunities.map((opp: Opportunity) =>
+                  opp.id === opportunityId ? { ...opp, isSaved: action === 'save' } : opp
+                ),
+              },
+            }
           }
-        }
 
-        // Update single opportunity
-        if (old.id === opportunityId) {
-          return { ...old, isSaved: action === 'save' }
-        }
+          // Update single opportunity
+          if ('id' in old && old.id === opportunityId) {
+            return { ...old, isSaved: action === 'save' }
+          }
 
-        return old
-      })
+          return old
+        }
+      )
 
       return { previousData }
     },
 
-    onError: (err, variables, context) => {
+    onError: (_err, _variables, context) => {
       if (context?.previousData) {
         queryClient.setQueryData(queryKeys.opportunities(), context.previousData)
       }
@@ -455,85 +469,81 @@ export function usePrefetchOpportunities() {
   }
 }
 
-// Opportunity cache management utilities
-export const opportunityCacheUtils = {
-  // Invalidate all opportunity queries
-  invalidateAll: () => cacheUtils.invalidateOpportunities(),
+// Opportunity cache management custom hook
+export function useOpportunityMutations() {
+  const queryClient = useQueryClient()
 
-  // Update opportunity in cache
-  updateOpportunity: (opportunity: Opportunity) => {
-    const queryClient = useQueryClient()
+  return {
+    // Invalidate all opportunity queries
+    invalidateAll: () => cacheUtils.invalidateOpportunities(),
 
-    // Update detail cache
-    queryClient.setQueryData(queryKeys.opportunitiesDetail(opportunity.id), opportunity)
+    // Update opportunity in cache
+    updateOpportunity: (opportunity: Opportunity) => {
+      // Update detail cache
+      queryClient.setQueryData(queryKeys.opportunitiesDetail(opportunity.id), opportunity)
 
-    // Update search caches
-    queryClient.setQueriesData({ queryKey: queryKeys.opportunities() }, (old: any) => {
-      if (!old?.data?.opportunities) return old
+      // Update search caches
+      queryClient.setQueriesData(
+        { queryKey: queryKeys.opportunities() },
+        (old: OpportunitiesQueryData) => {
+          if (!old?.data?.opportunities) return old
 
-      return {
-        ...old,
-        data: {
-          ...old.data,
-          opportunities: old.data.opportunities.map((opp: Opportunity) =>
-            opp.id === opportunity.id ? opportunity : opp
-          ),
-        },
-      }
-    })
-  },
-
-  // Mark opportunity as applied
-  markAsApplied: (opportunityId: string) => {
-    const queryClient = useQueryClient()
-
-    queryClient.setQueriesData({ queryKey: queryKeys.opportunities() }, (old: any) => {
-      if (!old) return old
-
-      if (old.data?.opportunities) {
-        return {
-          ...old,
-          data: {
-            ...old.data,
-            opportunities: old.data.opportunities.map((opp: Opportunity) =>
-              opp.id === opportunityId
-                ? {
-                    ...opp,
-                    metadata: {
-                      ...opp.metadata,
-                      hasApplied: true,
-                      applicationStatus: 'pending',
-                    },
-                  }
-                : opp
-            ),
-          },
+          return {
+            ...old,
+            data: {
+              ...old.data,
+              opportunities: old.data.opportunities.map((opp: Opportunity) =>
+                opp.id === opportunity.id ? opportunity : opp
+              ),
+            },
+          }
         }
-      }
+      )
+    },
 
-      if (old.id === opportunityId) {
-        return {
-          ...old,
-          metadata: {
-            ...old.metadata,
-            hasApplied: true,
-            applicationStatus: 'pending',
-          },
+    // Mark opportunity as applied
+    markAsApplied: (opportunityId: string) => {
+      queryClient.setQueriesData(
+        { queryKey: queryKeys.opportunities() },
+        (old: OpportunitiesQueryData) => {
+          if (!old) return old
+
+          if (old.data?.opportunities) {
+            return {
+              ...old,
+              data: {
+                ...old.data,
+                opportunities: old.data.opportunities.map((opp: Opportunity) =>
+                  opp.id === opportunityId
+                    ? {
+                        ...opp,
+                        metadata: {
+                          ...opp.metadata,
+                          hasApplied: true,
+                          applicationStatus: 'pending',
+                        },
+                      }
+                    : opp
+                ),
+              },
+            }
+          }
+
+          // Note: Single opportunity case is handled above in the opportunities array
+
+          return old
         }
-      }
+      )
+    },
 
-      return old
-    })
-  },
-
-  // Clear stale search results
-  clearSearchCache: () => {
-    const queryClient = useQueryClient()
-    queryClient.removeQueries({
-      queryKey: queryKeys.opportunities(),
-      predicate: query => query.queryKey.includes('search'),
-    })
-  },
+    // Clear stale search results
+    clearSearchCache: () => {
+      queryClient.removeQueries({
+        queryKey: queryKeys.opportunities(),
+        predicate: query => query.queryKey.includes('search'),
+      })
+    },
+  }
 }
 
 // Export types for components

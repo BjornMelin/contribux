@@ -124,7 +124,10 @@ export class DIContainer implements Container {
         }
 
         // Create the service instance
-        const instance = await definition.factory(...dependencies)
+        const instance = await definition.factory.apply(
+          null,
+          dependencies as Parameters<typeof definition.factory>
+        )
 
         // Cache singleton instances
         if (definition.singleton) {
@@ -272,28 +275,32 @@ export function resetContainer(): void {
  * Decorator for automatic service registration
  */
 export function Injectable(key: ServiceKey, options?: { singleton?: boolean }) {
-  return <T extends new (...args: any[]) => any>(constructor: T) => {
+  return <T extends new (...args: unknown[]) => unknown>(ctor: T) => {
     const container = getContainer()
 
     container.register({
       key,
-      factory: () => new constructor(),
+      factory: () => new ctor(),
       singleton: options?.singleton ?? true,
     })
 
-    return constructor
+    return ctor
   }
 }
 
 /**
  * Decorator for dependency injection
+ * Simplified implementation without reflect-metadata dependency
  */
 export function Inject(keys: ServiceKey[]) {
-  return (target: any, propertyKey?: string, parameterIndex?: number) => {
-    // Store dependency metadata for runtime injection
-    const existingMetadata = Reflect.getMetadata('dependencies', target) || []
-    existingMetadata[parameterIndex!] = keys[parameterIndex!]
-    Reflect.defineMetadata('dependencies', existingMetadata, target)
+  return (target: Record<string, unknown>, _propertyKey?: string, parameterIndex?: number) => {
+    // Store dependency metadata using simple property
+    if (!target.__dependencies) {
+      target.__dependencies = []
+    }
+    if (parameterIndex !== undefined) {
+      ;(target.__dependencies as ServiceKey[])[parameterIndex] = keys[parameterIndex]
+    }
   }
 }
 
@@ -303,7 +310,7 @@ export function Inject(keys: ServiceKey[]) {
  * Create a factory that resolves dependencies automatically
  */
 export function createFactory<T>(
-  constructor: new (...args: any[]) => T,
+  ctor: new (...args: unknown[]) => T,
   dependencies: ServiceKey[]
 ): ServiceFactory<T> {
   return async (...injectedDeps: unknown[]) => {
@@ -313,7 +320,7 @@ export function createFactory<T>(
         ? injectedDeps
         : await Promise.all(dependencies.map(key => container.resolve(key)))
 
-    return new constructor(...resolvedDeps)
+    return new ctor(...resolvedDeps)
   }
 }
 
@@ -322,15 +329,15 @@ export function createFactory<T>(
  */
 export async function resolveAll<T extends Record<string, ServiceKey>>(
   keys: T
-): Promise<{ [K in keyof T]: any }> {
+): Promise<{ [K in keyof T]: unknown }> {
   const container = getContainer()
-  const resolved: any = {}
+  const resolved: Record<string, unknown> = {}
 
   for (const [name, key] of Object.entries(keys)) {
     resolved[name] = await container.resolve(key)
   }
 
-  return resolved
+  return resolved as { [K in keyof T]: unknown }
 }
 
 /**
@@ -353,7 +360,9 @@ export function registerCoreServices(container: DIContainer = getContainer()): v
   container.registerTransient(ServiceKeys.GITHUB_CLIENT, async () => {
     const { createGitHubClient } = await import('@/lib/github')
     const config = await container.resolve(ServiceKeys.CONFIG)
-    return createGitHubClient({ token: (config as any).GITHUB_TOKEN })
+    return createGitHubClient({
+      accessToken: (config as Record<string, unknown>).GITHUB_TOKEN as string,
+    })
   })
 
   // Register logger

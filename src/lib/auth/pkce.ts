@@ -88,7 +88,7 @@ export async function validatePKCESecure(
 /**
  * Calculate Shannon entropy for randomness validation
  */
-function calculateEntropy(str: string): number {
+export function calculateEntropy(str: string): number {
   const frequency: Record<string, number> = {}
 
   for (const char of str) {
@@ -109,7 +109,7 @@ function calculateEntropy(str: string): number {
 /**
  * Timing-safe buffer comparison
  */
-function timingSafeEqual(a: Buffer, b: Buffer): boolean {
+export function timingSafeEqual(a: Buffer, b: Buffer): boolean {
   if (a.length !== b.length) {
     return false
   }
@@ -132,7 +132,12 @@ export async function generateEnhancedPKCEChallenge(options?: {
 }): Promise<{
   codeVerifier: string
   codeChallenge: string
+  method: string
   entropy: number
+  metadata: {
+    generated: string
+    secure: boolean
+  }
 }> {
   const verifierLength = options?.verifierLength || 128 // RFC 7636 recommends 128
   const enforceEntropy = options?.enforceEntropy ?? true
@@ -159,7 +164,12 @@ export async function generateEnhancedPKCEChallenge(options?: {
   return {
     codeVerifier,
     codeChallenge,
+    method: 'S256',
     entropy,
+    metadata: {
+      generated: new Date().toISOString(),
+      secure: true,
+    },
   }
 }
 
@@ -175,6 +185,8 @@ export async function verifyPKCEChallengeSecure(
   }
 ): Promise<{
   valid: boolean
+  timingSafe: boolean
+  entropy: number
   securityChecks: {
     lengthValid: boolean
     entropyValid: boolean
@@ -184,9 +196,12 @@ export async function verifyPKCEChallengeSecure(
   const enforceMinLength = options?.enforceMinLength ?? true
   const validateEntropy = options?.validateEntropy ?? true
 
+  // Calculate entropy for security validation
+  const entropy = calculateEntropy(codeVerifier)
+
   // Security validations
   const lengthValid = !enforceMinLength || codeVerifier.length >= 43 // RFC 7636 minimum
-  const entropyValid = !validateEntropy || calculateEntropy(codeVerifier) >= 4.0
+  const entropyValid = !validateEntropy || entropy >= 4.0
 
   // Timing-safe challenge verification
   const expectedChallenge = await generateCodeChallenge(codeVerifier)
@@ -194,6 +209,8 @@ export async function verifyPKCEChallengeSecure(
 
   return {
     valid: lengthValid && entropyValid && challengeValid,
+    timingSafe: true,
+    entropy,
     securityChecks: {
       lengthValid,
       entropyValid,

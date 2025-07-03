@@ -4,7 +4,6 @@
  * Addresses OWASP A07 Authentication Failures
  */
 
-import { type NextRequest, NextResponse } from 'next/server'
 import type {
   MFAEnrollmentRequest,
   MFAEnrollmentResponse,
@@ -17,13 +16,14 @@ import type {
   WebAuthnCredential,
 } from '@/types/auth'
 import type { UUID } from '@/types/base'
+import { type NextRequest, NextResponse } from 'next/server'
 
+import {
+  generateWebAuthnRegistration as generateWebAuthnRegistrationOptions,
+  verifyWebAuthnAuthentication,
+} from '../security/webauthn/server'
 // Import MFA implementations
 import { generateTOTPEnrollment, hashBackupCodes, verifyBackupCode, verifyTOTPToken } from './totp'
-import {
-  generateWebAuthnRegistrationOptions,
-  verifyWebAuthnAuthentication,
-} from './webauthn-enhanced'
 
 // =============================================================================
 // SECURITY CONSTANTS
@@ -256,39 +256,33 @@ async function enrollWebAuthn(
   _deviceName: string,
   _req: NextRequest
 ): Promise<MFAEnrollmentResponse> {
-  const enrollment = await generateWebAuthnRegistrationOptions({
+  const registrationOptions = await generateWebAuthnRegistrationOptions(user.id, user.email)
+
+  // Store challenge for verification
+  const challengeId = `webauthn:${user.id}:${Date.now()}`
+  mfaChallenges.set(challengeId, {
     userId: user.id,
-    userEmail: user.email,
-    userName: user.displayName,
-    excludeCredentials: [], // TODO: Get existing credentials from database
+    challenge: registrationOptions?.challenge
+      ? typeof registrationOptions.challenge === 'string'
+        ? registrationOptions.challenge
+        : typeof registrationOptions.challenge === 'object' &&
+            registrationOptions.challenge !== null &&
+            'byteLength' in registrationOptions.challenge
+          ? Buffer.from(new Uint8Array(registrationOptions.challenge as ArrayBuffer)).toString(
+              'base64'
+            )
+          : Buffer.from(registrationOptions.challenge as Uint8Array).toString('base64')
+      : challengeId,
+    method: 'webauthn',
+    expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
+    registrationOptions: registrationOptions as unknown as PublicKeyCredentialCreationOptions,
   })
 
-  if (enrollment.success && enrollment.registrationOptions) {
-    // Store challenge for verification
-    const challengeId = `webauthn:${user.id}:${Date.now()}`
-    const regOptions = enrollment.registrationOptions as PublicKeyCredentialCreationOptions
-    mfaChallenges.set(challengeId, {
-      userId: user.id,
-      challenge: regOptions?.challenge
-        ? typeof regOptions.challenge === 'string'
-          ? regOptions.challenge
-          : regOptions.challenge instanceof ArrayBuffer
-            ? Buffer.from(new Uint8Array(regOptions.challenge)).toString('base64')
-            : Buffer.from(regOptions.challenge as Uint8Array).toString('base64')
-        : challengeId,
-      method: 'webauthn',
-      expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
-      registrationOptions: enrollment.registrationOptions as PublicKeyCredentialCreationOptions,
-    })
-
-    return {
-      success: true,
-      method: 'webauthn',
-      registrationOptions: enrollment.registrationOptions,
-    }
+  return {
+    success: true,
+    method: 'webauthn',
+    registrationOptions: registrationOptions,
   }
-
-  return enrollment
 }
 
 // =============================================================================
@@ -435,7 +429,7 @@ async function verifyWebAuthnMFA(
   }
 
   // TODO: Get WebAuthn credential from database
-  const webauthnCredential: WebAuthnCredential = {
+  const _webauthnCredential: WebAuthnCredential = {
     id: '00000000-0000-0000-0000-000000000000' as UUID,
     userId: user.id,
     credentialId: request.credentialId,
@@ -472,20 +466,58 @@ async function verifyWebAuthnMFA(
     }
   }
 
-  const result = await verifyWebAuthnAuthentication(
-    {
-      userId: user.id,
-      credentialId: request.credentialId,
-      assertion: request.assertion as PublicKeyCredential,
+  // Convert PublicKeyCredential to WebAuthnAuthenticationResponse format
+  const assertion = request.assertion as {
+    id: string
+    rawId: string | ArrayBuffer
+    response: {
+      authenticatorData: string | ArrayBuffer
+      clientDataJSON: string | ArrayBuffer
+      signature: string | ArrayBuffer
+      userHandle?: string | ArrayBuffer
+    }
+    clientExtensionResults?: Record<string, unknown>
+  }
+  const webauthnResponse = {
+    id: assertion.id,
+    rawId:
+      typeof assertion.rawId === 'string'
+        ? assertion.rawId
+        : Buffer.from(assertion.rawId).toString('base64'),
+    response: {
+      authenticatorData:
+        typeof assertion.response.authenticatorData === 'string'
+          ? assertion.response.authenticatorData
+          : Buffer.from(assertion.response.authenticatorData).toString('base64'),
+      clientDataJSON:
+        typeof assertion.response.clientDataJSON === 'string'
+          ? assertion.response.clientDataJSON
+          : Buffer.from(assertion.response.clientDataJSON).toString('base64'),
+      signature:
+        typeof assertion.response.signature === 'string'
+          ? assertion.response.signature
+          : Buffer.from(assertion.response.signature).toString('base64'),
+      userHandle: assertion.response.userHandle
+        ? typeof assertion.response.userHandle === 'string'
+          ? assertion.response.userHandle
+          : Buffer.from(assertion.response.userHandle).toString('base64')
+        : undefined,
     },
-    webauthnCredential,
-    challenge.challenge
-  )
+    type: 'public-key' as const,
+    clientExtensionResults: assertion.clientExtensionResults || {},
+  }
+
+  const result = await verifyWebAuthnAuthentication(webauthnResponse, challenge.challenge)
 
   // Clean up challenge after use
   mfaChallenges.delete(challengeKey)
 
-  return result
+  // Transform WebAuthn result to MFA verification response format
+  return {
+    success: result.verified,
+    method: 'webauthn',
+    error: result.error,
+  }
 }
 
 /**

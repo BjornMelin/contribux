@@ -4,9 +4,12 @@
  */
 
 import { desc, eq, sql } from 'drizzle-orm'
+import type { PgColumn } from 'drizzle-orm/pg-core'
+
 import { schema } from '@/lib/db'
 import type { Optional, UserId } from '@/lib/types/advanced'
 import { createBrand } from '@/lib/types/advanced'
+
 import type { IUserRepository, User } from '../interfaces'
 import { BaseRepository } from './base-repository'
 
@@ -51,14 +54,14 @@ export class UserRepository extends BaseRepository<User, UserId> implements IUse
   }
 
   /**
-   * Find user by GitHub login
+   * Find user by GitHub login (username)
    */
   async findByGitHubLogin(login: string): Promise<Optional<User>> {
     try {
       const [result] = await this.db
         .select()
         .from(this.table)
-        .where(eq(this.table.githubLogin, login))
+        .where(eq(this.table.username, login))
         .limit(1)
 
       return result ? this.mapToEntity(result) : null
@@ -76,7 +79,6 @@ export class UserRepository extends BaseRepository<User, UserId> implements IUse
       await this.db
         .update(this.table)
         .set({
-          lastLoginAt: new Date(),
           updatedAt: new Date(),
         })
         .where(eq(this.table.id, id))
@@ -88,15 +90,15 @@ export class UserRepository extends BaseRepository<User, UserId> implements IUse
   }
 
   /**
-   * Get active users (users who logged in recently)
+   * Get active users (users who updated recently)
    */
   async getActiveUsers(limit = 50): Promise<User[]> {
     try {
       const results = await this.db
         .select()
         .from(this.table)
-        .where(sql`last_login_at > NOW() - INTERVAL '30 days'`)
-        .orderBy(desc(this.table.lastLoginAt))
+        .where(sql`updated_at > NOW() - INTERVAL '30 days'`)
+        .orderBy(desc(this.table.updatedAt))
         .limit(limit)
 
       this.recordOperation('getActiveUsers')
@@ -173,7 +175,9 @@ export class UserRepository extends BaseRepository<User, UserId> implements IUse
       name: githubData.name,
       avatarUrl: githubData.avatarUrl,
       githubId: githubData.githubId,
-      githubLogin: githubData.githubLogin,
+      username: githubData.githubLogin,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     }
 
     return await this.create(user)
@@ -198,7 +202,7 @@ export class UserRepository extends BaseRepository<User, UserId> implements IUse
   /**
    * Get user preferences (would be in a separate table in real implementation)
    */
-  async getUserPreferences(id: UserId): Promise<{
+  async getUserPreferences(_id: UserId): Promise<{
     preferredLanguages: string[]
     preferredTopics: string[]
     difficultyPreference: 'beginner' | 'intermediate' | 'advanced'
@@ -228,8 +232,8 @@ export class UserRepository extends BaseRepository<User, UserId> implements IUse
    * Update user preferences
    */
   async updateUserPreferences(
-    id: UserId,
-    preferences: {
+    _id: UserId,
+    _preferences: {
       preferredLanguages?: string[]
       preferredTopics?: string[]
       difficultyPreference?: 'beginner' | 'intermediate' | 'advanced'
@@ -270,32 +274,32 @@ export class UserRepository extends BaseRepository<User, UserId> implements IUse
   /**
    * Map database row to User entity
    */
-  protected mapToEntity(row: any): User {
+  protected mapToEntity(row: Record<string, unknown>): User {
     return {
-      id: createBrand<string, 'UserId'>(row.id),
-      email: row.email,
-      name: row.name,
-      avatarUrl: row.avatar_url || row.avatarUrl,
-      githubId: row.github_id || row.githubId,
-      githubLogin: row.github_login || row.githubLogin,
-      createdAt: new Date(row.created_at || row.createdAt),
-      updatedAt: new Date(row.updated_at || row.updatedAt),
+      id: createBrand<string, 'UserId'>(String(row.id)),
+      email: String(row.email),
+      name: row.name ? String(row.name) : undefined,
+      avatarUrl: row.avatarUrl ? String(row.avatarUrl) : undefined,
+      githubId: row.githubId ? Number(row.githubId) : undefined,
+      githubLogin: row.username ? String(row.username) : undefined, // Map username from schema to githubLogin in interface
+      createdAt: new Date(row.createdAt as string | number | Date),
+      updatedAt: new Date(row.updatedAt as string | number | Date),
     }
   }
 
   /**
    * Map User entity to database row
    */
-  protected mapFromEntity(entity: Partial<User>): any {
+  protected mapFromEntity(entity: Partial<User>): Record<string, unknown> {
     return {
       id: entity.id,
       email: entity.email,
       name: entity.name,
-      avatar_url: entity.avatarUrl,
-      github_id: entity.githubId,
-      github_login: entity.githubLogin,
-      created_at: entity.createdAt,
-      updated_at: entity.updatedAt,
+      avatarUrl: entity.avatarUrl,
+      githubId: entity.githubId,
+      username: entity.githubLogin, // Map githubLogin from interface to username in schema
+      createdAt: entity.createdAt,
+      updatedAt: entity.updatedAt,
     }
   }
 
@@ -317,27 +321,34 @@ export class UserRepository extends BaseRepository<User, UserId> implements IUse
       const conditions = this.buildWhereConditions({
         email: query.email ? `%${query.email}%` : undefined,
         name: query.name ? `%${query.name}%` : undefined,
-        github_login: query.githubLogin ? `%${query.githubLogin}%` : undefined,
+        username: query.githubLogin ? `%${query.githubLogin}%` : undefined,
       })
 
-      let dbQuery = this.db.select().from(this.table)
+      const baseQuery = this.db.select().from(this.table)
 
-      if (conditions.length > 0) {
-        dbQuery = dbQuery.where(sql`${conditions.join(' AND ')}`)
-      }
+      const dbQuery =
+        conditions.length > 0 ? baseQuery.where(sql`${conditions.join(' AND ')}`) : baseQuery
 
-      const result = await this.executePaginated(
-        dbQuery,
-        Math.floor((query.offset || 0) / (query.limit || 20)) + 1,
-        query.limit || 20
-      )
+      // Implement pagination directly
+      const limit = query.limit || 20
+      const offset = query.offset || 0
+
+      // Get items with one extra to check if there are more
+      const items = await dbQuery.limit(limit + 1).offset(offset)
+
+      const hasMore = items.length > limit
+      const actualItems = hasMore ? items.slice(0, limit) : items
+
+      // Get total count
+      const totalQuery = await this.db.select({ count: sql<number>`count(*)` }).from(this.table)
+      const total = Number(totalQuery[0]?.count || 0)
 
       this.recordOperation('searchUsers')
 
       return {
-        users: result.items,
-        total: result.total,
-        hasMore: result.hasMore,
+        users: actualItems.map(item => this.mapToEntity(item)),
+        total,
+        hasMore,
       }
     } catch (error) {
       this.handleError('searchUsers', error)
@@ -347,5 +358,13 @@ export class UserRepository extends BaseRepository<User, UserId> implements IUse
         hasMore: false,
       }
     }
+  }
+
+  /**
+   * Get table column by name safely
+   */
+  protected getTableColumn(columnName: string): PgColumn | null {
+    const table = this.table as any
+    return table[columnName] || null
   }
 }

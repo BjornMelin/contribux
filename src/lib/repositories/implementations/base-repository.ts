@@ -3,16 +3,46 @@
  * Provides common functionality for all repository implementations
  */
 
-import { and, asc, desc, eq, gte, like, lte, or } from 'drizzle-orm'
-import type { PgTable } from 'drizzle-orm/pg-core'
+import { asc, desc, eq, gte, inArray, like, lte, sql } from 'drizzle-orm'
+import type { PgColumn, PgTable, PgTransaction } from 'drizzle-orm/pg-core'
+
 import { db } from '@/lib/db'
 import type { Optional, Repository, Result } from '@/lib/types/advanced'
 import { Failure, Success } from '@/lib/types/advanced'
 
+// Type definitions for repository operations
+interface FilterValue {
+  min?: unknown
+  max?: unknown
+}
+
+interface DatabaseRow {
+  [key: string]: unknown
+}
+
+// Fix PaginatedQuery interface to match Drizzle's query builder pattern
+interface PaginatedQuery {
+  limit(count: number): PaginatedQuery
+  offset(count: number): PaginatedQuery
+  execute(): Promise<DatabaseRow[]>
+}
+
+interface OrderByOption {
+  field: string
+  direction: 'asc' | 'desc'
+}
+
+interface CacheEntry {
+  value: unknown
+  expiresAt: number
+  hitCount: number
+  createdAt: number
+}
+
 export abstract class BaseRepository<T, ID = string> implements Repository<T, ID> {
   protected readonly db = db
   protected abstract table: PgTable
-  protected abstract idColumn: any
+  protected abstract idColumn: PgColumn
 
   /**
    * Find entity by ID
@@ -47,7 +77,7 @@ export abstract class BaseRepository<T, ID = string> implements Repository<T, ID
    */
   async create(entity: Omit<T, 'id'>): Promise<T> {
     try {
-      const data = this.mapFromEntity(entity)
+      const data = this.mapFromEntity(entity as Partial<T>)
       const [result] = await this.db.insert(this.table).values(data).returning()
 
       return this.mapToEntity(result)
@@ -113,12 +143,12 @@ export abstract class BaseRepository<T, ID = string> implements Repository<T, ID
   /**
    * Execute paginated query
    */
-  protected async executePaginated<R>(
-    query: any,
+  protected async executePaginated(
+    query: PaginatedQuery,
     page = 1,
     pageSize = 20
   ): Promise<{
-    items: R[]
+    items: T[]
     total: number
     hasMore: boolean
     page: number
@@ -130,17 +160,18 @@ export abstract class BaseRepository<T, ID = string> implements Repository<T, ID
     const items = await query
       .limit(pageSize + 1) // Get one extra to check if there are more
       .offset(offset)
+      .execute()
 
     const hasMore = items.length > pageSize
     const actualItems = hasMore ? items.slice(0, pageSize) : items
 
     // Get total count (this could be cached for performance)
-    const totalQuery = await this.db.select({ count: 'count(*)' }).from(this.table)
+    const totalQuery = await this.db.select({ count: sql<number>`count(*)` }).from(this.table)
 
     const total = Number(totalQuery[0]?.count || 0)
 
     return {
-      items: actualItems.map(item => this.mapToEntity(item)),
+      items: actualItems.map((item: DatabaseRow) => this.mapToEntity(item)),
       total,
       hasMore,
       page,
@@ -149,33 +180,15 @@ export abstract class BaseRepository<T, ID = string> implements Repository<T, ID
   }
 
   /**
-   * Build dynamic where conditions
+   * Build dynamic where conditions (optimized for low cognitive complexity)
    */
-  protected buildWhereConditions(filters: Record<string, any>): any[] {
-    const conditions: any[] = []
+  protected buildWhereConditions(filters: Record<string, unknown>): unknown[] {
+    const conditions: unknown[] = []
 
     for (const [key, value] of Object.entries(filters)) {
-      if (value === undefined || value === null) continue
-
-      if (Array.isArray(value)) {
-        // Handle array filters (IN clause)
-        if (value.length > 0) {
-          conditions.push(this.table[key].in(value))
-        }
-      } else if (typeof value === 'string' && value.includes('%')) {
-        // Handle LIKE queries
-        conditions.push(like(this.table[key], value))
-      } else if (typeof value === 'object' && value.min !== undefined) {
-        // Handle range queries
-        if (value.min !== undefined) {
-          conditions.push(gte(this.table[key], value.min))
-        }
-        if (value.max !== undefined) {
-          conditions.push(lte(this.table[key], value.max))
-        }
-      } else {
-        // Handle exact matches
-        conditions.push(eq(this.table[key], value))
+      const condition = this.buildSingleCondition(key, value)
+      if (condition) {
+        conditions.push(condition)
       }
     }
 
@@ -183,24 +196,90 @@ export abstract class BaseRepository<T, ID = string> implements Repository<T, ID
   }
 
   /**
-   * Build order by conditions
+   * Build single condition (extracted for clarity and reusability)
    */
-  protected buildOrderBy(sort?: Array<{ field: string; direction: 'asc' | 'desc' }>): any[] {
-    if (!sort || sort.length === 0) {
-      return [desc(this.table.createdAt)] // Default sort
+  private buildSingleCondition(key: string, value: unknown): unknown | null {
+    if (value === undefined || value === null) return null
+
+    const column = this.getTableColumn(key)
+    if (!column) return null
+
+    // Early return pattern for better readability
+    if (Array.isArray(value)) {
+      return this.buildArrayCondition(column, value)
     }
 
-    return sort.map(({ field, direction }) => {
-      const column = this.table[field]
-      return direction === 'asc' ? asc(column) : desc(column)
-    })
+    if (typeof value === 'string' && value.includes('%')) {
+      return this.buildLikeCondition(column, value)
+    }
+
+    if (typeof value === 'object' && value !== null && ('min' in value || 'max' in value)) {
+      return this.buildRangeCondition(column, value as FilterValue)
+    }
+
+    return this.buildExactCondition(column, value)
+  }
+
+  /**
+   * Build array condition (IN clause)
+   */
+  private buildArrayCondition(column: PgColumn, values: unknown[]): unknown | null {
+    return values.length > 0 ? inArray(column, values) : null
+  }
+
+  /**
+   * Build LIKE condition for pattern matching
+   */
+  private buildLikeCondition(column: PgColumn, value: string): unknown {
+    return like(column, value)
+  }
+
+  /**
+   * Build range condition (between min/max)
+   */
+  private buildRangeCondition(column: PgColumn, range: FilterValue): unknown {
+    const conditions = []
+
+    if (range.min !== undefined) conditions.push(gte(column, range.min))
+    if (range.max !== undefined) conditions.push(lte(column, range.max))
+
+    return conditions.length === 1 ? conditions[0] : sql`${conditions.join(' AND ')}`
+  }
+
+  /**
+   * Build exact match condition
+   */
+  private buildExactCondition(column: PgColumn, value: unknown): unknown {
+    return eq(column, value)
+  }
+
+  /**
+   * Get table column by name safely
+   */
+  protected abstract getTableColumn(columnName: string): PgColumn | null
+
+  /**
+   * Build order by conditions
+   */
+  protected buildOrderBy(sort?: OrderByOption[]): unknown[] {
+    if (!sort || sort.length === 0) {
+      const createdAtColumn = this.getTableColumn('createdAt')
+      return createdAtColumn ? [desc(createdAtColumn)] : []
+    }
+
+    return sort
+      .map(({ field, direction }) => {
+        const column = this.getTableColumn(field)
+        return column ? (direction === 'asc' ? asc(column) : desc(column)) : null
+      })
+      .filter(Boolean) as unknown[]
   }
 
   /**
    * Execute transaction
    */
   protected async executeInTransaction<R>(
-    fn: (trx: typeof this.db) => Promise<R>
+    fn: (trx: PgTransaction<any, any, any>) => Promise<R>
   ): Promise<Result<R, Error>> {
     try {
       const result = await this.db.transaction(async trx => {
@@ -233,51 +312,124 @@ export abstract class BaseRepository<T, ID = string> implements Repository<T, ID
   /**
    * Map database row to entity
    */
-  protected abstract mapToEntity(row: any): T
+  protected abstract mapToEntity(row: DatabaseRow): T
 
   /**
    * Map entity to database row
    */
-  protected abstract mapFromEntity(entity: Partial<T>): any
+  protected abstract mapFromEntity(entity: Partial<T>): DatabaseRow
 
   /**
    * Handle errors consistently
    */
-  protected handleError(operation: string, error: unknown): void {
-    const err = error instanceof Error ? error : new Error(String(error))
-
-    // Log error (using logger service if available)
-    console.error(`Repository error in ${this.constructor.name}.${operation}:`, {
-      message: err.message,
-      stack: err.stack,
-      operation,
-    })
+  protected handleError(_operation: string, error: unknown): void {
+    const _err = error instanceof Error ? error : new Error(String(error))
 
     // Could integrate with monitoring service here
     // this.monitoringService?.recordError(err, { operation, repository: this.constructor.name })
   }
 
   /**
-   * Cache helper (to be overridden if caching is needed)
+   * Cache helper with memory optimization
    */
   protected async withCache<R>(key: string, fn: () => Promise<R>, ttlSeconds = 300): Promise<R> {
-    // Simple in-memory cache implementation
-    // In production, this would use Redis or similar
+    this.cleanupExpiredCache()
+
+    const cached = this.getCachedValue<R>(key)
+    if (cached) return cached
+
+    return this.setCachedValue(key, await fn(), ttlSeconds)
+  }
+
+  /**
+   * Get cached value if valid
+   */
+  private getCachedValue<R>(key: string): R | null {
     const cached = this.cache.get(key)
     if (cached && cached.expiresAt > Date.now()) {
+      cached.hitCount++
+      this.cacheHits++
       return cached.value as R
     }
 
-    const result = await fn()
-    this.cache.set(key, {
-      value: result,
-      expiresAt: Date.now() + ttlSeconds * 1000,
-    })
-
-    return result
+    this.cacheMisses++
+    return null
   }
 
-  private cache = new Map<string, { value: any; expiresAt: number }>()
+  /**
+   * Set cached value with size management
+   */
+  private setCachedValue<R>(key: string, value: R, ttlSeconds: number): R {
+    if (this.cache.size >= this.maxCacheSize) {
+      this.evictLRUCacheEntry()
+    }
+
+    this.cache.set(key, {
+      value,
+      expiresAt: Date.now() + ttlSeconds * 1000,
+      hitCount: 0,
+      createdAt: Date.now(),
+    })
+
+    return value
+  }
+
+  private cache = new Map<string, CacheEntry>()
+  private maxCacheSize = 1000
+  private lastCleanup = Date.now()
+
+  /**
+   * Cleanup expired cache entries
+   */
+  private cleanupExpiredCache(): void {
+    const now = Date.now()
+
+    // Only cleanup every 5 minutes to avoid overhead
+    if (now - this.lastCleanup < 300000) return
+
+    this.lastCleanup = now
+
+    for (const [key, entry] of this.cache.entries()) {
+      if (entry.expiresAt <= now) {
+        this.cache.delete(key)
+      }
+    }
+  }
+
+  /**
+   * Evict least recently used cache entry
+   */
+  private evictLRUCacheEntry(): void {
+    const lruEntry = this.findLRUEntry()
+    if (lruEntry) {
+      this.cache.delete(lruEntry.key)
+    }
+  }
+
+  /**
+   * Find the least recently used cache entry
+   */
+  private findLRUEntry(): { key: string; score: number } | null {
+    let lruKey = ''
+    let lruScore = Number.POSITIVE_INFINITY
+
+    for (const [key, entry] of this.cache.entries()) {
+      const score = this.calculateLRUScore(entry)
+      if (score < lruScore) {
+        lruScore = score
+        lruKey = key
+      }
+    }
+
+    return lruKey ? { key: lruKey, score: lruScore } : null
+  }
+
+  /**
+   * Calculate LRU score for cache entry
+   */
+  private calculateLRUScore(entry: { hitCount: number; createdAt: number }): number {
+    return entry.hitCount > 0 ? entry.createdAt / entry.hitCount : entry.createdAt
+  }
 
   /**
    * Clear cache entries
@@ -298,7 +450,7 @@ export abstract class BaseRepository<T, ID = string> implements Repository<T, ID
   /**
    * Validation helper
    */
-  protected validateEntity(entity: Partial<T>): Result<void, Error> {
+  protected validateEntity(_entity: Partial<T>): Result<void, Error> {
     // Override in subclasses for specific validation
     return Success(void 0)
   }
@@ -308,48 +460,6 @@ export abstract class BaseRepository<T, ID = string> implements Repository<T, ID
    */
   protected generateId(): string {
     return crypto.randomUUID()
-  }
-
-  /**
-   * Convert snake_case to camelCase
-   */
-  protected toCamelCase(obj: any): any {
-    if (obj === null || obj === undefined || typeof obj !== 'object') {
-      return obj
-    }
-
-    if (Array.isArray(obj)) {
-      return obj.map(item => this.toCamelCase(item))
-    }
-
-    const camelCased: any = {}
-    for (const [key, value] of Object.entries(obj)) {
-      const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())
-      camelCased[camelKey] = this.toCamelCase(value)
-    }
-
-    return camelCased
-  }
-
-  /**
-   * Convert camelCase to snake_case
-   */
-  protected toSnakeCase(obj: any): any {
-    if (obj === null || obj === undefined || typeof obj !== 'object') {
-      return obj
-    }
-
-    if (Array.isArray(obj)) {
-      return obj.map(item => this.toSnakeCase(item))
-    }
-
-    const snakeCased: any = {}
-    for (const [key, value] of Object.entries(obj)) {
-      const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`)
-      snakeCased[snakeKey] = this.toSnakeCase(value)
-    }
-
-    return snakeCased
   }
 
   /**
@@ -373,7 +483,7 @@ export abstract class BaseRepository<T, ID = string> implements Repository<T, ID
 
   private calculateCacheHitRate(): number {
     const total = this.cacheHits + this.cacheMisses
-    return total > 0 ? this.cacheHits / total : 0
+    return total === 0 ? 0 : this.cacheHits / total
   }
 
   /**

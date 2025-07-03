@@ -23,6 +23,7 @@ const GitHubDemoProvider = {
       name: 'Demo GitHub User',
       email: 'demo@github.com',
       image: 'https://github.com/github.png',
+      emailVerified: new Date(),
     }
   },
 }
@@ -44,6 +45,7 @@ const GoogleDemoProvider = {
       name: 'Demo Google User',
       email: 'demo@google.com',
       image: 'https://lh3.googleusercontent.com/a/default-user=s96-c',
+      emailVerified: new Date(),
     }
   },
 }
