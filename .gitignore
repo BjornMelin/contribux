@@ -14,7 +14,7 @@ lerna-debug.log*
 # Package manager lock files (keep your preferred one)
 package-lock.json
 yarn.lock
-pnpm-lock.yaml
+# pnpm-lock.yaml  # Keep pnpm-lock.yaml for this project
 
 # ================================
 # Next.js Specific

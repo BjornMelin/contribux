@@ -7,7 +7,7 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["src/**/*", "tests/**/*", "*.ts", "*.tsx", "*.js", "*.jsx"]
+    "include": ["src/**/*", "tests/**/*", "*.ts", "*.tsx", "*.js", "*.jsx"]
   },
   "formatter": {
     "enabled": true,
@@ -183,7 +183,7 @@
   },
   "overrides": [
     {
-      "includes": ["*.ts", "*.tsx"],
+      "include": ["*.ts", "*.tsx"],
       "linter": {
         "rules": {
           "style": {
@@ -201,7 +201,7 @@
       }
     },
     {
-      "includes": ["*.test.ts", "*.test.tsx", "*.spec.ts", "*.spec.tsx", "tests/**/*"],
+      "include": ["*.test.ts", "*.test.tsx", "*.spec.ts", "*.spec.tsx", "tests/**/*"],
       "linter": {
         "rules": {
           "suspicious": {
@@ -215,7 +215,7 @@
       }
     },
     {
-      "includes": [
+      "include": [
         "*.config.js",
         "*.config.ts",
         "*.config.mjs",
