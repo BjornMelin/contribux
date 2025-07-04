@@ -237,11 +237,14 @@ export class TestDatabaseManager {
 
         try {
           if (config.cleanup === 'truncate') {
-            await this.truncateAllTablesPGlite(db)
+            // Only truncate if db is still open
+            if (!isClosed) {
+              await this.truncateAllTablesPGlite(db)
+            }
           } else {
-            // Close the PGlite instance completely for fresh start
-            await db.close()
+            // Mark as closed before attempting to close
             isClosed = true
+            await db.close()
           }
         } catch (_error) {
           // Mark as closed even if close fails to prevent further attempts
@@ -516,7 +519,7 @@ export class TestDatabaseManager {
                     return !(
                       (username &&
                         (username.startsWith('perftest') || username === 'similaruser')) ||
-                      (fullName && fullName.startsWith('test-org/'))
+                      fullName?.startsWith('test-org/')
                     )
                   })
                   mockData.set(tableName, filteredData)
@@ -1059,13 +1062,21 @@ export class TestDatabaseManager {
    */
   private createNeonCompatibleClient(db: PGlite): NeonQueryFunction<false, false> {
     const self = this
-    return async function sql(strings: TemplateStringsArray, ...values: unknown[]) {
+    const sql = async function sql(strings: TemplateStringsArray, ...values: unknown[]) {
       try {
         return await self.executeQuery(db, strings, values)
       } catch (error) {
         return self.handleQueryError(error)
       }
-    } as NeonQueryFunction<false, false>
+    }
+
+    // Add transaction property to match NeonQueryFunction interface
+    sql.transaction = async (fn: any) => {
+      // Simple transaction wrapper for testing
+      return await fn(sql)
+    }
+
+    return sql as unknown as NeonQueryFunction<false, false>
   }
 
   /**
@@ -1075,7 +1086,7 @@ export class TestDatabaseManager {
     db: PGlite,
     strings: TemplateStringsArray,
     values: unknown[]
-  ): Promise<unknown[]> {
+  ): Promise<{ rows: unknown[] }> {
     // Simple check if db exists and has query method
     if (!db || typeof db.query !== 'function') {
       throw new Error('Database connection is not available')
@@ -1087,11 +1098,12 @@ export class TestDatabaseManager {
     // Handle transaction commands for PGlite compatibility
     if (this.isTransactionCommand(finalQuery)) {
       // PGlite handles transactions differently - just return empty result
-      return []
+      return { rows: [] }
     }
 
     const result = await db.query(finalQuery, finalParams)
-    return result.rows as unknown[]
+    // Return Neon-compatible format with rows property
+    return { rows: (result as { rows?: unknown[] }).rows || [] }
   }
 
   /**
@@ -1109,9 +1121,9 @@ export class TestDatabaseManager {
   /**
    * Handle query execution errors
    */
-  private handleQueryError(error: unknown): unknown[] {
+  private handleQueryError(error: unknown): { rows: unknown[] } {
     if (error instanceof Error && this.isPGliteConnectionError(error)) {
-      return []
+      return { rows: [] }
     }
     throw error
   }

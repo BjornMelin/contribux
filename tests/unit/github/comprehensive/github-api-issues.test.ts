@@ -33,12 +33,16 @@ describe('GitHubClient - Issues & Pull Requests', () => {
 
   describe('Issue Operations', () => {
     it('should list repository issues', async () => {
-      const client = new GitHubClient(testClientConfigs.basicToken)
+      const client = new GitHubClient({ accessToken: 'ghp_test_token' })
 
-      const issues = await client.listIssues(testIssueParams.repository, {
-        state: 'open',
-        per_page: 10,
-      })
+      const issues = await client.listIssues(
+        testIssueParams.repository.owner,
+        testIssueParams.repository.repo,
+        {
+          state: 'open',
+          perPage: 10,
+        }
+      )
 
       expect(Array.isArray(issues)).toBe(true)
       expect(issues.length).toBeLessThanOrEqual(10)
@@ -52,9 +56,13 @@ describe('GitHubClient - Issues & Pull Requests', () => {
     })
 
     it('should get single issue', async () => {
-      const client = new GitHubClient(testClientConfigs.basicToken)
+      const client = new GitHubClient({ accessToken: 'ghp_test_token' })
 
-      const issue = await client.getIssue(testIssueParams.singleIssue)
+      const issue = await client.getIssue(
+        testIssueParams.singleIssue.owner,
+        testIssueParams.singleIssue.repo,
+        testIssueParams.singleIssue.issueNumber
+      )
 
       expect(issue).toMatchObject({
         id: expect.any(Number),

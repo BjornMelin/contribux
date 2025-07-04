@@ -36,7 +36,7 @@ describe('Search Core Algorithms', () => {
   describe('Text Search Algorithm', () => {
     it('should perform text-only search for opportunities', async () => {
       const { connection, testIds } = context
-      const { rows } = await connection.sql`
+      const result = await connection.sql`
         SELECT * FROM hybrid_search_opportunities(
           ${searchQueries.text.typescript},
           NULL,
@@ -47,17 +47,17 @@ describe('Search Core Algorithms', () => {
         )
       `
 
-      expect(rows).toHaveLength(1)
-      expect(rows[0].id).toBe(testIds.oppId1)
-      expect(rows[0].relevance_score).toBeGreaterThan(0.5)
+      expect(result.rows).toHaveLength(1)
+      expect(result.rows[0].id).toBe(testIds.oppId1)
+      expect(result.rows[0].relevance_score).toBeGreaterThan(0.5)
 
-      const result = OpportunitySearchResultSchema.parse(rows[0])
-      expect(result.title).toContain('TypeScript type errors')
+      const parsedResult = OpportunitySearchResultSchema.parse(result.rows[0])
+      expect(parsedResult.title).toContain('TypeScript type errors')
     })
 
     it('should perform text-only search for repositories', async () => {
       const { connection, testIds } = context
-      const { rows } = await connection.sql`
+      const result = await connection.sql`
         SELECT * FROM hybrid_search_repositories(
           ${searchQueries.text.aiSearch},
           NULL,
@@ -68,17 +68,17 @@ describe('Search Core Algorithms', () => {
         )
       `
 
-      expect(rows).toHaveLength(1)
-      expect(rows[0].id).toBe(testIds.repoId)
+      expect(result.rows).toHaveLength(1)
+      expect(result.rows[0].id).toBe(testIds.repoId)
 
-      const result = RepositorySearchResultSchema.parse(rows[0])
-      expect(result.topics).toContain('ai')
-      expect(result.topics).toContain('search')
+      const parsedResult = RepositorySearchResultSchema.parse(result.rows[0])
+      expect(parsedResult.topics).toContain('ai')
+      expect(parsedResult.topics).toContain('search')
     })
 
     it('should match repository topics in text search', async () => {
       const { connection, testIds } = context
-      const { rows } = await connection.sql`
+      const result = await connection.sql`
         SELECT * FROM hybrid_search_repositories(
           ${searchQueries.text.testing},
           NULL,
@@ -89,16 +89,16 @@ describe('Search Core Algorithms', () => {
         )
       `
 
-      expect(rows).toHaveLength(1)
-      expect(rows[0].id).toBe(testIds.repoId)
-      expect(rows[0].topics).toContain('testing')
+      expect(result.rows).toHaveLength(1)
+      expect(result.rows[0].id).toBe(testIds.repoId)
+      expect(result.rows[0].topics).toContain('testing')
     })
   })
 
   describe('Relevance Scoring', () => {
     it('should calculate relevance scores correctly', async () => {
       const { connection } = context
-      const { rows } = await connection.sql`
+      const result = await connection.sql`
         SELECT * FROM hybrid_search_opportunities(
           ${searchQueries.text.typescript},
           NULL,
@@ -109,20 +109,20 @@ describe('Search Core Algorithms', () => {
         )
       `
 
-      expect(rows).toHaveLength(1)
-      const result = rows[0]
+      expect(result.rows).toHaveLength(1)
+      const opportunity = result.rows[0]
 
       // Relevance score should be within valid range
-      expect(result.relevance_score).toBeGreaterThan(0)
-      expect(result.relevance_score).toBeLessThanOrEqual(1)
+      expect(opportunity.relevance_score).toBeGreaterThan(0)
+      expect(opportunity.relevance_score).toBeLessThanOrEqual(1)
 
       // High text match should produce high relevance
-      expect(result.relevance_score).toBeGreaterThan(0.5)
+      expect(opportunity.relevance_score).toBeGreaterThan(0.5)
     })
 
     it('should handle empty search text gracefully', async () => {
       const { connection } = context
-      const { rows } = await connection.sql`
+      const result = await connection.sql`
         SELECT * FROM hybrid_search_opportunities(
           ${searchQueries.text.empty},
           NULL,
@@ -133,9 +133,9 @@ describe('Search Core Algorithms', () => {
         )
       `
 
-      expect(rows).toHaveLength(2)
+      expect(result.rows).toHaveLength(2)
       // All should have moderate scores for empty search
-      rows.forEach(row => {
+      result.rows.forEach(row => {
         expect(row.relevance_score).toBeGreaterThan(0.4)
         expect(row.relevance_score).toBeLessThan(0.6)
       })
@@ -145,7 +145,7 @@ describe('Search Core Algorithms', () => {
   describe('Search Threshold Management', () => {
     it('should respect similarity threshold', async () => {
       const { connection } = context
-      const { rows } = await connection.sql`
+      const result = await connection.sql`
         SELECT * FROM hybrid_search_opportunities(
           ${searchQueries.text.unrelated},
           NULL,
@@ -156,12 +156,12 @@ describe('Search Core Algorithms', () => {
         )
       `
 
-      expect(rows).toHaveLength(0)
+      expect(result.rows).toHaveLength(0)
     })
 
     it('should limit results correctly', async () => {
       const { connection } = context
-      const { rows } = await connection.sql`
+      const result = await connection.sql`
         SELECT * FROM hybrid_search_opportunities(
           ${searchQueries.text.typescript},
           NULL,
@@ -172,7 +172,7 @@ describe('Search Core Algorithms', () => {
         )
       `
 
-      expect(rows).toHaveLength(1)
+      expect(result.rows).toHaveLength(1)
     })
   })
 
@@ -228,7 +228,7 @@ describe('Search Core Algorithms', () => {
   describe('Query Processing', () => {
     it('should handle special characters in search text', async () => {
       const { connection } = context
-      const { rows } = await connection.sql`
+      const result = await connection.sql`
         SELECT * FROM hybrid_search_opportunities(
           'TypeScript & debugging @#$%',
           NULL,
@@ -240,12 +240,12 @@ describe('Search Core Algorithms', () => {
       `
 
       // Should still find the TypeScript opportunity
-      expect(rows.length).toBeGreaterThanOrEqual(1)
+      expect(result.rows.length).toBeGreaterThanOrEqual(1)
     })
 
     it('should be case insensitive for text search', async () => {
       const { connection, testIds } = context
-      const { rows } = await connection.sql`
+      const result = await connection.sql`
         SELECT * FROM hybrid_search_opportunities(
           'TYPESCRIPT TYPE ERRORS',
           NULL,
@@ -256,15 +256,15 @@ describe('Search Core Algorithms', () => {
         )
       `
 
-      expect(rows).toHaveLength(1)
-      expect(rows[0].id).toBe(testIds.oppId1)
+      expect(result.rows).toHaveLength(1)
+      expect(result.rows[0].id).toBe(testIds.oppId1)
     })
   })
 
   describe('Ranking Algorithm', () => {
     it('should rank results by relevance score', async () => {
       const { connection } = context
-      const { rows } = await connection.sql`
+      const result = await connection.sql`
         SELECT * FROM hybrid_search_opportunities(
           'search',
           NULL,
@@ -276,11 +276,13 @@ describe('Search Core Algorithms', () => {
       `
 
       // Should have multiple results
-      expect(rows.length).toBeGreaterThan(1)
+      expect(result.rows.length).toBeGreaterThan(1)
 
       // Verify descending order
-      for (let i = 1; i < rows.length; i++) {
-        expect(rows[i - 1].relevance_score).toBeGreaterThanOrEqual(rows[i].relevance_score)
+      for (let i = 1; i < result.rows.length; i++) {
+        expect(result.rows[i - 1].relevance_score).toBeGreaterThanOrEqual(
+          result.rows[i].relevance_score
+        )
       }
     })
 

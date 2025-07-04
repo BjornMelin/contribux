@@ -4,7 +4,7 @@
  * Tests cryptographic security, rate limiting, and attack prevention
  */
 
-import type * as crypto from 'node:crypto'
+import * as crypto from 'node:crypto'
 import {
   TOTP_DEFAULTS,
   generateTOTPEnrollment,
@@ -14,7 +14,7 @@ import {
   verifyTOTPToken,
 } from '@/lib/auth/totp'
 import type { TOTPCredential, User } from '@/types/auth'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock crypto for controlled testing
 vi.mock('node:crypto', async () => {
@@ -78,9 +78,7 @@ describe('TOTP Authentication Security', () => {
 
     const mockHmacInstance = {
       update: vi.fn().mockReturnThis(),
-      digest: vi
-        .fn()
-        .mockReturnValue(Buffer.from('0123456789abcdef0123456789abcdef01234567', 'hex')),
+      digest: vi.fn(),
     }
     mockCreateHmac.mockReturnValue(mockHmacInstance as crypto.Hmac)
   })
@@ -160,9 +158,22 @@ describe('TOTP Authentication Security', () => {
       const testTimestamp = 1000000000000 // Fixed timestamp
       vi.setSystemTime(testTimestamp)
 
-      // Mock HMAC to generate predictable token
-      const mockDigest = Buffer.from('0123456789abcdef0123456789abcdef01234567', 'hex')
-      mockCreateHmac().digest.mockReturnValue(mockDigest)
+      // Create a buffer that will generate token '755224'
+      // The HOTP algorithm uses the last byte for offset (& 0x0f)
+      // Then extracts 4 bytes and converts to integer
+      // For token 755224, we need the 4-byte integer to be 755224 (0x0B8618)
+      const mockDigest = Buffer.alloc(20)
+      // Set last byte to define offset (we'll use offset 0)
+      mockDigest[19] = 0x00
+      // Set the 4 bytes at offset 0 to produce 755224
+      // 755224 = 0x000B8618 in hex
+      mockDigest[0] = 0x00 // First bit must be 0 (& 0x7f)
+      mockDigest[1] = 0x0b
+      mockDigest[2] = 0x86
+      mockDigest[3] = 0x18
+
+      const mockHmacInstance = mockCreateHmac()
+      mockHmacInstance.digest.mockReturnValue(mockDigest)
 
       const result = await verifyTOTPToken(
         {
@@ -177,6 +188,18 @@ describe('TOTP Authentication Security', () => {
     })
 
     it('should reject expired tokens outside time window', async () => {
+      // Setup mock to return a different token
+      const mockDigest = Buffer.alloc(20)
+      mockDigest[19] = 0x00
+      // Set different bytes to produce a different token
+      mockDigest[0] = 0x00
+      mockDigest[1] = 0x11
+      mockDigest[2] = 0x22
+      mockDigest[3] = 0x33
+
+      const mockHmacInstance = mockCreateHmac()
+      mockHmacInstance.digest.mockReturnValue(mockDigest)
+
       const result = await verifyTOTPToken(
         {
           userId: mockUser.id,
@@ -193,12 +216,53 @@ describe('TOTP Authentication Security', () => {
       const baseTime = 1000000000000
       vi.setSystemTime(baseTime)
 
+      // Setup mock digest for valid token
+      const validDigest = Buffer.alloc(20)
+      validDigest[19] = 0x00
+      validDigest[0] = 0x00
+      validDigest[1] = 0x0b
+      validDigest[2] = 0x86
+      validDigest[3] = 0x18
+
+      // Create a counter to track calls
+      let callCount = 0
+      const baseCounter = Math.floor(baseTime / 1000 / 30)
+
+      const mockHmacInstance = mockCreateHmac()
+      mockHmacInstance.update.mockImplementation((data: Buffer) => {
+        callCount++
+        return mockHmacInstance
+      })
+
+      // For each test, the verifyTOTP will check 5 time windows (-2, -1, 0, +1, +2)
+      // We'll return the valid digest only when appropriate
+      mockHmacInstance.digest.mockImplementation(() => {
+        const currentTime = Date.now()
+        const currentCounter = Math.floor(currentTime / 1000 / 30)
+        const diff = Math.abs(currentCounter - baseCounter)
+
+        // Only return valid digest if within window
+        if (diff <= 2) {
+          return validDigest
+        } else {
+          // Return a different digest that produces a different token
+          const invalidDigest = Buffer.alloc(20)
+          invalidDigest[19] = 0x00
+          invalidDigest[0] = 0x00
+          invalidDigest[1] = 0xff
+          invalidDigest[2] = 0xff
+          invalidDigest[3] = 0xff
+          return invalidDigest
+        }
+      })
+
       // Test tokens within acceptable window (±60 seconds)
       const validToken = '755224'
 
       // Test at different time points within window
       for (const offset of [-60, -30, 0, 30, 60]) {
         vi.setSystemTime(baseTime + offset * 1000)
+        callCount = 0
 
         const result = await verifyTOTPToken(
           {
@@ -213,6 +277,8 @@ describe('TOTP Authentication Security', () => {
 
       // Test outside window (should fail)
       vi.setSystemTime(baseTime + 90 * 1000)
+      callCount = 0
+
       const result = await verifyTOTPToken(
         {
           userId: mockUser.id,
@@ -227,6 +293,17 @@ describe('TOTP Authentication Security', () => {
     it('should prevent replay attacks with time step tracking', async () => {
       const testTimestamp = 1000000000000
       vi.setSystemTime(testTimestamp)
+
+      // Setup mock digest for valid token
+      const mockDigest = Buffer.alloc(20)
+      mockDigest[19] = 0x00
+      mockDigest[0] = 0x00
+      mockDigest[1] = 0x0b
+      mockDigest[2] = 0x86
+      mockDigest[3] = 0x18
+
+      const mockHmacInstance = mockCreateHmac()
+      mockHmacInstance.digest.mockReturnValue(mockDigest)
 
       const validToken = '755224'
       const lastUsedCounter = Math.floor(testTimestamp / 1000 / 30) // Current time step

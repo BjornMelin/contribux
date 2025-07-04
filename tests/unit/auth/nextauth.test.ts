@@ -6,7 +6,7 @@ import type { Session } from 'next-auth'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock database module
-vi.mock('../../src/lib/db/config', () => ({
+vi.mock('@/lib/db/config', () => ({
   sql: vi.fn(),
 }))
 
@@ -21,7 +21,7 @@ vi.mock('next-auth', () => ({
 }))
 
 // Mock the auth module exports
-vi.mock('../../src/lib/auth', () => ({
+vi.mock('@/lib/auth', () => ({
   handlers: { GET: vi.fn(), POST: vi.fn() },
   auth: vi.fn(),
   signIn: vi.fn(),
@@ -322,7 +322,7 @@ describe('NextAuth Configuration', () => {
   describe('Auth Module', () => {
     it('should export auth handlers', async () => {
       // Use dynamic import to work with mocks
-      const authModule = await import('../../src/lib/auth')
+      const authModule = await import('@/lib/auth')
       expect(authModule.handlers).toBeDefined()
       expect(authModule.handlers.GET).toBeDefined()
       expect(authModule.handlers.POST).toBeDefined()
@@ -334,13 +334,13 @@ describe('NextAuth Configuration', () => {
 
     it('should export signIn function', async () => {
       // Use dynamic import to work with mocks
-      const authModule = await import('../../src/lib/auth')
+      const authModule = await import('@/lib/auth')
       expect(typeof authModule.signIn).toBe('function')
     })
 
     it('should export signOut function', async () => {
       // Use dynamic import to work with mocks
-      const authModule = await import('../../src/lib/auth')
+      const authModule = await import('@/lib/auth')
       expect(typeof authModule.signOut).toBe('function')
     })
   })

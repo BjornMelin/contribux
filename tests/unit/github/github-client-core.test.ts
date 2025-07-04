@@ -50,29 +50,20 @@ describe('GitHub Client Core', () => {
 
     it('should create client with token authentication', () => {
       const config: GitHubClientConfig = {
-        auth: {
-          type: 'token',
-          token: 'ghp_test_token',
-        },
+        accessToken: 'ghp_test_token',
       }
       const client = createClient(config)
       expect(client).toBeInstanceOf(GitHubClient)
     })
 
-    it('should create client with GitHub App authentication', () => {
-      // Test is skipped as it requires proper private key format
-      // Just verify the client accepts the configuration structure
-      const config = {
-        auth: {
-          type: 'app' as const,
-          appId: 123456,
-          privateKey: '-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----',
-          installationId: 789,
-        },
-      }
-
-      // App auth requires valid private key, so we just test config acceptance
-      expect(() => config).not.toThrow()
+    it('should create client without authentication', () => {
+      // The simplified client supports optional authentication
+      const client = createClient({})
+      expect(client).toBeInstanceOf(GitHubClient)
+      // Client methods should still be available
+      expect(client.getUser).toBeDefined()
+      expect(client.getRepository).toBeDefined()
+      expect(client.graphql).toBeDefined()
     })
 
     it('should accept custom base URL', () => {
@@ -91,22 +82,18 @@ describe('GitHub Client Core', () => {
       expect(client).toBeInstanceOf(GitHubClient)
     })
 
-    it('should throw error for invalid configuration', () => {
-      const config = {
-        auth: {
-          type: 'invalid' as const,
-          clientId: 'dummy',
-          clientSecret: 'dummy',
-        },
+    it('should validate configuration with Zod', () => {
+      // Test that invalid configuration is caught by Zod validation
+      const invalidConfig = {
+        baseUrl: 'not-a-valid-url', // Invalid URL
       } as GitHubClientConfig
-      expect(() => new GitHubClient(config)).toThrow(
-        'Invalid authentication type. Must be "token" or "app"'
-      )
+
+      expect(() => new GitHubClient(invalidConfig)).toThrow()
     })
 
     it('should apply throttle configuration', () => {
       const config: GitHubClientConfig = {
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
         throttle: {
           onRateLimit: () => true,
           onSecondaryRateLimit: () => false,
@@ -119,7 +106,7 @@ describe('GitHub Client Core', () => {
 
     it('should apply cache configuration', () => {
       const config: GitHubClientConfig = {
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
         cache: {
           maxAge: 300,
           maxSize: 1000,
@@ -137,10 +124,7 @@ describe('GitHub Client Core', () => {
   describe('Factory Function Testing', () => {
     it('should create client via factory function with valid token', () => {
       const client = createGitHubClient({
-        auth: {
-          type: 'token',
-          token: 'ghp_test1234567890abcdef1234567890abcdef12',
-        },
+        accessToken: 'ghp_test1234567890abcdef1234567890abcdef12',
       })
 
       expect(client).toBeDefined()
@@ -150,10 +134,7 @@ describe('GitHub Client Core', () => {
 
     it('should create identical clients via both instantiation methods', () => {
       const config: GitHubClientConfig = {
-        auth: {
-          type: 'token',
-          token: 'ghp_test1234567890abcdef1234567890abcdef12',
-        },
+        accessToken: 'ghp_test1234567890abcdef1234567890abcdef12',
       }
 
       const clientDirect = new GitHubClient(config)
@@ -171,7 +152,7 @@ describe('GitHub Client Core', () => {
       // For now, we'll test that the client accepts custom base URL
       const client = createClient({
         baseUrl: 'https://github.enterprise.com/api/v3',
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       expect(client).toBeInstanceOf(GitHubClient)
@@ -179,7 +160,7 @@ describe('GitHub Client Core', () => {
 
     it('should include custom headers in REST requests', async () => {
       const client = createClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
         userAgent: 'contribux-test/1.0',
       })
 
@@ -192,7 +173,7 @@ describe('GitHub Client Core', () => {
       // For now, we'll test that the client accepts custom base URL
       const client = createClient({
         baseUrl: 'https://github.enterprise.com/api/v3',
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       expect(client).toBeInstanceOf(GitHubClient)
@@ -203,7 +184,7 @@ describe('GitHub Client Core', () => {
     it('should execute default onRateLimit handler with proper retry logic', () => {
       // Create client without custom throttle config to use defaults
       const client = createClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
         // No throttle config - should use defaults
       })
 
@@ -231,7 +212,7 @@ describe('GitHub Client Core', () => {
     it('should execute default onSecondaryRateLimit handler with proper retry logic', () => {
       // Create client without custom throttle config to use defaults
       const client = createClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
         // No throttle config - should use defaults
       })
 
@@ -258,7 +239,7 @@ describe('GitHub Client Core', () => {
     it('should use default throttle settings when no custom config provided', () => {
       // Create client with minimal config - should trigger default throttle handlers
       const client = createClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       // Verify client was created with default throttle settings
@@ -275,7 +256,7 @@ describe('GitHub Client Core', () => {
     it('should use default retry settings when no custom config provided', () => {
       // Create client without retry config - should use defaults
       const client = createClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
         // No retry config - should use defaults
       })
 
@@ -297,14 +278,14 @@ describe('GitHub Client Core', () => {
 
       // 2. Test with partial config triggering defaults
       const clientPartialConfig = createClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
         baseUrl: 'https://api.github.com', // Should not affect defaults
       })
       expect(clientPartialConfig).toBeDefined()
 
       // 3. Test userAgent default fallback
       const clientDefaultUserAgent = createClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
         // No userAgent - should use default: 'contribux-github-client/1.0.0'
       })
       expect(clientDefaultUserAgent).toBeDefined()
@@ -313,7 +294,7 @@ describe('GitHub Client Core', () => {
     it('should cover cache configuration defaults', () => {
       // Test cache defaults: maxAge: 300, maxSize: 1000
       const client = createClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
         // No cache config - should use defaults
       })
 
@@ -334,14 +315,14 @@ describe('GitHub Client Core', () => {
         // Test with NODE_ENV = 'test' (should use 0 retries)
         process.env.NODE_ENV = 'test'
         const testClient = createClient({
-          auth: { type: 'token', token: 'test_token' },
+          accessToken: 'test_token',
         })
         expect(testClient).toBeDefined()
 
         // Test with NODE_ENV = 'production' (should use 2 retries)
         process.env.NODE_ENV = 'production'
         const prodClient = createClient({
-          auth: { type: 'token', token: 'test_token' },
+          accessToken: 'test_token',
         })
         expect(prodClient).toBeDefined()
       } finally {
@@ -353,7 +334,7 @@ describe('GitHub Client Core', () => {
     it('should apply retry configuration', () => {
       // The retry configuration is handled internally by Octokit plugins
       const config: GitHubClientConfig = {
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       }
 
       const client = createClient(config)
@@ -363,7 +344,7 @@ describe('GitHub Client Core', () => {
     it('should apply log level configuration', () => {
       // Log level is not part of our client config, but user agent is
       const config: GitHubClientConfig = {
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
         userAgent: 'test-client/1.0.0',
       }
 
@@ -375,10 +356,7 @@ describe('GitHub Client Core', () => {
   describe('Cache Management', () => {
     it('should manage cache effectively', () => {
       const client = createGitHubClient({
-        auth: {
-          type: 'token',
-          token: 'ghp_test1234567890abcdef1234567890abcdef12',
-        },
+        accessToken: 'ghp_test1234567890abcdef1234567890abcdef12',
       })
 
       const stats = client.getCacheStats()
@@ -397,7 +375,7 @@ describe('GitHub Client Core', () => {
   describe('REST API Operations', () => {
     it('should make authenticated REST API requests', async () => {
       const client = createClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       const user = await client.getAuthenticatedUser()
@@ -409,7 +387,7 @@ describe('GitHub Client Core', () => {
     it('should handle REST API errors', async () => {
       // Test that the client can be created and the function exists
       const client = createClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       // Just verify the method exists and can be called
@@ -419,10 +397,10 @@ describe('GitHub Client Core', () => {
 
     it('should get repository information', async () => {
       const client = createClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
-      const repo = await client.getRepository({ owner: 'octocat', repo: 'Hello-World' })
+      const repo = await client.getRepository('octocat', 'Hello-World')
       expect(repo).toBeDefined()
       expect(repo.name).toBe('Hello-World')
       expect(repo.full_name).toBe('octocat/Hello-World')
@@ -430,10 +408,10 @@ describe('GitHub Client Core', () => {
 
     it('should search repositories', async () => {
       const client = createClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
-      const searchResult = await client.searchRepositories({ q: 'test' })
+      const searchResult = await client.searchRepositories({ query: 'test' })
       expect(searchResult).toBeDefined()
       expect(searchResult.total_count).toBeGreaterThanOrEqual(0)
       expect(Array.isArray(searchResult.items)).toBe(true)
@@ -441,7 +419,7 @@ describe('GitHub Client Core', () => {
 
     it('should handle rate limit headers', async () => {
       const client = createClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       const rateLimitInfo = await client.getRateLimit()
@@ -453,7 +431,7 @@ describe('GitHub Client Core', () => {
   describe('GraphQL Operations', () => {
     it('should make authenticated GraphQL requests', async () => {
       const client = createClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       const query = 'query { viewer { login name } }'
@@ -464,7 +442,7 @@ describe('GitHub Client Core', () => {
 
     it('should handle GraphQL errors', async () => {
       const client = createClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       // Test a valid query instead since MSW GraphQL error handling is complex
@@ -476,7 +454,7 @@ describe('GitHub Client Core', () => {
 
     it('should pass variables to GraphQL queries', async () => {
       const client = createClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       const query = `query($owner: String!, $name: String!) { 
@@ -494,7 +472,7 @@ describe('GitHub Client Core', () => {
     it('should properly handle network errors', async () => {
       // Test that the client is resilient and can handle normal operations
       const client = createClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       const user = await client.getAuthenticatedUser()
@@ -504,7 +482,7 @@ describe('GitHub Client Core', () => {
     it('should handle authentication errors', async () => {
       // Test normal operation instead of mocking errors
       const client = createClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       const user = await client.getAuthenticatedUser()

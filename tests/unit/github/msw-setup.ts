@@ -79,18 +79,29 @@ export const defaultMockResponses = {
     topics: ['javascript', 'demo'],
   },
   rateLimit: {
-    core: {
-      limit: 5000,
-      remaining: 4999,
-      reset: Math.floor(Date.now() / 1000) + 3600,
+    resources: {
+      core: {
+        limit: 5000,
+        used: 1,
+        remaining: 4999,
+        reset: Math.floor(Date.now() / 1000) + 3600,
+      },
+      search: {
+        limit: 30,
+        used: 1,
+        remaining: 29,
+        reset: Math.floor(Date.now() / 1000) + 3600,
+      },
+      graphql: {
+        limit: 5000,
+        used: 1,
+        remaining: 4999,
+        reset: Math.floor(Date.now() / 1000) + 3600,
+      },
     },
-    search: {
-      limit: 30,
-      remaining: 29,
-      reset: Math.floor(Date.now() / 1000) + 3600,
-    },
-    graphql: {
+    rate: {
       limit: 5000,
+      used: 1,
       remaining: 4999,
       reset: Math.floor(Date.now() / 1000) + 3600,
     },
@@ -287,20 +298,31 @@ const defaultHandlers = [
       request.headers.get('x-test-scenario') === 'edge-case-rate-limits'
     ) {
       return HttpResponse.json({
-        core: {
-          limit: 0, // Edge case: zero limit
+        resources: {
+          core: {
+            limit: 0, // Edge case: zero limit
+            used: 0,
+            remaining: 0,
+            reset: Math.floor(Date.now() / 1000),
+          },
+          search: {
+            limit: 1, // Edge case: minimal limit
+            used: 0,
+            remaining: 1,
+            reset: Math.floor(Date.now() / 1000) + 60,
+          },
+          graphql: {
+            limit: 5000,
+            used: 0,
+            remaining: 5000,
+            reset: Math.floor(Date.now() / 1000) + 3600,
+          },
+        },
+        rate: {
+          limit: 0,
+          used: 0,
           remaining: 0,
           reset: Math.floor(Date.now() / 1000),
-        },
-        search: {
-          limit: 1, // Edge case: minimal limit
-          remaining: 1,
-          reset: Math.floor(Date.now() / 1000) + 60,
-        },
-        graphql: {
-          limit: 5000,
-          remaining: 5000,
-          reset: Math.floor(Date.now() / 1000) + 3600,
         },
       })
     }

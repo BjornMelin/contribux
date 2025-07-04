@@ -170,15 +170,19 @@ export const isTest = () => env.NODE_ENV === 'test'
 /**
  * Validates basic required environment variables
  */
-function validateBasicEnvironmentVariables(): void {
+export function validateBasicEnvironmentVariables(): void {
   if (!process.env.DATABASE_URL) {
     throw new Error('DATABASE_URL is required')
   }
-  if (!process.env.NEXTAUTH_SECRET) {
-    throw new Error('NEXTAUTH_SECRET is required')
+  // Check for either JWT_SECRET or NEXTAUTH_SECRET
+  if (!process.env.JWT_SECRET && !process.env.NEXTAUTH_SECRET) {
+    throw new Error('JWT_SECRET or NEXTAUTH_SECRET is required')
   }
   // GitHub OAuth is optional in development for testing
-  if (process.env.NODE_ENV === 'production' && (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET)) {
+  if (
+    process.env.NODE_ENV === 'production' &&
+    (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET)
+  ) {
     throw new Error('GitHub OAuth configuration is required in production')
   }
 }
@@ -209,11 +213,32 @@ function validateProductionUrls(): void {
   const urlsToCheck = [
     { name: 'NEXT_PUBLIC_APP_URL', value: process.env.NEXT_PUBLIC_APP_URL },
     { name: 'DATABASE_URL', value: process.env.DATABASE_URL },
+    { name: 'NEXTAUTH_URL', value: process.env.NEXTAUTH_URL },
+    { name: 'ALLOWED_REDIRECT_URIS', value: process.env.ALLOWED_REDIRECT_URIS },
   ]
 
   for (const url of urlsToCheck) {
     if (url.value && /localhost|127\.0\.0\.1/i.test(url.value)) {
       throw new Error(`${url.name} contains localhost in production environment`)
+    }
+
+    // Check for dev/test database names in production
+    if (
+      url.name === 'DATABASE_URL' &&
+      url.value &&
+      /_dev|_test|\/dev|http:\/\/dev\./i.test(url.value)
+    ) {
+      throw new Error(`${url.name} contains development/test patterns in production environment`)
+    }
+
+    // Check for non-HTTPS URLs in production (except for DATABASE_URL)
+    if (
+      url.name === 'NEXTAUTH_URL' &&
+      url.value &&
+      /^http:\/\//i.test(url.value) &&
+      !/^http:\/\/localhost/i.test(url.value)
+    ) {
+      throw new Error(`${url.name} must use HTTPS in production environment`)
     }
   }
 }
@@ -230,7 +255,7 @@ function validateProductionSecrets(): void {
 
   for (const secret of secretsToCheck) {
     if (secret.value && /test|dev|development|demo|sample|example/i.test(secret.value)) {
-      throw new Error(`${secret.name} contains test keywords in production environment`)
+      throw new Error(`${secret.name} contains test/dev keywords in production environment`)
     }
   }
 }
@@ -238,7 +263,10 @@ function validateProductionSecrets(): void {
 /**
  * Validates security configuration across all environments
  */
-function validateSecurityConfiguration(): void {
+export function validateSecurityConfiguration(): void {
+  // Only validate test patterns in production
+  if (process.env.NODE_ENV !== 'production') return
+
   // Validate that critical environment variables don't contain test values
   const criticalEnvVars = [
     'GITHUB_CLIENT_ID',
@@ -261,7 +289,7 @@ function validateSecurityConfiguration(): void {
 /**
  * Enhanced production security validation
  */
-function validateProductionSecuritySettings(): void {
+export function validateProductionSecuritySettings(): void {
   const nodeEnv = process.env.NODE_ENV
   if (nodeEnv !== 'production') return
 
@@ -312,7 +340,12 @@ export function getRequiredEnv(key: string): string {
   }
 
   // Check for test patterns in production
-  if (process.env.NODE_ENV === 'production' && /test-|demo-|sample-/i.test(value)) {
+  if (
+    process.env.NODE_ENV === 'production' &&
+    /test|demo|sample|fallback|default|changeme|password123|secret123|development|placeholder/i.test(
+      value
+    )
+  ) {
     throw new Error(`🚨 SECURITY: ${key} contains test patterns in production`)
   }
 
@@ -388,33 +421,22 @@ export function getSecureConfigValue(
  * Used during application initialization
  */
 export function validateEnvironmentOnStartup(): void {
-  try {
-    // Basic validation for all environments
-    validateBasicEnvironmentVariables()
+  // Basic validation for all environments
+  validateBasicEnvironmentVariables()
 
-    // Security configuration validation
-    validateSecurityConfiguration()
+  // Validate JWT secret (length, entropy, etc.)
+  getJwtSecret()
 
-    // Production-specific validations
-    const nodeEnv = (typeof process !== 'undefined' && process.env?.NODE_ENV) || 'development'
-    if (nodeEnv === 'production') {
-      validateEncryptionKeyInProduction()
-      validateProductionUrls()
-      validateProductionSecrets()
-      validateProductionSecuritySettings()
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    // biome-ignore lint/suspicious/noConsole: Required for security error logging during startup validation
-    console.error(`🚨 SECURITY: Environment validation failed: ${errorMessage}`)
+  // Security configuration validation
+  validateSecurityConfiguration()
 
-    // Only exit if we're in Node.js runtime (not Edge Runtime)
-    if (typeof process !== 'undefined' && process.exit) {
-      process.exit(1)
-    } else {
-      // In Edge Runtime, throw the error to prevent application startup
-      throw error
-    }
+  // Production-specific validations
+  const nodeEnv = (typeof process !== 'undefined' && process.env?.NODE_ENV) || 'development'
+  if (nodeEnv === 'production') {
+    validateEncryptionKeyInProduction()
+    validateProductionUrls()
+    validateProductionSecrets()
+    validateProductionSecuritySettings()
   }
 }
 

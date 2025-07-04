@@ -3,15 +3,30 @@
  * Comprehensive testing for session creation, validation, persistence, expiration, refresh, and cleanup
  */
 
-import { authConfig } from '@/lib/auth/config'
-import type { Email, UUID } from '@/types/base'
-import type { JWT, Session } from 'next-auth'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+// Mock environment variables before imports
+vi.mock('@/lib/validation/env', () => ({
+  env: {
+    NODE_ENV: 'test',
+    DATABASE_URL: 'postgresql://test',
+    NEXTAUTH_SECRET: 'test-nextauth-secret',
+    NEXTAUTH_URL: 'http://localhost:3000',
+    GITHUB_CLIENT_ID: 'test-github-client-id',
+    GITHUB_CLIENT_SECRET: 'test-github-client-secret',
+    GOOGLE_CLIENT_ID: 'test-google-client-id',
+    GOOGLE_CLIENT_SECRET: 'test-google-client-secret',
+  },
+}))
 
 // Mock database
 vi.mock('@/lib/db/config', () => ({
   sql: vi.fn(),
 }))
+
+import { authConfig } from '@/lib/auth/config'
+import type { Email, UUID } from '@/types/base'
+import type { JWT, Session } from 'next-auth'
 
 describe('NextAuth Session Management Testing', () => {
   beforeEach(() => {

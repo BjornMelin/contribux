@@ -124,7 +124,11 @@ export const authConfig: AuthOptions = {
         }
       }
 
-      return session
+      // Return only base session structure when user not found
+      return {
+        user: session.user,
+        expires: session.expires,
+      }
     },
 
     async jwt({ token, user, account }) {
@@ -177,6 +181,23 @@ export const authConfig: AuthOptions = {
         path: '/',
         secure: process.env.NODE_ENV === 'production',
       },
+    },
+  },
+  events: {
+    signOut: async ({ session, token }) => {
+      // Log security event for signout
+      try {
+        await logSecurityEvent({
+          event_type: 'logout',
+          user_id: session?.user?.id || token?.sub || '',
+          success: true,
+          event_data: {
+            timestamp: new Date().toISOString(),
+          },
+        })
+      } catch (_error) {
+        // Signout event logging failed - continue with signout
+      }
     },
   },
 }

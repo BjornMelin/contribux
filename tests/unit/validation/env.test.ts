@@ -97,7 +97,8 @@ describe('Environment Validation', () => {
       setupValidTestEnv({
         NODE_ENV: 'development',
         // Test fixture - fake JWT secret for testing validation
-      JWT_SECRET: 'fake_test_jwt_secret_with_good_entropy_for_testing_only_9Kf7Hq3Zx8Wm2Tn6Vy4Bu1',
+        JWT_SECRET:
+          'fake_test_jwt_secret_with_good_entropy_for_testing_only_9Kf7Hq3Zx8Wm2Tn6Vy4Bu1',
         ENABLE_OAUTH: 'false', // Disable OAuth to avoid production checks
       })
 

@@ -184,10 +184,16 @@ describe('NextAuth OAuth Flow Testing', () => {
     it('should request correct Google OAuth scopes', () => {
       const googleProvider = authConfig.providers[1] as any
 
-      expect(googleProvider.authorization.params.scope).toBe('openid email profile')
-      expect(googleProvider.authorization.params.prompt).toBe('consent')
-      expect(googleProvider.authorization.params.access_type).toBe('offline')
-      expect(googleProvider.authorization.params.response_type).toBe('code')
+      // Check if authorization exists and has the correct structure
+      expect(googleProvider.authorization).toBeDefined()
+
+      // NextAuth providers store configuration in options.authorization.params
+      const authParams = googleProvider.options?.authorization?.params || {}
+
+      expect(authParams.scope).toBe('openid email profile')
+      expect(authParams.prompt).toBe('consent')
+      expect(authParams.access_type).toBe('offline')
+      expect(authParams.response_type).toBe('code')
     })
 
     it('should handle Google OAuth callback successfully', async () => {

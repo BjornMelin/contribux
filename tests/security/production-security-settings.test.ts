@@ -35,7 +35,10 @@ describe('Production Security Settings Validation', () => {
     // Set production environment and required env vars to avoid validation errors
     vi.stubEnv('NODE_ENV', 'production')
     // Test fixture - not a real database URL
-    vi.stubEnv('DATABASE_URL', 'postgresql://fake_test_user:fake_test_password_123@localhost:5432/test_db')
+    vi.stubEnv(
+      'DATABASE_URL',
+      'postgresql://fake_test_user:fake_test_password_123@localhost:5432/test_db'
+    )
     vi.stubEnv(
       'NEXTAUTH_SECRET',
       'prod-jwt-secret-very-long-secure-secret-key-for-production-use-only-32chars-plus'
@@ -150,7 +153,10 @@ describe('Production Security Settings Validation', () => {
         'very-secure-jwt-secret-with-sufficient-length-and-entropy-production'
       )
       // Test fixture - not a real database URL
-      vi.stubEnv('DATABASE_URL', 'postgresql://fake_test_user:fake_test_password_123@test.example.com:5432/testdb?sslmode=require')
+      vi.stubEnv(
+        'DATABASE_URL',
+        'postgresql://fake_test_user:fake_test_password_123@test.example.com:5432/testdb?sslmode=require'
+      )
       vi.stubEnv('GITHUB_CLIENT_ID', 'Iv1.a1b2c3d4e5f6g7h8')
       vi.stubEnv('GITHUB_CLIENT_SECRET', 'github_pat_11ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdef')
       vi.stubEnv('NEXTAUTH_URL', 'https://contribux.ai')
@@ -387,7 +393,10 @@ describe('Production Security Settings Validation', () => {
       vi.stubEnv('GITHUB_CLIENT_ID', 'Iv1.a1b2c3d4e5f6g7h8')
       vi.stubEnv('GITHUB_CLIENT_SECRET', 'github_pat_11ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdef')
       // Test fixture - not a real database URL
-      vi.stubEnv('DATABASE_URL', 'postgresql://fake_test_user:fake_test_password_123@test.example.com:5432/testdb')
+      vi.stubEnv(
+        'DATABASE_URL',
+        'postgresql://fake_test_user:fake_test_password_123@test.example.com:5432/testdb'
+      )
       vi.stubEnv('JWT_SECRET', 'very-secure-jwt-secret-with-sufficient-length-and-entropy')
       vi.stubEnv('NEXTAUTH_URL', 'https://contribux.ai')
 
@@ -491,7 +500,10 @@ describe('Production Security Settings Validation', () => {
       // Set complete production configuration
       vi.stubEnv('NODE_ENV', 'production')
       // Test fixture - not a real database URL
-      vi.stubEnv('DATABASE_URL', 'postgresql://fake_test_user:fake_test_password_123@test.example.com:5432/testdb?sslmode=require')
+      vi.stubEnv(
+        'DATABASE_URL',
+        'postgresql://fake_test_user:fake_test_password_123@test.example.com:5432/testdb?sslmode=require'
+      )
       vi.stubEnv('JWT_SECRET', 'very-secure-jwt-secret-with-sufficient-length-and-entropy')
       vi.stubEnv('GITHUB_CLIENT_ID', 'Iv1.a1b2c3d4e5f6g7h8')
       vi.stubEnv('GITHUB_CLIENT_SECRET', 'github_pat_11ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdef')

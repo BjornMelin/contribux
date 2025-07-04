@@ -545,7 +545,8 @@ describe('Environment Variable Security', () => {
 
     it('should validate error message sanitization', async () => {
       // Test fixture - fake GitHub PAT for testing error message sanitization
-      const sensitiveValue = 'fake_github_pat_test_token_for_error_message_sanitization_testing_only'
+      const sensitiveValue =
+        'fake_github_pat_test_token_for_error_message_sanitization_testing_only'
       vi.stubEnv('NODE_ENV', 'production')
       vi.stubEnv('GITHUB_TOKEN', `test-${sensitiveValue}`)
       vi.resetModules()
