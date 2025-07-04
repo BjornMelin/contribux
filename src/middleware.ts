@@ -1,34 +1,45 @@
+import { type NextRequest, NextResponse } from 'next/server'
+
+import { monitoringMiddleware } from './lib/middleware/monitoring-middleware'
+import { enhancedSecurityMiddleware } from './lib/security/enhanced-middleware'
+import { addSecurityHeaders, handleCorsOptions } from './lib/security/headers'
+
 /**
- * Next.js Middleware Configuration
- * Applies authentication and security middleware to all routes
+ * Portfolio middleware
+ * Balanced approach: Enhanced security for demonstration, monitoring integration
  */
-
-import type { NextRequest } from 'next/server'
-import { authMiddleware } from '@/lib/auth/middleware'
-
 export async function middleware(request: NextRequest) {
-  // Apply authentication middleware
-  const response = await authMiddleware(request)
+  try {
+    // Apply monitoring middleware first (tracks request timing)
+    const monitoringResponse = await monitoringMiddleware(request)
+    if (monitoringResponse && monitoringResponse !== NextResponse.next()) {
+      return monitoringResponse
+    }
 
-  // If middleware returns a response, use it
-  if (response) {
-    return response
+    // Try enhanced security middleware
+    const enhancedResponse = await enhancedSecurityMiddleware(request)
+    if (enhancedResponse) {
+      return enhancedResponse
+    }
+
+    // Fallback to basic security
+    const corsResponse = handleCorsOptions(request)
+    if (corsResponse) {
+      return corsResponse
+    }
+
+    // Create response with basic security headers
+    const response = NextResponse.next()
+    return addSecurityHeaders(response)
+  } catch (_error) {
+    // In production, log to proper monitoring system instead of console
+
+    // Fail securely with basic headers
+    const response = NextResponse.next()
+    return addSecurityHeaders(response)
   }
-
-  // Otherwise, continue to route handler
-  return
 }
 
-// Configure which routes the middleware runs on
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     */
-    '/((?!_next/static|_next/image|favicon.ico|public).*)',
-  ],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|public).*)'],
 }

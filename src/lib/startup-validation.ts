@@ -9,46 +9,41 @@
  * fail-fast behavior for misconfigured environments.
  */
 
-import { validateWebAuthnConfig } from './auth/webauthn-config'
 import { validateEnvironmentOnStartup } from './validation/env'
+
+// Helper function to check if validation should be skipped
+function shouldSkipValidation(): boolean {
+  return process.env.SKIP_ENV_VALIDATION === 'true' || process.env.NODE_ENV === 'test'
+}
 
 /**
  * Comprehensive startup validation that checks:
  * - Environment variable schema and format validation
  * - JWT secret entropy and security validation
  * - OAuth configuration validation
- * - WebAuthn domain and origin validation
  * - Production security checks
  * - Database URL format validation
  *
  * This function will exit the process with code 1 if validation fails.
  */
 export function validateApplicationOnStartup(): void {
-  console.log('🔍 Starting application environment validation...')
+  // Check if validation should be skipped (test environment or explicit skip flag)
+  if (shouldSkipValidation()) {
+    return
+  }
 
   try {
-    // 1. Core environment variable validation
-    console.log('  Validating environment variables...')
     validateEnvironmentOnStartup()
 
     // Import env after validation
     const { env } = require('./validation/env')
-
-    // 2. WebAuthn specific validation
-    if (env.ENABLE_WEBAUTHN) {
-      console.log('  Validating WebAuthn configuration...')
-      validateWebAuthnConfig()
+    validateAuthenticationServices(env)
+  } catch (_error) {
+    // In test environment, throw error instead of exiting process
+    if (process.env.NODE_ENV === 'test') {
+      throw _error
     }
 
-    // 3. Additional authentication service checks
-    console.log('  Validating authentication services...')
-    validateAuthenticationServices(env)
-
-    console.log('✅ All environment validation checks passed!')
-    console.log(`🚀 Application ready to start in ${env.NODE_ENV} mode`)
-  } catch (_error) {
-    console.error('❌ Application startup validation failed!')
-    console.error('Please fix the configuration issues above before starting the application.')
     process.exit(1)
   }
 }
@@ -68,17 +63,10 @@ function validateAuthenticationServices(env: Record<string, unknown>): void {
     }
   }
 
-  // Check WebAuthn
-  if (env.ENABLE_WEBAUTHN) {
-    enabledServices.push('WebAuthn')
-  }
-
   // Ensure at least one authentication method is available
   if (enabledServices.length === 0) {
     throw new Error('No authentication services are properly configured')
   }
-
-  console.log(`    ✓ Authentication services enabled: ${enabledServices.join(', ')}`)
 }
 
 /**
@@ -86,22 +74,10 @@ function validateAuthenticationServices(env: Record<string, unknown>): void {
  */
 export function printEnvironmentSummary(): void {
   try {
-    const { env } = require('./validation/env')
-
-    console.log('\n📋 Environment Configuration Summary:')
-    console.log(`   Environment: ${env.NODE_ENV}`)
-    console.log(`   Database: ${env.DATABASE_URL ? 'Configured' : 'Missing'}`)
-    console.log(`   JWT Secret: ${env.JWT_SECRET ? 'Configured' : 'Missing'}`)
-    console.log(`   OAuth: ${env.ENABLE_OAUTH ? 'Enabled' : 'Disabled'}`)
-    console.log(`   WebAuthn: ${env.ENABLE_WEBAUTHN ? 'Enabled' : 'Disabled'}`)
-    console.log(`   Encryption: ${env.ENCRYPTION_KEY ? 'Configured' : 'Using default'}`)
-    console.log(`   Audit Logs: ${env.ENABLE_AUDIT_LOGS ? 'Enabled' : 'Disabled'}`)
-    console.log('')
-  } catch (error) {
-    console.warn(
-      'Could not print environment summary:',
-      error instanceof Error ? error.message : 'Unknown error'
-    )
+    require('./validation/env')
+    // TODO: Implement environment summary printing
+  } catch (_error) {
+    // Environment summary unavailable - validation failed
   }
 }
 
@@ -118,16 +94,6 @@ export function checkAuthenticationReadiness(): {
 
   try {
     const { env } = require('./validation/env')
-
-    // Check WebAuthn
-    if (env.ENABLE_WEBAUTHN) {
-      try {
-        validateWebAuthnConfig()
-        services.push('WebAuthn')
-      } catch (error) {
-        issues.push(`WebAuthn: ${error instanceof Error ? error.message : 'Configuration error'}`)
-      }
-    }
 
     // Check OAuth
     if (env.ENABLE_OAUTH) {

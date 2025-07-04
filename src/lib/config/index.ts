@@ -6,6 +6,16 @@
 import { z } from 'zod'
 import { env } from '../validation/env'
 
+// Import individual config modules
+export { authConfig } from './auth'
+export { cryptoConfig } from './crypto'
+export { oauthConfig } from './oauth'
+
+// Import for type definitions
+import type { authConfig as importedAuthConfig } from './auth'
+import type { cryptoConfig as importedCryptoConfig } from './crypto'
+import type { oauthConfig as importedOauthConfig } from './oauth'
+
 // Configuration schema for runtime validation
 const configSchema = z.object({
   // Authentication & JWT configuration
@@ -13,7 +23,7 @@ const configSchema = z.object({
     jwt: z.object({
       accessTokenExpiry: z.number().min(60).max(86400), // 1 minute to 24 hours
       refreshTokenExpiry: z.number().min(3600).max(2592000), // 1 hour to 30 days
-      testSecret: z.string().default('test-secret'),
+      // SECURITY: testSecret removed - must use proper JWT_SECRET environment variable
       issuer: z.string().default('contribux'),
       audience: z.array(z.string()).default(['contribux-api']),
     }),
@@ -112,7 +122,7 @@ function createConfig(): Config {
       jwt: {
         accessTokenExpiry: 15 * 60, // 15 minutes
         refreshTokenExpiry: 7 * 24 * 60 * 60, // 7 days
-        testSecret: 'test-secret',
+        // SECURITY: testSecret removed - must use proper JWT_SECRET environment variable
         issuer: 'contribux',
         audience: ['contribux-api'],
       },
@@ -227,21 +237,21 @@ function createConfig(): Config {
           security: {
             ...baseConfig.auth.security,
             failedLoginThreshold: 3, // Lower threshold for testing
-            failedLoginWindow: 2 * 60 * 1000, // 2 minutes
+            failedLoginWindow: 5 * 60 * 1000, // 5 minutes (minimum allowed)
           },
         },
         webauthn: {
           ...baseConfig.webauthn,
           timeout: 30 * 1000, // 30 seconds for testing
-          challengeExpiry: 2 * 60 * 1000, // 2 minutes for testing
+          challengeExpiry: 60 * 1000, // 1 minute (minimum allowed)
         },
         oauth: {
           ...baseConfig.oauth,
-          stateExpiry: 2 * 60 * 1000, // 2 minutes for testing
+          stateExpiry: 5 * 60 * 1000, // 5 minutes (minimum allowed)
         },
         database: {
           ...baseConfig.database,
-          healthCheckInterval: 10 * 1000, // 10 seconds for testing
+          healthCheckInterval: 30 * 1000, // 30 seconds (minimum allowed)
           slowQueryThreshold: 100, // 100ms for testing
         },
       }
@@ -283,11 +293,8 @@ export const config = configSchema.parse(createConfig())
 
 // Re-export specific configuration sections for convenience
 export const {
-  auth: authConfig,
   webauthn: webauthnConfig,
-  oauth: oauthConfig,
   audit: auditConfig,
-  crypto: cryptoConfig,
   database: databaseConfig,
   app: appConfig,
 } = config
@@ -297,8 +304,7 @@ export function validateConfig(): boolean {
   try {
     configSchema.parse(config)
     return true
-  } catch (error) {
-    console.error('Configuration validation failed:', error)
+  } catch (_error) {
     return false
   }
 }
@@ -345,7 +351,6 @@ export const SIZE_CONSTANTS = {
 export const SECURITY_CONSTANTS = {
   MIN_PASSWORD_LENGTH: 8,
   MAX_PASSWORD_LENGTH: 128,
-  BCRYPT_ROUNDS: 12,
   TOKEN_LENGTH: 32,
   CHALLENGE_LENGTH: 32,
 } as const
@@ -359,10 +364,10 @@ export const DB_TIMEOUTS = {
 } as const
 
 // Export type for external usage
-export type AuthConfig = typeof authConfig
+export type AuthConfig = typeof importedAuthConfig
 export type WebAuthnConfig = typeof webauthnConfig
-export type OAuthConfig = typeof oauthConfig
+export type OAuthConfig = typeof importedOauthConfig
 export type AuditConfig = typeof auditConfig
-export type CryptoConfig = typeof cryptoConfig
+export type CryptoConfig = typeof importedCryptoConfig
 export type DatabaseConfig = typeof databaseConfig
 export type AppConfig = typeof appConfig

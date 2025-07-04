@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contribux - E2E Testing Demo</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .search-section { margin-bottom: 30px; }
+        .search-input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 16px; }
+        .filters { margin-top: 15px; display: flex; gap: 10px; }
+        .filter-btn { padding: 8px 16px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer; }
+        .filter-btn.active { background: #007acc; color: white; border-color: #007acc; }
+        .results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .repo-card { border: 1px solid #ddd; border-radius: 6px; padding: 16px; background: white; }
+        .repo-title { font-size: 18px; font-weight: bold; margin-bottom: 8px; color: #007acc; }
+        .repo-description { color: #666; margin-bottom: 12px; }
+        .repo-stats { display: flex; gap: 15px; font-size: 14px; color: #888; }
+        .btn { padding: 10px 20px; background: #007acc; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .btn:hover { background: #005a99; }
+        .signin-btn { background: #333; }
+        .signin-btn:hover { background: #222; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>Contribux</h1>
+            <div>
+                <button class="btn signin-btn" id="signin-btn">Sign in with GitHub</button>
+            </div>
+        </header>
+
+        <section class="search-section">
+            <input type="text" class="search-input" id="search-input" placeholder="Search for open source projects to contribute to...">
+            <div class="filters">
+                <button class="filter-btn active" data-filter="all">All</button>
+                <button class="filter-btn" data-filter="javascript">JavaScript</button>
+                <button class="filter-btn" data-filter="python">Python</button>
+                <button class="filter-btn" data-filter="typescript">TypeScript</button>
+                <button class="filter-btn" data-filter="react">React</button>
+            </div>
+        </section>
+
+        <section class="results-section">
+            <div class="results-grid" id="results-grid">
+                <div class="repo-card">
+                    <div class="repo-title">awesome-react-components</div>
+                    <div class="repo-description">Curated list of React components & libraries</div>
+                    <div class="repo-stats">
+                        <span>⭐ 41.2k</span>
+                        <span>🍴 5.8k</span>
+                        <span>📝 JavaScript</span>
+                        <span>🔥 Good first issue</span>
+                    </div>
+                </div>
+                
+                <div class="repo-card">
+                    <div class="repo-title">next.js</div>
+                    <div class="repo-description">The React Framework for Production</div>
+                    <div class="repo-stats">
+                        <span>⭐ 130k</span>
+                        <span>🍴 27.8k</span>
+                        <span>📝 TypeScript</span>
+                        <span>🔥 Help wanted</span>
+                    </div>
+                </div>
+                
+                <div class="repo-card">
+                    <div class="repo-title">tensorflow</div>
+                    <div class="repo-description">An Open Source Machine Learning Framework</div>
+                    <div class="repo-stats">
+                        <span>⭐ 185k</span>
+                        <span>🍴 74.2k</span>
+                        <span>📝 Python</span>
+                        <span>🔥 Good first issue</span>
+                    </div>
+                </div>
+                
+                <div class="repo-card">
+                    <div class="repo-title">tailwindcss</div>
+                    <div class="repo-description">A utility-first CSS framework for rapid UI development</div>
+                    <div class="repo-stats">
+                        <span>⭐ 82.1k</span>
+                        <span>🍴 4.1k</span>
+                        <span>📝 CSS</span>
+                        <span>🔥 Enhancement</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        // Simple interactivity for testing
+        document.getElementById('search-input').addEventListener('input', function(e) {
+            console.log('Search query:', e.target.value);
+        });
+
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                console.log('Filter selected:', this.dataset.filter);
+            });
+        });
+
+        document.getElementById('signin-btn').addEventListener('click', function() {
+            alert('GitHub OAuth sign-in would be triggered here');
+            console.log('Sign-in button clicked');
+        });
+
+        document.querySelectorAll('.repo-card').forEach(card => {
+            card.addEventListener('click', function() {
+                console.log('Repository card clicked:', this.querySelector('.repo-title').textContent);
+            });
+        });
+
+        // Log when page is loaded
+        window.addEventListener('load', function() {
+            console.log('Contribux demo page loaded successfully');
+        });
+    </script>
+</body>
+</html>

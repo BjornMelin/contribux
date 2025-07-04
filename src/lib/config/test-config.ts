@@ -17,7 +17,6 @@ export function testConfigurationSystem(): boolean {
   try {
     // Test configuration validation
     if (!validateConfig()) {
-      console.error('Configuration validation failed')
       return false
     }
 
@@ -51,15 +50,14 @@ export function testConfigurationSystem(): boolean {
       () => databaseConfig.slowQueryThreshold > 0,
     ]
 
-    const results = tests.map((test, index) => {
+    const results = tests.map((test, _index) => {
       try {
         const result = test()
         if (!result) {
-          console.error(`Test ${index + 1} failed: returned ${result}`)
+          // Test failed but continue with others
         }
         return result
-      } catch (error) {
-        console.error(`Test ${index + 1} threw error:`, error)
+      } catch (_error) {
         return false
       }
     })
@@ -67,23 +65,13 @@ export function testConfigurationSystem(): boolean {
     const allPassed = results.every(Boolean)
 
     if (allPassed) {
-      console.log('✓ All configuration tests passed')
-      console.log('Configuration summary:')
-      console.log(`  - JWT access token expiry: ${authConfig.jwt.accessTokenExpiry}s`)
-      console.log(
-        `  - Rate limit: ${authConfig.rateLimit.max} requests per ${authConfig.rateLimit.windowMs}ms`
-      )
-      console.log(`  - WebAuthn timeout: ${webauthnConfig.timeout}ms`)
-      console.log(`  - OAuth state expiry: ${oauthConfig.stateExpiry}ms`)
-      console.log(`  - Failed login threshold: ${authConfig.security.failedLoginThreshold}`)
-      console.log(`  - Environment: ${process.env.NODE_ENV}`)
+      // All configuration tests passed
     } else {
-      console.error(`✗ ${results.filter(r => !r).length} configuration tests failed`)
+      // Some configuration tests failed - continuing execution
     }
 
     return allPassed
-  } catch (error) {
-    console.error('Configuration test threw error:', error)
+  } catch (_error) {
     return false
   }
 }

@@ -14,7 +14,7 @@ lerna-debug.log*
 # Package manager lock files (keep your preferred one)
 package-lock.json
 yarn.lock
-pnpm-lock.yaml
+# pnpm-lock.yaml  # Keep pnpm-lock.yaml for this project
 
 # ================================
 # Next.js Specific
@@ -41,6 +41,7 @@ public/precache.*.js
 .env
 .env.local
 .env.development.local
+.env.test
 .env.test.local
 .env.production.local
 
@@ -61,10 +62,17 @@ secrets.json
 pgdata/
 postgres-data/
 
-# Database dumps and backups
-*.sql
+# Database runtime and local data (keep schema and migration files)
+database/data/
+database/logs/
+database/*.pid
+database/*.lock
+
+# Database dumps and backups (keep versioned schema files)
 *.dump
 *.backup
+database/backups/
+database/snapshots/
 
 # Prisma generated files (keep schema.prisma)
 prisma/migrations/.migrate_info
@@ -123,9 +131,13 @@ playwright-report/
 # Jest cache
 .jest/
 
+# Vitest cache
+.vitest/
+
 # Coverage reports
 lcov.info
 coverage.lcov
+coverage-report.json
 
 # Playwright browsers and cache
 test-results/
@@ -135,6 +147,19 @@ playwright/.cache/
 screenshots/
 videos/
 traces/
+
+# Test result files
+playwright-report.json
+# Root directory generated files only
+/api-validation-results.json
+/current-test-results.json
+/test-performance-*.json
+/test-stats.json
+/test-summary.json
+/coverage-*.json
+# General patterns for result files in any directory
+*-test-results.json
+*-coverage.json
 
 # ================================
 # Build Tools & Bundlers
@@ -152,10 +177,20 @@ traces/
 # Development Tools
 # ================================
 # IDE and editor files
-# Track VS Code workspace configuration
-# but ignore local overrides and logs
-.vscode/settings.local.json
+# VS Code - ignore user-specific settings but track workspace config
+.vscode/settings.json
+.vscode/launch.json
 .vscode/*.log
+.vscode/.ropeproject
+
+# Keep shared workspace configuration
+!.vscode/extensions.json
+!.vscode/tasks.json
+
+# Claude Code personal settings
+.claude/
+
+# Other IDEs
 .idea/
 *.swp
 *.swo
@@ -261,6 +296,71 @@ storybook-static/
 tmp/
 temp/
 .tmp/
+*.tmp
+*.temp
+*.tmp.*
+*-tmp.*
+*-temp.*
+
+# Working files and notes
+MIGRATION_NOTE*.md
+TODO_*.md
+NOTES_*.md
+WORKING_*.md
+*-working.*
+*-draft.*
+
+# Generated reports and documentation (working files only)
+*-REPORT.md
+*-SUMMARY.md
+*-report.md
+*-summary.md
+*_REPORT.md
+*_SUMMARY.md
+environment-validation-report.md
+oauth-completion-report.md
+oauth-setup-guide.md
+performance_*.md
+ULTRATHINK_*.md
+DECOMPOSITION_*.md
+DEPRECATED_*.md
+FINAL_*.md
+OAUTH_*.md
+TEST_*.md
+
+# Documentation working files and drafts
+*-working.*
+*-draft.*
+*-temp.*
+*.tmp
+WORKING_*.md
+DRAFT_*.md
+TEMP_*.md
+
+# Test output files
+test-output*.log
+test-results*.json
+test-report*.html
+coverage*.txt
+*-test-output.*
+
+# Development and debug scripts in root
+test-*.js
+debug-*.js
+oauth-*.js
+*_debug.js
+test_debug.js
+api-validation-*.json
+
+# Performance and server logs
+performance_run_*.log
+dev-server.log
+server.log
+
+# Temporary instrumentation and validation files
+instrumentation.ts
+*-validation.js
+test-env-validation.js
 
 # Cache directories
 .cache/
@@ -319,11 +419,19 @@ config/development.json
 # Logs
 logs
 dev-debug.log
+
+# Debug files containing potential secrets
+debug-*.js
+test-*.js
+*-debug.js
+
+# Development debug and test files in root
+debug-jwt.js
+test-entropy.js
 # Dependency directories
 # Environment variables
-# Editor directories and files
+# Editor directories and files (consolidated above)
 .idea
-.vscode
 *.suo
 *.ntvs*
 *.njsproj
@@ -340,6 +448,18 @@ dev-debug.log
 .taskmaster/cache/
 .taskmaster/.env
 .taskmaster/*.log
+
+# ================================
+# AI Development Tools
+# ================================
+# Serena MCP server configuration
+.serena/
+
+# AI development tool configurations
+.aider/
+.gpt/
+.anthropic/
+.openai/
 
 # Roo integration files
 .roo/

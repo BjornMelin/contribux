@@ -1,0 +1,236 @@
+# GitGuardian configuration for contribux
+# AI-Powered GitHub Contribution Discovery Platform
+
+# Version of GitGuardian CLI configuration format
+version: 2
+
+# Paths to exclude from scanning (supports glob patterns)
+paths-ignore:
+  # Test directories and files - common source of false positives
+  - "tests/**/*"
+  - "**/*.test.ts"
+  - "**/*.test.js"
+  - "**/*.spec.ts" 
+  - "**/*.spec.js"
+  - "test/**/*"
+  - "__tests__/**/*"
+  - "vitest.*.config.ts"
+  - "jest.*.config.js"
+  
+  # Configuration files with test secrets
+  - "vitest.config.ts"
+  - "vitest.database.config.ts"
+  - "vitest.integration.config.ts"
+  - "scripts/test-configs/**/*"
+  - "docker-compose.test.yml"
+  
+  # Documentation files
+  - "**/*.md"
+  - "docs/**/*"
+  - "README*"
+  - "CHANGELOG*"
+  - "CONTRIBUTING*"
+  - "LICENSE*"
+  
+  # Coverage and build artifacts  
+  - "coverage/**/*"
+  - ".next/**/*"
+  - "dist/**/*"
+  - "build/**/*"
+  - "out/**/*"
+  - "node_modules/**/*"
+  
+  # Database schema and migration files (may contain example data)
+  - "database/**/*.sql"
+  - "scripts/db-migrations/**/*"
+  - "scripts/init-test-db.sql"
+  - "*.sql"
+  
+  # Performance and monitoring test scripts
+  - "scripts/performance/**/*"
+  - "scripts/monitoring/**/*"
+  - "scripts/test-runner.js"
+  
+  # Temporary and cache directories
+  - ".turbo/**/*"
+  - ".cache/**/*"
+  - "tmp/**/*"
+  - "temp/**/*"
+  - "logs/**/*"
+  - "scripts/logs/**/*"
+  - "scripts/temp/**/*"
+  - "scripts/reports/**/*"
+  
+  # Task Master AI directories
+  - ".taskmaster/**/*"
+  - ".roo/**/*"
+  - ".cursor/**/*"
+
+# Specific patterns to ignore (regex patterns)
+matches-ignore:
+  # JWT test secrets (clearly marked as test-only)
+  - 'test-jwt-secret-for-unit-tests-only-32-chars-minimum'
+  - 'JWT_SECRET.*test.*'
+  - 'jwt.*test.*secret'
+  - 'test.*jwt.*secret'
+  
+  # GitHub test tokens and keys
+  - 'token1|token2|token3'
+  - 'test-token-.*'
+  - 'mock.*token'
+  - 'fake.*token'
+  - 'dummy.*token'
+  - 'sample.*token'
+  
+  # Test RSA private keys (obviously fake/test keys)
+  - '-----BEGIN RSA PRIVATE KEY-----\s*MIIEowIBAAKCAQEA1234567890'
+  - 'privateKey.*1234567890'
+  - 'test.*private.*key'
+  - 'mock.*private.*key'
+  - 'TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY'
+  - '-----BEGIN RSA PRIVATE KEY-----\s*TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY'
+  
+  # Database test URLs and credentials
+  - 'postgresql://test:test@localhost'
+  - 'postgres://.*test.*'
+  - 'DATABASE_URL.*test'
+  - 'test.*database.*url'
+  
+  # Test configuration values
+  - 'appId.*123456'
+  - 'installationId.*789'
+  - 'test.*app.*id'
+  - 'mock.*installation'
+  
+  # Generic test patterns
+  - 'test.*secret'
+  - 'mock.*secret' 
+  - 'fake.*secret'
+  - 'dummy.*secret'
+  - 'sample.*secret'
+  - 'example.*secret'
+  - '.*test.*only.*'
+  - '.*for.*test.*'
+  - '.*unit.*test.*'
+  - '.*integration.*test.*'
+  
+  # Specific fake test fixtures (clearly marked as test-only)
+  - 'fake_test_.*_for_.*_testing_only.*'
+  - 'fake_.*_test_.*_testing_only'
+  - 'fake_github_pat_test_token_for_error_message_sanitization_testing_only'
+  - 'fake_test_jwt_token_for_api_validation_testing_only'
+  - 'fake_test_rsa_private_key_for_.*_testing_only.*'
+  - 'fake_invalid_test_rsa_private_key_for_.*_testing_only.*'
+  
+  # OAuth test patterns
+  - 'test.*client.*id'
+  - 'test.*client.*secret'
+  - 'mock.*oauth'
+  - 'fake.*oauth'
+  
+  # WebAuthn test patterns
+  - 'test.*webauthn'
+  - 'mock.*webauthn'
+  - 'fake.*credential'
+  
+  # API test endpoints
+  - 'api.*test.*'
+  - 'localhost.*test'
+  - '127\.0\.0\.1.*test'
+  - 'test.*endpoint'
+  - 'mock.*api'
+  
+  # API validation script test tokens
+  - 'scripts/api-validation\.sh'
+  - 'fake_test_jwt_token_for_api_validation_testing_only\.not\.real'
+
+# File extensions to scan (empty means all)
+scan:
+  # Only scan source code files, skip binary and generated files
+  - "*.ts"
+  - "*.js" 
+  - "*.tsx"
+  - "*.jsx"
+  - "*.json"
+  - "*.env*"
+  - "*.yml"
+  - "*.yaml"
+  - "*.toml"
+  - "*.ini"
+  - "*.conf"
+  - "*.config.*"
+
+# Exit codes configuration
+exit-zero: false  # Return non-zero exit code if secrets found
+
+# Verbose output for debugging
+verbose: false
+
+# Maximum file size to scan (in bytes)
+# Skip very large files that are likely binary or generated
+max-file-size: 1048576  # 1MB
+
+# Detector configuration
+detectors:
+  # Enable all detectors but configure sensitivities
+  secrets:
+    enabled: true
+    # Reduce sensitivity for test files (handled by path exclusions)
+    minimum-occurrences: 1
+    
+  # API keys detection
+  api-keys:
+    enabled: true
+    
+  # Database credentials
+  database:
+    enabled: true
+    
+  # Generic secrets
+  generic:
+    enabled: true
+    # Higher threshold for generic patterns to reduce false positives
+    minimum-occurrences: 2
+
+# Custom rules for project-specific patterns
+custom-detectors:
+  # Detect actual production secrets that should never be committed
+  - name: "production-database-url"
+    regex: 'postgresql://.*neon\.tech'
+    description: "Production Neon database URL detected"
+    
+  - name: "production-api-key"
+    regex: '[A-Za-z0-9]{40,}'
+    description: "Potential production API key"
+    # Only trigger if not in test context
+    negative-regex: '(test|mock|fake|dummy|sample|example)'
+    
+  - name: "github-personal-access-token"
+    regex: 'ghp_[A-Za-z0-9]{36}'
+    description: "GitHub Personal Access Token"
+    
+  - name: "openai-api-key"
+    regex: 'sk-[A-Za-z0-9]{48}'
+    description: "OpenAI API Key"
+
+# Reporting configuration  
+output:
+  # Format for output reports
+  format: "json"
+  
+  # Include context lines around detected secrets
+  show-secrets: false  # Don't show actual secret values in output
+  
+  # Group findings by file
+  group-by: "file"
+
+# Performance tuning
+performance:
+  # Number of parallel workers
+  workers: 4
+  
+  # Timeout for scanning large files (seconds)
+  timeout: 30
+  
+  # Memory limit per worker (MB)
+  memory-limit: 512

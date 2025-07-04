@@ -41,6 +41,184 @@ export async function verifyPKCEChallenge(
   return expectedChallenge === codeChallenge
 }
 
+/**
+ * Enhanced PKCE validation with entropy checking and timing attack protection
+ */
+export async function validatePKCESecure(
+  codeVerifier: string,
+  codeChallenge: string
+): Promise<{
+  valid: boolean
+  entropy: number
+  timingSafe: boolean
+}> {
+  const startTime = performance.now()
+
+  // Calculate entropy for security validation
+  const entropy = calculateEntropy(codeVerifier)
+
+  // Minimum entropy requirement (4.0 bits per character is good for base64url)
+  const entropyValid = entropy >= 4.0
+
+  // Length validation per RFC 7636
+  const lengthValid = codeVerifier.length >= 43 && codeVerifier.length <= 128
+
+  // Character validation (base64url only)
+  const charValid = /^[A-Za-z0-9\-._~]+$/.test(codeVerifier)
+
+  // Timing-safe challenge verification
+  const expectedChallenge = await generateCodeChallenge(codeVerifier)
+  const challengeValid = timingSafeEqual(Buffer.from(expectedChallenge), Buffer.from(codeChallenge))
+
+  // Ensure minimum processing time to prevent timing attacks
+  const elapsedTime = performance.now() - startTime
+  if (elapsedTime < 10) {
+    await new Promise(resolve => setTimeout(resolve, 10 - elapsedTime))
+  }
+
+  const valid = entropyValid && lengthValid && charValid && challengeValid
+
+  return {
+    valid,
+    entropy,
+    timingSafe: true,
+  }
+}
+
+/**
+ * Calculate Shannon entropy for randomness validation
+ */
+export function calculateEntropy(str: string): number {
+  const frequency: Record<string, number> = {}
+
+  for (const char of str) {
+    frequency[char] = (frequency[char] || 0) + 1
+  }
+
+  let entropy = 0
+  const length = str.length
+
+  for (const count of Object.values(frequency)) {
+    const probability = count / length
+    entropy -= probability * Math.log2(probability)
+  }
+
+  return entropy
+}
+
+/**
+ * Timing-safe buffer comparison
+ */
+export function timingSafeEqual(a: Buffer, b: Buffer): boolean {
+  if (a.length !== b.length) {
+    return false
+  }
+
+  let result = 0
+  for (let i = 0; i < a.length; i++) {
+    result |= (a[i] || 0) ^ (b[i] || 0)
+  }
+
+  return result === 0
+}
+
+/**
+ * Enhanced PKCE challenge generation with configurable length and entropy validation
+ * Implements RFC 7636 with additional security measures
+ */
+export async function generateEnhancedPKCEChallenge(options?: {
+  verifierLength?: number
+  enforceEntropy?: boolean
+}): Promise<{
+  codeVerifier: string
+  codeChallenge: string
+  method: string
+  entropy: number
+  metadata: {
+    generated: string
+    secure: boolean
+  }
+}> {
+  const verifierLength = options?.verifierLength || 128 // RFC 7636 recommends 128
+  const enforceEntropy = options?.enforceEntropy ?? true
+
+  let codeVerifier: string
+  let entropy: number
+
+  do {
+    const array = new Uint8Array(Math.ceil((verifierLength * 3) / 4)) // Base64 encoding expansion
+    crypto.getRandomValues(array)
+    codeVerifier = base64urlEncode(array).substring(0, verifierLength)
+
+    // Calculate entropy for security validation
+    entropy = calculateEntropy(codeVerifier)
+
+    // Ensure minimum entropy (4.5 bits per character is good for base64url)
+    if (!enforceEntropy || entropy >= 4.0) {
+      break
+    }
+  } while (enforceEntropy)
+
+  const codeChallenge = await generateCodeChallenge(codeVerifier)
+
+  return {
+    codeVerifier,
+    codeChallenge,
+    method: 'S256',
+    entropy,
+    metadata: {
+      generated: new Date().toISOString(),
+      secure: true,
+    },
+  }
+}
+
+/**
+ * Timing-safe PKCE challenge verification with enhanced security checks
+ */
+export async function verifyPKCEChallengeSecure(
+  codeVerifier: string,
+  codeChallenge: string,
+  options?: {
+    enforceMinLength?: boolean
+    validateEntropy?: boolean
+  }
+): Promise<{
+  valid: boolean
+  timingSafe: boolean
+  entropy: number
+  securityChecks: {
+    lengthValid: boolean
+    entropyValid: boolean
+    challengeValid: boolean
+  }
+}> {
+  const enforceMinLength = options?.enforceMinLength ?? true
+  const validateEntropy = options?.validateEntropy ?? true
+
+  // Calculate entropy for security validation
+  const entropy = calculateEntropy(codeVerifier)
+
+  // Security validations
+  const lengthValid = !enforceMinLength || codeVerifier.length >= 43 // RFC 7636 minimum
+  const entropyValid = !validateEntropy || entropy >= 4.0
+
+  // Timing-safe challenge verification
+  const expectedChallenge = await generateCodeChallenge(codeVerifier)
+  const challengeValid = timingSafeEqual(Buffer.from(expectedChallenge), Buffer.from(codeChallenge))
+
+  return {
+    valid: lengthValid && entropyValid && challengeValid,
+    timingSafe: true,
+    entropy,
+    securityChecks: {
+      lengthValid,
+      entropyValid,
+      challengeValid,
+    },
+  }
+}
+
 // Base64 URL encoding without padding
 function base64urlEncode(buffer: Uint8Array): string {
   const base64 = btoa(String.fromCharCode.apply(null, Array.from(buffer)))

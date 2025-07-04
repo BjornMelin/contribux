@@ -1,21 +1,21 @@
 # Task ID: 5
 # Title: Build Repository Discovery Scanner
 # Status: pending
-# Dependencies: 3, 4
+# Dependencies: 3, 4, 27, 28, 30
 # Priority: high
 # Description: Create automated system to discover and analyze GitHub repositories for contribution opportunities using AI-powered analysis and intelligent categorization with OpenAI Agents SDK v1.0
 # Details:
-Implement production-ready repository scanner that fetches GitHub trending repositories daily focusing on AI/ML topics. Integrate OpenAI Agents SDK v1.0 with GPT-4o-mini-2025-06 for intelligent repository analysis including code quality assessment, documentation evaluation, and community health scoring. Create AI-enhanced repository health scoring algorithm considering stars, forks, recent activity, maintainer responsiveness, PR merge rates, and AI-analyzed quality metrics. Implement structured JSON output with Zod validation schemas for type-safe AI responses. Store repository data with metadata in PostgreSQL. Implement incremental updates to avoid re-processing unchanged repositories. Add support for user-specified repositories to monitor. Include comprehensive token management, cost tracking, guardrails, and performance optimization for production AI usage.
+Implement production-ready repository scanner that fetches GitHub trending repositories daily focusing on AI/ML topics. Integrate OpenAI Agents SDK v1.0 with GPT-4o-mini-2025-06 for intelligent repository analysis including code quality assessment, documentation evaluation, and community health scoring. Create AI-enhanced repository health scoring algorithm considering stars, forks, recent activity, maintainer responsiveness, PR merge rates, and AI-analyzed quality metrics. Implement structured JSON output with Zod validation schemas for type-safe AI responses. Store repository data with metadata in PostgreSQL. Implement incremental updates to avoid re-processing unchanged repositories. Add support for user-specified repositories to monitor. Include comprehensive token management, cost tracking, guardrails, and performance optimization for production AI usage. Depends on GitHub client memory cleanup, integration tests, and config validation for reliable API operations.
 
 # Test Strategy:
-Verify scanner discovers trending AI/ML repositories, AI-enhanced health scores are calculated correctly with proper token management and cost tracking, structured JSON output validates with Zod schemas, data is stored properly in database, incremental updates work efficiently, user-specified repositories are monitored, AI integration works with mock responses and guardrails, performance optimization functions correctly, and comprehensive monitoring captures all metrics
+Verify scanner discovers trending AI/ML repositories, AI-enhanced health scores are calculated correctly with proper token management and cost tracking, structured JSON output validates with Zod schemas, data is stored properly in database, incremental updates work efficiently, user-specified repositories are monitored, AI integration works with mock responses and guardrails, performance optimization functions correctly, comprehensive monitoring captures all metrics, and GitHub client integration works reliably with proper memory management and configuration validation
 
 # Subtasks:
 ## 1. Trending Repository Fetching with Performance Optimization [pending]
-### Dependencies: None
+### Dependencies: 5.27, 5.28, 5.30
 ### Description: Implement optimized API integration to fetch trending repositories from GitHub with intelligent caching, rate limiting, and batch processing
 ### Details:
-Set up GitHub API client with intelligent rate limiting and exponential backoff, implement Redis-based caching for trending data, add batch processing for multiple repository fetches, configure pagination handling with performance optimization, add retry logic with circuit breaker pattern, implement data normalization layer, and add performance metrics tracking for API operations
+Set up GitHub API client with intelligent rate limiting and exponential backoff, implement Redis-based caching for trending data, add batch processing for multiple repository fetches, configure pagination handling with performance optimization, add retry logic with circuit breaker pattern, implement data normalization layer, and add performance metrics tracking for API operations. Leverages improved GitHub client with memory cleanup, integration tests, and config validation for reliable operations.
 
 ## 2. AI-Enhanced Health Scoring Algorithm Implementation [pending]
 ### Dependencies: 5.1, 5.7
