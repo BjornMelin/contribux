@@ -1,7 +1,7 @@
 /**
  * App Providers
  * Combines all global providers for the application
- * 
+ *
  * Features:
  * - QueryProvider for data fetching and caching
  * - Mock Session Provider for development testing
@@ -11,8 +11,9 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
 import { QueryProvider } from './query-provider'
+import { ThemeProvider } from 'next-themes'
 
 interface AppProvidersProps {
   children: ReactNode
@@ -38,8 +39,12 @@ interface MockSessionContextType {
 const MockSessionContext = createContext<MockSessionContextType>({
   data: null,
   status: 'loading',
-  signIn: async () => {},
-  signOut: async () => {},
+  signIn: async () => {
+    /* Default implementation */
+  },
+  signOut: async () => {
+    /* Default implementation */
+  },
 })
 
 export const useSession = () => useContext(MockSessionContext)
@@ -49,7 +54,13 @@ function MockSessionProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading')
 
   useEffect(() => {
-    // Check for existing session on mount
+    // Check for existing session on mount (only on client)
+    if (typeof window === 'undefined') {
+      // Server-side: set to loading state
+      setStatus('loading')
+      return
+    }
+
     const checkSession = async () => {
       try {
         const response = await fetch('/api/auth/session')
@@ -64,7 +75,7 @@ function MockSessionProvider({ children }: { children: ReactNode }) {
         } else {
           setStatus('unauthenticated')
         }
-      } catch (error) {
+      } catch {
         setStatus('unauthenticated')
       }
     }
@@ -85,19 +96,21 @@ function MockSessionProvider({ children }: { children: ReactNode }) {
         setSession({ user: userData.user })
         setStatus('authenticated')
       }
-    } catch (error) {
-      console.error('Sign in failed:', error)
+    } catch {
+      // Sign in failed silently
     }
   }
 
   const signOut = async () => {
     try {
-      // Clear the session cookie
-      document.cookie = 'next-auth.session-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+      // Clear the session cookie (client-side only)
+      if (typeof window !== 'undefined') {
+        document.cookie = 'next-auth.session-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+      }
       setSession(null)
       setStatus('unauthenticated')
-    } catch (error) {
-      console.error('Sign out failed:', error)
+    } catch {
+      // Sign out failed silently
     }
   }
 
@@ -110,11 +123,16 @@ function MockSessionProvider({ children }: { children: ReactNode }) {
 
 export function AppProviders({ children }: AppProvidersProps) {
   return (
-    <MockSessionProvider>
-      <QueryProvider>
-        {children}
-      </QueryProvider>
-    </MockSessionProvider>
+    <ThemeProvider 
+      attribute="class" 
+      defaultTheme="system" 
+      enableSystem 
+      disableTransitionOnChange
+    >
+      <MockSessionProvider>
+        <QueryProvider>{children}</QueryProvider>
+      </MockSessionProvider>
+    </ThemeProvider>
   )
 }
 

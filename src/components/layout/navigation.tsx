@@ -1,10 +1,11 @@
 'use client'
 
-import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
-import { useSession } from '@/components/providers/app-providers'
 import { MotionDiv } from '@/components/motion'
-import { Github, Home, Settings, LogOut, Menu, X, Sparkles } from 'lucide-react'
+import { useSession } from '@/components/providers/app-providers'
+import { Button } from '@/components/ui/button'
+import { ThemeToggle, ThemeToggleCompact } from '@/components/ui/theme-toggle'
+import { cn } from '@/lib/utils'
+import { Github, Home, LogOut, Menu, Settings, Sparkles, X } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
@@ -44,7 +45,7 @@ export function Navigation() {
 
             {/* Desktop Navigation */}
             <div className="ml-10 hidden items-center space-x-4 md:flex">
-              {navItems.map((item) => {
+              {navItems.map(item => {
                 if (item.requiresAuth && !isAuthenticated) return null
                 const Icon = item.icon
                 const isActive = pathname === item.href
@@ -54,7 +55,7 @@ export function Navigation() {
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      'flex items-center space-x-1 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                      'flex items-center space-x-1 rounded-md px-3 py-2 font-medium text-sm transition-colors',
                       isActive
                         ? 'bg-primary/10 text-primary'
                         : 'text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -70,6 +71,7 @@ export function Navigation() {
 
           {/* Desktop Auth Buttons */}
           <div className="hidden items-center space-x-4 md:flex">
+            <ThemeToggle />
             {status === 'loading' ? (
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             ) : isAuthenticated ? (
@@ -82,7 +84,7 @@ export function Navigation() {
                       className="h-8 w-8 rounded-full border border-border"
                     />
                   )}
-                  <span className="text-sm font-medium">{session?.user?.name}</span>
+                  <span className="font-medium text-sm">{session?.user?.name}</span>
                 </div>
                 <Button
                   variant="ghost"
@@ -123,8 +125,8 @@ export function Navigation() {
           exit={{ opacity: 0, y: -10 }}
           className="border-t bg-background md:hidden"
         >
-          <div className="space-y-1 px-2 pb-3 pt-2">
-            {navItems.map((item) => {
+          <div className="space-y-1 px-2 pt-2 pb-3">
+            {navItems.map(item => {
               if (item.requiresAuth && !isAuthenticated) return null
               const Icon = item.icon
               const isActive = pathname === item.href
@@ -134,7 +136,7 @@ export function Navigation() {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    'flex items-center space-x-2 rounded-md px-3 py-2 text-base font-medium',
+                    'flex items-center space-x-2 rounded-md px-3 py-2 font-medium text-base',
                     isActive
                       ? 'bg-primary/10 text-primary'
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -149,6 +151,12 @@ export function Navigation() {
 
             {/* Mobile Auth Section */}
             <div className="border-t pt-4">
+              {/* Theme Toggle for Mobile */}
+              <div className="flex items-center justify-between px-3 py-2">
+                <span className="font-medium text-sm">Theme</span>
+                <ThemeToggleCompact />
+              </div>
+
               {isAuthenticated ? (
                 <>
                   <div className="mb-3 flex items-center space-x-3 px-3">
@@ -167,7 +175,7 @@ export function Navigation() {
                   <button
                     type="button"
                     onClick={handleSignOut}
-                    className="flex w-full items-center space-x-2 rounded-md px-3 py-2 text-base font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+                    className="flex w-full items-center space-x-2 rounded-md px-3 py-2 font-medium text-base text-muted-foreground hover:bg-muted hover:text-foreground"
                   >
                     <LogOut className="h-5 w-5" />
                     <span>Sign out</span>
@@ -176,7 +184,7 @@ export function Navigation() {
               ) : (
                 <Link
                   href="/auth/signin"
-                  className="flex items-center space-x-2 rounded-md px-3 py-2 text-base font-medium text-primary hover:bg-primary/10"
+                  className="flex items-center space-x-2 rounded-md px-3 py-2 font-medium text-base text-primary hover:bg-primary/10"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <Github className="h-5 w-5" />

@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import type { ReactNode } from 'react'
 import './globals.css'
-import { AppProviders } from '@/components/providers/app-providers'
 import { Navigation } from '@/components/layout/navigation'
+import { AppProviders } from '@/components/providers/app-providers'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -40,7 +40,7 @@ interface RootLayoutProps {
 
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
       <body className={inter.className}>
         <AppProviders>
           <Navigation />
