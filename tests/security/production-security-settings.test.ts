@@ -34,7 +34,8 @@ describe('Production Security Settings Validation', () => {
 
     // Set production environment and required env vars to avoid validation errors
     vi.stubEnv('NODE_ENV', 'production')
-    vi.stubEnv('DATABASE_URL', 'postgresql://prod:secure@localhost:5432/contribux')
+    // Test fixture - not a real database URL
+    vi.stubEnv('DATABASE_URL', 'postgresql://fake_test_user:fake_test_password_123@localhost:5432/test_db')
     vi.stubEnv(
       'NEXTAUTH_SECRET',
       'prod-jwt-secret-very-long-secure-secret-key-for-production-use-only-32chars-plus'
@@ -148,7 +149,8 @@ describe('Production Security Settings Validation', () => {
         'JWT_SECRET',
         'very-secure-jwt-secret-with-sufficient-length-and-entropy-production'
       )
-      vi.stubEnv('DATABASE_URL', 'postgresql://user:pass@prod.example.com:5432/db?sslmode=require')
+      // Test fixture - not a real database URL
+      vi.stubEnv('DATABASE_URL', 'postgresql://fake_test_user:fake_test_password_123@test.example.com:5432/testdb?sslmode=require')
       vi.stubEnv('GITHUB_CLIENT_ID', 'Iv1.a1b2c3d4e5f6g7h8')
       vi.stubEnv('GITHUB_CLIENT_SECRET', 'github_pat_11ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdef')
       vi.stubEnv('NEXTAUTH_URL', 'https://contribux.ai')
@@ -204,9 +206,10 @@ describe('Production Security Settings Validation', () => {
     })
 
     it('should check connection string security', () => {
+      // Test fixtures - not real database URLs
       const validConnectionStrings = [
-        'postgresql://user:complexpass123@prod-db.example.com:5432/appdb?sslmode=require',
-        'postgresql://neondb_owner:np_abc123@ep-morning-sea.us-east-1.aws.neon.tech/neondb?sslmode=require',
+        'postgresql://fake_test_user:fake_test_password_123@test-db.example.com:5432/testdb?sslmode=require',
+        'postgresql://fake_neon_user:fake_test_password_abc123@test-endpoint.example.com/testdb?sslmode=require',
       ]
 
       const invalidConnectionStrings = [
@@ -383,7 +386,8 @@ describe('Production Security Settings Validation', () => {
     it('should validate GitHub client credentials security', () => {
       vi.stubEnv('GITHUB_CLIENT_ID', 'Iv1.a1b2c3d4e5f6g7h8')
       vi.stubEnv('GITHUB_CLIENT_SECRET', 'github_pat_11ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdef')
-      vi.stubEnv('DATABASE_URL', 'postgresql://user:pass@prod.example.com:5432/db')
+      // Test fixture - not a real database URL
+      vi.stubEnv('DATABASE_URL', 'postgresql://fake_test_user:fake_test_password_123@test.example.com:5432/testdb')
       vi.stubEnv('JWT_SECRET', 'very-secure-jwt-secret-with-sufficient-length-and-entropy')
       vi.stubEnv('NEXTAUTH_URL', 'https://contribux.ai')
 
@@ -486,7 +490,8 @@ describe('Production Security Settings Validation', () => {
     it('should validate complete production security configuration', () => {
       // Set complete production configuration
       vi.stubEnv('NODE_ENV', 'production')
-      vi.stubEnv('DATABASE_URL', 'postgresql://user:pass@prod.example.com:5432/db?sslmode=require')
+      // Test fixture - not a real database URL
+      vi.stubEnv('DATABASE_URL', 'postgresql://fake_test_user:fake_test_password_123@test.example.com:5432/testdb?sslmode=require')
       vi.stubEnv('JWT_SECRET', 'very-secure-jwt-secret-with-sufficient-length-and-entropy')
       vi.stubEnv('GITHUB_CLIENT_ID', 'Iv1.a1b2c3d4e5f6g7h8')
       vi.stubEnv('GITHUB_CLIENT_SECRET', 'github_pat_11ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdef')

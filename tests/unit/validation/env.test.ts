@@ -50,7 +50,8 @@ describe('Environment Validation', () => {
     const baseEnv = {
       NODE_ENV: 'test',
       DATABASE_URL: 'postgresql://user:pass@localhost:5432/test',
-      JWT_SECRET: '9Kf7Hq3Zx8Wm2Tn6Vy4Bu1Pg5Rk0Jc7Lv9Aw3Ez6Qh2Ms8Np4Dt1Fb5Gy7Xw',
+      // Test fixture - fake JWT secret for testing validation
+      JWT_SECRET: 'fake_test_jwt_secret_with_good_entropy_for_testing_only_9Kf7Hq3Zx8Wm2Tn6Vy4Bu1',
       ENABLE_OAUTH: 'false',
       NEXT_PUBLIC_RP_ID: 'localhost',
       NEXT_PUBLIC_APP_URL: 'http://localhost:3000',
@@ -95,7 +96,8 @@ describe('Environment Validation', () => {
     it('should accept a strong JWT secret in development', async () => {
       setupValidTestEnv({
         NODE_ENV: 'development',
-        JWT_SECRET: '9Kf7Hq3Zx8Wm2Tn6Vy4Bu1Pg5Rk0Jc7Lv9Aw3Ez6Qh2Ms8Np4Dt1Fb5Gy7Xw',
+        // Test fixture - fake JWT secret for testing validation
+      JWT_SECRET: 'fake_test_jwt_secret_with_good_entropy_for_testing_only_9Kf7Hq3Zx8Wm2Tn6Vy4Bu1',
         ENABLE_OAUTH: 'false', // Disable OAuth to avoid production checks
       })
 

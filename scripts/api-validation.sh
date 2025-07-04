@@ -209,11 +209,11 @@ run_test "search_opportunities_unauthorized" "GET" "$API_BASE/search/opportuniti
 
 # Test parameter validation
 run_test "search_repos_invalid_params" "GET" "$API_BASE/search/repositories?page=0" \
-    "-H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.invalid'" "" "400" \
+    "-H 'Authorization: Bearer fake_test_jwt_token_for_api_validation_testing_only.not.real'" "" "400" \
     "Repository search validates page parameter"
 
 run_test "search_opportunities_invalid_difficulty" "GET" "$API_BASE/search/opportunities?difficulty=invalid" \
-    "-H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.invalid'" "" "400" \
+    "-H 'Authorization: Bearer fake_test_jwt_token_for_api_validation_testing_only.not.real'" "" "400" \
     "Opportunities search validates difficulty parameter"
 
 # 4. Security Tests
@@ -221,17 +221,17 @@ print_header "Security Validation Tests"
 
 # Test SQL injection attempts
 run_test "security_sql_injection_repos" "GET" "$API_BASE/search/repositories?q='; DROP TABLE repositories; --" \
-    "-H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.invalid'" "" "401" \
+    "-H 'Authorization: Bearer fake_test_jwt_token_for_api_validation_testing_only.not.real'" "" "401" \
     "Repository search prevents SQL injection"
 
 # Test XSS attempts
 run_test "security_xss_opportunities" "GET" "$API_BASE/search/opportunities?q=<script>alert('xss')</script>" \
-    "-H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.invalid'" "" "401" \
+    "-H 'Authorization: Bearer fake_test_jwt_token_for_api_validation_testing_only.not.real'" "" "401" \
     "Opportunities search prevents XSS attacks"
 
 # Test oversized requests
 run_test "security_large_query" "GET" "$API_BASE/search/repositories?q=$(printf 'a%.0s' {1..10000})" \
-    "-H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.invalid'" "" "400" \
+    "-H 'Authorization: Bearer fake_test_jwt_token_for_api_validation_testing_only.not.real'" "" "400" \
     "API handles oversized query parameters"
 
 # 5. Error Handling Tests

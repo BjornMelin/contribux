@@ -85,7 +85,7 @@ export const authScenarios: AuthTestScenario[] = [
     authConfig: {
       type: 'app',
       appId: 12345,
-      privateKey: '-----BEGIN RSA PRIVATE KEY-----\nVALID_KEY\n-----END RSA PRIVATE KEY-----',
+      privateKey: 'fake_test_rsa_private_key_for_github_app_auth_testing_only_not_real_key',
     },
     expectedResult: 'success',
   },
@@ -145,7 +145,7 @@ export const authErrorScenarios: AuthTestScenario[] = [
     authConfig: {
       type: 'app',
       appId: 999999,
-      privateKey: '-----BEGIN RSA PRIVATE KEY-----\nINVALID_KEY\n-----END RSA PRIVATE KEY-----',
+      privateKey: 'fake_invalid_test_rsa_private_key_for_error_testing_only_not_real_key',
     },
     expectedResult: 'failure',
     expectedError: 'Authentication failed',
