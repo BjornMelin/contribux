@@ -132,10 +132,12 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 // Default error fallback component
 function DefaultErrorFallback({ error, retry, reset, canRetry }: ErrorFallbackProps) {
   return (
-    <Card className="m-4 border-red-200 bg-red-50 p-6">
+    <Card className="m-4 border-destructive/20 bg-destructive/5 p-6">
       <div className="text-center">
-        <h2 className="mb-2 font-semibold text-lg text-red-800">Something went wrong</h2>
-        <p className="mb-4 text-red-600">{error.message || 'An unexpected error occurred'}</p>
+        <h2 className="mb-2 font-semibold text-destructive text-lg">Something went wrong</h2>
+        <p className="mb-4 text-destructive/80">
+          {error.message || 'An unexpected error occurred'}
+        </p>
         <div className="space-x-2">
           {canRetry && (
             <Button onClick={retry} variant="outline" size="sm">
@@ -148,10 +150,12 @@ function DefaultErrorFallback({ error, retry, reset, canRetry }: ErrorFallbackPr
         </div>
         {process.env.NODE_ENV === 'development' && (
           <details className="mt-4 text-left">
-            <summary className="cursor-pointer text-red-700 text-sm">
+            <summary className="cursor-pointer text-destructive/70 text-sm">
               Error Details (Development)
             </summary>
-            <pre className="mt-2 overflow-auto rounded bg-red-100 p-2 text-xs">{error.stack}</pre>
+            <pre className="mt-2 overflow-auto rounded bg-destructive/10 p-2 text-xs">
+              {error.stack}
+            </pre>
           </details>
         )}
       </div>
@@ -166,10 +170,10 @@ function AuthErrorFallback({ error, retry, canRetry }: ErrorFallbackProps) {
   const isAuthError = error.message.includes('auth') || error.message.includes('token')
 
   return (
-    <Card className="m-4 border-yellow-200 bg-yellow-50 p-6">
+    <Card className="m-4 border-destructive/20 bg-destructive/5 p-6">
       <div className="text-center">
-        <h2 className="mb-2 font-semibold text-lg text-yellow-800">Authentication Error</h2>
-        <p className="mb-4 text-yellow-600">
+        <h2 className="mb-2 font-semibold text-destructive text-lg">Authentication Error</h2>
+        <p className="mb-4 text-destructive/80">
           {isAuthError
             ? 'There was a problem with authentication. Please try signing in again.'
             : error.message}
@@ -208,12 +212,12 @@ function ApiErrorFallback({ error, retry, reset, canRetry }: ErrorFallbackProps)
   const isServerError = error.message.includes('500') || error.message.includes('503')
 
   return (
-    <Card className="m-4 border-blue-200 bg-blue-50 p-6">
+    <Card className="m-4 border-destructive/20 bg-destructive/5 p-6">
       <div className="text-center">
-        <h2 className="mb-2 font-semibold text-blue-800 text-lg">
+        <h2 className="mb-2 font-semibold text-destructive text-lg">
           {isNetworkError ? 'Connection Error' : 'Service Error'}
         </h2>
-        <p className="mb-4 text-blue-600">
+        <p className="mb-4 text-destructive/80">
           {isNetworkError
             ? 'Unable to connect to the server. Please check your internet connection.'
             : isServerError
@@ -246,10 +250,10 @@ export function ApiErrorBoundary({ children, ...props }: ErrorBoundaryProps) {
 // Search error boundary
 function SearchErrorFallback({ error: _error, retry, reset, canRetry }: ErrorFallbackProps) {
   return (
-    <Card className="m-4 border-purple-200 bg-purple-50 p-6">
+    <Card className="m-4 border-destructive/20 bg-destructive/5 p-6">
       <div className="text-center">
-        <h2 className="mb-2 font-semibold text-lg text-purple-800">Search Error</h2>
-        <p className="mb-4 text-purple-600">
+        <h2 className="mb-2 font-semibold text-destructive text-lg">Search Error</h2>
+        <p className="mb-4 text-destructive/80">
           There was a problem with your search. Please try again.
         </p>
         <div className="space-x-2">

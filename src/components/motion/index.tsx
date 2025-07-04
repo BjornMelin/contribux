@@ -166,7 +166,7 @@ export const useMotionPreference = () => {
   React.useEffect(() => {
     // SSR guard - only access window on client
     if (typeof window === 'undefined') return
-    
+
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
     setShouldAnimate(!mediaQuery.matches)
 

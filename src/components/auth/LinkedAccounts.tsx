@@ -4,6 +4,7 @@ import { MotionDiv } from '@/components/motion'
 import { AlertTriangle, Check, Github, Link2, Mail, Shield, Star, Unlink2 } from 'lucide-react'
 import type { ReactNode } from 'react'
 
+import { useSession } from '@/components/providers/app-providers'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -16,7 +17,6 @@ import {
 } from '@/components/ui/dialog'
 // Client-side helper functions for OAuth management
 import { cn } from '@/lib/utils'
-import { useSession } from '@/components/providers/app-providers'
 import { useCallback, useEffect, useState } from 'react'
 
 interface OAuthProvider {

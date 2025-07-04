@@ -17,24 +17,30 @@ export const PerformanceMetrics = memo<PerformanceMetricsProps>(function Perform
   queryMetrics,
 }) {
   return (
-    <div className="mb-4 rounded-md bg-gray-50 p-3">
-      <h3 className="mb-2 font-medium text-gray-700 text-sm">Performance Metrics</h3>
+    <div className="mb-4 rounded-md bg-muted p-3">
+      <h3 className="mb-2 font-medium text-foreground text-sm">Performance Metrics</h3>
       <div className="grid grid-cols-4 gap-4 text-xs">
         <div>
-          <span className="text-gray-500">Avg Duration:</span>
-          <span className="ml-1 font-medium">{queryMetrics.averageDuration.toFixed(0)}ms</span>
+          <span className="text-muted-foreground">Avg Duration:</span>
+          <span className="ml-1 font-medium text-foreground">
+            {queryMetrics.averageDuration.toFixed(0)}ms
+          </span>
         </div>
         <div>
-          <span className="text-gray-500">Cache Hit Rate:</span>
-          <span className="ml-1 font-medium">{(queryMetrics.cacheHitRate * 100).toFixed(1)}%</span>
+          <span className="text-muted-foreground">Cache Hit Rate:</span>
+          <span className="ml-1 font-medium text-foreground">
+            {(queryMetrics.cacheHitRate * 100).toFixed(1)}%
+          </span>
         </div>
         <div>
-          <span className="text-gray-500">Error Rate:</span>
-          <span className="ml-1 font-medium">{(queryMetrics.errorRate * 100).toFixed(1)}%</span>
+          <span className="text-muted-foreground">Error Rate:</span>
+          <span className="ml-1 font-medium text-foreground">
+            {(queryMetrics.errorRate * 100).toFixed(1)}%
+          </span>
         </div>
         <div>
-          <span className="text-gray-500">Total Queries:</span>
-          <span className="ml-1 font-medium">{queryMetrics.metrics.length}</span>
+          <span className="text-muted-foreground">Total Queries:</span>
+          <span className="ml-1 font-medium text-foreground">{queryMetrics.metrics.length}</span>
         </div>
       </div>
     </div>

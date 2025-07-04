@@ -26,7 +26,7 @@ const AnimatedBookmarkButton: React.FC<{ isSaved: boolean; onToggle: () => void 
       variant="ghost"
       size="icon"
       onClick={onToggle}
-      className="h-8 w-8 hover:bg-blue-50 hover:text-blue-600"
+      className="h-8 w-8 hover:bg-primary/10 hover:text-primary"
       aria-label={isSaved ? 'Remove bookmark' : 'Save opportunity'}
     >
       <motion.div
@@ -40,13 +40,13 @@ const AnimatedBookmarkButton: React.FC<{ isSaved: boolean; onToggle: () => void 
           size={16}
           className={cn(
             'transition-all duration-200',
-            isSaved ? 'fill-blue-600 text-blue-600' : 'text-muted-foreground'
+            isSaved ? 'fill-primary text-primary' : 'text-muted-foreground'
           )}
         />
         <AnimatePresence>
           {isSaved && (
             <motion.div
-              className="absolute inset-0 rounded-full bg-blue-500/20"
+              className="absolute inset-0 rounded-full bg-primary/20"
               initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: 2, opacity: [0, 0.5, 0] }}
               exit={{ scale: 0, opacity: 0 }}
@@ -152,7 +152,7 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
               <span>{opportunity.repository.starsCount.toLocaleString()}</span>
             </div>
             <div className="flex items-center gap-1">
-              <div className="h-2 w-2 rounded-full bg-blue-500" />
+              <div className="h-2 w-2 rounded-full bg-primary" />
               <span>{opportunity.repository.language}</span>
             </div>
           </div>

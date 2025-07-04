@@ -45,8 +45,8 @@ export default function Home() {
             </h1>
 
             <p className="mx-auto mb-10 max-w-2xl text-muted-foreground text-lg sm:text-xl">
-              Discover repositories that match your skills, interests, and expertise. 
-              Contribute to projects that matter with AI-powered recommendations.
+              Discover repositories that match your skills, interests, and expertise. Contribute to
+              projects that matter with AI-powered recommendations.
             </p>
 
             <div className="flex flex-wrap items-center justify-center gap-4">
@@ -89,13 +89,24 @@ export default function Home() {
               <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
               <div className="relative">
                 <div className="mb-4 inline-flex rounded-lg bg-primary/10 p-3">
-                  <svg className="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  <svg
+                    className="h-6 w-6 text-primary"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 10V3L4 14h7v7l9-11h-7z"
+                    />
                   </svg>
                 </div>
                 <h3 className="mb-2 font-semibold text-xl">AI-Powered Matching</h3>
                 <p className="text-muted-foreground">
-                  Our intelligent algorithms analyze your skills and interests to find the perfect repositories for you.
+                  Our intelligent algorithms analyze your skills and interests to find the perfect
+                  repositories for you.
                 </p>
               </div>
             </div>
@@ -104,13 +115,24 @@ export default function Home() {
               <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
               <div className="relative">
                 <div className="mb-4 inline-flex rounded-lg bg-purple-500/10 p-3">
-                  <svg className="h-6 w-6 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                  <svg
+                    className="h-6 w-6 text-purple-500"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+                    />
                   </svg>
                 </div>
                 <h3 className="mb-2 font-semibold text-xl">Community Insights</h3>
                 <p className="text-muted-foreground">
-                  See real-time activity, maintainer responsiveness, and community health metrics at a glance.
+                  See real-time activity, maintainer responsiveness, and community health metrics at
+                  a glance.
                 </p>
               </div>
             </div>
@@ -119,13 +141,24 @@ export default function Home() {
               <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
               <div className="relative">
                 <div className="mb-4 inline-flex rounded-lg bg-blue-500/10 p-3">
-                  <svg className="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg
+                    className="h-6 w-6 text-blue-500"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </svg>
                 </div>
                 <h3 className="mb-2 font-semibold text-xl">Good First Issues</h3>
                 <p className="text-muted-foreground">
-                  Find beginner-friendly issues tailored to your experience level and grow your contribution portfolio.
+                  Find beginner-friendly issues tailored to your experience level and grow your
+                  contribution portfolio.
                 </p>
               </div>
             </div>

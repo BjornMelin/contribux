@@ -3,11 +3,11 @@
  * Real-time performance metrics and optimization tracking
  */
 
-import type React from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import type React from 'react'
 
 // Core icons - using our optimized icon system
-import { Activity, BarChart3, Clock, Zap, AlertTriangle, Check } from '@/components/icons'
+import { Activity, AlertTriangle, BarChart3, Check, Clock, Zap } from '@/components/icons'
 
 // Performance metrics interface
 interface PerformanceMetrics {
@@ -198,25 +198,25 @@ const formatMs = (ms: number): string => {
 
 // Performance grade based on score
 const getPerformanceGrade = (score: number): { grade: string; color: string } => {
-  if (score >= 90) return { grade: 'A+', color: 'text-green-600' }
-  if (score >= 80) return { grade: 'A', color: 'text-green-500' }
-  if (score >= 70) return { grade: 'B+', color: 'text-yellow-600' }
-  if (score >= 60) return { grade: 'B', color: 'text-yellow-500' }
-  if (score >= 50) return { grade: 'C+', color: 'text-orange-500' }
-  return { grade: 'C', color: 'text-red-500' }
+  if (score >= 90) return { grade: 'A+', color: 'text-chart-2' }
+  if (score >= 80) return { grade: 'A', color: 'text-chart-2/80' }
+  if (score >= 70) return { grade: 'B+', color: 'text-chart-4' }
+  if (score >= 60) return { grade: 'B', color: 'text-chart-4/80' }
+  if (score >= 50) return { grade: 'C+', color: 'text-chart-1' }
+  return { grade: 'C', color: 'text-destructive' }
 }
 
 // Status icon component
 const StatusIcon: React.FC<{ status: OptimizationStatus['status'] }> = ({ status }) => {
   switch (status) {
     case 'completed':
-      return <Check className="w-4 h-4 text-green-500" />
+      return <Check className="w-4 h-4 text-chart-2" />
     case 'in-progress':
-      return <Clock className="w-4 h-4 text-yellow-500" />
+      return <Clock className="w-4 h-4 text-chart-4" />
     case 'failed':
-      return <AlertTriangle className="w-4 h-4 text-red-500" />
+      return <AlertTriangle className="w-4 h-4 text-destructive" />
     default:
-      return <Clock className="w-4 h-4 text-gray-400" />
+      return <Clock className="w-4 h-4 text-muted-foreground" />
   }
 }
 
@@ -260,7 +260,7 @@ export const PerformanceDashboard: React.FC = () => {
               Gzipped • {formatBytes(mockMetrics.bundleSize.total)} total
             </p>
             <div className="mt-2">
-              <div className="text-sm font-medium text-green-600">
+              <div className="text-sm font-medium text-chart-2">
                 -{formatBytes(totalSavings)} optimized
               </div>
             </div>
@@ -277,25 +277,19 @@ export const PerformanceDashboard: React.FC = () => {
             <div className="space-y-1">
               <div className="flex justify-between text-sm">
                 <span>LCP:</span>
-                <span
-                  className={mockMetrics.runtime.lcp <= 2.5 ? 'text-green-600' : 'text-orange-500'}
-                >
+                <span className={mockMetrics.runtime.lcp <= 2.5 ? 'text-chart-2' : 'text-chart-1'}>
                   {mockMetrics.runtime.lcp}s
                 </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span>FID:</span>
-                <span
-                  className={mockMetrics.runtime.fid <= 100 ? 'text-green-600' : 'text-orange-500'}
-                >
+                <span className={mockMetrics.runtime.fid <= 100 ? 'text-chart-2' : 'text-chart-1'}>
                   {mockMetrics.runtime.fid}ms
                 </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span>CLS:</span>
-                <span
-                  className={mockMetrics.runtime.cls <= 0.1 ? 'text-green-600' : 'text-orange-500'}
-                >
+                <span className={mockMetrics.runtime.cls <= 0.1 ? 'text-chart-2' : 'text-chart-1'}>
                   {mockMetrics.runtime.cls}
                 </span>
               </div>
@@ -378,7 +372,7 @@ export const PerformanceDashboard: React.FC = () => {
                     {optimization.status.replace('-', ' ')}
                   </div>
                   {optimization.estimatedSaving > 0 && (
-                    <div className="text-xs text-green-600">
+                    <div className="text-xs text-chart-2">
                       -{formatBytes(optimization.estimatedSaving)}
                     </div>
                   )}
@@ -398,7 +392,7 @@ export const PerformanceDashboard: React.FC = () => {
         <CardContent>
           <div className="space-y-3">
             <div className="flex items-start space-x-3">
-              <AlertTriangle className="w-5 h-5 text-orange-500 mt-0.5" />
+              <AlertTriangle className="w-5 h-5 text-chart-1 mt-0.5" />
               <div>
                 <div className="font-medium">Complete Database Query Optimization</div>
                 <div className="text-sm text-muted-foreground">
@@ -408,7 +402,7 @@ export const PerformanceDashboard: React.FC = () => {
             </div>
 
             <div className="flex items-start space-x-3">
-              <Clock className="w-5 h-5 text-blue-500 mt-0.5" />
+              <Clock className="w-5 h-5 text-chart-2 mt-0.5" />
               <div>
                 <div className="font-medium">Implement Service Worker Caching</div>
                 <div className="text-sm text-muted-foreground">
@@ -418,7 +412,7 @@ export const PerformanceDashboard: React.FC = () => {
             </div>
 
             <div className="flex items-start space-x-3">
-              <Zap className="w-5 h-5 text-purple-500 mt-0.5" />
+              <Zap className="w-5 h-5 text-chart-3 mt-0.5" />
               <div>
                 <div className="font-medium">Monitor Core Web Vitals</div>
                 <div className="text-sm text-muted-foreground">

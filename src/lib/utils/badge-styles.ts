@@ -6,23 +6,23 @@
 export function getDifficultyBadgeStyle(difficulty?: string): string {
   switch (difficulty) {
     case 'beginner':
-      return 'bg-green-100 text-green-800'
+      return 'bg-chart-2/10 text-chart-2'
     case 'intermediate':
-      return 'bg-yellow-100 text-yellow-800'
+      return 'bg-chart-4/10 text-chart-4'
     case 'advanced':
-      return 'bg-red-100 text-red-800'
+      return 'bg-destructive/10 text-destructive'
     default:
-      return 'bg-gray-100 text-gray-800'
+      return 'bg-muted text-muted-foreground'
   }
 }
 
 export function getCircuitBreakerStyle(state: string): string {
   switch (state) {
     case 'closed':
-      return 'bg-green-100 text-green-800'
+      return 'bg-chart-2/10 text-chart-2'
     case 'open':
-      return 'bg-red-100 text-red-800'
+      return 'bg-destructive/10 text-destructive'
     default:
-      return 'bg-yellow-100 text-yellow-800'
+      return 'bg-chart-4/10 text-chart-4'
   }
 }

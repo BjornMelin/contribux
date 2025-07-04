@@ -15,8 +15,7 @@
 
 import { useSaveOpportunity } from '@/lib/api/hooks/use-opportunities'
 import { useRepositoryBookmark } from '@/lib/api/hooks/use-repositories'
-import { useOpportunityUpdates, useRepositoryUpdates } from '@/lib/api/hooks/use-websocket'
-import { useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
 
 // Import extracted components
 import { BeginnerSidebar } from './beginner-sidebar'
@@ -41,29 +40,29 @@ function useOptimisticMutations() {
   }
 }
 
-// Real-time updates hook
-function useRealtimeUpdates() {
-  const { repositoryUpdate } = useRepositoryUpdates()
-  const { opportunityUpdate } = useOpportunityUpdates()
+// Real-time updates hook (disabled - will be re-enabled when needed)
+// function useRealtimeUpdates() {
+//   const { repositoryUpdate } = useRepositoryUpdates()
+//   const { opportunityUpdate } = useOpportunityUpdates()
 
-  // Real-time update notifications
-  useEffect(() => {
-    if (repositoryUpdate) {
-      // Could show toast notification
-    }
-  }, [repositoryUpdate])
+//   // Real-time update notifications
+//   useEffect(() => {
+//     if (repositoryUpdate) {
+//       // Could show toast notification
+//     }
+//   }, [repositoryUpdate])
 
-  useEffect(() => {
-    if (opportunityUpdate) {
-      // Could show toast notification
-    }
-  }, [opportunityUpdate])
+//   useEffect(() => {
+//     if (opportunityUpdate) {
+//       // Could show toast notification
+//     }
+//   }, [opportunityUpdate])
 
-  return {
-    repositoryUpdate,
-    opportunityUpdate,
-  }
-}
+//   return {
+//     repositoryUpdate,
+//     opportunityUpdate,
+//   }
+// }
 
 export function OptimizedSearchExample() {
   const { searchType, setSearchType, filters, setFilters } = useSearchState()
@@ -71,8 +70,8 @@ export function OptimizedSearchExample() {
   const mutations = useOptimisticMutations()
   const { handlePrefetch, handleBookmark, handleSaveOpportunity } = useSearchActions(mutations)
 
-  // Initialize real-time updates
-  useRealtimeUpdates()
+  // Initialize real-time updates (disabled for now to prevent WebSocket errors)
+  // useRealtimeUpdates()
 
   // Debounced search to reduce API calls
   const _debouncedQuery = useMemo(() => {
@@ -83,8 +82,10 @@ export function OptimizedSearchExample() {
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-6">
       {/* Header with performance metrics */}
-      <div className="rounded-lg border bg-white p-4 shadow-sm">
-        <h1 className="mb-4 font-bold text-2xl text-gray-900">Optimized API Integration Demo</h1>
+      <div className="rounded-lg border bg-card p-4 shadow-sm">
+        <h1 className="mb-4 font-bold text-2xl text-card-foreground">
+          Optimized API Integration Demo
+        </h1>
 
         <PerformanceMetrics queryMetrics={queries.queryMetrics} />
         <SearchTypeSelector searchType={searchType} setSearchType={setSearchType} />
@@ -95,12 +96,12 @@ export function OptimizedSearchExample() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Main results */}
         <div className="lg:col-span-2">
-          <div className="rounded-lg border bg-white shadow-sm">
+          <div className="rounded-lg border bg-card shadow-sm">
             <div className="border-b p-4">
-              <h2 className="font-semibold text-gray-900 text-lg">
+              <h2 className="font-semibold text-card-foreground text-lg">
                 {searchType === 'repositories' ? 'Repositories' : 'Opportunities'}
                 {(queries.repositories.isFetching || queries.opportunities.isFetching) && (
-                  <span className="ml-2 text-blue-600 text-sm">Updating...</span>
+                  <span className="ml-2 text-primary text-sm">Updating...</span>
                 )}
               </h2>
             </div>
@@ -109,17 +110,21 @@ export function OptimizedSearchExample() {
               {/* Loading state */}
               {(queries.repositories.isLoading || queries.opportunities.isLoading) && (
                 <div className="flex items-center justify-center py-8">
-                  <div className="h-8 w-8 animate-spin rounded-full border-blue-600 border-b-2" />
-                  <span className="ml-2 text-gray-600">Searching...</span>
+                  <div className="h-8 w-8 animate-spin rounded-full border-primary border-b-2" />
+                  <span className="ml-2 text-muted-foreground">Searching...</span>
                 </div>
               )}
 
               {/* Error state */}
               {(queries.repositories.error || queries.opportunities.error) && (
-                <div className="rounded-md border border-red-200 bg-red-50 p-4">
+                <div className="rounded-md border border-destructive/20 bg-destructive/10 p-4">
                   <div className="flex">
                     <div className="flex-shrink-0">
-                      <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                      <svg
+                        className="h-5 w-5 text-destructive"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
                         <title>Error</title>
                         <path
                           fillRule="evenodd"
@@ -129,8 +134,8 @@ export function OptimizedSearchExample() {
                       </svg>
                     </div>
                     <div className="ml-3">
-                      <h3 className="font-medium text-red-800 text-sm">Search failed</h3>
-                      <div className="mt-2 text-red-700 text-sm">
+                      <h3 className="font-medium text-destructive text-sm">Search failed</h3>
+                      <div className="mt-2 text-destructive/80 text-sm">
                         Please try again or adjust your search terms.
                       </div>
                     </div>
@@ -158,7 +163,7 @@ export function OptimizedSearchExample() {
                         type="button"
                         onClick={() => queries.infinite.fetchNextPage()}
                         disabled={queries.infinite.isFetchingNextPage}
-                        className="rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+                        className="rounded-md bg-primary px-4 py-2 text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
                       >
                         {queries.infinite.isFetchingNextPage ? 'Loading...' : 'Load More'}
                       </button>
