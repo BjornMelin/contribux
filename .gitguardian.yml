@@ -87,6 +87,8 @@ matches-ignore:
   - 'privateKey.*1234567890'
   - 'test.*private.*key'
   - 'mock.*private.*key'
+  - 'TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY'
+  - '-----BEGIN RSA PRIVATE KEY-----\s*TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY'
   
   # Database test URLs and credentials
   - 'postgresql://test:test@localhost'
@@ -112,6 +114,14 @@ matches-ignore:
   - '.*unit.*test.*'
   - '.*integration.*test.*'
   
+  # Specific fake test fixtures (clearly marked as test-only)
+  - 'fake_test_.*_for_.*_testing_only.*'
+  - 'fake_.*_test_.*_testing_only'
+  - 'fake_github_pat_test_token_for_error_message_sanitization_testing_only'
+  - 'fake_test_jwt_token_for_api_validation_testing_only'
+  - 'fake_test_rsa_private_key_for_.*_testing_only.*'
+  - 'fake_invalid_test_rsa_private_key_for_.*_testing_only.*'
+  
   # OAuth test patterns
   - 'test.*client.*id'
   - 'test.*client.*secret'
@@ -129,6 +139,10 @@ matches-ignore:
   - '127\.0\.0\.1.*test'
   - 'test.*endpoint'
   - 'mock.*api'
+  
+  # API validation script test tokens
+  - 'scripts/api-validation\.sh'
+  - 'fake_test_jwt_token_for_api_validation_testing_only\.not\.real'
 
 # File extensions to scan (empty means all)
 scan:
