@@ -24,7 +24,7 @@ export const sql = new Proxy({} as any, {
       sqlInstance = createSql()
     }
     return Reflect.apply(sqlInstance as any, thisArg, argArray)
-  }
+  },
 }) as any
 
 // Branch-specific connections for different environments with type safety
@@ -83,7 +83,7 @@ export const db = new Proxy({} as any, {
       dbInstance = drizzle({ client: sql as any, schema })
     }
     return Reflect.get(dbInstance as any, prop)
-  }
+  },
 }) as any
 
 // Export database type for dependency injection

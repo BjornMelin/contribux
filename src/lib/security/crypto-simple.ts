@@ -55,11 +55,11 @@ export async function verifyHash(data: string, hash: string): Promise<boolean> {
  */
 export function generateRandomString(length = 16): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-  
+
   // Use Web Crypto API available in both browser and Edge Runtime
   const randomBytes = new Uint8Array(length)
   crypto.getRandomValues(randomBytes)
-  
+
   let result = ''
   for (let i = 0; i < length; i++) {
     const byte = randomBytes[i]

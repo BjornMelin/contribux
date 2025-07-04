@@ -22,4 +22,5 @@ if (typeof global !== 'undefined') {
 
 // Debug logging to confirm polyfill was loaded
 if (process.env.DEBUG_TESTS) {
+  // Debug logging would go here
 }

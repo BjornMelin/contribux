@@ -227,14 +227,14 @@ export async function logAuthenticationAttempt(params: {
 
   if (!params.success && params.userId) {
     // Get recent failed attempts
-    const failedAttempts = await sql`
+    const failedAttempts = (await sql`
       SELECT created_at
       FROM security_audit_logs
       WHERE user_id = ${params.userId}
       AND event_type = 'login_failure'
       AND created_at > ${new Date(Date.now() - authConfig.security.failedLoginWindow)}
       ORDER BY created_at DESC
-    ` as any[]
+    `) as any[]
 
     recentFailures = failedAttempts.length
 
@@ -332,12 +332,12 @@ async function detectSessionAnomalies(params: {
 }
 
 async function fetchExistingSession(sessionId: string) {
-  const result = await sql`
+  const result = (await sql`
     SELECT ip_address, user_agent, created_at
     FROM user_sessions
     WHERE id = ${sessionId}
     LIMIT 1
-  ` as any[]
+  `) as any[]
 
   return result.length > 0 ? result[0] : null
 }

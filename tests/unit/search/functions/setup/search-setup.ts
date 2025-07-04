@@ -74,13 +74,28 @@ export async function teardownSearchTestContext(context: SearchTestContext): Pro
   const { connection, testIds } = context
 
   try {
-    await cleanupTestData(connection.sql, testIds)
+    // Only attempt cleanup if connection is still valid
+    if (connection && connection.sql) {
+      await cleanupTestData(connection.sql, testIds)
+    }
   } catch (error) {
-    console.warn('Cleanup error (non-fatal):', error)
+    // Silently ignore cleanup errors - database may already be closed
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('Test cleanup skipped (expected):', error)
+    }
   }
 
-  // No need to manually close connection - TestDatabaseManager handles this
-  await connection.cleanup()
+  try {
+    // Let TestDatabaseManager handle connection cleanup
+    if (connection && connection.cleanup) {
+      await connection.cleanup()
+    }
+  } catch (error) {
+    // Silently ignore connection cleanup errors
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('Connection cleanup skipped (expected):', error)
+    }
+  }
 }
 
 export async function addUserRepositoryInteraction(

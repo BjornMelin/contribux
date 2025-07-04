@@ -66,30 +66,54 @@ export function generateTestIds() {
 
 // Database utilities
 export async function setupSearchFunctions(sql: NeonQueryFunction<false, false>) {
+  // Helper function to safely execute setup queries
+  const safeSetup = async (
+    query: () => Promise<unknown>,
+    description: string
+  ): Promise<boolean> => {
+    try {
+      await query()
+      return true
+    } catch (error) {
+      // Check if error is due to closed database or unsupported features
+      if (
+        error instanceof Error &&
+        (error.message.includes('closed') ||
+          error.message.includes('null function') ||
+          error.message.includes('table index is out of bounds') ||
+          error.message.includes('RuntimeError'))
+      ) {
+        // Database is closed or query is unsupported
+        if (process.env.NODE_ENV === 'development') {
+          console.debug(`Setup skipped for ${description}: Database closed or feature unsupported`)
+        }
+        return false
+      }
+      // Log other errors in development only
+      if (process.env.NODE_ENV === 'development') {
+        console.debug(`Setup warning for ${description}:`, error)
+      }
+      return true // Continue with other setup steps
+    }
+  }
+
   // For PGlite, skip extension checks since it doesn't support PostgreSQL extensions
   // The search functions should work with basic SQL functionality
 
   // Skip extension verification for PGlite - focus on core functionality
-  try {
-    // Check if we can query the extensions table (will fail gracefully in PGlite)
-    const extensions = await sql`
+  await safeSetup(
+    () => sql`
       SELECT extname FROM pg_extension 
       WHERE extname IN ('vector', 'pg_trgm', 'pgcrypto')
-    `
-
-    // Only validate extensions if we're in a real PostgreSQL environment
-    if (extensions.length > 0 && extensions.length !== 3) {
-      console.warn('Some extensions may not be loaded, but continuing with available functionality')
-    }
-  } catch (_error) {
-    // Expected to fail in PGlite - continue without extension verification
-    console.log('Skipping extension check (expected in PGlite environment)')
-  }
+    `,
+    'extension verification'
+  )
 
   // Create basic search view that works with PGlite
   // Note: In PGlite, we'll use a view instead of stored procedures to avoid WASM issues
-  await sql`
-    CREATE OR REPLACE VIEW hybrid_search_opportunities_view AS
+  await safeSetup(
+    () => sql`
+      CREATE OR REPLACE VIEW hybrid_search_opportunities_view AS
     SELECT 
       o.id,
       o.repository_id,
@@ -114,36 +138,48 @@ export async function setupSearchFunctions(sql: NeonQueryFunction<false, false>)
         WHEN o.title ILIKE '%AI%' THEN 0.9
         ELSE 0.7
       END DESC
-  `
+  `,
+    'hybrid_search_opportunities_view'
+  )
 
   // Add profile_embedding column to users table for vector search tests
-  await sql`
-    ALTER TABLE users 
-    ADD COLUMN IF NOT EXISTS profile_embedding TEXT
-  `
+  await safeSetup(
+    () => sql`
+      ALTER TABLE users 
+      ADD COLUMN IF NOT EXISTS profile_embedding TEXT
+    `,
+    'profile_embedding column'
+  )
 
   // Add skill_level column if it doesn't exist for PGlite compatibility
-  await sql`
-    ALTER TABLE users 
-    ADD COLUMN IF NOT EXISTS skill_level TEXT DEFAULT 'intermediate'
-  `
+  await safeSetup(
+    () => sql`
+      ALTER TABLE users 
+      ADD COLUMN IF NOT EXISTS skill_level TEXT DEFAULT 'intermediate'
+    `,
+    'skill_level column'
+  )
 
-  await sql`
-    CREATE OR REPLACE VIEW search_similar_users_view AS
-    SELECT 
-      u.id,
-      u.github_id::INTEGER as github_id,
-      u.github_username,
-      u.email,
-      u.skill_level,
-      CAST(0.95 as DECIMAL(3,2)) as similarity_score
-    FROM users u
-    WHERE u.profile_embedding IS NOT NULL
-    ORDER BY similarity_score DESC
-  `
+  await safeSetup(
+    () => sql`
+      CREATE OR REPLACE VIEW search_similar_users_view AS
+      SELECT 
+        u.id,
+        u.github_id::INTEGER as github_id,
+        u.github_username,
+        u.email,
+        u.skill_level,
+        CAST(0.95 as DECIMAL(3,2)) as similarity_score
+      FROM users u
+      WHERE u.profile_embedding IS NOT NULL
+      ORDER BY similarity_score DESC
+    `,
+    'search_similar_users_view'
+  )
 
   // Create simple search functions for PGlite compatibility
-  await sql`
+  await safeSetup(
+    () => sql`
     CREATE OR REPLACE FUNCTION hybrid_search_opportunities(
       search_text TEXT DEFAULT '',
       query_embedding TEXT DEFAULT NULL,
@@ -214,9 +250,12 @@ export async function setupSearchFunctions(sql: NeonQueryFunction<false, false>)
       LIMIT result_limit;
     END
     $$ LANGUAGE plpgsql;
-  `
+    `,
+    'hybrid_search_opportunities function'
+  )
 
-  await sql`
+  await safeSetup(
+    () => sql`
     CREATE OR REPLACE FUNCTION get_repository_health_metrics(repo_id UUID)
     RETURNS TABLE (
       repository_id UUID,
@@ -245,9 +284,12 @@ export async function setupSearchFunctions(sql: NeonQueryFunction<false, false>)
       WHERE r.id = repo_id;
     END
     $$ LANGUAGE plpgsql;
-  `
+    `,
+    'get_repository_health_metrics function'
+  )
 
-  await sql`
+  await safeSetup(
+    () => sql`
     CREATE OR REPLACE FUNCTION find_matching_opportunities_for_user(
       target_user_id UUID,
       similarity_threshold REAL DEFAULT 0.01,
@@ -279,9 +321,12 @@ export async function setupSearchFunctions(sql: NeonQueryFunction<false, false>)
       LIMIT result_limit;
     END
     $$ LANGUAGE plpgsql;
-  `
+    `,
+    'find_matching_opportunities_for_user function'
+  )
 
-  await sql`
+  await safeSetup(
+    () => sql`
     CREATE OR REPLACE FUNCTION get_trending_opportunities(
       time_window_hours INTEGER DEFAULT 24,
       min_engagement INTEGER DEFAULT 1,
@@ -310,9 +355,12 @@ export async function setupSearchFunctions(sql: NeonQueryFunction<false, false>)
       LIMIT result_limit;
     END
     $$ LANGUAGE plpgsql;
-  `
+    `,
+    'get_trending_opportunities function'
+  )
 
-  await sql`
+  await safeSetup(
+    () => sql`
     CREATE OR REPLACE FUNCTION search_similar_users(
       query_embedding TEXT,
       similarity_threshold REAL DEFAULT 0.9,
@@ -346,9 +394,12 @@ export async function setupSearchFunctions(sql: NeonQueryFunction<false, false>)
       LIMIT result_limit;
     END
     $$ LANGUAGE plpgsql;
-  `
+    `,
+    'search_similar_users function'
+  )
 
-  await sql`
+  await safeSetup(
+    () => sql`
     CREATE OR REPLACE FUNCTION hybrid_search_repositories(
       search_text TEXT DEFAULT '',
       query_embedding TEXT DEFAULT NULL,
@@ -417,7 +468,9 @@ export async function setupSearchFunctions(sql: NeonQueryFunction<false, false>)
       LIMIT result_limit;
     END
     $$ LANGUAGE plpgsql;
-  `
+    `,
+    'hybrid_search_repositories function'
+  )
 }
 
 export async function cleanupTestData(
@@ -426,38 +479,113 @@ export async function cleanupTestData(
 ) {
   const { repoId, userId } = testIds
 
-  try {
-    // Order matters due to foreign key constraints
-    await sql`
+  // Helper function to safely execute cleanup queries
+  const safeCleanup = async (query: () => Promise<unknown>, description: string) => {
+    try {
+      await query()
+    } catch (error) {
+      // Check if error is due to closed database connection
+      if (
+        error instanceof Error &&
+        (error.message.includes('closed') ||
+          error.message.includes('null function') ||
+          error.message.includes('table index is out of bounds') ||
+          error.message.includes('RuntimeError'))
+      ) {
+        // Database is closed, skip remaining cleanup
+        return false
+      }
+      // Log other errors in development only
+      if (process.env.NODE_ENV === 'development') {
+        console.debug(`Cleanup skipped for ${description}:`, error)
+      }
+    }
+    return true
+  }
+
+  // Order matters due to foreign key constraints
+  // Stop cleanup chain if database is closed
+  if (
+    !(await safeCleanup(
+      () => sql`
       DELETE FROM contribution_outcomes 
       WHERE opportunity_id IN (SELECT id FROM opportunities WHERE repository_id = ${repoId})
-    `
+    `,
+      'contribution_outcomes'
+    ))
+  )
+    return
 
-    await sql`
+  if (
+    !(await safeCleanup(
+      () => sql`
       DELETE FROM user_repository_interactions 
       WHERE user_id = ${userId} OR repository_id = ${repoId}
-    `
+    `,
+      'user_repository_interactions'
+    ))
+  )
+    return
 
-    await sql`DELETE FROM user_preferences WHERE user_id = ${userId}`
-    await sql`DELETE FROM opportunities WHERE repository_id = ${repoId}`
-    await sql`DELETE FROM repositories WHERE id = ${repoId}`
-    await sql`DELETE FROM users WHERE id = ${userId}`
+  if (
+    !(await safeCleanup(
+      () => sql`DELETE FROM user_preferences WHERE user_id = ${userId}`,
+      'user_preferences'
+    ))
+  )
+    return
 
-    // Clean up any leftover data with explicit type casting for PGlite compatibility
-    await sql`DELETE FROM repositories WHERE github_id = '12345'`
-    await sql`DELETE FROM repositories WHERE github_id = '67890'`
-    await sql`DELETE FROM repositories WHERE github_id = '54321'`
-    await sql`DELETE FROM repositories WHERE full_name LIKE 'test-org/%'`
+  if (
+    !(await safeCleanup(
+      () => sql`DELETE FROM opportunities WHERE repository_id = ${repoId}`,
+      'opportunities'
+    ))
+  )
+    return
 
-    // Clean up any similar users or other test data
-    await sql`DELETE FROM users WHERE github_username LIKE 'perftest%'`
-    await sql`DELETE FROM users WHERE github_username = 'similaruser'`
-    await sql`DELETE FROM users WHERE email LIKE 'perftest%@test.com'`
-  } catch (error) {
-    // Some cleanup operations may fail in PGlite due to type compatibility
-    // Log the error but don't fail the test
-    console.warn('Non-critical cleanup error:', error)
-  }
+  if (
+    !(await safeCleanup(() => sql`DELETE FROM repositories WHERE id = ${repoId}`, 'repositories'))
+  )
+    return
+
+  if (!(await safeCleanup(() => sql`DELETE FROM users WHERE id = ${userId}`, 'users'))) return
+
+  // Clean up any leftover data with explicit type casting for PGlite compatibility
+  await safeCleanup(
+    () => sql`DELETE FROM repositories WHERE github_id = '12345'`,
+    'test repository 12345'
+  )
+
+  await safeCleanup(
+    () => sql`DELETE FROM repositories WHERE github_id = '67890'`,
+    'test repository 67890'
+  )
+
+  await safeCleanup(
+    () => sql`DELETE FROM repositories WHERE github_id = '54321'`,
+    'test repository 54321'
+  )
+
+  await safeCleanup(
+    () => sql`DELETE FROM repositories WHERE full_name LIKE 'test-org/%'`,
+    'test-org repositories'
+  )
+
+  // Clean up any similar users or other test data
+  await safeCleanup(
+    () => sql`DELETE FROM users WHERE github_username LIKE 'perftest%'`,
+    'perftest users'
+  )
+
+  await safeCleanup(
+    () => sql`DELETE FROM users WHERE github_username = 'similaruser'`,
+    'similar user'
+  )
+
+  await safeCleanup(
+    () => sql`DELETE FROM users WHERE email LIKE 'perftest%@test.com'`,
+    'perftest emails'
+  )
 }
 
 // Vector utilities

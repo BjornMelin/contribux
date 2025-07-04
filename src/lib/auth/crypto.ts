@@ -255,7 +255,11 @@ export async function rotateEncryptionKey(): Promise<EncryptionKeyMetadata> {
   let currentVersion = 0
   let currentKeyData = null
 
-  if ((currentKeyResult as any[]).length > 0 && (currentKeyResult as any[])[0] && (currentKeyResult as any[])[0].key_data) {
+  if (
+    (currentKeyResult as any[]).length > 0 &&
+    (currentKeyResult as any[])[0] &&
+    (currentKeyResult as any[])[0].key_data
+  ) {
     currentVersion = (currentKeyResult as any[])[0].version
     currentKeyData = JSON.parse((currentKeyResult as any[])[0].key_data)
   }

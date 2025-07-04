@@ -277,17 +277,23 @@ function logQueryMetrics(metrics: QueryMetrics) {
 
 export function getQueryMetrics() {
   const metricsArray = queryMetrics || []
-  const cbStates = circuitBreakers ? Array.from(circuitBreakers.entries()).map(([endpoint, cb]) => ({
-    endpoint,
-    ...cb.getState(),
-  })) : []
+  const cbStates = circuitBreakers
+    ? Array.from(circuitBreakers.entries()).map(([endpoint, cb]) => ({
+        endpoint,
+        ...cb.getState(),
+      }))
+    : []
 
   return {
     metrics: [...metricsArray],
     averageDuration:
-      metricsArray.length > 0 ? metricsArray.reduce((acc, m) => acc + m.duration, 0) / metricsArray.length : 0,
+      metricsArray.length > 0
+        ? metricsArray.reduce((acc, m) => acc + m.duration, 0) / metricsArray.length
+        : 0,
     cacheHitRate:
-      metricsArray.length > 0 ? metricsArray.filter(m => m.cacheHit).length / metricsArray.length : 0,
+      metricsArray.length > 0
+        ? metricsArray.filter(m => m.cacheHit).length / metricsArray.length
+        : 0,
     errorRate:
       metricsArray.length > 0 ? metricsArray.filter(m => m.error).length / metricsArray.length : 0,
     circuitBreakerStates: cbStates,
@@ -333,84 +339,85 @@ export function createQueryFunction<T>(
 }
 
 // Query client configuration - lazy loaded to avoid build-time issues
-let queryClientInstance: QueryClient | null = null
-const createQueryClient = () => new QueryClient({
-  queryCache: new QueryCache({
-    onError: (_error, _query) => {
-      // Error handling is done at the component level
-    },
-    onSuccess: (_data, query) => {
-      const keyString = JSON.stringify(query.queryKey)
-      logQueryMetrics({
-        queryKey: keyString,
-        duration: 0, // Cache hit
-        cacheHit: true,
-        timestamp: Date.now(),
-      })
-    },
-  }),
+const queryClientInstance: QueryClient | null = null
+const createQueryClient = () =>
+  new QueryClient({
+    queryCache: new QueryCache({
+      onError: (_error, _query) => {
+        // Error handling is done at the component level
+      },
+      onSuccess: (_data, query) => {
+        const keyString = JSON.stringify(query.queryKey)
+        logQueryMetrics({
+          queryKey: keyString,
+          duration: 0, // Cache hit
+          cacheHit: true,
+          timestamp: Date.now(),
+        })
+      },
+    }),
 
-  mutationCache: new MutationCache({
-    onError: (_error, _variables, _context, _mutation) => {
-      // Error handling is done at the component level
-    },
-  }),
+    mutationCache: new MutationCache({
+      onError: (_error, _variables, _context, _mutation) => {
+        // Error handling is done at the component level
+      },
+    }),
 
-  defaultOptions: {
-    queries: {
-      // Stale time: 5 minutes for most queries
-      staleTime: 5 * 60 * 1000,
+    defaultOptions: {
+      queries: {
+        // Stale time: 5 minutes for most queries
+        staleTime: 5 * 60 * 1000,
 
-      // Cache time: 30 minutes
-      gcTime: 30 * 60 * 1000,
+        // Cache time: 30 minutes
+        gcTime: 30 * 60 * 1000,
 
-      // Retry configuration with exponential backoff
-      retry: (failureCount, error: unknown) => {
-        // Don't retry on certain errors
-        const httpError = error as HttpError
-        if (
-          httpError?.status === 401 ||
-          httpError?.status === 403 ||
-          httpError?.status === 404 ||
-          (error as Error)?.name === 'AbortError'
-        ) {
-          return false
-        }
+        // Retry configuration with exponential backoff
+        retry: (failureCount, error: unknown) => {
+          // Don't retry on certain errors
+          const httpError = error as HttpError
+          if (
+            httpError?.status === 401 ||
+            httpError?.status === 403 ||
+            httpError?.status === 404 ||
+            (error as Error)?.name === 'AbortError'
+          ) {
+            return false
+          }
 
-        // Retry up to 3 times for other errors
-        return failureCount < 3
+          // Retry up to 3 times for other errors
+          return failureCount < 3
+        },
+
+        retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
+
+        // Background refetch settings
+        refetchOnWindowFocus: true,
+        refetchOnReconnect: true,
+        refetchOnMount: 'always',
+
+        // Network mode for offline handling
+        networkMode: 'online',
+
+        // Meta data for query identification
+        meta: {
+          errorMessage: 'Something went wrong. Please try again.',
+        },
       },
 
-      retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
+      mutations: {
+        // Retry mutations once
+        retry: 1,
+        retryDelay: 1000,
 
-      // Background refetch settings
-      refetchOnWindowFocus: true,
-      refetchOnReconnect: true,
-      refetchOnMount: 'always',
+        // Network mode
+        networkMode: 'online',
 
-      // Network mode for offline handling
-      networkMode: 'online',
-
-      // Meta data for query identification
-      meta: {
-        errorMessage: 'Something went wrong. Please try again.',
+        meta: {
+          errorMessage: 'Operation failed. Please try again.',
+        },
       },
     },
-
-    mutations: {
-      // Retry mutations once
-      retry: 1,
-      retryDelay: 1000,
-
-      // Network mode
-      networkMode: 'online',
-
-      meta: {
-        errorMessage: 'Operation failed. Please try again.',
-      },
-    },
-  },
-})
+  })
 
 // Export query client as a proxy to lazy load on first use
 // Direct instantiation instead of Proxy pattern to avoid build issues
@@ -496,7 +503,11 @@ export function setupBackgroundSync() {
           })
 
         // Force garbage collection if available (only in browser environment)
-        if (typeof window !== 'undefined' && 'gc' in window && typeof (window as any).gc === 'function') {
+        if (
+          typeof window !== 'undefined' &&
+          'gc' in window &&
+          typeof (window as any).gc === 'function'
+        ) {
           ;(window as any).gc()
         }
       },

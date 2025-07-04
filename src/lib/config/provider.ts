@@ -196,11 +196,10 @@ export class ConfigProvider {
       return Success(env)
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const issues = error.issues && error.issues.length > 0
-          ? error.issues
-              .map(issue => `${issue.path.join('.')}: ${issue.message}`)
-              .join(', ')
-          : 'Unknown validation error'
+        const issues =
+          error.issues && error.issues.length > 0
+            ? error.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`).join(', ')
+            : 'Unknown validation error'
         return Failure(new Error(`Environment validation failed: ${issues}`))
       }
       return Failure(error instanceof Error ? error : new Error(String(error)))
@@ -292,11 +291,10 @@ export class ConfigProvider {
       return Success(validated)
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const issues = error.issues && error.issues.length > 0
-          ? error.issues
-              .map(issue => `${issue.path.join('.')}: ${issue.message}`)
-              .join(', ')
-          : 'Unknown validation error'
+        const issues =
+          error.issues && error.issues.length > 0
+            ? error.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`).join(', ')
+            : 'Unknown validation error'
         return Failure(new Error(`Application config validation failed: ${issues}`))
       }
       return Failure(error instanceof Error ? error : new Error(String(error)))
@@ -383,11 +381,10 @@ export class ConfigProvider {
       return Success(validated)
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const issues = error.issues && error.issues.length > 0
-          ? error.issues
-              .map(issue => `${issue.path.join('.')}: ${issue.message}`)
-              .join(', ')
-          : 'Unknown validation error'
+        const issues =
+          error.issues && error.issues.length > 0
+            ? error.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`).join(', ')
+            : 'Unknown validation error'
         return Failure(new Error(`Config update validation failed: ${issues}`))
       }
       return Failure(error instanceof Error ? error : new Error(String(error)))
@@ -475,7 +472,7 @@ export const config = new Proxy({} as ConfigProvider, {
       configInstance = ConfigProvider.getInstance()
     }
     return Reflect.get(configInstance, prop)
-  }
+  },
 })
 
 export type { EnvironmentConfig, ApplicationConfig }

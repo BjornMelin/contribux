@@ -1,4 +1,3 @@
-
 import type { NeonQueryFunction } from '@neondatabase/serverless'
 
 // Query performance metrics interface

@@ -508,7 +508,7 @@ export const apiMonitoring = new Proxy({} as APIMonitoring, {
       apiMonitoringInstance = new APIMonitoring()
     }
     return Reflect.get(apiMonitoringInstance, prop)
-  }
+  },
 })
 
 // Basic Express-like interfaces for middleware compatibility

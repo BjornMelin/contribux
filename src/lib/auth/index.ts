@@ -4,7 +4,6 @@
  */
 
 import NextAuth, { type AuthOptions } from 'next-auth'
-import type { JWT } from 'next-auth/jwt'
 
 // Create demo GitHub provider for development testing
 const GitHubDemoProvider = {
@@ -71,19 +70,20 @@ const authConfig: AuthOptions = {
       // In development, simulate successful OAuth flow
       if (process.env.NODE_ENV === 'development' && account) {
         // Create demo user data based on provider
-        const demoUser = account.provider === 'github' 
-          ? {
-              id: 'demo-github-123',
-              name: 'Demo GitHub User',
-              email: 'demo@github.com',
-              image: 'https://github.com/github.png',
-            }
-          : {
-              id: 'demo-google-456', 
-              name: 'Demo Google User',
-              email: 'demo@google.com',
-              image: 'https://lh3.googleusercontent.com/a/default-user=s96-c',
-            }
+        const demoUser =
+          account.provider === 'github'
+            ? {
+                id: 'demo-github-123',
+                name: 'Demo GitHub User',
+                email: 'demo@github.com',
+                image: 'https://github.com/github.png',
+              }
+            : {
+                id: 'demo-google-456',
+                name: 'Demo Google User',
+                email: 'demo@google.com',
+                image: 'https://lh3.googleusercontent.com/a/default-user=s96-c',
+              }
 
         token.sub = demoUser.id
         token.name = demoUser.name
@@ -115,7 +115,7 @@ const authConfig: AuthOptions = {
       if (process.env.NODE_ENV === 'development') {
         return true
       }
-      
+
       // In production, implement proper validation
       return false
     },

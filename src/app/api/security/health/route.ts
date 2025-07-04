@@ -75,16 +75,16 @@ async function getSecurityMetrics() {
 
   try {
     // Get WebAuthn credential count
-    const webauthnCount = await sql`
+    const webauthnCount = (await sql`
       SELECT COUNT(*) as count FROM webauthn_credentials
-    ` as { count: number }[]
+    `) as { count: number }[]
 
     // Get active user sessions (from NextAuth sessions)
-    const sessionCount = await sql`
+    const sessionCount = (await sql`
       SELECT COUNT(*) as count 
       FROM sessions 
       WHERE expires > NOW()
-    ` as { count: number }[]
+    `) as { count: number }[]
 
     return {
       totalWebAuthnCredentials: Number(webauthnCount[0]?.count || 0),

@@ -570,7 +570,7 @@ export const cacheLayer = new Proxy({} as CacheLayer, {
       cacheLayerInstance = new CacheLayer()
     }
     return Reflect.get(cacheLayerInstance, prop)
-  }
+  },
 })
 
 // Cache decorators for API functions

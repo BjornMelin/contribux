@@ -3,9 +3,9 @@
  * Returns the current session status for demo authentication
  */
 
+import { jwtVerify } from 'jose'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
-import { jwtVerify } from 'jose'
 
 export async function GET() {
   try {
@@ -23,7 +23,9 @@ export async function GET() {
 
     try {
       // Verify the JWT token
-      const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET || 'development-secret-key-at-least-32-characters-long')
+      const secret = new TextEncoder().encode(
+        process.env.NEXTAUTH_SECRET || 'development-secret-key-at-least-32-characters-long'
+      )
       const { payload } = await jwtVerify(sessionToken.value, secret)
 
       return NextResponse.json({

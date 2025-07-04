@@ -7,7 +7,7 @@ if (typeof global !== 'undefined') {
   }
 }
 
-// CRITICAL: Prevent environment validation during build process  
+// CRITICAL: Prevent environment validation during build process
 // This must be set before ANY modules are imported
 if (process.env.NODE_ENV !== 'development' && !process.env.SKIP_ENV_VALIDATION) {
   process.env.SKIP_ENV_VALIDATION = 'true'
@@ -16,7 +16,7 @@ if (process.env.NODE_ENV !== 'development' && !process.env.SKIP_ENV_VALIDATION) 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  
+
   // Expose environment variables to the client side for NextAuth
   env: {
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
@@ -37,7 +37,7 @@ const nextConfig = {
     },
     // Temporarily disabled - requires critters package
     // optimizeCss: true,
-    // CRITICAL: Disable fallback for webpack runtime 
+    // CRITICAL: Disable fallback for webpack runtime
     fallbackNodePolyfills: false,
   },
 
@@ -64,7 +64,6 @@ const nextConfig = {
   // - Client builds: Conditionally set usedExports only if not already configured by Next.js
   // - Enhanced chunk splitting without overriding Next.js core optimization settings
   webpack: (config, { isServer, webpack }) => {
-
     // CRITICAL: Fix for Next.js 15 + React 19 server-side compatibility
     // Target the specific webpack chunk loading pattern that causes the issue
     if (isServer) {
@@ -73,7 +72,7 @@ const nextConfig = {
         new webpack.DefinePlugin({
           'self.webpackChunk_N_E': 'globalThis.webpackChunk_N_E',
           'typeof self': '"undefined"',
-          'self': 'globalThis'
+          self: 'globalThis',
         })
       )
 
@@ -81,7 +80,7 @@ const nextConfig = {
       config.output = {
         ...config.output,
         globalObject: 'globalThis',
-        chunkLoadingGlobal: 'webpackChunk_N_E'
+        chunkLoadingGlobal: 'webpackChunk_N_E',
       }
 
       // Server-specific optimizations - merge instead of replace to avoid conflicts
@@ -118,7 +117,7 @@ const nextConfig = {
     if (!isServer) {
       // Only set specific optimization properties to avoid conflicts
       // Let Next.js handle most optimization settings by default
-      
+
       // Enhance splitChunks configuration without overriding core optimization
       if (config.optimization.splitChunks) {
         // Extend existing splitChunks rather than replace
@@ -161,12 +160,12 @@ const nextConfig = {
           },
         }
       }
-      
+
       // Only set tree-shaking if not already configured to avoid conflicts
       if (config.optimization.usedExports === undefined) {
         config.optimization.usedExports = true
       }
-      
+
       // Performance optimizations for client builds only
       // Optimize bundle size by resolving only necessary polyfills
       config.resolve.fallback = {
@@ -186,7 +185,7 @@ const nextConfig = {
         maxEntrypointSize: 1024000, // 1MB
         hints: process.env.NODE_ENV === 'production' ? 'warning' : false,
       }
-      
+
       // Let Next.js handle minimization and other optimization settings
     }
 

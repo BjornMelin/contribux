@@ -10,6 +10,9 @@ import '@testing-library/jest-dom'
 // Load test environment variables
 config({ path: '.env.test' })
 
+// Skip environment validation for tests to prevent server/client env check errors
+process.env.SKIP_ENV_VALIDATION = 'true'
+
 // Global test setup
 beforeAll(async () => {
   // Ensure clean test environment

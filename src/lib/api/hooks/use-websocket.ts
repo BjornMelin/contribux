@@ -293,7 +293,9 @@ export function useWebSocket(options: WebSocketOptions = {}): UseWebSocketReturn
 // Repository updates hook
 export function useRepositoryUpdates(owner?: string, repo?: string) {
   const { lastMessage, isConnected, connect, disconnect } = useWebSocket({
-    url: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001/ws',
+    url:
+      (typeof window !== 'undefined' && process?.env?.NEXT_PUBLIC_WS_URL) ||
+      'ws://localhost:3001/ws',
   })
 
   const [repositoryUpdate, setRepositoryUpdate] = useState<RepositoryUpdate | null>(null)
@@ -333,7 +335,9 @@ export function useRepositoryUpdates(owner?: string, repo?: string) {
 // Opportunity updates hook
 export function useOpportunityUpdates(opportunityId?: string) {
   const { lastMessage, isConnected, connect, disconnect } = useWebSocket({
-    url: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001/ws',
+    url:
+      (typeof window !== 'undefined' && process?.env?.NEXT_PUBLIC_WS_URL) ||
+      'ws://localhost:3001/ws',
   })
 
   const [opportunityUpdate, setOpportunityUpdate] = useState<OpportunityUpdate | null>(null)
@@ -372,7 +376,9 @@ export function useOpportunityUpdates(opportunityId?: string) {
 // User notifications hook
 export function useUserNotifications() {
   const { lastMessage, isConnected, connect, disconnect, sendMessage } = useWebSocket({
-    url: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001/ws',
+    url:
+      (typeof window !== 'undefined' && process?.env?.NEXT_PUBLIC_WS_URL) ||
+      'ws://localhost:3001/ws',
   })
 
   const [notifications, setNotifications] = useState<UserNotification[]>([])
