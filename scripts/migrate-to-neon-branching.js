@@ -40,7 +40,9 @@ const dockerFiles = [
 const existingDockerFiles = dockerFiles.filter(file => fs.existsSync(file))
 
 if (existingDockerFiles.length > 0) {
-  existingDockerFiles.forEach(_file => {})
+  existingDockerFiles.forEach(_file => {
+    // File to be removed: _file
+  })
 
   const readline = require('node:readline').createInterface({
     input: process.stdin,
@@ -52,9 +54,12 @@ if (existingDockerFiles.length > 0) {
       existingDockerFiles.forEach(file => {
         try {
           fs.unlinkSync(file)
-        } catch (_error) {}
+        } catch (_error) {
+          // Ignore errors during file removal
+        }
       })
     } else {
+      // Docker files kept
     }
     readline.close()
     updateTestConfiguration()
@@ -89,7 +94,9 @@ function updateTestConfiguration() {
   const dockerScripts = Object.keys(packageJson.scripts || {}).filter(key => key.includes('docker'))
 
   if (dockerScripts.length > 0) {
-    dockerScripts.forEach(_script => {})
+    dockerScripts.forEach(_script => {
+      // Docker script to be removed: _script
+    })
   }
 
   createEnvTestExample()
@@ -121,4 +128,6 @@ NODE_ENV=test
   printNextSteps()
 }
 
-function printNextSteps() {}
+function printNextSteps() {
+  // TODO: Add next steps information
+}

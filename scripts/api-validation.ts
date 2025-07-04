@@ -55,17 +55,29 @@ let errorTests = 0
 let skippedTests = 0
 
 // Utility functions
-function printHeader(_title: string): void {}
+function printHeader(_title: string): void {
+  // Print header with title
+}
 
-function printTest(_name: string): void {}
+function printTest(_name: string): void {
+  // Print test name
+}
 
-function printSuccess(_message: string): void {}
+function printSuccess(_message: string): void {
+  // Print success message
+}
 
-function printFailure(_message: string): void {}
+function printFailure(_message: string): void {
+  // Print failure message
+}
 
-function printError(_message: string): void {}
+function printError(_message: string): void {
+  // Print error message
+}
 
-function printSkip(_message: string): void {}
+function printSkip(_message: string): void {
+  // Print skip message
+}
 
 // Response schemas for validation
 const HealthResponseSchema = z.object({
@@ -137,7 +149,7 @@ async function runTest(
   endpoint: string,
   options: {
     headers?: Record<string, string>
-    body?: any
+    body?: unknown
     expectedStatus?: number
     description?: string
     schema?: z.ZodSchema
@@ -194,7 +206,7 @@ async function runTest(
     const responseTime = Date.now() - startTime
     const responseText = await response.text()
 
-    let responseData: any
+    let responseData: unknown
     try {
       responseData = responseText ? JSON.parse(responseText) : null
     } catch {
@@ -286,6 +298,7 @@ async function validateAPIs(): Promise<ValidationSummary> {
   // Check if server is running
   const serverRunning = await isServerRunning()
   if (!serverRunning) {
+    // Server is not running
   }
 
   // 1. Health Check API Tests
@@ -436,7 +449,9 @@ async function saveResults(summary: ValidationSummary): Promise<void> {
 
   try {
     writeFileSync('api-validation-results.json', JSON.stringify(results, null, 2), 'utf8')
-  } catch (_error) {}
+  } catch (_error) {
+    // Error saving results
+  }
 }
 
 // Print final summary
@@ -444,7 +459,9 @@ function printSummary(summary: ValidationSummary): void {
   printHeader('Validation Summary')
 
   if (summary.failed === 0 && summary.errors === 0) {
+    // All tests passed
   } else {
+    // Some tests failed
   }
 }
 

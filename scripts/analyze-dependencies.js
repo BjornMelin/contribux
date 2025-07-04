@@ -150,7 +150,9 @@ function collectUsedModules() {
           usedModules.add(rootPackage)
         }
       }
-    } catch (_error) {}
+    } catch (_error) {
+      // Ignore errors during file processing
+    }
   }
 
   return usedModules
@@ -198,16 +200,21 @@ function analyzeDependencyUsage() {
   const usedModules = collectUsedModules()
   const categories = categorizeDependencies(dependencies, usedModules)
   for (const _dep of categories.used.sort((a, b) => a.name.localeCompare(b.name))) {
+    // Track used dependency
   }
   for (const _dep of categories.buildTools.sort((a, b) => a.name.localeCompare(b.name))) {
+    // Track build tool dependency
   }
   for (const _dep of categories.typeDefinitions.sort((a, b) => a.name.localeCompare(b.name))) {
+    // Track type definition dependency
   }
 
   if (categories.unused.length > 0) {
     for (const _dep of categories.unused.sort((a, b) => a.name.localeCompare(b.name))) {
+      // Track unused dependency
     }
   } else {
+    // No unused dependencies found
   }
 
   // Specific analysis for the unused dependencies found
@@ -222,7 +229,9 @@ function analyzeDependencyUsage() {
     for (const dep of categories.unused) {
       const analysis = specificAnalysis[dep.name]
       if (analysis) {
+        // Specific analysis available for this dependency
       } else {
+        // No specific analysis for this dependency
       }
     }
   }
@@ -291,8 +300,10 @@ function processFileImportsForPaths(filePath) {
 function displayOptimizationOpportunities(nonOptimalImports) {
   if (nonOptimalImports.length > 0) {
     for (const _item of nonOptimalImports.slice(0, 10)) {
+      // Process non-optimal import
     }
     if (nonOptimalImports.length > 10) {
+      // More than 10 non-optimal imports found
     }
   }
 }
@@ -322,7 +333,9 @@ function analyzeImportPaths() {
 
       // Collect non-optimal imports
       nonOptimalImports.push(...results.nonOptimal)
-    } catch (_error) {}
+    } catch (_error) {
+      // Ignore errors during file processing
+    }
   }
 
   displayOptimizationOpportunities(nonOptimalImports)
@@ -338,17 +351,22 @@ function main() {
   const importAnalysis = analyzeImportPaths()
 
   if (dependencyAnalysis.unused.length > 0) {
+    // Unused dependencies found
   }
 
   if (importAnalysis.nonOptimalImports.length > 0) {
+    // Non-optimal imports found
   }
 
   const overallScore =
     100 - dependencyAnalysis.unused.length * 5 - importAnalysis.nonOptimalImports.length * 2
 
   if (overallScore >= 90) {
+    // Excellent score
   } else if (overallScore >= 70) {
+    // Good score
   } else {
+    // Needs improvement
   }
 }
 

@@ -128,7 +128,9 @@ class CleanupOptimizer {
       if (optimized > 0) {
         this.cleanupActions.push(`Optimized node_modules (saved ${this.formatBytes(optimized)})`)
       }
-    } catch (_error) {}
+    } catch (_error) {
+      // Error during optimization
+    }
 
     return optimized
   }
@@ -212,7 +214,9 @@ class CleanupOptimizer {
       if (cleaned > 0) {
         this.cleanupActions.push(`Cleaned pnpm cache (saved ${this.formatBytes(cleaned)})`)
       }
-    } catch (_error) {}
+    } catch (_error) {
+      // Error during optimization
+    }
 
     return cleaned
   }
@@ -243,7 +247,9 @@ class CleanupOptimizer {
         await fs.writeFile(packagePath, JSON.stringify(packageJson, null, 2))
         this.cleanupActions.push('Optimized package.json')
       }
-    } catch (_error) {}
+    } catch (_error) {
+      // Error during optimization
+    }
   }
 
   // Run full cleanup

@@ -32,14 +32,19 @@ async function analyzeMigrationFiles() {
 
     // Analyze migration content
     if (content.includes('CREATE TABLE IF NOT EXISTS webauthn_credentials')) {
+      // WebAuthn credentials table found
     }
     if (content.includes('REFERENCES users(id)')) {
+      // Foreign key reference found
     }
     if (content.includes('CREATE INDEX')) {
+      // Index creation found
     }
     if (content.includes('COMMENT ON')) {
+      // Table comments found
     }
   } else {
+    // Migration file not found
   }
 
   // Check existing database schema
@@ -47,7 +52,9 @@ async function analyzeMigrationFiles() {
   if (fs.existsSync(schemaPath)) {
     const schemaContent = fs.readFileSync(schemaPath, 'utf8')
     if (schemaContent.includes('webauthn_credentials')) {
+      // WebAuthn credentials schema found
     } else {
+      // WebAuthn credentials schema not found
     }
   }
 }
@@ -58,19 +65,25 @@ async function analyzeSchemaIntegration() {
   if (fs.existsSync(drizzleSchemaPath)) {
     const schemaContent = fs.readFileSync(drizzleSchemaPath, 'utf8')
     if (schemaContent.includes('webauthnCredentials')) {
+      // Drizzle webauthn credentials found
     }
     if (schemaContent.includes('webauthnCredentialsRelations')) {
+      // Drizzle webauthn relations found
     }
     if (schemaContent.includes('WebAuthnCredential')) {
+      // WebAuthn credential type found
     }
     if (schemaContent.includes('WebAuthnCredentialDataSchema')) {
+      // WebAuthn data schema found
     }
   } else {
+    // Drizzle schema not found
   }
 
   // Check WebAuthn implementation files
   const webauthnServerPath = path.join(__dirname, '../src/lib/security/webauthn/server.ts')
   if (fs.existsSync(webauthnServerPath)) {
+    // WebAuthn server implementation found
   }
 
   const webauthnApiPath = path.join(__dirname, '../src/app/api/security/webauthn')
@@ -85,12 +98,14 @@ async function analyzeMigrationInfrastructure() {
     const configContent = fs.readFileSync(drizzleConfigPath, 'utf8')
     if (configContent.includes('./src/lib/db/migrations')) {
     } else if (configContent.includes('./drizzle/')) {
+      // Drizzle configuration found
     }
   }
 
   // Check custom migration runner
   const customMigrationPath = path.join(__dirname, '../scripts/db-migrations/run-migrations.js')
   if (fs.existsSync(customMigrationPath)) {
+    // Custom migration runner found
   }
 
   // Check package.json migration commands
@@ -100,8 +115,10 @@ async function analyzeMigrationInfrastructure() {
     const packageJson = JSON.parse(packageContent)
 
     if (packageJson.scripts['db:migrate']) {
+      // Migration script found
     }
     if (packageJson.scripts['db:migrate:status']) {
+      // Migration status script found
     }
   }
 
@@ -112,7 +129,9 @@ async function analyzeMigrationInfrastructure() {
   }
 }
 
-async function generateRecommendations() {}
+async function generateRecommendations() {
+  // Generate migration recommendations
+}
 
 // Run the analysis
 if (require.main === module) {

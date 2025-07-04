@@ -16,6 +16,44 @@ if (process.env.NODE_ENV === 'test' || !process.env.DATABASE_URL) {
 
 const { neon } = require('@neondatabase/serverless')
 
+// Helper function to check if migration is already applied
+async function isMigrationApplied(sql, filename) {
+  const existing = await sql`
+    SELECT applied_at FROM schema_migrations WHERE filename = ${filename}
+  `
+  return existing.length > 0
+}
+
+// Helper function to resolve migration file path
+function resolveMigrationPath(group, filename) {
+  if (filename === '02-schema.sql') {
+    return path.join(__dirname, '../../database/schema.sql')
+  }
+  return path.join(group.directory, filename)
+}
+
+// Helper function to execute SQL statements from file
+async function executeMigrationStatements(sql, content) {
+  const statements = content
+    .split(/;\s*$/m)
+    .filter(stmt => stmt.trim().length > 0)
+    .map(stmt => `${stmt.trim()};`)
+
+  for (const statement of statements) {
+    if (statement.trim() && !statement.includes('\\i')) {
+      await sql.query(statement)
+    }
+  }
+}
+
+// Helper function to record migration
+async function recordMigration(sql, filename, group) {
+  await sql`
+    INSERT INTO schema_migrations (filename, migration_group)
+    VALUES (${filename}, ${group.name.toLowerCase().replace(' ', '_')})
+  `
+}
+
 async function runMigrations() {
   const databaseUrl = process.env.DATABASE_URL_TEST || process.env.DATABASE_URL
 
@@ -54,20 +92,11 @@ async function runMigrations() {
     for (const group of migrationGroups) {
       for (const filename of group.files) {
         // Check if already applied
-        const existing = await sql`
-          SELECT applied_at FROM schema_migrations WHERE filename = ${filename}
-        `
-
-        if (existing.length > 0) {
+        if (await isMigrationApplied(sql, filename)) {
           continue
         }
 
-        let filePath = path.join(group.directory, filename)
-
-        // Handle schema.sql reference in 02-schema.sql
-        if (filename === '02-schema.sql') {
-          filePath = path.join(__dirname, '../../database/schema.sql')
-        }
+        const filePath = resolveMigrationPath(group, filename)
 
         if (!fs.existsSync(filePath)) {
           if (fs.existsSync(group.directory)) {
@@ -84,27 +113,12 @@ async function runMigrations() {
         const content = fs.readFileSync(filePath, 'utf8')
 
         try {
-          // Split content by semicolons and execute each statement
-          const statements = content
-            .split(/;\s*$/m)
-            .filter(stmt => stmt.trim().length > 0)
-            .map(stmt => `${stmt.trim()};`)
-
-          for (const statement of statements) {
-            if (statement.trim() && !statement.includes('\\i')) {
-              // Use the query method for raw SQL
-              await sql.query(statement)
-            }
-          }
-
-          // Record migration
-          await sql`
-            INSERT INTO schema_migrations (filename, migration_group)
-            VALUES (${filename}, ${group.name.toLowerCase().replace(' ', '_')})
-          `
+          await executeMigrationStatements(sql, content)
+          await recordMigration(sql, filename, group)
         } catch (error) {
           // For WebAuthn migration, provide helpful context
           if (filename.includes('webauthn')) {
+            // Handle WebAuthn migration error
           }
 
           throw error
@@ -159,9 +173,12 @@ async function runMigrations() {
       `
 
       if (foreignKeys.length > 0) {
+        // Foreign keys found
       } else {
+        // No foreign keys found
       }
     } else {
+      // WebAuthn credentials table not found
     }
     const appliedMigrations = await sql`
       SELECT filename, migration_group, applied_at 
@@ -170,7 +187,9 @@ async function runMigrations() {
       LIMIT 10
     `
 
-    appliedMigrations.forEach(_m => {})
+    appliedMigrations.forEach(_m => {
+      // Track applied migration
+    })
   } catch (_error) {
     process.exit(1)
   }
@@ -206,7 +225,9 @@ async function checkMigrationStatus() {
       FROM schema_migrations 
       ORDER BY applied_at ASC
     `
-    appliedMigrations.forEach(_m => {})
+    appliedMigrations.forEach(_m => {
+      // Track applied migration
+    })
 
     // Check for pending migrations
     const allMigrationFiles = [
@@ -221,8 +242,11 @@ async function checkMigrationStatus() {
     const pendingMigrations = allMigrationFiles.filter(f => !appliedFileNames.includes(f))
 
     if (pendingMigrations.length > 0) {
-      pendingMigrations.forEach(_f => {})
+      pendingMigrations.forEach(_f => {
+        // Track pending migration
+      })
     } else {
+      // No pending migrations
     }
     const tables = await sql`
       SELECT tablename FROM pg_tables 

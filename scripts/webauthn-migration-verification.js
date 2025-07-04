@@ -77,7 +77,9 @@ async function verifyTableStructure(sql) {
     const missingColumns = expectedColumns.filter(col => !actualColumns.includes(col))
 
     if (missingColumns.length > 0) {
+      // Missing columns detected
     } else {
+      // All columns present
     }
 
     // Check indexes
@@ -96,7 +98,9 @@ async function verifyTableStructure(sql) {
     `
 
     const _foreignKeys = constraints.filter(c => c.contype === 'f')
-  } catch (_error) {}
+  } catch (_error) {
+    // Error checking constraints
+  }
 }
 
 async function applyWebAuthnMigration(sql) {
@@ -149,7 +153,9 @@ async function verifyDatabaseIntegrity(sql) {
     `
 
     if (usersTable[0].exists) {
+      // Users table exists
     } else {
+      // Users table missing
     }
 
     // Test WebAuthn table if it exists
@@ -165,7 +171,9 @@ async function verifyDatabaseIntegrity(sql) {
       // Test basic operations
       const _count = await sql`SELECT COUNT(*) as count FROM webauthn_credentials`
     }
-  } catch (_error) {}
+  } catch (_error) {
+    // Error checking constraints
+  }
 }
 
 async function generateMigrationReport(sql) {
@@ -195,7 +203,9 @@ async function generateMigrationReport(sql) {
     if (webauthnMigration.length > 0) {
     } else {
     }
-  } catch (_error) {}
+  } catch (_error) {
+    // Error checking constraints
+  }
 }
 
 async function simulateMigrationVerification() {}

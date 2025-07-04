@@ -159,7 +159,9 @@ function findUnusedImports() {
     try {
       const fileUnusedImports = processFileImports(filePath)
       unusedImports.push(...fileUnusedImports)
-    } catch (_error) {}
+    } catch (_error) {
+      // Ignore errors during file processing
+    }
   }
 
   return unusedImports
@@ -230,7 +232,9 @@ function collectUsedDependencies() {
           usedDependencies.add(packageName)
         }
       }
-    } catch (_error) {}
+    } catch (_error) {
+      // Ignore errors during file processing
+    }
   }
 
   return usedDependencies
@@ -283,8 +287,10 @@ function findCircularDependencies() {
 function displayUnusedImports(unusedImports) {
   if (unusedImports.length > 0) {
     for (const _item of unusedImports) {
+      // Process unused import
     }
   } else {
+    // No unused imports found
   }
 }
 
@@ -294,8 +300,10 @@ function displayUnusedImports(unusedImports) {
 function displayUnusedDependencies(unusedDependencies) {
   if (unusedDependencies.length > 0) {
     for (const _dep of unusedDependencies) {
+      // Process unused dependency
     }
   } else {
+    // No unused dependencies found
   }
 }
 
@@ -305,8 +313,10 @@ function displayUnusedDependencies(unusedDependencies) {
 function displayCircularDependencies(circularDeps) {
   if (circularDeps.length > 0) {
     for (const _dep of circularDeps) {
+      // Process circular dependency
     }
   } else {
+    // No circular dependencies found
   }
 }
 
@@ -330,7 +340,9 @@ function main() {
   const totalIssues = unusedImports.length + unusedDependencies.length + circularDeps.length
 
   if (totalIssues === 0) {
+    // No issues found - analysis complete
   } else {
+    // Issues found - review needed
   }
 }
 

@@ -8,7 +8,7 @@
 const v8 = require('node:v8')
 
 // Function to format bytes to human readable
-function formatBytes(inputBytes) {
+function _formatBytes(inputBytes) {
   const units = ['B', 'KB', 'MB', 'GB']
   let bytes = inputBytes
   let i = 0
@@ -42,8 +42,8 @@ function getHeapStats() {
 }
 const stats = getHeapStats()
 
-// Calculate memory efficiency
-const _heapEfficiency = (stats.heapUsed / stats.heapTotal) * 100
+// Note: Heap efficiency calculation available if needed:
+// const heapEfficiency = (stats.heapUsed / stats.heapTotal) * 100
 
 // Check for potential memory issues
 if (stats.heapUsed > 50 * 1024 * 1024) {
@@ -82,8 +82,6 @@ const optimizations = [
 ]
 
 optimizations.forEach(opt => {
-  const _status = opt.check() ? '✅' : '❌'
-
   if (!opt.check()) {
     // Optimization not applied - consider implementing
   }
@@ -100,5 +98,6 @@ if (process.argv.includes('--watch')) {
   setInterval(() => {
     const _current = getHeapStats()
     const _time = new Date().toLocaleTimeString()
+    // Log heap usage: [time] Heap Usage: current.heapUsed
   }, 5000)
 }

@@ -18,7 +18,9 @@ class DependencyAnalyzer {
     this.allDependencies = { ...this.dependencies, ...this.devDependencies }
   }
 
-  log(_message, _emoji = '📦') {}
+  log(_message, _emoji = '📦') {
+    // Log message with emoji
+  }
 
   async runCompleteAnalysis() {
     await this.analyzeSizes()
@@ -37,7 +39,9 @@ class DependencyAnalyzer {
       execSync('pnpm audit --audit-level moderate', { stdio: 'inherit' })
     } catch (error) {
       if (error.stdout?.includes('No known vulnerabilities')) {
+        // No vulnerabilities found
       } else {
+        // Vulnerabilities found
       }
     }
   }
@@ -73,13 +77,15 @@ class DependencyAnalyzer {
       },
     ]
 
-    patterns.forEach(({ regex, name, current }) => {
+    patterns.forEach(({ regex, _name, current }) => {
       const matches = Object.keys(this.allDependencies).filter(dep => regex.test(dep))
       if (matches.length > 1) {
         const extras = matches.filter(dep => !current.includes(dep))
         if (extras.length > 0) {
+          // Extra dependencies found
         }
       } else if (matches.length > 0) {
+        // Dependencies found
       }
     })
   }
@@ -91,9 +97,13 @@ class DependencyAnalyzer {
     try {
       const result = execSync('pnpm outdated --format=table', { encoding: 'utf8' })
       if (result.trim()) {
+        // Outdated packages found
       } else {
+        // No outdated packages
       }
-    } catch (_error) {}
+    } catch (_error) {
+      // Error checking outdated packages
+    }
   }
 
   /**
@@ -108,6 +118,7 @@ class DependencyAnalyzer {
         this.suggestOptimization(pkg.name)
       })
     } else {
+      // No heavy packages found
     }
   }
 
@@ -152,7 +163,9 @@ class DependencyAnalyzer {
   async analyzeSizes() {
     const results = this.getSizeAnalysis()
 
-    results.slice(0, 10).forEach(_pkg => {})
+    results.slice(0, 10).forEach(_pkg => {
+      // Process package size data
+    })
 
     // Calculate total size
     const _totalSize = results.reduce((sum, pkg) => sum + pkg.size, 0)
@@ -173,7 +186,9 @@ class DependencyAnalyzer {
   checkDeduplication() {
     try {
       execSync('pnpm dedupe --check', { stdio: 'pipe' })
-    } catch (_error) {}
+    } catch (_error) {
+      // Error checking outdated packages
+    }
   }
 
   /**
@@ -213,8 +228,9 @@ class DependencyAnalyzer {
   /**
    * Format bytes to human readable string
    */
-  formatBytes(bytes) {
+  formatBytes(inputBytes) {
     const units = ['B', 'KB', 'MB', 'GB']
+    let bytes = inputBytes
     let i = 0
     while (bytes >= 1024 && i < units.length - 1) {
       bytes /= 1024

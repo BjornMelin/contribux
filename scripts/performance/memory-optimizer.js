@@ -5,10 +5,8 @@
  * Analyzes and optimizes memory usage across the entire application
  */
 
-const { performance } = require('node:perf_hooks')
 const v8 = require('node:v8')
 const fs = require('node:fs').promises
-const _path = require('node:path')
 
 class MemoryOptimizer {
   constructor() {
@@ -18,8 +16,9 @@ class MemoryOptimizer {
   }
 
   // Format bytes to human readable
-  formatBytes(bytes) {
+  formatBytes(inputBytes) {
     const units = ['B', 'KB', 'MB', 'GB']
+    let bytes = inputBytes
     let i = 0
     while (bytes >= 1024 && i < units.length - 1) {
       bytes /= 1024
@@ -109,7 +108,9 @@ class MemoryOptimizer {
       })
       .filter(Boolean)
 
-    growth.forEach(_g => {})
+    growth.forEach(_g => {
+      // Process memory growth data
+    })
   }
 
   // Generate optimization recommendations
@@ -160,9 +161,11 @@ class MemoryOptimizer {
     })
 
     if (this.recommendations.length === 0) {
+      // No recommendations needed
     } else {
       this.recommendations.forEach(rec => {
         const _icon = rec.severity === 'high' ? '🔴' : rec.severity === 'medium' ? '🟡' : '🟢'
+        // Process recommendation with icon
       })
     }
   }
@@ -238,6 +241,7 @@ async function main() {
       process.exit(0)
     })
   } else {
+    // Run single analysis
   }
 }
 

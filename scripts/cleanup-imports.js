@@ -188,11 +188,15 @@ function main() {
         totalChanges += changes
         _filesModified++
       }
-    } catch (_error) {}
+    } catch (_error) {
+      // Ignore errors during file processing
+    }
   }
 
   if (totalChanges > 0) {
+    // Changes were made - files have been processed
   } else {
+    // No changes needed - all imports are already optimized
   }
 }
 
