@@ -13,6 +13,8 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : 4,
+  /* Timeout for each test */
+  timeout: process.env.CI ? 30000 : 60000,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [['html'], ['json', { outputFile: 'playwright-report.json' }], ['line']],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
@@ -36,41 +38,87 @@ export default defineConfig({
   },
 
   /* Configure projects for major browsers */
-  projects: [
-    {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
-
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    },
-
-    /* Test against mobile viewports. */
-    {
-      name: 'Mobile Chrome',
-      use: { ...devices['Pixel 5'] },
-    },
-    {
-      name: 'Mobile Safari',
-      use: { ...devices['iPhone 12'] },
-    },
-  ],
+  projects: process.env.CI
+    ? [
+        // CI: Only run essential browsers for speed
+        {
+          name: 'chromium',
+          use: {
+            ...devices['Desktop Chrome'],
+            // CI-specific optimizations
+            launchOptions: {
+              args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+                '--no-first-run',
+                '--no-default-browser-check',
+                '--disable-background-timer-throttling',
+                '--disable-backgrounding-occluded-windows',
+                '--disable-renderer-backgrounding',
+              ],
+            },
+          },
+        },
+        {
+          name: 'Mobile Chrome',
+          use: {
+            ...devices['Pixel 5'],
+            launchOptions: {
+              args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+              ],
+            },
+          },
+        },
+      ]
+    : [
+        // Local development: Full browser coverage
+        {
+          name: 'chromium',
+          use: { ...devices['Desktop Chrome'] },
+        },
+        {
+          name: 'firefox',
+          use: { ...devices['Desktop Firefox'] },
+        },
+        {
+          name: 'webkit',
+          use: { ...devices['Desktop Safari'] },
+        },
+        {
+          name: 'Mobile Chrome',
+          use: { ...devices['Pixel 5'] },
+        },
+        {
+          name: 'Mobile Safari',
+          use: { ...devices['iPhone 12'] },
+        },
+      ],
 
   /* Run your local dev server before starting the tests */
   webServer: {
     command: 'pnpm dev',
     url: 'http://127.0.0.1:3000',
     reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000,
+    timeout: process.env.CI ? 60 * 1000 : 120 * 1000, // Reduced timeout for CI
     env: {
-      NODE_OPTIONS: '--max-old-space-size=4096',
+      NODE_OPTIONS: process.env.CI 
+        ? '--max-old-space-size=2048' // Reduced memory for CI
+        : '--max-old-space-size=4096',
+      NODE_ENV: 'development',
+      // Optimize Next.js for faster startup
+      NEXT_TELEMETRY_DISABLED: '1',
+      NEXT_PRIVATE_STANDALONE: '1',
     },
+    // CI-specific server optimizations
+    ...(process.env.CI && {
+      stderr: 'pipe',
+      stdout: 'pipe',
+    }),
   },
 })

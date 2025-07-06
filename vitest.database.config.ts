@@ -5,7 +5,7 @@ import tsconfigPaths from 'vite-tsconfig-paths'
 import { configDefaults, defineConfig } from 'vitest/config'
 
 export default defineConfig({
-  cacheDir: '.vitest/cache-integration',
+  cacheDir: '.vitest/cache-database',
 
   plugins: [tsconfigPaths(), react()],
 
@@ -38,10 +38,11 @@ export default defineConfig({
 
   test: {
     globals: true,
-    environment: 'jsdom',
+    environment: 'node',
 
     include: [
-      'tests/integration/**/*.{test,spec}.{js,ts,tsx}',
+      'tests/integration/database/**/*.{test,spec}.{js,ts,tsx}',
+      'tests/lib/db/**/*.{test,spec}.{js,ts,tsx}',
     ],
 
     exclude: [
@@ -54,9 +55,9 @@ export default defineConfig({
       '.next/**/*',
     ],
 
-    setupFiles: ['./tests/setup-integration.ts'],
+    setupFiles: ['./tests/setup-database.ts'],
 
-    // Sequential execution for integration tests to prevent DB conflicts
+    // Sequential execution for database tests
     pool: 'threads',
     poolOptions: {
       threads: {
@@ -66,18 +67,18 @@ export default defineConfig({
       },
     },
 
-    // Integration test specific timeouts
-    testTimeout: 30000,
-    hookTimeout: 15000,
-    retry: 2,
+    // Database-specific timeouts
+    testTimeout: 20000,
+    hookTimeout: 10000,
+    retry: 1,
 
-    // Optimized for CI
+    // CI optimized reporting
     reporters: process.env.CI ? ['verbose'] : ['default'],
     outputFile: {
-      json: './integration-test-results.json',
+      json: './database-test-results.json',
     },
 
-    // Environment configuration for integration tests
+    // Database test environment
     env: {
       NODE_ENV: 'test',
       CI: process.env.CI || 'false',
