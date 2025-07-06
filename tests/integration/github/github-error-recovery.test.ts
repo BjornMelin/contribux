@@ -82,18 +82,20 @@ describe('GitHub Error Recovery & Resilience Integration', () => {
       ).rejects.toThrow(GitHubError)
     })
 
-    it('should implement circuit breaker patterns', async () => {
+    it('should handle multiple failures with Octokit retry behavior', async () => {
+      // NOTE: This test verifies Octokit's built-in retry behavior, not a custom circuit breaker
+      // Octokit's retry plugin automatically handles backoff and failure scenarios
       const client = new GitHubClient({
         auth: { type: 'token', token: 'test_token' },
         retry: { retries: 2 },
       })
 
-      // Simulate multiple failures to trigger circuit breaker
+      // Simulate multiple failures to test retry behavior
       const failurePromises = Array.from({ length: 5 }, (_, index) =>
         client
           .getRepository({
-            owner: 'circuit-breaker-test',
-            repo: `circuit-breaker-repo-${index}`,
+            owner: 'retry-test',
+            repo: `retry-test-repo-${index}`,
           })
           .catch(error => ({ error, index }))
       )

@@ -121,6 +121,13 @@ export interface GitHubClientTest {
  * - Built-in Octokit retry and throttling
  * - Simplified configuration (85% complexity reduction)
  * - Zero-maintenance serverless architecture
+ *
+ * NOTE: This client uses Octokit's built-in retry and throttling plugins
+ * instead of custom circuit breaker logic. The retry plugin automatically:
+ * - Retries failed requests with exponential backoff
+ * - Handles rate limiting with intelligent retry decisions
+ * - Prevents retry on non-retryable errors (abuse, 4xx errors)
+ * - Integrates with GitHub's retry-after headers
  */
 
 import { auth } from '@/lib/auth'

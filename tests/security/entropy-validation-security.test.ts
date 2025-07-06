@@ -51,11 +51,11 @@ describe('Entropy Validation Security', () => {
     it('should calculate higher entropy for random-like strings', async () => {
       const { calculateShannonEntropy } = await import('@/lib/validation/env')
 
-      // Test fixtures - fake high entropy strings for testing entropy calculation
+      // Test fixtures - clearly fake high entropy strings for testing entropy calculation
       const randomLikeStrings = [
-        'fake_high_entropy_string_for_testing_only_Kf9Hq3Zx8Wm2Tn6Vy4Bu1Pg5R',
-        'fake_test_hex_string_a1b2c3d4e5f6fedcba0987654321abcdef123456789012',
-        'fake_symbols_string_9K_f7H_q3Z_x8W_m2T_n6V_y4B_u1P_g5R_k0J_c7L_v9A',
+        'test-secret-for-testing-only-not-real-Kf9Hq3Zx8Wm2Tn6Vy4Bu1Pg5R7N3W',
+        'mock-hex-string-for-tests-only-a1b2c3d4e5f6fedcba0987654321abcdef1234',
+        'fake-test-secret-not-real-9K_f7H_q3Z_x8W_m2T_n6V_y4B_u1P_g5R_k0J_c7',
       ]
 
       for (const str of randomLikeStrings) {
@@ -129,12 +129,12 @@ describe('Entropy Validation Security', () => {
     it('should accept JWT secrets with good entropy and uniqueness', async () => {
       const { validateJwtSecret } = await import('@/lib/validation/env')
 
-      // Test fixtures - fake JWT secrets for testing validation
+      // Test fixtures - clearly fake JWT secrets for testing validation only
       const goodSecrets = [
-        'fake_test_jwt_secret_with_good_entropy_for_testing_only_Kf9Hq3Zx8Wm2Tn6Vy4Bu1Pg5Rk0Jc7Lv',
-        'fake_secure_jwt_secret_with_sufficient_length_and_entropy_for_testing_32chars',
-        'fake_jwt_secret_with_mixed_characters_and_numbers_for_testing_only_1234567890',
-        'fake_generated_jwt_secret_for_testing_only_abcdef1234567890xyz_fake_test_key',
+        'test-jwt-secret-for-testing-only-not-real-with-good-entropy-Kf9Hq3Zx8Wm2Tn6Vy4Bu1Pg5Rk0Jc7',
+        'mock-jwt-secret-for-tests-only-with-sufficient-length-and-entropy-for-testing-32chars-fake',
+        'fake-test-jwt-not-real-with-mixed-characters-and-numbers-for-testing-only-1234567890-mock',
+        'test-generated-jwt-secret-for-testing-only-abcdef1234567890xyz-not-a-real-secret-test-key',
       ]
 
       for (const secret of goodSecrets) {
@@ -194,12 +194,12 @@ describe('Entropy Validation Security', () => {
     it('should accept encryption keys with good entropy', async () => {
       const { getEncryptionKey } = await import('@/lib/validation/env')
 
-      // Test fixtures - fake encryption keys (64 hex chars) for testing validation
+      // Test fixtures - clearly fake encryption keys (64 hex chars) for testing validation only
       const goodKeys = [
-        'fake1234test5678key9012abcdefghijk3456789012345678901234567890abcd',
-        'test9876fake5432encryption1234key5678abcdefgh9012345678901234567890',
-        'fake_test_encryption_key_for_validation_testing_only_1234567890abcdef123',
-        'test_fake_hex_key_for_entropy_validation_abcdef1234567890abcdef123456789',
+        'testkey1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+        'mockkey9876543210fedcba9876543210fedcba9876543210fedcba9876543210',
+        'fakekey0123456789abcdef0123456789abcdef0123456789abcdef0123456789',
+        'notreal1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
       ]
 
       for (const key of goodKeys) {
@@ -272,11 +272,11 @@ describe('Entropy Validation Security', () => {
     it('should accept truly random-looking strings', async () => {
       const { validateJwtSecret, calculateShannonEntropy } = await import('@/lib/validation/env')
 
-      // Test fixtures - fake random-like strings for entropy testing
+      // Test fixtures - clearly fake random-like strings for entropy testing only
       const randomLike = [
-        'fake_test_random_string_with_good_entropy_K9fH3qZx8mWn2Tv6yYu4bBg1pPr5',
-        'test_fake_random_entropy_string_x7Y9mZ2kQr5tAf8nWc1vBp6gHj3dLe0s',
-        'fake_entropy_test_string_for_validation_Lw4Xp9Qs2Rf6Tg1Vh8Nk5Jm3Bd7Ce0Z',
+        'test-string-for-entropy-testing-only-not-real-K9fH3qZx8mWn2Tv6yYu4bBg1pPr5W2',
+        'mock-random-entropy-string-for-tests-only-x7Y9mZ2kQr5tAf8nWc1vBp6gHj3dLe0s',
+        'fake-test-entropy-string-not-real-validation-Lw4Xp9Qs2Rf6Tg1Vh8Nk5Jm3Bd7Ce0Z',
       ]
 
       for (const str of randomLike) {

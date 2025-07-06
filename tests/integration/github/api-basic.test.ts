@@ -6,6 +6,7 @@
  */
 
 import { GitHubClient } from '@/lib/github/client'
+import { parseRateLimitHeader } from '@/lib/github/utils'
 import { afterEach, beforeEach, expect } from 'vitest'
 import type { IntegrationTestContext } from '../infrastructure/test-config'
 import {
@@ -77,8 +78,8 @@ describeIntegration(
       if (context.metricsCollector && repos.headers['x-ratelimit-remaining']) {
         context.metricsCollector.recordRateLimit(
           'core',
-          Number.parseInt(repos.headers['x-ratelimit-remaining']),
-          Number.parseInt(repos.headers['x-ratelimit-limit'] || '5000')
+          parseRateLimitHeader(repos.headers['x-ratelimit-remaining']),
+          parseRateLimitHeader(repos.headers['x-ratelimit-limit'], 5000)
         )
       }
     })

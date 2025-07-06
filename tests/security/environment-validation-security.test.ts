@@ -544,9 +544,9 @@ describe('Environment Variable Security', () => {
     })
 
     it('should validate error message sanitization', async () => {
-      // Test fixture - fake GitHub PAT for testing error message sanitization
+      // Test fixture - clearly fake GitHub PAT for testing error message sanitization only
       const sensitiveValue =
-        'fake_github_pat_test_token_for_error_message_sanitization_testing_only'
+        'test_github_pat_for_testing_only_not_real_error_message_sanitization_testing'
       vi.stubEnv('NODE_ENV', 'production')
       vi.stubEnv('GITHUB_TOKEN', `test-${sensitiveValue}`)
       vi.resetModules()
@@ -558,7 +558,7 @@ describe('Environment Variable Security', () => {
         const errorMessage = error instanceof Error ? error.message : String(error)
         // Should not expose the sensitive token in error message
         expect(errorMessage).not.toContain(sensitiveValue)
-        expect(errorMessage).not.toContain('fake_github_pat_')
+        expect(errorMessage).not.toContain('test_github_pat_')
       }
     })
 

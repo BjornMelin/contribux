@@ -13,6 +13,7 @@
  */
 
 import { GitHubRateLimitError } from '@/lib/github/errors'
+import { parseRateLimitHeader } from '@/lib/github/utils'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 import { mswServer } from '../msw-setup'
@@ -359,7 +360,7 @@ describe('GitHub Rate Limiting', () => {
           expect(headers['x-ratelimit-used']).toBe('5000')
           expect(headers['x-ratelimit-resource']).toBe('core')
 
-          const resetTime = Number.parseInt(headers['x-ratelimit-reset'] || '0')
+          const resetTime = parseRateLimitHeader(headers['x-ratelimit-reset'])
           expect(resetTime).toBeGreaterThan(Math.floor(Date.now() / 1000))
         }
       }

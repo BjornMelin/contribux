@@ -9,6 +9,7 @@
  */
 
 import type { GitHubClient } from '@/lib/github/client'
+import { parseRateLimitHeader } from '@/lib/github/utils'
 import type { IntegrationTestContext } from '../../../integration/infrastructure/test-config'
 
 export interface TokenInfo {
@@ -47,10 +48,10 @@ export async function validateAuthResponse(
 
     // Extract rate limit information
     const rateLimitRemaining = user.headers['x-ratelimit-remaining']
-      ? Number.parseInt(user.headers['x-ratelimit-remaining'])
+      ? parseRateLimitHeader(user.headers['x-ratelimit-remaining'])
       : undefined
     const rateLimitLimit = user.headers['x-ratelimit-limit']
-      ? Number.parseInt(user.headers['x-ratelimit-limit'])
+      ? parseRateLimitHeader(user.headers['x-ratelimit-limit'])
       : undefined
 
     const metrics: AuthMetrics = {
@@ -98,9 +99,9 @@ export function validateRateLimitHeaders(headers: Record<string, string>): void 
   }
 
   // Validate numeric values
-  const limit = Number.parseInt(headers['x-ratelimit-limit'])
-  const remaining = Number.parseInt(headers['x-ratelimit-remaining'])
-  const reset = Number.parseInt(headers['x-ratelimit-reset'])
+  const limit = parseRateLimitHeader(headers['x-ratelimit-limit'])
+  const remaining = parseRateLimitHeader(headers['x-ratelimit-remaining'])
+  const reset = parseRateLimitHeader(headers['x-ratelimit-reset'])
 
   expect(limit).toBeGreaterThan(0)
   expect(remaining).toBeGreaterThanOrEqual(0)

@@ -84,24 +84,24 @@ describe('Startup Security Validation', () => {
       vi.stubEnv('NODE_ENV', 'production')
       vi.stubEnv(
         'DATABASE_URL',
-        'postgresql://user:secure_pass@prod.example.com:5432/app?sslmode=require'
+        'postgresql://user:test_password_for_testing_only@prod.example.com:5432/app?sslmode=require'
       )
       vi.stubEnv(
         'JWT_SECRET',
-        'very-secure-jwt-secret-with-sufficient-length-and-entropy-for-production'
+        'test-jwt-secret-for-testing-only-not-real-with-sufficient-length-and-entropy-prod'
       )
       vi.stubEnv(
         'NEXTAUTH_SECRET',
-        'another-very-secure-secret-with-sufficient-length-and-entropy-prod'
+        'mock-nextauth-secret-for-tests-only-not-real-with-sufficient-length-and-entropy'
       )
       vi.stubEnv(
         'ENCRYPTION_KEY',
-        'a1b2c3d4e5f67890fedcba0987654321abcdef1234567890fedcba0987654321'
+        'testkey1234567890abcdef1234567890abcdef1234567890abcdef1234567890'
       )
-      vi.stubEnv('GITHUB_CLIENT_ID', 'Iv1.a1b2c3d4e5f6g7h8')
+      vi.stubEnv('GITHUB_CLIENT_ID', 'Iv1.test1234567890abc')
       vi.stubEnv(
         'GITHUB_CLIENT_SECRET',
-        'github_pat_11ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdef0123456789abcdef0123'
+        'test_github_pat_for_testing_only_not_real_11ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdef'
       )
       vi.stubEnv('NEXTAUTH_URL', 'https://contribux.ai')
       vi.stubEnv(
@@ -117,7 +117,7 @@ describe('Startup Security Validation', () => {
       vi.stubEnv('NODE_ENV', 'production')
       vi.stubEnv('DATABASE_URL', 'postgresql://user:pass@prod.example.com:5432/app')
       vi.stubEnv('GITHUB_CLIENT_ID', 'Iv1.a1b2c3d4e5f6g7h8')
-      vi.stubEnv('GITHUB_CLIENT_SECRET', 'github_pat_11ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdef')
+      vi.stubEnv('GITHUB_CLIENT_SECRET', 'test_github_pat_for_testing_only_not_real_11ABCDEFGHIJKLMNOPQRSTUVWXYZ01234567')
       vi.stubEnv('NEXTAUTH_URL', 'https://contribux.ai')
       // Missing JWT_SECRET and ENCRYPTION_KEY
 
@@ -130,10 +130,10 @@ describe('Startup Security Validation', () => {
       vi.stubEnv('JWT_SECRET', 'secure-test-token-32chars-minimum-insecure') // Contains 'test'
       vi.stubEnv(
         'ENCRYPTION_KEY',
-        'a1b2c3d4e5f67890fedcba0987654321abcdef1234567890fedcba0987654321'
+        'mockkey9876543210fedcba9876543210fedcba9876543210fedcba9876543210'
       )
       vi.stubEnv('GITHUB_CLIENT_ID', 'Iv1.a1b2c3d4e5f6g7h8')
-      vi.stubEnv('GITHUB_CLIENT_SECRET', 'github_pat_11ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdef')
+      vi.stubEnv('GITHUB_CLIENT_SECRET', 'test_github_pat_for_testing_only_not_real_11ABCDEFGHIJKLMNOPQRSTUVWXYZ01234567')
       vi.stubEnv('NEXTAUTH_URL', 'https://contribux.ai')
 
       expect(() => validateEnvironmentOnStartup()).toThrow(/test.*dev.*keywords/)
@@ -143,10 +143,10 @@ describe('Startup Security Validation', () => {
       // Test inconsistent environment configuration
       vi.stubEnv('NODE_ENV', 'production')
       vi.stubEnv('DATABASE_URL', 'postgresql://user:pass@localhost:5432/dev_db') // localhost in production
-      vi.stubEnv('JWT_SECRET', 'very-secure-jwt-secret-with-sufficient-length-and-entropy')
+      vi.stubEnv('JWT_SECRET', 'test-jwt-secret-for-testing-only-not-real-with-sufficient-length')
       vi.stubEnv(
         'ENCRYPTION_KEY',
-        'a1b2c3d4e5f67890fedcba0987654321abcdef1234567890fedcba0987654321'
+        'mockkey9876543210fedcba9876543210fedcba9876543210fedcba9876543210'
       )
       vi.stubEnv('GITHUB_CLIENT_ID', 'Iv1.a1b2c3d4e5f6g7h8')
       vi.stubEnv('GITHUB_CLIENT_SECRET', 'github_pat_11ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdef')
@@ -162,25 +162,25 @@ describe('Startup Security Validation', () => {
         'DATABASE_URL',
         'postgresql://neondb_owner:secure_pass@ep-morning-sea.us-east-1.aws.neon.tech/neondb?sslmode=require'
       )
-      vi.stubEnv('JWT_SECRET', 'Kf9Hq3Zx8Wm2Tn6Vy4Bu1Pg5Rk0Jc7Lv9Aw3Ez6Qh2Ms8Np4Dt1Fb5Gy7XwRt')
+      vi.stubEnv('JWT_SECRET', 'test-jwt-for-testing-only-Kf9Hq3Zx8Wm2Tn6Vy4Bu1Pg5Rk0Jc7Lv9Aw3Ez6Qh2Ms8Np4Dt1Fb5Gy7')
       vi.stubEnv(
         'NEXTAUTH_SECRET',
-        'another-strong-secret-for-nextauth-with-good-entropy-and-length'
+        'mock-nextauth-secret-for-tests-only-not-real-with-good-entropy-and-length-test'
       )
       vi.stubEnv(
         'ENCRYPTION_KEY',
-        'b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9'
+        'fakekey0123456789abcdef0123456789abcdef0123456789abcdef0123456789'
       )
       vi.stubEnv('GITHUB_CLIENT_ID', 'Iv1.a1b2c3d4e5f6g7h8')
       vi.stubEnv(
         'GITHUB_CLIENT_SECRET',
-        'github_pat_11ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdef0123456789abcdef0123'
+        'test_github_pat_for_testing_only_not_real_11ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdef'
       )
       vi.stubEnv(
         'GOOGLE_CLIENT_ID',
         '123456789-abcdefghijklmnopqrstuvwxyz.apps.googleusercontent.com'
       )
-      vi.stubEnv('GOOGLE_CLIENT_SECRET', 'GOCSPX-abcdefghijklmnopqrstuvwxyz123456')
+      vi.stubEnv('GOOGLE_CLIENT_SECRET', 'GOCSPX-test-google-secret-for-testing-only-not-real')
       vi.stubEnv('NEXTAUTH_URL', 'https://contribux.ai')
       vi.stubEnv(
         'ALLOWED_REDIRECT_URIS',
@@ -200,7 +200,7 @@ describe('Startup Security Validation', () => {
       // Test for patterns that might indicate hardcoded secrets
       const suspiciousPatterns = [
         'sk-1234567890abcdef', // OpenAI API key pattern
-        'github_pat_11AAAA', // GitHub token pattern
+        'test_github_pat_11AAAA_not_real', // GitHub token pattern (fake for testing)
         'AKIA1234567890ABCDEF', // AWS access key pattern
         'xoxb-1234567890-abcdef', // Slack bot token pattern
         'AIza1234567890abcdef', // Google API key pattern
@@ -326,15 +326,15 @@ describe('Startup Security Validation', () => {
       productionViolations.forEach(({ key, value }) => {
         // Set minimum required vars to avoid other validation errors
         vi.stubEnv('DATABASE_URL', 'postgresql://prod.example.com:5432/app')
-        vi.stubEnv('JWT_SECRET', 'very-secure-jwt-secret-with-sufficient-length-and-entropy')
+        vi.stubEnv('JWT_SECRET', 'test-jwt-secret-for-testing-only-not-real-with-sufficient-length')
         vi.stubEnv(
           'ENCRYPTION_KEY',
-          'a1b2c3d4e5f67890fedcba0987654321abcdef1234567890fedcba0987654321'
+          'testkey1234567890abcdef1234567890abcdef1234567890abcdef1234567890'
         )
         vi.stubEnv('GITHUB_CLIENT_ID', 'Iv1.a1b2c3d4e5f6g7h8')
         vi.stubEnv(
           'GITHUB_CLIENT_SECRET',
-          'github_pat_11ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdef'
+          'test_github_pat_for_testing_only_not_real_11ABCDEFGHIJKLMNOPQRSTUVWXYZ01234567'
         )
         vi.stubEnv('NEXTAUTH_URL', 'https://contribux.ai')
 
@@ -351,12 +351,12 @@ describe('Startup Security Validation', () => {
       vi.stubEnv('JWT_SECRET', 'development-jwt-secret-with-sufficient-length-and-entropy-for-dev')
       vi.stubEnv(
         'ENCRYPTION_KEY',
-        'dev1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
+        'testkey1234567890abcdef1234567890abcdef1234567890abcdef1234567890'
       )
       vi.stubEnv('GITHUB_CLIENT_ID', 'Iv1.dev123456789abc')
       vi.stubEnv(
         'GITHUB_CLIENT_SECRET',
-        'github_pat_11DEVDEVDEVDEVDEVDEVDEVDEVDEVDEVDEVDEV0123456789abcdef0123456789abcdef'
+        'test_github_pat_for_dev_testing_only_not_real_11DEVDEVDEVDEVDEVDEVDEVDEVDEVDEVDEVDEV01234'
       )
 
       expect(() => validateEnvironmentOnStartup()).not.toThrow()
@@ -372,7 +372,7 @@ describe('Startup Security Validation', () => {
       )
       vi.stubEnv(
         'ENCRYPTION_KEY',
-        'test567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef12'
+        'mockkey9876543210fedcba9876543210fedcba9876543210fedcba9876543210'
       )
 
       expect(() => validateEnvironmentOnStartup()).not.toThrow()
@@ -396,15 +396,15 @@ describe('Startup Security Validation', () => {
       crossEnvironmentViolations.forEach(({ key, value }) => {
         // Set valid base configuration
         vi.stubEnv('DATABASE_URL', 'postgresql://prod.example.com:5432/app')
-        vi.stubEnv('JWT_SECRET', 'very-secure-jwt-secret-with-sufficient-length-and-entropy')
+        vi.stubEnv('JWT_SECRET', 'test-jwt-secret-for-testing-only-not-real-with-sufficient-length')
         vi.stubEnv(
           'ENCRYPTION_KEY',
-          'a1b2c3d4e5f67890fedcba0987654321abcdef1234567890fedcba0987654321'
+          'fakekey0123456789abcdef0123456789abcdef0123456789abcdef0123456789'
         )
         vi.stubEnv('GITHUB_CLIENT_ID', 'Iv1.a1b2c3d4e5f6g7h8')
         vi.stubEnv(
           'GITHUB_CLIENT_SECRET',
-          'github_pat_11ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdef'
+          'test_github_pat_for_testing_only_not_real_11ABCDEFGHIJKLMNOPQRSTUVWXYZ01234567'
         )
         vi.stubEnv('NEXTAUTH_URL', 'https://contribux.ai')
 
@@ -445,10 +445,10 @@ describe('Startup Security Validation', () => {
           setup: () => {
             vi.stubEnv('NODE_ENV', 'production')
             // Missing DATABASE_URL
-            vi.stubEnv('JWT_SECRET', 'secure-jwt-secret-with-sufficient-length')
+            vi.stubEnv('JWT_SECRET', 'test-jwt-secret-for-testing-only-not-real-32chars')
             vi.stubEnv(
               'ENCRYPTION_KEY',
-              'a1b2c3d4e5f67890fedcba0987654321abcdef1234567890fedcba0987654321'
+              'testkey1234567890abcdef1234567890abcdef1234567890abcdef1234567890'
             )
           },
         },
@@ -460,7 +460,7 @@ describe('Startup Security Validation', () => {
             vi.stubEnv('JWT_SECRET', 'weak')
             vi.stubEnv(
               'ENCRYPTION_KEY',
-              'a1b2c3d4e5f67890fedcba0987654321abcdef1234567890fedcba0987654321'
+              'mockkey9876543210fedcba9876543210fedcba9876543210fedcba9876543210'
             )
           },
         },
@@ -537,14 +537,14 @@ describe('Startup Security Validation', () => {
 
       // With complete configuration, all layers should pass
       vi.stubEnv('DATABASE_URL', 'postgresql://prod.example.com:5432/app?sslmode=require')
-      vi.stubEnv('JWT_SECRET', 'very-secure-jwt-secret-with-sufficient-length-and-entropy')
-      vi.stubEnv('NEXTAUTH_SECRET', 'another-secure-secret-with-sufficient-length-and-entropy')
+      vi.stubEnv('JWT_SECRET', 'test-jwt-secret-for-testing-only-not-real-with-sufficient-length')
+      vi.stubEnv('NEXTAUTH_SECRET', 'mock-nextauth-secret-for-tests-only-not-real-with-sufficient-length')
       vi.stubEnv(
         'ENCRYPTION_KEY',
-        'a1b2c3d4e5f67890fedcba0987654321abcdef1234567890fedcba0987654321'
+        'fakekey0123456789abcdef0123456789abcdef0123456789abcdef0123456789'
       )
-      vi.stubEnv('GITHUB_CLIENT_ID', 'Iv1.a1b2c3d4e5f6g7h8')
-      vi.stubEnv('GITHUB_CLIENT_SECRET', 'github_pat_11ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdef')
+      vi.stubEnv('GITHUB_CLIENT_ID', 'Iv1.test1234567890abc')
+      vi.stubEnv('GITHUB_CLIENT_SECRET', 'test_github_pat_for_testing_only_not_real_11ABCDEFGHIJKLMNOPQRSTUVWXYZ01234567')
       vi.stubEnv('NEXTAUTH_URL', 'https://contribux.ai')
 
       securityLayers.forEach((validationFn, index) => {

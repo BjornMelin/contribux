@@ -324,3 +324,27 @@ export function deepClone<T>(obj: T): T {
   }
   return obj
 }
+
+/**
+ * Safely parse rate limit header values
+ *
+ * Parses numeric values from rate limit headers, returning 0 for any invalid values
+ * including undefined, null, NaN, or non-numeric strings.
+ *
+ * @param value - Header value to parse
+ * @param defaultValue - Default value to return if parsing fails (default: 0)
+ * @returns Parsed number or default value
+ */
+export function parseRateLimitHeader(value: string | undefined | null, defaultValue = 0): number {
+  if (!value) return defaultValue
+  
+  const parsed = Number.parseInt(value, 10)
+  
+  // Return default value if parsing resulted in NaN or invalid number
+  if (Number.isNaN(parsed) || !Number.isFinite(parsed)) {
+    return defaultValue
+  }
+  
+  // Ensure non-negative values for rate limits
+  return Math.max(0, parsed)
+}

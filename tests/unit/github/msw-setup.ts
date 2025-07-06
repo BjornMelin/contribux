@@ -622,7 +622,10 @@ const defaultHandlers = [
   http.get(`${GITHUB_API_BASE}/search/repositories`, ({ request }) => {
     const url = new URL(request.url)
     const q = url.searchParams.get('q') || 'test'
-    const perPage = Number.parseInt(url.searchParams.get('per_page') || '30')
+    const perPageParam = url.searchParams.get('per_page') || '30'
+    const perPage = Number.isNaN(Number.parseInt(perPageParam, 10))
+      ? 30
+      : Number.parseInt(perPageParam, 10)
 
     // Handle specific test queries first
     if (q === 'nonexistentquery12345unique') {
@@ -690,7 +693,10 @@ const defaultHandlers = [
   http.get(`${GITHUB_API_BASE}/repos/:owner/:repo/issues`, ({ request, params }) => {
     const { owner, repo } = params as { owner: string; repo: string }
     const url = new URL(request.url)
-    const perPage = Number.parseInt(url.searchParams.get('per_page') || '30')
+    const perPageParam = url.searchParams.get('per_page') || '30'
+    const perPage = Number.isNaN(Number.parseInt(perPageParam, 10))
+      ? 30
+      : Number.parseInt(perPageParam, 10)
     const state = url.searchParams.get('state') || 'open'
     const authHeader = request.headers.get('authorization')
 
@@ -776,7 +782,9 @@ const defaultHandlers = [
 
     return HttpResponse.json({
       id: 1000,
-      number: Number.parseInt(issue_number),
+      number: Number.isNaN(Number.parseInt(issue_number, 10))
+        ? 1
+        : Number.parseInt(issue_number, 10),
       title: `Issue ${issue_number}`,
       body: `Test issue ${issue_number} description`,
       state: 'open',

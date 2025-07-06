@@ -9,6 +9,7 @@
  * - Basic error scenarios
  */
 
+import { parseRateLimitHeader } from '@/lib/github/utils'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { IntegrationTestContext } from '../../integration/infrastructure/test-config'
 import { describeIntegration, integrationTest } from '../../integration/infrastructure/test-runner'
@@ -191,9 +192,9 @@ describeIntegration(
           validateRateLimitHeaders(response.headers)
 
           // Verify rate limit values are reasonable
-          const limit = Number.parseInt(response.headers['x-ratelimit-limit'])
-          const remaining = Number.parseInt(response.headers['x-ratelimit-remaining'])
-          const used = Number.parseInt(response.headers['x-ratelimit-used'] || '0')
+          const limit = parseRateLimitHeader(response.headers['x-ratelimit-limit'])
+          const remaining = parseRateLimitHeader(response.headers['x-ratelimit-remaining'])
+          const used = parseRateLimitHeader(response.headers['x-ratelimit-used'])
 
           expect(limit).toBeGreaterThan(0)
           expect(remaining).toBeGreaterThanOrEqual(0)
@@ -205,7 +206,7 @@ describeIntegration(
           }
 
           // Check reset time is in the future
-          const resetTime = Number.parseInt(response.headers['x-ratelimit-reset'])
+          const resetTime = parseRateLimitHeader(response.headers['x-ratelimit-reset'])
           const currentTime = Math.floor(Date.now() / 1000)
           expect(resetTime).toBeGreaterThan(currentTime)
         } finally {

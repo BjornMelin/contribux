@@ -10,6 +10,7 @@
  */
 
 import { GitHubClient } from '@/lib/github/client'
+import { parseRateLimitHeader } from '@/lib/github/utils'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { IntegrationTestContext } from '../../integration/infrastructure/test-config'
 import {
@@ -208,8 +209,8 @@ describeIntegration(
           validateRateLimitHeaders(response.headers)
 
           // Additional security validations
-          const limit = Number.parseInt(response.headers['x-ratelimit-limit'])
-          const remaining = Number.parseInt(response.headers['x-ratelimit-remaining'])
+          const limit = parseRateLimitHeader(response.headers['x-ratelimit-limit'])
+          const remaining = parseRateLimitHeader(response.headers['x-ratelimit-remaining'])
 
           // Validate reasonable rate limits (should be > 0 and < 10000 for most scenarios)
           expect(limit).toBeGreaterThan(0)
@@ -218,7 +219,7 @@ describeIntegration(
           expect(remaining).toBeLessThanOrEqual(limit)
 
           // Security check: ensure reset time is reasonable (not too far in future)
-          const resetTime = Number.parseInt(response.headers['x-ratelimit-reset'])
+          const resetTime = parseRateLimitHeader(response.headers['x-ratelimit-reset'])
           const currentTime = Math.floor(Date.now() / 1000)
           const maxResetTime = currentTime + 7200 // 2 hours max
           expect(resetTime).toBeLessThan(maxResetTime)

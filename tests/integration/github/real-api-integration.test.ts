@@ -15,6 +15,7 @@
  */
 
 import { GitHubClient } from '@/lib/github/client'
+import { parseRateLimitHeader } from '@/lib/github/utils'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 // Environment validation
@@ -135,7 +136,7 @@ describe.skipIf(skipRealAPITests)('Real GitHub API Integration Tests', () => {
         duration,
         statusCode: 200,
         cached: false,
-        rateLimitRemaining: Number.parseInt(user.headers['x-ratelimit-remaining'] || '0'),
+        rateLimitRemaining: parseRateLimitHeader(user.headers['x-ratelimit-remaining']),
       })
 
       // Validate response
@@ -200,7 +201,7 @@ describe.skipIf(skipRealAPITests)('Real GitHub API Integration Tests', () => {
         duration: duration1,
         statusCode: repos1.status,
         cached: false,
-        rateLimitRemaining: Number.parseInt(repos1.headers['x-ratelimit-remaining'] || '0'),
+        rateLimitRemaining: parseRateLimitHeader(repos1.headers['x-ratelimit-remaining']),
       })
 
       // Validate first response
@@ -256,7 +257,7 @@ describe.skipIf(skipRealAPITests)('Real GitHub API Integration Tests', () => {
           duration,
           statusCode: orgRepos.status,
           cached: false,
-          rateLimitRemaining: Number.parseInt(orgRepos.headers['x-ratelimit-remaining'] || '0'),
+          rateLimitRemaining: parseRateLimitHeader(orgRepos.headers['x-ratelimit-remaining']),
         })
 
         expect(orgRepos.data).toBeDefined()
@@ -447,7 +448,7 @@ describe.skipIf(skipRealAPITests)('Real GitHub API Integration Tests', () => {
           .then(response => ({
             index: i,
             duration: Date.now(),
-            rateLimitRemaining: Number.parseInt(response.headers['x-ratelimit-remaining'] || '0'),
+            rateLimitRemaining: parseRateLimitHeader(response.headers['x-ratelimit-remaining']),
             success: true,
           }))
           .catch(error => ({
@@ -531,7 +532,7 @@ describe.skipIf(skipRealAPITests)('Real GitHub API Integration Tests', () => {
           duration,
           statusCode: result.status,
           cached: false,
-          rateLimitRemaining: Number.parseInt(result.headers['x-ratelimit-remaining'] || '0'),
+          rateLimitRemaining: parseRateLimitHeader(result.headers['x-ratelimit-remaining']),
         })
       } catch (error) {
         // Network issues are acceptable for this test
