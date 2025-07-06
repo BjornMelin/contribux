@@ -14,9 +14,9 @@ export const BeginnerSidebar = memo(function BeginnerSidebar() {
   })
 
   return (
-    <div className="rounded-lg border bg-white shadow-sm">
+    <div className="rounded-lg border bg-card shadow-sm">
       <div className="border-b p-4">
-        <h3 className="font-semibold text-gray-900 text-lg">Beginner Opportunities</h3>
+        <h3 className="font-semibold text-card-foreground text-lg">Beginner Opportunities</h3>
       </div>
       <div className="p-4">
         {beginnerLoading ? (
@@ -24,7 +24,7 @@ export const BeginnerSidebar = memo(function BeginnerSidebar() {
             {Array.from({ length: 3 }, (_, _i) => (
               <div
                 key={`skeleton-beginner-${crypto.randomUUID()}`}
-                className="h-16 rounded bg-gray-200"
+                className="h-16 rounded bg-muted"
               />
             ))}
           </div>
@@ -33,15 +33,15 @@ export const BeginnerSidebar = memo(function BeginnerSidebar() {
             {beginnerOpportunities?.data?.opportunities?.slice(0, 5).map(opportunity => (
               <div
                 key={opportunity.id}
-                className="rounded-md border p-3 transition-colors hover:bg-gray-50"
+                className="rounded-md border p-3 transition-colors hover:bg-muted"
               >
-                <h4 className="line-clamp-2 font-medium text-gray-900 text-sm">
+                <h4 className="line-clamp-2 font-medium text-card-foreground text-sm">
                   {opportunity.title}
                 </h4>
-                <div className="mt-1 flex items-center space-x-2 text-gray-500 text-xs">
+                <div className="mt-1 flex items-center space-x-2 text-muted-foreground text-xs">
                   <span>🎯 {opportunity.matchScore}/10</span>
                   {opportunity.metadata?.goodFirstIssue && (
-                    <span className="rounded bg-green-100 px-1 text-green-800">
+                    <span className="rounded bg-success/10 px-1 text-success">
                       Good First Issue
                     </span>
                   )}
