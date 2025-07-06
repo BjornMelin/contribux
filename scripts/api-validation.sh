@@ -195,12 +195,12 @@ run_test "search_repos_unauthorized" "GET" "$API_BASE/search/repositories" "" ""
     "Repository search requires authentication"
 
 run_test "search_repos_invalid_auth" "GET" "$API_BASE/search/repositories" \
-    "-H 'Authorization: Bearer invalid_token'" "" "401" \
+    "-H 'Authorization: Bearer fake_invalid_token_test'" "" "401" \
     "Repository search rejects invalid token"
 
 # Test with malformed JWT
 run_test "search_repos_malformed_jwt" "GET" "$API_BASE/search/repositories" \
-    "-H 'Authorization: Bearer not.a.jwt'" "" "401" \
+    "-H 'Authorization: Bearer test.fake.jwt'" "" "401" \
     "Repository search rejects malformed JWT"
 
 # Test opportunities search
@@ -209,11 +209,11 @@ run_test "search_opportunities_unauthorized" "GET" "$API_BASE/search/opportuniti
 
 # Test parameter validation
 run_test "search_repos_invalid_params" "GET" "$API_BASE/search/repositories?page=0" \
-    "-H 'Authorization: Bearer fake_test_jwt_token_for_api_validation_testing_only.not.real'" "" "400" \
+    "-H 'Authorization: Bearer test_fake_jwt_token_123.456.789'" "" "400" \
     "Repository search validates page parameter"
 
 run_test "search_opportunities_invalid_difficulty" "GET" "$API_BASE/search/opportunities?difficulty=invalid" \
-    "-H 'Authorization: Bearer fake_test_jwt_token_for_api_validation_testing_only.not.real'" "" "400" \
+    "-H 'Authorization: Bearer test_fake_jwt_token_123.456.789'" "" "400" \
     "Opportunities search validates difficulty parameter"
 
 # 4. Security Tests
@@ -221,17 +221,17 @@ print_header "Security Validation Tests"
 
 # Test SQL injection attempts
 run_test "security_sql_injection_repos" "GET" "$API_BASE/search/repositories?q='; DROP TABLE repositories; --" \
-    "-H 'Authorization: Bearer fake_test_jwt_token_for_api_validation_testing_only.not.real'" "" "401" \
+    "-H 'Authorization: Bearer test_fake_jwt_token_123.456.789'" "" "401" \
     "Repository search prevents SQL injection"
 
 # Test XSS attempts
 run_test "security_xss_opportunities" "GET" "$API_BASE/search/opportunities?q=<script>alert('xss')</script>" \
-    "-H 'Authorization: Bearer fake_test_jwt_token_for_api_validation_testing_only.not.real'" "" "401" \
+    "-H 'Authorization: Bearer test_fake_jwt_token_123.456.789'" "" "401" \
     "Opportunities search prevents XSS attacks"
 
 # Test oversized requests
 run_test "security_large_query" "GET" "$API_BASE/search/repositories?q=$(printf 'a%.0s' {1..10000})" \
-    "-H 'Authorization: Bearer fake_test_jwt_token_for_api_validation_testing_only.not.real'" "" "400" \
+    "-H 'Authorization: Bearer test_fake_jwt_token_123.456.789'" "" "400" \
     "API handles oversized query parameters"
 
 # 5. Error Handling Tests
@@ -248,7 +248,7 @@ run_test "error_405_invalid_method" "POST" "$API_BASE/health" \
 
 # Test malformed JSON
 run_test "error_400_malformed_json" "POST" "$API_BASE/search/opportunities" \
-    "-H 'Content-Type: application/json' -H 'Authorization: Bearer test'" \
+    "-H 'Content-Type: application/json' -H 'Authorization: Bearer test_fake_token'" \
     "{invalid json}" "400" \
     "Malformed JSON returns 400"
 

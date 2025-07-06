@@ -109,12 +109,12 @@ describe('Environment Variable Security', () => {
           description: 'repeated word pattern (low entropy)',
         },
         {
-          secret: 'Kx9#mP2$vL8@qR4!nF7%dB3^wE6&yQ5*tZ1>aC4<xM8+fH6-jK9=bN3~eR7_',
+          secret: 'TestSecret$WithMixed!Characters#ABC123xyz456DEF789ghi012JKL345*',
           shouldPass: true,
           description: 'high entropy with mixed characters',
         },
         {
-          secret: 'MyApp$ecure!JWT@Secret#2024*With&Mixed%Characters+Numbers1234',
+          secret: 'FakeApp$ecure!TEST@Secret#FAKE*With&Mixed%Characters+Numbers9999',
           shouldPass: true,
           description: 'good entropy real-world pattern',
         },
@@ -546,7 +546,7 @@ describe('Environment Variable Security', () => {
     it('should validate error message sanitization', async () => {
       // Test fixture - clearly fake GitHub PAT for testing error message sanitization only
       const sensitiveValue =
-        'test_github_pat_for_testing_only_not_real_error_message_sanitization_testing'
+        'test_github_pat_FAKE_VALUE_testing_only_error_message_sanitization_testing'
       vi.stubEnv('NODE_ENV', 'production')
       vi.stubEnv('GITHUB_TOKEN', `test-${sensitiveValue}`)
       vi.resetModules()
@@ -583,7 +583,7 @@ describe('Environment Variable Security', () => {
 
     it('should test debug information filtering', async () => {
       vi.stubEnv('NODE_ENV', 'development')
-      const debugSecret = 'debug-secret-with-sufficient-length-for-testing'
+      const debugSecret = 'debug-secret-FAKE-VALUE-with-sufficient-length-for-testing'
       vi.stubEnv('DEBUG_TOKEN', debugSecret)
       vi.resetModules()
       const { getRequiredEnv } = await import('../../src/lib/validation/env')

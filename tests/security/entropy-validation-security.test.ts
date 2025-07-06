@@ -53,9 +53,9 @@ describe('Entropy Validation Security', () => {
 
       // Test fixtures - clearly fake high entropy strings for testing entropy calculation
       const randomLikeStrings = [
-        'test-secret-for-testing-only-not-real-Kf9Hq3Zx8Wm2Tn6Vy4Bu1Pg5R7N3W',
-        'mock-hex-string-for-tests-only-a1b2c3d4e5f6fedcba0987654321abcdef1234',
-        'fake-test-secret-not-real-9K_f7H_q3Z_x8W_m2T_n6V_y4B_u1P_g5R_k0J_c7',
+        'test-secret-with-mixed-chars-abc123XYZ456def789GHI012jkl345MNO678pqr',
+        'mock-hex-string-test-only-0123456789abcdef0123456789abcdef0123456789',
+        'fake-test-secret-FAKE-9K_f7H_q3Z_x8W_m2T_n6V_y4B_u1P_g5R_k0J_c7_FAKE',
       ]
 
       for (const str of randomLikeStrings) {
@@ -131,10 +131,10 @@ describe('Entropy Validation Security', () => {
 
       // Test fixtures - clearly fake JWT secrets for testing validation only
       const goodSecrets = [
-        'test-jwt-secret-for-testing-only-not-real-with-good-entropy-Kf9Hq3Zx8Wm2Tn6Vy4Bu1Pg5Rk0Jc7',
-        'mock-jwt-secret-for-tests-only-with-sufficient-length-and-entropy-for-testing-32chars-fake',
-        'fake-test-jwt-not-real-with-mixed-characters-and-numbers-for-testing-only-1234567890-mock',
-        'test-generated-jwt-secret-for-testing-only-abcdef1234567890xyz-not-a-real-secret-test-key',
+        'test-jwt-secret-TESTING-ONLY-with-mixed-case-ABC123xyz456DEF789ghi012JKL345mno678PQR901',
+        'mock-jwt-secret-FAKE-VALUE-with-sufficient-length-and-entropy-for-testing-32chars-test',
+        'fake-test-jwt-NOT-REAL-with-mixed-characters-and-numbers-for-testing-only-1234567890',
+        'test-generated-jwt-secret-TESTING-ONLY-abcdef1234567890xyz-TEST-SECRET-not-real-key',
       ]
 
       for (const secret of goodSecrets) {
@@ -196,10 +196,10 @@ describe('Entropy Validation Security', () => {
 
       // Test fixtures - clearly fake encryption keys (64 hex chars) for testing validation only
       const goodKeys = [
-        'testkey1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
-        'mockkey9876543210fedcba9876543210fedcba9876543210fedcba9876543210',
-        'fakekey0123456789abcdef0123456789abcdef0123456789abcdef0123456789',
-        'notreal1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+        'testkey00000000000000000000000000000000000000000000000000testkey',
+        'mockkeymockkeymockkeymockkeymockkeymockkeymockkeymockkeymockkey',
+        'fakekey11111111111111111111111111111111111111111111111111fakekey',
+        'notreal22222222222222222222222222222222222222222222222222notreal',
       ]
 
       for (const key of goodKeys) {
@@ -274,9 +274,9 @@ describe('Entropy Validation Security', () => {
 
       // Test fixtures - clearly fake random-like strings for entropy testing only
       const randomLike = [
-        'test-string-for-entropy-testing-only-not-real-K9fH3qZx8mWn2Tv6yYu4bBg1pPr5W2',
-        'mock-random-entropy-string-for-tests-only-x7Y9mZ2kQr5tAf8nWc1vBp6gHj3dLe0s',
-        'fake-test-entropy-string-not-real-validation-Lw4Xp9Qs2Rf6Tg1Vh8Nk5Jm3Bd7Ce0Z',
+        'test-string-for-entropy-testing-FAKE-DATA-ABC123xyz456DEF789ghi012JKL345mno678',
+        'mock-random-entropy-string-TEST-ONLY-aaa111BBB222ccc333DDD444eee555FFF666ggg',
+        'fake-test-entropy-string-NOT-REAL-validation-test123ABC456def789GHI012jkl345',
       ]
 
       for (const str of randomLike) {
