@@ -39,7 +39,7 @@ export async function middleware(request: NextRequest) {
       telemetryLogger.api('Request started', {
         method: request.method,
         path: url.pathname,
-        userAgent: request.headers.get('user-agent'),
+        userAgent: request.headers.get('user-agent') ?? undefined,
         traceId,
         statusCode: 0, // Will be updated in response
       })
