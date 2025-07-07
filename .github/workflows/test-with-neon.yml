@@ -1,0 +1,272 @@
+name: Test with Neon Branching (Improved)
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '10.11.1'
+
+jobs:
+  test:
+    name: Run Tests with Neon Branch
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm playwright:install
+
+      - name: Create Neon branch for tests
+        id: create-branch
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+        run: |
+          BRANCH_NAME="ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          echo "🌿 Creating Neon branch: $BRANCH_NAME"
+          
+          # Create branch using Neon API with robust retry logic
+          for attempt in 1 2 3; do
+            echo "📡 Attempt $attempt: Creating Neon branch"
+            
+            RESPONSE=$(curl -s -m 30 --retry 2 --retry-delay 5 -X POST \
+              "https://console.neon.tech/api/v2/projects/$NEON_PROJECT_ID/branches" \
+              -H "Authorization: Bearer $NEON_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "{\"branch\": {\"name\": \"$BRANCH_NAME\"}}" || echo "curl_failed")
+            
+            if [ "$RESPONSE" = "curl_failed" ]; then
+              echo "❌ Curl command failed on attempt $attempt"
+            else
+              BRANCH_ID=$(echo $RESPONSE | jq -r '.branch.id' 2>/dev/null || echo "null")
+              
+              if [ "$BRANCH_ID" != "null" ] && [ "$BRANCH_ID" != "" ]; then
+                CONNECTION_URI=$(echo $RESPONSE | jq -r '.connection_uris[0].connection_uri' 2>/dev/null || echo "")
+                
+                if [ -n "$CONNECTION_URI" ] && [ "$CONNECTION_URI" != "null" ]; then
+                  echo "branch_id=$BRANCH_ID" >> $GITHUB_OUTPUT
+                  echo "connection_uri=$CONNECTION_URI" >> $GITHUB_OUTPUT
+                  echo "DATABASE_URL=$CONNECTION_URI" >> $GITHUB_ENV
+                  echo "✅ Branch created successfully: $BRANCH_ID"
+                  break
+                fi
+              fi
+              
+              echo "❌ Invalid response on attempt $attempt: $(echo $RESPONSE | head -c 100)"
+            fi
+            
+            if [ $attempt -eq 3 ]; then
+              echo "💥 All attempts failed to create Neon branch"
+              exit 1
+            fi
+            
+            echo "⏳ Waiting 10 seconds before retry..."
+            sleep 10
+          done
+
+      - name: Validate branch connection
+        env:
+          DATABASE_URL: ${{ steps.create-branch.outputs.connection_uri }}
+        run: |
+          echo "🔍 Validating database connection..."
+          if [ -z "$DATABASE_URL" ]; then
+            echo "❌ DATABASE_URL is empty"
+            exit 1
+          fi
+          echo "✅ Database URL configured"
+
+      - name: Run linting
+        run: pnpm lint
+
+      - name: Run type checking
+        run: pnpm type-check
+
+      - name: Run unit tests
+        run: pnpm test
+
+      - name: Run database tests
+        env:
+          DATABASE_URL: ${{ steps.create-branch.outputs.connection_uri }}
+          DATABASE_URL_TEST: ${{ steps.create-branch.outputs.connection_uri }}
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+        run: pnpm test:db
+        timeout-minutes: 5
+
+      - name: Run integration tests
+        if: github.event_name == 'push' || github.event.pull_request.draft == false
+        env:
+          DATABASE_URL: ${{ steps.create-branch.outputs.connection_uri }}
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+        run: pnpm test:integration:ci
+        timeout-minutes: 8
+
+      - name: Upload coverage
+        if: always()
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/coverage-final.json
+          flags: unittests
+          name: codecov-umbrella
+
+      - name: Delete Neon branch
+        if: always()
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+        run: |
+          if [ -n "${{ steps.create-branch.outputs.branch_id }}" ]; then
+            echo "🗑️ Deleting Neon branch: ${{ steps.create-branch.outputs.branch_id }}"
+            
+            for attempt in 1 2 3; do
+              if curl -s -m 30 -X DELETE \
+                "https://console.neon.tech/api/v2/projects/$NEON_PROJECT_ID/branches/${{ steps.create-branch.outputs.branch_id }}" \
+                -H "Authorization: Bearer $NEON_API_KEY"; then
+                echo "✅ Branch deleted successfully"
+                break
+              else
+                echo "⚠️ Delete attempt $attempt failed, retrying..."
+                sleep 5
+              fi
+            done
+          fi
+
+  # Separate job for E2E tests with its own Neon branch
+  e2e:
+    name: E2E Tests with Neon
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm playwright:install
+
+      - name: Create Neon branch for E2E
+        id: create-e2e-branch
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+        run: |
+          BRANCH_NAME="e2e-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          echo "🌿 Creating Neon branch for E2E: $BRANCH_NAME"
+          
+          # Create branch using Neon API with robust retry logic
+          for attempt in 1 2 3; do
+            echo "📡 Attempt $attempt: Creating E2E Neon branch"
+            
+            RESPONSE=$(curl -s -m 30 --retry 2 --retry-delay 5 -X POST \
+              "https://console.neon.tech/api/v2/projects/$NEON_PROJECT_ID/branches" \
+              -H "Authorization: Bearer $NEON_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "{\"branch\": {\"name\": \"$BRANCH_NAME\"}}" || echo "curl_failed")
+            
+            if [ "$RESPONSE" = "curl_failed" ]; then
+              echo "❌ Curl command failed on attempt $attempt"
+            else
+              BRANCH_ID=$(echo $RESPONSE | jq -r '.branch.id' 2>/dev/null || echo "null")
+              
+              if [ "$BRANCH_ID" != "null" ] && [ "$BRANCH_ID" != "" ]; then
+                CONNECTION_URI=$(echo $RESPONSE | jq -r '.connection_uris[0].connection_uri' 2>/dev/null || echo "")
+                
+                if [ -n "$CONNECTION_URI" ] && [ "$CONNECTION_URI" != "null" ]; then
+                  echo "branch_id=$BRANCH_ID" >> $GITHUB_OUTPUT
+                  echo "connection_uri=$CONNECTION_URI" >> $GITHUB_OUTPUT
+                  echo "DATABASE_URL=$CONNECTION_URI" >> $GITHUB_ENV
+                  echo "✅ E2E Branch created successfully: $BRANCH_ID"
+                  break
+                fi
+              fi
+              
+              echo "❌ Invalid E2E response on attempt $attempt: $(echo $RESPONSE | head -c 100)"
+            fi
+            
+            if [ $attempt -eq 3 ]; then
+              echo "💥 All attempts failed to create E2E Neon branch"
+              exit 1
+            fi
+            
+            echo "⏳ Waiting 10 seconds before retry..."
+            sleep 10
+          done
+
+      - name: Build application
+        run: pnpm build
+        timeout-minutes: 5
+
+      - name: Run E2E tests
+        env:
+          DATABASE_URL: ${{ steps.create-e2e-branch.outputs.connection_uri }}
+          NEXTAUTH_URL: http://localhost:3000
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          CI: true
+        run: pnpm test:e2e:ci
+        timeout-minutes: 8
+
+      - name: Upload E2E artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Delete E2E Neon branch
+        if: always()
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+        run: |
+          if [ -n "${{ steps.create-e2e-branch.outputs.branch_id }}" ]; then
+            echo "🗑️ Deleting E2E Neon branch: ${{ steps.create-e2e-branch.outputs.branch_id }}"
+            
+            for attempt in 1 2 3; do
+              if curl -s -m 30 -X DELETE \
+                "https://console.neon.tech/api/v2/projects/$NEON_PROJECT_ID/branches/${{ steps.create-e2e-branch.outputs.branch_id }}" \
+                -H "Authorization: Bearer $NEON_API_KEY"; then
+                echo "✅ E2E Branch deleted successfully"
+                break
+              else
+                echo "⚠️ E2E Delete attempt $attempt failed, retrying..."
+                sleep 5
+              fi
+            done
+          fi

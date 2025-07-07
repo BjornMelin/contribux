@@ -1,208 +1,119 @@
-# CLAUDE.md
+# CLAUDE.md - CONTRIBUX PROJECT INSTRUCTIONS
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+**Project**: contribux - AI-powered GitHub contribution discovery platform  
+**Stack**: Next.js 15, TypeScript, Neon PostgreSQL, Vector Search, AI-native serverless  
+**Package Manager**: pnpm (NEVER use npm/yarn)
 
-## Project Overview
-
-contribux is an AI-powered GitHub contribution discovery platform built with Next.js 15, TypeScript, and Neon PostgreSQL. The platform intelligently surfaces high-impact open source opportunities for senior developers transitioning to AI Engineering roles. This is a serverless-first, AI-native architecture designed for zero maintenance and ultra-low costs.
-
-## Essential Commands
-
-**CRITICAL: Always use `pnpm` instead of `npm` for all package management and script execution.**
-
-### Development Commands
 ```bash
-# Development server with Turbo
-pnpm dev
-
-# Production build and start
-pnpm build
-pnpm start
-
-# Code quality (always run before commits)
-pnpm lint          # Biome linting
-pnpm lint:fix      # Auto-fix linting issues
-pnpm format        # Format code with Biome
-pnpm type-check    # TypeScript validation
-
-# Clean build artifacts
-pnpm clean
+# Essential Commands - Run These First
+pnpm install           # Install dependencies
+pnpm dev              # Development server  
+pnpm test             # Run all tests
+pnpm lint && pnpm type-check  # Code quality validation
 ```
 
-### Testing Commands (Vitest Framework)
+## DATABASE & ARCHITECTURE
+
+**Database**: Neon PostgreSQL 16 + pgvector extension  
+**Vector Search**: halfvec(1536) embeddings with HNSW indexes  
+**Environment URLs**: `DATABASE_URL`, `DATABASE_URL_DEV`, `DATABASE_URL_TEST`  
+**Monitoring**: Performance reports, health checks, vector metrics
+
+**Essential DB Commands:**
 ```bash
-# Run all tests
-pnpm test
-
-# Watch mode for development
-pnpm test:watch
-
-# Coverage reporting
-pnpm test:coverage
-
-# Database-specific tests
-pnpm test:db
-
-# Test UI interface
-pnpm test:ui
-
-# CI mode with verbose output
-pnpm test:ci
+pnpm db:test-connection    # Connection testing
+pnpm db:health            # Health monitoring  
+pnpm db:performance-report # Performance analysis
+pnpm db:vector-metrics    # Vector search metrics
 ```
 
-### Database Commands (Neon PostgreSQL)
+### DATABASE MIGRATION WORKFLOWS
+
+**Database management workflows available on request - will provide specific instructions when needed for schema changes, performance optimization, or database operations.**
+
+## PROJECT-SPECIFIC INSTRUCTIONS
+
+### TECH STACK DETAILS
+
+**Frontend**: Next.js 15 + App Router, React 19, TypeScript 5.8+  
+**Styling**: Tailwind CSS 4.0+, Biome formatting  
+**AI/ML**: OpenAI Agents SDK, vector embeddings  
+**Testing**: Vitest 3.2+ with V8 coverage  
+**Architecture**: Serverless-first, AI-native, zero maintenance
+
+### BROWSER AUTOMATION & E2E TESTING
+
+**CRITICAL: Use Playwright MCP for comprehensive browser testing and UI automation. Essential for full-stack validation.**
+
+**Playwright MCP Tools:**
+```
+Navigation & Testing:
+- mcp__playwright__playwright_navigate - Open browser and navigate to URL
+- mcp__playwright__playwright_fill - Fill form inputs with test data
+- mcp__playwright__playwright_click - Click buttons and links
+- mcp__playwright__playwright_screenshot - Capture screenshots for verification
+- mcp__playwright__playwright_console_logs - Monitor console for errors
+
+API Testing:
+- mcp__playwright__playwright_post/get - Make HTTP requests
+- mcp__playwright__playwright_expect_response - Set up response expectations
+- mcp__playwright__playwright_assert_response - Validate response content
+
+Advanced:
+- mcp__playwright__playwright_click_and_switch_tab - Handle OAuth flows
+- mcp__playwright__playwright_evaluate - Run JS for performance metrics
+- mcp__zen__testgen - Generate comprehensive E2E test suites
+```
+
+**Browser Testing Checklist:**
+1. ✅ **Authentication Flow**: OAuth, login, logout, session persistence
+2. ✅ **Search Functionality**: Query input, results display, filtering
+3. ✅ **Repository Interaction**: Card display, details view, bookmarking
+4. ✅ **Responsive Design**: Mobile, tablet, desktop viewports
+5. ✅ **Performance**: Page load times, API response times
+6. ✅ **Accessibility**: Screen reader compatibility, keyboard navigation
+7. ✅ **Error Handling**: Network failures, API errors, validation errors
+8. ✅ **Cross-Browser**: Chrome, Firefox, Safari compatibility
+
+**CI/CD Integration:**
 ```bash
-# Connection testing
-pnpm db:test-connection
-pnpm db:test-dev
-pnpm db:test-prod
-
-# Database health and monitoring
-pnpm db:health
-pnpm db:performance-report
-pnpm db:slow-queries
-pnpm db:vector-metrics
-pnpm db:indexes
-pnpm db:analyze
+# Automated E2E Testing Pipeline
+pnpm test:e2e           # Run Playwright tests
+pnpm test:e2e:headed    # Run with browser visible (debugging)
+pnpm test:e2e:ci        # CI mode with video/screenshots on failure
 ```
 
-## Architecture Overview
+### DIRECTORY STRUCTURE
 
-### Tech Stack
-- **Frontend**: Next.js 15 with App Router, React 19, TypeScript 5.8+
-- **Styling**: Tailwind CSS 4.0+, Biome for formatting/linting
-- **Database**: Neon PostgreSQL 16 with pgvector extension for vector search
-- **AI/ML**: OpenAI Agents SDK, halfvec embeddings (1536 dimensions)
-- **Testing**: Vitest 3.2+ with V8 coverage provider
-- **Package Manager**: pnpm 10.11.1 (strictly enforced)
-
-### Key Directories
 ```
-src/
-├── app/                    # Next.js App Router pages
-├── components/             # React components
-│   ├── features/          # Feature-specific components
-│   └── ui/                # Reusable UI components
-├── lib/                   # Utilities and configurations
-│   ├── db/                # Database configuration and client
-│   └── monitoring/        # Database monitoring utilities
-├── context/               # React context providers
-├── hooks/                 # Custom React hooks
-└── types/                 # TypeScript type definitions
-
-tests/
-├── database/              # Database-related tests
-└── setup.ts              # Vitest test configuration
+src/: app/, components/(features/ui), lib/(db/github/monitoring), hooks/, types/
+tests/: Vitest test suites | .taskmaster/: Task Master AI files
 ```
 
-## Database Architecture
+### CONFIDENTIALITY & GIT WORKFLOW
 
-### Core Schema
-The database uses a sophisticated schema with vector embeddings for AI-powered search:
+**CRITICAL**: Never mention Claude Code in commit messages or PR descriptions  
+**Commits**: Use conventional commit format  
+**Main Branch**: main (for production)  
+**TypeScript**: Always use Zod for schema validation
 
-- **users**: User profiles with GitHub integration
-- **repositories**: Repository metadata with health scoring
-- **opportunities**: Contribution opportunities with AI analysis
-- **user_preferences**: Personalized filtering and notification settings
-- **notifications**: Multi-channel notification system
-- **contribution_outcomes**: Success tracking and analytics
-- **user_repository_interactions**: User engagement tracking
+## SECURITY-SPECIFIC FILE PATTERNS
 
-### Vector Search Features
-- **halfvec(1536) embeddings** for semantic similarity
-- **HNSW indexes** for efficient vector search
-- **Hybrid search functions** combining text and vector search
-- **Performance monitoring** with comprehensive metrics
+```bash
+# Files requiring extra security review
+src/lib/auth/**          # Authentication logic
+src/lib/github/**        # External API integration  
+src/app/api/**          # API endpoints
+src/lib/db/**           # Database operations
+.env*                   # Environment files (never commit secrets)
+```
 
-### Environment Configuration
-Database connections use branch-specific URLs:
-- `DATABASE_URL` - Production/main branch
-- `DATABASE_URL_DEV` - Development branch
-- `DATABASE_URL_TEST` - Testing branch
+## TESTING STRATEGY
 
-## Code Standards
-
-### TypeScript Configuration
-- **Strict mode enabled** with comprehensive type checking
-- **Path mapping**: Use `@/*` for src/ imports
-- **Target**: ES2017 for broad compatibility
-- **Additional strictness**: noUncheckedIndexedAccess, exactOptionalPropertyTypes
-
-### Biome Configuration
-- **Line width**: 100 characters
-- **Indentation**: 2 spaces
-- **Quote style**: Single quotes for JS, double for JSX
-- **Import organization**: Automatic with type imports
-
-### Testing Strategy
-- **Framework**: Vitest with V8 coverage provider
-- **Coverage targets**: 80% across all metrics
-- **Test organization**: Feature-based in tests/ directory
-- **Global APIs**: Enabled for Jest-like syntax without imports
-
-## Development Workflow
-
-### Task Management Integration
-This project uses Task Master AI for enhanced development workflow:
-- **MCP Integration**: Full integration with Cursor IDE
-- **Tagged task lists**: Support for feature-branch isolation
-- **AI-powered expansion**: Research-backed task breakdown
-- **Complex project support**: PRD parsing and analysis
-
-### Git Workflow
-- **Main branch**: `main` (for production releases)
-- **Feature branches**: Follow `feat/description` pattern
-- **Current branch**: `feat/task-2-config-postgresql-db-schema`
-- **Testing**: Database schema with comprehensive test coverage
-
-### Performance Considerations
-- **Serverless architecture**: Optimized for Vercel Edge Functions
-- **Vector operations**: Efficient HNSW indexing for fast similarity search
-- **Connection pooling**: Built-in Neon serverless pooling
-- **Monitoring**: Comprehensive database performance tracking
-
-## Important Notes
-
-### Package Management
-- **ALWAYS use pnpm**: Never use npm or yarn
-- **Version**: pnpm@10.11.1 as specified in package.json
-- **Installation**: `pnpm install` for dependencies
-- **Scripts**: `pnpm <script-name>` for all package.json scripts
-
-### Database Considerations
-- **Branch strategy**: Use appropriate DATABASE_URL for environment
-- **Vector operations**: Work with halfvec(1536) embeddings
-- **Monitoring**: Regular performance reports and health checks
-- **Testing**: Requires test database configuration for full test suite
-
-### AI/ML Integration
-- **Embeddings**: 1536-dimensional halfvec for compatibility
-- **Search**: Hybrid approach combining text and vector similarity
-- **Analysis**: AI-powered opportunity complexity assessment
-- **Agents**: OpenAI Agents SDK for intelligent task orchestration
-
-### Code Quality
-- **Linting**: Biome with strict rules for TypeScript
-- **Testing**: Comprehensive coverage with Vitest
-- **Type safety**: Strict TypeScript configuration
-- **Monitoring**: Database performance and vector index metrics
-
-## Development Best Practices
-
-### Test-Driven Development (TDD)
-- **Always develop using a TDD test first development approach**
-- **Write tests using Vitest for the new features or functionality we want**
-- **Implement code to make those tests pass until all tests pass**
-- **Ensure the entire feature is implemented successfully and matches our requirements defined in the current task and subtasks**
-
-## Project Management Best Practices
-
-- **Always be sure to keep both your todo list as well as the task-master-ai task and subtasks statuses updated throughout your work.**
-
-## Confidentiality Guidelines
-
-- **NEVER MENTION CLAUDE CODE IN COMMIT OR PULL REQUEST MESSAGES OR DESCRIPTIONS**
-
-## TypeScript Validation
-
-- **Always use Zod for all TypeScript Schema validation and typing throughout the app.**
+**Quality Standards:**
+- ✅ Functional organization by business value
+- ✅ User-centric test scenarios  
+- ✅ Realistic edge cases and error conditions
+- ✅ Public API focus (not internal implementation)
+- ❌ Coverage-driven testing or line-targeting
+- ❌ Artificial timing dependencies

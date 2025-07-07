@@ -1,437 +1,599 @@
-import { createHash } from 'node:crypto'
+/**
+ * Environment Variables Validation - Simplified T3 Stack Integration
+ *
+ * Library Modernization Phase 3: Consolidation (27→2 files)
+ * Using @t3-oss/env-nextjs for type-safe environment validation
+ * Replaces complex custom validation system with proven library
+ */
+
+import { createEnv } from '@t3-oss/env-nextjs'
 import { z } from 'zod'
 
-// Helper functions for validation
-function calculateShannonEntropy(str: string): number {
-  const frequency: Record<string, number> = {}
-
-  // Count character frequencies
-  for (const char of str) {
-    frequency[char] = (frequency[char] || 0) + 1
-  }
-
-  // Calculate entropy
-  let entropy = 0
-  const length = str.length
-
-  for (const char in frequency) {
-    if (frequency[char] !== undefined) {
-      const p = frequency[char] / length
-      entropy -= p * Math.log2(p)
-    }
-  }
-
-  return entropy
-}
-
-function validateJwtSecret(secret: string): boolean {
-  // Minimum length check (32 characters for 256 bits)
-  if (secret.length < 32) {
-    throw new Error('JWT_SECRET must be at least 32 characters long (256 bits)')
-  }
-
-  // Calculate entropy (minimum ~4.5 bits per character for good randomness)
-  const entropy = calculateShannonEntropy(secret)
-  const entropyPerChar = entropy
-
-  if (entropyPerChar < 4.0) {
-    throw new Error('JWT_SECRET has insufficient entropy (too predictable)')
-  }
-
-  // Check for minimum unique characters (at least 50% unique)
-  const uniqueChars = new Set(secret).size
-  const uniqueRatio = uniqueChars / secret.length
-
-  if (uniqueChars < 16) {
-    throw new Error('JWT_SECRET must contain at least 16 unique characters')
-  }
-
-  if (uniqueRatio < 0.4) {
-    throw new Error('JWT_SECRET has too many repeated characters')
-  }
-
-  return true
-}
-
-// Custom Zod schema for JWT secret validation
-const jwtSecretSchema = z.string().refine(validateJwtSecret, {
-  message: 'JWT_SECRET validation failed',
-})
-
-// PostgreSQL URL validation
-const postgresUrlSchema = z
-  .string()
-  .regex(
-    /^postgresql:\/\/[^:]+:[^@]+@[^/]+\/[^?]+(\?.+)?$/,
-    'Must be a valid PostgreSQL connection string'
-  )
-
-// Domain validation for WebAuthn RP ID
-const rpIdSchema = z.string().refine(value => {
-  // In production, must not be localhost
-  if (process.env.NODE_ENV === 'production' && value === 'localhost') {
-    throw new Error('RP_ID cannot be localhost in production')
-  }
-
-  // Must be a valid domain format
-  const domainRegex =
-    /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
-  if (value !== 'localhost' && !domainRegex.test(value)) {
-    throw new Error('RP_ID must be a valid domain name')
-  }
-
-  return true
-}, 'Invalid RP_ID format')
-
-// Redis URL validation (optional)
-const redisUrlSchema = z
-  .string()
-  .regex(
-    /^redis:\/\/([^:]*:[^@]*@)?[^:/]+(:\d+)?(\/\d+)?(\?.+)?$/,
-    'Must be a valid Redis connection string'
-  )
-  .optional()
-
-// GitHub Client ID validation
-const githubClientIdSchema = z
-  .string()
-  .regex(/^[a-zA-Z0-9]{20}$/, 'GitHub Client ID must be exactly 20 alphanumeric characters')
-  .optional()
-
-// Environment variable schema for runtime validation
-export const envSchema = z
-  .object({
-    // Database configuration
-    DATABASE_URL: postgresUrlSchema,
-    DATABASE_URL_DEV: postgresUrlSchema.optional(),
-    DATABASE_URL_TEST: postgresUrlSchema.optional(),
-
-    // Neon project configuration
-    DB_PROJECT_ID: z.string().default('soft-dew-27794389'),
-    DB_MAIN_BRANCH: z.string().default('br-summer-art-a864udht'),
-    DB_DEV_BRANCH: z.string().default('br-cold-scene-a86p5ixr'),
-    DB_TEST_BRANCH: z.string().default('br-fancy-pine-a8imumhr'),
-
-    // Connection pool settings
-    DB_POOL_MIN: z.string().pipe(z.coerce.number().int().min(1)).default('2'),
-    DB_POOL_MAX: z.string().pipe(z.coerce.number().int().min(1)).default('20'),
-    DB_POOL_IDLE_TIMEOUT: z.string().pipe(z.coerce.number().int().min(1000)).default('10000'),
-
-    // Vector search configuration
-    HNSW_EF_SEARCH: z.string().pipe(z.coerce.number().int().min(1)).default('200'),
-    VECTOR_SIMILARITY_THRESHOLD: z.string().pipe(z.coerce.number().min(0).max(1)).default('0.7'),
-    HYBRID_SEARCH_TEXT_WEIGHT: z.string().pipe(z.coerce.number().min(0).max(1)).default('0.3'),
-    HYBRID_SEARCH_VECTOR_WEIGHT: z.string().pipe(z.coerce.number().min(0).max(1)).default('0.7'),
-
-    // Application environment
+export const env = createEnv({
+  /**
+   * Server-side environment variables
+   * These are only available on the server side
+   */
+  server: {
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 
-    // Next.js configuration
+    // Database configuration
+    DATABASE_URL: z.string().url(),
+    DATABASE_URL_DEV: z.string().url().optional(),
+    DATABASE_URL_TEST: z.string().url().optional(),
+
+    // NextAuth.js configuration
+    NEXTAUTH_SECRET: z.string().min(1),
+    NEXTAUTH_URL: z.string().url().optional(),
+
+    // GitHub OAuth configuration (optional in development)
+    GITHUB_CLIENT_ID: z.string().min(1).optional(),
+    GITHUB_CLIENT_SECRET: z.string().min(1).optional(),
+
+    // Google OAuth configuration
+    GOOGLE_CLIENT_ID: z.string().optional(),
+    GOOGLE_CLIENT_SECRET: z.string().optional(),
+
+    // Redis configuration
+    REDIS_URL: z.string().url().optional(),
+
+    // Security configuration
+    ALLOWED_REDIRECT_URIS: z.string().optional(),
+
+    // OpenAI API configuration
+    OPENAI_API_KEY: z.string().min(1).optional(),
+
+    // Vector database configuration
+    HNSW_EF_SEARCH: z.string().pipe(z.coerce.number().int().min(1)).optional(),
+    HNSW_EF_CONSTRUCTION: z.string().pipe(z.coerce.number().int().min(1)).optional(),
+    HNSW_M_CONNECTIONS: z.string().pipe(z.coerce.number().int().min(1)).optional(),
+    VECTOR_SIMILARITY_THRESHOLD: z.string().pipe(z.coerce.number().min(0).max(1)).optional(),
+    VECTOR_MAX_RESULTS: z.string().pipe(z.coerce.number().int().min(1)).optional(),
+    VECTOR_BATCH_SIZE: z.string().pipe(z.coerce.number().int().min(1)).optional(),
+    VECTOR_CACHE_SIZE: z.string().pipe(z.coerce.number().int().min(1)).optional(),
+    VECTOR_CACHE_TTL: z.string().pipe(z.coerce.number().int().min(1)).optional(),
+    HYBRID_SEARCH_TEXT_WEIGHT: z.string().pipe(z.coerce.number().min(0).max(1)).optional(),
+    HYBRID_SEARCH_VECTOR_WEIGHT: z.string().pipe(z.coerce.number().min(0).max(1)).optional(),
+
+    // Database branch configuration
+    DB_MAIN_BRANCH: z.string().optional(),
+    DB_DEV_BRANCH: z.string().optional(),
+    DB_TEST_BRANCH: z.string().optional(),
+
+    // Database connection pool configuration
+    DB_PROJECT_ID: z.string().optional(),
+    DB_POOL_MIN: z.string().pipe(z.coerce.number().int().min(0)).optional(),
+    DB_POOL_MAX: z.string().pipe(z.coerce.number().int().min(1)).optional(),
+    DB_POOL_IDLE_TIMEOUT: z.string().pipe(z.coerce.number().int().min(1000)).optional(),
+
+    // Database connection and query timeouts
+    DB_CONNECTION_TIMEOUT: z.string().pipe(z.coerce.number().int().min(1000)).optional(),
+    DB_QUERY_TIMEOUT: z.string().pipe(z.coerce.number().int().min(1000)).optional(),
+    DB_HEALTH_CHECK_INTERVAL: z.string().pipe(z.coerce.number().int().min(1000)).optional(),
+    DB_MAX_RETRIES: z.string().pipe(z.coerce.number().int().min(0)).optional(),
+    DB_RETRY_DELAY: z.string().pipe(z.coerce.number().int().min(100)).optional(),
+
+    // Optional integrations
+    SENTRY_DSN: z.string().url().optional(),
+  },
+
+  /**
+   * Client-side environment variables
+   * These are exposed to the browser and must be prefixed with NEXT_PUBLIC_
+   */
+  client: {
+    NEXT_PUBLIC_APP_URL: z.string().url().optional(),
     NEXT_PUBLIC_VERCEL_URL: z.string().optional(),
-    VERCEL_URL: z.string().optional(),
-    PORT: z.string().pipe(z.coerce.number().int().min(1).max(65535)).default('3000'),
+  },
 
-    // Authentication configuration
-    JWT_SECRET:
-      process.env.NODE_ENV === 'test'
-        ? z
-            .string()
-            .default('test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only')
-        : jwtSecretSchema,
+  /**
+   * Runtime environment variables
+   * These will be validated at runtime instead of build time
+   */
+  runtimeEnv: {
+    NODE_ENV: process.env.NODE_ENV,
+    DATABASE_URL: process.env.DATABASE_URL,
+    DATABASE_URL_DEV: process.env.DATABASE_URL_DEV,
+    DATABASE_URL_TEST: process.env.DATABASE_URL_TEST,
+    NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+    GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID,
+    GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET,
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+    REDIS_URL: process.env.REDIS_URL,
+    ALLOWED_REDIRECT_URIS: process.env.ALLOWED_REDIRECT_URIS,
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    HNSW_EF_SEARCH: process.env.HNSW_EF_SEARCH,
+    HNSW_EF_CONSTRUCTION: process.env.HNSW_EF_CONSTRUCTION,
+    HNSW_M_CONNECTIONS: process.env.HNSW_M_CONNECTIONS,
+    VECTOR_SIMILARITY_THRESHOLD: process.env.VECTOR_SIMILARITY_THRESHOLD,
+    VECTOR_MAX_RESULTS: process.env.VECTOR_MAX_RESULTS,
+    VECTOR_BATCH_SIZE: process.env.VECTOR_BATCH_SIZE,
+    VECTOR_CACHE_SIZE: process.env.VECTOR_CACHE_SIZE,
+    VECTOR_CACHE_TTL: process.env.VECTOR_CACHE_TTL,
+    HYBRID_SEARCH_TEXT_WEIGHT: process.env.HYBRID_SEARCH_TEXT_WEIGHT,
+    HYBRID_SEARCH_VECTOR_WEIGHT: process.env.HYBRID_SEARCH_VECTOR_WEIGHT,
+    DB_MAIN_BRANCH: process.env.DB_MAIN_BRANCH,
+    DB_DEV_BRANCH: process.env.DB_DEV_BRANCH,
+    DB_TEST_BRANCH: process.env.DB_TEST_BRANCH,
+    DB_PROJECT_ID: process.env.DB_PROJECT_ID,
+    DB_POOL_MIN: process.env.DB_POOL_MIN,
+    DB_POOL_MAX: process.env.DB_POOL_MAX,
+    DB_POOL_IDLE_TIMEOUT: process.env.DB_POOL_IDLE_TIMEOUT,
+    DB_CONNECTION_TIMEOUT: process.env.DB_CONNECTION_TIMEOUT,
+    DB_QUERY_TIMEOUT: process.env.DB_QUERY_TIMEOUT,
+    DB_HEALTH_CHECK_INTERVAL: process.env.DB_HEALTH_CHECK_INTERVAL,
+    DB_MAX_RETRIES: process.env.DB_MAX_RETRIES,
+    DB_RETRY_DELAY: process.env.DB_RETRY_DELAY,
+    SENTRY_DSN: process.env.SENTRY_DSN,
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NEXT_PUBLIC_VERCEL_URL: process.env.NEXT_PUBLIC_VERCEL_URL,
+  },
 
-    // OAuth configuration (GitHub)
-    GITHUB_CLIENT_ID: githubClientIdSchema,
-    GITHUB_CLIENT_SECRET: z.string().min(40).optional(), // GitHub client secrets are 40+ chars
-    ALLOWED_REDIRECT_URIS: z.string().default('http://localhost:3000/api/auth/github/callback'),
+  /**
+   * Skip validation during build time for certain environments
+   */
+  skipValidation: !!process.env.SKIP_ENV_VALIDATION,
+})
 
-    // WebAuthn configuration
-    NEXT_PUBLIC_APP_NAME: z.string().default('Contribux'),
-    NEXT_PUBLIC_RP_ID: rpIdSchema.default('localhost'),
-    NEXT_PUBLIC_APP_URL: z.string().url().default('http://localhost:3000'),
-    WEBAUTHN_RP_ID: rpIdSchema.optional(),
-    WEBAUTHN_RP_NAME: z.string().default('Contribux'),
-    WEBAUTHN_ORIGINS: z.string().optional(),
-    WEBAUTHN_TIMEOUT: z
-      .string()
-      .pipe(z.coerce.number().int().min(10000))
-      .default('60000')
-      .optional(),
-    WEBAUTHN_CHALLENGE_EXPIRY: z
-      .string()
-      .pipe(z.coerce.number().int().min(30000))
-      .default('300000')
-      .optional(),
-    WEBAUTHN_SUPPORTED_ALGORITHMS: z.string().default('-7,-257').optional(),
+// Type-safe environment access
+export type Env = typeof env
 
-    // Redis configuration (optional for session storage)
-    REDIS_URL: redisUrlSchema,
-    REDIS_PASSWORD: z.string().optional(),
-
-    // Security headers and CORS
-    CORS_ORIGINS: z.string().default('http://localhost:3000'),
-    CSRF_SECRET: z.string().min(32).optional(),
-
-    // Rate limiting
-    RATE_LIMIT_MAX: z.string().pipe(z.coerce.number().int().min(1)).default('100'),
-    RATE_LIMIT_WINDOW: z.string().pipe(z.coerce.number().int().min(1)).default('900'), // 15 minutes
-
-    // Encryption keys
-    ENCRYPTION_KEY: z.string().length(64).optional(), // 32 bytes hex-encoded
-
-    // Monitoring and logging
-    LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
-    ENABLE_AUDIT_LOGS: z.string().pipe(z.coerce.boolean()).default('true'),
-
-    // Feature flags
-    ENABLE_WEBAUTHN: z.string().pipe(z.coerce.boolean()).default('true'),
-    ENABLE_OAUTH: z.string().pipe(z.coerce.boolean()).default('false'),
-
-    // Maintenance mode
-    MAINTENANCE_MODE: z.string().pipe(z.coerce.boolean()).default('false'),
-    MAINTENANCE_BYPASS_TOKEN: z.string().optional(),
-
-    // Additional OAuth origins
-    ALLOWED_ORIGINS: z.string().optional(),
-  })
-  .superRefine((data, ctx) => {
-    // Environment-specific validation
-    if (data.NODE_ENV === 'production') {
-      // Production security checks
-      if (!data.JWT_SECRET || data.JWT_SECRET.includes('test') || data.JWT_SECRET.includes('dev')) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'JWT_SECRET cannot contain test/dev keywords in production',
-          path: ['JWT_SECRET'],
-        })
-      }
-
-      if (data.NEXT_PUBLIC_RP_ID === 'localhost') {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'RP_ID cannot be localhost in production',
-          path: ['NEXT_PUBLIC_RP_ID'],
-        })
-      }
-
-      if (data.NEXT_PUBLIC_APP_URL.includes('localhost')) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'APP_URL cannot use localhost in production',
-          path: ['NEXT_PUBLIC_APP_URL'],
-        })
-      }
-
-      if (data.CORS_ORIGINS.includes('localhost') && !data.CORS_ORIGINS.includes('contribux')) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'CORS_ORIGINS should not include localhost in production',
-          path: ['CORS_ORIGINS'],
-        })
-      }
-
-      // Require encryption key in production
-      if (!data.ENCRYPTION_KEY) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'ENCRYPTION_KEY is required in production',
-          path: ['ENCRYPTION_KEY'],
-        })
-      }
-    }
-
-    // OAuth configuration validation (only in production)
-    if (
-      data.NODE_ENV === 'production' &&
-      data.ENABLE_OAUTH &&
-      (!data.GITHUB_CLIENT_ID || !data.GITHUB_CLIENT_SECRET)
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message:
-          'GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET are required when OAuth is enabled in production',
-        path: ['GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET'],
-      })
-    }
-
-    // Validate rate limiting configuration
-    if (data.RATE_LIMIT_MAX > 1000) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Rate limit too high, maximum recommended is 1000 requests per window',
-        path: ['RATE_LIMIT_MAX'],
-      })
-    }
-
-    // Validate redirect URIs format
-    const redirectUris = data.ALLOWED_REDIRECT_URIS.split(',')
-    for (const uri of redirectUris) {
-      try {
-        new URL(uri.trim())
-      } catch {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `Invalid redirect URI: ${uri}`,
-          path: ['ALLOWED_REDIRECT_URIS'],
-        })
-      }
-    }
-  })
-
-// Environment-specific validation functions
-export function validateDevelopmentEnv(): void {
-  if (process.env.NODE_ENV !== 'development') return
-
-  console.log('✓ Development environment validation passed')
+// Helper function for environment-specific URLs
+export function getDatabaseUrl(): string {
+  if (env.NODE_ENV === 'test' && env.DATABASE_URL_TEST) {
+    return env.DATABASE_URL_TEST
+  }
+  if (env.NODE_ENV === 'development' && env.DATABASE_URL_DEV) {
+    return env.DATABASE_URL_DEV
+  }
+  return env.DATABASE_URL
 }
 
-export function validateProductionEnv(): void {
+// Helper function for app URL
+export function getAppUrl(): string {
+  if (env.NEXT_PUBLIC_APP_URL) {
+    return env.NEXT_PUBLIC_APP_URL
+  }
+  if (env.NEXT_PUBLIC_VERCEL_URL) {
+    return `https://${env.NEXT_PUBLIC_VERCEL_URL}`
+  }
+  return 'http://localhost:3000'
+}
+
+// Legacy compatibility exports for existing code (function-based to avoid T3 Stack issues in tests)
+export const isDevelopment = () => env.NODE_ENV === 'development'
+export const isProduction = () => env.NODE_ENV === 'production'
+export const isTest = () => env.NODE_ENV === 'test'
+
+/**
+ * Validates basic required environment variables
+ */
+export function validateBasicEnvironmentVariables(): void {
+  if (!process.env.DATABASE_URL) {
+    throw new Error('DATABASE_URL is required')
+  }
+  // Check for either JWT_SECRET or NEXTAUTH_SECRET
+  if (!process.env.JWT_SECRET && !process.env.NEXTAUTH_SECRET) {
+    throw new Error('JWT_SECRET or NEXTAUTH_SECRET is required')
+  }
+  // GitHub OAuth is optional in development for testing
+  if (
+    process.env.NODE_ENV === 'production' &&
+    (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET)
+  ) {
+    throw new Error('GitHub OAuth configuration is required in production')
+  }
+}
+
+/**
+ * Validates encryption key format and strength
+ */
+function validateEncryptionKeyInProduction(): void {
+  if (!process.env.ENCRYPTION_KEY) {
+    throw new Error('ENCRYPTION_KEY is required in production')
+  }
+
+  const encKey = process.env.ENCRYPTION_KEY
+  if (!/^[0-9a-fA-F]{64}$/.test(encKey)) {
+    throw new Error('ENCRYPTION_KEY must be 64 hexadecimal characters (256 bits)')
+  }
+
+  // Check for weak keys (all zeros, repeated patterns)
+  if (/^0+$/.test(encKey) || /^(.)\1{63}$/.test(encKey)) {
+    throw new Error('ENCRYPTION_KEY has insufficient entropy (weak or predictable key)')
+  }
+}
+
+/**
+ * Validates URLs don't contain localhost in production
+ */
+function validateProductionUrls(): void {
+  const urlsToCheck = [
+    { name: 'NEXT_PUBLIC_APP_URL', value: process.env.NEXT_PUBLIC_APP_URL },
+    { name: 'DATABASE_URL', value: process.env.DATABASE_URL },
+    { name: 'NEXTAUTH_URL', value: process.env.NEXTAUTH_URL },
+    { name: 'ALLOWED_REDIRECT_URIS', value: process.env.ALLOWED_REDIRECT_URIS },
+  ]
+
+  for (const url of urlsToCheck) {
+    if (url.value && /localhost|127\.0\.0\.1/i.test(url.value)) {
+      throw new Error(`${url.name} contains localhost in production environment`)
+    }
+
+    // Check for dev/test database names in production
+    if (
+      url.name === 'DATABASE_URL' &&
+      url.value &&
+      /_dev|_test|\/dev|http:\/\/dev\./i.test(url.value)
+    ) {
+      throw new Error(`${url.name} contains development/test patterns in production environment`)
+    }
+
+    // Check for non-HTTPS URLs in production (except for DATABASE_URL)
+    if (
+      url.name === 'NEXTAUTH_URL' &&
+      url.value &&
+      /^http:\/\//i.test(url.value) &&
+      !/^http:\/\/localhost/i.test(url.value)
+    ) {
+      throw new Error(`${url.name} must use HTTPS in production environment`)
+    }
+  }
+}
+
+/**
+ * Validates secrets don't contain test keywords in production
+ */
+function validateProductionSecrets(): void {
+  const secretsToCheck = [
+    { name: 'NEXTAUTH_SECRET', value: process.env.NEXTAUTH_SECRET },
+    { name: 'GITHUB_CLIENT_SECRET', value: process.env.GITHUB_CLIENT_SECRET },
+    { name: 'JWT_SECRET', value: process.env.JWT_SECRET },
+  ]
+
+  for (const secret of secretsToCheck) {
+    if (secret.value && /test|dev|development|demo|sample|example/i.test(secret.value)) {
+      throw new Error(`${secret.name} contains test/dev keywords in production environment`)
+    }
+  }
+}
+
+/**
+ * Validates security configuration across all environments
+ */
+export function validateSecurityConfiguration(): void {
+  // Only validate test patterns in production
   if (process.env.NODE_ENV !== 'production') return
 
-  const requiredVars = [
+  // Validate that critical environment variables don't contain test values
+  const criticalEnvVars = [
+    'GITHUB_CLIENT_ID',
+    'GITHUB_CLIENT_SECRET',
+    'NEXTAUTH_SECRET',
     'JWT_SECRET',
     'DATABASE_URL',
+  ]
+
+  for (const envVar of criticalEnvVars) {
+    const value = process.env[envVar]
+    if (value && /test-|demo-|sample-|example-/i.test(value)) {
+      throw new Error(
+        `🚨 SECURITY: ${envVar} contains test/demo values: ${value.substring(0, 10)}...`
+      )
+    }
+  }
+}
+
+/**
+ * Enhanced production security validation
+ */
+export function validateProductionSecuritySettings(): void {
+  const nodeEnv = process.env.NODE_ENV
+  if (nodeEnv !== 'production') return
+
+  // Validate OAuth configuration
+  const githubClientId = process.env.GITHUB_CLIENT_ID
+  const githubClientSecret = process.env.GITHUB_CLIENT_SECRET
+
+  if (!githubClientId || githubClientId.length < 10) {
+    throw new Error('🚨 PRODUCTION SECURITY: GITHUB_CLIENT_ID must be properly configured')
+  }
+
+  if (!githubClientSecret || githubClientSecret.length < 20) {
+    throw new Error('🚨 PRODUCTION SECURITY: GITHUB_CLIENT_SECRET must be properly configured')
+  }
+
+  // Validate database URLs don't contain localhost or test patterns
+  const dbUrl = process.env.DATABASE_URL
+  if (dbUrl && (dbUrl.includes('localhost') || dbUrl.includes('test'))) {
+    throw new Error('🚨 PRODUCTION SECURITY: DATABASE_URL cannot contain localhost or test values')
+  }
+
+  // Validate redirect URIs for production
+  const redirectUris = process.env.ALLOWED_REDIRECT_URIS
+  if (redirectUris?.includes('localhost')) {
+    throw new Error(
+      '🚨 PRODUCTION SECURITY: ALLOWED_REDIRECT_URIS cannot contain localhost in production'
+    )
+  }
+
+  // Ensure NEXTAUTH_URL is set for production
+  const nextAuthUrl = process.env.NEXTAUTH_URL
+  if (!nextAuthUrl || nextAuthUrl.includes('localhost')) {
+    throw new Error('🚨 PRODUCTION SECURITY: NEXTAUTH_URL must be set to production domain')
+  }
+}
+
+/**
+ * Secure configuration utilities - no test fallback patterns
+ */
+
+/**
+ * Safe environment variable getter with no insecure fallbacks
+ */
+export function getRequiredEnv(key: string): string {
+  const value = process.env[key]
+  if (!value || value.trim() === '') {
+    throw new Error(`🚨 REQUIRED: Environment variable ${key} is missing or empty`)
+  }
+
+  // Check for test patterns in production
+  if (
+    process.env.NODE_ENV === 'production' &&
+    /test|demo|sample|fallback|default|changeme|password123|secret123|development|placeholder/i.test(
+      value
+    )
+  ) {
+    throw new Error(`🚨 SECURITY: ${key} contains test patterns in production`)
+  }
+
+  return value
+}
+
+/**
+ * Safe environment variable getter with validation
+ */
+export function getOptionalEnv(
+  key: string,
+  validator?: (value: string) => boolean
+): string | undefined {
+  const value = process.env[key]
+  if (!value) return undefined
+
+  if (validator && !validator(value)) {
+    throw new Error(`🚨 VALIDATION: Environment variable ${key} failed validation`)
+  }
+
+  return value
+}
+
+/**
+ * Validates secret entropy for production security
+ */
+export function validateSecretEntropy(secret: string, minEntropy = 0.2): boolean {
+  if (secret.length < 32) return false
+
+  const uniqueChars = new Set(secret).size
+  const entropyRatio = uniqueChars / secret.length
+
+  return uniqueChars >= 8 && entropyRatio >= minEntropy
+}
+
+/**
+ * Production-safe configuration getter
+ */
+export function getSecureConfigValue(
+  key: string,
+  options: {
+    required?: boolean
+    minLength?: number
+    allowTestInProduction?: boolean
+  } = {}
+): string | undefined {
+  const { required = false, minLength = 1, allowTestInProduction = false } = options
+
+  const value = process.env[key]
+
+  if (required && (!value || value.trim() === '')) {
+    throw new Error(`🚨 REQUIRED: ${key} is missing or empty`)
+  }
+
+  if (!value) return undefined
+
+  if (value.length < minLength) {
+    throw new Error(`🚨 VALIDATION: ${key} must be at least ${minLength} characters`)
+  }
+
+  // Security check for production
+  if (process.env.NODE_ENV === 'production' && !allowTestInProduction) {
+    if (/test-|demo-|sample-|localhost/i.test(value)) {
+      throw new Error(`🚨 SECURITY: ${key} contains test/demo patterns in production`)
+    }
+  }
+
+  return value
+}
+
+/**
+ * Validates environment configuration on startup
+ * Used during application initialization
+ */
+export function validateEnvironmentOnStartup(): void {
+  // Basic validation for all environments
+  validateBasicEnvironmentVariables()
+
+  // Validate JWT secret (length, entropy, etc.)
+  getJwtSecret()
+
+  // Security configuration validation
+  validateSecurityConfiguration()
+
+  // Production-specific validations
+  const nodeEnv = (typeof process !== 'undefined' && process.env?.NODE_ENV) || 'development'
+  if (nodeEnv === 'production') {
+    validateEncryptionKeyInProduction()
+    validateProductionUrls()
+    validateProductionSecrets()
+    validateProductionSecuritySettings()
+  }
+}
+
+// Helper function to validate JWT secret exists and get it
+function validateJwtSecretExists(nodeEnv: string): string {
+  const jwtSecret = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET
+
+  if (!jwtSecret || jwtSecret.trim() === '') {
+    if (nodeEnv === 'test') {
+      throw new Error(
+        'JWT_SECRET or NEXTAUTH_SECRET is required even in test environment. Set JWT_SECRET in your test configuration.'
+      )
+    }
+    throw new Error('JWT_SECRET or NEXTAUTH_SECRET is required and cannot be empty')
+  }
+
+  return jwtSecret
+}
+
+// Helper function to validate JWT secret length
+function validateJwtSecretLength(jwtSecret: string): void {
+  if (jwtSecret.length < 32) {
+    throw new Error('JWT secret validation failed: must be at least 32 characters long')
+  }
+}
+
+// Helper function to validate JWT secret doesn't contain test/dev keywords
+function validateJwtSecretKeywords(jwtSecret: string): void {
+  if (/test|dev|development|demo|sample|example/i.test(jwtSecret)) {
+    throw new Error('🚨 SECURITY: JWT_SECRET contains test/dev keywords in production environment')
+  }
+}
+
+// Helper function to validate JWT secret entropy
+function validateJwtSecretEntropy(jwtSecret: string): void {
+  const uniqueChars = new Set(jwtSecret).size
+  const entropyRatio = uniqueChars / jwtSecret.length
+
+  if (uniqueChars < 8 || entropyRatio < 0.2) {
+    throw new Error(
+      '🚨 SECURITY: JWT_SECRET has insufficient entropy (too repetitive or predictable)'
+    )
+  }
+}
+
+// Helper function to validate JWT secret length limits
+function validateJwtSecretLengthLimits(jwtSecret: string): void {
+  if (jwtSecret.length > 256) {
+    throw new Error('🚨 SECURITY: JWT_SECRET is too long (maximum 256 characters)')
+  }
+}
+
+// Helper function to validate JWT secret doesn't contain weak patterns
+function validateJwtSecretPatterns(jwtSecret: string): void {
+  if (/^(.)\\1+$/.test(jwtSecret) || /123456|password|secret123/i.test(jwtSecret)) {
+    throw new Error('🚨 SECURITY: JWT_SECRET contains weak patterns')
+  }
+}
+
+// Helper function to perform all production validations
+function validateJwtSecretForProduction(jwtSecret: string): void {
+  validateJwtSecretKeywords(jwtSecret)
+  validateJwtSecretEntropy(jwtSecret)
+  validateJwtSecretLengthLimits(jwtSecret)
+  validateJwtSecretPatterns(jwtSecret)
+}
+
+/**
+ * Gets JWT secret for token signing
+ * Falls back to NEXTAUTH_SECRET if no specific JWT secret is provided
+ */
+export function getJwtSecret(): string {
+  const nodeEnv = process.env.NODE_ENV || 'development'
+
+  // Get the secret from available sources - no insecure fallbacks
+  const jwtSecret = validateJwtSecretExists(nodeEnv)
+
+  // Validate minimum length (32 characters for security)
+  validateJwtSecretLength(jwtSecret)
+
+  // In production, perform strict security validation
+  if (nodeEnv === 'production') {
+    validateJwtSecretForProduction(jwtSecret)
+  }
+
+  return jwtSecret
+}
+
+/**
+ * Gets encryption key with comprehensive validation
+ * Validates format, length, and entropy requirements
+ */
+export function getEncryptionKey(): string {
+  const encryptionKey = process.env.ENCRYPTION_KEY
+
+  if (!encryptionKey) {
+    throw new Error(
+      'ENCRYPTION_KEY is required in all environments. Must be 64-character hexadecimal (256 bits). Generate one with: openssl rand -hex 32'
+    )
+  }
+
+  // Validate format: must be 64-character hexadecimal (256 bits)
+  if (!/^[0-9a-fA-F]{64}$/.test(encryptionKey)) {
+    throw new Error(
+      'ENCRYPTION_KEY must be exactly 64 hexadecimal characters (256 bits). Generate one with: openssl rand -hex 32'
+    )
+  }
+
+  // Validate entropy: reject weak/predictable keys
+  if (/^0+$/.test(encryptionKey) || /^(.)\1{63}$/.test(encryptionKey)) {
+    throw new Error(
+      'ENCRYPTION_KEY has insufficient entropy (weak or predictable key). Generate a secure one with: openssl rand -hex 32'
+    )
+  }
+
+  return encryptionKey
+}
+
+/**
+ * Validates production environment configuration
+ */
+export function validateProductionEnv(): void {
+  const requiredProdVars = [
+    'DATABASE_URL',
+    'NEXTAUTH_SECRET',
     'GITHUB_CLIENT_ID',
     'GITHUB_CLIENT_SECRET',
     'ENCRYPTION_KEY',
   ]
 
-  const missing = requiredVars.filter(varName => !process.env[varName])
+  const missingVars = requiredProdVars.filter(varName => !process.env[varName])
 
-  if (missing.length > 0) {
-    throw new Error(`Missing required production environment variables: ${missing.join(', ')}`)
-  }
-
-  console.log('✓ Production environment validation passed')
-}
-
-export function validateSecurityConfig(): void {
-  const env = getValidatedEnv()
-
-  // JWT secret validation
-  if (env.NODE_ENV !== 'test') {
-    try {
-      validateJwtSecret(env.JWT_SECRET)
-      console.log('✓ JWT_SECRET validation passed')
-    } catch (error) {
-      console.error(
-        '✗ JWT_SECRET validation failed:',
-        error instanceof Error ? error.message : 'Unknown error'
-      )
-      if (env.NODE_ENV === 'production') {
-        throw error
-      }
-    }
-  }
-
-  // WebAuthn configuration
-  if (env.ENABLE_WEBAUTHN) {
-    if (env.NODE_ENV === 'production' && env.NEXT_PUBLIC_RP_ID === 'localhost') {
-      throw new Error('WebAuthn RP_ID cannot be localhost in production')
-    }
-    console.log('✓ WebAuthn configuration validation passed')
-  }
-
-  // OAuth configuration
-  if (env.ENABLE_OAUTH) {
-    if (!env.GITHUB_CLIENT_ID || !env.GITHUB_CLIENT_SECRET) {
-      if (env.NODE_ENV === 'production') {
-        throw new Error('OAuth credentials are required in production')
-      }
-      console.warn('⚠ OAuth credentials not configured')
-    } else {
-      console.log('✓ OAuth configuration validation passed')
-    }
+  if (missingVars.length > 0) {
+    throw new Error(`Missing required production environment variables: ${missingVars.join(', ')}`)
   }
 }
 
-// Startup validation function
-export function validateEnvironmentOnStartup(): void {
-  try {
-    // Parse and validate all environment variables
-    const env = envSchema.parse(process.env)
+/**
+ * General environment validation with entropy and format checks
+ */
+export function validateEnvironment(): void {
+  // Validate encryption key if present
+  if (process.env.ENCRYPTION_KEY) {
+    const encKey = process.env.ENCRYPTION_KEY
 
-    // Environment-specific validation
-    if (env.NODE_ENV === 'production') {
-      validateProductionEnv()
-    } else if (env.NODE_ENV === 'development') {
-      validateDevelopmentEnv()
+    // Format validation
+    if (!/^[0-9a-fA-F]+$/.test(encKey)) {
+      throw new Error('ENCRYPTION_KEY has invalid format - must be hexadecimal')
     }
 
-    // Security configuration validation
-    validateSecurityConfig()
-
-    console.log(`✓ Environment validation completed for ${env.NODE_ENV} environment`)
-  } catch (error) {
-    console.error('✗ Environment validation failed:')
-
-    if (error instanceof z.ZodError) {
-      for (const issue of error.issues) {
-        console.error(`  - ${issue.path.join('.')}: ${issue.message}`)
-      }
-    } else {
-      console.error(`  - ${error instanceof Error ? error.message : 'Unknown error'}`)
+    if (encKey.length !== 64) {
+      throw new Error('ENCRYPTION_KEY must be exactly 64 hexadecimal characters')
     }
 
-    console.error('\nPlease fix the environment configuration before starting the application.')
-    process.exit(1)
-  }
-}
-
-// Runtime validation of environment variables with graceful fallbacks
-function getValidatedEnv() {
-  try {
-    return envSchema.parse(process.env)
-  } catch (error) {
-    if (process.env.NODE_ENV === 'test') {
-      // In test environment, provide safe defaults
-      return envSchema.parse({
-        ...process.env,
-        NODE_ENV: 'test',
-        JWT_SECRET: 'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only',
-        DATABASE_URL:
-          process.env.DATABASE_URL ||
-          process.env.DATABASE_URL_TEST ||
-          'postgresql://test:test@localhost:5432/testdb',
-        GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID || 'test1234567890abcdef',
-        GITHUB_CLIENT_SECRET:
-          process.env.GITHUB_CLIENT_SECRET ||
-          'test-github-client-secret-with-sufficient-length-for-testing-purposes-to-meet-40-char-requirement',
-        RP_ID: process.env.RP_ID || 'localhost',
-        NEXTAUTH_SECRET:
-          process.env.NEXTAUTH_SECRET ||
-          'test-nextauth-secret-with-sufficient-length-and-entropy-for-testing',
-        NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:3000',
-      })
+    // Entropy validation
+    if (/^0+$/.test(encKey) || /^(.)\1+$/.test(encKey)) {
+      throw new Error('ENCRYPTION_KEY is weak - has insufficient entropy or predictable pattern')
     }
-    throw error
   }
-}
-
-export const env = getValidatedEnv()
-
-// Type inference for TypeScript
-export type Env = z.infer<typeof envSchema>
-
-// Utility functions for environment checks
-export const isProduction = () => env.NODE_ENV === 'production'
-export const isDevelopment = () => env.NODE_ENV === 'development'
-export const isTest = () => env.NODE_ENV === 'test'
-
-// Security utilities
-export function getJwtSecret(): string {
-  if (env.NODE_ENV === 'test') {
-    return 'test-jwt-secret-with-sufficient-length-and-entropy-for-testing-purposes-only'
-  }
-  return env.JWT_SECRET
-}
-
-export function getEncryptionKey(): string {
-  if (!env.ENCRYPTION_KEY) {
-    if (env.NODE_ENV === 'production') {
-      throw new Error('ENCRYPTION_KEY is required in production')
-    }
-    // Generate a deterministic key for development/test
-    return createHash('sha256').update('development-encryption-key').digest('hex')
-  }
-  return env.ENCRYPTION_KEY
 }

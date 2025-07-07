@@ -1,0 +1,168 @@
+{
+  "timestamp": "2025-07-07T00:03:22.100Z",
+  "dependencies": {
+    "total": 55,
+    "production": 27,
+    "development": 28,
+    "critical": [
+      {
+        "name": "@octokit/rest",
+        "version": "^22.0.0",
+        "type": "production"
+      },
+      {
+        "name": "@simplewebauthn/server",
+        "version": "^13.1.2",
+        "type": "production"
+      },
+      {
+        "name": "next-auth",
+        "version": "^4.24.11",
+        "type": "production"
+      },
+      {
+        "name": "msw",
+        "version": "^2.6.0",
+        "type": "development"
+      },
+      {
+        "name": "vitest",
+        "version": "^3.2.0",
+        "type": "development"
+      },
+      {
+        "name": "@testing-library/react",
+        "version": "^16.0.1",
+        "type": "development"
+      }
+    ],
+    "sizes": {
+      "@octokit/rest": {
+        "version": "^22.0.0",
+        "type": "production",
+        "packageSize": 3474,
+        "unpackedSize": 8276,
+        "fileCount": 0,
+        "bundled": []
+      },
+      "@simplewebauthn/server": {
+        "version": "^13.1.2",
+        "type": "production",
+        "packageSize": 102637,
+        "unpackedSize": 656411,
+        "fileCount": 0,
+        "bundled": []
+      },
+      "next-auth": {
+        "version": "^4.24.11",
+        "type": "production",
+        "packageSize": 184696,
+        "unpackedSize": 827652,
+        "fileCount": 0,
+        "bundled": []
+      },
+      "msw": {
+        "version": "^2.6.0",
+        "type": "development",
+        "packageSize": 902944,
+        "unpackedSize": 4529292,
+        "fileCount": 0,
+        "bundled": []
+      },
+      "vitest": {
+        "version": "^3.2.0",
+        "type": "development",
+        "packageSize": 334633,
+        "unpackedSize": 1379532,
+        "fileCount": 0,
+        "bundled": []
+      },
+      "@testing-library/react": {
+        "version": "^16.0.1",
+        "type": "development",
+        "packageSize": 51551,
+        "unpackedSize": 341724,
+        "fileCount": 0,
+        "bundled": []
+      }
+    }
+  },
+  "bundles": {
+    "buildSuccess": false,
+    "buildError": "Command failed: pnpm build\n ⚠ Compiled with warnings in 15.0s\n\nasset size limit: The following asset(s) exceed the recommended size limit (500 KiB).\nThis can impact web performance.\nAssets: \n  static/chunks/ui-d87615103e2adfed.js (657 KiB)\n\nentrypoint size limit: The following entrypoint(s) combined asset size exceeds the recommended limit (1000 KiB). This can impact web performance.\nEntrypoints:\n  app/layout (1.2 MiB)\n      static/chunks/framework-82e68cad34cef09c.js\n      static/css/5b576904c612405e.css\n      static/css/5e4e4d9f7c0fc781.css\n      static/chunks/ui-d87615103e2adfed.js\n      static/chunks/vendor-70bdcb805d31c80f.js\n      static/chunks/339-0147f8d8143e6d84.js\n      static/chunks/app/layout-62dec1ed537d7671.js\n  app/page (1.16 MiB)\n      static/chunks/framework-82e68cad34cef09c.js\n      static/css/5b576904c612405e.css\n      static/chunks/ui-d87615103e2adfed.js\n      static/chunks/vendor-70bdcb805d31c80f.js\n      static/chunks/339-0147f8d8143e6d84.js\n      static/chunks/app/page-3d4ef6d26a0c31f3.js\n  app/settings/accounts/page (1.15 MiB)\n      static/chunks/framework-82e68cad34cef09c.js\n      static/css/5b576904c612405e.css\n      static/chunks/ui-d87615103e2adfed.js\n      static/chunks/vendor-70bdcb805d31c80f.js\n      static/chunks/339-0147f8d8143e6d84.js\n      static/chunks/app/settings/accounts/page-bf887a1a46fc164c.js\n\n\nFailed to compile.\n\n./src/components/layout/navigation.tsx\n81:21  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element\n164:23  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element\n\n./src/components/monitoring/performance-dashboard-optimized.tsx\n251:44  Error: `\"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities\n251:61  Error: `\"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities\n\ninfo  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules\n",
+    "impact": {
+      "totalDependencySize": 7742887,
+      "criticalDependencySize": 1492339,
+      "largestDependencies": [
+        {
+          "name": "msw",
+          "size": 4529292,
+          "type": "development"
+        },
+        {
+          "name": "vitest",
+          "size": 1379532,
+          "type": "development"
+        },
+        {
+          "name": "next-auth",
+          "size": 827652,
+          "type": "production"
+        },
+        {
+          "name": "@simplewebauthn/server",
+          "size": 656411,
+          "type": "production"
+        },
+        {
+          "name": "@testing-library/react",
+          "size": 341724,
+          "type": "development"
+        },
+        {
+          "name": "@octokit/rest",
+          "size": 8276,
+          "type": "production"
+        }
+      ],
+      "riskFactors": [
+        "Single large dependency: msw"
+      ]
+    }
+  },
+  "recommendations": [
+    {
+      "type": "dependency-optimization",
+      "priority": "medium",
+      "title": "Optimize msw usage",
+      "description": "msw is 4.3 MB - consider tree shaking or alternatives",
+      "implementation": "Review msw imports and use specific imports instead of full library",
+      "impact": "Could reduce bundle size by 1.3 MB"
+    },
+    {
+      "type": "dependency-optimization",
+      "priority": "medium",
+      "title": "Optimize vitest usage",
+      "description": "vitest is 1.3 MB - consider tree shaking or alternatives",
+      "implementation": "Review vitest imports and use specific imports instead of full library",
+      "impact": "Could reduce bundle size by 404.2 KB"
+    },
+    {
+      "type": "security",
+      "priority": "high",
+      "title": "Regular dependency security audits",
+      "description": "Implement automated security scanning for new dependencies",
+      "implementation": "Add GitHub Actions workflow for dependency vulnerability scanning",
+      "impact": "Improved security posture and compliance"
+    },
+    {
+      "type": "performance",
+      "priority": "medium",
+      "title": "Bundle size monitoring",
+      "description": "Set up automated bundle size tracking and alerts",
+      "implementation": "Add bundle analyzer to CI/CD pipeline with size thresholds",
+      "impact": "Prevent bundle size regressions in future PRs"
+    }
+  ],
+  "summary": {}
+}

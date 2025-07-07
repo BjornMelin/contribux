@@ -1,0 +1,44 @@
+{
+  "vulnerabilities": {
+    "total": 0,
+    "levels": {},
+    "packages": {}
+  },
+  "licenses": {},
+  "packageSizes": {
+    "@octokit/plugin-retry": 91,
+    "@octokit/plugin-throttling": 102,
+    "@octokit/rest": 56,
+    "@octokit/types": 58,
+    "@simplewebauthn/server": 74,
+    "jose": 35,
+    "jsonwebtoken": 50,
+    "next-auth": 149,
+    "rate-limiter-flexible": 68,
+    "ioredis": 40
+  },
+  "typosquatting": [],
+  "recommendations": [
+    "⚠️  Version pinning: Consider pinning @octokit/plugin-retry to exact version for security",
+    "⚠️  Version pinning: Consider pinning @octokit/plugin-throttling to exact version for security",
+    "⚠️  Version pinning: Consider pinning @octokit/rest to exact version for security",
+    "⚠️  Version pinning: Consider pinning @octokit/types to exact version for security",
+    "⚠️  Version pinning: Consider pinning @simplewebauthn/server to exact version for security",
+    "⚠️  Version pinning: Consider pinning jose to exact version for security",
+    "⚠️  Version pinning: Consider pinning jsonwebtoken to exact version for security",
+    "⚠️  Version pinning: Consider pinning next-auth to exact version for security",
+    "⚠️  Version pinning: Consider pinning rate-limiter-flexible to exact version for security",
+    "⚠️  Version pinning: Consider pinning ioredis to exact version for security",
+    "📈 Update available: @simplewebauthn/server 13.1.1 → 13.1.2"
+  ],
+  "passed": true,
+  "summary": {
+    "totalVulnerabilities": 0,
+    "criticalVulnerabilities": 0,
+    "highVulnerabilities": 0,
+    "licenseIssues": 0,
+    "typosquattingRisks": 0,
+    "recommendationsCount": 11,
+    "auditPassed": true
+  }
+}

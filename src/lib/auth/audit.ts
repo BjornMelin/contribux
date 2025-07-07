@@ -3,9 +3,10 @@
  * Provides comprehensive event logging, monitoring, and compliance features
  */
 
-import { createHash, timingSafeEqual } from 'node:crypto'
-import { authConfig } from '@/lib/config'
+import { authConfig } from '@/lib/config/auth'
+import { timingSafeEqual } from '@/lib/crypto-utils'
 import { sql } from '@/lib/db/config'
+import { createSecureHash } from '@/lib/security/crypto-simple'
 import type {
   AnomalyDetection,
   AuditLogFilters,
@@ -14,6 +15,7 @@ import type {
   SecurityAuditLog,
   SecurityMetrics,
 } from '@/types/auth'
+import type { UUID } from '@/types/base'
 
 // Event severity mapping
 const EVENT_SEVERITY_MAP: Record<string, EventSeverity> = {
@@ -139,7 +141,7 @@ export async function logSecurityEvent(params: {
       event_data: params.event_data,
       timestamp: new Date().toISOString(),
     })
-    checksum = createHash('sha256').update(data).digest('hex')
+    checksum = await createSecureHash(data)
   }
 
   const result = await sql`
@@ -170,9 +172,29 @@ export async function logSecurityEvent(params: {
     RETURNING *
   `
 
+  // Map database result to TypeScript interface
+  const resultArray = result as any[]
+  const dbResult = resultArray[0]
+  if (!dbResult) {
+    throw new Error('Failed to create security audit log')
+  }
+
+  // TypeScript assertion: dbResult is guaranteed to be defined after null check
+  const row = dbResult as NonNullable<typeof dbResult>
+
   return {
-    ...result[0],
-    user_id: params.user_id || null,
+    id: row.id,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    eventType: row.event_type,
+    eventSeverity: row.event_severity,
+    userId: row.user_id,
+    ipAddress: row.ip_address,
+    userAgent: row.user_agent,
+    eventData: row.event_data,
+    success: row.success,
+    errorMessage: row.error_message,
+    checksum: row.checksum,
   } as SecurityAuditLog
 }
 
@@ -205,14 +227,14 @@ export async function logAuthenticationAttempt(params: {
 
   if (!params.success && params.userId) {
     // Get recent failed attempts
-    const failedAttempts = await sql`
+    const failedAttempts = (await sql`
       SELECT created_at
       FROM security_audit_logs
       WHERE user_id = ${params.userId}
       AND event_type = 'login_failure'
       AND created_at > ${new Date(Date.now() - authConfig.security.failedLoginWindow)}
       ORDER BY created_at DESC
-    `
+    `) as any[]
 
     recentFailures = failedAttempts.length
 
@@ -284,55 +306,116 @@ export async function logSessionActivity(params: {
   anomalyDetected: boolean
   anomalyType?: string
 }> {
+  const anomalyResult = await detectSessionAnomalies(params)
+
+  await logSessionActivityEvent(params, anomalyResult)
+
+  return buildAnomalyResponse(anomalyResult)
+}
+
+async function detectSessionAnomalies(params: {
+  sessionId: string
+  userId: string
+  activityType: string
+  context: { ip_address?: string; user_agent?: string; request_id?: string }
+}): Promise<{ anomalyDetected: boolean; anomalyType?: string }> {
+  if (params.activityType !== 'session_refreshed') {
+    return { anomalyDetected: false }
+  }
+
+  const existingSession = await fetchExistingSession(params.sessionId)
+  if (!existingSession) {
+    return { anomalyDetected: false }
+  }
+
+  return checkSessionChanges(existingSession as SessionData, params)
+}
+
+async function fetchExistingSession(sessionId: string) {
+  const result = (await sql`
+    SELECT ip_address, user_agent, created_at
+    FROM user_sessions
+    WHERE id = ${sessionId}
+    LIMIT 1
+  `) as any[]
+
+  return result.length > 0 ? result[0] : null
+}
+
+interface SessionData {
+  ip_address: string | null
+  user_agent: string | null
+  created_at: string
+}
+
+async function checkSessionChanges(
+  session: SessionData,
+  params: {
+    userId: string
+    sessionId: string
+    context: { ip_address?: string; user_agent?: string }
+  }
+): Promise<{ anomalyDetected: boolean; anomalyType?: string }> {
   let anomalyDetected = false
   let anomalyType: string | undefined
 
-  // Check for anomalies in existing sessions
-  if (params.activityType === 'session_refreshed') {
-    const existingSession = await sql`
-      SELECT ip_address, user_agent, created_at
-      FROM user_sessions
-      WHERE id = ${params.sessionId}
-      LIMIT 1
-    `
-
-    if (existingSession.length > 0) {
-      const session = existingSession[0]
-      if (!session) return { anomalyDetected: false }
-
-      // Check for IP change
-      if (session.ip_address !== params.context.ip_address) {
-        anomalyDetected = true
-        anomalyType = 'ip_change'
-
-        // Log anomaly
-        await logSecurityEvent(
-          createLogParams({
-            event_type: 'unusual_activity',
-            event_severity: 'warning',
-            user_id: params.userId,
-            ip_address: params.context.ip_address,
-            user_agent: params.context.user_agent,
-            event_data: {
-              anomaly_type: 'ip_change',
-              old_ip: session.ip_address,
-              new_ip: params.context.ip_address,
-              session_id: params.sessionId,
-            },
-            success: true,
-          })
-        )
-      }
-
-      // Check for user agent change
-      if (session.user_agent !== params.context.user_agent) {
-        anomalyDetected = true
-        anomalyType = anomalyType ? `${anomalyType},user_agent_change` : 'user_agent_change'
-      }
-    }
+  if (session.ip_address !== params.context.ip_address) {
+    anomalyDetected = true
+    anomalyType = 'ip_change'
+    await logIpChangeAnomaly(session, params)
   }
 
-  // Log session activity
+  if (session.user_agent !== params.context.user_agent) {
+    anomalyDetected = true
+    anomalyType = anomalyType ? `${anomalyType},user_agent_change` : 'user_agent_change'
+  }
+
+  const result: { anomalyDetected: boolean; anomalyType?: string } = {
+    anomalyDetected,
+  }
+
+  if (anomalyType !== undefined) {
+    result.anomalyType = anomalyType
+  }
+
+  return result
+}
+
+async function logIpChangeAnomaly(
+  session: SessionData,
+  params: {
+    userId: string
+    sessionId: string
+    context: { ip_address?: string; user_agent?: string }
+  }
+): Promise<void> {
+  await logSecurityEvent(
+    createLogParams({
+      event_type: 'unusual_activity',
+      event_severity: 'warning',
+      user_id: params.userId,
+      ip_address: params.context.ip_address,
+      user_agent: params.context.user_agent,
+      event_data: {
+        anomaly_type: 'ip_change',
+        old_ip: session.ip_address,
+        new_ip: params.context.ip_address,
+        session_id: params.sessionId,
+      },
+      success: true,
+    })
+  )
+}
+
+async function logSessionActivityEvent(
+  params: {
+    sessionId: string
+    userId: string
+    activityType: string
+    context: { ip_address?: string; user_agent?: string }
+  },
+  anomalyResult: { anomalyDetected: boolean; anomalyType?: string }
+): Promise<void> {
   await logSecurityEvent(
     createLogParams({
       event_type: params.activityType,
@@ -341,19 +424,24 @@ export async function logSessionActivity(params: {
       user_agent: params.context.user_agent,
       event_data: {
         session_id: params.sessionId,
-        anomaly_detected: anomalyDetected,
-        anomaly_type: anomalyType,
+        anomaly_detected: anomalyResult.anomalyDetected,
+        anomaly_type: anomalyResult.anomalyType,
       },
       success: true,
     })
   )
+}
 
+function buildAnomalyResponse(anomalyResult: { anomalyDetected: boolean; anomalyType?: string }): {
+  anomalyDetected: boolean
+  anomalyType?: string
+} {
   const result: { anomalyDetected: boolean; anomalyType?: string } = {
-    anomalyDetected,
+    anomalyDetected: anomalyResult.anomalyDetected,
   }
 
-  if (anomalyType !== undefined) {
-    result.anomalyType = anomalyType
+  if (anomalyResult.anomalyType !== undefined) {
+    result.anomalyType = anomalyResult.anomalyType
   }
 
   return result
@@ -433,62 +521,58 @@ export async function logConfigurationChange(params: {
 
 // Get audit logs with filters
 export async function getAuditLogs(filters: AuditLogFilters): Promise<SecurityAuditLog[]> {
-  // Use a series of conditions with template literals
-  let result: unknown[]
+  const whereConditions = buildWhereConditions(filters)
+  const { limit, offset } = getPaginationParams(filters)
 
-  if (
-    filters.userId &&
-    filters.eventTypes &&
-    filters.eventTypes.length > 0 &&
-    filters.startDate &&
-    filters.endDate
-  ) {
-    result = await sql`
-      SELECT * FROM security_audit_logs
-      WHERE user_id = ${filters.userId}
-      AND event_type = ANY(${filters.eventTypes})
-      AND created_at >= ${filters.startDate}
-      AND created_at <= ${filters.endDate}
-      ORDER BY created_at DESC
-      LIMIT ${filters.limit || 100}
-      OFFSET ${filters.offset || 0}
-    `
-  } else if (filters.userId && filters.eventTypes && filters.eventTypes.length > 0) {
-    result = await sql`
-      SELECT * FROM security_audit_logs
-      WHERE user_id = ${filters.userId}
-      AND event_type = ANY(${filters.eventTypes})
-      ORDER BY created_at DESC
-      LIMIT ${filters.limit || 100}
-      OFFSET ${filters.offset || 0}
-    `
-  } else if (filters.userId) {
-    result = await sql`
-      SELECT * FROM security_audit_logs
-      WHERE user_id = ${filters.userId}
-      ORDER BY created_at DESC
-      LIMIT ${filters.limit || 100}
-      OFFSET ${filters.offset || 0}
-    `
-  } else if (filters.startDate && filters.endDate) {
-    result = await sql`
-      SELECT * FROM security_audit_logs
-      WHERE created_at >= ${filters.startDate}
-      AND created_at <= ${filters.endDate}
-      ORDER BY created_at DESC
-      LIMIT ${filters.limit || 100}
-      OFFSET ${filters.offset || 0}
-    `
-  } else {
-    result = await sql`
-      SELECT * FROM security_audit_logs
-      ORDER BY created_at DESC
-      LIMIT ${filters.limit || 100}
-      OFFSET ${filters.offset || 0}
-    `
+  let query = sql`SELECT * FROM security_audit_logs`
+
+  if (whereConditions.length > 0) {
+    // Build WHERE clause by concatenating conditions
+    let whereClause = sql`WHERE`
+    for (let i = 0; i < whereConditions.length; i++) {
+      if (i > 0) {
+        whereClause = sql`${whereClause} AND ${whereConditions[i]}`
+      } else {
+        whereClause = sql`${whereClause} ${whereConditions[i]}`
+      }
+    }
+    query = sql`${query} ${whereClause}`
   }
 
+  query = sql`${query} ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`
+
+  const result = await query
+
   return result as SecurityAuditLog[]
+}
+
+function buildWhereConditions(filters: AuditLogFilters) {
+  const conditions: unknown[] = []
+
+  if (filters.userId) {
+    conditions.push(sql`user_id = ${filters.userId}`)
+  }
+
+  if (filters.eventTypes && filters.eventTypes.length > 0) {
+    conditions.push(sql`event_type = ANY(${filters.eventTypes})`)
+  }
+
+  if (filters.startDate) {
+    conditions.push(sql`created_at >= ${filters.startDate}`)
+  }
+
+  if (filters.endDate) {
+    conditions.push(sql`created_at <= ${filters.endDate}`)
+  }
+
+  return conditions
+}
+
+function getPaginationParams(filters: AuditLogFilters): { limit: number; offset: number } {
+  return {
+    limit: filters.limit || 100,
+    offset: filters.offset || 0,
+  }
 }
 
 // Get security metrics
@@ -531,8 +615,13 @@ export async function getSecurityMetrics(params: {
     `,
   ])
 
-  const totalLoginCount = Number.parseInt(totalLogins[0]?.count || '0')
-  const failedLoginCount = Number.parseInt(failedLogins[0]?.count || '0')
+  const totalLoginCount = Number.parseInt((totalLogins as any[])?.[0]?.count || '0')
+  const failedLoginCount = Number.parseInt((failedLogins as any[])?.[0]?.count || '0')
+
+  const endDate = new Date()
+  const startDate = new Date(
+    endDate.getTime() - (typeof interval === 'string' ? 24 * 60 * 60 * 1000 : interval)
+  )
 
   const metrics: SecurityMetrics = {
     loginSuccessRate:
@@ -540,8 +629,10 @@ export async function getSecurityMetrics(params: {
         ? Math.round(((totalLoginCount - failedLoginCount) / totalLoginCount) * 100)
         : 100,
     failedLoginCount,
-    lockedAccountCount: Number.parseInt(lockedAccounts[0]?.count || '0'),
-    anomalyCount: Number.parseInt(anomalies[0]?.count || '0'),
+    lockedAccountCount: Number.parseInt((lockedAccounts as any[])?.[0]?.count || '0'),
+    anomalyCount: Number.parseInt((anomalies as any[])?.[0]?.count || '0'),
+    periodStart: startDate,
+    periodEnd: endDate,
   }
 
   // Get timeline data if groupBy is specified
@@ -558,7 +649,7 @@ export async function getSecurityMetrics(params: {
 
     return {
       ...metrics,
-      timeline: timelineData.map(row => ({
+      timeline: (timelineData as any[]).map(row => ({
         date: new Date(row.date),
         count: Number.parseInt(row.count),
       })),
@@ -600,8 +691,8 @@ export async function detectAnomalies(params: {
     `
 
     // If most activity is during typical hours, flag this as unusual
-    if (typicalPattern.length > 0) {
-      const typicalHours = typicalPattern.map(p => Number.parseInt(p.hour))
+    if ((typicalPattern as any[]).length > 0) {
+      const typicalHours = (typicalPattern as any[]).map(p => Number.parseInt(p.hour))
       if (!typicalHours.includes(hour)) {
         unusualTime = true
       }
@@ -620,7 +711,7 @@ export async function detectAnomalies(params: {
     ORDER BY created_at DESC
   `
 
-  if (recentEvents.length >= authConfig.security.rapidSuccessionThreshold) {
+  if ((recentEvents as any[]).length >= authConfig.security.rapidSuccessionThreshold) {
     rapidSuccession = true
   }
 
@@ -648,15 +739,12 @@ export async function detectAnomalies(params: {
 
   const result: AnomalyDetection = {
     detected,
+    type: type,
     confidence: detected ? 0.8 : 0.0,
     details: {
       unusual_time: unusualTime,
       rapid_succession: rapidSuccession,
     },
-  }
-
-  if (type !== undefined) {
-    result.type = type
   }
 
   return result
@@ -697,9 +785,7 @@ export async function exportAuditReport(params: {
   const auditFilters: AuditLogFilters = {
     startDate: params.startDate,
     endDate: params.endDate,
-  }
-  if (params.userId !== undefined) {
-    auditFilters.userId = params.userId
+    ...(params.userId ? { userId: params.userId as UUID } : {}),
   }
   const logs = await getAuditLogs(auditFilters)
 
@@ -744,11 +830,11 @@ export async function exportAuditReport(params: {
       'success',
     ]
     const rows = logs.map(log => [
-      log.event_type,
-      log.event_severity,
-      log.user_id || '',
-      log.ip_address || '',
-      log.created_at.toISOString(),
+      log.eventType,
+      log.eventSeverity,
+      log.userId || '',
+      log.ipAddress || '',
+      log.createdAt.toISOString(),
       log.success.toString(),
     ])
 
@@ -765,7 +851,7 @@ export async function exportAuditReport(params: {
         start: params.startDate,
         end: params.endDate,
       },
-      total_events: Number.parseInt(totalEvents[0]?.count || '0'),
+      total_events: Number.parseInt((totalEvents as any[])?.[0]?.count || '0'),
     },
     summary: {
       event_distribution: eventDistribution as Array<{
@@ -792,11 +878,11 @@ export async function deleteAuditLog(logId: string): Promise<void> {
     LIMIT 1
   `
 
-  if (log.length === 0) {
+  if ((log as any[]).length === 0) {
     throw new Error('Audit log not found')
   }
 
-  const auditLog = log[0]
+  const auditLog = (log as any[])[0]
   if (!auditLog) {
     throw new Error('Audit log not found')
   }
@@ -826,11 +912,11 @@ export async function verifyAuditLogIntegrity(logId: string): Promise<boolean> {
     LIMIT 1
   `
 
-  if (log.length === 0 || !log[0]?.checksum) {
+  if ((log as any[]).length === 0 || !(log as any[])[0]?.checksum) {
     return true // No checksum to verify
   }
 
-  const auditLog = log[0]
+  const auditLog = (log as any[])[0]
   if (!auditLog) {
     return true
   }
@@ -843,13 +929,10 @@ export async function verifyAuditLogIntegrity(logId: string): Promise<boolean> {
     timestamp: auditLog.created_at.toISOString(),
   })
 
-  const expectedChecksum = createHash('sha256').update(data).digest('hex')
+  const expectedChecksum = await createSecureHash(data)
 
   // Use timing-safe comparison
-  return timingSafeEqual(
-    Buffer.from(auditLog.checksum, 'hex'),
-    Buffer.from(expectedChecksum, 'hex')
-  )
+  return await timingSafeEqual(Buffer.from(auditLog.checksum), Buffer.from(expectedChecksum))
 }
 
 // Get audit log retention policy

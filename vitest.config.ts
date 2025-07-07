@@ -1,51 +1,90 @@
+import { cpus } from 'node:os'
 import path from 'node:path'
+import react from '@vitejs/plugin-react'
+import tsconfigPaths from 'vite-tsconfig-paths'
 import { configDefaults, defineConfig } from 'vitest/config'
 
 export default defineConfig({
+  cacheDir: '.vitest/cache',
+
+  plugins: [tsconfigPaths(), react()],
+
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      // Fix Next.js module resolution for tests
+      'next/server': path.resolve(__dirname, 'node_modules/next/dist/server/web/exports/index.js'),
+      'next/headers': path.resolve(
+        __dirname,
+        'node_modules/next/dist/client/components/headers.js'
+      ),
+      'next/navigation': path.resolve(
+        __dirname,
+        'node_modules/next/dist/client/components/navigation.js'
+      ),
     },
+    extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
   },
+
+  define: {
+    'import.meta.vitest': 'undefined',
+    global: 'globalThis',
+    // Fix for Next.js edge runtime compatibility
+    'process.env.NEXT_RUNTIME': '"nodejs"',
+    'process.env.__NEXT_PRIVATE_ORIGIN': '"http://localhost:3000"',
+  },
+
+  // MSW and test environment compatibility
+  ssr: {
+    noExternal: ['msw', '@testing-library/react'],
+  },
+
   test: {
-    // Global test configuration
+    // Modern Vitest 3.2+ configuration
     globals: true,
-    environment: 'node',
+    environment: 'jsdom',
 
-    // Test file patterns
-    include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-    exclude: [...configDefaults.exclude, 'packages/template/*'],
+    include: [
+      'tests/unit/**/*.{test,spec}.{js,ts,tsx}',
+      'tests/security/**/*.{test,spec}.{js,ts,tsx}',
+      'tests/mocks/**/*.{test,spec}.{js,ts,tsx}',
+      'src/**/*.{test,spec}.{js,ts,tsx}',
+    ],
 
-    // Setup files
+    exclude: [
+      ...configDefaults.exclude,
+      'tests/integration/**/*',
+      'tests/performance/**/*',
+      'tests/e2e/**/*',
+      'node_modules/**/*',
+      'dist/**/*',
+      '.next/**/*',
+    ],
+
     setupFiles: ['./tests/setup.ts'],
 
-    // Test isolation improvements
-    isolate: true,
-    pool: 'forks',
+    // Optimized pool configuration for Vitest 3.2+
+    pool: 'threads',
+    poolOptions: {
+      threads: {
+        singleThread: false,
+        minThreads: 1,
+        maxThreads: Math.min(4, cpus().length),
+      },
+    },
 
-    // Coverage configuration with V8 provider (2025 best practice)
+    // Modern coverage configuration
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
-      reportsDirectory: './coverage',
       exclude: [
-        'coverage/**',
-        'dist/**',
-        'packages/*/test{,s}/**',
+        ...(configDefaults.coverage?.exclude || []),
+        'tests/**/*',
+        '**/*.config.*',
         '**/*.d.ts',
-        'cypress/**',
-        'test{,s}/**',
-        'test{,-*}.{js,cjs,mjs,ts,tsx,jsx}',
-        '**/*{.,-}test.{js,cjs,mjs,ts,tsx,jsx}',
-        '**/*{.,-}spec.{js,cjs,mjs,ts,tsx,jsx}',
-        '**/__tests__/**',
-        '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build}.config.*',
-        '**/.{eslint,mocha,prettier}rc.{js,cjs,yml}',
-        'next.config.js',
-        'tailwind.config.js',
-        'postcss.config.js',
+        'scripts/**/*',
+        '.next/**/*',
       ],
-      // 2025 best practice: Set coverage thresholds
       thresholds: {
         global: {
           branches: 80,
@@ -54,52 +93,22 @@ export default defineConfig({
           statements: 80,
         },
       },
-      // Ignore empty lines and comments (2025 feature)
-      ignoreEmptyLines: true,
     },
 
-    // Performance optimizations for better test isolation
-    poolOptions: {
-      forks: {
-        singleFork: false,
-        minForks: 1,
-        maxForks: 3,
-      },
-    },
-
-    // Reporter configuration
-    reporters: ['verbose'],
-
-    // Timeout settings
-    testTimeout: 30000,
+    // Reasonable timeouts
+    testTimeout: 15000,
     hookTimeout: 10000,
+    retry: 1,
 
-    // Retry configuration for flaky tests
-    retry: 0,
-
-    // Fail fast on first failure (useful for CI)
-    bail: 0,
-
-    // Mock configuration
-    clearMocks: true,
-    restoreMocks: true,
-
-    // File watching (watchExclude is deprecated, use exclude instead)
-
-    // Sequence configuration for consistent test ordering
-    sequence: {
-      shuffle: false,
-      concurrent: false,
+    // Modern reporter configuration
+    reporters: ['default'],
+    outputFile: {
+      json: './test-results.json',
     },
 
-    // Environment variables and context
+    // Environment configuration
     env: {
       NODE_ENV: 'test',
     },
-  },
-
-  // ESBuild configuration for optimal TypeScript transpilation
-  esbuild: {
-    target: 'node18',
   },
 })

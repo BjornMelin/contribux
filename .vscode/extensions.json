@@ -4,17 +4,32 @@
     "bradlc.vscode-tailwindcss",
     "ms-vscode.vscode-typescript-next",
     "usernamehw.errorlens",
-    "christian-kohler.path-intellisense",
     "formulahendry.auto-rename-tag",
     "ms-vscode.vscode-json",
-    "yoavbls.pretty-ts-errors",
-    "ms-playwright.playwright",
     "github.copilot",
-    "github.copilot-chat"
+    "github.copilot-chat",
+    "vitest.explorer",
+    "rangav.vscode-thunder-client",
+    "ckolkman.vscode-postgres",
+    "alefragnani.project-manager",
+    "ms-vscode.hexdump",
+    "ms-vscode.vscode-github-issue-notebooks",
+    "github.vscode-github-actions",
+    "ms-vscode.vscode-yaml",
+    "redhat.vscode-yaml",
+    "ms-azuretools.vscode-docker",
+    "christian-kohler.path-intellisense",
+    "gruntfuggly.todo-tree",
+    "wayou.vscode-todo-highlight",
+    "davidanson.vscode-markdownlint",
+    "yzhang.markdown-all-in-one",
+    "ms-vscode.live-server",
+    "humao.rest-client"
   ],
   "unwantedRecommendations": [
     "esbenp.prettier-vscode",
     "ms-vscode.vscode-eslint",
-    "dbaeumer.vscode-eslint"
+    "dbaeumer.vscode-eslint",
+    "bradlc.vscode-tailwindcss.experimental"
   ]
 }

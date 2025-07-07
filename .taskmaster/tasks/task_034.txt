@@ -1,0 +1,70 @@
+# Task ID: 34
+# Title: Implement Multi-Provider OAuth Authentication with NextAuth.js v5
+# Status: done
+# Dependencies: None
+# Priority: medium
+# Description: Replace the existing WebAuthn flow with a modern, reliable OAuth-only authentication system using NextAuth.js v5, supporting GitHub and Google sign-in with an animated, brand-consistent UI, robust error handling, and secure session management.
+# Details:
+1. Package & project setup
+   • Upgrade/ensure Next.js 15 (App Router) and TypeScript 5 are installed.
+   • Add next-auth@^5.0.0-beta, @next-auth/prisma-adapter (or PlanetScale adapter), @types/next-auth, and framer-motion for animations.
+   • Remove WebAuthn libraries and purge related code paths, routes, DB tables/columns, and environment variables.
+
+2. Database & adapter
+   • Extend the existing Prisma schema with the minimal next-auth tables (Account, Session, User, VerificationToken). Use SESSION strategy = "jwt" unless persistent sessions are required.
+   • Create a one-time migration script with prisma migrate to add / rename tables without data loss.
+
+3. Provider configuration (app/auth.ts)
+   • Configure GitHubProvider({ clientId, clientSecret, allowDangerousEmailAccountLinking:false }).
+   • Configure GoogleProvider({ clientId, clientSecret, authorization:{ params:{ prompt:"select_account" } } }).
+   • Implement secure callback URLs via NEXTAUTH_URL, VERCEL_URL fallbacks, and enforce HTTPS in production.
+   • Implement callbacks:   
+        • signIn: block unverified email or disallowed domains.   
+        • jwt: embed user id/roles; rotate signing key with 30-day KID rotation.   
+        • session: expose only minimal user data (id, name, image, roles).
+   • Add custom error handler converting NextAuthError codes into i18n-ready strings.
+
+4. UI / Pages
+   • Create /app/(auth)/signin/page.tsx with RSC boundary that fetches providers server-side and streams them to client.
+   • Build <AnimatedSignInCard> component using framer-motion: staggered fade-in buttons, SVG gradients, and Lottie success animation after authentication redirect.
+   • Add dark/light theme support and accessibility (WCAG 2.1 AA contrast, focus outlines, aria-labels).
+   • Localise button text via next-intl.
+
+5. Session/Client helpers
+   • Wrap entire App Router tree with <SessionProvider refetchOnWindowFocus={false}>.
+   • Implement getServerAuthSession() helper using unstable_getServerSession() for RSC & tRPC middleware consumption.
+   • Provide useAuth() client hook that composes useSession() with Zod-validated role type.
+
+6. Security & reliability hardening
+   • Enforce sameSite="lax" JWT cookies, secure flag in production, and 2-hour session TTL with silent token refresh.
+   • Implement rate-limit middleware (/middleware.ts) for /api/auth/* endpoints (e.g., 10 req/min/IP).
+   • Add structured winston/pino logger for auth events (sign-in, sign-out, error) with user-agent fingerprinting.
+
+7. Deprecation cleanup
+   • Remove WebAuthn routes (/api/webauthn/*), middleware, and UI components. Update docs and README.
+   • Run type-check & CI to ensure no stale imports.
+
+8. Documentation
+   • Update architecture docs to reflect OAuth-only flow. Include sequence diagram (Next.js → NextAuth → Provider → Callback → DB).
+   • Add ENV template: GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, NEXTAUTH_SECRET.
+
+
+# Test Strategy:
+1. Automated unit tests
+   • Use jest + ts-jest to test getServerAuthSession() and callbacks logic (role propagation, error mapping, blocked domain logic).
+2. Integration/E2E tests
+   • Playwright headless tests covering:   
+        a) Successful GitHub OAuth (stub with msw, intercept GitHub token exchange).   
+        b) Successful Google OAuth.   
+        c) Cancel / error path surfaces translated message.   
+        d) Session cookie exists and contains encrypted JWT.
+3. Accessibility & UI
+   • Run @axe/playwright and Lighthouse audits; enforce score ≥ 90 for accessibility/performance.
+4. Security validation
+   • Run npm audit and snyk to ensure no high-severity vulns.   
+   • Verify CSRF token is present on /signin and POST /callback.   
+   • Pen-test session fixation and cookie flags via OWASP ZAP.
+5. Regression
+   • Confirm all previous user-dependent features (tRPC routers, RSC layouts, Preference mgmt) still receive valid user objects.
+6. Manual smoke test
+   • Perform live OAuth flows against staging GitHub & Google apps, check logging, verify sign-out destroys session.
