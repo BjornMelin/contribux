@@ -1,0 +1,55 @@
+# Prometheus Configuration for Contribux Monitoring
+
+global:
+  scrape_interval: 15s # Scrape targets every 15 seconds
+  evaluation_interval: 15s # Evaluate rules every 15 seconds
+
+# Alertmanager configuration (optional)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets:
+#           - alertmanager:9093
+
+# Load rules once and periodically evaluate them according to the global 'evaluation_interval'
+rule_files:
+  # - "alert_rules.yml"
+
+# Scrape configuration
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Contribux application metrics
+  - job_name: 'contribux-app'
+    static_configs:
+      - targets: ['host.docker.internal:3000']  # Next.js app running on host
+    metrics_path: '/api/metrics'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+
+  # Contribux health checks
+  - job_name: 'contribux-health'
+    static_configs:
+      - targets: ['host.docker.internal:3000']
+    metrics_path: '/api/health'
+    params:
+      format: ['prometheus']
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  # Node.js application metrics (if using prom-client)
+  - job_name: 'contribux-node'
+    static_configs:
+      - targets: ['host.docker.internal:9090']  # OpenTelemetry Prometheus exporter
+    scrape_interval: 15s
+    scrape_timeout: 5s
+
+  # Redis metrics (if using redis_exporter)
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+    scrape_interval: 30s
+    scrape_timeout: 10s

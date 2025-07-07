@@ -39,6 +39,8 @@ const nextConfig = {
     // optimizeCss: true,
     // CRITICAL: Disable fallback for webpack runtime
     fallbackNodePolyfills: false,
+    // Enable OpenTelemetry instrumentation
+    instrumentationHook: true,
   },
 
   // Server external packages (moved from experimental in Next.js 15)

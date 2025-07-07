@@ -1,137 +1,150 @@
 /**
- * Health Check API Route
- * Provides system health status for monitoring and load balancers
+ * Health Check API Endpoint
+ * 
+ * Provides system health status for monitoring and alerting
  */
 
-import { NextResponse } from 'next/server'
-import { z } from 'zod'
+import { NextRequest, NextResponse } from 'next/server'
+import { checkSystemHealth, checkGitHubHealth, checkDatabaseHealth, checkCacheHealth } from '@/lib/telemetry/health'
+import { telemetryLogger } from '@/lib/telemetry/logger'
+import { createSpan } from '@/lib/telemetry/utils'
 
-import { sql } from '@/lib/db/config'
+export async function GET(request: NextRequest) {
+  return createSpan(
+    'api.health_check',
+    async (span) => {
+      const url = new URL(request.url)
+      const component = url.searchParams.get('component')
+      const format = url.searchParams.get('format') || 'json'
 
-// Health check response schema
-const HealthResponseSchema = z.object({
-  status: z.enum(['healthy', 'degraded', 'unhealthy']),
-  timestamp: z.string(),
-  version: z.string(),
-  checks: z
-    .object({
-      database: z.object({
-        status: z.enum(['healthy', 'degraded', 'unhealthy']),
-        response_time_ms: z.number(),
-        details: z.string().optional(),
-      }),
-      memory: z.object({
-        status: z.enum(['healthy', 'degraded', 'unhealthy']),
-        usage_mb: z.number(),
-        free_mb: z.number(),
-      }),
-    })
-    .optional(),
-})
+      span.setAttributes({
+        'http.route': '/api/health',
+        'http.component': component || 'all',
+        'http.format': format,
+      })
 
-export async function GET() {
-  const startTime = Date.now()
+      telemetryLogger.api('Health check request', {
+        path: '/api/health',
+        method: 'GET',
+        component,
+        statusCode: 200,
+      })
 
-  try {
-    // Database health check
-    const dbStartTime = Date.now()
-    let dbStatus: 'healthy' | 'degraded' | 'unhealthy' = 'healthy'
-    let dbDetails: string | undefined
+      try {
+        let result
 
-    try {
-      await sql`SELECT 1 as health_check`
-      const dbResponseTime = Date.now() - dbStartTime
+        // Handle specific component health checks
+        switch (component) {
+          case 'github':
+            result = await checkGitHubHealth()
+            break
+          case 'database':
+            result = await checkDatabaseHealth()
+            break
+          case 'cache':
+            result = await checkCacheHealth()
+            break
+          default:
+            result = await checkSystemHealth()
+        }
 
-      if (dbResponseTime > 1000) {
-        dbStatus = 'degraded'
-        dbDetails = 'Slow database response'
+        // Determine HTTP status code based on health
+        let statusCode = 200
+        if (component) {
+          // Single component check
+          const componentResult = result as any
+          if (componentResult.status === 'unhealthy') {
+            statusCode = 503
+          } else if (componentResult.status === 'degraded') {
+            statusCode = 200 // Still operational but with issues
+          }
+        } else {
+          // System-wide check
+          const systemResult = result as any
+          if (systemResult.overall === 'unhealthy') {
+            statusCode = 503
+          } else if (systemResult.overall === 'degraded') {
+            statusCode = 200 // Still operational but with issues
+          }
+        }
+
+        // Handle different response formats
+        if (format === 'prometheus') {
+          // Return Prometheus-compatible metrics format
+          const metricsText = generatePrometheusMetrics(result)
+          return new NextResponse(metricsText, {
+            status: statusCode,
+            headers: {
+              'Content-Type': 'text/plain; version=0.0.4; charset=utf-8',
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+            },
+          })
+        }
+
+        // Default JSON format
+        return NextResponse.json(result, {
+          status: statusCode,
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+          },
+        })
+      } catch (error) {
+        telemetryLogger.error('Health check failed', error, {
+          path: '/api/health',
+          method: 'GET',
+          component,
+        })
+
+        return NextResponse.json(
+          {
+            error: 'Health check failed',
+            message: error instanceof Error ? error.message : 'Unknown error',
+            timestamp: new Date().toISOString(),
+          },
+          {
+            status: 500,
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+            },
+          }
+        )
       }
-    } catch (error) {
-      dbStatus = 'unhealthy'
-      dbDetails = error instanceof Error ? error.message : 'Database connection failed'
+    },
+    {
+      'http.method': 'GET',
+      'http.route': '/api/health',
+    }
+  )
+}
+
+/**
+ * Generate Prometheus-compatible metrics from health check results
+ */
+function generatePrometheusMetrics(result: any): string {
+  const timestamp = Date.now()
+  let metrics = ''
+
+  if (result.components) {
+    // System-wide health check
+    metrics += '# HELP contribux_component_health Health status of system components (1 = healthy, 0 = unhealthy)\n'
+    metrics += '# TYPE contribux_component_health gauge\n'
+
+    for (const component of result.components) {
+      const value = component.healthy ? 1 : 0
+      metrics += `contribux_component_health{component="${component.component}",status="${component.status}"} ${value} ${timestamp}\n`
     }
 
-    const dbResponseTime = Date.now() - dbStartTime
-
-    // Memory health check
-    const memoryUsage = process.memoryUsage()
-    const usedMB = Math.round(memoryUsage.heapUsed / 1024 / 1024)
-    const totalMB = Math.round(memoryUsage.heapTotal / 1024 / 1024)
-    const freeMB = totalMB - usedMB
-
-    let memoryStatus: 'healthy' | 'degraded' | 'unhealthy' = 'healthy'
-    if (usedMB > 500) {
-      memoryStatus = 'degraded'
-    }
-    if (usedMB > 1000) {
-      memoryStatus = 'unhealthy'
-    }
-
-    // Overall status determination
-    let overallStatus: 'healthy' | 'degraded' | 'unhealthy' = 'healthy'
-    if (dbStatus === 'degraded' || memoryStatus === 'degraded') {
-      overallStatus = 'degraded'
-    }
-    if (dbStatus === 'unhealthy' || memoryStatus === 'unhealthy') {
-      overallStatus = 'unhealthy'
-    }
-
-    const response = {
-      status: overallStatus,
-      timestamp: new Date().toISOString(),
-      version: '1.0.0',
-      checks: {
-        database: {
-          status: dbStatus,
-          response_time_ms: dbResponseTime,
-          details: dbDetails,
-        },
-        memory: {
-          status: memoryStatus,
-          usage_mb: usedMB,
-          free_mb: freeMB,
-        },
-      },
-    }
-
-    // Validate response
-    const validatedResponse = HealthResponseSchema.parse(response)
-
-    // Return appropriate HTTP status based on health
-    const httpStatus = overallStatus === 'healthy' ? 200 : overallStatus === 'degraded' ? 200 : 503
-
-    return NextResponse.json(validatedResponse, {
-      status: httpStatus,
-      headers: {
-        Connection: 'close',
-        'Cache-Control': 'no-cache',
-      },
-    })
-  } catch (_error) {
-    // Return unhealthy status if health check itself fails
-    const errorResponse = {
-      status: 'unhealthy' as const,
-      timestamp: new Date().toISOString(),
-      version: '1.0.0',
-      checks: {
-        database: {
-          status: 'unhealthy' as const,
-          response_time_ms: Date.now() - startTime,
-          details: 'Health check failed',
-        },
-        memory: {
-          status: 'unhealthy' as const,
-          usage_mb: 0,
-          free_mb: 0,
-        },
-      },
-    }
-
-    return NextResponse.json(errorResponse, {
-      status: 503,
-      headers: {
-        Connection: 'close',
-      },
-    })
+    metrics += '\n# HELP contribux_system_health Overall system health status (1 = healthy, 0 = unhealthy)\n'
+    metrics += '# TYPE contribux_system_health gauge\n'
+    const systemValue = result.overall === 'healthy' ? 1 : 0
+    metrics += `contribux_system_health{status="${result.overall}"} ${systemValue} ${timestamp}\n`
+  } else {
+    // Single component health check
+    metrics += '# HELP contribux_component_health Health status of system components (1 = healthy, 0 = unhealthy)\n'
+    metrics += '# TYPE contribux_component_health gauge\n'
+    const value = result.healthy ? 1 : 0
+    metrics += `contribux_component_health{component="${result.component}",status="${result.status}"} ${value} ${timestamp}\n`
   }
+
+  return metrics
 }
