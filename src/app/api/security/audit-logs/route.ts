@@ -7,11 +7,11 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { authConfig } from '@/lib/auth'
 import { auditLogger, AuditEventType, AuditSeverity } from '@/lib/security/audit-logger'
 import { InputValidator } from '@/lib/security/input-validation'
 import { z } from 'zod'
-import { config } from '@/lib/config'
+// No audit config import needed - using hardcoded retention value
 
 // Initialize services
 const inputValidator = new InputValidator()
@@ -44,7 +44,7 @@ async function isAdmin(userId: string): Promise<boolean> {
 export async function GET(request: NextRequest) {
   try {
     // Authenticate user
-    const session = await getServerSession(authOptions)
+    const session = await getServerSession(authConfig)
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -75,6 +75,13 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    if (!validation.data) {
+      return NextResponse.json(
+        { error: 'Invalid query parameters' },
+        { status: 400 }
+      )
+    }
+
     const params = validation.data
 
     // Build filter criteria
@@ -89,22 +96,22 @@ export async function GET(request: NextRequest) {
     // Non-admins can only see their own logs
     if (!isUserAdmin) {
       filters.actor = {
-        userId: session.user.id
+        id: session.user.id
       }
     } else if (params.actorId) {
       // Admins can filter by specific actor
       filters.actor = {
-        userId: params.actorId
+        id: params.actorId
       }
     }
 
     // Query audit logs (mock implementation)
     // In production, this would query the database
     const logs = await mockQueryAuditLogs(filters, {
-      limit: params.limit,
-      offset: params.offset,
+      limit: params.limit ?? 100,
+      offset: params.offset ?? 0,
       orderBy: {
-        [params.sortBy]: params.sortOrder
+        [params.sortBy ?? 'timestamp']: params.sortOrder ?? 'desc'
       }
     })
 
@@ -114,7 +121,7 @@ export async function GET(request: NextRequest) {
       severity: AuditSeverity.INFO,
       actor: {
         type: 'user',
-        userId: session.user.id,
+        id: session.user.id,
         ip: request.headers.get('x-forwarded-for') || 'unknown'
       },
       action: 'Access audit logs',
@@ -130,9 +137,9 @@ export async function GET(request: NextRequest) {
       data: logs.data,
       pagination: {
         total: logs.total,
-        limit: params.limit,
-        offset: params.offset,
-        hasMore: params.offset + params.limit < logs.total
+        limit: params.limit ?? 100,
+        offset: params.offset ?? 0,
+        hasMore: (params.offset ?? 0) + (params.limit ?? 100) < logs.total
       }
     })
   } catch (error) {
@@ -142,7 +149,7 @@ export async function GET(request: NextRequest) {
       actor: { type: 'system' },
       action: 'Audit log retrieval failed',
       result: 'failure',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      reason: error instanceof Error ? error.message : 'Unknown error'
     })
 
     return NextResponse.json(
@@ -159,7 +166,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Authenticate user
-    const session = await getServerSession(authOptions)
+    const session = await getServerSession(authConfig)
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -187,7 +194,7 @@ export async function POST(request: NextRequest) {
     
     if (scope === 'user' || !isUserAdmin) {
       filters.actor = {
-        userId: session.user.id
+        id: session.user.id
       }
     }
 
@@ -222,7 +229,7 @@ export async function POST(request: NextRequest) {
             log.timestamp,
             log.type,
             log.severity,
-            log.actor.userId || log.actor.type,
+            log.actor.id || log.actor.type,
             log.action,
             log.result,
             log.actor.ip || ''
@@ -247,7 +254,7 @@ export async function POST(request: NextRequest) {
       severity: AuditSeverity.WARNING,
       actor: {
         type: 'user',
-        userId: session.user.id,
+        id: session.user.id,
         ip: request.headers.get('x-forwarded-for') || 'unknown'
       },
       action: 'Export audit logs',
@@ -277,7 +284,7 @@ export async function POST(request: NextRequest) {
       actor: { type: 'system' },
       action: 'Audit log export failed',
       result: 'failure',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      reason: error instanceof Error ? error.message : 'Unknown error'
     })
 
     return NextResponse.json(
@@ -294,7 +301,7 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     // Authenticate user
-    const session = await getServerSession(authOptions)
+    const session = await getServerSession(authConfig)
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -311,18 +318,18 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    // Get retention policy from config
-    const retentionDays = config.audit.retention.standardLogs / (24 * 60 * 60 * 1000)
+    // Get retention policy from hardcoded value (90 days)
+    const retentionDays = 90
     const cutoffDate = new Date()
     cutoffDate.setDate(cutoffDate.getDate() - retentionDays)
 
     // Log the cleanup action
     await auditLogger.log({
-      type: AuditEventType.SYSTEM_EVENT,
+      type: AuditEventType.SYSTEM_CONFIG_CHANGE,
       severity: AuditSeverity.WARNING,
       actor: {
         type: 'user',
-        userId: session.user.id,
+        id: session.user.id,
         ip: request.headers.get('x-forwarded-for') || 'unknown'
       },
       action: 'Initiate audit log cleanup',
@@ -347,7 +354,7 @@ export async function DELETE(request: NextRequest) {
       actor: { type: 'system' },
       action: 'Audit log cleanup failed',
       result: 'failure',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      reason: error instanceof Error ? error.message : 'Unknown error'
     })
 
     return NextResponse.json(
@@ -367,12 +374,12 @@ async function mockQueryAuditLogs(
   const mockLogs = [
     {
       id: '1',
-      type: AuditEventType.AUTHENTICATION_SUCCESS,
+      type: AuditEventType.AUTH_SUCCESS,
       severity: AuditSeverity.INFO,
       timestamp: new Date().toISOString(),
       actor: {
         type: 'user',
-        userId: 'user123',
+        id: 'user123',
         ip: '192.168.1.1'
       },
       action: 'User login',
@@ -386,7 +393,7 @@ async function mockQueryAuditLogs(
       timestamp: new Date(Date.now() - 3600000).toISOString(),
       actor: {
         type: 'user',
-        userId: 'user123',
+        id: 'user123',
         ip: '192.168.1.1'
       },
       action: 'API key created',
@@ -402,8 +409,8 @@ async function mockQueryAuditLogs(
   if (filters.type) {
     filtered = filtered.filter(log => log.type === filters.type)
   }
-  if (filters.actor?.userId) {
-    filtered = filtered.filter(log => log.actor.userId === filters.actor.userId)
+  if (filters.actor?.id) {
+    filtered = filtered.filter(log => log.actor.id === filters.actor.id)
   }
 
   // Apply pagination

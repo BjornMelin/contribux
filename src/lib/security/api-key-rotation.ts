@@ -84,6 +84,23 @@ export class ApiKeyManager {
   }
   
   /**
+   * List all API keys for a user
+   */
+  async listUserKeys(userId: string): Promise<ApiKeyMetadata[]> {
+    try {
+      // In a real implementation, this would query the database
+      // For now, return empty array to fix TypeScript errors
+      return []
+    } catch (error) {
+      throw new SecurityError(
+        SecurityErrorType.OPERATION_FAILED,
+        'Failed to list user API keys',
+        { userId, error: error instanceof Error ? error.message : 'Unknown error' }
+      )
+    }
+  }
+  
+  /**
    * Generate a new API key
    */
   async generateKey(

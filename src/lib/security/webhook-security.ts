@@ -184,9 +184,9 @@ export class WebhookSecurityValidator {
       }
 
       // 6. Event type security check
-      if (!WEBHOOK_CONFIG.allowedEvents.includes(event)) {
+      if (!event || !WEBHOOK_CONFIG.allowedEvents.includes(event)) {
         result.securityFlags!.eventNotAllowed = true
-        result.error = `Event type '${event}' not allowed`
+        result.error = `Event type '${event || 'undefined'}' not allowed`
         this.logSecurityEvent('forbidden_event', request, result)
         return result
       }
@@ -238,7 +238,7 @@ export class WebhookSecurityValidator {
       
       return {
         success: true,
-        event: validatedHeaders[WEBHOOK_CONFIG.eventHeader],
+        event: validatedHeaders[WEBHOOK_CONFIG.eventHeader] as AllowedWebhookEvent,
         deliveryId: validatedHeaders[WEBHOOK_CONFIG.deliveryHeader],
       }
     } catch (error) {
@@ -378,7 +378,7 @@ export class WebhookSecurityValidator {
       success: result.success,
       error: result.error,
       securityFlags: result.securityFlags,
-      clientIp: request.ip || request.headers.get('x-forwarded-for') || 'unknown',
+      clientIp: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
       userAgent: request.headers.get('user-agent') || 'unknown',
       contentLength: request.headers.get('content-length'),
     }
@@ -472,6 +472,4 @@ export function createWebhookValidator(): WebhookSecurityValidator {
 export {
   WEBHOOK_CONFIG,
   type AllowedWebhookEvent,
-  type WebhookSecurityResult,
-  type WebhookSecurityConfig,
 }

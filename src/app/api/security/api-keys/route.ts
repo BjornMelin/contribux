@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { authConfig } from '@/lib/auth'
 import { ApiKeyManager } from '@/lib/security/api-key-rotation'
 import { InputValidator } from '@/lib/security/input-validation'
 import { auditLogger, AuditEventType, AuditSeverity } from '@/lib/security/audit-logger'
@@ -36,7 +36,7 @@ const rotateKeySchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     // Authenticate user
-    const session = await getServerSession(authOptions)
+    const session = await getServerSession(authConfig)
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
       severity: AuditSeverity.INFO,
       actor: {
         type: 'user',
-        userId: session.user.id,
+        id: session.user.id,
         ip: request.headers.get('x-forwarded-for') || 'unknown'
       },
       action: 'List API keys',
@@ -65,13 +65,13 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       keys: keys.map(key => ({
-        keyId: key.keyId,
+        keyId: key.id,
         name: key.name,
         permissions: key.permissions,
         createdAt: key.createdAt,
         expiresAt: key.expiresAt,
         lastUsedAt: key.lastUsedAt,
-        isActive: key.isActive
+        isActive: key.status === 'active'
       }))
     })
   } catch (error) {
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
       actor: { type: 'system' },
       action: 'List API keys failed',
       result: 'failure',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      reason: error instanceof Error ? error.message : 'Unknown error'
     })
 
     return NextResponse.json(
@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Authenticate user
-    const session = await getServerSession(authOptions)
+    const session = await getServerSession(authConfig)
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -118,10 +118,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Create API key
+    if (!validation.data) {
+      return NextResponse.json(
+        { error: 'Invalid request data' },
+        { status: 400 }
+      )
+    }
+
     const { key, keyId, expiresAt } = await apiKeyManager.generateKey(
       session.user.id,
       validation.data.name,
-      validation.data.permissions
+      validation.data.permissions || ['read']
     )
 
     // Log creation
@@ -130,7 +137,7 @@ export async function POST(request: NextRequest) {
       severity: AuditSeverity.INFO,
       actor: {
         type: 'user',
-        userId: session.user.id,
+        id: session.user.id,
         ip: request.headers.get('x-forwarded-for') || 'unknown'
       },
       action: 'Create API key',
@@ -155,7 +162,7 @@ export async function POST(request: NextRequest) {
       actor: { type: 'system' },
       action: 'Create API key failed',
       result: 'failure',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      reason: error instanceof Error ? error.message : 'Unknown error'
     })
 
     return NextResponse.json(
@@ -172,7 +179,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     // Authenticate user
-    const session = await getServerSession(authOptions)
+    const session = await getServerSession(authConfig)
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -192,6 +199,13 @@ export async function PUT(request: NextRequest) {
     }
 
     // Rotate API key
+    if (!validation.data) {
+      return NextResponse.json(
+        { error: 'Invalid request data' },
+        { status: 400 }
+      )
+    }
+
     const result = await apiKeyManager.rotateKey(
       validation.data.keyId,
       session.user.id,
@@ -204,7 +218,7 @@ export async function PUT(request: NextRequest) {
       severity: AuditSeverity.WARNING,
       actor: {
         type: 'user',
-        userId: session.user.id,
+        id: session.user.id,
         ip: request.headers.get('x-forwarded-for') || 'unknown'
       },
       action: 'Rotate API key',
@@ -231,7 +245,7 @@ export async function PUT(request: NextRequest) {
       actor: { type: 'system' },
       action: 'Rotate API key failed',
       result: 'failure',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      reason: error instanceof Error ? error.message : 'Unknown error'
     })
 
     return NextResponse.json(
@@ -248,7 +262,7 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     // Authenticate user
-    const session = await getServerSession(authOptions)
+    const session = await getServerSession(authConfig)
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -276,7 +290,7 @@ export async function DELETE(request: NextRequest) {
       severity: AuditSeverity.WARNING,
       actor: {
         type: 'user',
-        userId: session.user.id,
+        id: session.user.id,
         ip: request.headers.get('x-forwarded-for') || 'unknown'
       },
       action: 'Revoke API key',
@@ -297,7 +311,7 @@ export async function DELETE(request: NextRequest) {
       actor: { type: 'system' },
       action: 'Revoke API key failed',
       result: 'failure',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      reason: error instanceof Error ? error.message : 'Unknown error'
     })
 
     return NextResponse.json(

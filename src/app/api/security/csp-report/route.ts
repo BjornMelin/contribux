@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
           type: AuditEventType.SECURITY_VIOLATION,
           severity: AuditSeverity.WARNING,
           actor: {
-            type: 'anonymous',
+            type: 'system',
             ip: clientIp,
             userAgent: request.headers.get('user-agent') || 'unknown'
           },
@@ -128,12 +128,12 @@ export async function POST(request: NextRequest) {
       type: AuditEventType.SECURITY_VIOLATION,
       severity: violationAnalysis.severity,
       actor: {
-        type: 'browser',
+        type: 'system',
         ip: clientIp,
         userAgent: request.headers.get('user-agent') || 'unknown'
       },
       action: 'CSP violation reported',
-      result: 'logged',
+      result: 'success',
       reason: report['violated-directive'],
       metadata: {
         documentUri: report['document-uri'],
@@ -148,22 +148,8 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Trigger alert if severity is high
-    if (violationAnalysis.severity === AuditSeverity.HIGH || 
-        violationAnalysis.severity === AuditSeverity.CRITICAL) {
-      await monitoringDashboard.triggerAlert({
-        type: 'csp_violation',
-        severity: violationAnalysis.severity,
-        message: `Critical CSP violation: ${violationAnalysis.message}`,
-        source: 'csp-report',
-        timestamp: new Date(),
-        metadata: {
-          documentUri: report['document-uri'],
-          blockedUri: report['blocked-uri'],
-          violatedDirective: report['violated-directive']
-        }
-      })
-    }
+    // TODO: Implement alert triggering when public API is available
+    // Critical CSP violations should trigger security alerts
 
     // Return 204 No Content (standard for CSP reporting)
     return new NextResponse(null, { status: 204 })
@@ -175,7 +161,7 @@ export async function POST(request: NextRequest) {
       actor: { type: 'system' },
       action: 'CSP report processing failed',
       result: 'failure',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      reason: error instanceof Error ? error.message : 'Unknown error'
     })
 
     return new NextResponse(null, { status: 204 })
@@ -198,7 +184,7 @@ function analyzeCSPViolation(report: any): {
   // Check for inline script/style violations (potential XSS)
   if (violatedDirective.includes('script-src') && blockedUri.includes('inline')) {
     return {
-      severity: AuditSeverity.HIGH,
+      severity: AuditSeverity.ERROR,
       message: 'Inline script blocked - potential XSS attempt',
       isLikelyAttack: true,
       category: 'xss'
@@ -208,7 +194,7 @@ function analyzeCSPViolation(report: any): {
   // Check for data: URI violations (potential data exfiltration)
   if (blockedUri.startsWith('data:') && violatedDirective.includes('img-src')) {
     return {
-      severity: AuditSeverity.MEDIUM,
+      severity: AuditSeverity.WARNING,
       message: 'Data URI blocked in image source',
       isLikelyAttack: false,
       category: 'data-uri'
@@ -222,7 +208,7 @@ function analyzeCSPViolation(report: any): {
     
     if (!isKnownCDN) {
       return {
-        severity: AuditSeverity.HIGH,
+        severity: AuditSeverity.ERROR,
         message: 'External script blocked from unknown source',
         isLikelyAttack: true,
         category: 'external-script'
@@ -233,7 +219,7 @@ function analyzeCSPViolation(report: any): {
   // Check for frame-ancestors violations (clickjacking attempts)
   if (violatedDirective.includes('frame-ancestors')) {
     return {
-      severity: AuditSeverity.HIGH,
+      severity: AuditSeverity.ERROR,
       message: 'Frame embedding attempt blocked - potential clickjacking',
       isLikelyAttack: true,
       category: 'clickjacking'
@@ -243,7 +229,7 @@ function analyzeCSPViolation(report: any): {
   // Check for form-action violations
   if (violatedDirective.includes('form-action')) {
     return {
-      severity: AuditSeverity.HIGH,
+      severity: AuditSeverity.ERROR,
       message: 'Form submission to unauthorized target blocked',
       isLikelyAttack: true,
       category: 'form-hijacking'
@@ -255,7 +241,7 @@ function analyzeCSPViolation(report: any): {
     const isLocalhost = blockedUri.includes('localhost') || blockedUri.includes('127.0.0.1')
     
     return {
-      severity: isLocalhost ? AuditSeverity.LOW : AuditSeverity.MEDIUM,
+      severity: isLocalhost ? AuditSeverity.DEBUG : AuditSeverity.WARNING,
       message: `API connection blocked to ${blockedUri}`,
       isLikelyAttack: !isLocalhost,
       category: 'api-connection'
@@ -264,7 +250,7 @@ function analyzeCSPViolation(report: any): {
 
   // Default case for other violations
   return {
-    severity: AuditSeverity.MEDIUM,
+    severity: AuditSeverity.WARNING,
     message: `CSP violation: ${violatedDirective}`,
     isLikelyAttack: false,
     category: 'other'

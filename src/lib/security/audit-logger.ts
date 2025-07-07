@@ -27,6 +27,9 @@ export enum AuditEventType {
   API_ACCESS = 'api.access',
   API_RATE_LIMIT = 'api.rate_limit',
   API_ERROR = 'api.error',
+  API_KEY_CREATED = 'api.key.created',
+  API_KEY_ROTATED = 'api.key.rotated',
+  API_KEY_REVOKED = 'api.key.revoked',
   
   // Security events
   SECURITY_VIOLATION = 'security.violation',
