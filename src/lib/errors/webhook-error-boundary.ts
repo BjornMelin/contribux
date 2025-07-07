@@ -83,15 +83,12 @@ export async function withWebhookErrorBoundary<T>(
         type: 'system',
       },
       action: `Processed ${context.event} webhook`,
-      resource: {
-        type: 'webhook',
-        id: context.deliveryId,
-      },
       result: 'success',
       metadata: {
         event: context.event,
         repository: context.repository,
         attemptNumber: context.attemptNumber || 1,
+        deliveryId: context.deliveryId,
       },
     })
     
@@ -125,10 +122,6 @@ export async function withWebhookErrorBoundary<T>(
         type: 'system',
       },
       action: `Failed to process ${context.event} webhook`,
-      resource: {
-        type: 'webhook',
-        id: context.deliveryId,
-      },
       result: 'error',
       reason: webhookError.message,
       metadata: {
@@ -137,6 +130,7 @@ export async function withWebhookErrorBoundary<T>(
         repository: context.repository,
         attemptNumber: context.attemptNumber || 1,
         isRetryable: classification.isTransient,
+        deliveryId: context.deliveryId,
       },
     })
     
@@ -276,15 +270,12 @@ export class WebhookRetryQueue {
           type: 'system',
         },
         action: `Retrying ${item.webhook.webhookEvent} webhook`,
-        resource: {
-          type: 'webhook',
-          id: item.webhook.deliveryId || '',
-        },
-        result: 'retry',
+        result: 'failure',
         metadata: {
           attemptNumber: item.retryCount + 1,
           event: item.webhook.webhookEvent,
           repository: item.webhook.repository,
+          deliveryId: item.webhook.deliveryId || '',
         },
       })
     }

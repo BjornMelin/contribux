@@ -116,7 +116,7 @@ export class ErrorRecoveryManager {
             type: 'button',
             label: 'Sign In',
             description: 'Sign in to continue',
-            action: () => signIn('github'),
+            action: () => { signIn('github') },
           },
         ],
         allowDismiss: false,
@@ -129,7 +129,7 @@ export class ErrorRecoveryManager {
           {
             type: 'button',
             label: 'Sign In Again',
-            action: () => signIn('github'),
+            action: () => { signIn('github') },
           },
           {
             type: 'link',
@@ -257,7 +257,7 @@ export class ErrorRecoveryManager {
           {
             type: 'button',
             label: 'Go to Home',
-            action: () => window.location.href = '/',
+            action: () => { window.location.href = '/' },
           },
           {
             type: 'link',

@@ -81,7 +81,7 @@ export class EnhancedErrorBoundary extends Component<EnhancedErrorBoundaryProps,
     
     // Generate recovery workflow
     const workflow = ErrorRecoveryManager.getRecoveryWorkflow(error, {
-      retryAction: this.props.context?.retryAction || (() => this.retry()),
+      retryAction: this.props.context?.retryAction || (async () => this.retry()),
       fallbackAction: this.props.context?.fallbackAction,
       customActions: this.props.context?.customActions,
     })

@@ -92,7 +92,6 @@ export function RepositoryCardErrorBoundary({
       )}
       context={{
         feature: 'repository-card',
-        metadata: { repositoryName },
       }}
       {...props}
     >

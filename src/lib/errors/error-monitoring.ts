@@ -202,11 +202,11 @@ export class ErrorMonitor {
     // Check for error spikes
     if (metrics.errorRate > 10) { // More than 10 errors per minute
       await auditLogger.log({
-        type: AuditEventType.SECURITY_ALERT,
+        type: AuditEventType.SECURITY_VIOLATION,
         severity: AuditSeverity.WARNING,
         actor: { id: 'system', type: 'system' },
         action: 'Error spike detected',
-        result: 'alert',
+        result: 'failure',
         metadata: {
           errorRate: metrics.errorRate,
           category: classification.category,
@@ -223,11 +223,11 @@ export class ErrorMonitor {
     
     if (criticalErrors.length >= 3) {
       await auditLogger.log({
-        type: AuditEventType.SECURITY_ALERT,
+        type: AuditEventType.SECURITY_VIOLATION,
         severity: AuditSeverity.CRITICAL,
         actor: { id: 'system', type: 'system' },
         action: 'Multiple critical errors detected',
-        result: 'alert',
+        result: 'failure',
         metadata: {
           criticalErrorCount: criticalErrors.length,
           categories: [...new Set(criticalErrors.map(e => e.classification.category))],
