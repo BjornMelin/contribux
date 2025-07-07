@@ -16,15 +16,25 @@ import {
   type WebhookSecurityResult 
 } from '@/lib/security/webhook-security'
 import { GitHubWebhookPayload } from '@/types/github-integration'
+import { 
+  withWebhookErrorBoundary, 
+  createWebhookErrorResponse,
+  webhookRetryQueue,
+  WebhookError
+} from '@/lib/errors/webhook-error-boundary'
+import { errorMonitor } from '@/lib/errors/error-monitoring'
+import { ErrorClassifier } from '@/lib/errors/error-classification'
 
 // Initialize webhook security validator
 const webhookValidator = createWebhookValidator()
 
 /**
- * Handle GitHub webhook POST requests with comprehensive security
+ * Handle GitHub webhook POST requests with comprehensive security and error handling
  */
 export async function POST(request: NextRequest) {
   let securityResult: WebhookSecurityResult
+  let deliveryId: string | undefined
+  let event: string | undefined
 
   try {
     // Comprehensive security validation
@@ -36,7 +46,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Extract validated data
-    const { event, deliveryId, payload } = securityResult
+    deliveryId = securityResult.deliveryId
+    event = securityResult.event
+    const payload = securityResult.payload
     
     if (!event || !deliveryId || !payload) {
       return createWebhookSecurityResponse({
@@ -45,29 +57,60 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Process webhook based on event type
-    const processResult = await processWebhookEvent(event, payload as GitHubWebhookPayload, deliveryId)
-    
-    if (!processResult.success) {
-      return createWebhookSecurityResponse({
-        success: false,
-        error: processResult.error,
+    // Process webhook with error boundary
+    const result = await withWebhookErrorBoundary(
+      async () => {
+        // Process webhook based on event type
+        const processResult = await processWebhookEvent(event, payload as GitHubWebhookPayload, deliveryId)
+        
+        if (!processResult.success) {
+          throw new Error(processResult.error || 'Webhook processing failed')
+        }
+        
+        return processResult
+      },
+      {
+        event,
         deliveryId,
-      })
-    }
-
-    // Log successful processing
-    console.log(`[WEBHOOK] Successfully processed ${event} event ${deliveryId}`)
-
-    return createWebhookSecurityResponse(
-      { success: true, event, deliveryId },
-      `Successfully processed ${event} event`
+        repository: (payload as GitHubWebhookPayload)?.repository?.full_name,
+        source: 'github',
+        attemptNumber: 1,
+      }
     )
 
+    // Handle retry if needed
+    if (!result.success && result.retryable && result.nextRetryDelay) {
+      const webhookError = new Error(result.error || 'Webhook processing failed') as WebhookError
+      webhookError.webhookEvent = event
+      webhookError.deliveryId = deliveryId
+      webhookError.repository = (payload as GitHubWebhookPayload)?.repository?.full_name
+      webhookError.attemptNumber = 1
+      webhookError.isRetryable = true
+      
+      await webhookRetryQueue.enqueue(
+        webhookError,
+        { event, deliveryId, payload },
+        result.nextRetryDelay
+      )
+    }
+
+    return createWebhookErrorResponse(result)
+
   } catch (error) {
-    // Handle unexpected errors securely
-    const errorMessage = error instanceof Error ? error.message : 'Webhook processing failed'
+    // Track unexpected errors
+    const classification = ErrorClassifier.classify(error)
     
+    await errorMonitor.track(error, classification, {
+      url: request.url,
+      userAgent: request.headers.get('user-agent') || undefined,
+      metadata: {
+        event,
+        deliveryId,
+        source: 'github-webhook',
+      },
+    })
+    
+    // Handle unexpected errors securely
     console.error('[WEBHOOK] Unexpected error:', error)
     
     return createWebhookSecurityResponse({
