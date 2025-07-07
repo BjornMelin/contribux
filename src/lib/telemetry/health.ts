@@ -7,9 +7,10 @@
 import { createSpan, createDatabaseSpan, createGitHubSpan } from './utils'
 import { telemetryLogger } from './logger'
 import { InstrumentedGitHubClient } from '@/lib/github/instrumented-client'
-import { meter } from '@opentelemetry/api'
+import { metrics } from '@opentelemetry/api'
 
 // Health check metrics
+const meter = metrics.getMeter('contribux-health', '1.0.0')
 const healthCheckGauge = meter.createUpDownCounter('component_health_status', {
   description: 'Health status of system components (1 = healthy, 0 = unhealthy)',
 })

@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       telemetryLogger.api('Health check request', {
         path: '/api/health',
         method: 'GET',
-        component,
+        component: component ?? undefined,
         statusCode: 200,
       })
 
@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
         telemetryLogger.error('Health check failed', error, {
           path: '/api/health',
           method: 'GET',
-          component,
+          component: component ?? undefined,
         })
 
         return NextResponse.json(
