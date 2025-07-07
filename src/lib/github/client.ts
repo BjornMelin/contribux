@@ -131,6 +131,7 @@ export interface GitHubClientTest {
  */
 
 import { auth } from '@/lib/auth'
+import { config } from '@/lib/config/provider'
 import { retry } from '@octokit/plugin-retry'
 import { throttling } from '@octokit/plugin-throttling'
 import { Octokit } from '@octokit/rest'
@@ -144,6 +145,7 @@ const GitHubClientConfigSchema = z.object({
   accessToken: z.string().optional(),
   baseUrl: z.string().url().optional(),
   userAgent: z.string().optional(),
+  timeout: z.number().positive().optional(),
 })
 
 export type GitHubClientConfig = z.infer<typeof GitHubClientConfigSchema>
@@ -154,7 +156,7 @@ export type GitHubClientConfig = z.infer<typeof GitHubClientConfigSchema>
 export class GitHubClient {
   private octokit: InstanceType<typeof EnhancedOctokit>
   private cache: Map<string, { data: unknown; expires: number }> = new Map()
-  private readonly maxCacheSize = 1000
+  private readonly maxCacheSize = 500
   private readonly maxCacheAge = 300000 // 5 minutes in ms
 
   // Helper function to transform GitHub labels
@@ -257,6 +259,13 @@ export class GitHubClient {
       ...(validatedConfig.baseUrl && { baseUrl: validatedConfig.baseUrl }),
       userAgent: validatedConfig.userAgent || 'Contribux/1.0',
 
+      // Request timeout configuration
+      ...(validatedConfig.timeout && {
+        request: {
+          timeout: validatedConfig.timeout,
+        },
+      }),
+
       // Built-in retry configuration
       retry: {
         doNotRetry: ['abuse'],
@@ -284,8 +293,11 @@ export class GitHubClient {
       throw new Error('No valid session or access token found')
     }
 
+    const githubConfig = config.getSection('github')
+
     return new GitHubClient({
       accessToken: session.accessToken,
+      timeout: githubConfig.timeout,
     })
   }
 
@@ -727,11 +739,57 @@ export class GitHubClient {
   /**
    * Helper method to clean expired cache entries
    */
+  /**
+   * Helper method to clean expired cache entries and enforce size limits
+   */
   private cleanExpiredCache(): void {
     const now = Date.now()
     for (const [key, entry] of this.cache.entries()) {
-      if (now > entry.expires) {
+      if (entry.expires < now) {
         this.cache.delete(key)
+      }
+    }
+
+    // Enforce cache size limit with LRU eviction
+    if (this.cache.size > this.maxCacheSize) {
+      const entries = Array.from(this.cache.entries())
+      const sortedByExpiry = entries.sort((a, b) => a[1].expires - b[1].expires)
+      const toDelete = Math.max(0, this.cache.size - this.maxCacheSize)
+      
+      for (let i = 0; i < toDelete; i++) {
+        this.cache.delete(sortedByExpiry[i][0])
+      }
+    }
+  }
+
+  /**
+   * Get memory usage statistics for monitoring
+   */
+  getMemoryStats(): { cacheSize: number; memorySizeMB: number; maxCacheSize: number } {
+    const memorySizeBytes = JSON.stringify(Array.from(this.cache.entries())).length * 2 // Rough estimate
+    return {
+      cacheSize: this.cache.size,
+      memorySizeMB: Math.round(memorySizeBytes / (1024 * 1024) * 100) / 100,
+      maxCacheSize: this.maxCacheSize,
+    }
+  }
+
+  /**
+   * Force garbage collection of cache if memory usage is high
+   */
+  private forceMemoryCleanup(): void {
+    if (this.cache.size > this.maxCacheSize * 0.8) {
+      this.cleanExpiredCache()
+      
+      // If still over 80% capacity, remove oldest 25% of entries
+      if (this.cache.size > this.maxCacheSize * 0.8) {
+        const entries = Array.from(this.cache.entries())
+        const sortedByExpiry = entries.sort((a, b) => a[1].expires - b[1].expires)
+        const toDelete = Math.floor(this.cache.size * 0.25)
+        
+        for (let i = 0; i < toDelete; i++) {
+          this.cache.delete(sortedByExpiry[i][0])
+        }
       }
     }
   }

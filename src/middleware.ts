@@ -1,12 +1,13 @@
 import { type NextRequest, NextResponse } from 'next/server'
 
 import { monitoringMiddleware } from './lib/middleware/monitoring-middleware'
-import { enhancedSecurityMiddleware } from './lib/security/enhanced-middleware'
+import { securityMiddleware } from './lib/security/integrated-security-middleware'
 import { addSecurityHeaders, handleCorsOptions } from './lib/security/headers'
 
 /**
- * Portfolio middleware
- * Balanced approach: Enhanced security for demonstration, monitoring integration
+ * Comprehensive Security Middleware
+ * Integrates all security components: rate limiting, request signing, IP allowlist,
+ * audit logging, input validation, security headers, CORS, API key rotation, and monitoring
  */
 export async function middleware(request: NextRequest) {
   try {
@@ -16,13 +17,13 @@ export async function middleware(request: NextRequest) {
       return monitoringResponse
     }
 
-    // Try enhanced security middleware
-    const enhancedResponse = await enhancedSecurityMiddleware(request)
-    if (enhancedResponse) {
-      return enhancedResponse
+    // Apply comprehensive integrated security middleware
+    const securityResponse = await securityMiddleware(request)
+    if (securityResponse) {
+      return securityResponse
     }
 
-    // Fallback to basic security
+    // Fallback to basic security (should not reach here)
     const corsResponse = handleCorsOptions(request)
     if (corsResponse) {
       return corsResponse

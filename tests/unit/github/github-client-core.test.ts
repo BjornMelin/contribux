@@ -82,6 +82,24 @@ describe('GitHub Client Core', () => {
       expect(client).toBeInstanceOf(GitHubClient)
     })
 
+    it('should accept timeout configuration', () => {
+      const config: GitHubClientConfig = {
+        accessToken: 'test_token',
+        timeout: 45000, // 45 seconds
+      }
+      const client = createClient(config)
+      expect(client).toBeInstanceOf(GitHubClient)
+    })
+
+    it('should validate timeout configuration', () => {
+      // Test that negative timeout is rejected by Zod validation
+      const invalidConfig = {
+        timeout: -1000, // Invalid negative timeout
+      } as GitHubClientConfig
+
+      expect(() => new GitHubClient(invalidConfig)).toThrow()
+    })
+
     it('should validate configuration with Zod', () => {
       // Test that invalid configuration is caught by Zod validation
       const invalidConfig = {

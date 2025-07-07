@@ -13,7 +13,7 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
       // Fix Next.js module resolution for tests
-      'next/server': path.resolve(__dirname, 'node_modules/next/dist/server/index.js'),
+      'next/server': path.resolve(__dirname, 'node_modules/next/dist/server/web/exports/index.js'),
       'next/headers': path.resolve(
         __dirname,
         'node_modules/next/dist/client/components/headers.js'

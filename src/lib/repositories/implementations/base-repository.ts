@@ -375,7 +375,7 @@ export abstract class BaseRepository<T, ID = string> implements Repository<T, ID
   }
 
   private cache = new Map<string, CacheEntry>()
-  private maxCacheSize = 1000
+  private maxCacheSize = 500
   private lastCleanup = Date.now()
 
   /**

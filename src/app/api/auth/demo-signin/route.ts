@@ -1,11 +1,17 @@
 /**
  * Demo Sign-In API Endpoint
- * Creates a mock authentication session for development testing
+ * Creates a mock authentication session for development testing with rate limiting
  */
 
 import { SignJWT } from 'jose'
 import { cookies } from 'next/headers'
 import { type NextRequest, NextResponse } from 'next/server'
+import { 
+  checkAuthRateLimit, 
+  recordAuthResult, 
+  createRateLimitResponse,
+  applyProgressiveDelay 
+} from '@/lib/security/auth-rate-limiting'
 
 // Demo user data for testing
 const DEMO_USERS = {
@@ -26,9 +32,23 @@ const DEMO_USERS = {
 }
 
 export async function POST(request: NextRequest) {
+  // Apply authentication rate limiting
+  const rateLimitResult = checkAuthRateLimit(request)
+  if (!rateLimitResult.allowed) {
+    return createRateLimitResponse(
+      'Too many sign-in attempts. Please try again later.',
+      rateLimitResult.retryAfter,
+      rateLimitResult.escalationLevel
+    )
+  }
+
+  // Apply progressive delay for repeated attempts
+  await applyProgressiveDelay(request)
+
   try {
     // Only allow in development
     if (process.env.NODE_ENV !== 'development') {
+      recordAuthResult(request, false) // Not allowed in production
       return NextResponse.json(
         { error: 'Demo authentication only available in development' },
         { status: 403 }
@@ -38,6 +58,7 @@ export async function POST(request: NextRequest) {
     const { provider } = await request.json()
 
     if (!provider || !DEMO_USERS[provider as keyof typeof DEMO_USERS]) {
+      recordAuthResult(request, false) // Invalid provider
       return NextResponse.json({ error: 'Invalid provider' }, { status: 400 })
     }
 
@@ -70,6 +91,9 @@ export async function POST(request: NextRequest) {
       maxAge: 24 * 60 * 60, // 24 hours
     })
 
+    // Record successful authentication
+    recordAuthResult(request, true)
+
     return NextResponse.json({
       success: true,
       user: {
@@ -82,6 +106,7 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     // Demo sign-in error handled
+    recordAuthResult(request, false)
     return NextResponse.json({ error: 'Demo sign-in failed' }, { status: 500 })
   }
 }

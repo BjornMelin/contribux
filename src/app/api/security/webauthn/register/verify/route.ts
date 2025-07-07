@@ -1,11 +1,17 @@
 /**
  * WebAuthn Registration Verification API
- * Verify and store new WebAuthn credentials
+ * Verify and store new WebAuthn credentials with rate limiting protection
  */
 
 import { auth } from '@/lib/auth/index'
 import { securityFeatures } from '@/lib/security/feature-flags'
 import { verifyWebAuthnRegistration } from '@/lib/security/webauthn/server'
+import { 
+  checkAuthRateLimit, 
+  recordAuthResult, 
+  createRateLimitResponse,
+  applyProgressiveDelay 
+} from '@/lib/security/auth-rate-limiting'
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
@@ -30,10 +36,24 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'WebAuthn is not enabled' }, { status: 403 })
   }
 
+  // Apply authentication rate limiting
+  const rateLimitResult = checkAuthRateLimit(request)
+  if (!rateLimitResult.allowed) {
+    return createRateLimitResponse(
+      'Too many registration attempts. Please try again later.',
+      rateLimitResult.retryAfter,
+      rateLimitResult.escalationLevel
+    )
+  }
+
+  // Apply progressive delay for repeated attempts
+  await applyProgressiveDelay(request)
+
   try {
     // Get authenticated session
     const session = await auth()
     if (!session?.user?.id) {
+      recordAuthResult(request, false) // Authentication required but not provided
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
@@ -49,12 +69,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     )
 
     if (result.verified) {
+      // Record successful registration
+      recordAuthResult(request, true)
+      
       return NextResponse.json({
         success: true,
         message: 'WebAuthn credential registered successfully',
         credentialId: result.credentialId,
       })
     }
+    
+    // Record failed registration
+    recordAuthResult(request, false)
+    
     return NextResponse.json(
       {
         success: false,
@@ -63,6 +90,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { status: 400 }
     )
   } catch (error) {
+    // Record failed registration for any error
+    recordAuthResult(request, false)
+    
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Invalid request data', details: error.errors },

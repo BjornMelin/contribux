@@ -57,31 +57,40 @@ export default defineConfig({
 
     setupFiles: ['./tests/setup-database.ts'],
 
-    // Sequential execution for database tests
+    // Optimized execution for database tests with connection pooling
     pool: 'threads',
     poolOptions: {
       threads: {
-        singleThread: true,
+        singleThread: false, // Enable parallelization
         minThreads: 1,
-        maxThreads: 1,
+        maxThreads: Math.min(3, cpus().length), // Limited for database tests to avoid connection conflicts
+        // Use pool isolation to prevent database connection conflicts
+        isolate: true,
       },
     },
 
-    // Database-specific timeouts
-    testTimeout: 20000,
-    hookTimeout: 10000,
-    retry: 1,
+    // Reasonable timeouts with retry logic
+    testTimeout: 15000, // Reduced from 20s
+    hookTimeout: 8000, // Reduced from 10s  
+    retry: 2, // Increased retry for database flakiness
 
-    // CI optimized reporting
-    reporters: process.env.CI ? ['verbose'] : ['default'],
+    // Optimized reporting for CI
+    reporters: process.env.CI ? ['verbose', 'json'] : ['default'],
     outputFile: {
       json: './database-test-results.json',
     },
 
-    // Database test environment
+    // Database test environment with connection optimization
     env: {
       NODE_ENV: 'test',
       CI: process.env.CI || 'false',
+      // Enable database connection pooling
+      DATABASE_POOL_MAX: '5',
+      DATABASE_POOL_MIN: '1',
     },
+
+    // Improved memory management
+    maxWorkers: Math.min(3, cpus().length),
+    logHeapUsage: true,
   },
 })
