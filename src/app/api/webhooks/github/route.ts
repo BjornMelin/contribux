@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     const result = await withWebhookErrorBoundary(
       async () => {
         // Process webhook based on event type
-        const processResult = await processWebhookEvent(event, payload as GitHubWebhookPayload, deliveryId)
+        const processResult = await processWebhookEvent(event!, payload as GitHubWebhookPayload, deliveryId!)
         
         if (!processResult.success) {
           throw new Error(processResult.error || 'Webhook processing failed')

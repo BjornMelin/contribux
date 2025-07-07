@@ -94,10 +94,11 @@ export class GitHubCacheManager {
     // Handle objects
     if (typeof obj === 'object') {
       const sortedObj: Record<string, unknown> = {}
-      const keys = Object.keys(obj).sort()
+      const objRecord = obj as Record<string, unknown>
+      const keys = Object.keys(objRecord).sort()
 
       for (const key of keys) {
-        sortedObj[key] = this.sortObjectKeys(obj[key])
+        sortedObj[key] = this.sortObjectKeys(objRecord[key])
       }
 
       return sortedObj

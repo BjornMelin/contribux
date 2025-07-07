@@ -15,7 +15,7 @@ export class InstrumentedGitHubClient extends GitHubClient {
   /**
    * Search repositories with telemetry
    */
-  async searchRepositories(params: {
+  override async searchRepositories(params: {
     query: string
     language?: string
     minStars?: number
@@ -79,7 +79,7 @@ export class InstrumentedGitHubClient extends GitHubClient {
   /**
    * Get repository details with telemetry
    */
-  async getRepository(owner: string, repo: string): Promise<GitHubRepository> {
+  override async getRepository(owner: string, repo: string): Promise<GitHubRepository> {
     return createGitHubSpan(
       'get_repository',
       async (span) => {
@@ -139,7 +139,7 @@ export class InstrumentedGitHubClient extends GitHubClient {
   /**
    * Search issues with telemetry
    */
-  async searchIssues(params: {
+  override async searchIssues(params: {
     repository?: string
     labels?: string[]
     state?: 'open' | 'closed'
@@ -203,7 +203,7 @@ export class InstrumentedGitHubClient extends GitHubClient {
   /**
    * Get authenticated user with telemetry
    */
-  async getCurrentUser() {
+  override async getCurrentUser() {
     return createGitHubSpan(
       'get_current_user',
       async (span) => {
@@ -249,7 +249,7 @@ export class InstrumentedGitHubClient extends GitHubClient {
   /**
    * Health check with telemetry and rate limit monitoring
    */
-  async healthCheck(): Promise<{
+  override async healthCheck(): Promise<{
     healthy: boolean
     rateLimit?: {
       limit: number
@@ -321,7 +321,7 @@ export class InstrumentedGitHubClient extends GitHubClient {
   /**
    * Get repository issues with telemetry
    */
-  async getRepositoryIssues(
+  override async getRepositoryIssues(
     owner: string,
     repo: string,
     params: {
