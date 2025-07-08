@@ -3,8 +3,8 @@
  * Provides authentication, authorization, and security middleware for Next.js routes
  */
 
-import { NextResponse } from 'next/server'
 import type { Redis as RedisType } from 'ioredis'
+import { NextResponse } from 'next/server'
 
 // Types for dynamically imported modules
 interface RedisConstructor {
@@ -458,13 +458,13 @@ function handleAuthError(error: unknown): NextResponse {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
     if (error.message === 'Invalid token') {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
     if (error.message === 'User not found') {
-      return NextResponse.json({ error: 'User not found' }, { status: 401 })
+      return NextResponse.json({ error: 'User account not found or has been disabled' }, { status: 403 })
     }
     if (error.message === 'Account locked') {
-      return NextResponse.json({ error: 'Account locked' }, { status: 403 })
+      return NextResponse.json({ error: 'User account is temporarily locked' }, { status: 423 })
     }
   }
 

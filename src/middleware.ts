@@ -1,12 +1,19 @@
 /**
- * Next.js Middleware for CSP Nonce Generation
- * Generates unique nonces per request for enhanced security
+ * Next.js Middleware for CSP Nonce Generation, Security Headers, and Authentication
+ * Edge Runtime compatible - lightweight authentication check only
  */
 
 import { buildCSP, generateNonce, getCSPDirectives } from '@/lib/security/csp'
+import { verifyAccessToken } from '@/lib/auth/jwt'
 import { type NextRequest, NextResponse } from 'next/server'
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
+  // Lightweight auth check for Edge Runtime compatibility
+  const authResponse = await lightweightAuthCheck(request)
+  if (authResponse) {
+    return authResponse
+  }
+
   // Generate unique nonce for this request
   const nonce = generateNonce()
 
@@ -47,6 +54,65 @@ export function middleware(request: NextRequest) {
   }
 
   return response
+}
+
+/**
+ * Lightweight authentication check for Edge Runtime
+ * Avoids Node.js-specific imports for better performance
+ */
+async function lightweightAuthCheck(request: NextRequest): Promise<NextResponse | undefined> {
+  const path = request.nextUrl.pathname
+
+  // Public routes that don't require authentication
+  const publicRoutes = ['/', '/about', '/pricing', '/legal']
+  if (publicRoutes.includes(path)) {
+    return undefined
+  }
+
+  // Auth pages and public API routes
+  if (path.startsWith('/auth/') || 
+      path.startsWith('/api/auth/') || 
+      path === '/api/health' ||
+      path.startsWith('/_next/') || 
+      path === '/favicon.ico') {
+    return undefined
+  }
+
+  // For protected routes, perform lightweight token verification
+  const token = extractToken(request)
+  if (!token) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+  }
+
+  try {
+    const payload = await verifyAccessToken(token)
+    if (!payload || !payload.sub) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+    }
+    // Token is valid, continue to route
+    return undefined
+  } catch (error) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+  }
+}
+
+/**
+ * Extract token from request headers or cookies
+ */
+function extractToken(request: NextRequest): string | null {
+  // Check Authorization header
+  const authHeader = request.headers.get('Authorization')
+  if (authHeader?.startsWith('Bearer ')) {
+    return authHeader.substring(7)
+  }
+
+  // Check cookie
+  const cookieToken = request.cookies.get('access_token')?.value
+  if (cookieToken) {
+    return cookieToken
+  }
+
+  return null
 }
 
 // Configure which routes use this middleware

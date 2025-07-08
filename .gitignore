@@ -448,6 +448,8 @@ test-entropy.js
 .taskmaster/cache/
 .taskmaster/.env
 .taskmaster/*.log
+# .taskmaster/config.json
+# .taskmaster/state.json
 
 # ================================
 # AI Development Tools
@@ -460,6 +462,7 @@ test-entropy.js
 .gpt/
 .anthropic/
 .openai/
+.vscode/extensions.json
 
 # Roo integration files
 .roo/
@@ -470,3 +473,6 @@ test-entropy.js
 .cursor/mcp.json
 .cursor/*.log
 .cursor/cache/
+
+# Screenshots
+screenshots/

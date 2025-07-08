@@ -5,7 +5,7 @@
  */
 
 import { InstrumentedGitHubClient } from '@/lib/github/instrumented-client'
-import { metrics, type Span } from '@opentelemetry/api'
+import { type Span, metrics } from '@opentelemetry/api'
 import { telemetryLogger } from './logger'
 import { createDatabaseSpan, createGitHubSpan, createSpan } from './utils'
 
@@ -197,7 +197,14 @@ export async function checkDatabaseHealth(): Promise<HealthCheckResult> {
 
     try {
       // Import database client dynamically to avoid circular dependencies
-      const { sql } = await import('@/lib/db')
+      const { neon } = await import('@neondatabase/serverless')
+      
+      // Create direct connection with explicit options for health check
+      const sql = neon(process.env.DATABASE_URL!, {
+        fetchOptions: {
+          cache: 'no-cache',
+        },
+      })
 
       // Simple connectivity test
       await sql`SELECT 1 as health_check`
