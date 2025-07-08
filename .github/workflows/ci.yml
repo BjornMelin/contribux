@@ -1,0 +1,164 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  # Mock environment variables for testing
+  DATABASE_URL: "postgresql://test:test@localhost:5432/contribux_test"
+  DATABASE_URL_TEST: "postgresql://test:test@localhost:5432/contribux_test"
+  NEXTAUTH_SECRET: "test-secret-for-ci-only-not-production"
+  NEXTAUTH_URL: "http://localhost:3000"
+  
+  # Mock GitHub credentials for testing (not real tokens!)
+  GITHUB_CLIENT_ID: "mock_github_client_id_for_testing"
+  GITHUB_CLIENT_SECRET: "mock_github_client_secret_for_testing"
+  GITHUB_TOKEN: "ghp_mock_token_for_testing_only_1234567890"
+  
+  # Mock Redis for testing
+  REDIS_URL: "redis://localhost:6379"
+  
+  # OpenTelemetry for testing
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://localhost:4318"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: contribux_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup test database
+        run: |
+          # Database migrations for testing
+          pnpm db:migrate:test
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL_TEST }}
+
+      - name: Run type checking
+        run: pnpm type-check
+
+      - name: Run linting
+        run: pnpm lint
+
+      - name: Run unit tests
+        run: pnpm test:unit
+        env:
+          NODE_ENV: test
+
+      - name: Run integration tests
+        run: pnpm test:integration
+        env:
+          NODE_ENV: test
+
+      - name: Run security tests
+        run: pnpm test:security
+        env:
+          NODE_ENV: test
+
+      - name: Build application
+        run: pnpm build
+        env:
+          NODE_ENV: production
+
+  security-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Security audit
+        run: |
+          pnpm audit --audit-level high
+          pnpm outdated || true
+
+  e2e-tests:
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps
+
+      - name: Run E2E tests
+        run: pnpm test:e2e
+        env:
+          NODE_ENV: test
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
