@@ -63,7 +63,16 @@ function MockSessionProvider({ children }: { children: ReactNode }) {
 
     const checkSession = async () => {
       try {
-        const response = await fetch('/api/auth/session')
+        // Add timeout to prevent infinite loading
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
+
+        const response = await fetch('/api/auth/session', {
+          signal: controller.signal,
+        })
+        
+        clearTimeout(timeoutId)
+        
         if (response.ok) {
           const sessionData = await response.json()
           if (sessionData.user) {
@@ -75,12 +84,27 @@ function MockSessionProvider({ children }: { children: ReactNode }) {
         } else {
           setStatus('unauthenticated')
         }
-      } catch {
+      } catch (error) {
+        // If request fails or times out, set to unauthenticated
+        console.warn('Session check failed:', error)
         setStatus('unauthenticated')
       }
     }
 
     checkSession()
+
+    // Fallback: ensure status is never stuck in loading for more than 10 seconds
+    const fallbackTimer = setTimeout(() => {
+      setStatus(currentStatus => {
+        if (currentStatus === 'loading') {
+          console.warn('Session check taking too long, defaulting to unauthenticated')
+          return 'unauthenticated'
+        }
+        return currentStatus
+      })
+    }, 10000)
+
+    return () => clearTimeout(fallbackTimer)
   }, [])
 
   const signIn = async (provider: string) => {

@@ -83,9 +83,9 @@ export default function Home() {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="mt-20 grid grid-cols-1 gap-8 md:grid-cols-3"
+            className="mt-20 grid grid-cols-3 gap-4 sm:gap-6 lg:gap-8"
           >
-            <div className="group relative overflow-hidden rounded-2xl border bg-card p-8 transition-all hover:shadow-lg">
+            <div className="group relative overflow-hidden rounded-2xl border bg-card p-4 sm:p-6 lg:p-8 transition-all hover:shadow-lg">
               <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
               <div className="relative">
                 <div className="mb-4 inline-flex rounded-lg bg-primary/10 p-3">
@@ -105,15 +105,15 @@ export default function Home() {
                     />
                   </svg>
                 </div>
-                <h3 className="mb-2 font-semibold text-xl">AI-Powered Matching</h3>
-                <p className="text-muted-foreground">
+                <h3 className="mb-2 font-semibold text-lg sm:text-xl">AI-Powered Matching</h3>
+                <p className="text-sm sm:text-base text-muted-foreground">
                   Our intelligent algorithms analyze your skills and interests to find the perfect
                   repositories for you.
                 </p>
               </div>
             </div>
 
-            <div className="group relative overflow-hidden rounded-2xl border bg-card p-8 transition-all hover:shadow-lg">
+            <div className="group relative overflow-hidden rounded-2xl border bg-card p-4 sm:p-6 lg:p-8 transition-all hover:shadow-lg">
               <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
               <div className="relative">
                 <div className="mb-4 inline-flex rounded-lg bg-purple-500/10 p-3">
@@ -133,15 +133,15 @@ export default function Home() {
                     />
                   </svg>
                 </div>
-                <h3 className="mb-2 font-semibold text-xl">Community Insights</h3>
-                <p className="text-muted-foreground">
+                <h3 className="mb-2 font-semibold text-lg sm:text-xl">Community Insights</h3>
+                <p className="text-sm sm:text-base text-muted-foreground">
                   See real-time activity, maintainer responsiveness, and community health metrics at
                   a glance.
                 </p>
               </div>
             </div>
 
-            <div className="group relative overflow-hidden rounded-2xl border bg-card p-8 transition-all hover:shadow-lg">
+            <div className="group relative overflow-hidden rounded-2xl border bg-card p-4 sm:p-6 lg:p-8 transition-all hover:shadow-lg">
               <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
               <div className="relative">
                 <div className="mb-4 inline-flex rounded-lg bg-blue-500/10 p-3">
@@ -161,8 +161,8 @@ export default function Home() {
                     />
                   </svg>
                 </div>
-                <h3 className="mb-2 font-semibold text-xl">Good First Issues</h3>
-                <p className="text-muted-foreground">
+                <h3 className="mb-2 font-semibold text-lg sm:text-xl">Good First Issues</h3>
+                <p className="text-sm sm:text-base text-muted-foreground">
                   Find beginner-friendly issues tailored to your experience level and grow your
                   contribution portfolio.
                 </p>
