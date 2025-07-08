@@ -22,7 +22,7 @@ export default function Home() {
           <div className="absolute bottom-0 left-1/2 h-96 w-96 animate-pulse rounded-full bg-pink-500/20 opacity-50 mix-blend-multiply blur-3xl filter [animation-delay:4s]" />
         </div>
 
-        <div className="mx-auto max-w-5xl">
+        <div className="mx-auto max-w-6xl">
           <MotionDiv
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -49,7 +49,7 @@ export default function Home() {
               projects that matter with AI-powered recommendations.
             </p>
 
-            <div className="flex flex-wrap items-center justify-center gap-4">
+            <div className="flex flex-wrap items-center justify-center gap-4 mb-16">
               {!isAuthenticated ? (
                 <>
                   <Link href="/auth/signin">
@@ -83,7 +83,7 @@ export default function Home() {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="mt-32 grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8"
+            className="mt-24 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
           >
             <div className="group relative overflow-hidden rounded-2xl border bg-card p-4 sm:p-6 lg:p-8 transition-all hover:shadow-lg">
               <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />

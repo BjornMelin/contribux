@@ -71,7 +71,7 @@ export function Navigation() {
           </div>
 
           {/* Desktop Auth Buttons */}
-          <div className="hidden items-center space-x-4 md:flex">
+          <div className="hidden md:flex items-center space-x-3">
             <ThemeToggle />
             {status === 'loading' ? (
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
