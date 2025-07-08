@@ -14,7 +14,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-background via-muted/10 to-background">
       {/* Hero Section with Beautiful Gradient */}
-      <section className="relative overflow-hidden px-4 pt-24 pb-16">
+      <section className="relative overflow-hidden px-4 pt-32 pb-24">
         {/* Background Effects */}
         <div className="-z-10 absolute inset-0">
           <div className="absolute top-0 left-1/4 h-96 w-96 animate-pulse rounded-full bg-purple-500/20 opacity-50 mix-blend-multiply blur-3xl filter" />
@@ -22,7 +22,7 @@ export default function Home() {
           <div className="absolute bottom-0 left-1/2 h-96 w-96 animate-pulse rounded-full bg-pink-500/20 opacity-50 mix-blend-multiply blur-3xl filter [animation-delay:4s]" />
         </div>
 
-        <div className="mx-auto max-w-7xl">
+        <div className="mx-auto max-w-5xl">
           <MotionDiv
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -36,7 +36,7 @@ export default function Home() {
               </span>
             </div>
 
-            <h1 className="mb-6 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text font-bold text-5xl text-transparent tracking-tight sm:text-7xl">
+            <h1 className="mb-8 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text font-bold text-5xl text-transparent tracking-tight sm:text-7xl">
               Find Your Perfect
               <br />
               <span className="bg-gradient-to-r from-primary via-purple-500 to-blue-500 bg-clip-text text-transparent">
@@ -44,7 +44,7 @@ export default function Home() {
               </span>
             </h1>
 
-            <p className="mx-auto mb-10 max-w-2xl text-lg text-muted-foreground sm:text-xl">
+            <p className="mx-auto mb-12 max-w-2xl text-lg text-muted-foreground sm:text-xl">
               Discover repositories that match your skills, interests, and expertise. Contribute to
               projects that matter with AI-powered recommendations.
             </p>
@@ -83,7 +83,7 @@ export default function Home() {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="mt-20 grid grid-cols-3 gap-4 sm:gap-6 lg:gap-8"
+            className="mt-32 grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8"
           >
             <div className="group relative overflow-hidden rounded-2xl border bg-card p-4 sm:p-6 lg:p-8 transition-all hover:shadow-lg">
               <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
@@ -173,14 +173,16 @@ export default function Home() {
       </section>
 
       {/* Search Section */}
-      <section id={isAuthenticated ? 'search' : 'search-demo'} className="py-16">
-        <MotionDiv
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, delay: 0.4 }}
-        >
-          <OptimizedSearchExample />
-        </MotionDiv>
+      <section id={isAuthenticated ? 'search' : 'search-demo'} className="py-24 px-4">
+        <div className="mx-auto max-w-6xl">
+          <MotionDiv
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+          >
+            <OptimizedSearchExample />
+          </MotionDiv>
+        </div>
       </section>
     </main>
   )
