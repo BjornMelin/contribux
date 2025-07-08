@@ -35,7 +35,7 @@ describe('GitHubClient - Repository Operations', () => {
     it('should get repository information', async () => {
       const client = new GitHubClient(testClientConfigs.basicToken)
 
-      const repo = await client.getRepository(testRepoParams.basic)
+      const repo = await client.getRepository(testRepoParams.basic.owner, testRepoParams.basic.repo)
 
       expect(repo).toMatchObject({
         name: testRepoParams.basic.repo,
@@ -57,7 +57,7 @@ describe('GitHubClient - Repository Operations', () => {
     it('should validate repository response schema', async () => {
       const client = new GitHubClient(testClientConfigs.basicToken)
 
-      const repo = await client.getRepository(testRepoParams.basic)
+      const repo = await client.getRepository(testRepoParams.basic.owner, testRepoParams.basic.repo)
 
       // Should have required fields
       for (const field of expectedRepoFields) {
@@ -68,7 +68,10 @@ describe('GitHubClient - Repository Operations', () => {
     it('should handle repositories with null values', async () => {
       const client = new GitHubClient(testClientConfigs.basicToken)
 
-      const repo = await client.getRepository(testRepoParams.nullValues)
+      const repo = await client.getRepository(
+        testRepoParams.nullValues.owner,
+        testRepoParams.nullValues.repo
+      )
 
       expect(repo).toMatchObject({
         name: testRepoParams.nullValues.repo,
@@ -81,7 +84,10 @@ describe('GitHubClient - Repository Operations', () => {
     it('should handle single character repository names', async () => {
       const client = new GitHubClient(testClientConfigs.basicToken)
 
-      const repo = await client.getRepository(testRepoParams.singleChar)
+      const repo = await client.getRepository(
+        testRepoParams.singleChar.owner,
+        testRepoParams.singleChar.repo
+      )
 
       expect(repo).toMatchObject({
         name: testRepoParams.singleChar.repo,
@@ -93,7 +99,10 @@ describe('GitHubClient - Repository Operations', () => {
     it('should handle repositories with long descriptions', async () => {
       const client = new GitHubClient(testClientConfigs.basicToken)
 
-      const repo = await client.getRepository(testRepoParams.longDesc)
+      const repo = await client.getRepository(
+        testRepoParams.longDesc.owner,
+        testRepoParams.longDesc.repo
+      )
 
       expect(repo).toMatchObject({
         name: testRepoParams.longDesc.repo,
@@ -106,7 +115,7 @@ describe('GitHubClient - Repository Operations', () => {
     it('should handle repositories with missing optional fields', async () => {
       const client = new GitHubClient(testClientConfigs.basicToken)
 
-      const repo = await client.getRepository({ owner: 'owner', repo: 'test-repo' })
+      const repo = await client.getRepository('owner', 'test-repo')
 
       expect(repo).toMatchObject({
         name: 'test-repo',
@@ -195,7 +204,7 @@ describe('GitHubClient - Repository Operations', () => {
 
       // The MSW setup handles this with a specific test pattern
       await expect(
-        client.getRepository({ owner: 'malformed-test', repo: 'malformed-repo-unique' })
+        client.getRepository('malformed-test', 'malformed-repo-unique')
       ).rejects.toThrow()
     })
 
@@ -203,7 +212,7 @@ describe('GitHubClient - Repository Operations', () => {
       const client = new GitHubClient(testClientConfigs.basicToken)
 
       await expect(
-        client.getRepository({ owner: 'server-error-test', repo: 'server-error-repo-unique' })
+        client.getRepository('server-error-test', 'server-error-repo-unique')
       ).rejects.toThrow(GitHubError)
     })
 
@@ -211,32 +220,30 @@ describe('GitHubClient - Repository Operations', () => {
       const client = new GitHubClient(testClientConfigs.basicToken)
 
       await expect(
-        client.getRepository({ owner: 'validation-test', repo: 'validation-error-repo-unique' })
+        client.getRepository('validation-test', 'validation-error-repo-unique')
       ).rejects.toThrow(GitHubError)
     })
 
     it('should handle rate limiting errors', async () => {
       const client = new GitHubClient(testClientConfigs.basicToken)
 
-      await expect(
-        client.getRepository({ owner: 'test', repo: 'rate-limited-unique' })
-      ).rejects.toThrow(GitHubError)
+      await expect(client.getRepository('test', 'rate-limited-unique')).rejects.toThrow(GitHubError)
     })
 
     it('should handle secondary rate limiting', async () => {
       const client = new GitHubClient(testClientConfigs.basicToken)
 
-      await expect(
-        client.getRepository({ owner: 'test', repo: 'secondary-limit-unique' })
-      ).rejects.toThrow(GitHubError)
+      await expect(client.getRepository('test', 'secondary-limit-unique')).rejects.toThrow(
+        GitHubError
+      )
     })
 
     it('should handle bad credentials', async () => {
       const client = new GitHubClient(testClientConfigs.basicToken)
 
-      await expect(
-        client.getRepository({ owner: 'test', repo: 'bad-credentials-unique' })
-      ).rejects.toThrow(GitHubError)
+      await expect(client.getRepository('test', 'bad-credentials-unique')).rejects.toThrow(
+        GitHubError
+      )
     })
   })
 
@@ -245,13 +252,15 @@ describe('GitHubClient - Repository Operations', () => {
       const client = new GitHubClient(testClientConfigs.basicToken)
 
       // This test repo returns invalid data types that should be handled
-      await expect(client.getRepository(testRepoParams.badTypes)).rejects.toThrow()
+      await expect(
+        client.getRepository(testRepoParams.badTypes.owner, testRepoParams.badTypes.repo)
+      ).rejects.toThrow()
     })
 
     it('should handle repositories with extra unexpected fields', async () => {
       const client = new GitHubClient(testClientConfigs.basicToken)
 
-      const repo = await client.getRepository({ owner: 'owner', repo: 'test-repo' })
+      const repo = await client.getRepository('owner', 'test-repo')
 
       expect(repo).toMatchObject({
         name: 'test-repo',
@@ -276,10 +285,7 @@ describe('GitHubClient - Repository Operations', () => {
       // If there are results, get the first repository
       if (searchResults.items.length > 0) {
         const firstRepo = searchResults.items[0]
-        const fullRepo = await client.getRepository({
-          owner: firstRepo.owner.login,
-          repo: firstRepo.name,
-        })
+        const fullRepo = await client.getRepository(firstRepo.owner.login, firstRepo.name)
         // Just verify that we got a repository back with the right name
         expect(fullRepo.name).toBe(firstRepo.name)
         expect(fullRepo.owner.login).toBe(firstRepo.owner.login)
@@ -290,11 +296,17 @@ describe('GitHubClient - Repository Operations', () => {
       const client = new GitHubClient(testClientConfigs.tokenWithCache)
 
       // First request
-      const repo1 = await client.getRepository(testRepoParams.basic)
+      const repo1 = await client.getRepository(
+        testRepoParams.basic.owner,
+        testRepoParams.basic.repo
+      )
       const stats1 = client.getCacheStats()
 
       // Second request (should hit cache)
-      const repo2 = await client.getRepository(testRepoParams.basic)
+      const repo2 = await client.getRepository(
+        testRepoParams.basic.owner,
+        testRepoParams.basic.repo
+      )
       const stats2 = client.getCacheStats()
 
       expect(repo1).toEqual(repo2)
@@ -305,8 +317,8 @@ describe('GitHubClient - Repository Operations', () => {
       const client = new GitHubClient(testClientConfigs.basicToken)
 
       const requests = [
-        client.getRepository(testRepoParams.basic),
-        client.getRepository(testRepoParams.singleChar),
+        client.getRepository(testRepoParams.basic.owner, testRepoParams.basic.repo),
+        client.getRepository(testRepoParams.singleChar.owner, testRepoParams.singleChar.repo),
         client.searchRepositories(testSearchParams.basic),
       ]
 
@@ -322,10 +334,10 @@ describe('GitHubClient - Repository Operations', () => {
       const client = new GitHubClient(testClientConfigs.tokenWithCache)
 
       // Test with repository parameters - different ordering
-      const repo1 = await client.getRepository({ owner: 'testowner', repo: 'testrepo' })
+      const repo1 = await client.getRepository('testowner', 'testrepo')
       const stats1 = client.getCacheStats()
 
-      const repo2 = await client.getRepository({ repo: 'testrepo', owner: 'testowner' })
+      const repo2 = await client.getRepository('testowner', 'testrepo')
       const stats2 = client.getCacheStats()
 
       // Should be the same repository and should hit cache

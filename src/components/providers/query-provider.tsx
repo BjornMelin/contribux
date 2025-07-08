@@ -119,31 +119,51 @@ class QueryErrorBoundary extends React.Component<
   }
 }
 
+// Helper function to handle circuit breaker monitoring
+function handleCircuitBreakerStates(states: Array<{ state: string; endpoint: string }>) {
+  if (states.length > 0) {
+    // Handle circuit breaker states for monitoring
+    // Log or emit metrics for circuit breaker states
+  }
+}
+
+// Helper function to handle slow query detection
+function handleSlowQueries(queries: Array<{ duration: number; queryKey: string }>) {
+  if (queries.length > 0) {
+    // Handle slow query detection for monitoring
+    // Log or emit metrics for slow queries
+  }
+}
+
+// Helper function to process query metrics
+function processQueryMetrics() {
+  const metrics = getQueryMetrics()
+
+  if (!metrics?.metrics || metrics.metrics.length === 0) {
+    return
+  }
+
+  // Handle circuit breaker monitoring
+  if (metrics.circuitBreakerStates) {
+    handleCircuitBreakerStates(metrics.circuitBreakerStates)
+  }
+
+  // Handle slow query detection
+  const slowQueries = metrics.metrics.filter(m => m.duration > 2000)
+  handleSlowQueries(slowQueries)
+}
+
 // Performance monitoring component
 function QueryPerformanceMonitor() {
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      const interval = setInterval(() => {
-        const metrics = getQueryMetrics()
-
-        if (metrics && metrics.metrics && metrics.metrics.length > 0) {
-          if (metrics.circuitBreakerStates && metrics.circuitBreakerStates.length > 0) {
-            // Handle circuit breaker states for monitoring
-          }
-
-          const slowQueries = metrics.metrics.filter(m => m.duration > 2000)
-          if (slowQueries && slowQueries.length > 0) {
-            // Handle slow query detection for monitoring
-          }
-        }
-      }, 30000) // Every 30 seconds
-
-      return () => clearInterval(interval)
+    if (process.env.NODE_ENV !== 'development') {
+      return () => {
+        // Cleanup function for non-development environment
+      }
     }
-    // Return cleanup function even in non-development
-    return () => {
-      // Cleanup function for non-development environment
-    }
+
+    const interval = setInterval(processQueryMetrics, 30000) // Every 30 seconds
+    return () => clearInterval(interval)
   }, [])
 
   return null

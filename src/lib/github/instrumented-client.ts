@@ -1,12 +1,18 @@
 /**
  * Instrumented GitHub Client with OpenTelemetry
- * 
+ *
  * Enhances the existing GitHub client with comprehensive observability
  */
 
-import { GitHubClient, GitHubClientConfig, GitHubRepository, GitHubIssue, SearchResult } from './client'
-import { createGitHubSpan, recordGitHubRateLimit } from '@/lib/telemetry/utils'
 import { telemetryLogger } from '@/lib/telemetry/logger'
+import { createGitHubSpan, recordGitHubRateLimit } from '@/lib/telemetry/utils'
+import {
+  GitHubClient,
+  type GitHubClientConfig,
+  type GitHubIssue,
+  type GitHubRepository,
+  type SearchResult,
+} from './client'
 
 /**
  * Instrumented GitHub Client that wraps all operations with telemetry
@@ -24,7 +30,7 @@ export class InstrumentedGitHubClient extends GitHubClient {
   }): Promise<SearchResult<GitHubRepository>> {
     return createGitHubSpan(
       'search_repositories',
-      async (span) => {
+      async span => {
         span.setAttributes({
           'github.query': params.query,
           'github.language': params.language || 'all',
@@ -42,7 +48,7 @@ export class InstrumentedGitHubClient extends GitHubClient {
         const startTime = Date.now()
         try {
           const result = await super.searchRepositories(params)
-          
+
           const duration = Date.now() - startTime
           span.setAttributes({
             'github.results_count': result.items.length,
@@ -82,7 +88,7 @@ export class InstrumentedGitHubClient extends GitHubClient {
   override async getRepository(owner: string, repo: string): Promise<GitHubRepository> {
     return createGitHubSpan(
       'get_repository',
-      async (span) => {
+      async span => {
         span.setAttributes({
           'github.owner': owner,
           'github.repo': repo,
@@ -98,7 +104,7 @@ export class InstrumentedGitHubClient extends GitHubClient {
         const startTime = Date.now()
         try {
           const result = await super.getRepository(owner, repo)
-          
+
           const duration = Date.now() - startTime
           span.setAttributes({
             'github.stars': result.stargazers_count,
@@ -148,7 +154,7 @@ export class InstrumentedGitHubClient extends GitHubClient {
   }): Promise<SearchResult<GitHubIssue>> {
     return createGitHubSpan(
       'search_issues',
-      async (span) => {
+      async span => {
         span.setAttributes({
           'github.repository': params.repository || 'all',
           'github.labels': params.labels?.join(',') || 'none',
@@ -166,7 +172,7 @@ export class InstrumentedGitHubClient extends GitHubClient {
         const startTime = Date.now()
         try {
           const result = await super.searchIssues(params)
-          
+
           const duration = Date.now() - startTime
           span.setAttributes({
             'github.results_count': result.items.length,
@@ -206,7 +212,7 @@ export class InstrumentedGitHubClient extends GitHubClient {
   override async getCurrentUser() {
     return createGitHubSpan(
       'get_current_user',
-      async (span) => {
+      async span => {
         telemetryLogger.githubApi('Getting current user', {
           operation: 'get_current_user',
         })
@@ -214,7 +220,7 @@ export class InstrumentedGitHubClient extends GitHubClient {
         const startTime = Date.now()
         try {
           const result = await super.getCurrentUser()
-          
+
           const duration = Date.now() - startTime
           span.setAttributes({
             'github.user.login': result.login,
@@ -260,7 +266,7 @@ export class InstrumentedGitHubClient extends GitHubClient {
   }> {
     return createGitHubSpan(
       'health_check',
-      async (span) => {
+      async span => {
         telemetryLogger.githubApi('Performing health check', {
           operation: 'health_check',
         })
@@ -268,9 +274,9 @@ export class InstrumentedGitHubClient extends GitHubClient {
         const startTime = Date.now()
         try {
           const result = await super.healthCheck()
-          
+
           const duration = Date.now() - startTime
-          
+
           if (result.rateLimit) {
             // Record rate limit metrics
             recordGitHubRateLimit(
@@ -283,7 +289,8 @@ export class InstrumentedGitHubClient extends GitHubClient {
               'github.rate_limit.limit': result.rateLimit.limit,
               'github.rate_limit.remaining': result.rateLimit.remaining,
               'github.rate_limit.reset': result.rateLimit.reset,
-              'github.rate_limit.percentage': (result.rateLimit.remaining / result.rateLimit.limit) * 100,
+              'github.rate_limit.percentage':
+                (result.rateLimit.remaining / result.rateLimit.limit) * 100,
             })
 
             telemetryLogger.githubApi('Health check completed', {
@@ -333,7 +340,7 @@ export class InstrumentedGitHubClient extends GitHubClient {
   ): Promise<GitHubIssue[]> {
     return createGitHubSpan(
       'get_repository_issues',
-      async (span) => {
+      async span => {
         span.setAttributes({
           'github.owner': owner,
           'github.repo': repo,
@@ -346,7 +353,7 @@ export class InstrumentedGitHubClient extends GitHubClient {
         const startTime = Date.now()
         try {
           const result = await super.getRepositoryIssues(owner, repo, params)
-          
+
           const duration = Date.now() - startTime
           span.setAttributes({
             'github.results_count': result.length,
@@ -384,19 +391,36 @@ export class InstrumentedGitHubClient extends GitHubClient {
   /**
    * Create authenticated client from session with telemetry
    */
-  static async fromSession(): Promise<InstrumentedGitHubClient> {
+  static override async fromSession(): Promise<InstrumentedGitHubClient> {
     return createGitHubSpan(
       'create_from_session',
-      async (span) => {
+      async _span => {
         telemetryLogger.githubApi('Creating client from session', {
           operation: 'create_from_session',
         })
 
         const startTime = Date.now()
         try {
-          const client = await GitHubClient.fromSession()
-          const instrumentedClient = new InstrumentedGitHubClient(client)
-          
+          // Get session and create instrumented client directly
+          const { getServerSession } = await import('next-auth')
+          const { authConfig } = await import('@/lib/auth')
+          const session = await getServerSession(authConfig)
+
+          if (!session?.accessToken) {
+            throw new Error('No valid session or access token found')
+          }
+
+          const githubConfig = {
+            clientId: process.env.GITHUB_CLIENT_ID || '',
+            clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
+            enabledFeatures: ['repositories', 'issues', 'pullRequests', 'commits'],
+            timeout: 30000,
+          }
+          const instrumentedClient = new InstrumentedGitHubClient({
+            accessToken: session.accessToken,
+            timeout: githubConfig.timeout,
+          })
+
           const duration = Date.now() - startTime
           telemetryLogger.githubApi('Client created from session', {
             operation: 'create_from_session',
@@ -426,6 +450,8 @@ export class InstrumentedGitHubClient extends GitHubClient {
 /**
  * Factory function for instrumented GitHub client
  */
-export function createInstrumentedGitHubClient(config: GitHubClientConfig): InstrumentedGitHubClient {
+export function createInstrumentedGitHubClient(
+  config: GitHubClientConfig
+): InstrumentedGitHubClient {
   return new InstrumentedGitHubClient(config)
 }

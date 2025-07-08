@@ -1,0 +1,480 @@
+{
+  "bundleAnalysis": {
+    "estimates": {
+      "framework": {
+        "next": "~250kb",
+        "react": "~40kb",
+        "reactDom": "~130kb",
+        "total": "~420kb",
+        "optimization": "Already optimized with Next.js"
+      },
+      "ui": {
+        "radixUI": "~50kb",
+        "lucideReact": "~300kb (if not tree-shaken)",
+        "framerMotion": "~400kb",
+        "total": "~750kb",
+        "optimization": "Tree-shake icons, lazy-load animations"
+      },
+      "api": {
+        "octokit": "~80kb",
+        "nextAuth": "~100kb",
+        "tanstackQuery": "~50kb",
+        "total": "~230kb",
+        "optimization": "Good separation, consider auth chunking"
+      },
+      "utils": {
+        "zod": "~30kb",
+        "clsx": "~2kb",
+        "tailwindMerge": "~8kb",
+        "total": "~40kb",
+        "optimization": "Already minimal"
+      }
+    },
+    "recommendations": [
+      {
+        "category": "UI Libraries",
+        "issue": "Lucide React icons may not be tree-shaken properly",
+        "solution": "Use specific icon imports or implement dynamic imports",
+        "impact": "Potential 200-250kb reduction"
+      },
+      {
+        "category": "Animations",
+        "issue": "Framer Motion loaded on initial bundle",
+        "solution": "Use React.lazy() for animation-heavy components",
+        "impact": "Potential 300-400kb reduction in initial bundle"
+      },
+      {
+        "category": "Code Splitting",
+        "issue": "Authentication flows may be eagerly loaded",
+        "solution": "Route-based code splitting for auth pages",
+        "impact": "Improved initial page load"
+      }
+    ]
+  },
+  "dependencyAnalysis": {
+    "total": 51,
+    "devTotal": 29,
+    "largeDependencies": [
+      {
+        "name": "@octokit/rest",
+        "size": "~80kb",
+        "reason": "GitHub API client",
+        "optimization": "Tree-shake unused API methods"
+      },
+      {
+        "name": "@simplewebauthn/server",
+        "size": "~150kb",
+        "reason": "WebAuthn server",
+        "optimization": "Server-side only, good separation"
+      },
+      {
+        "name": "@tanstack/react-query",
+        "size": "~50kb",
+        "reason": "State management",
+        "optimization": "Already optimized with proper tree-shaking"
+      },
+      {
+        "name": "framer-motion",
+        "size": "~400kb",
+        "reason": "Animation library",
+        "optimization": "Use dynamic imports for non-critical animations"
+      },
+      {
+        "name": "lucide-react",
+        "size": "~300kb",
+        "reason": "Icon library",
+        "optimization": "Import only specific icons instead of entire library"
+      },
+      {
+        "name": "next-auth",
+        "size": "~100kb",
+        "reason": "Authentication",
+        "optimization": "Consider NextAuth.js v5 for better bundle size"
+      }
+    ],
+    "unusedDependencies": [
+      "@opentelemetry/exporter-otlp-http",
+      "@opentelemetry/instrumentation",
+      "@opentelemetry/instrumentation-express",
+      "@opentelemetry/instrumentation-fs",
+      "@opentelemetry/sdk-trace-base",
+      "jsonwebtoken",
+      "react-dom",
+      "recharts",
+      "typescript"
+    ],
+    "duplicateDependencies": []
+  },
+  "importAnalysis": {
+    "totalFiles": 247,
+    "barrelImports": [
+      {
+        "file": "src/app/api/security/webauthn/register/options/route.ts",
+        "imports": [
+          "import { auth } from '@/lib/auth/index'"
+        ]
+      },
+      {
+        "file": "src/app/api/security/webauthn/register/verify/route.ts",
+        "imports": [
+          "import { auth } from '@/lib/auth/index'"
+        ]
+      }
+    ],
+    "dynamicImports": [
+      {
+        "file": "src/app/api/auth/mfa/verify/route.ts",
+        "imports": [
+          "import('node:crypto')",
+          "import('@/lib/security/webauthn/server')"
+        ]
+      },
+      {
+        "file": "src/components/icons/index.tsx",
+        "imports": [
+          "import('lucide-react')",
+          "import('lucide-react')",
+          "import('lucide-react')",
+          "import('lucide-react')",
+          "import('lucide-react')",
+          "import('lucide-react')",
+          "import('lucide-react')",
+          "import('lucide-react')",
+          "import('lucide-react')",
+          "import('lucide-react')",
+          "import('lucide-react')",
+          "import('lucide-react')"
+        ]
+      },
+      {
+        "file": "src/components/lazy/lazy-components.tsx",
+        "imports": [
+          "import('@/components/compound/search-compound')",
+          "import('@/components/features/OpportunityList')",
+          "import('@/components/features/SearchFilters')",
+          "import('@/components/examples/optimized-search')",
+          "import('@/components/compound/search-compound')",
+          "import('@/components/features/SearchFilters')",
+          "import('@/components/features/OpportunityList')",
+          "import('@/components/features/SearchBar')",
+          "import('@/components/features/OpportunityCard')"
+        ]
+      },
+      {
+        "file": "src/components/motion/index.tsx",
+        "imports": [
+          "import('framer-motion')",
+          "import('framer-motion')",
+          "import('framer-motion')",
+          "import('framer-motion')"
+        ]
+      },
+      {
+        "file": "src/lib/auth/middleware.ts",
+        "imports": [
+          "import('ioredis')",
+          "import('rate-limiter-flexible')"
+        ]
+      },
+      {
+        "file": "src/lib/auth/rate-limiter.ts",
+        "imports": [
+          "import('ioredis')",
+          "import('rate-limiter-flexible')",
+          "import('rate-limiter-flexible')",
+          "import('ioredis')",
+          "import('rate-limiter-flexible')",
+          "import('rate-limiter-flexible')",
+          "import('ioredis')",
+          "import('rate-limiter-flexible')",
+          "import('rate-limiter-flexible')"
+        ]
+      },
+      {
+        "file": "src/lib/auth/webauthn.ts",
+        "imports": [
+          "import('@simplewebauthn/server')",
+          "import('@/lib/config')"
+        ]
+      },
+      {
+        "file": "src/lib/di/container.ts",
+        "imports": [
+          "import('@/lib/env')",
+          "import('@/lib/db')",
+          "import('@/lib/github')",
+          "import('@/lib/logger')"
+        ]
+      },
+      {
+        "file": "src/lib/factories/service-factory.ts",
+        "imports": [
+          "import('@/lib/github')",
+          "import('drizzle-orm/neon-http')",
+          "import('drizzle-orm/pglite')",
+          "import('@/lib/github')",
+          "import('@neondatabase/serverless')",
+          "import('drizzle-orm/neon-http')",
+          "import('@/lib/db/schema')",
+          "import('@electric-sql/pglite')",
+          "import('drizzle-orm/pglite')",
+          "import('@/lib/db/schema')",
+          "import('@/lib/repositories/implementations/user-repository')",
+          "import(\n        '@/lib/repositories/implementations/repository-repository'\n      )",
+          "import(\n        '@/lib/repositories/implementations/opportunity-repository'\n      )",
+          "import(\n        '@/lib/repositories/implementations/cache-repository'\n      )",
+          "import(\n          '@/lib/repositories/implementations/vector-repository'\n        )",
+          "import(\n        '@/lib/repositories/implementations/vector-repository'\n      )",
+          "import('@/lib/business-logic/search-service')",
+          "import('@/lib/business-logic/recommendation-service')",
+          "import('@/lib/business-logic/analytics-service')",
+          "import('@/lib/monitoring/performance-monitor')",
+          "import('@/lib/monitoring/health-checker')",
+          "import('@/lib/logger')",
+          "import('@/lib/env')",
+          "import('@/lib/auth')",
+          "import('../../../tests/mocks/repository-mocks')",
+          "import('../../../tests/mocks/service-mocks')",
+          "import('@/tests/mocks/monitoring-mocks')"
+        ]
+      },
+      {
+        "file": "src/lib/github/instrumented-client.ts",
+        "imports": [
+          "import('next-auth')",
+          "import('@/lib/auth')"
+        ]
+      },
+      {
+        "file": "src/lib/github/runtime-validator.ts",
+        "imports": [
+          "import(packageName)",
+          "import('@octokit/rest')",
+          "import('@octokit/rest')"
+        ]
+      },
+      {
+        "file": "src/lib/monitoring/telemetry.ts",
+        "imports": [
+          "import('@opentelemetry/sdk-metrics')"
+        ]
+      },
+      {
+        "file": "src/lib/security/security-headers.ts",
+        "imports": [
+          "import('./audit-logger')"
+        ]
+      },
+      {
+        "file": "src/lib/telemetry/health.ts",
+        "imports": [
+          "import('@/lib/db')",
+          "import('@/lib/cache/redis')"
+        ]
+      },
+      {
+        "file": "src/lib/telemetry/instrumentation.ts",
+        "imports": [
+          "import('@opentelemetry/resources')"
+        ]
+      },
+      {
+        "file": "src/lib/validation/typescript-validation.ts",
+        "imports": [
+          "import('@/types/advanced')",
+          "import('@/types/advanced')",
+          "import('@/types/advanced')",
+          "import('@/types/advanced')",
+          "import('@/types/advanced')",
+          "import('@/types/advanced')",
+          "import('@/types/advanced')",
+          "import('@/types/advanced')",
+          "import('@/types/advanced')",
+          "import('@/types/advanced')",
+          "import('@/types/advanced')"
+        ]
+      }
+    ],
+    "heavyImports": [
+      {
+        "file": "src/app/auth/signin/oauth-signin-component.tsx",
+        "library": "lucide-react",
+        "imports": [
+          "import { Github, Loader2, Mail } from 'lucide-react"
+        ]
+      },
+      {
+        "file": "src/app/page.tsx",
+        "library": "lucide-react",
+        "imports": [
+          "import { ArrowRight, Github, Sparkles, Zap } from 'lucide-react"
+        ]
+      },
+      {
+        "file": "src/app/settings/accounts/page.tsx",
+        "library": "lucide-react",
+        "imports": [
+          "import { Check, X } from 'lucide-react"
+        ]
+      },
+      {
+        "file": "src/components/auth/LinkedAccounts.tsx",
+        "library": "lucide-react",
+        "imports": [
+          "import { AlertTriangle, Check, Github, Link2, Mail, Shield, Star, Unlink2 } from 'lucide-react"
+        ]
+      },
+      {
+        "file": "src/components/auth/ProviderButton.tsx",
+        "library": "lucide-react",
+        "imports": [
+          "import { Github, Loader2, Mail } from 'lucide-react"
+        ]
+      },
+      {
+        "file": "src/components/error-boundaries/enhanced-error-boundary.tsx",
+        "library": "lucide-react",
+        "imports": [
+          "import { AlertCircle, Clock, HelpCircle, Home, RefreshCw, ShieldOff, WifiOff } from 'lucide-react"
+        ]
+      },
+      {
+        "file": "src/components/features/OpportunityCard.tsx",
+        "library": "framer-motion",
+        "imports": [
+          "import { AnimatePresence, motion } from 'framer-motion"
+        ]
+      },
+      {
+        "file": "src/components/features/OpportunityCard.tsx",
+        "library": "lucide-react",
+        "imports": [
+          "import { Bookmark, ExternalLink, Star } from 'lucide-react"
+        ]
+      },
+      {
+        "file": "src/components/features/RepositoryCard.tsx",
+        "library": "framer-motion",
+        "imports": [
+          "import { motion } from 'framer-motion"
+        ]
+      },
+      {
+        "file": "src/components/features/RepositoryCard.tsx",
+        "library": "lucide-react",
+        "imports": [
+          "import { Bookmark, Circle, ExternalLink, GitFork, Star, TrendingUp } from 'lucide-react"
+        ]
+      },
+      {
+        "file": "src/components/layout/navigation.tsx",
+        "library": "lucide-react",
+        "imports": [
+          "import { Github, Home, LogOut, Menu, Settings, Sparkles, X } from 'lucide-react"
+        ]
+      },
+      {
+        "file": "src/components/motion/index.tsx",
+        "library": "framer-motion",
+        "imports": [
+          "import type { MotionProps } from 'framer-motion"
+        ]
+      },
+      {
+        "file": "src/components/ui/button.tsx",
+        "library": "@radix-ui",
+        "imports": [
+          "import { Slot } from '@radix-ui"
+        ]
+      },
+      {
+        "file": "src/components/ui/dialog.tsx",
+        "library": "lucide-react",
+        "imports": [
+          "import { X } from 'lucide-react"
+        ]
+      },
+      {
+        "file": "src/components/ui/dialog.tsx",
+        "library": "@radix-ui",
+        "imports": [
+          "import * as DialogPrimitive from '@radix-ui"
+        ]
+      },
+      {
+        "file": "src/components/ui/progress.tsx",
+        "library": "@radix-ui",
+        "imports": [
+          "import * as ProgressPrimitive from '@radix-ui"
+        ]
+      },
+      {
+        "file": "src/components/ui/tabs.tsx",
+        "library": "@radix-ui",
+        "imports": [
+          "import * as TabsPrimitive from '@radix-ui"
+        ]
+      },
+      {
+        "file": "src/components/ui/theme-toggle.tsx",
+        "library": "lucide-react",
+        "imports": [
+          "import { Monitor, Moon, Sun } from 'lucide-react"
+        ]
+      }
+    ],
+    "circularImports": []
+  },
+  "optimizations": [
+    {
+      "type": "Bundle Size",
+      "priority": "High",
+      "title": "Implement Icon Tree-Shaking",
+      "description": "Optimize Lucide React imports to reduce bundle size",
+      "implementation": "Use babel-plugin-import or create icon components"
+    },
+    {
+      "type": "Code Splitting",
+      "priority": "High",
+      "title": "Lazy Load Animation Components",
+      "description": "Load Framer Motion components only when needed",
+      "implementation": "React.lazy() + Suspense for motion components"
+    },
+    {
+      "type": "Caching",
+      "priority": "Medium",
+      "title": "Implement Service Worker Caching",
+      "description": "Cache static assets and API responses",
+      "implementation": "Next.js PWA with Workbox"
+    },
+    {
+      "type": "Database",
+      "priority": "Medium",
+      "title": "Optimize Database Queries",
+      "description": "Review and optimize Drizzle ORM queries",
+      "implementation": "Query analysis and index optimization"
+    },
+    {
+      "type": "API",
+      "priority": "Medium",
+      "title": "Implement API Response Caching",
+      "description": "Cache GitHub API responses to reduce requests",
+      "implementation": "TanStack Query with longer stale times"
+    }
+  ],
+  "metrics": {
+    "estimatedBundleSize": "~1.5MB (uncompressed)",
+    "estimatedGzippedSize": "~400-500KB",
+    "criticalPathSize": "~300-400KB",
+    "potentialSavings": "~500-700KB with optimizations",
+    "optimizationScore": "B+ (Good, with improvement opportunities)",
+    "recommendations": [
+      "High Priority: Icon tree-shaking (250KB reduction)",
+      "High Priority: Animation lazy loading (400KB reduction)",
+      "Medium Priority: Service worker caching",
+      "Medium Priority: Database query optimization",
+      "Low Priority: Bundle splitting refinement"
+    ]
+  },
+  "recommendations": []
+}

@@ -1,15 +1,15 @@
 /**
  * Security Headers Testing Endpoint
- * 
+ *
  * Validates security headers configuration and provides recommendations.
  * Useful for development and security audits.
  */
 
-import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
 import { authConfig } from '@/lib/auth'
+import { AuditEventType, AuditSeverity, auditLogger } from '@/lib/security/audit-logger'
 import { SecurityHeadersManager } from '@/lib/security/security-headers'
-import { auditLogger, AuditEventType, AuditSeverity } from '@/lib/security/audit-logger'
+import { getServerSession } from 'next-auth'
+import { type NextRequest, NextResponse } from 'next/server'
 
 // Initialize security headers manager
 const securityHeadersManager = new SecurityHeadersManager()
@@ -23,17 +23,14 @@ export async function GET(request: NextRequest) {
     // Create a test response
     const testResponse = NextResponse.json({
       message: 'Security headers test endpoint',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     })
 
     // Apply security headers
-    const securedResponse = securityHeadersManager.applyHeaders(
-      request,
-      testResponse
-    )
+    const securedResponse = securityHeadersManager.applyHeaders(request, testResponse)
 
     // TODO: Implement header validation when method is available
-    const validation = { isValid: true, recommendations: [] }
+    const validation = { isValid: true, missing: [], issues: [], recommendations: [] }
 
     // Get all headers for inspection
     const headers: Record<string, string> = {}
@@ -52,14 +49,14 @@ export async function GET(request: NextRequest) {
       actor: {
         type: session?.user ? 'user' : 'system',
         id: session?.user?.id,
-        ip: request.headers.get('x-forwarded-for') || 'unknown'
+        ip: request.headers.get('x-forwarded-for') || 'unknown',
       },
       action: 'Security headers test performed',
       result: 'success',
       metadata: {
         validation,
-        analysis
-      }
+        analysis,
+      },
     })
 
     // Return detailed response
@@ -68,7 +65,7 @@ export async function GET(request: NextRequest) {
       validation,
       analysis,
       recommendations: generateRecommendations(validation, analysis),
-      score: calculateSecurityScore(validation, analysis)
+      score: calculateSecurityScore(validation, analysis),
     })
   } catch (error) {
     await auditLogger.log({
@@ -77,13 +74,10 @@ export async function GET(request: NextRequest) {
       actor: { type: 'system' },
       action: 'Security headers test failed',
       result: 'failure',
-      reason: error instanceof Error ? error.message : 'Unknown error'
+      reason: error instanceof Error ? error.message : 'Unknown error',
     })
 
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
@@ -95,16 +89,13 @@ export async function POST(request: NextRequest) {
   try {
     // Authenticate user (optional but recommended)
     const session = await getServerSession(authConfig)
-    
+
     // Parse request body
     const body = await request.json()
     const { url, headers: customHeaders } = body
 
     if (!url && !customHeaders) {
-      return NextResponse.json(
-        { error: 'Either url or headers must be provided' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Either url or headers must be provided' }, { status: 400 })
     }
 
     let headersToValidate: Record<string, string> = {}
@@ -122,7 +113,7 @@ export async function POST(request: NextRequest) {
           method: 'HEAD',
           signal: controller.signal,
           // Don't follow redirects to test the actual endpoint
-          redirect: 'manual'
+          redirect: 'manual',
         })
 
         clearTimeout(timeoutId)
@@ -131,11 +122,8 @@ export async function POST(request: NextRequest) {
         response.headers.forEach((value, key) => {
           headersToValidate[key] = value
         })
-      } catch (error) {
-        return NextResponse.json(
-          { error: 'Failed to fetch headers from URL' },
-          { status: 400 }
-        )
+      } catch (_error) {
+        return NextResponse.json({ error: 'Failed to fetch headers from URL' }, { status: 400 })
       }
     }
 
@@ -146,7 +134,7 @@ export async function POST(request: NextRequest) {
     })
 
     // TODO: Implement header validation when method is available
-    const validation = { isValid: true, missing: [], issues: [] }
+    const validation = { isValid: true, missing: [], issues: [], recommendations: [] }
     const analysis = analyzeSecurityHeaders(headersToValidate)
 
     // Log the validation
@@ -156,46 +144,71 @@ export async function POST(request: NextRequest) {
       actor: {
         type: session?.user ? 'user' : 'system',
         id: session?.user?.id,
-        ip: request.headers.get('x-forwarded-for') || 'unknown'
+        ip: request.headers.get('x-forwarded-for') || 'unknown',
       },
       action: 'External security headers validation',
       result: 'success',
       metadata: {
         url: url || 'custom headers',
         validation,
-        analysis
-      }
+        analysis,
+      },
     })
 
     return NextResponse.json({
       validation,
       analysis,
       recommendations: generateRecommendations(validation, analysis),
-      score: calculateSecurityScore(validation, analysis)
+      score: calculateSecurityScore(validation, analysis),
     })
-  } catch (error) {
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+  } catch (_error) {
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
+}
+
+// Types for header analysis
+interface HeaderAnalysis {
+  securityFeatures: string[]
+  warnings: string[]
+  info: string[]
+}
+
+interface ValidationResult {
+  isValid: boolean
+  missing: string[]
+  issues: Array<{ header: string; issue: string }>
+  recommendations: string[]
 }
 
 /**
  * Analyze security headers for additional insights
  */
-function analyzeSecurityHeaders(headers: Record<string, string>) {
-  const analysis: any = {
+function analyzeSecurityHeaders(headers: Record<string, string>): HeaderAnalysis {
+  const analysis: HeaderAnalysis = {
     securityFeatures: [],
     warnings: [],
-    info: []
+    info: [],
   }
 
-  // Check HTTPS enforcement
+  // Break down analysis into smaller functions to reduce complexity
+  analyzeHttpsEnforcement(headers, analysis)
+  analyzeContentSecurityPolicy(headers, analysis)
+  analyzeClickjackingProtection(headers, analysis)
+  analyzeMimeProtection(headers, analysis)
+  analyzeXssProtection(headers, analysis)
+  analyzeReferrerPolicy(headers, analysis)
+  analyzePermissionsPolicy(headers, analysis)
+  analyzeCacheControl(headers, analysis)
+
+  return analysis
+}
+
+// Helper functions for header analysis
+function analyzeHttpsEnforcement(headers: Record<string, string>, analysis: HeaderAnalysis): void {
   if (headers['strict-transport-security']) {
     const hsts = headers['strict-transport-security']
     analysis.securityFeatures.push('HTTPS enforced via HSTS')
-    
+
     if (!hsts.includes('includeSubDomains')) {
       analysis.warnings.push('HSTS should include subdomains')
     }
@@ -203,12 +216,16 @@ function analyzeSecurityHeaders(headers: Record<string, string>) {
       analysis.info.push('Consider adding preload directive to HSTS')
     }
   }
+}
 
-  // Check CSP
+function analyzeContentSecurityPolicy(
+  headers: Record<string, string>,
+  analysis: HeaderAnalysis
+): void {
   if (headers['content-security-policy']) {
     const csp = headers['content-security-policy']
     analysis.securityFeatures.push('Content Security Policy active')
-    
+
     if (csp.includes('unsafe-inline')) {
       analysis.warnings.push('CSP allows unsafe-inline scripts')
     }
@@ -219,52 +236,59 @@ function analyzeSecurityHeaders(headers: Record<string, string>) {
       analysis.info.push('Consider adding upgrade-insecure-requests to CSP')
     }
   }
+}
 
-  // Check frame options
+function analyzeClickjackingProtection(
+  headers: Record<string, string>,
+  analysis: HeaderAnalysis
+): void {
   if (headers['x-frame-options']) {
     analysis.securityFeatures.push('Clickjacking protection enabled')
   }
+}
 
-  // Check content type options
+function analyzeMimeProtection(headers: Record<string, string>, analysis: HeaderAnalysis): void {
   if (headers['x-content-type-options'] === 'nosniff') {
     analysis.securityFeatures.push('MIME type sniffing protection enabled')
   }
+}
 
-  // Check XSS protection (legacy but still relevant)
+function analyzeXssProtection(headers: Record<string, string>, analysis: HeaderAnalysis): void {
   if (headers['x-xss-protection']) {
     analysis.securityFeatures.push('Legacy XSS filter enabled')
   }
+}
 
-  // Check referrer policy
+function analyzeReferrerPolicy(headers: Record<string, string>, analysis: HeaderAnalysis): void {
   if (headers['referrer-policy']) {
     const policy = headers['referrer-policy']
     analysis.securityFeatures.push(`Referrer policy: ${policy}`)
-    
+
     if (policy === 'no-referrer-when-downgrade') {
       analysis.info.push('Consider stricter referrer policy like strict-origin-when-cross-origin')
     }
   }
+}
 
-  // Check permissions policy
+function analyzePermissionsPolicy(headers: Record<string, string>, analysis: HeaderAnalysis): void {
   if (headers['permissions-policy']) {
     analysis.securityFeatures.push('Permissions policy configured')
   }
+}
 
-  // Check cache control
+function analyzeCacheControl(headers: Record<string, string>, analysis: HeaderAnalysis): void {
   if (headers['cache-control']) {
     const cacheControl = headers['cache-control']
     if (cacheControl.includes('no-store') || cacheControl.includes('no-cache')) {
       analysis.securityFeatures.push('Secure cache headers configured')
     }
   }
-
-  return analysis
 }
 
 /**
  * Generate recommendations based on validation and analysis
  */
-function generateRecommendations(validation: any, analysis: any): string[] {
+function generateRecommendations(validation: ValidationResult, analysis: HeaderAnalysis): string[] {
   const recommendations: string[] = []
 
   // Missing headers recommendations
@@ -292,7 +316,7 @@ function generateRecommendations(validation: any, analysis: any): string[] {
   })
 
   // Issues recommendations
-  validation.issues.forEach((issue: any) => {
+  validation.issues.forEach(issue => {
     recommendations.push(`Fix ${issue.header}: ${issue.issue}`)
   })
 
@@ -307,7 +331,10 @@ function generateRecommendations(validation: any, analysis: any): string[] {
 /**
  * Calculate security score based on headers
  */
-function calculateSecurityScore(validation: any, analysis: any): {
+function calculateSecurityScore(
+  validation: ValidationResult,
+  analysis: HeaderAnalysis
+): {
   score: number
   grade: string
   breakdown: Record<string, number>
@@ -315,7 +342,7 @@ function calculateSecurityScore(validation: any, analysis: any): {
   const breakdown: Record<string, number> = {
     requiredHeaders: 0,
     securityFeatures: 0,
-    configuration: 0
+    configuration: 0,
   }
 
   // Score for required headers (60 points)
@@ -324,20 +351,17 @@ function calculateSecurityScore(validation: any, analysis: any): {
     'X-Content-Type-Options',
     'Strict-Transport-Security',
     'Content-Security-Policy',
-    'Referrer-Policy'
+    'Referrer-Policy',
   ]
-  
+
   const presentRequired = requiredHeaders.filter(
     header => !validation.missing.includes(header)
   ).length
-  
+
   breakdown.requiredHeaders = (presentRequired / requiredHeaders.length) * 60
 
   // Score for security features (25 points)
-  breakdown.securityFeatures = Math.min(
-    (analysis.securityFeatures.length / 8) * 25,
-    25
-  )
+  breakdown.securityFeatures = Math.min((analysis.securityFeatures.length / 8) * 25, 25)
 
   // Score for configuration quality (15 points)
   const penaltyPoints = validation.issues.length * 3 + analysis.warnings.length * 2
@@ -357,6 +381,6 @@ function calculateSecurityScore(validation: any, analysis: any): {
   return {
     score: Math.round(totalScore),
     grade,
-    breakdown
+    breakdown,
   }
 }

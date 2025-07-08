@@ -565,7 +565,7 @@ export class CacheLayer {
 // Export cache layer as lazy-loaded singleton to avoid build-time issues
 let cacheLayerInstance: CacheLayer | null = null
 export const cacheLayer = new Proxy({} as CacheLayer, {
-  get(target, prop) {
+  get(_target, prop) {
     if (!cacheLayerInstance) {
       cacheLayerInstance = new CacheLayer()
     }

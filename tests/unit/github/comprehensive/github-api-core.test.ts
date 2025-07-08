@@ -412,7 +412,7 @@ describe('GitHubClient - Core API Tests', () => {
       const client = new GitHubClient(testClientConfigs.basicToken)
 
       try {
-        await client.getRepository({ owner: 'nonexistent', repo: 'repo' })
+        await client.getRepository('nonexistent', 'repo')
         expect.fail('Expected error to be thrown')
       } catch (error) {
         expect(error).toBeInstanceOf(GitHubError)
@@ -439,7 +439,7 @@ describe('GitHubClient - Core API Tests', () => {
       // Test non-retryable error (404)
       mockGitHubAPI.setErrorResponse(404, { message: 'Not Found' })
       try {
-        await client.getRepository({ owner: 'test', repo: 'test' })
+        await client.getRepository('test', 'test')
         expect.fail('Expected error to be thrown')
       } catch (error) {
         expect(error).toBeInstanceOf(GitHubError)

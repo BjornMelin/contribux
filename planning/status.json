@@ -47,8 +47,8 @@
   "implementation_status": {
     "security_fixes": {
       "crypto_random": "completed",
-      "redis_rate_limiting": "pending",
-      "csp_hardening": "partial"
+      "redis_rate_limiting": "completed",
+      "csp_hardening": "completed"
     },
     "monitoring": {
       "opentelemetry": "completed",
@@ -59,6 +59,6 @@
       "vector_search": "pending",
       "repository_scanner": "pending"
     },
-    "overall_week1_progress": "35%"
+    "overall_week1_progress": "45%"
   }
 }

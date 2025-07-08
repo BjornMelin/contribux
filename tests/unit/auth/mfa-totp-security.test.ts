@@ -225,12 +225,12 @@ describe('TOTP Authentication Security', () => {
       validDigest[3] = 0x18
 
       // Create a counter to track calls
-      let callCount = 0
+      let _callCount = 0
       const baseCounter = Math.floor(baseTime / 1000 / 30)
 
       const mockHmacInstance = mockCreateHmac()
-      mockHmacInstance.update.mockImplementation((data: Buffer) => {
-        callCount++
+      mockHmacInstance.update.mockImplementation((_data: Buffer) => {
+        _callCount++
         return mockHmacInstance
       })
 
@@ -244,16 +244,15 @@ describe('TOTP Authentication Security', () => {
         // Only return valid digest if within window
         if (diff <= 2) {
           return validDigest
-        } else {
-          // Return a different digest that produces a different token
-          const invalidDigest = Buffer.alloc(20)
-          invalidDigest[19] = 0x00
-          invalidDigest[0] = 0x00
-          invalidDigest[1] = 0xff
-          invalidDigest[2] = 0xff
-          invalidDigest[3] = 0xff
-          return invalidDigest
         }
+        // Return a different digest that produces a different token
+        const invalidDigest = Buffer.alloc(20)
+        invalidDigest[19] = 0x00
+        invalidDigest[0] = 0x00
+        invalidDigest[1] = 0xff
+        invalidDigest[2] = 0xff
+        invalidDigest[3] = 0xff
+        return invalidDigest
       })
 
       // Test tokens within acceptable window (±60 seconds)
@@ -262,7 +261,7 @@ describe('TOTP Authentication Security', () => {
       // Test at different time points within window
       for (const offset of [-60, -30, 0, 30, 60]) {
         vi.setSystemTime(baseTime + offset * 1000)
-        callCount = 0
+        _callCount = 0
 
         const result = await verifyTOTPToken(
           {
@@ -277,7 +276,7 @@ describe('TOTP Authentication Security', () => {
 
       // Test outside window (should fail)
       vi.setSystemTime(baseTime + 90 * 1000)
-      callCount = 0
+      _callCount = 0
 
       const result = await verifyTOTPToken(
         {

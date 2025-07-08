@@ -31,7 +31,9 @@ class CacheTestUtils {
       await this.testCacheExpiration()
 
       this.generateCacheReport()
-    } catch (_error) {
+    } catch (error) {
+      // biome-ignore lint/suspicious/noConsole: CLI script error output
+      console.error('❌ Cache testing failed:', error.message)
       process.exit(1)
     }
   }
@@ -257,7 +259,11 @@ class CacheTestUtils {
 
       this.testResults.memoryUsage = memoryTests
     } catch (_error) {
-      this.testResults.memoryUsage = { status: 'unavailable' }
+      // Memory usage testing failed - Redis MEMORY command may not be available
+      this.testResults.memoryUsage = {
+        status: 'unavailable',
+        reason: 'Redis MEMORY command not supported',
+      }
     }
   }
 
@@ -338,25 +344,44 @@ class CacheTestUtils {
   }
 
   generateCacheReport() {
+    // Log connectivity status
     if (this.testResults.connectivity?.status === 'pass') {
+      // biome-ignore lint/suspicious/noConsole: CLI script user feedback
+      console.log('  ✅ Cache connectivity: PASS')
     } else {
+      // biome-ignore lint/suspicious/noConsole: CLI script user feedback
+      console.log('  ❌ Cache connectivity: FAIL')
     }
 
+    // Log hit ratio if available
     if (this.testResults.hitRatio) {
+      // biome-ignore lint/suspicious/noConsole: CLI script user feedback
+      console.log(`  📊 Cache hit ratio: ${this.testResults.hitRatio.ratio}%`)
     }
 
+    // Log performance metrics if available
     if (this.testResults.performance) {
+      // biome-ignore lint/suspicious/noConsole: CLI script user feedback
+      console.log(`  ⚡ Cache performance: ${this.testResults.performance.averageTime}ms avg`)
     }
 
+    // Log consistency test results
     if (this.testResults.consistency?.status === 'pass') {
+      // biome-ignore lint/suspicious/noConsole: CLI script user feedback
+      console.log('  ✅ Cache consistency: PASS')
     }
 
+    // Log expiration test results
     if (this.testResults.expiration?.status === 'pass') {
+      // biome-ignore lint/suspicious/noConsole: CLI script user feedback
+      console.log('  ✅ Cache expiration: PASS')
     }
 
     const recommendations = this.generateCacheRecommendations()
-    recommendations.forEach(_rec => {
-      // Process recommendation
+    // Log recommendations to provide user feedback
+    recommendations.forEach(rec => {
+      // biome-ignore lint/suspicious/noConsole: CLI script user feedback
+      console.log(`  ${rec}`)
     })
 
     // Save detailed results

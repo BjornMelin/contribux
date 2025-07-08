@@ -119,7 +119,30 @@ describe('User Journey Security Integration Tests', () => {
   let userJourneys: z.infer<typeof UserJourneySchema>[] = []
   let dataProtectionEvents: z.infer<typeof DataProtectionEventSchema>[] = []
   let securityAuditTrails: z.infer<typeof SecurityAuditTrailSchema>[] = []
-  const userStore: Map<string, any> = new Map()
+
+  interface UserData {
+    id: string
+    email: string
+    name: string
+    githubId: number
+    githubUsername: string
+    avatarUrl: string
+    emailVerified: boolean
+    createdAt: string
+    securitySettings: {
+      twoFactorEnabled: boolean
+      loginNotifications: boolean
+      dataProcessingConsent: boolean
+      marketingConsent: boolean
+    }
+    privacySettings: {
+      profileVisibility: string
+      searchHistoryVisible: boolean
+      activityVisible: boolean
+    }
+  }
+
+  const userStore: Map<string, UserData> = new Map()
 
   beforeEach(() => {
     userJourneys = []
@@ -152,7 +175,7 @@ describe('User Journey Security Integration Tests', () => {
 
       server.use(
         // Step 1: OAuth initiation
-        http.get('http://localhost:3000/api/auth/signin/github', ({ request }) => {
+        http.get('http://localhost:3000/api/auth/signin/github', () => {
           const step = {
             stepId: 'oauth_initiation',
             stepType: 'authentication_start',
@@ -653,7 +676,7 @@ describe('User Journey Security Integration Tests', () => {
         // Step 2: Search parameter validation
         http.post('http://localhost:3000/api/search/repositories', async ({ request }) => {
           const body = await request.json()
-          const { query, filters = {} } = body
+          const { query } = body
 
           const step = {
             stepId: 'search_validation',
@@ -875,8 +898,7 @@ describe('User Journey Security Integration Tests', () => {
 
       server.use(
         http.post('http://localhost:3000/api/search/repositories', async ({ request }) => {
-          const body = await request.json()
-          const { query } = body
+          const _body = await request.json()
           const _authHeader = request.headers.get('Authorization')
 
           const step = {
@@ -907,7 +929,10 @@ describe('User Journey Security Integration Tests', () => {
             rateLimitStore.set(userId, { count: 0, resetTime: now + userLimit.window })
           }
 
-          const userRateLimit = rateLimitStore.get(userId)!
+          const userRateLimit = rateLimitStore.get(userId)
+          if (!userRateLimit) {
+            throw new Error('Rate limit data not found after initialization')
+          }
 
           if (now > userRateLimit.resetTime) {
             userRateLimit.count = 0

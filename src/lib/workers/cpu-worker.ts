@@ -2,17 +2,19 @@
  * Worker thread implementation for CPU-intensive operations
  */
 
-import { Worker, isMainThread, parentPort, workerData } from 'worker_threads'
-import { cpus } from 'os'
+import { cpus } from 'node:os'
+import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads'
+import { generateSecureId, secureWorkerId } from '@/lib/security/crypto-secure'
+import logger from '@/lib/telemetry/logger'
 
-export interface WorkerTask<T = any, R = any> {
+export interface WorkerTask<T = unknown> {
   id: string
   type: string
   payload: T
   timestamp: number
 }
 
-export interface WorkerResult<R = any> {
+export interface WorkerResult<R = unknown> {
   taskId: string
   success: boolean
   result?: R
@@ -31,7 +33,7 @@ export interface WorkerPoolConfig {
 /**
  * CPU-intensive task types
  */
-export type TaskType = 
+export type TaskType =
   | 'vector_calculation'
   | 'data_transformation'
   | 'image_processing'
@@ -63,7 +65,7 @@ export class CPUWorkerPool {
    */
   async executeTask<T, R>(type: TaskType, payload: T): Promise<R> {
     const task: WorkerTask<T> = {
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: generateSecureId('task'),
       type,
       payload,
       timestamp: Date.now(),
@@ -76,11 +78,11 @@ export class CPUWorkerPool {
       }, this.config.taskTimeout)
 
       this.processTask(task)
-        .then((result) => {
+        .then(result => {
           clearTimeout(timeoutId)
           resolve(result.result as R)
         })
-        .catch((error) => {
+        .catch(error => {
           clearTimeout(timeoutId)
           reject(error)
         })
@@ -92,15 +94,15 @@ export class CPUWorkerPool {
    */
   private async processTask(task: WorkerTask): Promise<WorkerResult> {
     const worker = await this.getAvailableWorker()
-    
+
     return new Promise((resolve, reject) => {
       const messageHandler = (result: WorkerResult) => {
         worker.off('message', messageHandler)
         worker.off('error', errorHandler)
-        
+
         this.activeTasks.delete(task.id)
         this.releaseWorker(worker)
-        
+
         if (result.success) {
           resolve(result)
         } else {
@@ -111,21 +113,21 @@ export class CPUWorkerPool {
       const errorHandler = (error: Error) => {
         worker.off('message', messageHandler)
         worker.off('error', errorHandler)
-        
+
         this.activeTasks.delete(task.id)
         this.terminateWorker(worker)
-        
+
         reject(error)
       }
 
       worker.on('message', messageHandler)
       worker.on('error', errorHandler)
-      
+
       this.activeTasks.set(task.id, {
         workerId: this.getWorkerId(worker),
         startTime: Date.now(),
       })
-      
+
       worker.postMessage(task)
     })
   }
@@ -147,7 +149,7 @@ export class CPUWorkerPool {
     }
 
     // Wait for a worker to become available
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const checkInterval = setInterval(() => {
         for (const [workerId, worker] of this.workers) {
           if (!this.isWorkerBusy(workerId)) {
@@ -171,14 +173,17 @@ export class CPUWorkerPool {
       },
     })
 
-    const workerId = `worker-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
+    const workerId = secureWorkerId()
     this.workers.set(workerId, worker)
 
     // Handle worker termination
-    worker.on('exit', (code) => {
+    worker.on('exit', code => {
       this.workers.delete(workerId)
       if (code !== 0) {
-        console.warn(`Worker ${workerId} exited with code ${code}`)
+        logger.warn('Worker exited with error code', {
+          workerId,
+          exitCode: code,
+        })
       }
     })
 
@@ -207,7 +212,7 @@ export class CPUWorkerPool {
   /**
    * Release a worker back to the pool
    */
-  private releaseWorker(worker: Worker): void {
+  private releaseWorker(_worker: Worker): void {
     // Worker is automatically available for next task
     // Cleanup happens in periodic maintenance
   }
@@ -255,7 +260,7 @@ export class CPUWorkerPool {
     activeTasks: number
   } {
     const activeWorkers = Array.from(this.workers.keys()).filter(id => this.isWorkerBusy(id)).length
-    
+
     return {
       totalWorkers: this.workers.size,
       activeWorkers,
@@ -268,10 +273,8 @@ export class CPUWorkerPool {
    * Shutdown the worker pool
    */
   async shutdown(): Promise<void> {
-    const terminationPromises = Array.from(this.workers.values()).map(worker => 
-      worker.terminate()
-    )
-    
+    const terminationPromises = Array.from(this.workers.values()).map(worker => worker.terminate())
+
     await Promise.all(terminationPromises)
     this.workers.clear()
     this.activeTasks.clear()
@@ -289,7 +292,7 @@ if (!isMainThread && workerData?.isWorker) {
 
     try {
       const result = await executeWorkerTask(task)
-      
+
       const workerResult: WorkerResult = {
         taskId: task.id,
         success: true,
@@ -297,7 +300,7 @@ if (!isMainThread && workerData?.isWorker) {
         duration: Date.now() - startTime,
         memoryUsage: process.memoryUsage().heapUsed - startMemory,
       }
-      
+
       parentPort?.postMessage(workerResult)
     } catch (error) {
       const workerResult: WorkerResult = {
@@ -307,7 +310,7 @@ if (!isMainThread && workerData?.isWorker) {
         duration: Date.now() - startTime,
         memoryUsage: process.memoryUsage().heapUsed - startMemory,
       }
-      
+
       parentPort?.postMessage(workerResult)
     }
   })
@@ -316,20 +319,24 @@ if (!isMainThread && workerData?.isWorker) {
 /**
  * Execute task based on type
  */
-async function executeWorkerTask(task: WorkerTask): Promise<any> {
+async function executeWorkerTask(task: WorkerTask): Promise<unknown> {
   switch (task.type) {
     case 'vector_calculation':
-      return await executeVectorCalculation(task.payload)
-    
+      return await executeVectorCalculation(
+        task.payload as { vectors: number[][]; operation: string }
+      )
+
     case 'data_transformation':
-      return await executeDataTransformation(task.payload)
-    
+      return await executeDataTransformation(
+        task.payload as { data: DataItem[]; transformType: string }
+      )
+
     case 'text_analysis':
-      return await executeTextAnalysis(task.payload)
-    
+      return await executeTextAnalysis(task.payload as { text: string; analysisType: string })
+
     case 'compression':
-      return await executeCompression(task.payload)
-    
+      return await executeCompression(task.payload as { data: unknown[]; compressionType: string })
+
     default:
       throw new Error(`Unknown task type: ${task.type}`)
   }
@@ -338,45 +345,58 @@ async function executeWorkerTask(task: WorkerTask): Promise<any> {
 /**
  * Vector calculation implementation
  */
-async function executeVectorCalculation(payload: any): Promise<any> {
+async function executeVectorCalculation(payload: {
+  vectors: number[][]
+  operation: string
+}): Promise<number[] | number> {
   const { vectors, operation } = payload
-  
+
   switch (operation) {
     case 'cosine_similarity':
       return calculateCosineSimilarity(vectors[0], vectors[1])
-    
+
     case 'vector_add':
       return vectorAdd(vectors[0], vectors[1])
-    
+
     case 'normalize':
       return normalizeVector(vectors[0])
-    
+
     default:
       throw new Error(`Unknown vector operation: ${operation}`)
   }
 }
 
+interface DataItem {
+  score?: number
+  isActive?: boolean
+  category?: string
+  value?: number
+  [key: string]: unknown
+}
+
 /**
  * Data transformation implementation
  */
-async function executeDataTransformation(payload: any): Promise<any> {
+async function executeDataTransformation(payload: {
+  data: DataItem[]
+  transformType: string
+}): Promise<DataItem[] | Record<string, number>> {
   const { data, transformType } = payload
-  
+
   switch (transformType) {
     case 'sort_large_dataset':
-      return data.sort((a: any, b: any) => a.score - b.score)
-    
+      return data.sort((a, b) => (a.score || 0) - (b.score || 0))
+
     case 'filter_and_map':
-      return data
-        .filter((item: any) => item.isActive)
-        .map((item: any) => ({ ...item, processed: true }))
-    
+      return data.filter(item => item.isActive).map(item => ({ ...item, processed: true }))
+
     case 'aggregate':
-      return data.reduce((acc: any, item: any) => {
-        acc[item.category] = (acc[item.category] || 0) + item.value
+      return data.reduce((acc: Record<string, number>, item) => {
+        const category = item.category || 'unknown'
+        acc[category] = (acc[category] || 0) + (item.value || 0)
         return acc
       }, {})
-    
+
     default:
       throw new Error(`Unknown transform type: ${transformType}`)
   }
@@ -385,24 +405,32 @@ async function executeDataTransformation(payload: any): Promise<any> {
 /**
  * Text analysis implementation
  */
-async function executeTextAnalysis(payload: any): Promise<any> {
+async function executeTextAnalysis(payload: {
+  text: string
+  analysisType: string
+}): Promise<number | { positive: number; negative: number; sentiment: string }> {
   const { text, analysisType } = payload
-  
+
   switch (analysisType) {
     case 'word_count':
       return text.split(/\s+/).length
-    
-    case 'sentiment_basic':
+
+    case 'sentiment_basic': {
       // Simple sentiment analysis based on word lists
       const positiveWords = ['good', 'great', 'excellent', 'amazing', 'wonderful']
       const negativeWords = ['bad', 'terrible', 'awful', 'horrible', 'worst']
-      
+
       const words = text.toLowerCase().split(/\s+/)
       const positive = words.filter(word => positiveWords.includes(word)).length
       const negative = words.filter(word => negativeWords.includes(word)).length
-      
-      return { positive, negative, sentiment: positive > negative ? 'positive' : negative > positive ? 'negative' : 'neutral' }
-    
+
+      return {
+        positive,
+        negative,
+        sentiment: positive > negative ? 'positive' : negative > positive ? 'negative' : 'neutral',
+      }
+    }
+
     default:
       throw new Error(`Unknown analysis type: ${analysisType}`)
   }
@@ -411,16 +439,19 @@ async function executeTextAnalysis(payload: any): Promise<any> {
 /**
  * Compression implementation
  */
-async function executeCompression(payload: any): Promise<any> {
+async function executeCompression(payload: {
+  data: unknown[]
+  compressionType: string
+}): Promise<[unknown, number][]> {
   const { data, compressionType } = payload
-  
+
   switch (compressionType) {
-    case 'simple_rle':
+    case 'simple_rle': {
       // Simple run-length encoding
-      const compressed = []
+      const compressed: [unknown, number][] = []
       let current = data[0]
       let count = 1
-      
+
       for (let i = 1; i < data.length; i++) {
         if (data[i] === current) {
           count++
@@ -431,9 +462,10 @@ async function executeCompression(payload: any): Promise<any> {
         }
       }
       compressed.push([current, count])
-      
+
       return compressed
-    
+    }
+
     default:
       throw new Error(`Unknown compression type: ${compressionType}`)
   }

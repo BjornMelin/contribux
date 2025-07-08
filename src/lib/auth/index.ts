@@ -5,6 +5,21 @@
 
 import NextAuth, { type AuthOptions } from 'next-auth'
 
+// NextAuth.js TypeScript declarations
+declare module 'next-auth' {
+  interface Session {
+    accessToken?: string
+    provider?: string
+  }
+}
+
+declare module 'next-auth/jwt' {
+  interface JWT {
+    accessToken?: string
+    provider?: string
+  }
+}
+
 // Create demo GitHub provider for development testing
 const GitHubDemoProvider = {
   id: 'github',
@@ -16,7 +31,7 @@ const GitHubDemoProvider = {
   userinfo: 'javascript:void(0)',
   clientId: 'demo-github-client-id',
   clientSecret: 'demo-github-client-secret',
-  profile(profile: any) {
+  profile(_profile: Record<string, unknown>) {
     return {
       id: 'demo-github-123',
       name: 'Demo GitHub User',
@@ -38,7 +53,7 @@ const GoogleDemoProvider = {
   userinfo: 'javascript:void(0)',
   clientId: 'demo-google-client-id',
   clientSecret: 'demo-google-client-secret',
-  profile(profile: any) {
+  profile(_profile: Record<string, unknown>) {
     return {
       id: 'demo-google-456',
       name: 'Demo Google User',
@@ -66,7 +81,7 @@ const authConfig: AuthOptions = {
   },
 
   callbacks: {
-    async jwt({ token, account, profile, user }) {
+    async jwt({ token, account, profile: _profile, user: _user }) {
       // In development, simulate successful OAuth flow
       if (process.env.NODE_ENV === 'development' && account) {
         // Create demo user data based on provider
@@ -104,13 +119,13 @@ const authConfig: AuthOptions = {
           email: token.email || 'demo@example.com',
           image: token.picture || null,
         }
-        ;(session as any).accessToken = token.accessToken
-        ;(session as any).provider = token.provider
+        session.accessToken = token.accessToken
+        session.provider = token.provider
       }
       return session
     },
 
-    async signIn({ account, profile, user }) {
+    async signIn({ account: _account, profile: _profile, user: _user }) {
       // Allow all sign-ins in development
       if (process.env.NODE_ENV === 'development') {
         return true

@@ -755,7 +755,7 @@ export class GitHubClient {
       const entries = Array.from(this.cache.entries())
       const sortedByExpiry = entries.sort((a, b) => a[1].expires - b[1].expires)
       const toDelete = Math.max(0, this.cache.size - this.maxCacheSize)
-      
+
       for (let i = 0; i < toDelete; i++) {
         this.cache.delete(sortedByExpiry[i][0])
       }
@@ -769,7 +769,7 @@ export class GitHubClient {
     const memorySizeBytes = JSON.stringify(Array.from(this.cache.entries())).length * 2 // Rough estimate
     return {
       cacheSize: this.cache.size,
-      memorySizeMB: Math.round(memorySizeBytes / (1024 * 1024) * 100) / 100,
+      memorySizeMB: Math.round((memorySizeBytes / (1024 * 1024)) * 100) / 100,
       maxCacheSize: this.maxCacheSize,
     }
   }
@@ -780,13 +780,13 @@ export class GitHubClient {
   private forceMemoryCleanup(): void {
     if (this.cache.size > this.maxCacheSize * 0.8) {
       this.cleanExpiredCache()
-      
+
       // If still over 80% capacity, remove oldest 25% of entries
       if (this.cache.size > this.maxCacheSize * 0.8) {
         const entries = Array.from(this.cache.entries())
         const sortedByExpiry = entries.sort((a, b) => a[1].expires - b[1].expires)
         const toDelete = Math.floor(this.cache.size * 0.25)
-        
+
         for (let i = 0; i < toDelete; i++) {
           this.cache.delete(sortedByExpiry[i][0])
         }

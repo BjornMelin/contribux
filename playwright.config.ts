@@ -107,7 +107,7 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     timeout: process.env.CI ? 60 * 1000 : 120 * 1000, // Reduced timeout for CI
     env: {
-      NODE_OPTIONS: process.env.CI 
+      NODE_OPTIONS: process.env.CI
         ? '--max-old-space-size=2048' // Reduced memory for CI
         : '--max-old-space-size=4096',
       NODE_ENV: 'development',

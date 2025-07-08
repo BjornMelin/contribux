@@ -4,19 +4,49 @@
  * connection security, data access control, and encryption validation
  */
 
-import { sql } from '@/lib/db/config'
+import { db, sql } from '@/lib/db/config'
 import { RepositoryQueries } from '@/lib/db/queries/repositories'
 import { UserQueries } from '@/lib/db/queries/users'
 import {
   SafeSearchQuerySchema,
+  SafeStringSchema50,
+  UserDataSchema,
   VectorEmbeddingSchema,
   buildSafeFilterConditions,
   detectSuspiciousQuery,
+  sanitizeArrayInput,
   sanitizeJsonInput,
   sanitizeSearchQuery,
   sanitizeVectorEmbedding,
 } from '@/lib/db/schema'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+// Type definitions for mock database query builder
+interface MockDrizzleQueryBuilder {
+  from: vi.MockedFunction<(table: unknown) => MockDrizzleQueryBuilder>
+  where: vi.MockedFunction<(condition: unknown) => MockDrizzleQueryBuilder>
+  orderBy: vi.MockedFunction<(column: unknown) => MockDrizzleQueryBuilder>
+  limit: vi.MockedFunction<(count: number) => MockDrizzleQueryBuilder>
+  offset: vi.MockedFunction<(count: number) => Promise<unknown[]>>
+}
+
+interface MockSearchOptions {
+  limit?: number
+  offset?: number
+  minStars?: number
+  maxStars?: string | number // Allow both types for malicious input testing
+  sortBy?: string
+  order?: string
+}
+
+interface MockDrizzleInsertBuilder {
+  values: vi.MockedFunction<(data: unknown) => MockDrizzleInsertBuilder>
+  onConflictDoUpdate: vi.MockedFunction<(config: unknown) => MockDrizzleInsertBuilder>
+  returning: vi.MockedFunction<(columns?: unknown) => Promise<unknown[]>>
+}
+
+// Type for malicious test inputs that intentionally mix types
+type MaliciousTestInput = string | number | null | undefined
 
 // Mock database connection
 vi.mock('../../src/lib/db/config', () => ({
@@ -348,7 +378,7 @@ describe('Database Security Testing', () => {
               }),
             }),
           }),
-        } as any)
+        } as MockDrizzleQueryBuilder)
 
         const maliciousQuery = "'; DROP TABLE repositories; --"
 
@@ -372,13 +402,13 @@ describe('Database Security Testing', () => {
               }),
             }),
           }),
-        } as any)
+        } as MockDrizzleQueryBuilder)
 
-        const maliciousOptions = {
+        const maliciousOptions: MockSearchOptions = {
           limit: 999999, // Should be clamped to 100
           offset: -500, // Should be clamped to 0
           minStars: -100, // Should be clamped to 0
-          maxStars: 'malicious_string' as any, // Should be validated
+          maxStars: 'malicious_string', // Should be validated
         }
 
         await RepositoryQueries.search('javascript', maliciousOptions)
@@ -399,7 +429,7 @@ describe('Database Security Testing', () => {
               }),
             }),
           }),
-        } as any)
+        } as MockDrizzleQueryBuilder)
 
         const maliciousOptions = {
           sortBy: "malicious_column'; DROP TABLE users; --",
@@ -415,15 +445,15 @@ describe('Database Security Testing', () => {
 
     describe('User queries security', () => {
       it('should validate GitHub ID parameters', async () => {
-        const invalidIds = [
+        const invalidIds: MaliciousTestInput[] = [
           -1, // Negative
           0, // Zero
           3.14, // Float
           Number.NaN, // NaN
           Number.POSITIVE_INFINITY, // Infinity
-          'malicious_string' as any, // String
-          null as any, // Null
-          undefined as any, // Undefined
+          'malicious_string', // String
+          null, // Null
+          undefined, // Undefined
         ]
 
         for (const invalidId of invalidIds) {
@@ -439,7 +469,7 @@ describe('Database Security Testing', () => {
               returning: vi.fn().mockResolvedValue([{ id: 'user-123' }]),
             }),
           }),
-        } as any)
+        } as MockDrizzleInsertBuilder)
 
         const maliciousData = {
           githubId: 12345,
@@ -479,7 +509,7 @@ describe('Database Security Testing', () => {
       it('should enforce NOT NULL constraints', () => {
         // Test that required fields are enforced
         expect(() => {
-          NewUser.parse({
+          UserDataSchema.parse({
             // Missing required githubId
             username: 'testuser',
           })
@@ -493,7 +523,7 @@ describe('Database Security Testing', () => {
           username: 'testuser',
         }
 
-        expect(() => NewUser.parse(validUser)).not.toThrow()
+        expect(() => UserDataSchema.parse(validUser)).not.toThrow()
       })
     })
   })

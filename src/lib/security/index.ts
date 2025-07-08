@@ -4,58 +4,59 @@
  */
 
 // Rate limiting
-export {
+export type {
   IRateLimiter,
   RateLimitConfig,
   RateLimitResult,
+} from './rate-limiting/rate-limiter'
+export {
   RateLimitAlgorithm,
-  InMemoryRateLimiter,
   RedisRateLimiter,
-  rateLimiterFactory,
-  createRateLimitMiddleware,
 } from './rate-limiting/rate-limiter'
 
 // Request signing
-export {
+export type {
   RequestSigningConfig,
   SignedRequest,
+} from './request-signing'
+export {
   RequestSigner,
-  requestSigner,
   createSigningMiddleware,
-  validateSignedRequest,
 } from './request-signing'
 
 // IP allowlist
-export {
+export type {
   IPAllowlistConfig,
-  IPAllowlistEntry,
+  IPEntry as IPAllowlistEntry,
+} from './ip-allowlist'
+export {
   IPAllowlistManager,
-  ipAllowlist,
-  createIpAllowlistMiddleware,
+  createIPAllowlistMiddleware,
 } from './ip-allowlist'
 
 // Audit logging
 export {
   AuditEventType,
   AuditSeverity,
-  AuditEventSchema,
-  AuditEvent,
-  AuditLoggerConfig,
   SecurityAuditLogger,
   auditLogger,
+} from './audit-logger'
+export type {
+  AuditEvent,
+  AuditLoggerConfig,
 } from './audit-logger'
 
 // Error boundaries
 export {
   SecurityErrorType,
   SecurityError,
-  ErrorBoundaryConfig,
   withSecurityBoundary,
   createSecureErrorResponse,
   withApiSecurityBoundary,
   withRetryBoundary,
   CircuitBreaker,
 } from './error-boundaries'
+export type { ErrorBoundaryConfig } from './error-boundaries'
 
 // Input validation
 export {
@@ -71,46 +72,49 @@ export {
 
 // Security headers
 export {
-  SecurityHeadersConfig,
   SecurityHeadersManager,
   securityHeaders,
   securityHeadersMiddleware,
   productionSecurityHeaders,
   developmentSecurityHeaders,
 } from './security-headers'
+export type { SecurityHeadersConfig } from './security-headers'
 
 // CORS configuration
 export {
-  CorsConfigSchema,
-  CorsConfig,
   CorsPresets,
   CorsManager,
   DynamicCorsConfig,
-  CorsSecurityMonitor,
   corsConfig,
   createRouteCorsMiddleware,
+  logCorsViolation,
+  checkSuspiciousCorsPatterns,
 } from './cors-config'
+export type { CorsConfig } from './cors-config'
 
 // API key rotation
 export {
-  ApiKeyConfig,
-  ApiKeyMetadata,
-  KeyValidationResult,
-  ApiKeyRotationSchema,
   ApiKeyManager,
   apiKeyManager,
   apiKeyAuthMiddleware,
 } from './api-key-rotation'
+export type {
+  ApiKeyConfig,
+  ApiKeyMetadata,
+  KeyValidationResult,
+} from './api-key-rotation'
 
 // Security monitoring
 export {
+  SecurityMonitoringDashboard,
+  securityDashboard,
+  securityMonitoringApi,
+} from './monitoring-dashboard'
+export type {
   SecurityMetrics,
   AlertConfig,
   AlertAction,
   SecurityAlert,
-  SecurityMonitoringDashboard,
-  securityDashboard,
-  securityMonitoringApi,
 } from './monitoring-dashboard'
 
 // Existing security components

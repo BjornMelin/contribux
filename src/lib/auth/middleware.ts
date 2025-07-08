@@ -4,19 +4,51 @@
  */
 
 import { NextResponse } from 'next/server'
+import type { Redis as RedisType } from 'ioredis'
+
+// Types for dynamically imported modules
+interface RedisConstructor {
+  new (url: string, options?: unknown): RedisType
+}
+
+interface RateLimiterRedisConfig {
+  storeClient: RedisType
+  keyPrefix: string
+  points: number
+  duration: number
+  blockDuration: number
+  execEvenly: boolean
+}
+
+interface RateLimiterMemoryConfig {
+  keyPrefix: string
+  points: number
+  duration: number
+  blockDuration: number
+  execEvenly: boolean
+}
+
+interface RateLimiterRedisConstructor {
+  new (config: RateLimiterRedisConfig): RateLimiterInstance
+}
+
+interface RateLimiterMemoryConstructor {
+  new (config: RateLimiterMemoryConfig): RateLimiterInstance
+}
 
 // Edge Runtime compatible imports - defer Redis and rate limiting to Node.js runtime when needed
-// biome-ignore lint/suspicious/noExplicitAny: Edge Runtime requires dynamic imports, types resolved at runtime
-let Redis: any = null
-// biome-ignore lint/suspicious/noExplicitAny: Edge Runtime requires dynamic imports, types resolved at runtime
-let RateLimiterMemory: any = null
-// biome-ignore lint/suspicious/noExplicitAny: Edge Runtime requires dynamic imports, types resolved at runtime
-let RateLimiterRedis: any = null
+let Redis: RedisConstructor | null = null
+let RateLimiterMemory: RateLimiterMemoryConstructor | null = null
+let RateLimiterRedis: RateLimiterRedisConstructor | null = null
+
+// Edge Runtime detection interface
+interface GlobalWithEdgeRuntime {
+  EdgeRuntime?: unknown
+}
 
 // Dynamic imports for Node.js runtime only
 const loadNodeModules = async () => {
-  // biome-ignore lint/suspicious/noExplicitAny: Runtime environment detection requires global type check
-  if (typeof (globalThis as any).EdgeRuntime === 'undefined') {
+  if (typeof (globalThis as GlobalWithEdgeRuntime).EdgeRuntime === 'undefined') {
     const [redisModule, rateLimiterModule] = await Promise.all([
       import('ioredis'),
       import('rate-limiter-flexible'),
@@ -41,9 +73,9 @@ interface RateLimiterInstance {
 }
 
 interface RateLimiterResult {
-  totalHits: number
   remainingPoints: number
   msBeforeNext?: number
+  totalHits?: number
   isFirstInDuration?: boolean
 }
 
@@ -57,12 +89,9 @@ const CSRF_PROTECTED_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE']
 const rateLimitStore = new Map<string, { count: number; reset: number }>()
 
 // Redis client and rate limiter instances
-// biome-ignore lint/suspicious/noExplicitAny: Redis client type resolved at runtime after dynamic import
-let redisClient: any = null
-// biome-ignore lint/suspicious/noExplicitAny: Rate limiter type resolved at runtime after dynamic import
-let redisRateLimiter: any = null
-// biome-ignore lint/suspicious/noExplicitAny: Memory rate limiter type resolved at runtime after dynamic import
-let memoryRateLimiter: any = null
+let redisClient: RedisType | null = null
+let redisRateLimiter: RateLimiterInstance | null = null
+let memoryRateLimiter: RateLimiterInstance | null = null
 let redisAvailable = false
 
 // Circuit breaker state for Redis failures
@@ -106,8 +135,7 @@ async function initializeRedis(): Promise<void> {
       resetCircuitBreaker()
     })
 
-    // biome-ignore lint/suspicious/noExplicitAny: Redis error types are complex union, handled generically for logging
-    redisClient.on('error', (_error: any) => {
+    redisClient.on('error', (_error: unknown) => {
       handleRedisFailure()
     })
 
@@ -193,8 +221,7 @@ function isCircuitBreakerOpen(): boolean {
 /**
  * Get appropriate rate limiter based on availability
  */
-// biome-ignore lint/suspicious/noExplicitAny: Rate limiter interface varies by implementation, unified at runtime
-function getRateLimiter(): any {
+function getRateLimiter(): RateLimiterInstance | null {
   if (redisRateLimiter && redisAvailable && !isCircuitBreakerOpen()) {
     return redisRateLimiter
   }
@@ -650,7 +677,13 @@ async function createCustomRateLimiter(config: {
 }): Promise<RateLimiterInstance> {
   const duration = Math.floor(config.window / 1000) // Convert to seconds
 
-  if (redisRateLimiter && redisAvailable && !isCircuitBreakerOpen() && redisClient) {
+  if (
+    RateLimiterRedis &&
+    redisRateLimiter &&
+    redisAvailable &&
+    !isCircuitBreakerOpen() &&
+    redisClient
+  ) {
     return new RateLimiterRedis({
       storeClient: redisClient,
       keyPrefix: 'rl_custom',
@@ -661,13 +694,17 @@ async function createCustomRateLimiter(config: {
     })
   }
 
-  return new RateLimiterMemory({
-    keyPrefix: 'rl_custom_memory',
-    points: config.limit,
-    duration,
-    blockDuration: duration,
-    execEvenly: true,
-  })
+  if (RateLimiterMemory) {
+    return new RateLimiterMemory({
+      keyPrefix: 'rl_custom_memory',
+      points: config.limit,
+      duration,
+      blockDuration: duration,
+      execEvenly: true,
+    })
+  }
+
+  throw new Error('No rate limiter available')
 }
 
 function logCustomRateLimiterError(): void {

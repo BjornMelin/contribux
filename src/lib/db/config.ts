@@ -1,8 +1,8 @@
 import { env } from '@/lib/validation/env'
-import { neon } from '@neondatabase/serverless'
+import { type NeonQueryFunction, neon } from '@neondatabase/serverless'
 // Drizzle ORM Configuration - Modern Database Layer
 // Replaces raw SQL patterns with type-safe queries
-import { drizzle } from 'drizzle-orm/neon-http'
+import { type NeonHttpDatabase, drizzle } from 'drizzle-orm/neon-http'
 // Import the consolidated schema from schema.ts
 import * as schema from './schema'
 
@@ -11,21 +11,21 @@ import * as schema from './schema'
 const createSql = () => neon(env.DATABASE_URL!)
 
 // Export a getter function that creates the connection on first use
-let sqlInstance: any | null = null
-export const sql = new Proxy({} as any, {
-  get(target, prop) {
+let sqlInstance: NeonQueryFunction<false, false> | null = null
+export const sql = new Proxy({} as NeonQueryFunction<false, false>, {
+  get(_target, prop) {
     if (!sqlInstance) {
       sqlInstance = createSql()
     }
-    return Reflect.get(sqlInstance as any, prop)
+    return Reflect.get(sqlInstance, prop)
   },
-  apply(target, thisArg, argArray) {
+  apply(_target, thisArg, argArray) {
     if (!sqlInstance) {
       sqlInstance = createSql()
     }
-    return Reflect.apply(sqlInstance as any, thisArg, argArray)
+    return Reflect.apply(sqlInstance, thisArg, argArray)
   },
-}) as any
+}) as NeonQueryFunction<false, false>
 
 // Branch-specific connections for different environments with type safety
 export const getDatabaseUrl = (branch: 'main' | 'dev' | 'test' = 'main'): string => {
@@ -76,15 +76,15 @@ export const connectionConfig = {
 } as const
 
 // Create optimized Drizzle database instance lazily to avoid build-time issues
-let dbInstance: any | null = null
-export const db = new Proxy({} as any, {
-  get(target, prop) {
+let dbInstance: NeonHttpDatabase<typeof schema> | null = null
+export const db = new Proxy({} as NeonHttpDatabase<typeof schema>, {
+  get(_target, prop) {
     if (!dbInstance) {
-      dbInstance = drizzle({ client: sql as any, schema })
+      dbInstance = drizzle({ client: sql, schema })
     }
-    return Reflect.get(dbInstance as any, prop)
+    return Reflect.get(dbInstance, prop)
   },
-}) as any
+}) as NeonHttpDatabase<typeof schema>
 
 // Export database type for dependency injection
 export type Database = typeof db

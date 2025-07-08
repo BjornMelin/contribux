@@ -88,6 +88,11 @@ async function analyzeSchemaIntegration() {
 
   const webauthnApiPath = path.join(__dirname, '../src/app/api/security/webauthn')
   if (fs.existsSync(webauthnApiPath)) {
+    // biome-ignore lint/suspicious/noConsole: Development script
+    console.log('✅ WebAuthn API endpoints found')
+  } else {
+    // biome-ignore lint/suspicious/noConsole: Development script
+    console.log('⚠️ WebAuthn API endpoints not found')
   }
 }
 
@@ -97,8 +102,14 @@ async function analyzeMigrationInfrastructure() {
   if (fs.existsSync(drizzleConfigPath)) {
     const configContent = fs.readFileSync(drizzleConfigPath, 'utf8')
     if (configContent.includes('./src/lib/db/migrations')) {
+      // biome-ignore lint/suspicious/noConsole: Development script
+      console.log('✅ Drizzle configured for src/lib/db/migrations')
     } else if (configContent.includes('./drizzle/')) {
-      // Drizzle configuration found
+      // biome-ignore lint/suspicious/noConsole: Development script
+      console.log('✅ Drizzle configured for ./drizzle/ directory')
+    } else {
+      // biome-ignore lint/suspicious/noConsole: Development script
+      console.log('⚠️ Drizzle migration path not recognized')
     }
   }
 

@@ -45,12 +45,13 @@ class CleanupOptimizer {
   // Format bytes to human readable
   formatBytes(bytes) {
     const units = ['B', 'KB', 'MB', 'GB']
+    let value = bytes
     let i = 0
-    while (bytes >= 1024 && i < units.length - 1) {
-      bytes /= 1024
+    while (value >= 1024 && i < units.length - 1) {
+      value /= 1024
       i++
     }
-    return `${bytes.toFixed(2)} ${units[i]}`
+    return `${value.toFixed(2)} ${units[i]}`
   }
 
   // Clean Next.js build artifacts

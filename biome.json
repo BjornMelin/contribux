@@ -179,7 +179,23 @@
       "bracketSameLine": false,
       "quoteStyle": "single",
       "attributePosition": "auto"
-    }
+    },
+    "globals": [
+      "describe",
+      "it",
+      "test",
+      "expect",
+      "beforeEach",
+      "afterEach",
+      "beforeAll",
+      "afterAll",
+      "vi",
+      "jest",
+      "suite",
+      "mock",
+      "unmock",
+      "vitest"
+    ]
   },
   "overrides": [
     {

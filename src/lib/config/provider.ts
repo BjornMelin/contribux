@@ -467,7 +467,7 @@ export const configValidators = {
 // Export singleton instance for easy access - lazy loaded to avoid build-time issues
 let configInstance: ConfigProvider | null = null
 export const config = new Proxy({} as ConfigProvider, {
-  get(target, prop) {
+  get(_target, prop) {
     if (!configInstance) {
       configInstance = ConfigProvider.getInstance()
     }

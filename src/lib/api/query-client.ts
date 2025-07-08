@@ -339,7 +339,7 @@ export function createQueryFunction<T>(
 }
 
 // Query client configuration - lazy loaded to avoid build-time issues
-const queryClientInstance: QueryClient | null = null
+const _queryClientInstance: QueryClient | null = null
 const createQueryClient = () =>
   new QueryClient({
     queryCache: new QueryCache({
@@ -506,9 +506,9 @@ export function setupBackgroundSync() {
         if (
           typeof window !== 'undefined' &&
           'gc' in window &&
-          typeof (window as any).gc === 'function'
+          typeof (window as unknown as { gc: () => void }).gc === 'function'
         ) {
-          ;(window as any).gc()
+          ;(window as unknown as { gc: () => void }).gc()
         }
       },
       30 * 60 * 1000

@@ -3,15 +3,15 @@
  * Creates a mock authentication session for development testing with rate limiting
  */
 
+import {
+  applyProgressiveDelay,
+  checkAuthRateLimit,
+  createRateLimitResponse,
+  recordAuthResult,
+} from '@/lib/security/auth-rate-limiting'
 import { SignJWT } from 'jose'
 import { cookies } from 'next/headers'
 import { type NextRequest, NextResponse } from 'next/server'
-import { 
-  checkAuthRateLimit, 
-  recordAuthResult, 
-  createRateLimitResponse,
-  applyProgressiveDelay 
-} from '@/lib/security/auth-rate-limiting'
 
 // Demo user data for testing
 const DEMO_USERS = {
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
         provider: user.provider,
       },
     })
-  } catch (error) {
+  } catch (_error) {
     // Demo sign-in error handled
     recordAuthResult(request, false)
     return NextResponse.json({ error: 'Demo sign-in failed' }, { status: 500 })

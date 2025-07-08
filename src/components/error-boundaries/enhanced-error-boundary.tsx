@@ -5,15 +5,23 @@
 
 'use client'
 
-import React, { Component, type PropsWithChildren, type ReactNode } from 'react'
-import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
-import { ErrorClassifier, ErrorSeverity, type ErrorClassification } from '@/lib/errors/error-classification'
-import { ErrorRecoveryManager, type RecoveryAction, type RecoveryWorkflow } from '@/lib/errors/error-recovery'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import {
+  type ErrorClassification,
+  ErrorClassifier,
+  ErrorSeverity,
+} from '@/lib/errors/error-classification'
 import { errorMonitor } from '@/lib/errors/error-monitoring'
-import { AlertCircle, RefreshCw, Home, HelpCircle, WifiOff, ShieldOff, Clock } from 'lucide-react'
+import {
+  ErrorRecoveryManager,
+  type RecoveryAction,
+  type RecoveryWorkflow,
+} from '@/lib/errors/error-recovery'
+import { AlertCircle, Clock, HelpCircle, Home, RefreshCw, ShieldOff, WifiOff } from 'lucide-react'
+import React, { Component, type PropsWithChildren } from 'react'
 
 // Enhanced error boundary props
 interface EnhancedErrorBoundaryProps extends PropsWithChildren {
@@ -52,7 +60,10 @@ interface EnhancedErrorBoundaryState {
   autoRetryScheduled?: boolean
 }
 
-export class EnhancedErrorBoundary extends Component<EnhancedErrorBoundaryProps, EnhancedErrorBoundaryState> {
+export class EnhancedErrorBoundary extends Component<
+  EnhancedErrorBoundaryProps,
+  EnhancedErrorBoundaryState
+> {
   private retryCount = 0
   private readonly maxRetries = 3
   private prevResetKeys: Array<string | number> = []
@@ -67,7 +78,7 @@ export class EnhancedErrorBoundary extends Component<EnhancedErrorBoundaryProps,
   static getDerivedStateFromError(error: Error): Partial<EnhancedErrorBoundaryState> {
     // Classify the error
     const classification = ErrorClassifier.classify(error)
-    
+
     return {
       hasError: true,
       error,
@@ -78,14 +89,14 @@ export class EnhancedErrorBoundary extends Component<EnhancedErrorBoundaryProps,
   override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     // Classify error
     const classification = ErrorClassifier.classify(error)
-    
+
     // Generate recovery workflow
     const workflow = ErrorRecoveryManager.getRecoveryWorkflow(error, {
       retryAction: this.props.context?.retryAction || (async () => this.retry()),
       fallbackAction: this.props.context?.fallbackAction,
       customActions: this.props.context?.customActions,
     })
-    
+
     // Track error
     errorMonitor.track(error, classification, {
       userId: this.props.context?.userId,
@@ -98,16 +109,16 @@ export class EnhancedErrorBoundary extends Component<EnhancedErrorBoundaryProps,
         retryCount: this.retryCount,
       },
     })
-    
+
     this.setState({
       error,
       classification,
       workflow,
     })
-    
+
     // Call onError prop
     this.props.onError?.(error, classification)
-    
+
     // Schedule automatic retry if applicable
     this.scheduleAutoRetry(classification, workflow)
   }
@@ -141,10 +152,14 @@ export class EnhancedErrorBoundary extends Component<EnhancedErrorBoundaryProps,
   private scheduleAutoRetry(classification: ErrorClassification, workflow: RecoveryWorkflow) {
     // Find automatic retry action
     const autoRetryAction = workflow.actions.find(action => action.automatic && action.delay)
-    
-    if (autoRetryAction && ErrorClassifier.shouldRetry(classification) && this.retryCount < this.maxRetries) {
+
+    if (
+      autoRetryAction &&
+      ErrorClassifier.shouldRetry(classification) &&
+      this.retryCount < this.maxRetries
+    ) {
       this.setState({ autoRetryScheduled: true })
-      
+
       this.autoRetryTimer = setTimeout(() => {
         if (autoRetryAction.action) {
           autoRetryAction.action()
@@ -159,8 +174,8 @@ export class EnhancedErrorBoundary extends Component<EnhancedErrorBoundaryProps,
     if (this.autoRetryTimer) {
       clearTimeout(this.autoRetryTimer)
     }
-    
-    this.setState({ 
+
+    this.setState({
       hasError: false,
       error: undefined,
       classification: undefined,
@@ -178,7 +193,12 @@ export class EnhancedErrorBoundary extends Component<EnhancedErrorBoundaryProps,
   }
 
   override render() {
-    if (this.state.hasError && this.state.error && this.state.classification && this.state.workflow) {
+    if (
+      this.state.hasError &&
+      this.state.error &&
+      this.state.classification &&
+      this.state.workflow
+    ) {
       const FallbackComponent = this.props.fallback || EnhancedErrorFallback
 
       return (
@@ -188,7 +208,10 @@ export class EnhancedErrorBoundary extends Component<EnhancedErrorBoundaryProps,
           workflow={this.state.workflow}
           retry={this.retry}
           reset={this.resetBoundary}
-          canRetry={this.retryCount < this.maxRetries && ErrorClassifier.shouldRetry(this.state.classification)}
+          canRetry={
+            this.retryCount < this.maxRetries &&
+            ErrorClassifier.shouldRetry(this.state.classification)
+          }
           retryCount={this.retryCount}
         />
       )
@@ -198,15 +221,149 @@ export class EnhancedErrorBoundary extends Component<EnhancedErrorBoundaryProps,
   }
 }
 
+// Action type interfaces
+interface BaseAction {
+  type: string
+  label: string
+  description?: string
+}
+
+interface ButtonAction extends BaseAction {
+  type: 'button'
+  action: () => void
+}
+
+interface LinkAction extends BaseAction {
+  type: 'link'
+  href?: string
+}
+
+interface InfoAction extends BaseAction {
+  type: 'info'
+}
+
+interface AutomaticAction extends BaseAction {
+  type: 'automatic'
+  automatic?: boolean
+  delay?: number
+}
+
+type ActionType = ButtonAction | LinkAction | InfoAction | AutomaticAction
+
+// Helper function to convert RecoveryAction to ActionType
+function convertRecoveryActionToActionType(action: RecoveryAction): ActionType {
+  switch (action.type) {
+    case 'button':
+      return {
+        type: 'button',
+        label: action.label,
+        description: action.description,
+        action:
+          action.action ||
+          (() => {
+            // Fallback empty action
+          }),
+      } as ButtonAction
+    case 'link':
+      return {
+        type: 'link',
+        label: action.label,
+        description: action.description,
+        href: action.href,
+      } as LinkAction
+    case 'info':
+      return {
+        type: 'info',
+        label: action.label,
+        description: action.description,
+      } as InfoAction
+    case 'automatic':
+      return {
+        type: 'automatic',
+        label: action.label,
+        description: action.description,
+        automatic: action.automatic,
+        delay: action.delay,
+      } as AutomaticAction
+    default:
+      // Fallback to info type
+      return {
+        type: 'info',
+        label: action.label,
+        description: action.description,
+      } as InfoAction
+  }
+}
+
+// Helper function to render individual actions
+function renderAction(action: ActionType, canRetry: boolean, retryCount: number, index: number) {
+  const getActionKey = (action: ActionType, index: number) =>
+    `${action.type}-${action.label || 'action'}-${index}`
+
+  switch (action.type) {
+    case 'button':
+      return (
+        <Button
+          key={getActionKey(action, index)}
+          onClick={action.action}
+          variant={index === 0 ? 'default' : 'outline'}
+          size="sm"
+          disabled={action.label === 'Retry' && !canRetry}
+        >
+          {action.label === 'Retry' && <RefreshCw className="mr-2 h-4 w-4" />}
+          {action.label}
+          {action.label === 'Retry' && retryCount > 0 && ` (${retryCount}/${3})`}
+        </Button>
+      )
+
+    case 'link': {
+      const handleLinkClick = () => {
+        if ('href' in action && action.href) {
+          window.location.href = action.href
+        }
+      }
+      return (
+        <Button
+          key={getActionKey(action, index)}
+          onClick={handleLinkClick}
+          variant="outline"
+          size="sm"
+        >
+          {action.label === 'Get Help' && <HelpCircle className="mr-2 h-4 w-4" />}
+          {action.label === 'Go to Home' && <Home className="mr-2 h-4 w-4" />}
+          {action.label}
+        </Button>
+      )
+    }
+
+    case 'info':
+      return action.description ? (
+        <Alert key={getActionKey(action, index)} className="mt-2">
+          <AlertTitle className="text-sm">{action.label}</AlertTitle>
+          <AlertDescription className="text-xs">{action.description}</AlertDescription>
+        </Alert>
+      ) : null
+
+    case 'automatic':
+      return action.automatic && action.delay ? (
+        <Alert key={getActionKey(action, index)} className="mt-2">
+          <RefreshCw className="h-4 w-4 animate-spin" />
+          <AlertDescription className="text-xs">{action.description}</AlertDescription>
+        </Alert>
+      ) : null
+
+    default:
+      return null
+  }
+}
+
 // Enhanced error fallback component
-function EnhancedErrorFallback({ 
-  error, 
-  classification, 
-  workflow, 
-  retry, 
-  reset, 
+function EnhancedErrorFallback({
+  error,
+  classification,
+  workflow,
   canRetry,
-  retryCount 
+  retryCount,
 }: EnhancedErrorFallbackProps) {
   const getSeverityColor = (severity: ErrorSeverity) => {
     switch (severity) {
@@ -242,7 +399,7 @@ function EnhancedErrorFallback({
           <div className="flex-shrink-0">{getIcon()}</div>
           <div className="flex-1 space-y-2">
             <div className="flex items-start justify-between">
-              <h2 className="text-lg font-semibold">{workflow.title}</h2>
+              <h2 className="font-semibold text-lg">{workflow.title}</h2>
               <Badge variant="outline" className="text-xs">
                 {classification.severity}
               </Badge>
@@ -253,59 +410,9 @@ function EnhancedErrorFallback({
 
         {/* Actions */}
         <div className="flex flex-wrap gap-2">
-          {workflow.actions.map((action, index) => {
-            switch (action.type) {
-              case 'button':
-                return (
-                  <Button
-                    key={index}
-                    onClick={action.action}
-                    variant={index === 0 ? 'default' : 'outline'}
-                    size="sm"
-                    disabled={action.label === 'Retry' && !canRetry}
-                  >
-                    {action.label === 'Retry' && <RefreshCw className="mr-2 h-4 w-4" />}
-                    {action.label}
-                    {action.label === 'Retry' && retryCount > 0 && ` (${retryCount}/${3})`}
-                  </Button>
-                )
-              
-              case 'link':
-                return (
-                  <Button
-                    key={index}
-                    onClick={() => action.href && (window.location.href = action.href)}
-                    variant="outline"
-                    size="sm"
-                  >
-                    {action.label === 'Get Help' && <HelpCircle className="mr-2 h-4 w-4" />}
-                    {action.label === 'Go to Home' && <Home className="mr-2 h-4 w-4" />}
-                    {action.label}
-                  </Button>
-                )
-              
-              case 'info':
-                return action.description ? (
-                  <Alert key={index} className="mt-2">
-                    <AlertTitle className="text-sm">{action.label}</AlertTitle>
-                    <AlertDescription className="text-xs">{action.description}</AlertDescription>
-                  </Alert>
-                ) : null
-              
-              case 'automatic':
-                return action.automatic && action.delay ? (
-                  <Alert key={index} className="mt-2">
-                    <RefreshCw className="h-4 w-4 animate-spin" />
-                    <AlertDescription className="text-xs">
-                      {action.description}
-                    </AlertDescription>
-                  </Alert>
-                ) : null
-              
-              default:
-                return null
-            }
-          })}
+          {workflow.actions.map((action, index) =>
+            renderAction(convertRecoveryActionToActionType(action), canRetry, retryCount, index)
+          )}
         </div>
 
         {/* Technical details in development */}
@@ -324,9 +431,7 @@ function EnhancedErrorFallback({
               <div className="rounded bg-black/5 p-2">
                 <strong>Recovery Strategies:</strong> {classification.recoveryStrategies.join(', ')}
               </div>
-              <pre className="overflow-auto rounded bg-black/5 p-2">
-                {error.stack}
-              </pre>
+              <pre className="overflow-auto rounded bg-black/5 p-2">{error.stack}</pre>
             </div>
           </details>
         )}
@@ -342,7 +447,9 @@ export function PageErrorBoundary({ children, ...props }: EnhancedErrorBoundaryP
     <EnhancedErrorBoundary
       context={{
         feature: 'page',
-        fallbackAction: () => window.location.href = '/',
+        fallbackAction: () => {
+          window.location.href = '/'
+        },
         ...props.context,
       }}
       {...props}
@@ -352,10 +459,10 @@ export function PageErrorBoundary({ children, ...props }: EnhancedErrorBoundaryP
   )
 }
 
-export function FeatureErrorBoundary({ 
-  feature, 
-  children, 
-  ...props 
+export function FeatureErrorBoundary({
+  feature,
+  children,
+  ...props
 }: EnhancedErrorBoundaryProps & { feature: string }) {
   return (
     <EnhancedErrorBoundary
@@ -370,10 +477,10 @@ export function FeatureErrorBoundary({
   )
 }
 
-export function DataFetchErrorBoundary({ 
-  children, 
+export function DataFetchErrorBoundary({
+  children,
   onRefetch,
-  ...props 
+  ...props
 }: EnhancedErrorBoundaryProps & { onRefetch?: () => Promise<void> }) {
   return (
     <EnhancedErrorBoundary

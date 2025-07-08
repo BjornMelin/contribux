@@ -4,9 +4,9 @@
  * Supports IPv4, IPv6, and CIDR notation with dynamic updates
  */
 
-import { NextRequest } from 'next/server'
-import { Redis } from '@redis/client'
+import type { RedisClientType } from '@redis/client'
 import ipaddr from 'ipaddr.js'
+import type { NextRequest } from 'next/server'
 import { z } from 'zod'
 
 // IP allowlist configuration
@@ -68,10 +68,7 @@ export const CDN_PROXY_RANGES = {
     '172.64.0.0/13',
     '131.0.72.0/22',
   ],
-  vercel: [
-    '76.76.19.0/24',
-    '76.76.21.0/24',
-  ],
+  vercel: ['76.76.19.0/24', '76.76.21.0/24'],
 } as const
 
 /**
@@ -79,14 +76,21 @@ export const CDN_PROXY_RANGES = {
  */
 export class IPAllowlistManager {
   private config: IPAllowlistConfig
-  private redis: Redis | null
+  private redis: RedisClientType | null
   private inMemoryCache = new Map<string, boolean>()
   private staticAllowlist: Set<string> = new Set()
 
-  constructor(config: IPAllowlistConfig, redis: Redis | null = null) {
+  constructor(config: IPAllowlistConfig, redis: RedisClientType | null = null) {
     this.config = config
     this.redis = redis
     this.initializeStaticAllowlist()
+  }
+
+  /**
+   * Get the current configuration
+   */
+  get configuration(): IPAllowlistConfig {
+    return this.config
   }
 
   /**
@@ -141,8 +145,7 @@ export class IPAllowlistManager {
 
       // Default to deny in strict mode
       return !this.config.strictMode
-    } catch (error) {
-      console.error('[IPAllowlist] Error checking IP:', error)
+    } catch (_error) {
       return !this.config.strictMode
     }
   }
@@ -190,7 +193,7 @@ export class IPAllowlistManager {
     if (this.redis) {
       await this.redis.del(`ip-allowlist:${ip}`)
     }
-    
+
     this.staticAllowlist.delete(ip)
     this.clearCache()
   }
@@ -220,8 +223,8 @@ export class IPAllowlistManager {
           try {
             const entry = JSON.parse(data) as IPEntry
             entries.push(entry)
-          } catch (error) {
-            console.error('[IPAllowlist] Failed to parse entry:', error)
+          } catch {
+            // Ignore malformed JSON data in Redis - corrupted entries should not break IP allowlist retrieval
           }
         }
       }
@@ -247,10 +250,9 @@ export class IPAllowlistManager {
   private isPrivateIP(ip: ipaddr.IPv4 | ipaddr.IPv6): boolean {
     if (ip.kind() === 'ipv4') {
       return (ip as ipaddr.IPv4).range() === 'private'
-    } else {
-      const range = (ip as ipaddr.IPv6).range()
-      return range === 'uniqueLocal' || range === 'linkLocal'
     }
+    const range = (ip as ipaddr.IPv6).range()
+    return range === 'uniqueLocal' || range === 'linkLocal'
   }
 
   /**
@@ -297,15 +299,14 @@ export class IPAllowlistManager {
         // CIDR notation
         const [prefix, bits] = allowed.split('/')
         const prefixIP = ipaddr.process(prefix)
-        
+
         if (ip.kind() !== prefixIP.kind()) return false
-        
-        return ip.match(prefixIP, parseInt(bits))
-      } else {
-        // Exact match
-        const allowedIP = ipaddr.process(allowed)
-        return ip.toString() === allowedIP.toString()
+
+        return ip.match(prefixIP, Number.parseInt(bits))
       }
+      // Exact match
+      const allowedIP = ipaddr.process(allowed)
+      return ip.toString() === allowedIP.toString()
     } catch {
       return false
     }
@@ -329,7 +330,7 @@ export class IPAllowlistManager {
    */
   private cacheResult(ip: string, allowed: boolean): void {
     this.inMemoryCache.set(ip, allowed)
-    
+
     // Expire cache after configured time
     setTimeout(() => {
       this.inMemoryCache.delete(ip)
@@ -370,8 +371,8 @@ export function extractClientIP(request: NextRequest): string | null {
     }
   }
 
-  // Fallback to request IP (may not be reliable)
-  return request.ip || null
+  // Fallback - NextRequest doesn't have direct IP access
+  return null
 }
 
 /**
@@ -398,12 +399,12 @@ export function createIPAllowlistMiddleware(
 ) {
   return async (request: NextRequest) => {
     const ip = extractClientIP(request)
-    
+
     if (!ip) {
-      if (manager['config'].strictMode) {
+      if (manager.configuration.strictMode) {
         return new Response(
-          JSON.stringify({ 
-            error: options?.customErrorMessage || 'Unable to determine client IP' 
+          JSON.stringify({
+            error: options?.customErrorMessage || 'Unable to determine client IP',
           }),
           { status: 403, headers: { 'Content-Type': 'application/json' } }
         )
@@ -412,13 +413,13 @@ export function createIPAllowlistMiddleware(
     }
 
     const allowed = await manager.isAllowed(ip)
-    
+
     if (!allowed) {
       options?.onDenied?.(ip)
-      
+
       return new Response(
-        JSON.stringify({ 
-          error: options?.customErrorMessage || 'Access denied' 
+        JSON.stringify({
+          error: options?.customErrorMessage || 'Access denied',
         }),
         { status: 403, headers: { 'Content-Type': 'application/json' } }
       )

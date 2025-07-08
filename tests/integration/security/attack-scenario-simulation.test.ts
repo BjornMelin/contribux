@@ -333,7 +333,10 @@ describe('Attack Scenario Simulation Security Tests', () => {
             rateLimitStore.set(clientIp, { count: 0, timestamps: [] })
           }
 
-          const clientData = rateLimitStore.get(clientIp)!
+          const clientData = rateLimitStore.get(clientIp)
+          if (!clientData) {
+            throw new Error('Rate limit data not found after initialization')
+          }
           const now = Date.now()
           const windowSize = 60000 // 1 minute window
 

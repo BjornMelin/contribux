@@ -282,7 +282,7 @@ export function createConcurrentTestPromises(client: GitHubClient) {
   return [
     client.getAuthenticatedUser(),
     client.getUser('testuser'),
-    client.getRepository({ owner: 'testowner', repo: 'testrepo' }),
+    client.getRepository('testowner', 'testrepo'),
   ]
 }
 

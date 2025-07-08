@@ -108,9 +108,7 @@ describe('GitHub Authentication & Authorization Flows', () => {
       expect(user.login).toBe('testuser')
 
       // Repository access should fail due to limited scope
-      await expect(
-        client.listIssues({ owner: 'test', repo: 'test' }, { per_page: 5 })
-      ).rejects.toThrow(GitHubError)
+      await expect(client.listIssues('test', 'test', { per_page: 5 })).rejects.toThrow(GitHubError)
     })
 
     // Property-based testing for token validation
@@ -191,10 +189,7 @@ describe('GitHub Authentication & Authorization Flows', () => {
       expect(user1.login).toBe('testuser')
 
       // Second request to different endpoint
-      const repos = await client.listIssues(
-        { owner: 'testuser', repo: 'test-repo' },
-        { per_page: 5 }
-      )
+      const repos = await client.listIssues('testuser', 'test-repo', { per_page: 5 })
       expect(repos).toHaveLength(2)
 
       // Third request (same as first)
@@ -265,10 +260,7 @@ describe('GitHub Authentication & Authorization Flows', () => {
       expect(user1.login).toBe('testuser')
 
       // Second request (different endpoint)
-      const repos = await client.listIssues(
-        { owner: 'testuser', repo: 'test-repo' },
-        { per_page: 5 }
-      )
+      const repos = await client.listIssues('testuser', 'test-repo', { per_page: 5 })
       expect(repos).toHaveLength(2)
 
       // Third request (same as first)

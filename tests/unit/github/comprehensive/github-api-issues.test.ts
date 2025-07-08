@@ -286,45 +286,37 @@ describe('GitHubClient - Issues & Pull Requests', () => {
     it('should handle malformed issue JSON', async () => {
       const client = new GitHubClient(testClientConfigs.basicToken)
 
-      await expect(
-        client.getIssue({ owner: 'malformed-test', repo: 'malformed-issue', issueNumber: 999 })
-      ).rejects.toThrow()
+      await expect(client.getIssue('malformed-test', 'malformed-issue', 999)).rejects.toThrow()
     })
 
     it('should handle server errors for issues', async () => {
       const client = new GitHubClient(testClientConfigs.basicToken)
 
-      await expect(
-        client.getIssue({
-          owner: 'server-error-test',
-          repo: 'server-error-issue',
-          issueNumber: 500,
-        })
-      ).rejects.toThrow(GitHubError)
+      await expect(client.getIssue('server-error-test', 'server-error-issue', 500)).rejects.toThrow(
+        GitHubError
+      )
     })
 
     it('should handle validation errors for pull requests', async () => {
       const client = new GitHubClient(testClientConfigs.basicToken)
 
-      await expect(
-        client.getPullRequest({ owner: 'validation-test', repo: 'validation-pr', pullNumber: -1 })
-      ).rejects.toThrow(GitHubError)
+      await expect(client.getPullRequest('validation-test', 'validation-pr', -1)).rejects.toThrow(
+        GitHubError
+      )
     })
 
     it('should handle rate limiting for issue operations', async () => {
       const client = new GitHubClient(testClientConfigs.basicToken)
 
       await expect(
-        client.listIssues({ owner: 'test', repo: 'rate-limited-issues' }, { per_page: 100 })
+        client.listIssues('test', 'rate-limited-issues', { per_page: 100 })
       ).rejects.toThrow(GitHubError)
     })
 
     it('should handle unauthorized access to private repositories', async () => {
       const client = new GitHubClient(testClientConfigs.basicToken)
 
-      await expect(
-        client.getIssue({ owner: 'private', repo: 'private-repo', issueNumber: 1 })
-      ).rejects.toThrow(GitHubError)
+      await expect(client.getIssue('private', 'private-repo', 1)).rejects.toThrow(GitHubError)
     })
   })
 

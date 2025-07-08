@@ -8,6 +8,31 @@ import { authConfig } from '@/lib/auth/config'
 import type { Account, Profile } from 'next-auth'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+// Type for OAuth provider configuration
+interface OAuthProviderConfig {
+  id: string
+  name: string
+  type: string
+  authorization?: {
+    params?: {
+      scope?: string
+      prompt?: string
+      access_type?: string
+      response_type?: string
+    }
+  }
+  options?: {
+    authorization?: {
+      params?: {
+        scope?: string
+        prompt?: string
+        access_type?: string
+        response_type?: string
+      }
+    }
+  }
+}
+
 // Mock database
 vi.mock('@/lib/db/config', () => ({
   sql: vi.fn(),
@@ -45,7 +70,7 @@ describe('NextAuth OAuth Flow Testing', () => {
     })
 
     it('should request correct GitHub OAuth scopes', () => {
-      const githubProvider = authConfig.providers[0] as any
+      const githubProvider = authConfig.providers[0] as OAuthProviderConfig
 
       expect(githubProvider.authorization.params.scope).toBe('read:user user:email')
     })
@@ -182,7 +207,7 @@ describe('NextAuth OAuth Flow Testing', () => {
     })
 
     it('should request correct Google OAuth scopes', () => {
-      const googleProvider = authConfig.providers[1] as any
+      const googleProvider = authConfig.providers[1] as OAuthProviderConfig
 
       // Check if authorization exists and has the correct structure
       expect(googleProvider.authorization).toBeDefined()
@@ -266,8 +291,8 @@ describe('NextAuth OAuth Flow Testing', () => {
     it('should support PKCE for enhanced security', () => {
       // PKCE is handled internally by NextAuth.js OAuth providers
       // We test that the configuration supports it
-      const githubProvider = authConfig.providers[0] as any
-      const googleProvider = authConfig.providers[1] as any
+      const githubProvider = authConfig.providers[0] as OAuthProviderConfig
+      const googleProvider = authConfig.providers[1] as OAuthProviderConfig
 
       // Both providers should support PKCE by default in NextAuth.js v5
       expect(githubProvider.type).toBe('oauth')

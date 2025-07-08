@@ -42,6 +42,20 @@ vi.mock('@/lib/security/webauthn/server', () => ({
 }))
 
 describe('/api/security/webauthn/register/verify', () => {
+  const validRequestBody = {
+    response: {
+      id: 'test-credential-id',
+      rawId: 'test-raw-id',
+      response: {
+        clientDataJSON: 'test-client-data-json',
+        attestationObject: 'test-attestation-object',
+      },
+      type: 'public-key' as const,
+    },
+    expectedChallenge: 'test-challenge',
+    deviceName: 'Test Device',
+  }
+
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -51,20 +65,6 @@ describe('/api/security/webauthn/register/verify', () => {
   })
 
   describe('POST', () => {
-    const validRequestBody = {
-      response: {
-        id: 'test-credential-id',
-        rawId: 'test-raw-id',
-        response: {
-          clientDataJSON: 'test-client-data-json',
-          attestationObject: 'test-attestation-object',
-        },
-        type: 'public-key' as const,
-      },
-      expectedChallenge: 'test-challenge',
-      deviceName: 'Test Device',
-    }
-
     it('should verify registration response successfully', async () => {
       const { getServerSession } = await import('next-auth')
       const { verifyWebAuthnRegistration } = await import('@/lib/security/webauthn/server')

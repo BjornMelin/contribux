@@ -15,6 +15,7 @@
  * - Role-based access control
  */
 
+import type React from 'react'
 import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -25,7 +26,13 @@ import {
 } from '../../../utils/modern-test-helpers'
 
 // Create a mock hook that will be controlled by the tests
-let mockSessionData: any = { data: null, status: 'loading', update: vi.fn() }
+interface MockSessionData {
+  data: { user?: { id: string; name?: string; email?: string } } | null
+  status: 'loading' | 'authenticated' | 'unauthenticated'
+  update: ReturnType<typeof vi.fn>
+}
+
+let mockSessionData: MockSessionData = { data: null, status: 'loading', update: vi.fn() }
 
 const mockUseSession = () => mockSessionData
 
@@ -55,7 +62,9 @@ const MockProtectedComponent = ({
     <div>
       <h1>Protected Content</h1>
       <p>Welcome, {session?.user?.name || 'User'}!</p>
-      <button onClick={() => console.log('Action performed')}>Perform Action</button>
+      <button type="button" onClick={() => console.log('Action performed')}>
+        Perform Action
+      </button>
     </div>
   )
 }

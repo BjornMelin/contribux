@@ -12,6 +12,12 @@ import {
 } from '@/lib/api/monitoring'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+// Type for accessing private methods/properties in tests
+interface APIMonitoringTestAccess {
+  store: MetricsStore
+  startHealthChecks: () => Promise<void>
+}
+
 // Mock console methods to avoid noise in tests
 vi.mock('console', () => ({
   warn: vi.fn(),
@@ -40,7 +46,7 @@ describe('APIMonitoring - Comprehensive Test Suite', () => {
     })
 
     // Access private store for testing
-    _metricsStore = (monitoring as any).store
+    _metricsStore = (monitoring as unknown as APIMonitoringTestAccess).store
   })
 
   afterEach(() => {
@@ -148,7 +154,7 @@ describe('APIMonitoring - Comprehensive Test Suite', () => {
         { statusCode: 503, expectedType: 'server' },
       ]
 
-      errorScenarios.forEach(({ statusCode, expectedType }, index) => {
+      errorScenarios.forEach(({ statusCode, _expectedType }, index) => {
         monitoring.trackRequest(`/api/error-${index}`, 'GET', statusCode, 100, {
           error: `Error ${statusCode}`,
         })
@@ -677,7 +683,9 @@ describe('APIMonitoring - Comprehensive Test Suite', () => {
       vi.mocked(global.fetch).mockRejectedValue(new Error('Network error'))
 
       // Access private health check method
-      const healthCheckPromise = (monitoring as any).startHealthChecks()
+      const healthCheckPromise = (
+        monitoring as unknown as APIMonitoringTestAccess
+      ).startHealthChecks()
 
       // Advance timers to trigger health checks
       vi.advanceTimersByTime(35000)

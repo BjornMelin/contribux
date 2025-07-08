@@ -1,20 +1,16 @@
 /**
  * Comprehensive Webhook Security System
- * 
+ *
  * Implements secure webhook handling with signature validation, rate limiting,
  * payload validation, and security monitoring for GitHub webhook endpoints.
  * This addresses PR review requirements for webhook security.
  */
 
 import { createHmac, timingSafeEqual } from 'node:crypto'
-import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
 import { GitHubWebhookPayloadSchema } from '@/types/github-integration'
-import { 
-  checkAuthRateLimit, 
-  recordAuthResult, 
-  createRateLimitResponse 
-} from './auth-rate-limiting'
+import { type NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+import { checkAuthRateLimit, createRateLimitResponse, recordAuthResult } from './auth-rate-limiting'
 
 // ==================== WEBHOOK CONFIGURATION ====================
 
@@ -23,18 +19,18 @@ const WEBHOOK_CONFIG = {
   signatureHeader: 'x-hub-signature-256',
   eventHeader: 'x-github-event',
   deliveryHeader: 'x-github-delivery',
-  
+
   // Security limits
   maxPayloadSize: 10 * 1024 * 1024, // 10MB max payload
   signatureTimeout: 300, // 5 minutes max age for webhooks
-  
+
   // Rate limiting (stricter than auth endpoints)
   rateLimit: {
     maxAttempts: 100, // Higher limit for legitimate webhook traffic
     windowMs: 60 * 1000, // 1 minute window
     blockDuration: 15 * 60 * 1000, // 15 minute block for abuse
   },
-  
+
   // Allowed event types for security
   allowedEvents: [
     'ping',
@@ -50,7 +46,7 @@ const WEBHOOK_CONFIG = {
   ] as const,
 }
 
-type AllowedWebhookEvent = typeof WEBHOOK_CONFIG.allowedEvents[number]
+type AllowedWebhookEvent = (typeof WEBHOOK_CONFIG.allowedEvents)[number]
 
 // ==================== WEBHOOK VALIDATION SCHEMAS ====================
 
@@ -62,7 +58,7 @@ const WebhookHeadersSchema = z.object({
   'user-agent': z.string().regex(/^GitHub-Hookshot\/[a-f0-9]+$/),
 })
 
-const WebhookTimestampSchema = z.object({
+const _WebhookTimestampSchema = z.object({
   timestamp: z.number().int().positive(),
 })
 
@@ -113,6 +109,180 @@ export class WebhookSecurityValidator {
   }
 
   /**
+   * Ensure securityFlags is initialized and return the flags
+   */
+  private ensureSecurityFlags(
+    result: WebhookSecurityResult
+  ): NonNullable<WebhookSecurityResult['securityFlags']> {
+    if (!result.securityFlags) {
+      result.securityFlags = {
+        suspiciousActivity: false,
+        rateLimit: false,
+        invalidSignature: false,
+        payloadTooLarge: false,
+        eventNotAllowed: false,
+      }
+    }
+    return result.securityFlags
+  }
+
+  /**
+   * Check rate limiting for webhook requests
+   */
+  private performRateLimitCheck(request: NextRequest, result: WebhookSecurityResult): boolean {
+    if (!this.config.enableRateLimit) {
+      return true
+    }
+
+    const rateLimitResult = this.checkWebhookRateLimit(request)
+    if (!rateLimitResult.allowed) {
+      const securityFlags = this.ensureSecurityFlags(result)
+      securityFlags.rateLimit = true
+      result.error = 'Rate limit exceeded for webhook endpoint'
+      this.logSecurityEvent('rate_limit_exceeded', request, result)
+      return false
+    }
+
+    return true
+  }
+
+  /**
+   * Perform header validation and extract event details
+   */
+  private async performHeaderValidation(
+    request: NextRequest,
+    result: WebhookSecurityResult
+  ): Promise<{
+    success: boolean
+    event?: AllowedWebhookEvent
+    deliveryId?: string
+  }> {
+    const headersResult = await this.validateHeaders(request)
+    if (!headersResult.success) {
+      result.error = headersResult.error
+      const securityFlags = this.ensureSecurityFlags(result)
+      securityFlags.suspiciousActivity = true
+      this.logSecurityEvent('invalid_headers', request, result)
+      return { success: false }
+    }
+
+    return {
+      success: true,
+      event: headersResult.event,
+      deliveryId: headersResult.deliveryId,
+    }
+  }
+
+  /**
+   * Check payload size limits
+   */
+  private performPayloadSizeCheck(request: NextRequest, result: WebhookSecurityResult): boolean {
+    const contentLength = request.headers.get('content-length')
+    if (contentLength && Number.parseInt(contentLength) > WEBHOOK_CONFIG.maxPayloadSize) {
+      const securityFlags = this.ensureSecurityFlags(result)
+      securityFlags.payloadTooLarge = true
+      result.error = 'Payload too large'
+      this.logSecurityEvent('payload_too_large', request, result)
+      return false
+    }
+
+    return true
+  }
+
+  /**
+   * Perform signature verification and extract payload
+   */
+  private async performSignatureVerification(
+    request: NextRequest,
+    result: WebhookSecurityResult
+  ): Promise<{
+    success: boolean
+    payload?: unknown
+  }> {
+    const signatureResult = await this.verifySignature(request)
+    if (!signatureResult.success) {
+      const securityFlags = this.ensureSecurityFlags(result)
+      securityFlags.invalidSignature = true
+      result.error = signatureResult.error
+      this.logSecurityEvent('invalid_signature', request, result)
+      return { success: false }
+    }
+
+    return {
+      success: true,
+      payload: signatureResult.payload,
+    }
+  }
+
+  /**
+   * Perform payload validation if enabled
+   */
+  private performPayloadValidation(
+    payload: unknown,
+    event: AllowedWebhookEvent | undefined,
+    request: NextRequest,
+    result: WebhookSecurityResult
+  ): boolean {
+    if (!this.config.enablePayloadValidation || !event) {
+      return true
+    }
+
+    const validationResult = this.validatePayload(payload, event)
+    if (!validationResult.success) {
+      result.error = validationResult.error
+      const securityFlags = this.ensureSecurityFlags(result)
+      securityFlags.suspiciousActivity = true
+      this.logSecurityEvent('invalid_payload', request, result)
+      return false
+    }
+
+    return true
+  }
+
+  /**
+   * Perform event type security check
+   */
+  private performEventTypeCheck(
+    event: AllowedWebhookEvent | undefined,
+    request: NextRequest,
+    result: WebhookSecurityResult
+  ): boolean {
+    if (!event || !WEBHOOK_CONFIG.allowedEvents.includes(event)) {
+      const securityFlags = this.ensureSecurityFlags(result)
+      securityFlags.eventNotAllowed = true
+      result.error = `Event type '${event || 'undefined'}' not allowed`
+      this.logSecurityEvent('forbidden_event', request, result)
+      return false
+    }
+
+    return true
+  }
+
+  /**
+   * Handle validation success
+   */
+  private handleValidationSuccess(request: NextRequest, result: WebhookSecurityResult): void {
+    result.success = true
+    this.logSecurityEvent('webhook_validated', request, result)
+    recordAuthResult(request, true)
+  }
+
+  /**
+   * Handle validation error
+   */
+  private handleValidationError(
+    error: unknown,
+    request: NextRequest,
+    result: WebhookSecurityResult
+  ): void {
+    result.error = error instanceof Error ? error.message : 'Unknown validation error'
+    const securityFlags = this.ensureSecurityFlags(result)
+    securityFlags.suspiciousActivity = true
+    this.logSecurityEvent('validation_error', request, result)
+    recordAuthResult(request, false)
+  }
+
+  /**
    * Comprehensive webhook security validation
    */
   async validateWebhook(request: NextRequest): Promise<WebhookSecurityResult> {
@@ -129,85 +299,47 @@ export class WebhookSecurityValidator {
 
     try {
       // 1. Rate limiting check
-      if (this.config.enableRateLimit) {
-        const rateLimitResult = this.checkWebhookRateLimit(request)
-        if (!rateLimitResult.allowed) {
-          result.securityFlags!.rateLimit = true
-          result.error = 'Rate limit exceeded for webhook endpoint'
-          this.logSecurityEvent('rate_limit_exceeded', request, result)
-          return result
-        }
-      }
-
-      // 2. Header validation
-      const headersResult = await this.validateHeaders(request)
-      if (!headersResult.success) {
-        result.error = headersResult.error
-        result.securityFlags!.suspiciousActivity = true
-        this.logSecurityEvent('invalid_headers', request, result)
+      if (!this.performRateLimitCheck(request, result)) {
         return result
       }
 
-      const { event, deliveryId } = headersResult
-      result.event = event
-      result.deliveryId = deliveryId
+      // 2. Header validation
+      const headerResult = await this.performHeaderValidation(request, result)
+      if (!headerResult.success) {
+        return result
+      }
+
+      result.event = headerResult.event
+      result.deliveryId = headerResult.deliveryId
 
       // 3. Payload size check
-      const contentLength = request.headers.get('content-length')
-      if (contentLength && parseInt(contentLength) > WEBHOOK_CONFIG.maxPayloadSize) {
-        result.securityFlags!.payloadTooLarge = true
-        result.error = 'Payload too large'
-        this.logSecurityEvent('payload_too_large', request, result)
+      if (!this.performPayloadSizeCheck(request, result)) {
         return result
       }
 
       // 4. Signature verification
-      const signatureResult = await this.verifySignature(request)
+      const signatureResult = await this.performSignatureVerification(request, result)
       if (!signatureResult.success) {
-        result.securityFlags!.invalidSignature = true
-        result.error = signatureResult.error
-        this.logSecurityEvent('invalid_signature', request, result)
         return result
       }
 
       result.payload = signatureResult.payload
 
       // 5. Payload validation
-      if (this.config.enablePayloadValidation) {
-        const validationResult = this.validatePayload(result.payload, event)
-        if (!validationResult.success) {
-          result.error = validationResult.error
-          result.securityFlags!.suspiciousActivity = true
-          this.logSecurityEvent('invalid_payload', request, result)
-          return result
-        }
+      if (!this.performPayloadValidation(result.payload, result.event, request, result)) {
+        return result
       }
 
       // 6. Event type security check
-      if (!event || !WEBHOOK_CONFIG.allowedEvents.includes(event)) {
-        result.securityFlags!.eventNotAllowed = true
-        result.error = `Event type '${event || 'undefined'}' not allowed`
-        this.logSecurityEvent('forbidden_event', request, result)
+      if (!this.performEventTypeCheck(result.event, request, result)) {
         return result
       }
 
       // Success
-      result.success = true
-      this.logSecurityEvent('webhook_validated', request, result)
-      
-      // Record successful webhook processing
-      recordAuthResult(request, true)
-
+      this.handleValidationSuccess(request, result)
       return result
-
     } catch (error) {
-      result.error = error instanceof Error ? error.message : 'Unknown validation error'
-      result.securityFlags!.suspiciousActivity = true
-      this.logSecurityEvent('validation_error', request, result)
-      
-      // Record failed webhook processing
-      recordAuthResult(request, false)
-      
+      this.handleValidationError(error, request, result)
       return result
     }
   }
@@ -232,10 +364,10 @@ export class WebhookSecurityValidator {
   }> {
     try {
       const headers = Object.fromEntries(request.headers.entries())
-      
+
       // Validate required headers exist and are properly formatted
       const validatedHeaders = WebhookHeadersSchema.parse(headers)
-      
+
       return {
         success: true,
         event: validatedHeaders[WEBHOOK_CONFIG.eventHeader] as AllowedWebhookEvent,
@@ -244,9 +376,10 @@ export class WebhookSecurityValidator {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof z.ZodError 
-          ? `Invalid headers: ${error.errors.map(e => e.message).join(', ')}`
-          : 'Header validation failed',
+        error:
+          error instanceof z.ZodError
+            ? `Invalid headers: ${error.errors.map(e => e.message).join(', ')}`
+            : 'Header validation failed',
       }
     }
   }
@@ -326,7 +459,10 @@ export class WebhookSecurityValidator {
   /**
    * Validate webhook payload structure
    */
-  private validatePayload(payload: unknown, event: AllowedWebhookEvent): {
+  private validatePayload(
+    payload: unknown,
+    event: AllowedWebhookEvent
+  ): {
     success: boolean
     error?: string
   } {
@@ -364,13 +500,13 @@ export class WebhookSecurityValidator {
    * Security event logging
    */
   private logSecurityEvent(
-    eventType: string, 
-    request: NextRequest, 
+    eventType: string,
+    request: NextRequest,
     result: WebhookSecurityResult
   ): void {
     if (!this.config.enableLogging) return
 
-    const logData = {
+    const _logData = {
       timestamp: new Date().toISOString(),
       eventType,
       webhookEvent: result.event,
@@ -378,13 +514,11 @@ export class WebhookSecurityValidator {
       success: result.success,
       error: result.error,
       securityFlags: result.securityFlags,
-      clientIp: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
+      clientIp:
+        request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
       userAgent: request.headers.get('user-agent') || 'unknown',
       contentLength: request.headers.get('content-length'),
     }
-
-    // In production, send to security monitoring system
-    console.log(`[WEBHOOK_SECURITY] ${eventType}:`, JSON.stringify(logData, null, 2))
   }
 }
 
@@ -399,8 +533,8 @@ export function createWebhookSecurityResponse(
 ): NextResponse {
   if (result.success) {
     return NextResponse.json(
-      { 
-        success: true, 
+      {
+        success: true,
         message: customMessage || 'Webhook processed successfully',
         deliveryId: result.deliveryId,
       },
@@ -410,7 +544,7 @@ export function createWebhookSecurityResponse(
 
   // Determine appropriate HTTP status code
   let status = 400 // Bad Request default
-  
+
   if (result.securityFlags?.rateLimit) {
     status = 429 // Too Many Requests
   } else if (result.securityFlags?.invalidSignature) {
@@ -436,7 +570,7 @@ export function createWebhookSecurityResponse(
       error: result.error || 'Webhook validation failed',
       deliveryId: result.deliveryId,
     },
-    { 
+    {
       status,
       headers: {
         'X-Webhook-Security': 'validation-failed',
@@ -452,11 +586,9 @@ export function createWebhookSecurityResponse(
  */
 export function createWebhookValidator(): WebhookSecurityValidator {
   const secret = process.env.GITHUB_WEBHOOK_SECRET
-  
+
   if (!secret) {
-    throw new Error(
-      'GITHUB_WEBHOOK_SECRET environment variable is required for webhook security'
-    )
+    throw new Error('GITHUB_WEBHOOK_SECRET environment variable is required for webhook security')
   }
 
   return new WebhookSecurityValidator({
@@ -469,7 +601,4 @@ export function createWebhookValidator(): WebhookSecurityValidator {
 
 // ==================== EXPORTS ====================
 
-export {
-  WEBHOOK_CONFIG,
-  type AllowedWebhookEvent,
-}
+export { WEBHOOK_CONFIG, type AllowedWebhookEvent }

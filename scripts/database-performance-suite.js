@@ -332,10 +332,9 @@ async function runOptimizationAnalysis() {
 async function applySQLOptimizations() {
   printHeader('APPLYING SQL OPTIMIZATIONS')
 
-  try {
-  } catch (_error) {
-    process.exit(1)
-  }
+  // TODO: Implement SQL optimization logic
+  // biome-ignore lint/suspicious/noConsole: Development script
+  console.log('SQL optimizations feature not yet implemented')
 }
 
 async function showCacheStats() {
@@ -362,13 +361,22 @@ async function showCacheStats() {
   }
 
   printSection('Memory Cache')
-  Object.entries(stats.memory).forEach(([_key, _value]) => {})
+  Object.entries(stats.memory).forEach(([key, value]) => {
+    // biome-ignore lint/suspicious/noConsole: Development script
+    console.log(`  ${key}: ${value}`)
+  })
 
   printSection('Redis Cache')
-  Object.entries(stats.redis).forEach(([_key, _value]) => {})
+  Object.entries(stats.redis).forEach(([key, value]) => {
+    // biome-ignore lint/suspicious/noConsole: Development script
+    console.log(`  ${key}: ${value}`)
+  })
 
   printSection('Combined Performance')
-  Object.entries(stats.combined).forEach(([_key, _value]) => {})
+  Object.entries(stats.combined).forEach(([key, value]) => {
+    // biome-ignore lint/suspicious/noConsole: Development script
+    console.log(`  ${key}: ${value}`)
+  })
 }
 
 // Main execution logic

@@ -265,7 +265,19 @@ export class UserRepository extends BaseRepository<User, UserId> implements IUse
       // Finally delete the user
       const deleteResult = await trx.delete(this.table).where(eq(this.table.id, id))
 
-      return deleteResult.rowCount > 0
+      // For Neon HTTP, the result may have different structure
+      // Define type for delete result to handle different possible structures
+      type DeleteResult = {
+        rowsAffected?: number
+        rowCount?: number
+        changes?: number
+      }
+
+      return Array.isArray(deleteResult)
+        ? deleteResult.length > 0
+        : ((deleteResult as DeleteResult)?.rowsAffected ?? 0) > 0 ||
+            ((deleteResult as DeleteResult)?.rowCount ?? 0) > 0 ||
+            false
     })
 
     return result.success ? result.data : false
@@ -364,7 +376,7 @@ export class UserRepository extends BaseRepository<User, UserId> implements IUse
    * Get table column by name safely
    */
   protected getTableColumn(columnName: string): PgColumn | null {
-    const table = this.table as any
+    const table = this.table as unknown as Record<string, PgColumn>
     return table[columnName] || null
   }
 }

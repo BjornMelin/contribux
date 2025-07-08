@@ -1,98 +1,149 @@
 /**
  * Redis Cache Module
- * Provides Redis client functionality for caching operations
+ * Provides Redis client functionality for caching operations using Upstash Redis
  */
 
+import { Redis } from '@upstash/redis'
+
 export interface RedisClient {
-  ping(): Promise<string>;
-  get(key: string): Promise<string | null>;
-  set(key: string, value: string, ttl?: number): Promise<string>;
-  del(key: string): Promise<number>;
-  exists(key: string): Promise<number>;
-  flushall(): Promise<string>;
-  disconnect(): Promise<void>;
+  ping(): Promise<string>
+  get(key: string): Promise<string | null>
+  set(key: string, value: string, ttl?: number): Promise<string>
+  del(key: string): Promise<number>
+  exists(key: string): Promise<number>
+  flushall(): Promise<string>
+  disconnect(): Promise<void>
 }
 
 /**
- * Mock Redis client for development and testing
- * In production, this would be replaced with actual Redis client
+ * Upstash Redis client wrapper
+ * Implements the RedisClient interface using Upstash's HTTP-based Redis
  */
-class MockRedisClient implements RedisClient {
-  private store = new Map<string, { value: string; expires?: number }>();
+class UpstashRedisClient implements RedisClient {
+  private client: Redis
+
+  constructor() {
+    // Use environment variables or fallback to mock mode
+    const url = process.env.UPSTASH_REDIS_REST_URL
+    const token = process.env.UPSTASH_REDIS_REST_TOKEN
+
+    if (!url || !token) {
+      // Create a mock client for development when credentials are not available
+      const mockStore = new Map<string, { value: string; expires?: number }>()
+      this.client = {
+        ping: async () => 'PONG',
+        get: async (key: string) => {
+          const item = mockStore.get(key)
+          if (!item) return null
+          if (item.expires && Date.now() > item.expires) {
+            mockStore.delete(key)
+            return null
+          }
+          return item.value
+        },
+        set: async (key: string, value: string, options?: { ex?: number }) => {
+          const expires = options?.ex ? Date.now() + options.ex * 1000 : undefined
+          mockStore.set(key, { value, expires })
+          return 'OK'
+        },
+        del: async (...keys: string[]) => {
+          let deleted = 0
+          for (const key of keys) {
+            if (mockStore.delete(key)) deleted++
+          }
+          return deleted
+        },
+        exists: async (...keys: string[]) => {
+          let count = 0
+          for (const key of keys) {
+            const item = mockStore.get(key)
+            if (item && (!item.expires || Date.now() <= item.expires)) {
+              count++
+            }
+          }
+          return count
+        },
+        flushall: async () => {
+          mockStore.clear()
+          return 'OK'
+        },
+        quit: async () => undefined,
+        disconnect: async () => undefined,
+      } as unknown as Redis
+    } else {
+      this.client = new Redis({
+        url,
+        token,
+      })
+    }
+  }
 
   async ping(): Promise<string> {
-    return 'PONG';
+    return await this.client.ping()
   }
 
   async get(key: string): Promise<string | null> {
-    const item = this.store.get(key);
-    if (!item) return null;
-    
-    if (item.expires && Date.now() > item.expires) {
-      this.store.delete(key);
-      return null;
-    }
-    
-    return item.value;
+    const value = await this.client.get(key)
+    return value as string | null
   }
 
   async set(key: string, value: string, ttl?: number): Promise<string> {
-    const expires = ttl ? Date.now() + (ttl * 1000) : undefined;
-    this.store.set(key, { value, expires });
-    return 'OK';
+    if (ttl) {
+      const result = await this.client.set(key, value, { ex: ttl })
+      return result as string
+    }
+    const result = await this.client.set(key, value)
+    return result as string
   }
 
   async del(key: string): Promise<number> {
-    return this.store.delete(key) ? 1 : 0;
+    return await this.client.del(key)
   }
 
   async exists(key: string): Promise<number> {
-    const item = this.store.get(key);
-    if (!item) return 0;
-    
-    if (item.expires && Date.now() > item.expires) {
-      this.store.delete(key);
-      return 0;
-    }
-    
-    return 1;
+    return await this.client.exists(key)
   }
 
   async flushall(): Promise<string> {
-    this.store.clear();
-    return 'OK';
+    return await this.client.flushall()
   }
 
   async disconnect(): Promise<void> {
-    this.store.clear();
+    // Upstash Redis is HTTP-based and connectionless, so no need to disconnect
+    // This method is kept for interface compatibility
+    return Promise.resolve()
   }
 }
 
 /**
  * Redis client instance
- * TODO: Replace with actual Redis client in production
+ * Uses Upstash Redis for production, falls back to mock for development without credentials
  */
-export const redis: RedisClient = new MockRedisClient();
+export const redis: RedisClient = new UpstashRedisClient()
 
 /**
  * Redis health check
  */
-export async function checkRedisHealth(): Promise<{ status: 'healthy' | 'unhealthy'; latency?: number; error?: string }> {
+export async function checkRedisHealth(): Promise<{
+  status: 'healthy' | 'unhealthy'
+  latency?: number
+  error?: string
+}> {
   try {
-    const start = Date.now();
-    await redis.ping();
-    const latency = Date.now() - start;
-    
+    const start = Date.now()
+    await redis.ping()
+    const latency = Date.now() - start
+
     return {
       status: 'healthy',
-      latency
-    };
+      latency,
+    }
   } catch (error) {
     return {
       status: 'unhealthy',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    };
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
   }
 }
 
-export default redis;
+export default redis

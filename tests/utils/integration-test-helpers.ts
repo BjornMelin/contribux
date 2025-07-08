@@ -17,7 +17,7 @@ export function setupIntegrationTest() {
   // Reset any global state
   if (typeof globalThis !== 'undefined') {
     // Clean any test-specific globals
-    ;(globalThis as any).__test_state = undefined
+    ;(globalThis as { __test_state?: unknown }).__test_state = undefined
   }
 }
 
@@ -49,8 +49,24 @@ export const integrationDataGenerator = {
 /**
  * Mock factory helpers for integration tests
  */
+interface MockUser {
+  id: string
+  email: string
+  display_name: string
+  username: string
+  github_username: string
+  email_verified: boolean
+  two_factor_enabled: boolean
+  recovery_email: string | null
+  locked_at: Date | null
+  failed_login_attempts: number
+  last_login_at: Date
+  created_at: Date
+  updated_at: Date
+}
+
 export const integrationMockFactory = {
-  createMockUser(overrides: Partial<any> = {}) {
+  createMockUser(overrides: Partial<MockUser> = {}) {
     return {
       id: integrationDataGenerator.generateUUID(),
       email: integrationDataGenerator.generateEmail(),
@@ -69,7 +85,10 @@ export const integrationMockFactory = {
     }
   },
 
-  createMockOAuthAccount(provider: 'github' | 'google', overrides: Partial<any> = {}) {
+  createMockOAuthAccount(
+    provider: 'github' | 'google',
+    overrides: Partial<Record<string, unknown>> = {}
+  ) {
     const baseAccount = {
       provider,
       type: 'oauth',

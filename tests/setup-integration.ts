@@ -1,10 +1,10 @@
-import { beforeAll, afterAll, beforeEach, afterEach } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest'
 import '@testing-library/jest-dom'
 
 // Global test setup for integration tests
 beforeAll(async () => {
   console.log('🔧 Setting up integration test environment...')
-  
+
   // Ensure required environment variables are set
   if (!process.env.DATABASE_URL && !process.env.DATABASE_URL_TEST) {
     console.warn('⚠️ No database URL found, some tests may fail')
@@ -18,7 +18,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   console.log('🧹 Cleaning up integration test environment...')
-  
+
   // Force garbage collection if available
   if (global.gc) {
     global.gc()
@@ -43,6 +43,6 @@ process.on('unhandledRejection', (reason, promise) => {
 })
 
 // Global error handler for tests
-globalThis.addEventListener?.('error', (event) => {
+globalThis.addEventListener?.('error', event => {
   console.error('Global error in test:', event.error)
 })

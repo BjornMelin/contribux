@@ -11,7 +11,7 @@ function fixEmptyBlocks(filePath) {
   let modified = false
 
   // Fix empty catch blocks
-  content = content.replace(/catch\s*\([^)]*\)\s*\{\s*\}/g, (match) => {
+  content = content.replace(/catch\s*\([^)]*\)\s*\{\s*\}/g, match => {
     modified = true
     return match.replace('{}', '{\n      // Ignore error\n    }')
   })
@@ -34,13 +34,13 @@ function fixEmptyBlocks(filePath) {
   })
 
   // Fix empty if blocks
-  content = content.replace(/if\s*\([^)]+\)\s*\{\s*\}/g, (match) => {
+  content = content.replace(/if\s*\([^)]+\)\s*\{\s*\}/g, match => {
     modified = true
     return match.replace('{}', '{\n      // No action needed\n    }')
   })
 
   // Fix empty function bodies
-  content = content.replace(/function\s+\w+\s*\([^)]*\)\s*\{\s*\}/g, (match) => {
+  content = content.replace(/function\s+\w+\s*\([^)]*\)\s*\{\s*\}/g, match => {
     modified = true
     return match.replace('{}', '{\n  // TODO: Implement\n}')
   })

@@ -5,9 +5,9 @@
  * Validates that performance optimizations are properly implemented
  */
 
-import fs from 'fs'
-import path from 'path'
-import { fileURLToPath } from 'url'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -27,8 +27,6 @@ class OptimizationValidator {
   }
 
   validateIconOptimization() {
-    console.log('🎯 Validating icon optimization...')
-
     const iconIndexPath = path.join(projectRoot, 'src/components/icons/index.ts')
 
     if (!fs.existsSync(iconIndexPath)) {
@@ -59,8 +57,6 @@ class OptimizationValidator {
   }
 
   validateMotionOptimization() {
-    console.log('🎬 Validating motion optimization...')
-
     const motionIndexPath = path.join(projectRoot, 'src/components/motion/index.tsx')
 
     if (!fs.existsSync(motionIndexPath)) {
@@ -96,8 +92,6 @@ class OptimizationValidator {
   }
 
   validateCacheOptimization() {
-    console.log('🚀 Validating cache optimization...')
-
     const cacheOptimizedPath = path.join(projectRoot, 'src/lib/cache/api-cache-optimized.ts')
 
     if (!fs.existsSync(cacheOptimizedPath)) {
@@ -117,7 +111,7 @@ class OptimizationValidator {
     const hasInvalidationManager = content.includes('CacheInvalidationManager')
 
     // Check for priority-based caching
-    const hasPrioritySystem = content.includes('CachePriority')
+    const _hasPrioritySystem = content.includes('CachePriority')
 
     if (!hasCacheConfigs) {
       this.issues.push('Cache configurations not properly implemented')
@@ -136,8 +130,6 @@ class OptimizationValidator {
   }
 
   validateQueryOptimization() {
-    console.log('📊 Validating query optimization...')
-
     const queryOptimizerPath = path.join(projectRoot, 'src/lib/db/query-optimizer.ts')
 
     if (!fs.existsSync(queryOptimizerPath)) {
@@ -170,8 +162,6 @@ class OptimizationValidator {
   }
 
   validateBundleConfig() {
-    console.log('📦 Validating bundle configuration...')
-
     const nextConfigPath = path.join(projectRoot, 'next.config.js')
 
     if (!fs.existsSync(nextConfigPath)) {
@@ -203,8 +193,6 @@ class OptimizationValidator {
   }
 
   validatePerformanceDashboard() {
-    console.log('📈 Validating performance dashboard...')
-
     const dashboardPath = path.join(
       projectRoot,
       'src/components/monitoring/performance-dashboard.tsx'
@@ -240,9 +228,6 @@ class OptimizationValidator {
   }
 
   generateReport() {
-    console.log('\n🚀 OPTIMIZATION VALIDATION REPORT')
-    console.log('==================================\n')
-
     const validations = [
       { name: 'Icon Optimization', status: this.results.iconOptimization },
       { name: 'Motion Optimization', status: this.results.motionOptimization },
@@ -254,32 +239,39 @@ class OptimizationValidator {
 
     let passedCount = 0
 
+    // biome-ignore lint/suspicious/noConsole: Development script
+    console.log('\n📊 Optimization Validation Results:')
+    // biome-ignore lint/suspicious/noConsole: Development script
+    console.log('=====================================')
+
     validations.forEach(validation => {
       const status = validation.status ? '✅ PASS' : '❌ FAIL'
+      // biome-ignore lint/suspicious/noConsole: Development script
       console.log(`${validation.name}: ${status}`)
       if (validation.status) passedCount++
     })
 
-    console.log(`\nValidation Score: ${passedCount}/${validations.length}`)
+    // biome-ignore lint/suspicious/noConsole: Development script
+    console.log(`\n📈 Overall: ${passedCount}/${validations.length} validations passed`)
 
     if (this.issues.length > 0) {
-      console.log('\n🚨 ISSUES FOUND:')
+      // biome-ignore lint/suspicious/noConsole: Development script
+      console.log('\n🔍 Issues Found:')
       this.issues.forEach((issue, i) => {
-        console.log(`${i + 1}. ${issue}`)
+        // biome-ignore lint/suspicious/noConsole: Development script
+        console.log(`  ${i + 1}. ${issue}`)
       })
     } else {
-      console.log('\n🎉 All optimizations validated successfully!')
+      // biome-ignore lint/suspicious/noConsole: Development script
+      console.log('\n✅ All optimizations are properly implemented!')
     }
 
     const overallStatus = passedCount === validations.length ? 'PASS' : 'FAIL'
-    console.log(`\nOverall Status: ${overallStatus}`)
 
     return overallStatus === 'PASS'
   }
 
   async run() {
-    console.log('🔍 Starting optimization validation...\n')
-
     try {
       this.validateIconOptimization()
       this.validateMotionOptimization()
@@ -291,14 +283,15 @@ class OptimizationValidator {
       const success = this.generateReport()
 
       if (success) {
-        console.log('\n✅ All performance optimizations are properly implemented!')
         process.exit(0)
       } else {
-        console.log('\n❌ Some optimizations need attention. Check the issues above.')
         process.exit(1)
       }
     } catch (error) {
-      console.error('❌ Error during validation:', error)
+      // biome-ignore lint/suspicious/noConsole: Development script
+      console.error('❌ Validation failed with error:', error.message)
+      // biome-ignore lint/suspicious/noConsole: Development script
+      console.error('Stack trace:', error.stack)
       process.exit(1)
     }
   }

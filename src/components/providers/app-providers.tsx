@@ -10,10 +10,10 @@
 
 'use client'
 
+import { ThemeProvider } from 'next-themes'
 import type { ReactNode } from 'react'
 import { createContext, useContext, useEffect, useState } from 'react'
 import { QueryProvider } from './query-provider'
-import { ThemeProvider } from 'next-themes'
 
 interface AppProvidersProps {
   children: ReactNode
@@ -123,12 +123,7 @@ function MockSessionProvider({ children }: { children: ReactNode }) {
 
 export function AppProviders({ children }: AppProvidersProps) {
   return (
-    <ThemeProvider 
-      attribute="class" 
-      defaultTheme="system" 
-      enableSystem 
-      disableTransitionOnChange
-    >
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <MockSessionProvider>
         <QueryProvider>{children}</QueryProvider>
       </MockSessionProvider>

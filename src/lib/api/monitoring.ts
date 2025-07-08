@@ -503,7 +503,7 @@ export class APIMonitoring {
 // Global monitoring instance - lazy loaded to avoid build-time issues
 let apiMonitoringInstance: APIMonitoring | null = null
 export const apiMonitoring = new Proxy({} as APIMonitoring, {
-  get(target, prop) {
+  get(_target, prop) {
     if (!apiMonitoringInstance) {
       apiMonitoringInstance = new APIMonitoring()
     }

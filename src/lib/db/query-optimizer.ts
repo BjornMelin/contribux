@@ -1,5 +1,28 @@
 import type { NeonQueryFunction } from '@neondatabase/serverless'
 
+// PostgreSQL execution plan node interface
+export interface PostgreSQLPlanNode {
+  'Node Type'?: string
+  'Actual Rows'?: number
+  'Index Name'?: string
+  Plans?: PostgreSQLPlanNode[]
+  [key: string]: unknown
+}
+
+// PostgreSQL execution plan interface
+export interface PostgreSQLExecutionPlan {
+  'QUERY PLAN'?: PostgreSQLPlanNode | PostgreSQLPlanNode[]
+  [key: string]: unknown
+}
+
+// PostgreSQL index structure interface
+export interface PostgreSQLIndex {
+  schemaname: string
+  tablename: string
+  indexname: string
+  indexdef: string
+}
+
 // Query performance metrics interface
 export interface QueryMetrics {
   query: string
@@ -86,7 +109,10 @@ export class DatabaseQueryOptimizer {
     const cacheKey = this.hashQuery(query)
 
     if (this.queryCache.has(cacheKey)) {
-      return this.queryCache.get(cacheKey)!
+      const cached = this.queryCache.get(cacheKey)
+      if (cached) {
+        return cached
+      }
     }
 
     const startTime = performance.now()
@@ -98,15 +124,14 @@ export class DatabaseQueryOptimizer {
       const executionTime = performance.now() - startTime
 
       // Parse the execution plan
-      const plan = explainResult[0] as any
+      const plan = explainResult[0] as PostgreSQLExecutionPlan
       const metrics = this.parseExecutionPlan(query, plan, executionTime)
 
       // Cache the results
       this.queryCache.set(cacheKey, metrics)
 
       return metrics
-    } catch (error) {
-      console.error('Query analysis failed:', error)
+    } catch (_error) {
       return {
         query,
         executionTime: performance.now() - startTime,
@@ -119,36 +144,56 @@ export class DatabaseQueryOptimizer {
   }
 
   // Parse PostgreSQL execution plan
-  private parseExecutionPlan(query: string, plan: any, executionTime: number): QueryMetrics {
+  private parseExecutionPlan(
+    query: string,
+    plan: PostgreSQLExecutionPlan,
+    executionTime: number
+  ): QueryMetrics {
     const planData = plan['QUERY PLAN'] || plan
     const executionPlan = Array.isArray(planData) ? planData[0] : planData
+
+    // Ensure we have a valid execution plan
+    if (!executionPlan || typeof executionPlan !== 'object') {
+      return {
+        query,
+        executionTime,
+        rowsReturned: 0,
+        indexesUsed: [],
+        fullTableScans: false,
+        recommendations: ['Unable to parse execution plan'],
+      }
+    }
 
     const metrics: QueryMetrics = {
       query,
       executionTime,
-      rowsReturned: executionPlan['Actual Rows'] || 0,
-      indexesUsed: this.extractIndexesUsed(executionPlan),
-      fullTableScans: this.hasFullTableScans(executionPlan),
+      rowsReturned: (executionPlan as PostgreSQLPlanNode)['Actual Rows'] || 0,
+      indexesUsed: this.extractIndexesUsed(executionPlan as PostgreSQLPlanNode),
+      fullTableScans: this.hasFullTableScans(executionPlan as PostgreSQLPlanNode),
       recommendations: [],
     }
 
     // Generate recommendations based on the plan
-    metrics.recommendations = this.generateRecommendations(metrics, executionPlan)
+    metrics.recommendations = this.generateRecommendations(
+      metrics,
+      executionPlan as PostgreSQLPlanNode
+    )
 
     return metrics
   }
 
   // Extract indexes used in the query
-  private extractIndexesUsed(plan: any): string[] {
+  private extractIndexesUsed(plan: PostgreSQLPlanNode): string[] {
     const indexes: string[] = []
 
-    const extractFromNode = (node: any) => {
-      if (node['Index Name']) {
-        indexes.push(node['Index Name'])
+    const extractFromNode = (node: PostgreSQLPlanNode) => {
+      const indexName = node['Index Name']
+      if (indexName && typeof indexName === 'string') {
+        indexes.push(indexName)
       }
 
-      if (node['Plans']) {
-        node['Plans'].forEach((childPlan: any) => {
+      if (node.Plans && Array.isArray(node.Plans)) {
+        node.Plans.forEach((childPlan: PostgreSQLPlanNode) => {
           extractFromNode(childPlan)
         })
       }
@@ -159,14 +204,15 @@ export class DatabaseQueryOptimizer {
   }
 
   // Check if query involves full table scans
-  private hasFullTableScans(plan: any): boolean {
-    const checkNode = (node: any): boolean => {
-      if (node['Node Type'] === 'Seq Scan') {
+  private hasFullTableScans(plan: PostgreSQLPlanNode): boolean {
+    const checkNode = (node: PostgreSQLPlanNode): boolean => {
+      const nodeType = node['Node Type']
+      if (nodeType === 'Seq Scan') {
         return true
       }
 
-      if (node['Plans']) {
-        return node['Plans'].some((childPlan: any) => checkNode(childPlan))
+      if (node.Plans && Array.isArray(node.Plans)) {
+        return node.Plans.some((childPlan: PostgreSQLPlanNode) => checkNode(childPlan))
       }
 
       return false
@@ -176,7 +222,7 @@ export class DatabaseQueryOptimizer {
   }
 
   // Generate performance recommendations
-  private generateRecommendations(metrics: QueryMetrics, plan: any): string[] {
+  private generateRecommendations(metrics: QueryMetrics, _plan: PostgreSQLPlanNode): string[] {
     const recommendations: string[] = []
 
     // High execution time
@@ -256,8 +302,8 @@ export class DatabaseQueryOptimizer {
       try {
         const metrics = await this.analyzeQuery(query)
         results.push(metrics)
-      } catch (error) {
-        console.error(`Failed to analyze query: ${query}`, error)
+      } catch (_error) {
+        // Skip failed query analysis - metrics will be generated for successful queries only
       }
     }
 
@@ -280,7 +326,7 @@ export class DatabaseQueryOptimizer {
       ORDER BY tablename, indexname
     `
 
-    const indexes = await this.db(indexQuery)
+    const indexes = (await this.db(indexQuery)) as PostgreSQLIndex[]
 
     // Common index recommendations for the schema
     const suggestedIndexes = [
@@ -329,7 +375,9 @@ export class DatabaseQueryOptimizer {
     ]
 
     // Check which indexes are missing
-    const existingIndexes = new Set(indexes.map((idx: any) => `${idx.tablename}_${idx.indexname}`))
+    const existingIndexes = new Set(
+      indexes.map((idx: PostgreSQLIndex) => `${idx.tablename}_${idx.indexname}`)
+    )
 
     for (const suggestion of suggestedIndexes) {
       const indexName = `idx_${suggestion.table}_${suggestion.columns.join('_')}`

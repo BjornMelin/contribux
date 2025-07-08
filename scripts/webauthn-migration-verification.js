@@ -192,7 +192,12 @@ async function generateMigrationReport(sql) {
       ORDER BY applied_at DESC
       LIMIT 5
     `
-    migrations.forEach(_m => {})
+    // biome-ignore lint/suspicious/noConsole: Development script
+    console.log('Recent migrations:')
+    migrations.forEach(m => {
+      // biome-ignore lint/suspicious/noConsole: Development script
+      console.log(`  - ${m.filename} (${m.applied_at})`)
+    })
 
     // WebAuthn specific verification
     const webauthnMigration = await sql`
@@ -201,14 +206,22 @@ async function generateMigrationReport(sql) {
     `
 
     if (webauthnMigration.length > 0) {
+      // biome-ignore lint/suspicious/noConsole: Development script
+      console.log('✅ WebAuthn migration found in migration history')
     } else {
+      // biome-ignore lint/suspicious/noConsole: Development script
+      console.log('⚠️ WebAuthn migration not found in migration history')
     }
   } catch (_error) {
     // Error checking constraints
   }
 }
 
-async function simulateMigrationVerification() {}
+async function simulateMigrationVerification() {
+  // TODO: Implement migration verification simulation
+  // biome-ignore lint/suspicious/noConsole: Development script placeholder
+  console.log('WebAuthn migration verification simulation - placeholder')
+}
 
 // Integration with existing migration system
 async function integrateWithExistingMigrations() {

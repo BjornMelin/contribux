@@ -2,8 +2,18 @@
  * @vitest-environment node
  */
 
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+// Type definitions for mock objects
+interface MockHeaders {
+  get: (key: string) => string | null
+  set: (key: string, value: string) => void
+}
+
+interface MockDateObject {
+  now: () => number
+}
 
 /**
  * Enhanced Security Middleware Test Suite
@@ -31,7 +41,7 @@ class MockNextRequest {
         if (!this._headerStore) this._headerStore = new Map()
         this._headerStore.set(key.toLowerCase(), value)
       }),
-    } as any
+    } as MockHeaders
     this._headerStore = new Map()
   }
 
@@ -41,9 +51,9 @@ class MockNextRequest {
 class MockNextResponse {
   public status: number
   public headers: Map<string, string>
-  private body: any
+  private body: string | null
 
-  constructor(body?: any, init?: ResponseInit) {
+  constructor(body?: string | null, init?: ResponseInit) {
     this.status = init?.status || 200
     this.body = body
     // Mock headers object
@@ -56,7 +66,7 @@ class MockNextResponse {
         if (!this._headerStore) this._headerStore = new Map()
         this._headerStore.set(key.toLowerCase(), value)
       }),
-    } as any
+    } as MockHeaders
     this._headerStore = new Map()
   }
 
@@ -77,10 +87,8 @@ vi.mock('next/server', () => ({
 }))
 
 // Make the mocked classes globally available
-global.NextRequest = MockNextRequest as any
-global.NextResponse = MockNextResponse as any
-
-import { type NextRequest, NextResponse } from 'next/server'
+global.NextRequest = MockNextRequest as typeof NextRequest
+global.NextResponse = MockNextResponse as typeof NextResponse
 import { enhancedSecurityMiddleware } from '../../src/lib/security/enhanced-middleware'
 
 // Mock environment variables for testing
@@ -240,7 +248,7 @@ describe('Enhanced Security Middleware', () => {
         () =>
           ({
             now: () => Date.now() + 15 * 60 * 1000 + 1000,
-          }) as any
+          }) as MockDateObject
       )
 
       // This request should be allowed after window reset
@@ -555,7 +563,7 @@ describe('Enhanced Security Middleware', () => {
     it('should handle malformed requests gracefully', async () => {
       const request = createMockRequest(
         'https://example.com/api/test',
-        { method: 'INVALID' as any },
+        { method: 'INVALID' as 'GET' },
         { 'x-forwarded-for': '192.168.1.180' }
       )
 

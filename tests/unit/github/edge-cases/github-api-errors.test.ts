@@ -16,7 +16,12 @@ import { GitHubError } from '@/lib/github/errors'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { mswServer } from '../msw-setup'
-import { allEdgeCaseHandlers } from './mocks/error-api-mocks'
+import {
+  allEdgeCaseHandlers,
+  malformedResponseHandlers,
+  serverErrorHandlers,
+  validationErrorHandlers,
+} from './mocks/error-api-mocks'
 import {
   EDGE_CASE_PARAMS,
   createEdgeCaseClient,
@@ -84,11 +89,7 @@ describe('GitHub API Error Handling', () => {
         })
       )
 
-      await testErrorPropagation(
-        () => client.getRepository({ owner: 'notfound', repo: 'repo' }),
-        404,
-        GitHubError
-      )
+      await testErrorPropagation(() => client.getRepository('notfound', 'repo'), 404, GitHubError)
     })
   })
 
@@ -99,7 +100,7 @@ describe('GitHub API Error Handling', () => {
       mswServer.use(...serverErrorHandlers)
 
       await testErrorPropagation(
-        () => client.getRepository({ owner: 'server-error-test', repo: 'bad-gateway' }),
+        () => client.getRepository('server-error-test', 'bad-gateway'),
         502,
         GitHubError
       )
@@ -111,7 +112,7 @@ describe('GitHub API Error Handling', () => {
       mswServer.use(...serverErrorHandlers)
 
       await testErrorPropagation(
-        () => client.getRepository({ owner: 'server-error-test', repo: 'service-unavailable' }),
+        () => client.getRepository('server-error-test', 'service-unavailable'),
         503,
         GitHubError
       )
@@ -202,7 +203,7 @@ describe('GitHub API Error Handling', () => {
         })
       )
 
-      await expect(client.getRepository({ owner: 'empty', repo: 'response' })).rejects.toThrow()
+      await expect(client.getRepository('empty', 'response')).rejects.toThrow()
     })
 
     it('should handle non-JSON content type responses', async () => {
@@ -217,7 +218,7 @@ describe('GitHub API Error Handling', () => {
         })
       )
 
-      await expect(client.getRepository({ owner: 'html', repo: 'response' })).rejects.toThrow()
+      await expect(client.getRepository('html', 'response')).rejects.toThrow()
     })
   })
 
@@ -239,7 +240,7 @@ describe('GitHub API Error Handling', () => {
       )
 
       try {
-        await client.getRepository({ owner: 'test', repo: 'detailed-error' })
+        await client.getRepository('test', 'detailed-error')
         expect.fail('Should have thrown an error')
       } catch (error) {
         validateErrorResponse(error)
@@ -269,7 +270,7 @@ describe('GitHub API Error Handling', () => {
       )
 
       try {
-        await client.getRepository({ owner: 'test', repo: 'rate-limit-error' })
+        await client.getRepository('test', 'rate-limit-error')
         expect.fail('Should have thrown an error')
       } catch (error) {
         validateErrorResponse(error)
@@ -312,7 +313,7 @@ describe('GitHub API Error Handling', () => {
         })
       )
 
-      await expect(client.getRepository({ owner: 'test', repo: 'network-error' })).rejects.toThrow()
+      await expect(client.getRepository('test', 'network-error')).rejects.toThrow()
     })
   })
 
@@ -324,7 +325,7 @@ describe('GitHub API Error Handling', () => {
       await expect(client.getRepository(EDGE_CASE_PARAMS.SERVER_ERROR)).rejects.toThrow(GitHubError)
 
       // Client should still be functional for valid requests
-      const repo = await client.getRepository({ owner: 'octocat', repo: 'Hello-World' })
+      const repo = await client.getRepository('octocat', 'Hello-World')
       expect(repo).toBeDefined()
       expect(repo.name).toBe('Hello-World')
 
@@ -337,7 +338,7 @@ describe('GitHub API Error Handling', () => {
       const client = createEdgeCaseClient()
 
       const promises = [
-        client.getRepository({ owner: 'octocat', repo: 'Hello-World' }), // Should succeed
+        client.getRepository('octocat', 'Hello-World'), // Should succeed
         client.getRepository(EDGE_CASE_PARAMS.SERVER_ERROR), // Should fail
         client.getUser('octocat'), // Should succeed
         client.getRepository(EDGE_CASE_PARAMS.VALIDATION_ERROR), // Should fail

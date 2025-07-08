@@ -45,13 +45,25 @@ vi.mock('@/lib/security/feature-flags', () => ({
   getSecurityConfig: vi.fn(),
 }))
 
+// Type definitions for mocked functions
+type SqlFunction = (...args: unknown[]) => Promise<unknown[]>
+type GenerateRegistrationOptionsFunction = (...args: unknown[]) => Promise<unknown>
+type VerifyRegistrationResponseFunction = (...args: unknown[]) => Promise<unknown>
+type GenerateAuthenticationOptionsFunction = (...args: unknown[]) => Promise<unknown>
+type VerifyAuthenticationResponseFunction = (...args: unknown[]) => Promise<unknown>
+type GetSecurityConfigFunction = (...args: unknown[]) => unknown
+
 describe('WebAuthn Server - Comprehensive Test Suite', () => {
-  let mockSql: any
-  let mockGenerateRegistrationOptions: any
-  let mockVerifyRegistrationResponse: any
-  let mockGenerateAuthenticationOptions: any
-  let mockVerifyAuthenticationResponse: any
-  let mockGetSecurityConfig: any
+  let mockSql: ReturnType<typeof vi.fn<SqlFunction>>
+  let mockGenerateRegistrationOptions: ReturnType<typeof vi.fn<GenerateRegistrationOptionsFunction>>
+  let mockVerifyRegistrationResponse: ReturnType<typeof vi.fn<VerifyRegistrationResponseFunction>>
+  let mockGenerateAuthenticationOptions: ReturnType<
+    typeof vi.fn<GenerateAuthenticationOptionsFunction>
+  >
+  let mockVerifyAuthenticationResponse: ReturnType<
+    typeof vi.fn<VerifyAuthenticationResponseFunction>
+  >
+  let mockGetSecurityConfig: ReturnType<typeof vi.fn<GetSecurityConfigFunction>>
 
   beforeEach(async () => {
     vi.clearAllMocks()
@@ -368,7 +380,11 @@ describe('WebAuthn Server - Comprehensive Test Suite', () => {
       })
 
       // This should propagate the error from SimpleWebAuthn
-      const result = await verifyWebAuthnRegistration(userId, malformedCredential as any, challenge)
+      const result = await verifyWebAuthnRegistration(
+        userId,
+        malformedCredential as unknown,
+        challenge
+      )
       expect(result).toEqual({
         verified: false,
         error: 'Registration verification failed',
@@ -743,7 +759,7 @@ describe('WebAuthn Server - Comprehensive Test Suite', () => {
 
       // This should fail early and not reach database
       await expect(
-        verifyWebAuthnAuthentication(malformedAuthData as any, challenge)
+        verifyWebAuthnAuthentication(malformedAuthData as unknown, challenge)
       ).rejects.toThrow()
     })
   })
@@ -1230,7 +1246,7 @@ describe('WebAuthn Server - Comprehensive Test Suite', () => {
 })
 
 describe('WebAuthn Server Error Recovery', () => {
-  let mockSql: any
+  let mockSql: ReturnType<typeof vi.fn<SqlFunction>>
 
   beforeEach(async () => {
     vi.clearAllMocks()

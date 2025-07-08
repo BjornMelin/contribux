@@ -1,9 +1,9 @@
 /**
  * Comprehensive Webhook Security Test Suite
- * 
+ *
  * Tests all security aspects of the webhook system including:
  * - HMAC signature verification with timing attacks prevention
- * - Rate limiting and abuse protection  
+ * - Rate limiting and abuse protection
  * - Payload validation and size limits
  * - Header validation and event filtering
  * - Security logging and monitoring
@@ -11,7 +11,7 @@
  */
 
 import { createHmac } from 'node:crypto'
-import { describe, expect, it, beforeEach, vi, type Mock } from 'vitest'
+import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock Next.js server components
 vi.mock('next/server', () => ({
@@ -27,7 +27,7 @@ vi.mock('next/server', () => ({
     }
   },
   NextResponse: {
-    json: (data: any, init?: ResponseInit) => 
+    json: (data: unknown, init?: ResponseInit) =>
       new Response(JSON.stringify(data), {
         ...init,
         headers: { 'content-type': 'application/json', ...init?.headers },
@@ -39,31 +39,25 @@ vi.mock('next/server', () => ({
 vi.mock('@/lib/security/auth-rate-limiting', () => ({
   checkAuthRateLimit: vi.fn(() => ({ allowed: true })),
   recordAuthResult: vi.fn(),
-  createRateLimitResponse: vi.fn(() => 
-    new Response(JSON.stringify({ error: 'Rate limited' }), { status: 429 })
+  createRateLimitResponse: vi.fn(
+    () => new Response(JSON.stringify({ error: 'Rate limited' }), { status: 429 })
   ),
 }))
 
-import { 
+import type { NextRequest } from 'next/server'
+import {
+  WEBHOOK_CONFIG,
+  type WebhookSecurityConfig,
   WebhookSecurityValidator,
   createWebhookSecurityResponse,
-  WEBHOOK_CONFIG,
-  type WebhookSecurityConfig 
 } from '@/lib/security/webhook-security'
-
-// Types for mocked NextRequest
-interface MockNextRequest {
-  headers: Headers
-  ip?: string
-  text(): Promise<string>
-}
 
 describe('WebhookSecurityValidator', () => {
   const validSecret = 'test-webhook-secret-that-is-long-enough-to-be-secure'
   const shortSecret = 'short'
-  
+
   let validator: WebhookSecurityValidator
-  let mockRequest: Partial<NextRequest>
+  let _mockRequest: Partial<NextRequest>
 
   beforeEach(() => {
     validator = new WebhookSecurityValidator({
@@ -75,11 +69,17 @@ describe('WebhookSecurityValidator', () => {
 
     // Reset mocks
     vi.clearAllMocks()
-    
+
     // Mock console methods
-    vi.spyOn(console, 'log').mockImplementation(() => {})
-    vi.spyOn(console, 'warn').mockImplementation(() => {})
-    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.spyOn(console, 'log').mockImplementation(() => {
+      /* intentionally empty - suppress console output during tests */
+    })
+    vi.spyOn(console, 'warn').mockImplementation(() => {
+      /* intentionally empty - suppress console output during tests */
+    })
+    vi.spyOn(console, 'error').mockImplementation(() => {
+      /* intentionally empty - suppress console output during tests */
+    })
   })
 
   describe('Constructor Security', () => {
@@ -98,7 +98,7 @@ describe('WebhookSecurityValidator', () => {
     it('should set secure defaults for configuration', () => {
       const config: WebhookSecurityConfig = { secret: validSecret }
       const testValidator = new WebhookSecurityValidator(config)
-      
+
       // Should not throw and should work with defaults
       expect(testValidator).toBeInstanceOf(WebhookSecurityValidator)
     })
@@ -112,7 +112,7 @@ describe('WebhookSecurityValidator', () => {
       })
 
       const result = await validator.validateWebhook(request as NextRequest)
-      
+
       expect(result.success).toBe(false)
       expect(result.error).toContain('Invalid headers')
       expect(result.securityFlags?.suspiciousActivity).toBe(true)
@@ -125,7 +125,7 @@ describe('WebhookSecurityValidator', () => {
 
       const request = createMockRequest({ headers, body: payload })
       const result = await validator.validateWebhook(request as NextRequest)
-      
+
       expect(result.success).toBe(false)
       expect(result.securityFlags?.invalidSignature).toBe(true)
     })
@@ -137,7 +137,7 @@ describe('WebhookSecurityValidator', () => {
 
       const request = createMockRequest({ headers, body: payload })
       const result = await validator.validateWebhook(request as NextRequest)
-      
+
       expect(result.success).toBe(false)
       expect(result.error).toContain('Invalid headers')
     })
@@ -149,7 +149,7 @@ describe('WebhookSecurityValidator', () => {
 
       const request = createMockRequest({ headers, body: payload })
       const result = await validator.validateWebhook(request as NextRequest)
-      
+
       expect(result.success).toBe(false)
       expect(result.error).toContain('Invalid headers')
     })
@@ -162,7 +162,7 @@ describe('WebhookSecurityValidator', () => {
 
       const request = createMockRequest({ headers, body: payload })
       const result = await validator.validateWebhook(request as NextRequest)
-      
+
       expect(result.success).toBe(true)
       expect(result.securityFlags?.invalidSignature).toBe(false)
     })
@@ -173,7 +173,7 @@ describe('WebhookSecurityValidator', () => {
 
       const request = createMockRequest({ headers, body: payload })
       const result = await validator.validateWebhook(request as NextRequest)
-      
+
       expect(result.success).toBe(false)
       expect(result.securityFlags?.invalidSignature).toBe(true)
     })
@@ -185,18 +185,18 @@ describe('WebhookSecurityValidator', () => {
 
       const request = createMockRequest({ headers, body: payload })
       const result = await validator.validateWebhook(request as NextRequest)
-      
+
       expect(result.success).toBe(false)
       expect(result.securityFlags?.invalidSignature).toBe(true)
     })
 
     it('should protect against timing attacks with constant-time comparison', async () => {
       const payload = '{"test": "payload"}'
-      
+
       // Create two requests with different but similarly-structured signatures
       const validHeaders = createValidHeaders('ping', payload, validSecret)
       const invalidHeaders = createValidHeaders('ping', payload, validSecret)
-      invalidHeaders.set('x-hub-signature-256', 'sha256=' + 'f'.repeat(64)) // Wrong but same length
+      invalidHeaders.set('x-hub-signature-256', `sha256=${'f'.repeat(64)}`) // Wrong but same length
 
       const validRequest = createMockRequest({ headers: validHeaders, body: payload })
       const invalidRequest = createMockRequest({ headers: invalidHeaders, body: payload })
@@ -212,7 +212,7 @@ describe('WebhookSecurityValidator', () => {
 
       expect(result1.success).toBe(true)
       expect(result2.success).toBe(false)
-      
+
       // Times should be within reasonable range (not a perfect test but good indicator)
       const timeDiff = Math.abs(time1 - time2)
       expect(timeDiff).toBeLessThan(100) // 100ms tolerance
@@ -221,13 +221,13 @@ describe('WebhookSecurityValidator', () => {
 
   describe('Payload Security', () => {
     it('should reject payloads that are too large', async () => {
-      const largePayload = '{"data": "' + 'x'.repeat(WEBHOOK_CONFIG.maxPayloadSize) + '"}'
+      const largePayload = `{"data": "${'x'.repeat(WEBHOOK_CONFIG.maxPayloadSize)}"}`
       const headers = createValidHeaders('ping', largePayload, validSecret)
       headers.set('content-length', String(largePayload.length))
 
       const request = createMockRequest({ headers, body: largePayload })
       const result = await validator.validateWebhook(request as NextRequest)
-      
+
       expect(result.success).toBe(false)
       expect(result.securityFlags?.payloadTooLarge).toBe(true)
     })
@@ -238,7 +238,7 @@ describe('WebhookSecurityValidator', () => {
 
       const request = createMockRequest({ headers, body: invalidPayload })
       const result = await validator.validateWebhook(request as NextRequest)
-      
+
       expect(result.success).toBe(false)
       expect(result.securityFlags?.invalidSignature).toBe(true)
     })
@@ -249,7 +249,7 @@ describe('WebhookSecurityValidator', () => {
 
       const request = createMockRequest({ headers, body: invalidPayload })
       const result = await validator.validateWebhook(request as NextRequest)
-      
+
       expect(result.success).toBe(false)
       expect(result.securityFlags?.suspiciousActivity).toBe(true)
     })
@@ -297,7 +297,7 @@ describe('WebhookSecurityValidator', () => {
       const headers = createValidHeaders('issues', validPayload, validSecret)
       const request = createMockRequest({ headers, body: validPayload })
       const result = await validator.validateWebhook(request as NextRequest)
-      
+
       expect(result.success).toBe(true)
     })
   })
@@ -305,25 +305,25 @@ describe('WebhookSecurityValidator', () => {
   describe('Event Type Security', () => {
     it('should reject disallowed event types', async () => {
       const payload = '{"test": "payload"}'
-      const headers = createValidHeaders('malicious_event' as any, payload, validSecret)
+      const headers = createValidHeaders('malicious_event' as never, payload, validSecret)
 
       const request = createMockRequest({ headers, body: payload })
       const result = await validator.validateWebhook(request as NextRequest)
-      
+
       expect(result.success).toBe(false)
       expect(result.error).toContain('Invalid headers') // Caught by header validation
     })
 
     it('should accept all allowed event types', async () => {
       const allowedEvents = WEBHOOK_CONFIG.allowedEvents
-      
+
       for (const event of allowedEvents) {
         const payload = '{"test": "payload"}'
         const headers = createValidHeaders(event, payload, validSecret)
 
         const request = createMockRequest({ headers, body: payload })
         const result = await validator.validateWebhook(request as NextRequest)
-        
+
         // May fail on payload validation but should not fail on event type
         if (!result.success) {
           expect(result.securityFlags?.eventNotAllowed).not.toBe(true)
@@ -336,16 +336,16 @@ describe('WebhookSecurityValidator', () => {
     it('should apply rate limiting when enabled', async () => {
       const { checkAuthRateLimit } = await import('@/lib/security/auth-rate-limiting')
       const mockCheckRateLimit = checkAuthRateLimit as Mock
-      
+
       // Mock rate limit exceeded
       mockCheckRateLimit.mockReturnValueOnce({ allowed: false })
 
       const payload = '{"test": "payload"}'
       const headers = createValidHeaders('ping', payload, validSecret)
       const request = createMockRequest({ headers, body: payload })
-      
+
       const result = await validator.validateWebhook(request as NextRequest)
-      
+
       expect(result.success).toBe(false)
       expect(result.securityFlags?.rateLimit).toBe(true)
     })
@@ -359,9 +359,9 @@ describe('WebhookSecurityValidator', () => {
       const payload = '{"test": "payload"}'
       const headers = createValidHeaders('ping', payload, validSecret)
       const request = createMockRequest({ headers, body: payload })
-      
+
       const result = await noRateLimitValidator.validateWebhook(request as NextRequest)
-      
+
       // Should not fail due to rate limiting (may fail for other reasons)
       expect(result.securityFlags?.rateLimit).not.toBe(true)
     })
@@ -376,7 +376,7 @@ describe('WebhookSecurityValidator', () => {
       }
 
       const response = createWebhookSecurityResponse(result)
-      
+
       expect(response.status).toBe(200)
     })
 
@@ -412,7 +412,7 @@ describe('WebhookSecurityValidator', () => {
 
       const response = createWebhookSecurityResponse(errorResult)
       const responseData = await response.json()
-      
+
       expect(response.headers.get('X-Webhook-Security')).toBe('validation-failed')
       expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff')
       expect(response.headers.get('X-Frame-Options')).toBe('DENY')
@@ -429,14 +429,14 @@ describe('WebhookSecurityValidator', () => {
 function createValidHeaders(event: string, payload: string, secret: string): Headers {
   const hmac = createHmac('sha256', secret)
   const signature = `sha256=${hmac.update(payload, 'utf8').digest('hex')}`
-  
+
   const headers = new Headers()
   headers.set('content-type', 'application/json')
   headers.set('user-agent', 'GitHub-Hookshot/12345678')
   headers.set('x-github-event', event)
   headers.set('x-github-delivery', '12345678-1234-1234-1234-123456789012')
   headers.set('x-hub-signature-256', signature)
-  
+
   return headers
 }
 

@@ -1,7 +1,7 @@
 /**
  * Cryptographically secure random value generation
  * Replaces Math.random() for security-sensitive operations
- * 
+ *
  * Works in both Node.js and Edge Runtime environments
  */
 
@@ -19,12 +19,13 @@ export function getSecureRandomBytes(length: number): Uint8Array {
     const bytes = new Uint8Array(length)
     globalThis.crypto.getRandomValues(bytes)
     return bytes
-  } else if (typeof require !== 'undefined') {
+  }
+  if (typeof require !== 'undefined') {
     // Node.js environment
     try {
-      const { randomBytes } = require('crypto')
+      const { randomBytes } = require('node:crypto')
       return new Uint8Array(randomBytes(length))
-    } catch (error) {
+    } catch (_error) {
       throw new Error('No secure random number generator available')
     }
   }
@@ -38,16 +39,16 @@ export function getSecureRandomBytes(length: number): Uint8Array {
  * @returns Secure random string
  */
 export function generateSecureRandomString(
-  length: number = 16,
-  alphabet: string = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  length = 16,
+  alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
 ): string {
   const bytes = getSecureRandomBytes(length)
   let result = ''
-  
+
   for (let i = 0; i < length; i++) {
     result += alphabet[bytes[i] % alphabet.length]
   }
-  
+
   return result
 }
 
@@ -57,7 +58,7 @@ export function generateSecureRandomString(
  * @param prefix Optional prefix for the ID
  * @returns Unique secure ID
  */
-export function generateSecureId(prefix: string = ''): string {
+export function generateSecureId(prefix = ''): string {
   const timestamp = Date.now().toString(36)
   const randomPart = generateSecureRandomString(9)
   return prefix ? `${prefix}_${timestamp}_${randomPart}` : `${timestamp}_${randomPart}`
@@ -86,12 +87,12 @@ export function getSecureRandomInt(min: number, max: number): number {
   if (!Number.isInteger(min) || !Number.isInteger(max)) {
     throw new TypeError('Arguments must be integers')
   }
-  
+
   const range = max - min
   if (range <= 0) {
     throw new RangeError('Max must be greater than min')
   }
-  
+
   // For small ranges, use simple approach
   if (range <= 256) {
     let value: number
@@ -100,11 +101,11 @@ export function getSecureRandomInt(min: number, max: number): number {
     } while (value >= 256 - (256 % range))
     return min + (value % range)
   }
-  
+
   // For larger ranges, use rejection sampling with appropriate byte count
   const bytesNeeded = Math.ceil(Math.log2(range) / 8)
   const maxValid = Math.floor(256 ** bytesNeeded / range) * range
-  
+
   let value: number
   do {
     const bytes = getSecureRandomBytes(bytesNeeded)
@@ -113,7 +114,7 @@ export function getSecureRandomInt(min: number, max: number): number {
       value = value * 256 + bytes[i]
     }
   } while (value >= maxValid)
-  
+
   return min + (value % range)
 }
 
@@ -123,65 +124,65 @@ export function getSecureRandomInt(min: number, max: number): number {
  */
 export async function getSecureRandomWithFallback(length: number): Promise<Uint8Array> {
   const startTime = Date.now()
-  
+
   try {
     // Primary: Use crypto.getRandomValues
     if (globalThis.crypto?.getRandomValues) {
       const bytes = new Uint8Array(length)
       globalThis.crypto.getRandomValues(bytes)
-      
+
       logger.debug('Secure random generation successful', {
         method: 'crypto.getRandomValues',
         length,
-        duration: Date.now() - startTime
+        duration: Date.now() - startTime,
       })
-      
+
       return bytes
     }
   } catch (error) {
-    logger.warn('Primary crypto.getRandomValues failed', { 
+    logger.warn('Primary crypto.getRandomValues failed', {
       error: error instanceof Error ? error.message : String(error),
-      length 
+      length,
     })
   }
 
   try {
     // Secondary: Use Node crypto
     if (typeof require !== 'undefined') {
-      const { randomBytes } = require('crypto')
+      const { randomBytes } = require('node:crypto')
       const buffer = randomBytes(length)
       const bytes = new Uint8Array(buffer)
-      
+
       logger.debug('Secure random generation successful', {
         method: 'crypto.randomBytes',
         length,
-        duration: Date.now() - startTime
+        duration: Date.now() - startTime,
       })
-      
+
       return bytes
     }
   } catch (error) {
-    logger.warn('Secondary crypto.randomBytes failed', { 
+    logger.warn('Secondary crypto.randomBytes failed', {
       error: error instanceof Error ? error.message : String(error),
-      length 
+      length,
     })
   }
 
   // Last resort: Log critical error and throw
-  const errorMessage = 
+  const errorMessage =
     'No cryptographically secure random number generator available. ' +
     'This is a critical security vulnerability.'
-  
+
   logger.error(errorMessage, {
     length,
     environment: {
       hasCrypto: typeof globalThis.crypto !== 'undefined',
       hasGetRandomValues: typeof globalThis.crypto?.getRandomValues === 'function',
       hasRequire: typeof require !== 'undefined',
-      runtime: typeof window !== 'undefined' ? 'browser' : 'server'
-    }
+      runtime: typeof window !== 'undefined' ? 'browser' : 'server',
+    },
   })
-  
+
   throw new Error(errorMessage)
 }
 
@@ -191,10 +192,10 @@ export async function getSecureRandomWithFallback(length: number): Promise<Uint8
  */
 export class SecureRandomPool {
   private pool: Uint8Array | null = null
-  private index: number = 0
+  private index = 0
   private readonly poolSize: number
 
-  constructor(poolSize: number = 1024) {
+  constructor(poolSize = 1024) {
     if (poolSize < 16 || poolSize > 65536) {
       throw new RangeError('Pool size must be between 16 and 65536 bytes')
     }
@@ -221,7 +222,10 @@ export class SecureRandomPool {
       this.refillPool()
     }
 
-    const bytes = this.pool!.slice(this.index, this.index + count)
+    if (!this.pool) {
+      throw new Error('Entropy pool not initialized')
+    }
+    const bytes = this.pool.slice(this.index, this.index + count)
     this.index += count
     return bytes
   }
