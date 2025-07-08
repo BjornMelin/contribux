@@ -122,7 +122,7 @@ const EnhancedOpportunityCard = ({
   const isBookmarked = mockBookmarkManager.isBookmarked(opportunity.id)
 
   return (
-    <div className="opportunity-card" role="article">
+    <article className="opportunity-card">
       <OpportunityCard opportunity={opportunity} onSelect={onSelect} />
       <button
         type="button"
@@ -135,7 +135,7 @@ const EnhancedOpportunityCard = ({
       >
         {isBookmarked ? '★' : '☆'}
       </button>
-    </div>
+    </article>
   )
 }
 
@@ -228,9 +228,9 @@ const PaginatedSearchResults = ({
 }) => {
   return (
     <div className="paginated-search-results">
-      <div className="results-info" role="status">
+      <output className="results-info">
         Showing page {currentPage} of {totalPages} ({opportunities.length} results)
-      </div>
+      </output>
 
       <OpportunityList
         opportunities={opportunities}

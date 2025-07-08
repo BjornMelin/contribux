@@ -3,8 +3,8 @@
  * Tests for personalized recommendations and similar content discovery
  */
 
-import { describe, expect, it, beforeEach, vi } from 'vitest'
 import { RecommendationService } from '@/lib/business-logic/recommendation-service'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 describe('RecommendationService', () => {
   let service: RecommendationService

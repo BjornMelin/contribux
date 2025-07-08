@@ -15,11 +15,11 @@
  * - Accessibility compliance
  */
 
-import type React from 'react'
 import { SignInButton } from '@/app/auth/signin/signin-button'
 import { LinkedAccounts } from '@/components/auth/LinkedAccounts'
 import { render, screen, waitFor } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
+import type React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   cleanupComponentTest,

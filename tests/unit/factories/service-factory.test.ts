@@ -3,7 +3,7 @@
  * Tests factory pattern, dependency injection, and service creation
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { MockedFunction } from 'vitest'
 
 // Mock all dynamic imports and dependencies
@@ -175,23 +175,23 @@ vi.mock('../../../tests/mocks/service-mocks', () => ({
 
 // Import the actual module after mocking dependencies
 import {
-  createGitHubClientFactory,
-  createGitHubClientWithAuth,
-  createGitHubClientForTesting,
+  ProductionServiceFactory,
+  ServiceBuilder,
+  TestingServiceFactory,
+  businessServiceFactory,
+  configurationFactory,
   createDatabaseFactory,
   createDatabaseForTesting,
-  repositoryFactory,
-  businessServiceFactory,
-  monitoringFactory,
-  configurationFactory,
-  ProductionServiceFactory,
-  TestingServiceFactory,
-  registerFactory,
+  createFactory,
+  createGitHubClientFactory,
+  createGitHubClientForTesting,
+  createGitHubClientWithAuth,
+  createService,
   getFactory,
   getFactoryOrDefault,
-  createFactory,
-  createService,
-  ServiceBuilder,
+  monitoringFactory,
+  registerFactory,
+  repositoryFactory,
   serviceBuilder,
 } from '@/lib/factories/service-factory'
 

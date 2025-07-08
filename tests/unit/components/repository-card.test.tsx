@@ -9,11 +9,11 @@
  * - Edge cases and accessibility
  */
 
-import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { RepositoryCard } from '@/components/features/RepositoryCard'
 import type { Repository } from '@/types/search'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock framer-motion to avoid animation issues in tests
 vi.mock('framer-motion', () => ({

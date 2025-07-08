@@ -2,8 +2,8 @@
  * @vitest-environment node
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Account, User } from 'next-auth'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock Next.js modules first to prevent import issues
 vi.mock('next/server', () => ({

@@ -10,18 +10,18 @@
  * - CircuitBreaker class
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { NextRequest, NextResponse } from 'next/server'
-import { type ZodError, z } from 'zod'
 import {
+  CircuitBreaker,
   SecurityError,
   SecurityErrorType,
-  withSecurityBoundary,
   createSecureErrorResponse,
   withApiSecurityBoundary,
   withRetryBoundary,
-  CircuitBreaker,
+  withSecurityBoundary,
 } from '@/lib/security/error-boundaries'
+import { NextRequest, NextResponse } from 'next/server'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { type ZodError, z } from 'zod'
 
 // Mock the audit logger to avoid actual logging during tests
 vi.mock('@/lib/security/audit-logger', () => ({
@@ -273,7 +273,10 @@ describe('Security Error Boundaries', () => {
         zodError = error as ZodError
       }
 
-      const response = createSecureErrorResponse(zodError!)
+      if (!zodError) {
+        throw new Error('Expected zodError to be set')
+      }
+      const response = createSecureErrorResponse(zodError)
 
       expect(response.status).toBe(400)
     })

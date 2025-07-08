@@ -3,9 +3,9 @@
  * Tests React error boundaries, async error handling, and specialized error boundaries
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach, type MockedFunction } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import React from 'react'
+import { type MockedFunction, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock UI components
 vi.mock('@/components/ui/button', () => ({
@@ -66,17 +66,17 @@ global.PromiseRejectionEvent = class PromiseRejectionEvent extends Event {
 
 // Import components after mocking
 import {
-  ErrorBoundary,
-  AuthErrorBoundary,
   ApiErrorBoundary,
-  SearchErrorBoundary,
-  AsyncErrorBoundary,
-  withErrorBoundary,
-  useErrorHandler,
-  setupGlobalErrorHandling,
   AppErrorBoundaries,
+  AsyncErrorBoundary,
+  AuthErrorBoundary,
+  ErrorBoundary,
   ErrorReporter,
+  SearchErrorBoundary,
   errorBoundaryUtils,
+  setupGlobalErrorHandling,
+  useErrorHandler,
+  withErrorBoundary,
 } from '@/components/error-boundaries/error-boundary-system'
 
 // Test components

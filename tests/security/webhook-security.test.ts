@@ -44,13 +44,13 @@ vi.mock('@/lib/security/auth-rate-limiting', () => ({
   ),
 }))
 
-import type { NextRequest } from 'next/server'
 import {
   WEBHOOK_CONFIG,
   type WebhookSecurityConfig,
   WebhookSecurityValidator,
   createWebhookSecurityResponse,
 } from '@/lib/security/webhook-security'
+import type { NextRequest } from 'next/server'
 
 describe('WebhookSecurityValidator', () => {
   const validSecret = 'test-webhook-secret-that-is-long-enough-to-be-secure'

@@ -15,9 +15,9 @@
  * - Role-based access control
  */
 
-import type React from 'react'
 import { render, screen } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
+import type React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   cleanupComponentTest,
@@ -74,9 +74,9 @@ const MockUserDashboard = () => {
 
   if (status === 'loading') {
     return (
-      <div role="status" aria-label="Loading dashboard">
+      <output aria-label="Loading dashboard">
         <div className="animate-pulse">Loading your dashboard...</div>
-      </div>
+      </output>
     )
   }
 
