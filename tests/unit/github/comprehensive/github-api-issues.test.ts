@@ -505,16 +505,12 @@ describe('GitHubClient - Issues & Pull Requests', () => {
           testPRParams.singlePR.repo,
           testPRParams.singlePR.pullNumber
         ),
-        client.listIssues(
-          testIssueParams.repository.owner,
-          testIssueParams.repository.repo,
-          { per_page: 5 }
-        ),
-        client.listPullRequests(
-          testPRParams.repository.owner,
-          testPRParams.repository.repo,
-          { per_page: 5 }
-        ),
+        client.listIssues(testIssueParams.repository.owner, testIssueParams.repository.repo, {
+          per_page: 5,
+        }),
+        client.listPullRequests(testPRParams.repository.owner, testPRParams.repository.repo, {
+          per_page: 5,
+        }),
       ]
 
       const results = await Promise.allSettled(requests)

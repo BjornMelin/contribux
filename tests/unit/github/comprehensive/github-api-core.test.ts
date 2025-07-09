@@ -38,34 +38,44 @@ describe('GitHubClient - Core API Tests', () => {
       })
 
       it('should accept valid configuration with all options', () => {
-        expect(() => new GitHubClient({
-          accessToken: 'ghp_test_token',
-          baseUrl: 'https://api.github.com',
-          userAgent: 'test-agent/1.0',
-          timeout: 30000,
-        })).not.toThrow()
+        expect(
+          () =>
+            new GitHubClient({
+              accessToken: 'ghp_test_token',
+              baseUrl: 'https://api.github.com',
+              userAgent: 'test-agent/1.0',
+              timeout: 30000,
+            })
+        ).not.toThrow()
       })
 
       it('should reject invalid baseUrl', () => {
-        expect(() => new GitHubClient({
-          baseUrl: 'invalid-url',
-        })).toThrow(/url/)
+        expect(
+          () =>
+            new GitHubClient({
+              baseUrl: 'invalid-url',
+            })
+        ).toThrow(/url/)
       })
 
       it('should reject negative timeout', () => {
-        expect(() => new GitHubClient({
-          timeout: -1000,
-        })).toThrow(/too_small/)
+        expect(
+          () =>
+            new GitHubClient({
+              timeout: -1000,
+            })
+        ).toThrow(/too_small/)
       })
 
       it('should reject zero timeout', () => {
-        expect(() => new GitHubClient({
-          timeout: 0,
-        })).toThrow(/too_small/)
+        expect(
+          () =>
+            new GitHubClient({
+              timeout: 0,
+            })
+        ).toThrow(/too_small/)
       })
     })
-
-
 
     describe('Additional Validation', () => {
       it('should reject invalid baseUrl', () => {

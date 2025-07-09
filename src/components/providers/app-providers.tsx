@@ -51,7 +51,9 @@ export const useSession = () => useContext(MockSessionContext)
 
 function MockSessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<MockSession | null>(null)
-  const [status, setStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('unauthenticated')
+  const [status, setStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>(
+    'unauthenticated'
+  )
 
   useEffect(() => {
     // Check for existing session on mount (only on client)
@@ -64,7 +66,7 @@ function MockSessionProvider({ children }: { children: ReactNode }) {
     const checkSession = async () => {
       // Briefly set to loading only during the actual check
       setStatus('loading')
-      
+
       try {
         // Add timeout to prevent infinite loading
         const controller = new AbortController()
@@ -73,9 +75,9 @@ function MockSessionProvider({ children }: { children: ReactNode }) {
         const response = await fetch('/api/auth/session', {
           signal: controller.signal,
         })
-        
+
         clearTimeout(timeoutId)
-        
+
         if (response.ok) {
           const sessionData = await response.json()
           if (sessionData.user) {

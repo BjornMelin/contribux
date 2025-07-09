@@ -94,10 +94,15 @@ async function getMFAAttempt(userId: string): Promise<MFAAttempt | null> {
       AND (locked_until IS NULL OR locked_until > CURRENT_TIMESTAMP)
       LIMIT 1
     `
-    
+
     if (result.length === 0) return null
-    
-    const row = result[0] as { user_id: string; attempts: number; locked_until: Date | null; last_attempt: Date }
+
+    const row = result[0] as {
+      user_id: string
+      attempts: number
+      locked_until: Date | null
+      last_attempt: Date
+    }
     return {
       userId: row.user_id,
       attempts: row.attempts,
@@ -141,10 +146,16 @@ async function getMFAChallenge(challengeId: string): Promise<MFAChallenge | null
       AND expires_at > CURRENT_TIMESTAMP
       LIMIT 1
     `
-    
+
     if (result.length === 0) return null
-    
-    const row = result[0] as { user_id: string; challenge: string; method: MFAMethod; expires_at: Date; registration_options: string }
+
+    const row = result[0] as {
+      user_id: string
+      challenge: string
+      method: MFAMethod
+      expires_at: Date
+      registration_options: string
+    }
     return {
       userId: row.user_id,
       challenge: row.challenge,

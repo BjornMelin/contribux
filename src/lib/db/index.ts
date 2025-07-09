@@ -26,7 +26,7 @@ function getDatabaseUrl(): string {
 function isLocalPostgres(): boolean {
   const databaseUrl = getDatabaseUrl()
   return (
-    process.env.CI === 'true' || 
+    process.env.CI === 'true' ||
     process.env.USE_LOCAL_PG === 'true' ||
     databaseUrl.includes('localhost') ||
     databaseUrl.includes('127.0.0.1')
@@ -51,28 +51,28 @@ async function createDatabase(): Promise<{
     // Use postgres.js for local PostgreSQL (better compatibility with Drizzle)
     const postgres = await import('postgres')
     const { drizzle } = await import('drizzle-orm/postgres-js')
-    
+
     const sql = postgres.default(databaseUrl, {
       max: 10, // Connection pool size
       idle_timeout: 30,
     })
-    
+
     const db = drizzle(sql, drizzleConfig)
-    
+
     return { db, sql }
   } else {
     // Use Neon for production
     const { neon } = await import('@neondatabase/serverless')
     const { drizzle } = await import('drizzle-orm/neon-http')
-    
+
     const sql = neon(databaseUrl, {
       fetchOptions: {
         cache: 'no-cache',
       },
     })
-    
+
     const db = drizzle(sql, drizzleConfig)
-    
+
     return { db, sql }
   }
 }
@@ -133,7 +133,7 @@ export async function checkDatabaseHealth(): Promise<{
     // Ensure database is initialized
     await initPromise
     const { sql } = await initializeDatabase()
-    
+
     // Simple health check query
     await sql`SELECT 1 as health_check`
 

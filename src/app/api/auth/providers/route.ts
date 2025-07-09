@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     // In development mode with demo providers, auth might not be fully functional
     let session: any = null
     let authError: any = null
-    
+
     try {
       if (typeof auth === 'function') {
         session = await auth()

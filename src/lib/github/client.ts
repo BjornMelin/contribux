@@ -273,7 +273,7 @@ export class GitHubClient {
         retryFilter: (error: any) => {
           // Extract status code from various possible error structures
           const status = error.status || error.response?.status || error.code
-          
+
           // Don't retry on 401 Unauthorized (authentication errors)
           if (status === 401) {
             return false
@@ -494,10 +494,14 @@ export class GitHubClient {
   /**
    * Helper method to handle Octokit errors and convert them to GitHubErrors
    */
-  private handleOctokitError(error: unknown, operation: string, params: Record<string, unknown> = {}): never {
+  private handleOctokitError(
+    error: unknown,
+    operation: string,
+    params: Record<string, unknown> = {}
+  ): never {
     if (isRequestError(error)) {
       const context = createRequestContext('GET', operation, params)
-      
+
       if (error.status === 401) {
         throw new GitHubError(
           'Bad credentials',
@@ -507,37 +511,19 @@ export class GitHubClient {
           context
         )
       }
-      
+
       if (error.status === 403) {
-        throw new GitHubError(
-          'Forbidden',
-          'FORBIDDEN_ERROR',
-          error.status,
-          error.response,
-          context
-        )
+        throw new GitHubError('Forbidden', 'FORBIDDEN_ERROR', error.status, error.response, context)
       }
-      
+
       if (error.status === 404) {
-        throw new GitHubError(
-          'Not Found',
-          'NOT_FOUND_ERROR',
-          error.status,
-          error.response,
-          context
-        )
+        throw new GitHubError('Not Found', 'NOT_FOUND_ERROR', error.status, error.response, context)
       }
-      
+
       if (error.status >= 500) {
-        throw new GitHubError(
-          'Server Error',
-          'SERVER_ERROR',
-          error.status,
-          error.response,
-          context
-        )
+        throw new GitHubError('Server Error', 'SERVER_ERROR', error.status, error.response, context)
       }
-      
+
       throw new GitHubError(
         error.message || 'Unknown GitHub API error',
         'API_ERROR',
@@ -546,18 +532,12 @@ export class GitHubClient {
         context
       )
     }
-    
+
     if (error instanceof Error) {
-      throw new GitHubError(
-        error.message,
-        'NETWORK_ERROR'
-      )
+      throw new GitHubError(error.message, 'NETWORK_ERROR')
     }
-    
-    throw new GitHubError(
-      'Unknown error occurred',
-      'UNKNOWN_ERROR'
-    )
+
+    throw new GitHubError('Unknown error occurred', 'UNKNOWN_ERROR')
   }
 
   /**

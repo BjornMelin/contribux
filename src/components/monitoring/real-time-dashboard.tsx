@@ -78,13 +78,13 @@ export function RealTimeMonitoringDashboard() {
         .split('; ')
         .find(row => row.startsWith('access_token='))
         ?.split('=')[1]
-      
+
       // Try localStorage as fallback (if using localStorage auth)
       return token || localStorage.getItem('access_token')
     }
 
     const authToken = getAuthToken()
-    
+
     // Only connect if authenticated
     if (!authToken) {
       console.warn('WebSocket connection requires authentication')
@@ -95,29 +95,29 @@ export function RealTimeMonitoringDashboard() {
     const wsEndpoint = process.env.NEXT_PUBLIC_WS_ENDPOINT || 'ws://localhost:8080/metrics'
     const wsUrl = new URL(wsEndpoint)
     wsUrl.searchParams.set('token', authToken)
-    
+
     const ws = new WebSocket(wsUrl.toString())
 
     ws.onmessage = event => {
       const data = JSON.parse(event.data)
       // Update timestamp inline to avoid circular dependency
       setLastUpdated(new Date())
-      
+
       // Handle metric updates inline
       if (data.type === 'ai_metrics') {
         setAiMetrics((prev: MetricData[]) => [
           ...prev.slice(-29),
-          { timestamp: Date.now(), value: data.value || 0 }
+          { timestamp: Date.now(), value: data.value || 0 },
         ])
       } else if (data.type === 'performance_metrics') {
         setPerformanceMetrics((prev: MetricData[]) => [
           ...prev.slice(-29),
-          { timestamp: Date.now(), value: data.value || 0 }
+          { timestamp: Date.now(), value: data.value || 0 },
         ])
       } else if (data.type === 'token_usage') {
         setTokenUsage((prev: MetricData[]) => [
           ...prev.slice(-29),
-          { timestamp: Date.now(), value: data.value || 0 }
+          { timestamp: Date.now(), value: data.value || 0 },
         ])
       }
       // Add other metric types as needed

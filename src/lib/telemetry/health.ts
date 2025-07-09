@@ -198,7 +198,7 @@ export async function checkDatabaseHealth(): Promise<HealthCheckResult> {
     try {
       // Import database client dynamically to avoid circular dependencies
       const { neon } = await import('@neondatabase/serverless')
-      
+
       // Create direct connection with explicit options for health check
       const sql = neon(process.env.DATABASE_URL!, {
         fetchOptions: {

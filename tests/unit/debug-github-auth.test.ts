@@ -27,14 +27,14 @@ describe('Debug GitHub Authentication', () => {
   it('should authenticate with correct config format', async () => {
     // Test the CORRECT configuration format that matches the actual GitHubClient
     const client = new GitHubClient({
-      accessToken: 'ghp_test_token'
+      accessToken: 'ghp_test_token',
     })
 
     expect(client).toBeInstanceOf(GitHubClient)
 
     // Test that the client can make authenticated requests
     const user = await client.getAuthenticatedUser()
-    
+
     expect(user).toBeDefined()
     expect(user.login).toBe('testuser')
     expect(user.id).toBe(12345)
@@ -57,7 +57,7 @@ describe('Debug GitHub Authentication', () => {
 
   it('should test getUser method', async () => {
     const client = new GitHubClient({
-      accessToken: 'ghp_test_token'
+      accessToken: 'ghp_test_token',
     })
 
     const user = await client.getUser('testuser')

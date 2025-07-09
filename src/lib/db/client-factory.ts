@@ -18,8 +18,8 @@ export interface DatabaseClient {
  * - Uses Neon serverless driver for production
  */
 export async function createDatabaseClient(connectionString: string): Promise<DatabaseClient> {
-  const isLocalPostgres = 
-    process.env.CI === 'true' || 
+  const isLocalPostgres =
+    process.env.CI === 'true' ||
     process.env.USE_LOCAL_PG === 'true' ||
     connectionString.includes('localhost') ||
     connectionString.includes('127.0.0.1')
@@ -28,24 +28,24 @@ export async function createDatabaseClient(connectionString: string): Promise<Da
     // Use regular pg driver for local PostgreSQL
     const pg = await import('pg')
     const { Client } = pg
-    
+
     const client = new Client({ connectionString })
     await client.connect()
 
     // Create a wrapper that matches Neon's interface
-    const wrapper: DatabaseClient = async function(strings: TemplateStringsArray, ...values: any[]) {
+    const wrapper: DatabaseClient = (async (strings: TemplateStringsArray, ...values: any[]) => {
       // Convert tagged template to parameterized query
       let query = strings[0] || ''
       const params: any[] = []
-      
+
       for (let i = 0; i < values.length; i++) {
         params.push(values[i])
         query += `$${i + 1}${strings[i + 1] || ''}`
       }
-      
+
       const result = await client.query(query, params)
       return result.rows
-    } as DatabaseClient
+    }) as DatabaseClient
 
     // Add the query method for direct queries
     wrapper.query = async (query: string, params?: any[]) => {
@@ -61,10 +61,10 @@ export async function createDatabaseClient(connectionString: string): Promise<Da
     // Use Neon serverless driver for production
     const { neon } = await import('@neondatabase/serverless')
     const sql = neon(connectionString) as NeonQueryFunction<false, false>
-    
+
     // Create a wrapper that adds the query method
     const wrapper: DatabaseClient = sql as any
-    
+
     // Add query method for compatibility
     wrapper.query = async (queryText: string, params?: any[]) => {
       if (params && params.length > 0) {
@@ -90,7 +90,7 @@ export async function createDatabaseClient(connectionString: string): Promise<Da
         return { rows: result }
       }
     }
-    
+
     return wrapper
   }
 }

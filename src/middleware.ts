@@ -70,11 +70,13 @@ async function lightweightAuthCheck(request: NextRequest): Promise<NextResponse 
   }
 
   // Auth pages and public API routes
-  if (path.startsWith('/auth/') || 
-      path.startsWith('/api/auth/') || 
-      path === '/api/health' ||
-      path.startsWith('/_next/') || 
-      path === '/favicon.ico') {
+  if (
+    path.startsWith('/auth/') ||
+    path.startsWith('/api/auth/') ||
+    path === '/api/health' ||
+    path.startsWith('/_next/') ||
+    path === '/favicon.ico'
+  ) {
     return undefined
   }
 
