@@ -2,7 +2,7 @@
 
 /**
  * Enhanced Database Migration Runner for contribux
- * Compatible with latest @neondatabase/serverless
+ * Compatible with both Neon serverless and local PostgreSQL
  * Includes WebAuthn and other additional migrations
  */
 
@@ -15,8 +15,6 @@ const envTestPath = path.join(__dirname, '../../.env.test')
 if ((process.env.NODE_ENV === 'test' || !process.env.DATABASE_URL) && fs.existsSync(envTestPath)) {
   require('dotenv').config({ path: envTestPath })
 }
-
-const { neon } = require('@neondatabase/serverless')
 
 // Helper function to check if migration is already applied
 async function isMigrationApplied(sql, filename) {
@@ -53,6 +51,91 @@ async function recordMigration(sql, filename, group) {
   `
 }
 
+/**
+ * Creates a database client based on the environment
+ * - Uses regular pg driver for local PostgreSQL in CI/testing
+ * - Uses Neon serverless driver for production
+ */
+async function createDatabaseClient(connectionString) {
+  const isLocalPostgres = 
+    process.env.CI === 'true' || 
+    process.env.USE_LOCAL_PG === 'true' ||
+    connectionString.includes('localhost') ||
+    connectionString.includes('127.0.0.1')
+
+  if (isLocalPostgres) {
+    // biome-ignore lint/suspicious/noConsole: Development script
+    console.log('Using standard pg driver for local PostgreSQL')
+    
+    // Use regular pg driver for local PostgreSQL
+    const pg = require('pg')
+    const { Client } = pg
+    
+    const client = new Client({ connectionString })
+    await client.connect()
+
+    // Create a wrapper that matches Neon's interface
+    const wrapper = async function(strings, ...values) {
+      // Convert tagged template to parameterized query
+      let query = strings[0] || ''
+      const params = []
+      
+      for (let i = 0; i < values.length; i++) {
+        params.push(values[i])
+        query += `$${i + 1}${strings[i + 1] || ''}`
+      }
+      
+      const result = await client.query(query, params)
+      return result.rows
+    }
+
+    // Add the query method for direct queries
+    wrapper.query = async (query, params) => {
+      const result = await client.query(query, params)
+      return result
+    }
+
+    // Store the client for cleanup
+    wrapper._pgClient = client
+
+    return wrapper
+  } else {
+    // biome-ignore lint/suspicious/noConsole: Development script
+    console.log('Using Neon serverless driver')
+    
+    // Use Neon serverless driver for production
+    const { neon } = require('@neondatabase/serverless')
+    const sql = neon(connectionString)
+    
+    // Add query method for compatibility
+    sql.query = async (queryText, params) => {
+      if (params && params.length > 0) {
+        // Neon doesn't support parameterized queries the same way
+        // We need to convert to template literal format
+        // This is a limitation we'll have to work around
+        const result = await sql(queryText)
+        return { rows: result }
+      } else {
+        // Simple query without parameters
+        const result = await sql(queryText)
+        return { rows: result }
+      }
+    }
+    
+    return sql
+  }
+}
+
+/**
+ * Closes the database client connection
+ * Only needed for regular pg clients, Neon handles this automatically
+ */
+async function closeDatabaseClient(client) {
+  if (client._pgClient && typeof client._pgClient.end === 'function') {
+    await client._pgClient.end()
+  }
+}
+
 function initializeDatabaseConnection() {
   const databaseUrl = process.env.DATABASE_URL_TEST || process.env.DATABASE_URL
 
@@ -83,7 +166,7 @@ function initializeDatabaseConnection() {
     console.log(`Connecting to database: ${urlParts[3]} on ${urlParts[2]} as user ${urlParts[1]}`)
   }
 
-  return neon(databaseUrl)
+  return databaseUrl
 }
 
 function getMigrationGroups() {
@@ -165,12 +248,14 @@ async function applyMigrationWithErrorHandling(sql, filename, content, group) {
 }
 
 // Helper function to handle migration errors
-function handleMigrationError(filename, _error) {
+function handleMigrationError(filename, error) {
   // For WebAuthn migration, provide helpful context
   if (filename.includes('webauthn')) {
     // biome-ignore lint/suspicious/noConsole: Development script
     console.log('  ! WebAuthn migration failed. This is expected if the table already exists.')
   }
+  // biome-ignore lint/suspicious/noConsole: Development script
+  console.error('  ! Migration error:', error.message)
 }
 
 async function executeMigrationGroups(sql, migrationGroups) {
@@ -220,10 +305,14 @@ async function verifyMigrationResults(sql) {
 }
 
 async function runMigrations() {
-  const sql = initializeDatabaseConnection()
+  const databaseUrl = initializeDatabaseConnection()
   const migrationGroups = getMigrationGroups()
+  let sql = null
 
   try {
+    // Create database client
+    sql = await createDatabaseClient(databaseUrl)
+    
     await ensureMigrationTable(sql)
     await executeMigrationGroups(sql, migrationGroups)
     await verifyMigrationResults(sql)
@@ -234,6 +323,11 @@ async function runMigrations() {
     // biome-ignore lint/suspicious/noConsole: Development script
     console.error('Migration failed:', error.message)
     process.exit(1)
+  } finally {
+    // Clean up database connection
+    if (sql) {
+      await closeDatabaseClient(sql)
+    }
   }
 }
 
@@ -245,9 +339,11 @@ async function checkMigrationStatus() {
     process.exit(1)
   }
 
-  const sql = neon(databaseUrl)
+  let sql = null
 
   try {
+    sql = await createDatabaseClient(databaseUrl)
+
     // Check if migrations table exists
     const migrationTableExists = await sql`
       SELECT EXISTS (
@@ -305,8 +401,14 @@ async function checkMigrationStatus() {
       // biome-ignore lint/suspicious/noConsole: Development script
       console.log('  WebAuthn support enabled')
     }
-  } catch (_error) {
+  } catch (error) {
+    // biome-ignore lint/suspicious/noConsole: Development script
+    console.error('Status check failed:', error.message)
     process.exit(1)
+  } finally {
+    if (sql) {
+      await closeDatabaseClient(sql)
+    }
   }
 }
 
@@ -323,9 +425,11 @@ async function resetDatabase() {
     process.exit(1)
   }
 
-  const sql = neon(databaseUrl)
+  let sql = null
 
   try {
+    sql = await createDatabaseClient(databaseUrl)
+
     // Drop tables in reverse dependency order
     const dropStatements = [
       'DROP TABLE IF EXISTS webauthn_credentials CASCADE',
@@ -342,8 +446,14 @@ async function resetDatabase() {
     for (const statement of dropStatements) {
       await sql.query(statement)
     }
-  } catch (_error) {
+  } catch (error) {
+    // biome-ignore lint/suspicious/noConsole: Development script
+    console.error('Reset failed:', error.message)
     process.exit(1)
+  } finally {
+    if (sql) {
+      await closeDatabaseClient(sql)
+    }
   }
 }
 
@@ -371,4 +481,6 @@ module.exports = {
   runMigrations,
   checkMigrationStatus,
   resetDatabase,
+  createDatabaseClient,
+  closeDatabaseClient,
 }

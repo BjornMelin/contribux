@@ -2,8 +2,10 @@
 // Phase 3: Simplified connection management replacing 270+ lines of custom pooling
 
 import { env } from '@/lib/validation/env'
-import { neon } from '@neondatabase/serverless'
-import { drizzle } from 'drizzle-orm/neon-http'
+import type { NeonQueryFunction } from '@neondatabase/serverless'
+import type { DrizzleConfig } from 'drizzle-orm'
+import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js'
 import * as schema from './schema'
 
 // Create connection based on environment
@@ -20,25 +22,100 @@ function getDatabaseUrl(): string {
   return env.DATABASE_URL
 }
 
-// Create Neon connection with optimized settings
-const sql = neon(getDatabaseUrl(), {
-  // Simplified connection options (replacing complex pooling)
-  fetchOptions: {
-    cache: 'no-cache', // Ensure fresh connections
+// Detect if we should use local PostgreSQL
+function isLocalPostgres(): boolean {
+  const databaseUrl = getDatabaseUrl()
+  return (
+    process.env.CI === 'true' || 
+    process.env.USE_LOCAL_PG === 'true' ||
+    databaseUrl.includes('localhost') ||
+    databaseUrl.includes('127.0.0.1')
+  )
+}
+
+// Type for our database instance
+type DatabaseInstance = NeonHttpDatabase<typeof schema> | PostgresJsDatabase<typeof schema>
+
+// Create database connection based on environment
+async function createDatabase(): Promise<{
+  db: DatabaseInstance
+  sql: any
+}> {
+  const databaseUrl = getDatabaseUrl()
+  const drizzleConfig: DrizzleConfig<typeof schema> = {
+    schema,
+    logger: env.NODE_ENV === 'development',
+  }
+
+  if (isLocalPostgres()) {
+    // Use postgres.js for local PostgreSQL (better compatibility with Drizzle)
+    const postgres = await import('postgres')
+    const { drizzle } = await import('drizzle-orm/postgres-js')
+    
+    const sql = postgres.default(databaseUrl, {
+      max: 10, // Connection pool size
+      idle_timeout: 30,
+    })
+    
+    const db = drizzle(sql, drizzleConfig)
+    
+    return { db, sql }
+  } else {
+    // Use Neon for production
+    const { neon } = await import('@neondatabase/serverless')
+    const { drizzle } = await import('drizzle-orm/neon-http')
+    
+    const sql = neon(databaseUrl, {
+      fetchOptions: {
+        cache: 'no-cache',
+      },
+    })
+    
+    const db = drizzle(sql, drizzleConfig)
+    
+    return { db, sql }
+  }
+}
+
+// Create singleton instance
+let dbInstance: DatabaseInstance | null = null
+let sqlInstance: any = null
+
+// Initialize database connection
+async function initializeDatabase() {
+  if (!dbInstance) {
+    const result = await createDatabase()
+    dbInstance = result.db
+    sqlInstance = result.sql
+  }
+  return { db: dbInstance, sql: sqlInstance }
+}
+
+// Export database instance (lazy initialization)
+export const db = new Proxy({} as DatabaseInstance, {
+  get(_, prop) {
+    if (!dbInstance) {
+      throw new Error('Database not initialized. Await db operations to trigger initialization.')
+    }
+    return (dbInstance as any)[prop]
   },
 })
 
-// Create Drizzle instance with schema
-export const db = drizzle(sql, {
-  schema,
-  logger: env.NODE_ENV === 'development', // Log queries in development only
+// Export SQL instance for raw queries
+export const sql = new Proxy({} as NeonQueryFunction<false, false>, {
+  get(_, prop) {
+    if (!sqlInstance) {
+      throw new Error('SQL client not initialized. Await db operations to trigger initialization.')
+    }
+    return (sqlInstance as any)[prop]
+  },
 })
+
+// Ensure database is initialized before first use
+const initPromise = initializeDatabase()
 
 // Export schema for use in queries
 export { schema }
-
-// Export connection utility for direct SQL when needed
-export { sql }
 
 // Helper types
 export type Database = typeof db
@@ -53,6 +130,10 @@ export async function checkDatabaseHealth(): Promise<{
   const start = performance.now()
 
   try {
+    // Ensure database is initialized
+    await initPromise
+    const { sql } = await initializeDatabase()
+    
     // Simple health check query
     await sql`SELECT 1 as health_check`
 

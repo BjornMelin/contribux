@@ -44,6 +44,8 @@
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.3",
+    "pg": "^8.13.1",
+    "postgres": "^3.4.5",
     "@octokit/plugin-retry": "^8.0.1",
     "@octokit/plugin-throttling": "^11.0.1",
     "@octokit/rest": "^22.0.0",
