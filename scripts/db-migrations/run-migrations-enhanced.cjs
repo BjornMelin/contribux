@@ -178,6 +178,14 @@ function getMigrationGroups() {
     drizzleFiles = fs.readdirSync(drizzleDir)
       .filter(f => f.endsWith('.sql'))
       .sort() // Ensure proper order
+    
+    // Ensure initial schema runs first
+    const initialSchemaIndex = drizzleFiles.findIndex(f => f.includes('initial_schema'))
+    if (initialSchemaIndex > 0) {
+      // Move initial schema to the beginning
+      const initialSchema = drizzleFiles.splice(initialSchemaIndex, 1)[0]
+      drizzleFiles.unshift(initialSchema)
+    }
   }
   
   return [
