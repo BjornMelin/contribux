@@ -121,12 +121,23 @@ export abstract class BaseRepository<T, ID = string> implements Repository<T, ID
 
       return Array.isArray(result)
         ? result.length > 0
-        : (result as { rowCount?: number }).rowCount != null &&
-            (result as { rowCount?: number }).rowCount > 0
+        : this.hasRowCount(result) && result.rowCount > 0
     } catch (error) {
       this.handleError('delete', error)
       return false
     }
+  }
+
+  /**
+   * Type guard to check if result has rowCount property
+   */
+  private hasRowCount(result: unknown): result is { rowCount: number } {
+    return (
+      typeof result === 'object' &&
+      result !== null &&
+      'rowCount' in result &&
+      typeof (result as { rowCount: unknown }).rowCount === 'number'
+    )
   }
 
   /**

@@ -6,7 +6,7 @@ import { getUserProviders } from '@/lib/auth/helpers'
 export async function GET(request: NextRequest) {
   try {
     // In development mode with demo providers, auth might not be fully functional
-    let session: unknown = null
+    let session: { user?: { id?: string }; provider?: string } | null = null
     let _authError: unknown = null
 
     try {
