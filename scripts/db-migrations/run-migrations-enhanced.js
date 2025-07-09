@@ -26,9 +26,6 @@ async function isMigrationApplied(sql, filename) {
 
 // Helper function to resolve migration file path
 function resolveMigrationPath(group, filename) {
-  if (filename === '02-schema.sql') {
-    return path.join(__dirname, '../../database/schema.sql')
-  }
   return path.join(group.directory, filename)
 }
 
@@ -67,16 +64,21 @@ function initializeDatabaseConnection() {
 }
 
 function getMigrationGroups() {
+  // Get all SQL files from drizzle directory
+  const drizzleDir = path.join(__dirname, '../../drizzle')
+  let drizzleFiles = []
+  
+  if (fs.existsSync(drizzleDir)) {
+    drizzleFiles = fs.readdirSync(drizzleDir)
+      .filter(f => f.endsWith('.sql'))
+      .sort() // Ensure proper order
+  }
+  
   return [
     {
-      name: 'Core Schema',
-      directory: path.join(__dirname, '../../database/init'),
-      files: ['01-extensions.sql', '02-schema.sql', '03-functions.sql', '04-sample-data.sql'],
-    },
-    {
-      name: 'Additional Features',
-      directory: path.join(__dirname, '../../database/migrations'),
-      files: ['add_webauthn_credentials.sql'],
+      name: 'Drizzle Migrations',
+      directory: drizzleDir,
+      files: drizzleFiles,
     },
   ]
 }
