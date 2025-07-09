@@ -52,10 +52,6 @@ secrets.json
 
 # Environment setup files with potential credentials
 ENVIRONMENT_SETUP.md
-*-SETUP.md
-*_SETUP.md
-environment-setup*
-env-setup*
 
 # ================================
 # Database & PostgreSQL
