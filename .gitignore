@@ -50,6 +50,13 @@ public/precache.*.js
 secrets.json
 .secrets/
 
+# Environment setup files with potential credentials
+ENVIRONMENT_SETUP.md
+*-SETUP.md
+*_SETUP.md
+environment-setup*
+env-setup*
+
 # ================================
 # Database & PostgreSQL
 # ================================
@@ -278,6 +285,10 @@ tracking/
 # Performance monitoring
 .lighthouse/
 lighthouse-reports/
+performance-analysis-report.json
+performance-report*.json
+*-performance-report.json
+bundle-analysis*.json
 
 # ================================
 # Documentation
