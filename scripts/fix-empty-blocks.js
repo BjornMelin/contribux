@@ -56,7 +56,7 @@ const filesToFix = [
   'scripts/analyze-dependencies.js',
   'scripts/migrate-to-neon-branching.js',
   'scripts/transform-stream-polyfill.js',
-  'scripts/db-migrations/run-migrations-enhanced.js',
+  'scripts/db-migrations/run-migrations-enhanced.cjs',
   'scripts/memory-analysis.js',
   'scripts/memory-config.js',
   'scripts/cleanup-imports.js',
