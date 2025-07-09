@@ -1,15 +1,18 @@
 # Local PostgreSQL Development Setup Guide
 
-This guide explains how to set up local PostgreSQL for development while maintaining the automated Neon database branching for CI/CD.
+This guide explains how to set up local PostgreSQL for development while maintaining the
+automated Neon database branching for CI/CD.
 
 ## 🎯 Why Use Local PostgreSQL?
 
 **Hybrid Development Approach:**
+
 - **Local Development** → Local PostgreSQL (fast, offline, free)
 - **CI/Testing** → Automated Neon branches (isolated, production-like)
 - **Production** → Neon Cloud (managed, scalable)
 
 **Benefits:**
+
 - ⚡ **Instant feedback** - Zero network latency
 - 💰 **Zero cost** - Local development is free
 - 🌐 **Offline capable** - Work anywhere without internet
@@ -200,11 +203,13 @@ pnpm test:db
 The project uses a **hybrid approach**:
 
 ### Local Development
+
 - Uses local PostgreSQL for fast iteration
 - Conditional database driver automatically detects local environment
 - Full offline capability
 
 ### CI/CD Pipeline
+
 - **PR Testing** → Automated Neon branch creation via GitHub Actions
 - **E2E Testing** → Dedicated Neon branches for each test run
 - **Production** → Neon Cloud database
@@ -212,6 +217,7 @@ The project uses a **hybrid approach**:
 ### How It Works
 
 The `src/lib/db/client-factory.ts` automatically detects:
+
 - **Local environment** → Uses `pg` driver for local PostgreSQL
 - **Cloud environment** → Uses `@neondatabase/serverless` for Neon
 
@@ -275,12 +281,14 @@ sudo -u postgres psql -c "ALTER USER $USER CREATEDB SUPERUSER;"
 
 ## 🔐 Security Considerations
 
-### Local Development
+### Local Development - Security Considerations
+
 - Use strong passwords for database users
 - Keep `.env.local` out of version control
 - Use firewall rules to restrict PostgreSQL access
 
 ### Environment Separation
+
 - Different databases for development and testing
 - Separate connection strings for each environment
 - Feature flags for production vs development features
@@ -305,4 +313,5 @@ If you encounter issues:
 
 ---
 
-**Note:** This local setup is designed to work alongside our automated Neon CI/CD pipeline. You get the best of both worlds: fast local development and reliable cloud testing.
+**Note:** This local setup is designed to work alongside our automated Neon CI/CD pipeline.
+You get the best of both worlds: fast local development and reliable cloud testing.

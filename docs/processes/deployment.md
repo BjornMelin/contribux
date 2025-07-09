@@ -1,601 +1,1416 @@
-# Comprehensive Deployment Guide
+# Contribux Deployment Guide
 
-> **Consolidated Deployment Documentation** - This guide combines general deployment strategies, Vercel-specific optimization, and serverless best practices into a single comprehensive resource.
+**Production-Ready Deployment | Enterprise Infrastructure Documentation**
 
-Comprehensive deployment guide for the Contribux platform covering environment setup, deployment process, monitoring, and serverless optimization.
+---
 
-## Table of Contents
+## 📋 Table of Contents
 
-- [Overview](#overview)
-- [Environment Configuration](#environment-configuration)
-- [Vercel Deployment (Primary)](#vercel-deployment-primary)
-- [Pre-deployment Checklist](#pre-deployment-checklist)
-- [Deployment Process](#deployment-process)
-- [Serverless Optimization](#serverless-optimization)
-- [Post-deployment Verification](#post-deployment-verification)
-- [Monitoring & Maintenance](#monitoring--maintenance)
-- [Troubleshooting](#troubleshooting)
+- [Deployment Overview](#-deployment-overview)
+- [Infrastructure Requirements](#-infrastructure-requirements)
+- [Environment Setup](#-environment-setup)
+- [Database Configuration](#-database-configuration)
+- [Application Deployment](#-application-deployment)
+- [Security Configuration](#-security-configuration)
+- [Monitoring & Observability](#-monitoring--observability)
+- [CI/CD Pipeline](#-cicd-pipeline)
+- [Performance Optimization](#-performance-optimization)
+- [Disaster Recovery](#-disaster-recovery)
 
-## Overview
+---
 
-Contribux is optimized for serverless deployment on Vercel, leveraging:
+## 🚀 Deployment Overview
 
-- **Next.js 15 App Router** for optimal serverless performance
-- **Neon PostgreSQL** for serverless-compatible database
-- **Edge Functions** for authentication and middleware
-- **Vector search** with pgvector for AI-powered features
+Contribux is designed for **serverless-first deployment** with zero-maintenance operational requirements, demonstrating modern DevOps practices and infrastructure automation expertise.
 
-### **What's Included in This Guide:**
-- **General Deployment** - Environment setup and configuration
-- **Vercel Optimization** - Serverless-specific deployment strategies
-- **Database Integration** - Neon PostgreSQL configuration
-- **Security Configuration** - OAuth setup and environment variables
-- **Performance Optimization** - Edge functions and caching strategies
+### **Deployment Architecture**
 
-## Environment Configuration
-
-### Required Environment Variables
-
-#### Authentication (Required)
-
-```bash
-# GitHub OAuth (required)
-GITHUB_CLIENT_ID=your_github_client_id
-GITHUB_CLIENT_SECRET=your_github_client_secret
-
-# NextAuth.js (required)
-NEXTAUTH_SECRET=your_secure_secret_key  # min 32 characters
-NEXTAUTH_URL=https://your-domain.com
-
-# Database (required)
-DATABASE_URL=postgresql://user:pass@host:5432/database
+```mermaid
+graph TB
+    subgraph "🌐 Global CDN Layer"
+        CDN[Vercel CDN]
+        Edge[Edge Functions]
+        Cache[Edge Caching]
+        SSL[SSL Termination]
+    end
+    
+    subgraph "⚡ Compute Layer"
+        Functions[Serverless Functions]
+        API[API Routes]
+        Middleware[Auth Middleware]
+        Background[Background Jobs]
+    end
+    
+    subgraph "💾 Data Layer"
+        Primary[Primary Database<br/>Neon PostgreSQL]
+        ReadReplica[Read Replica<br/>Auto-scaling]
+        Redis[Redis Cache<br/>Upstash]
+        Storage[Blob Storage<br/>Vercel]
+    end
+    
+    subgraph "🔗 External Services"
+        GitHub[GitHub API]
+        OpenAI[OpenAI Agents]
+        Email[Resend Email]
+        SMS[Telnyx SMS]
+    end
+    
+    subgraph "📊 Monitoring Stack"
+        Metrics[Performance Metrics]
+        Logs[Structured Logging]
+        Alerts[Smart Alerting]
+        Analytics[User Analytics]
+    end
+    
+    CDN --> Functions
+    Edge --> API
+    Cache --> Middleware
+    SSL --> Background
+    
+    Functions --> Primary
+    API --> ReadReplica
+    Middleware --> Redis
+    Background --> Storage
+    
+    Functions --> GitHub
+    API --> OpenAI
+    Background --> Email
+    Background --> SMS
+    
+    Functions --> Metrics
+    API --> Logs
+    Middleware --> Alerts
+    Background --> Analytics
+    
+    style CDN fill:#0EA5E9,color:#fff
+    style Functions fill:#10B981,color:#fff
+    style Primary fill:#F59E0B,color:#fff
+    style GitHub fill:#7C3AED,color:#fff
+    style Metrics fill:#EF4444,color:#fff
 ```
 
-#### Optional Variables
+### **Deployment Environments**
+
+| Environment | Purpose | URL | Auto-Deploy | Branch |
+|-------------|---------|-----|-------------|--------|
+| **Development** | Local development | localhost:3000 | ❌ | - |
+| **Preview** | Feature testing | `*.vercel.app` | ✅ | feature/* |
+| **Staging** | Pre-production | staging.contribux.dev | ✅ | develop |
+| **Production** | Live application | contribux.dev | ✅ | main |
+
+---
+
+## 🏗️ Infrastructure Requirements
+
+### **Core Infrastructure Components**
+
+```mermaid
+graph LR
+    subgraph "☁️ Vercel Platform"
+        Hosting[Serverless Hosting]
+        Functions[Edge Functions]
+        Analytics[Web Analytics]
+        Domains[Custom Domains]
+    end
+    
+    subgraph "💾 Neon Database"
+        PostgreSQL[PostgreSQL 16]
+        Branching[Database Branching]
+        Scaling[Auto-scaling]
+        Backup[Automated Backups]
+    end
+    
+    subgraph "🔄 Upstash Services"
+        Redis[Redis Cache]
+        QStash[Message Queue]
+        Vector[Vector Database]
+        Metrics[Performance Metrics]
+    end
+    
+    subgraph "🔐 Security Services"
+        Auth[NextAuth.js]
+        Encryption[Data Encryption]
+        Secrets[Secret Management]
+        Monitoring[Security Monitoring]
+    end
+    
+    Hosting --> PostgreSQL
+    Functions --> Redis
+    Analytics --> QStash
+    Domains --> Vector
+    
+    PostgreSQL --> Auth
+    Branching --> Encryption
+    Scaling --> Secrets
+    Backup --> Monitoring
+    
+    style Hosting fill:#0EA5E9,color:#fff
+    style PostgreSQL fill:#F59E0B,color:#fff
+    style Redis fill:#10B981,color:#fff
+    style Auth fill:#7C3AED,color:#fff
+```
+
+### **Resource Requirements**
+
+| Component | Specification | Scaling | Cost (Monthly) |
+|-----------|---------------|---------|----------------|
+| **Vercel Hosting** | Pro Plan | Automatic | $20 |
+| **Neon Database** | Scale Plan | Auto-scale | $69 |
+| **Upstash Redis** | Pay-per-use | On-demand | $15 |
+| **External APIs** | Usage-based | Rate-limited | $25 |
+| **Monitoring** | Basic tier | Real-time | $10 |
+| **Total** | - | - | **$139/month** |
+
+---
+
+## ⚙️ Environment Setup
+
+### **Environment Variables Configuration**
 
 ```bash
-# Google OAuth (optional but recommended)
-GOOGLE_CLIENT_ID=your_google_client_id
-GOOGLE_CLIENT_SECRET=your_google_client_secret
+# Core Application Settings
+NODE_ENV=production
+VERCEL_ENV=production
+NEXT_PUBLIC_APP_URL=https://contribux.dev
+
+# Database Configuration
+DATABASE_URL=postgresql://user:password@host/db?sslmode=require
+DATABASE_URL_DEV=postgresql://user:password@host/db_dev?sslmode=require
+DATABASE_URL_TEST=postgresql://user:password@host/db_test?sslmode=require
+
+# Authentication Configuration
+NEXTAUTH_URL=https://contribux.dev
+NEXTAUTH_SECRET=your-production-secret-key
+JWT_SECRET=your-jwt-secret-key
+
+# OAuth Provider Configuration
+GITHUB_CLIENT_ID=your-github-oauth-app-id
+GITHUB_CLIENT_SECRET=your-github-oauth-app-secret
+
+# AI Service Configuration
+OPENAI_API_KEY=sk-your-openai-api-key
+OPENAI_ORGANIZATION_ID=org-your-openai-org-id
+
+# External Service Configuration
+RESEND_API_KEY=re_your-resend-api-key
+TELNYX_API_KEY=KEY_your-telnyx-api-key
+UPSTASH_REDIS_REST_URL=https://your-redis-url
+UPSTASH_REDIS_REST_TOKEN=your-redis-token
+UPSTASH_QSTASH_URL=https://qstash.upstash.io
+UPSTASH_QSTASH_TOKEN=your-qstash-token
+
+# Security Configuration
+ENCRYPTION_KEY=your-256-bit-encryption-key
+WEBHOOK_SECRET=your-webhook-secret
+CORS_ORIGIN=https://contribux.dev
 
 # Feature Flags
-ENABLE_OAUTH=true
+ENABLE_AI_FEATURES=true
+ENABLE_NOTIFICATIONS=true
+ENABLE_ANALYTICS=true
+ENABLE_DEBUG_MODE=false
 
-# Environment-specific Database URLs
-DATABASE_URL_DEV=postgresql://user:pass@host:5432/dev_database
-DATABASE_URL_TEST=postgresql://user:pass@host:5432/test_database
+# Performance Configuration
+CACHE_TTL=3600
+MAX_CONCURRENT_REQUESTS=1000
+REQUEST_TIMEOUT=30000
+
+# Monitoring Configuration
+VERCEL_ANALYTICS_ID=your-analytics-id
+SENTRY_DSN=your-sentry-dsn
+LOG_LEVEL=info
 ```
 
-### OAuth Provider Configuration
+### **Environment Validation**
 
-#### GitHub App Setup
+```typescript
+// Environment Configuration Validation
+import { z } from 'zod'
 
-1. Go to [GitHub Developer Settings](https://github.com/settings/developers)
-2. Create new OAuth App
-3. Set Authorization callback URL: `https://your-domain.com/api/auth/callback/github`
-4. Copy Client ID and Client Secret to environment variables
+const envSchema = z.object({
+  // Core Settings
+  NODE_ENV: z.enum(['development', 'staging', 'production']),
+  VERCEL_ENV: z.enum(['development', 'preview', 'production']).optional(),
+  NEXT_PUBLIC_APP_URL: z.string().url(),
+  
+  // Database
+  DATABASE_URL: z.string().url(),
+  DATABASE_URL_DEV: z.string().url().optional(),
+  DATABASE_URL_TEST: z.string().url().optional(),
+  
+  // Authentication
+  NEXTAUTH_URL: z.string().url(),
+  NEXTAUTH_SECRET: z.string().min(32),
+  JWT_SECRET: z.string().min(32),
+  
+  // OAuth
+  GITHUB_CLIENT_ID: z.string().min(1),
+  GITHUB_CLIENT_SECRET: z.string().min(1),
+  
+  // AI Services
+  OPENAI_API_KEY: z.string().startsWith('sk-'),
+  OPENAI_ORGANIZATION_ID: z.string().startsWith('org-'),
+  
+  // External Services
+  RESEND_API_KEY: z.string().startsWith('re_'),
+  TELNYX_API_KEY: z.string().startsWith('KEY'),
+  UPSTASH_REDIS_REST_URL: z.string().url(),
+  UPSTASH_REDIS_REST_TOKEN: z.string().min(1),
+  
+  // Security
+  ENCRYPTION_KEY: z.string().min(64), // 256-bit key in hex
+  WEBHOOK_SECRET: z.string().min(32),
+  
+  // Feature Flags
+  ENABLE_AI_FEATURES: z.string().transform(val => val === 'true'),
+  ENABLE_NOTIFICATIONS: z.string().transform(val => val === 'true'),
+  ENABLE_ANALYTICS: z.string().transform(val => val === 'true'),
+  
+  // Performance
+  CACHE_TTL: z.string().transform(val => parseInt(val, 10)),
+  MAX_CONCURRENT_REQUESTS: z.string().transform(val => parseInt(val, 10)),
+  REQUEST_TIMEOUT: z.string().transform(val => parseInt(val, 10))
+})
 
-#### Google Cloud Console Setup (Optional)
+export const validateEnvironment = () => {
+  try {
+    return envSchema.parse(process.env)
+  } catch (error) {
+    console.error('Environment validation failed:', error)
+    process.exit(1)
+  }
+}
 
-1. Create new project in [Google Cloud Console](https://console.cloud.google.com)
-2. Enable Google+ API
-3. Create OAuth 2.0 Client ID credentials
-4. Set Authorized redirect URI: `https://your-domain.com/api/auth/callback/google`
-5. Copy Client ID and Client Secret to environment variables
-
-## Vercel Deployment (Primary)
-
-> **Serverless Optimization** - Contribux is specifically optimized for Vercel's serverless platform with Next.js 15 App Router and edge functions.
-
-### Prerequisites
-
-- Vercel account with Pro plan (recommended for production)
-- Neon PostgreSQL database with pgvector extension
-- GitHub OAuth app configured
-- Domain name (optional but recommended for production)
-
-### Environment Variables Setup in Vercel
-
-Add these environment variables in Vercel dashboard (Project Settings → Environment Variables):
-
-```bash
-# Database
-DATABASE_URL=postgresql://user:password@host.neon.tech/database?sslmode=require
-
-# Authentication
-NEXTAUTH_SECRET=your-secure-random-string-minimum-32-characters
-NEXTAUTH_URL=https://your-domain.vercel.app
-
-# GitHub OAuth
-GITHUB_CLIENT_ID=your_github_oauth_app_client_id
-GITHUB_CLIENT_SECRET=your_github_oauth_app_client_secret
-
-# Application
-NEXT_PUBLIC_APP_URL=https://your-domain.vercel.app
-NODE_ENV=production
+// Runtime validation
+export const env = validateEnvironment()
 ```
 
-### Next.js Configuration for Vercel
+---
 
-Optimize `next.config.js` for Vercel deployment:
+## 💾 Database Configuration
+
+### **Neon Database Setup**
+
+```sql
+-- Production Database Configuration
+
+-- Enable required extensions
+CREATE EXTENSION IF NOT EXISTS "pgvector";
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "citext";
+CREATE EXTENSION IF NOT EXISTS "pg_trgm";
+
+-- Create optimized indexes for production workloads
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_repositories_health_score 
+ON repositories (health_score DESC) 
+WHERE health_score IS NOT NULL;
+
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_repositories_embedding_hnsw 
+ON repositories USING hnsw (description_embedding vector_cosine_ops);
+
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_opportunities_composite 
+ON opportunities (complexity_score, impact_score, created_at DESC);
+
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_github_username 
+ON users (github_username);
+
+-- Create materialized views for analytics
+CREATE MATERIALIZED VIEW user_contribution_stats AS
+SELECT 
+    user_id,
+    COUNT(*) as total_contributions,
+    AVG(actual_impact_score) as avg_impact_score,
+    COUNT(*) FILTER (WHERE was_merged = true) as successful_contributions,
+    AVG(actual_hours) as avg_hours_spent
+FROM contribution_outcomes
+WHERE completed_at IS NOT NULL
+GROUP BY user_id;
+
+CREATE UNIQUE INDEX ON user_contribution_stats (user_id);
+
+-- Setup automated refresh for materialized views
+CREATE OR REPLACE FUNCTION refresh_materialized_views()
+RETURNS void AS $$
+BEGIN
+    REFRESH MATERIALIZED VIEW CONCURRENTLY user_contribution_stats;
+    -- Add other materialized views here
+END;
+$$ LANGUAGE plpgsql;
+
+-- Schedule materialized view refresh (requires pg_cron extension)
+-- SELECT cron.schedule('refresh-mv', '0 */6 * * *', 'SELECT refresh_materialized_views();');
+```
+
+### **Database Connection Pooling**
+
+```typescript
+// Production Database Configuration
+import { Pool } from '@neondatabase/serverless'
+
+const createDatabasePool = () => {
+  return new Pool({
+    connectionString: env.DATABASE_URL,
+    ssl: {
+      require: true,
+      rejectUnauthorized: true
+    },
+    
+    // Connection pool configuration
+    max: 20, // Maximum number of clients in the pool
+    min: 2,  // Minimum number of clients in the pool
+    idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
+    connectionTimeoutMillis: 10000, // Return error after 10 seconds if connection cannot be established
+    
+    // Production optimizations
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000,
+    
+    // Statement timeout
+    statement_timeout: 30000, // 30 seconds
+    query_timeout: 25000,     // 25 seconds
+    
+    // Connection validation
+    allowExitOnIdle: true,
+    
+    // Logging for production monitoring
+    log: (messages) => {
+      console.log('Database:', messages)
+    }
+  })
+}
+
+export const db = createDatabasePool()
+
+// Health check function
+export const checkDatabaseHealth = async (): Promise<boolean> => {
+  try {
+    const client = await db.connect()
+    const result = await client.query('SELECT 1 as health_check')
+    client.release()
+    return result.rows[0].health_check === 1
+  } catch (error) {
+    console.error('Database health check failed:', error)
+    return false
+  }
+}
+```
+
+---
+
+## 🚀 Application Deployment
+
+### **Vercel Deployment Configuration**
+
+```json
+{
+  "version": 2,
+  "name": "contribux",
+  "alias": ["contribux.dev", "www.contribux.dev"],
+  "regions": ["iad1", "sfo1", "lhr1"],
+  "buildCommand": "pnpm build",
+  "devCommand": "pnpm dev",
+  "installCommand": "pnpm install",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "functions": {
+    "app/api/**/*.ts": {
+      "runtime": "nodejs20.x",
+      "maxDuration": 30
+    }
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=31536000; includeSubDomains; preload"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "geolocation=(), microphone=(), camera=()"
+        }
+      ]
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/docs",
+      "destination": "https://docs.contribux.dev",
+      "permanent": true
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "/api/:path*"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "build": {
+    "env": {
+      "NODE_OPTIONS": "--max-old-space-size=4096"
+    }
+  }
+}
+```
+
+### **Next.js Production Configuration**
 
 ```javascript
+// next.config.js - Production Optimizations
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Serverless optimization
+  // Build optimizations
   experimental: {
-    serverComponentsExternalPackages: ['@neondatabase/serverless'],
-    esmExternals: true,
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
+    turbo: {
+      rules: {
+        '*.svg': {
+          loaders: ['@svgr/webpack'],
+          as: '*.js'
+        }
+      }
+    }
   },
   
-  // Enhanced compression for Vercel CDN
-  compress: true,
+  // Performance optimizations
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production',
+    styledComponents: true
+  },
   
-  // Optimize for Vercel's build system
-  swcMinify: true,
+  // Image optimization
+  images: {
+    formats: ['image/webp', 'image/avif'],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    domains: [
+      'github.com',
+      'avatars.githubusercontent.com',
+      'opengraph.githubassets.com'
+    ],
+    dangerouslyAllowSVG: true,
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;"
+  },
   
-  // Configure for Vercel Functions
-  serverExternalPackages: [
-    '@neondatabase/serverless',
-    'ioredis', 
-    'pg',
-    'bcryptjs',
-    'jsonwebtoken'
-  ],
+  // Security headers
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline' *.vercel.app *.vercel-analytics.com",
+              "style-src 'self' 'unsafe-inline' fonts.googleapis.com",
+              "font-src 'self' fonts.gstatic.com",
+              "img-src 'self' data: https: blob:",
+              "connect-src 'self' *.vercel.app *.openai.com *.github.com vitals.vercel-insights.com",
+              "frame-ancestors 'none'",
+              "base-uri 'self'",
+              "form-action 'self'"
+            ].join('; ')
+          }
+        ]
+      }
+    ]
+  },
+  
+  // Redirects and rewrites
+  async redirects() {
+    return [
+      {
+        source: '/github',
+        destination: 'https://github.com/BjornMelin/contribux',
+        permanent: true
+      }
+    ]
+  },
+  
+  // Bundle analyzer (development only)
+  ...(process.env.ANALYZE === 'true' && {
+    webpack: (config) => {
+      config.plugins.push(
+        new (require('webpack-bundle-analyzer').BundleAnalyzerPlugin)({
+          analyzerMode: 'static',
+          openAnalyzer: false
+        })
+      )
+      return config
+    }
+  }),
+  
+  // Production bundle optimizations
+  webpack: (config, { dev, isServer }) => {
+    if (!dev && !isServer) {
+      // Optimize bundle splitting
+      config.optimization.splitChunks = {
+        chunks: 'all',
+        cacheGroups: {
+          vendor: {
+            test: /[\\/]node_modules[\\/]/,
+            name: 'vendors',
+            chunks: 'all'
+          },
+          common: {
+            name: 'common',
+            minChunks: 2,
+            chunks: 'all',
+            enforce: true
+          }
+        }
+      }
+    }
+    
+    return config
+  }
 }
 
 module.exports = nextConfig
 ```
 
-### Edge Functions Optimization
-
-#### When to Use Edge Functions
-
-Edge Functions are ideal for:
-- Authentication and authorization
-- Request/response transformation
-- Lightweight data processing
-- Geographic routing
-- A/B testing logic
-
-#### Edge Function Implementation
-
-```typescript
-// app/api/auth/verify/route.ts
-export const runtime = 'edge'
-
-export async function POST(request: Request) {
-  const { token } = await request.json()
-  
-  // Lightweight JWT verification
-  const payload = await verifyJWT(token)
-  
-  return Response.json({ valid: !!payload })
-}
-```
-
-### Serverless Function Optimization
-
-#### Minimal Dependencies Pattern
-
-```typescript
-// app/api/search/route.ts
-export const runtime = 'edge'
-
-// Use only edge-compatible libraries
-import { z } from 'zod'
-
-const SearchSchema = z.object({
-  query: z.string().min(1).max(100),
-  filters: z.object({
-    difficulty: z.enum(['beginner', 'intermediate', 'advanced']).optional(),
-    type: z.enum(['bug_fix', 'feature', 'documentation']).optional(),
-  }).optional()
-})
-
-export async function GET(request: Request) {
-  const url = new URL(request.url)
-  const query = url.searchParams.get('q')
-  
-  // Validate input
-  const validatedInput = SearchSchema.parse({ 
-    query: query || '',
-    filters: JSON.parse(url.searchParams.get('filters') || '{}')
-  })
-  
-  // Process request
-  return Response.json({ results: await searchOpportunities(validatedInput) })
-}
-```
-
-### Vercel Deployment Commands
+### **Build and Deployment Scripts**
 
 ```bash
-# Install Vercel CLI
-pnpm add -g vercel
+#!/bin/bash
+# deploy.sh - Production Deployment Script
 
-# Deploy to preview
-vercel
+set -e  # Exit on any error
 
-# Deploy to production
-vercel --prod
+echo "🚀 Starting production deployment..."
 
-# Set environment variables
-vercel env add NEXTAUTH_SECRET production
-```
+# Pre-deployment checks
+echo "📋 Running pre-deployment checks..."
 
-### Domain Configuration
+# Check environment variables
+if [ -z "$DATABASE_URL" ]; then
+  echo "❌ DATABASE_URL not set"
+  exit 1
+fi
 
-1. **Custom Domain Setup:**
-   - Add domain in Vercel dashboard
-   - Configure DNS records
-   - SSL certificates are automatically managed
+if [ -z "$NEXTAUTH_SECRET" ]; then
+  echo "❌ NEXTAUTH_SECRET not set"
+  exit 1
+fi
 
-2. **Subdomain Strategy:**
-   ```
-   https://app.contribux.dev     # Production
-   https://staging.contribux.dev # Staging
-   https://preview.contribux.dev # Preview deployments
-   ```
+echo "✅ Environment variables validated"
 
-### Performance Optimization for Vercel
-
-#### Bundle Size Optimization
-
-```bash
-# Analyze bundle size before deployment
-ANALYZE=true pnpm build
-
-# Optimize dependencies
-pnpm deps:analyze
-```
-
-#### Caching Strategy
-
-```typescript
-// API route caching
-export async function GET(request: Request) {
-  const data = await fetchOpportunities()
-  
-  return Response.json(data, {
-    headers: {
-      'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
-    },
-  })
-}
-```
-
-#### Database Connection Optimization
-
-```typescript
-// Optimized for serverless
-import { neon } from '@neondatabase/serverless'
-
-const sql = neon(process.env.DATABASE_URL!, {
-  poolQueryViaFetch: true, // Use HTTP for better serverless performance
-})
-```
-
-## Pre-deployment Checklist
-
-### Code Quality
-
-- [ ] All tests pass (`pnpm test`)
-- [ ] Code follows TypeScript strict mode
-- [ ] Biome linting passes (`pnpm lint`)
-- [ ] Type checking passes (`pnpm type-check`)
-- [ ] No console.logs or debug code in production files
-
-### Security
-
-- [ ] All environment variables are properly configured
-- [ ] Secrets are not committed to git
-- [ ] OAuth callback URLs are configured correctly
-- [ ] HTTPS is enforced for production
-- [ ] NEXTAUTH_SECRET is cryptographically secure (32+ characters)
-
-### Database
-
-- [ ] Database migrations are ready
-- [ ] Database connection is tested
-- [ ] Vector search indexes are created
-- [ ] Performance monitoring is configured
-
-### Performance
-
-- [ ] Bundle analysis completed (`pnpm build:analyze`)
-- [ ] Memory optimization verified
-- [ ] Database queries optimized
-- [ ] CDN configuration ready (if applicable)
-
-## Deployment Process
-
-### 1. Build Application
-
-```bash
 # Install dependencies
-pnpm install
+echo "📦 Installing dependencies..."
+pnpm install --frozen-lockfile --prod
 
-# Build for production
-pnpm build
+# Run type checking
+echo "🔍 Type checking..."
+pnpm type-check
 
-# Verify build succeeded
-pnpm start
-```
+# Run tests
+echo "🧪 Running tests..."
+pnpm test:ci
 
-### 2. Database Setup
+# Run security checks
+echo "🔒 Running security checks..."
+pnpm audit --audit-level moderate
 
-```bash
-# Run database migrations
+# Build application
+echo "🏗️ Building application..."
+NODE_ENV=production pnpm build
+
+# Database migrations (if needed)
+echo "💾 Running database migrations..."
 pnpm db:migrate
 
-# Verify database health
-pnpm db:health
+# Deploy to Vercel
+echo "🚀 Deploying to Vercel..."
+vercel deploy --prod --confirm
 
-# Test database performance
-pnpm db:performance-report
+# Post-deployment verification
+echo "✅ Running post-deployment checks..."
+
+# Health check
+curl -f https://contribux.dev/api/health || {
+  echo "❌ Health check failed"
+  exit 1
+}
+
+# Database connectivity check
+curl -f https://contribux.dev/api/health/database || {
+  echo "❌ Database health check failed"
+  exit 1
+}
+
+echo "🎉 Deployment completed successfully!"
 ```
 
-### 3. Environment Validation
+---
+
+## 🔐 Security Configuration
+
+### **Production Security Setup**
+
+```typescript
+// Security Configuration for Production
+import { headers } from 'next/headers'
+import { ratelimit } from '@/lib/rate-limit'
+
+export async function SecurityMiddleware(request: Request) {
+  const headersList = headers()
+  const ip = headersList.get('x-forwarded-for') || 'unknown'
+  const userAgent = headersList.get('user-agent') || 'unknown'
+  
+  // Rate limiting
+  const { success, limit, reset, remaining } = await ratelimit.limit(ip)
+  
+  if (!success) {
+    return new Response('Rate limit exceeded', {
+      status: 429,
+      headers: {
+        'X-RateLimit-Limit': limit.toString(),
+        'X-RateLimit-Remaining': remaining.toString(),
+        'X-RateLimit-Reset': reset.toString(),
+        'Retry-After': Math.round((reset - Date.now()) / 1000).toString()
+      }
+    })
+  }
+  
+  // Security headers
+  const securityHeaders = {
+    'X-DNS-Prefetch-Control': 'off',
+    'X-Frame-Options': 'DENY',
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy': 'geolocation=(), microphone=(), camera=()',
+    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
+    'Content-Security-Policy': [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' *.vercel.app",
+      "style-src 'self' 'unsafe-inline' fonts.googleapis.com",
+      "font-src 'self' fonts.gstatic.com",
+      "img-src 'self' data: https:",
+      "connect-src 'self' *.openai.com *.github.com",
+      "frame-ancestors 'none'"
+    ].join('; ')
+  }
+  
+  // Log security events
+  console.log(`Security check passed for ${ip} - ${userAgent}`)
+  
+  return NextResponse.next({
+    headers: securityHeaders
+  })
+}
+```
+
+### **SSL/TLS Configuration**
+
+```nginx
+# NGINX Configuration (if using custom proxy)
+server {
+    listen 443 ssl http2;
+    server_name contribux.dev www.contribux.dev;
+
+    # SSL Configuration
+    ssl_certificate /path/to/certificate.crt;
+    ssl_certificate_key /path/to/private.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
+
+    # HSTS
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+
+    # Security Headers
+    add_header X-Frame-Options "DENY" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    # Proxy to Vercel
+    location / {
+        proxy_pass https://contribux.vercel.app;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+---
+
+## 📊 Monitoring & Observability
+
+### **Production Monitoring Stack**
+
+```mermaid
+graph TB
+    subgraph "📊 Data Collection"
+        App[Application Metrics]
+        System[System Metrics]
+        Database[Database Metrics]
+        External[External API Metrics]
+    end
+    
+    subgraph "🔄 Processing & Storage"
+        Aggregation[Metric Aggregation]
+        Storage[Time Series Storage]
+        Alerting[Alert Processing]
+        Analytics[Analytics Processing]
+    end
+    
+    subgraph "📈 Visualization"
+        Dashboard[Real-time Dashboard]
+        Charts[Performance Charts]
+        Reports[Automated Reports]
+        Mobile[Mobile Alerts]
+    end
+    
+    subgraph "🚨 Alerting"
+        Rules[Alert Rules]
+        Channels[Notification Channels]
+        Escalation[Escalation Policies]
+        OnCall[On-call Management]
+    end
+    
+    App --> Aggregation
+    System --> Storage
+    Database --> Alerting
+    External --> Analytics
+    
+    Aggregation --> Dashboard
+    Storage --> Charts
+    Alerting --> Reports
+    Analytics --> Mobile
+    
+    Dashboard --> Rules
+    Charts --> Channels
+    Reports --> Escalation
+    Mobile --> OnCall
+    
+    style App fill:#10B981,color:#fff
+    style Dashboard fill:#7C3AED,color:#fff
+    style Rules fill:#EF4444,color:#fff
+```
+
+### **Application Performance Monitoring**
+
+```typescript
+// Production Monitoring Configuration
+import { metrics } from '@/lib/monitoring'
+
+class ProductionMonitoring {
+  async trackRequest(request: Request, response: Response): Promise<void> {
+    const startTime = Date.now()
+    const url = new URL(request.url)
+    
+    // Track response metrics
+    const duration = Date.now() - startTime
+    const statusCode = response.status
+    
+    await metrics.record('http_request_duration', duration, {
+      method: request.method,
+      path: url.pathname,
+      status: statusCode.toString()
+    })
+    
+    await metrics.increment('http_requests_total', {
+      method: request.method,
+      path: url.pathname,
+      status: statusCode.toString()
+    })
+    
+    // Track errors
+    if (statusCode >= 400) {
+      await metrics.increment('http_errors_total', {
+        method: request.method,
+        path: url.pathname,
+        status: statusCode.toString()
+      })
+    }
+    
+    // Track slow requests
+    if (duration > 1000) {
+      await metrics.increment('http_slow_requests_total', {
+        method: request.method,
+        path: url.pathname,
+        duration: duration.toString()
+      })
+    }
+  }
+  
+  async trackDatabaseQuery(query: string, duration: number): Promise<void> {
+    await metrics.record('database_query_duration', duration, {
+      query_type: this.getQueryType(query)
+    })
+    
+    if (duration > 100) {
+      await metrics.increment('database_slow_queries_total', {
+        query_type: this.getQueryType(query)
+      })
+    }
+  }
+  
+  async trackAIRequest(provider: string, model: string, tokens: number): Promise<void> {
+    await metrics.increment('ai_requests_total', {
+      provider,
+      model
+    })
+    
+    await metrics.record('ai_tokens_used', tokens, {
+      provider,
+      model
+    })
+  }
+}
+```
+
+### **Health Check Endpoints**
+
+```typescript
+// Comprehensive Health Checks
+export async function GET() {
+  const healthChecks = await Promise.allSettled([
+    checkDatabaseHealth(),
+    checkRedisHealth(),
+    checkExternalAPIs(),
+    checkSystemResources()
+  ])
+  
+  const results = {
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    checks: {
+      database: healthChecks[0].status === 'fulfilled' ? 'healthy' : 'unhealthy',
+      redis: healthChecks[1].status === 'fulfilled' ? 'healthy' : 'unhealthy',
+      external_apis: healthChecks[2].status === 'fulfilled' ? 'healthy' : 'unhealthy',
+      system: healthChecks[3].status === 'fulfilled' ? 'healthy' : 'unhealthy'
+    },
+    version: process.env.VERCEL_GIT_COMMIT_SHA || 'unknown'
+  }
+  
+  const isHealthy = Object.values(results.checks).every(status => status === 'healthy')
+  
+  if (!isHealthy) {
+    results.status = 'unhealthy'
+  }
+  
+  return Response.json(results, {
+    status: isHealthy ? 200 : 503,
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate'
+    }
+  })
+}
+
+async function checkDatabaseHealth(): Promise<boolean> {
+  try {
+    const client = await db.connect()
+    await client.query('SELECT 1')
+    client.release()
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function checkExternalAPIs(): Promise<boolean> {
+  try {
+    const checks = await Promise.allSettled([
+      fetch('https://api.github.com/rate_limit'),
+      fetch('https://api.openai.com/v1/models', {
+        headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` }
+      })
+    ])
+    
+    return checks.every(check => check.status === 'fulfilled')
+  } catch {
+    return false
+  }
+}
+```
+
+---
+
+## 🔄 CI/CD Pipeline
+
+### **GitHub Actions Workflow**
+
+```yaml
+# .github/workflows/deploy-production.yml
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  lint-and-typecheck:
+    name: Lint and Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      
+      - name: Install pnpm
+        run: npm install -g pnpm
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Run ESLint
+        run: pnpm lint
+      
+      - name: Run Type Check
+        run: pnpm type-check
+
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    needs: lint-and-typecheck
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      
+      - name: Install pnpm
+        run: npm install -g pnpm
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Run Unit Tests
+        run: pnpm test:ci
+        env:
+          DATABASE_URL_TEST: ${{ secrets.DATABASE_URL_TEST }}
+      
+      - name: Upload Coverage
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: lint-and-typecheck
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run Security Audit
+        run: pnpm audit --audit-level moderate
+      
+      - name: Run Semgrep
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: auto
+
+  build-and-deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+    needs: [test, security-scan]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+      
+      - name: Pull Vercel Environment Information
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+      
+      - name: Build Project Artifacts
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+      
+      - name: Deploy Project Artifacts to Vercel
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+  post-deploy-tests:
+    name: Post-Deployment Tests
+    runs-on: ubuntu-latest
+    needs: build-and-deploy
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Wait for deployment
+        run: sleep 60
+      
+      - name: Run Health Check
+        run: |
+          curl -f https://contribux.dev/api/health || exit 1
+      
+      - name: Run E2E Tests
+        run: pnpm test:e2e:ci
+        env:
+          BASE_URL: https://contribux.dev
+
+  notify:
+    name: Notify Deployment
+    runs-on: ubuntu-latest
+    needs: post-deploy-tests
+    if: always()
+    steps:
+      - name: Notify Success
+        if: success()
+        run: |
+          curl -X POST ${{ secrets.SLACK_WEBHOOK }} \
+          -H 'Content-type: application/json' \
+          --data '{"text":"✅ Production deployment successful!"}'
+      
+      - name: Notify Failure
+        if: failure()
+        run: |
+          curl -X POST ${{ secrets.SLACK_WEBHOOK }} \
+          -H 'Content-type: application/json' \
+          --data '{"text":"❌ Production deployment failed!"}'
+```
+
+---
+
+## ⚡ Performance Optimization
+
+### **Production Performance Configuration**
+
+```typescript
+// Performance Optimization Configuration
+export const performanceConfig = {
+  // Caching strategies
+  caching: {
+    redis: {
+      defaultTTL: 3600, // 1 hour
+      longTTL: 86400,   // 24 hours
+      shortTTL: 300     // 5 minutes
+    },
+    
+    nextjs: {
+      revalidate: 3600, // ISR revalidation
+      swr: {
+        refreshInterval: 30000, // 30 seconds
+        dedupingInterval: 2000  // 2 seconds
+      }
+    }
+  },
+  
+  // Database optimization
+  database: {
+    connectionPool: {
+      max: 20,
+      min: 2,
+      idleTimeoutMillis: 30000
+    },
+    
+    queryTimeout: 25000,
+    statementTimeout: 30000
+  },
+  
+  // API optimization
+  api: {
+    timeout: 30000,
+    retries: 3,
+    backoffMultiplier: 2,
+    maxConcurrency: 100
+  },
+  
+  // Bundle optimization
+  bundle: {
+    splitChunks: true,
+    compression: 'gzip',
+    minification: true,
+    treeShaking: true
+  }
+}
+
+// Performance monitoring
+export class PerformanceMonitor {
+  static async measureDatabaseQuery<T>(
+    queryName: string,
+    queryFn: () => Promise<T>
+  ): Promise<T> {
+    const start = performance.now()
+    
+    try {
+      const result = await queryFn()
+      const duration = performance.now() - start
+      
+      // Log slow queries
+      if (duration > 100) {
+        console.warn(`Slow query detected: ${queryName} took ${duration}ms`)
+      }
+      
+      // Record metrics
+      await metrics.record('database_query_duration', duration, {
+        query: queryName
+      })
+      
+      return result
+    } catch (error) {
+      const duration = performance.now() - start
+      
+      // Record failed queries
+      await metrics.increment('database_query_errors', {
+        query: queryName,
+        error: error.message
+      })
+      
+      throw error
+    }
+  }
+  
+  static async measureAPICall<T>(
+    apiName: string,
+    apiFn: () => Promise<T>
+  ): Promise<T> {
+    const start = performance.now()
+    
+    try {
+      const result = await apiFn()
+      const duration = performance.now() - start
+      
+      await metrics.record('api_call_duration', duration, {
+        api: apiName
+      })
+      
+      return result
+    } catch (error) {
+      await metrics.increment('api_call_errors', {
+        api: apiName,
+        error: error.message
+      })
+      
+      throw error
+    }
+  }
+}
+```
+
+---
+
+## 🔄 Disaster Recovery
+
+### **Backup and Recovery Strategy**
+
+```mermaid
+graph TB
+    subgraph "💾 Backup Sources"
+        Database[Neon Database]
+        Files[Application Files]
+        Config[Configuration]
+        Secrets[Secrets & Keys]
+    end
+    
+    subgraph "🔄 Backup Process"
+        Automated[Automated Backups]
+        Manual[Manual Snapshots]
+        Continuous[Continuous Replication]
+        Testing[Backup Testing]
+    end
+    
+    subgraph "☁️ Backup Storage"
+        Primary[Primary Storage<br/>Neon Built-in]
+        Secondary[Secondary Storage<br/>AWS S3]
+        Archive[Archive Storage<br/>Glacier]
+        Offsite[Offsite Backup]
+    end
+    
+    subgraph "🚨 Recovery Procedures"
+        RTO[Recovery Time Objective<br/>< 1 hour]
+        RPO[Recovery Point Objective<br/>< 15 minutes]
+        Validation[Recovery Validation]
+        Documentation[Recovery Documentation]
+    end
+    
+    Database --> Automated
+    Files --> Manual
+    Config --> Continuous
+    Secrets --> Testing
+    
+    Automated --> Primary
+    Manual --> Secondary
+    Continuous --> Archive
+    Testing --> Offsite
+    
+    Primary --> RTO
+    Secondary --> RPO
+    Archive --> Validation
+    Offsite --> Documentation
+    
+    style Database fill:#F59E0B,color:#fff
+    style Automated fill:#10B981,color:#fff
+    style Primary fill:#7C3AED,color:#fff
+    style RTO fill:#EF4444,color:#fff
+```
+
+### **Recovery Procedures**
 
 ```bash
-# Validate all required environment variables
-pnpm validate:env
+#!/bin/bash
+# disaster-recovery.sh - Disaster Recovery Procedures
 
-# Test authentication flows
-pnpm test:auth
+set -e
 
-# Test database connections
-pnpm test:db
+echo "🚨 Starting disaster recovery procedure..."
+
+# Check recovery type
+RECOVERY_TYPE=${1:-"full"}
+BACKUP_TIMESTAMP=${2:-"latest"}
+
+case $RECOVERY_TYPE in
+  "database")
+    echo "💾 Recovering database from backup..."
+    recover_database $BACKUP_TIMESTAMP
+    ;;
+  "application")
+    echo "⚡ Recovering application from backup..."
+    recover_application $BACKUP_TIMESTAMP
+    ;;
+  "full")
+    echo "🔄 Performing full system recovery..."
+    recover_database $BACKUP_TIMESTAMP
+    recover_application $BACKUP_TIMESTAMP
+    ;;
+  *)
+    echo "❌ Invalid recovery type: $RECOVERY_TYPE"
+    exit 1
+    ;;
+esac
+
+recover_database() {
+  local timestamp=$1
+  
+  echo "📋 Creating new Neon branch for recovery..."
+  neon branches create --name "recovery-$(date +%Y%m%d-%H%M%S)"
+  
+  echo "💾 Restoring database from point-in-time backup..."
+  neon branches restore --timestamp "$timestamp"
+  
+  echo "🔍 Validating database integrity..."
+  pnpm db:validate
+  
+  echo "✅ Database recovery completed"
+}
+
+recover_application() {
+  echo "🚀 Redeploying application from git..."
+  vercel deploy --prod --force
+  
+  echo "🔍 Running post-deployment health checks..."
+  curl -f https://contribux.dev/api/health || {
+    echo "❌ Health check failed"
+    exit 1
+  }
+  
+  echo "✅ Application recovery completed"
+}
+
+echo "🎉 Disaster recovery completed successfully!"
 ```
 
-### 4. Deploy to Platform
+---
 
-#### Vercel Deployment (Recommended)
+## 📋 Deployment Checklist
 
-```bash
-# Install Vercel CLI
-npm i -g vercel
+### **Pre-Deployment Checklist**
 
-# Deploy
-vercel --prod
+- [ ] **Environment Variables**
+  - [ ] All required environment variables configured
+  - [ ] Secrets properly encrypted and stored
+  - [ ] API keys validated and tested
+  - [ ] Database connection strings verified
 
-# Set environment variables in Vercel dashboard
-vercel env add NEXTAUTH_SECRET
-vercel env add GITHUB_CLIENT_ID
-vercel env add GITHUB_CLIENT_SECRET
-vercel env add DATABASE_URL
-```
+- [ ] **Security Checks**
+  - [ ] Security headers configured
+  - [ ] SSL/TLS certificates valid
+  - [ ] Authentication system tested
+  - [ ] Rate limiting configured
 
-#### Docker Deployment
+- [ ] **Performance Validation**
+  - [ ] Bundle size optimized
+  - [ ] Database queries optimized
+  - [ ] CDN configuration verified
+  - [ ] Caching strategies implemented
 
-```bash
-# Build Docker image
-docker build -t contribux .
+- [ ] **Quality Assurance**
+  - [ ] All tests passing
+  - [ ] Code coverage > 90%
+  - [ ] Type checking passed
+  - [ ] Security audit completed
 
-# Run container
-docker run -p 3000:3000 \
-  -e NEXTAUTH_SECRET=your_secret \
-  -e GITHUB_CLIENT_ID=your_id \
-  -e GITHUB_CLIENT_SECRET=your_secret \
-  -e DATABASE_URL=your_db_url \
-  contribux
-```
+### **Post-Deployment Checklist**
 
-## Post-deployment Verification
+- [ ] **Health Checks**
+  - [ ] Application health endpoint responding
+  - [ ] Database connectivity verified
+  - [ ] External API integrations working
+  - [ ] Error monitoring active
 
-### Functional Testing
+- [ ] **Performance Monitoring**
+  - [ ] Response times within SLA
+  - [ ] Error rates below threshold
+  - [ ] Resource utilization normal
+  - [ ] Alerts configured and working
 
-- [ ] Homepage loads correctly
-- [ ] GitHub OAuth sign-in works
-- [ ] Google OAuth sign-in works (if configured)
-- [ ] API endpoints respond correctly
-- [ ] Database queries execute successfully
-- [ ] Search functionality works
-- [ ] User sessions persist correctly
+- [ ] **User Acceptance**
+  - [ ] Core user flows tested
+  - [ ] Authentication working
+  - [ ] Search functionality operational
+  - [ ] AI features responding
 
-### Performance Testing
+---
 
-- [ ] Page load times are acceptable (<2s)
-- [ ] API response times are fast (<500ms)
-- [ ] Database queries are optimized (<100ms)
-- [ ] Memory usage is within limits
-- [ ] No memory leaks detected
+## 📞 Support & Troubleshooting
 
-### Security Verification
+### **Common Deployment Issues**
 
-- [ ] HTTPS is enforced
-- [ ] OAuth flows are secure
-- [ ] Session cookies are secure
-- [ ] CSRF protection is active
-- [ ] Rate limiting is functional
-- [ ] Audit logging is working
+| Issue | Symptoms | Solution |
+|-------|----------|----------|
+| **Build Failures** | Vercel build fails | Check environment variables, dependencies |
+| **Database Connection** | 500 errors on API calls | Verify DATABASE_URL, check connection limits |
+| **Authentication Issues** | Login redirects fail | Verify NEXTAUTH_URL, OAuth configuration |
+| **Performance Degradation** | Slow response times | Check database queries, cache configuration |
+| **External API Failures** | AI features not working | Verify API keys, check rate limits |
 
-### Monitoring Setup
+### **Monitoring and Alerts**
 
-- [ ] Error tracking is configured
-- [ ] Performance monitoring is active
-- [ ] Database monitoring is working
-- [ ] Security alerts are set up
-- [ ] Backup procedures are tested
+- **Uptime Monitoring**: 99.9% availability target
+- **Response Time**: < 2s for 95th percentile
+- **Error Rate**: < 0.1% for critical endpoints
+- **Database Performance**: < 100ms query response time
+- **External API Health**: Real-time status monitoring
 
-## Monitoring & Maintenance
+---
 
-### Error Monitoring
+**🚀 This deployment guide demonstrates enterprise-grade DevOps practices, infrastructure automation, and production readiness suitable for senior platform engineering roles.**
 
-```bash
-# Check application logs
-pnpm logs:production
+---
 
-# Monitor error rates
-pnpm monitor:errors
-
-# Database health check
-pnpm db:health
-```
-
-### Performance Monitoring
-
-```bash
-# Check memory usage
-pnpm memory:check
-
-# Database performance
-pnpm db:performance-report
-
-# Slow query analysis
-pnpm db:slow-queries
-```
-
-### Security Monitoring
-
-- Monitor authentication success/failure rates
-- Track unusual account linking activity
-- Watch for token refresh failures
-- Review audit logs regularly
-
-### Regular Maintenance
-
-- [ ] Review and rotate OAuth client secrets monthly
-- [ ] Update dependencies regularly
-- [ ] Monitor for security updates
-- [ ] Backup database regularly
-- [ ] Review performance metrics weekly
-
-### Database Maintenance
-
-```bash
-# Vector search optimization
-pnpm db:vector-metrics
-
-# Index analysis
-pnpm db:indexes
-
-# Table statistics update
-pnpm db:analyze
-```
-
-## Troubleshooting
-
-### Common Deployment Issues
-
-#### Authentication Errors
-
-**Problem**: OAuth sign-in fails
-**Solutions**:
-
-- Verify OAuth client credentials
-- Check callback URL configuration
-- Ensure NEXTAUTH_SECRET is set correctly
-- Verify NEXTAUTH_URL matches deployment URL
-
-#### Database Connection Issues
-
-**Problem**: Cannot connect to database
-**Solutions**:
-
-- Verify DATABASE_URL format
-- Check database server status
-- Test connection from deployment environment
-- Verify SSL/TLS configuration
-
-#### Build Failures
-
-**Problem**: Application fails to build
-**Solutions**:
-
-- Check TypeScript errors
-- Verify all dependencies are installed
-- Review environment variable requirements
-- Check for missing files or imports
-
-#### Performance Issues
-
-**Problem**: Slow page loads or API responses
-**Solutions**:
-
-- Run performance analysis (`pnpm build:analyze`)
-- Check database query performance
-- Review memory usage patterns
-- Optimize bundle size
-
-### Environment-Specific Issues
-
-#### Development Environment
-
-```bash
-# Reset development database
-pnpm db:reset:dev
-
-# Clear development cache
-pnpm dev:clean
-
-# Debug authentication
-pnpm debug:auth
-```
-
-#### Production Environment
-
-```bash
-# Check production logs
-pnpm logs:production
-
-# Monitor production performance
-pnpm monitor:performance
-
-# Emergency rollback procedure
-pnpm deploy:rollback
-```
-
-### Recovery Procedures
-
-#### Database Recovery
-
-```bash
-# Restore from backup
-pnpm db:restore
-
-# Rebuild indexes
-pnpm db:reindex
-
-# Verify data integrity
-pnpm db:verify
-```
-
-#### Application Recovery
-
-```bash
-# Rollback to previous version
-vercel rollback
-
-# Restart application
-vercel redeploy
-
-# Clear CDN cache
-vercel cache:clear
-```
-
-## Best Practices
-
-### Deployment Safety
-
-1. **Always test in staging environment first**
-2. **Use blue-green deployment strategy**
-3. **Keep rollback procedures ready**
-4. **Monitor during and after deployment**
-
-### Security Best Practices
-
-1. **Rotate secrets regularly**
-2. **Use environment-specific secrets**
-3. **Monitor for security vulnerabilities**
-4. **Keep audit logs for compliance**
-
-### Performance Best Practices
-
-1. **Monitor resource usage continuously**
-2. **Optimize database queries regularly**
-3. **Use CDN for static assets**
-4. **Implement proper caching strategies**
-
-This deployment guide ensures a smooth, secure, and reliable deployment process for the Contribux platform.
+*Last Updated: July 2, 2025 | Deployment Version: 2.0 | Next Review: October 2025*

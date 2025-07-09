@@ -2,7 +2,9 @@
 
 ## 🎯 Overview
 
-This guide provides comprehensive instructions for maintaining the contribux platform as a solo developer. It covers automation, monitoring, troubleshooting, and optimization strategies to minimize maintenance overhead while ensuring production reliability.
+This guide provides comprehensive instructions for maintaining the contribux platform as a solo developer.
+It covers automation, monitoring, troubleshooting, and optimization strategies to minimize maintenance
+overhead while ensuring production reliability.
 
 ## 📋 Daily Maintenance Checklist
 
@@ -497,4 +499,5 @@ Use this template for documenting maintenance activities:
 - [ ] Update documentation
 ```
 
-This guide ensures you can maintain the contribux platform efficiently as a solo developer while keeping it performant, secure, and reliable.
+This guide ensures you can maintain the contribux platform efficiently as a solo developer while
+keeping it performant, secure, and reliable.
