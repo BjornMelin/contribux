@@ -10,7 +10,11 @@
 
 ## EXECUTIVE SUMMARY
 
-The contribux project has exceptional infrastructure (89.8% foundation complete) but lacks core AI features that define its value proposition. Based on comprehensive effort estimation research and dependency analysis, this roadmap defines a critical path for Week 1 that prioritizes **security vulnerabilities** (3 critical fixes, 8-12 story points) and **minimal viable AI discovery** (Task 5, 13 story points) to enable rapid deployment while maintaining security standards.
+The contribux project has exceptional infrastructure (89.8% foundation complete) but lacks core AI features
+that define its value proposition. Based on comprehensive effort estimation research and dependency analysis,
+this roadmap defines a critical path for Week 1 that prioritizes **security vulnerabilities** (3 critical fixes,
+8-12 story points) and **minimal viable AI discovery** (Task 5, 13 story points) to enable rapid deployment
+while maintaining security standards.
 
 **Week 1 Critical Path**: Security Fixes (Day 1-2) → Repository Scanner (Day 3-5) → Basic UI Integration (Day 6-7)  
 **Total Effort Estimate**: 39 story points (5 developer-days with focused execution)  
@@ -26,6 +30,7 @@ The contribux project has exceptional infrastructure (89.8% foundation complete)
 Based on Agent 5's production assessment and my research on vulnerability prioritization using CVSS frameworks:
 
 #### **Gap #1: Cryptographic Weakness in Token Generation**
+
 - **Current State**: Math.random() used for security tokens
 - **CVSS Score**: 8.1 (HIGH) - Authentication bypass potential
 - **Exploitability**: HIGH - Predictable token generation
@@ -34,6 +39,7 @@ Based on Agent 5's production assessment and my research on vulnerability priori
 - **Fix**: Replace with crypto.getRandomValues()
 
 #### **Gap #2: Memory Leak in Rate Limiting**
+
 - **Current State**: In-memory rate limiting without cleanup
 - **CVSS Score**: 6.5 (MEDIUM) - DoS vulnerability
 - **Exploitability**: MEDIUM - Requires sustained attack
@@ -42,6 +48,7 @@ Based on Agent 5's production assessment and my research on vulnerability priori
 - **Fix**: Implement Redis-based distributed rate limiting
 
 #### **Gap #3: Incomplete CSP Configuration**
+
 - **Current State**: Weak Content Security Policy headers
 - **CVSS Score**: 6.1 (MEDIUM) - XSS attack vectors
 - **Exploitability**: MEDIUM - Requires crafted payloads
@@ -52,6 +59,7 @@ Based on Agent 5's production assessment and my research on vulnerability priori
 ### 🔴 CORE FEATURE GAPS (Blocking MVP)
 
 #### **Gap #4: No Repository Discovery Engine**
+
 - **Current State**: 0% implementation of core value proposition
 - **User Impact**: 70% of value proposition blocked
 - **Technical Complexity**: HIGH - GitHub API + AI integration
@@ -59,6 +67,7 @@ Based on Agent 5's production assessment and my research on vulnerability priori
 - **Dependencies**: Tasks 1-4 complete (✅), OpenAI SDK setup pending
 
 #### **Gap #5: No User Interface Integration**
+
 - **Current State**: UI components exist but disconnected
 - **User Impact**: 100% - Cannot interact with system
 - **Technical Complexity**: MEDIUM - Components ready, needs wiring
@@ -66,6 +75,7 @@ Based on Agent 5's production assessment and my research on vulnerability priori
 - **Dependencies**: Task 5 (Repository Scanner) must provide data
 
 #### **Gap #6: No AI-Powered Analysis**
+
 - **Current State**: Vector search ready but no AI integration
 - **User Impact**: Reduces to basic search vs intelligent matching
 - **Technical Complexity**: HIGH - OpenAI Agents SDK v1.0 setup
@@ -80,7 +90,7 @@ Based on Agent 5's production assessment and my research on vulnerability priori
 
 Based on research into agile estimation techniques, using modified Fibonacci sequence:
 
-```
+```text
 Story Points Scale:
 1 point   = 1-2 hours (trivial change)
 2 points  = 2-4 hours (simple feature)
@@ -96,12 +106,14 @@ Story Points Scale:
 Using PERT-based estimation (Optimistic + 4×Most Likely + Pessimistic) / 6:
 
 #### **Security Fixes Bundle**
+
 - Optimistic: 6 hours
 - Most Likely: 10 hours
 - Pessimistic: 16 hours
 - **PERT Estimate**: 10.7 hours (~1.5 days)
 
 #### **Repository Discovery Scanner (Task 5)**
+
 - Optimistic: 16 hours
 - Most Likely: 24 hours
 - Pessimistic: 40 hours
@@ -145,6 +157,7 @@ graph LR
 ### Day-by-Day Execution Plan
 
 #### **Day 1-2: Security Sprint** (10 story points)
+
 ```bash
 Morning Day 1:
 ├── Fix Math.random() vulnerability (3 pts)
@@ -161,6 +174,7 @@ Afternoon Day 1 - Day 2:
 ```
 
 #### **Day 3-5: Core Discovery Implementation** (13 story points)
+
 ```bash
 Day 3: GitHub API Integration
 ├── Set up repository fetching pipeline
@@ -179,6 +193,7 @@ Day 5: Integration & Testing
 ```
 
 #### **Day 6-7: UI Connection & Polish** (8 story points)
+
 ```bash
 Day 6: Dashboard Wiring
 ├── Connect components to API
@@ -218,18 +233,21 @@ graph TB
 ### Mitigation Strategies
 
 #### **Risk 1: Security Vulnerabilities Exploitation**
+
 - **Probability**: HIGH (before fixes) → LOW (after fixes)
 - **Impact**: CRITICAL - Authentication bypass, data breach
 - **Mitigation**: Immediate Day 1-2 security sprint
 - **Contingency**: Disable authentication temporarily if breached
 
 #### **Risk 2: Scope Creep in Week 1**
+
 - **Probability**: HIGH - Temptation to add features
 - **Impact**: HIGH - Delays core MVP delivery
 - **Mitigation**: Strict scope control, feature freeze
 - **Contingency**: Push all enhancements to Week 2+
 
 #### **Risk 3: GitHub API Rate Limiting**
+
 - **Probability**: MEDIUM - During heavy testing
 - **Impact**: MEDIUM - Slows development
 - **Mitigation**: Implement caching, use multiple tokens
@@ -240,13 +258,15 @@ graph TB
 ## 6. RESOURCE ALLOCATION STRATEGY
 
 ### Team Composition (Optimal)
+
 - **Security Engineer**: Day 1-2 (security fixes)
 - **Backend Developer**: Day 3-5 (repository scanner)
 - **Full-Stack Developer**: Day 6-7 (UI integration)
 - **DevOps Support**: Day 7 (deployment)
 
 ### Single Developer Approach (Reality)
-```
+
+```text
 Week 1 Focus Allocation:
 ├── 25% Security fixes (2 days)
 ├── 50% Core feature (3-4 days)
@@ -271,6 +291,7 @@ Week 1 Focus Allocation:
 ### Week 1 Completion Criteria
 
 #### Technical Metrics
+
 - [ ] 0 critical security vulnerabilities
 - [ ] 95%+ test coverage on security modules
 - [ ] Repository scanner processing 100+ repos/hour
@@ -278,6 +299,7 @@ Week 1 Focus Allocation:
 - [ ] UI displaying real repository data
 
 #### Functional Metrics
+
 - [ ] Can scan any public GitHub repository
 - [ ] Extracts and classifies issues correctly
 - [ ] Displays opportunities in dashboard
@@ -285,6 +307,7 @@ Week 1 Focus Allocation:
 - [ ] No TypeScript compilation errors
 
 #### Security Metrics
+
 - [ ] Cryptographically secure token generation
 - [ ] Rate limiting prevents DoS attacks
 - [ ] CSP headers block XSS attempts
@@ -296,6 +319,7 @@ Week 1 Focus Allocation:
 ## 8. IMPLEMENTATION BEST PRACTICES
 
 ### Code Quality Standards
+
 ```typescript
 // Week 1 Standards Enforcement
 - TypeScript strict mode enabled
@@ -306,6 +330,7 @@ Week 1 Focus Allocation:
 ```
 
 ### Testing Requirements
+
 ```bash
 # Minimum test coverage for Week 1
 - Security modules: 100% coverage required
@@ -315,6 +340,7 @@ Week 1 Focus Allocation:
 ```
 
 ### Performance Targets
+
 - Page load: <2 seconds
 - API latency: <500ms p95
 - Repository scan: <10 seconds per repo
@@ -327,24 +353,31 @@ Week 1 Focus Allocation:
 ### If Behind Schedule
 
 #### Day 3 Checkpoint
+
 **IF** security fixes not complete:
+
 - Extend by 1 day maximum
 - Reduce repository scanner scope
 - Defer advanced classification
 
 #### Day 5 Checkpoint
+
 **IF** repository scanner incomplete:
+
 - Deploy with manual data entry
 - Reduce initial repository count
 - Simplify classification algorithm
 
 #### Day 7 Checkpoint
+
 **IF** UI integration incomplete:
+
 - Deploy API-only version
 - Provide basic CLI interface
 - Create simple results page
 
 ### Scope Reduction Options (Ordered)
+
 1. Remove complex issue classification (save 3 points)
 2. Simplify UI to table view (save 4 points)
 3. Manual repository entry only (save 5 points)
@@ -355,18 +388,21 @@ Week 1 Focus Allocation:
 ## 10. STRATEGIC RECOMMENDATIONS
 
 ### Immediate Actions (Today)
+
 1. **Create Week 1 Sprint Board**: Transfer this plan to project management tool
 2. **Security Audit**: Run OWASP ZAP scan to verify vulnerabilities
 3. **Environment Setup**: Prepare Redis for rate limiting
 4. **OpenAI Access**: Verify API keys and rate limits
 
 ### Communication Plan
+
 - **Day 1**: Announce security sprint to stakeholders
 - **Day 3**: Update on security completion, scanner start
 - **Day 5**: Demo repository scanning capability
 - **Day 7**: Deployment announcement with feature list
 
 ### Success Factors
+
 1. **Scope Discipline**: Reject all Week 1 scope additions
 2. **Security First**: No deployment with known vulnerabilities
 3. **User Value Focus**: Minimum viable discovery must work
@@ -376,17 +412,23 @@ Week 1 Focus Allocation:
 
 ## CONCLUSION
 
-This Week 1 implementation roadmap provides a realistic path from 30.5% completion to a deployable MVP with core discovery functionality. The plan prioritizes **immediate security fixes** (addressing critical vulnerabilities) followed by **minimal viable AI discovery** (repository scanning) and **basic user interaction** (dashboard connection).
+This Week 1 implementation roadmap provides a realistic path from 30.5% completion to a deployable MVP
+with core discovery functionality. The plan prioritizes **immediate security fixes** (addressing critical
+vulnerabilities) followed by **minimal viable AI discovery** (repository scanning) and **basic user interaction**
+(dashboard connection).
 
 **Critical Success Factors:**
+
 - Disciplined scope management (39 story points maximum)
 - Security-first approach (no compromise on fixes)
 - User value delivery (working discovery by Day 5)
 - Continuous integration (daily deployable increments)
 
-**Expected Outcome**: By end of Week 1, contribux will have secure authentication, basic repository discovery, and functional UI - sufficient for initial user testing while maintaining options for Week 2 AI enhancements.
+**Expected Outcome**: By end of Week 1, contribux will have secure authentication, basic repository discovery,
+and functional UI - sufficient for initial user testing while maintaining options for Week 2 AI enhancements.
 
 ---
 
-*Research compiled using Planning Poker estimation, Critical Path Method, CVSS vulnerability scoring, and Three-point PERT analysis*  
+> *Research compiled using Planning Poker estimation, Critical Path Method, CVSS vulnerability scoring,
+> and Three-point PERT analysis*
 *Informed by Agent analyses 1-5 and current codebase state assessment*

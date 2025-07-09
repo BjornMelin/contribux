@@ -2,7 +2,8 @@
 
 ## Executive Summary
 
-This research report provides a comprehensive guide for optimizing pgvector with HNSW indexes in Neon PostgreSQL for production-scale repository discovery. Key findings include:
+This research report provides a comprehensive guide for optimizing pgvector with HNSW indexes
+in Neon PostgreSQL for production-scale repository discovery. Key findings include:
 
 - **30x faster index builds** with pgvector 0.5.1+ parallel HNSW construction
 - **57% storage reduction** using halfvec data type with negligible accuracy loss
@@ -15,6 +16,7 @@ This research report provides a comprehensive guide for optimizing pgvector with
 ### Core HNSW Parameters
 
 **Construction Parameters:**
+
 - **m (default: 16)**: Number of bi-directional links per node
   - Higher values (32-48) = better recall, slower builds, more memory
   - Lower values (8-12) = faster builds, less memory, lower recall
@@ -25,6 +27,7 @@ This research report provides a comprehensive guide for optimizing pgvector with
   - **Recommendation**: Use 64 for balanced performance, 128 for high accuracy
 
 **Query Parameters:**
+
 - **hnsw.ef_search**: Controls query-time accuracy/speed tradeoff
   - Default: 40
   - Production recommendation: 100-200 for better recall
@@ -61,6 +64,7 @@ SET maintenance_work_mem = '8GB';          -- More memory = faster builds
 ### Halfvec Storage Optimization
 
 pgvector's `halfvec` type uses 16-bit floats instead of 32-bit, providing:
+
 - **57% total storage reduction**
 - **66% index size reduction**
 - **No measurable accuracy loss** for most use cases
@@ -89,6 +93,7 @@ FROM repositories;
    - For 1536-dim vectors, use first 384-512 dimensions
 
 2. **PCA Reduction** (for extreme optimization)
+
    ```sql
    -- Example: Reduce to 512 dimensions using PCA
    -- Requires preprocessing embeddings before storage
@@ -133,6 +138,7 @@ const pool = new Pool({
 ### Query Optimization Patterns
 
 1. **Batch Vector Searches**
+
    ```sql
    -- Efficient: Single query for multiple vectors
    WITH query_vectors AS (
@@ -148,6 +154,7 @@ const pool = new Pool({
    ```
 
 2. **Filtered Vector Search with Iterative Scanning**
+
    ```sql
    -- Enable iterative scanning for filtered queries (pgvector 0.8.0+)
    SET hnsw.iterative_scan = on;
@@ -162,6 +169,7 @@ const pool = new Pool({
    ```
 
 3. **Hybrid Search Pattern**
+
    ```sql
    -- Combine vector similarity with keyword search
    WITH vector_results AS (
@@ -189,6 +197,7 @@ const pool = new Pool({
 ### Caching Strategies
 
 1. **Application-Level Caching**
+
    ```typescript
    import { LRUCache } from 'lru-cache';
    
@@ -201,6 +210,7 @@ const pool = new Pool({
    ```
 
 2. **Query Result Caching**
+
    ```typescript
    const queryCache = new LRUCache<string, SearchResult[]>({
      max: 1000,
@@ -308,6 +318,7 @@ const vectorPool = new Pool({
 ### Key Metrics to Track
 
 1. **Index Performance Metrics**
+
    ```sql
    -- Monitor index usage
    SELECT 
@@ -324,6 +335,7 @@ const vectorPool = new Pool({
    ```
 
 2. **Query Performance Tracking**
+
    ```sql
    -- Enable pg_stat_statements
    CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
@@ -343,6 +355,7 @@ const vectorPool = new Pool({
    ```
 
 3. **Vector Operation Monitoring**
+
    ```typescript
    // Custom monitoring wrapper
    class VectorMetrics {
@@ -432,6 +445,7 @@ groups:
 ### Pre-Production Optimization
 
 1. **Benchmark Current Performance**
+
    ```sql
    -- Create benchmark table
    CREATE TABLE vector_benchmarks (
@@ -454,6 +468,7 @@ groups:
    - Validate recall rates meet requirements
 
 3. **Capacity Planning**
+
    ```typescript
    // Calculate storage requirements
    const calculateStorage = (vectorCount: number) => {
@@ -472,6 +487,7 @@ groups:
 ### Migration Strategy
 
 1. **Phased Rollout**
+
    ```sql
    -- Phase 1: Create new optimized table
    CREATE TABLE repositories_v2 (
@@ -545,6 +561,7 @@ Optimizing pgvector with HNSW indexes for production requires careful tuning of 
 5. **Monitoring**: Comprehensive metrics tracking required
 
 These optimizations can achieve:
+
 - 30x faster index builds
 - 3x better query performance
 - 66% memory reduction

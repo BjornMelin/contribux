@@ -100,19 +100,23 @@ Day 6-7 (25%): User Interface
 ## 🎲 RISK-BASED PRIORITIES
 
 ### Must Fix (Security)
+
 1. **Math.random()** → crypto.getRandomValues() [CVSS 8.1]
 2. **Memory leak** → Redis rate limiting [CVSS 6.5]
 3. **Weak CSP** → Strict headers [CVSS 6.1]
 
 ### Must Have (MVP)
+
 4. **Repository scanning** → Core value proposition
 5. **Basic UI** → User interaction capability
 
 ### Should Have (Enhancement)
+
 6. AI-powered analysis → Competitive advantage
 7. User preferences → Personalization
 
 ### Could Have (Future)
+
 8. Email notifications → Engagement
 9. Analytics dashboard → Business insights
 10. PWA features → Mobile experience

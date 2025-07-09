@@ -10,9 +10,12 @@
 
 ## EXECUTIVE SUMMARY
 
-This guide provides comprehensive implementation details for fixing the 3 critical security vulnerabilities identified in Agent 5's production assessment. Each vulnerability has been thoroughly researched with specific code examples, implementation patterns, and validation procedures to ensure secure production deployment.
+This guide provides comprehensive implementation details for fixing the 3 critical security vulnerabilities
+identified in Agent 5's production assessment. Each vulnerability has been thoroughly researched with specific
+code examples, implementation patterns, and validation procedures to ensure secure production deployment.
 
 **Security Issues Addressed**:
+
 1. **Cryptographic Weakness**: Math.random() → crypto.getRandomValues() (CVSS 8.1) ✅ **IMPLEMENTED**
 2. **Memory Leak DoS**: In-memory → Redis rate limiting (CVSS 6.5) ⏳ **PENDING**
 3. **XSS Vulnerability**: Weak → Strict CSP headers (CVSS 6.1) 🔶 **PARTIAL** (static CSP exists)
@@ -28,12 +31,14 @@ This guide provides comprehensive implementation details for fixing the 3 critic
 ### 🔴 VULNERABILITY DETAILS
 
 **Current Issue**: Using `Math.random()` for security-sensitive token generation
+
 ```typescript
 // VULNERABLE CODE (current implementation)
 const generateToken = () => Math.random().toString(36).substr(2, 9);
 ```
 
-**Security Risk**: 
+**Security Risk**:
+
 - Predictable token generation using pseudorandom numbers
 - Potential authentication bypass attacks
 - Session hijacking vulnerability
@@ -289,20 +294,22 @@ describe('Secure Token Generation', () => {
 
 ## 2. REDIS RATE LIMITING IMPLEMENTATION (CVSS 6.5 - MEDIUM)
 
-### 🔴 VULNERABILITY DETAILS
+### 🔴 VULNERABILITY DETAILS - CSP
 
 **Current Issue**: In-memory rate limiting causing memory leaks and DoS vulnerability
+
 ```typescript
 // VULNERABLE CODE (current in-memory implementation)
 const requestCounts = new Map(); // Memory leak risk
 ```
 
 **Security Risk**:
+
 - Memory exhaustion under sustained load
 - No distributed limiting across multiple instances
 - Easy DoS attack vector
 
-### ✅ SECURE IMPLEMENTATION
+### ✅ SECURE IMPLEMENTATION - CSP
 
 #### Pattern 1: Redis-Based Rate Limiter with ioredis
 
@@ -672,7 +679,7 @@ export const defaultRateLimitConfigs: RateLimitConfigs = {
 };
 ```
 
-### 🧪 VALIDATION & TESTING
+### 🧪 VALIDATION & TESTING - Rate Limiting
 
 ```typescript
 // src/lib/rate-limiting/__tests__/redis-rate-limiter.test.ts
@@ -786,20 +793,22 @@ describe('Redis Rate Limiter', () => {
 
 ## 3. STRICT CSP IMPLEMENTATION (CVSS 6.1 - MEDIUM)
 
-### 🔴 VULNERABILITY DETAILS
+### 🔴 VULNERABILITY DETAILS - Strict CSP
 
 **Current Issue**: Weak Content Security Policy allowing XSS attack vectors
+
 ```typescript
 // WEAK CSP (current implementation)
 "default-src 'self' 'unsafe-inline' 'unsafe-eval'"
 ```
 
 **Security Risk**:
+
 - Cross-site scripting (XSS) vulnerabilities
 - Code injection attacks
 - Data exfiltration risks
 
-### ✅ SECURE IMPLEMENTATION
+### ✅ SECURE IMPLEMENTATION - Strict CSP
 
 #### Pattern 1: Strict CSP with Nonce Generation
 
@@ -1171,7 +1180,7 @@ export const reportingAPIConfig = {
 };
 ```
 
-### 🧪 VALIDATION & TESTING
+### 🧪 VALIDATION & TESTING - CSP
 
 ```typescript
 // src/lib/security/__tests__/csp.test.ts
@@ -1219,12 +1228,14 @@ describe('Content Security Policy', () => {
 ### Day 1: Cryptographic Security (4-6 hours)
 
 #### Morning (2-3 hours)
+
 - [ ] Create `src/lib/crypto/secure-tokens.ts` with crypto.getRandomValues() implementation
 - [ ] Replace all Math.random() usage in authentication modules
 - [ ] Create comprehensive test suite for token generation
 - [ ] Validate entropy and distribution of generated tokens
 
 #### Afternoon (2-3 hours)
+
 - [ ] Update session management to use secure tokens
 - [ ] Replace CSRF token generation with secure implementation
 - [ ] Update password reset and email verification tokens
@@ -1233,12 +1244,14 @@ describe('Content Security Policy', () => {
 ### Day 2: Rate Limiting & CSP (6-8 hours)
 
 #### Morning (3-4 hours)
+
 - [ ] Set up Redis connection and configuration
 - [ ] Implement RedisRateLimiter class with Lua script
 - [ ] Create Express.js and Next.js middleware wrappers
 - [ ] Configure rate limiting for different API endpoints
 
 #### Afternoon (3-4 hours)
+
 - [ ] Implement strict CSP with nonce generation in middleware
 - [ ] Update layout.tsx to use CSP nonces correctly
 - [ ] Set up CSP violation reporting endpoint
@@ -1247,6 +1260,7 @@ describe('Content Security Policy', () => {
 ### Validation Checklist
 
 #### Security Tests (100% Coverage Required)
+
 - [ ] Token entropy tests pass (chi-square, collision resistance)
 - [ ] Rate limiting stress tests complete (DoS protection verified)
 - [ ] CSP validation tests pass (XSS protection confirmed)
@@ -1254,12 +1268,14 @@ describe('Content Security Policy', () => {
 - [ ] Manual penetration testing of authentication flows
 
 #### Performance Tests
+
 - [ ] Rate limiting latency < 50ms p95
 - [ ] Redis connection pooling working correctly
 - [ ] CSP nonce generation not affecting page load times
 - [ ] Memory usage stable under load
 
 #### Integration Tests
+
 - [ ] All authentication flows work with secure tokens
 - [ ] API endpoints respect rate limiting rules
 - [ ] Frontend JavaScript works with strict CSP
@@ -1388,6 +1404,7 @@ export class SecurityPerformanceMetrics {
 ## 6. PRODUCTION DEPLOYMENT CHECKLIST
 
 ### Pre-Deployment Security Review
+
 - [ ] All Math.random() instances replaced with crypto.getRandomValues()
 - [ ] Redis rate limiting operational in staging environment
 - [ ] Strict CSP deployed without CSP violations in staging
@@ -1396,6 +1413,7 @@ export class SecurityPerformanceMetrics {
 - [ ] Penetration testing completed by security team
 
 ### Environment Configuration
+
 - [ ] Redis connection string configured in production
 - [ ] CSP violation reporting endpoint operational
 - [ ] Security monitoring dashboards configured
@@ -1403,6 +1421,7 @@ export class SecurityPerformanceMetrics {
 - [ ] Environment variables properly secured
 
 ### Rollback Plan
+
 - [ ] Feature flags configured for quick disable of security features
 - [ ] Database rollback scripts prepared
 - [ ] Redis configuration rollback documented
@@ -1413,21 +1432,25 @@ export class SecurityPerformanceMetrics {
 
 ## CONCLUSION
 
-This comprehensive implementation guide addresses all three critical security vulnerabilities with production-ready code examples, testing procedures, and monitoring setup. Following this guide will resolve:
+This comprehensive implementation guide addresses all three critical security vulnerabilities with
+production-ready code examples, testing procedures, and monitoring setup. Following this guide will resolve:
 
 1. **CVSS 8.1 Cryptographic Weakness** → Secure token generation with crypto.getRandomValues()
 2. **CVSS 6.5 DoS Vulnerability** → Distributed Redis rate limiting with memory leak prevention
 3. **CVSS 6.1 XSS Vulnerability** → Strict CSP with nonce-based protection
 
-**Success Criteria**: 
+**Success Criteria**:
+
 - Zero critical security vulnerabilities in OWASP ZAP scan
 - 100% security test coverage
 - < 50ms rate limiting latency
 - No CSP violations in production deployment
 
-**Next Steps**: Upon completion of these security fixes, proceed to Task 5 (Repository Discovery Scanner) with confidence in the security foundation.
+**Next Steps**: Upon completion of these security fixes, proceed to Task 5 (Repository Discovery Scanner)
+with confidence in the security foundation.
 
 ---
 
-*Implementation guide compiled with security research from OWASP, Mozilla Security, web.dev, and industry best practices*  
-*Code examples tested with Next.js 15, TypeScript 5.8+, Redis 7.0+, and modern browser support*
+> *Implementation guide compiled with security research from OWASP, Mozilla Security,
+> web.dev, and industry best practices*  
+> *Code examples tested with Next.js 15, TypeScript 5.8+, Redis 7.0+, and modern browser support*
