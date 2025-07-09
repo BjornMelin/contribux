@@ -10,8 +10,10 @@ const path = require('node:path')
 const fs = require('node:fs')
 
 // Load environment variables from .env.test in test environment
-if (process.env.NODE_ENV === 'test' || !process.env.DATABASE_URL) {
-  require('dotenv').config({ path: path.join(__dirname, '../../.env.test') })
+// Only load if the file exists (it won't in CI)
+const envTestPath = path.join(__dirname, '../../.env.test')
+if ((process.env.NODE_ENV === 'test' || !process.env.DATABASE_URL) && fs.existsSync(envTestPath)) {
+  require('dotenv').config({ path: envTestPath })
 }
 
 const { neon } = require('@neondatabase/serverless')
@@ -54,10 +56,31 @@ async function recordMigration(sql, filename, group) {
 function initializeDatabaseConnection() {
   const databaseUrl = process.env.DATABASE_URL_TEST || process.env.DATABASE_URL
 
+  // Debug logging for CI
+  if (process.env.CI) {
+    // biome-ignore lint/suspicious/noConsole: Development script
+    console.log('Running in CI environment')
+    // biome-ignore lint/suspicious/noConsole: Development script
+    console.log('NODE_ENV:', process.env.NODE_ENV)
+    // biome-ignore lint/suspicious/noConsole: Development script
+    console.log('DATABASE_URL_TEST exists:', !!process.env.DATABASE_URL_TEST)
+    // biome-ignore lint/suspicious/noConsole: Development script
+    console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL)
+  }
+
   if (!databaseUrl) {
     // biome-ignore lint/suspicious/noConsole: Development script
-    console.error('No database URL found. Set DATABASE_URL or DATABASE_URL_TEST')
+    console.error('ERROR: No database URL found. Set DATABASE_URL or DATABASE_URL_TEST')
+    // biome-ignore lint/suspicious/noConsole: Development script
+    console.error('Environment variables available:', Object.keys(process.env).filter(k => k.includes('DATABASE')).join(', '))
     process.exit(1)
+  }
+
+  // Log connection info (but not the password)
+  const urlParts = databaseUrl.match(/postgresql:\/\/([^:]+):.*@([^/]+)\/(.+)/)
+  if (urlParts) {
+    // biome-ignore lint/suspicious/noConsole: Development script
+    console.log(`Connecting to database: ${urlParts[3]} on ${urlParts[2]} as user ${urlParts[1]}`)
   }
 
   return neon(databaseUrl)

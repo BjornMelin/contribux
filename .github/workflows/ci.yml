@@ -81,7 +81,7 @@ jobs:
           # Database migrations for testing
           pnpm db:migrate:test
         env:
-          DATABASE_URL: ${{ env.DATABASE_URL_TEST }}
+          NODE_ENV: test
 
       - name: Run type checking
         run: pnpm type-check
