@@ -4,7 +4,7 @@ import {
   validateOAuthStateSecure,
   validateRedirectUriSecure,
 } from '@/lib/auth/oauth'
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock env validation for this test file
 vi.mock('@/lib/validation/env', () => ({

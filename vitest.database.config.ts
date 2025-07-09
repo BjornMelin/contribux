@@ -71,7 +71,7 @@ export default defineConfig({
 
     // Reasonable timeouts with retry logic
     testTimeout: 15000, // Reduced from 20s
-    hookTimeout: 8000, // Reduced from 10s  
+    hookTimeout: 8000, // Reduced from 10s
     retry: 2, // Increased retry for database flakiness
 
     // Optimized reporting for CI

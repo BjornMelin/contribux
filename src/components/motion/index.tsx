@@ -15,46 +15,37 @@ const MotionFallback: React.FC<{ children: React.ReactNode }> = ({ children }) =
   <div style={{ opacity: 0.8 }}>{children}</div>
 )
 
-// Dynamic import helper with SSR guard
-const dynamicImport = (importFn: () => Promise<any>) => {
-  if (typeof window === 'undefined') {
-    // Return a dummy component for SSR
-    return () => Promise.resolve({ default: MotionFallback })
-  }
-  return importFn
-}
-
-// Lazy-loaded motion components
-const LazyMotionDiv = lazy(
-  dynamicImport(() =>
-    import('framer-motion').then(mod => ({
-      default: mod.motion.div,
-    }))
-  )
+// Lazy-loaded motion components with proper typing
+const LazyMotionDiv = lazy(() =>
+  typeof window === 'undefined'
+    ? Promise.resolve({ default: MotionFallback })
+    : import('framer-motion').then(mod => ({
+        default: mod.motion.div,
+      }))
 )
 
-const LazyMotionButton = lazy(
-  dynamicImport(() =>
-    import('framer-motion').then(mod => ({
-      default: mod.motion.button,
-    }))
-  )
+const LazyMotionButton = lazy(() =>
+  typeof window === 'undefined'
+    ? Promise.resolve({ default: MotionFallback })
+    : import('framer-motion').then(mod => ({
+        default: mod.motion.button,
+      }))
 )
 
-const LazyMotionSpan = lazy(
-  dynamicImport(() =>
-    import('framer-motion').then(mod => ({
-      default: mod.motion.span,
-    }))
-  )
+const LazyMotionSpan = lazy(() =>
+  typeof window === 'undefined'
+    ? Promise.resolve({ default: MotionFallback })
+    : import('framer-motion').then(mod => ({
+        default: mod.motion.span,
+      }))
 )
 
-const LazyAnimatePresence = lazy(
-  dynamicImport(() =>
-    import('framer-motion').then(mod => ({
-      default: mod.AnimatePresence,
-    }))
-  )
+const LazyAnimatePresence = lazy(() =>
+  typeof window === 'undefined'
+    ? Promise.resolve({ default: MotionFallback })
+    : import('framer-motion').then(mod => ({
+        default: mod.AnimatePresence,
+      }))
 )
 
 // Optimized motion wrapper
@@ -91,7 +82,11 @@ export const MotionButton: React.FC<OptimizedMotionProps> = ({
   ...props
 }) => {
   if (!enableMotion) {
-    return <button className={props.className}>{children}</button>
+    return (
+      <button type="button" className={props.className}>
+        {children}
+      </button>
+    )
   }
 
   return (
@@ -125,8 +120,8 @@ export const OptimizedAnimatePresence: React.FC<{
   mode?: 'wait' | 'sync' | 'popLayout'
 }> = ({ children, mode = 'wait' }) => {
   return (
-    <Suspense fallback={<>{children}</>}>
-      <LazyAnimatePresence mode={mode}>{children}</LazyAnimatePresence>
+    <Suspense fallback={children}>
+      <LazyAnimatePresence {...(mode ? { mode } : {})}>{children}</LazyAnimatePresence>
     </Suspense>
   )
 }

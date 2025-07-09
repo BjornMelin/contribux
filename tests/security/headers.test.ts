@@ -2,7 +2,7 @@
  * @vitest-environment node
  */
 
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
@@ -33,12 +33,12 @@ vi.mock('next/server', () => {
   const MockNextResponse = class {
     public status: number
     public headers: Map<string, string>
-    private body: any
+    private body: BodyInit | null
 
-    constructor(body?: any, init?: ResponseInit) {
+    constructor(body?: BodyInit | null, init?: ResponseInit) {
       this.status = init?.status || 200
       this.headers = new Map()
-      this.body = body
+      this.body = body || null
     }
 
     static next() {
@@ -60,8 +60,6 @@ vi.mock('next/server', () => {
     NextResponse: MockNextResponse,
   }
 })
-
-import { type NextRequest, NextResponse } from 'next/server'
 import { addSecurityHeaders, handleCorsOptions } from '../../src/lib/security/headers'
 
 /**

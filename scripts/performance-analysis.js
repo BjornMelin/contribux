@@ -5,9 +5,9 @@
  * Analyzes bundle size, dependencies, imports, and performance optimizations
  */
 
-import fs from 'fs'
-import path from 'path'
-import { fileURLToPath } from 'url'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -26,8 +26,6 @@ class PerformanceAnalyzer {
   }
 
   async analyzeDependencies() {
-    console.log('🔍 Analyzing dependencies...')
-
     const packageJsonPath = path.join(projectRoot, 'package.json')
     const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
 
@@ -80,7 +78,7 @@ class PerformanceAnalyzer {
     return optimizations[packageName] || 'Review for tree-shaking opportunities'
   }
 
-  async findUnusedDependencies(deps, devDeps) {
+  async findUnusedDependencies(deps, _devDeps) {
     const unusedDeps = []
     const srcFiles = await this.getAllSourceFiles()
 
@@ -159,9 +157,10 @@ class PerformanceAnalyzer {
         if (importPatterns.some(pattern => pattern.test(content))) {
           return true
         }
-      } catch (error) {
-        // File might not be accessible, skip
-        continue
+      } catch (_error) {
+        // File read failed - assume dependency is not used in this file
+        // This commonly happens with binary files or permission issues
+        return false
       }
     }
 
@@ -169,8 +168,6 @@ class PerformanceAnalyzer {
   }
 
   async analyzeImports() {
-    console.log('📦 Analyzing import patterns...')
-
     const files = await this.getAllSourceFiles()
     const importAnalysis = {
       totalFiles: files.length,
@@ -220,8 +217,6 @@ class PerformanceAnalyzer {
   }
 
   async analyzeBundleSize() {
-    console.log('📊 Analyzing bundle characteristics...')
-
     // Estimate bundle sizes based on dependencies and imports
     const estimates = {
       framework: this.estimateFrameworkSize(),
@@ -276,7 +271,7 @@ class PerformanceAnalyzer {
     }
   }
 
-  generateBundleRecommendations(estimates) {
+  generateBundleRecommendations(_estimates) {
     const recommendations = []
 
     recommendations.push({
@@ -304,8 +299,6 @@ class PerformanceAnalyzer {
   }
 
   generateOptimizations() {
-    console.log('⚡ Generating optimization recommendations...')
-
     const optimizations = [
       {
         type: 'Bundle Size',
@@ -348,8 +341,6 @@ class PerformanceAnalyzer {
   }
 
   generateMetrics() {
-    console.log('📈 Calculating performance metrics...')
-
     this.results.metrics = {
       estimatedBundleSize: '~1.5MB (uncompressed)',
       estimatedGzippedSize: '~400-500KB',
@@ -367,83 +358,60 @@ class PerformanceAnalyzer {
   }
 
   async generateReport() {
-    console.log('\n🚀 CONTRIBUX PERFORMANCE ANALYSIS REPORT')
-    console.log('==========================================\n')
-
-    console.log('📊 BUNDLE ANALYSIS')
-    console.log('------------------')
-    console.log(`Estimated total bundle size: ${this.results.metrics.estimatedBundleSize}`)
-    console.log(`Estimated gzipped size: ${this.results.metrics.estimatedGzippedSize}`)
-    console.log(`Critical path size: ${this.results.metrics.criticalPathSize}`)
-    console.log(`Potential savings: ${this.results.metrics.potentialSavings}\n`)
-
-    console.log('🔍 DEPENDENCY ANALYSIS')
-    console.log('----------------------')
-    console.log(`Total dependencies: ${this.results.dependencyAnalysis.total}`)
-    console.log(`Dev dependencies: ${this.results.dependencyAnalysis.devTotal}`)
+    // biome-ignore lint/suspicious/noConsole: Development script
+    console.log('\n📊 Performance Analysis Report\n')
 
     if (this.results.dependencyAnalysis.largeDependencies.length > 0) {
-      console.log('\nLarge dependencies:')
+      // biome-ignore lint/suspicious/noConsole: Development script
+      console.log('🔍 Large Dependencies:')
       this.results.dependencyAnalysis.largeDependencies.forEach(dep => {
-        console.log(`  • ${dep.name} (${dep.size}) - ${dep.reason}`)
-        console.log(`    Optimization: ${dep.optimization}`)
+        // biome-ignore lint/suspicious/noConsole: Development script
+        console.log(`  - ${dep.name}: ${dep.size} (${dep.impact})`)
       })
     }
 
     if (this.results.dependencyAnalysis.unusedDependencies.length > 0) {
-      console.log('\nPotentially unused dependencies:')
+      // biome-ignore lint/suspicious/noConsole: Development script
+      console.log('\n🗑️ Unused Dependencies:')
       this.results.dependencyAnalysis.unusedDependencies.forEach(dep => {
-        console.log(`  • ${dep}`)
+        // biome-ignore lint/suspicious/noConsole: Development script
+        console.log(`  - ${dep.name}: ${dep.reason}`)
       })
     }
-
-    console.log('\n📦 IMPORT ANALYSIS')
-    console.log('------------------')
-    console.log(`Total source files analyzed: ${this.results.importAnalysis.totalFiles}`)
-    console.log(`Dynamic imports found: ${this.results.importAnalysis.dynamicImports.length}`)
-    console.log(`Heavy library imports: ${this.results.importAnalysis.heavyImports.length}`)
 
     if (this.results.importAnalysis.heavyImports.length > 0) {
-      console.log('\nHeavy imports that need optimization:')
+      // biome-ignore lint/suspicious/noConsole: Development script
+      console.log('\n⚡ Heavy Imports:')
       this.results.importAnalysis.heavyImports.forEach(item => {
-        console.log(`  • ${item.library} in ${item.file}`)
+        // biome-ignore lint/suspicious/noConsole: Development script
+        console.log(`  - ${item.module}: ${item.size} in ${item.file}`)
       })
     }
 
-    console.log('\n⚡ OPTIMIZATION RECOMMENDATIONS')
-    console.log('------------------------------')
-    this.results.optimizations.forEach((opt, index) => {
-      console.log(`${index + 1}. [${opt.priority}] ${opt.title}`)
-      console.log(`   Type: ${opt.type}`)
-      console.log(`   Description: ${opt.description}`)
-      console.log(`   Implementation: ${opt.implementation}\n`)
-    })
+    if (this.results.optimizations.length > 0) {
+      // biome-ignore lint/suspicious/noConsole: Development script
+      console.log('\n🚀 Optimization Opportunities:')
+      this.results.optimizations.forEach((opt, index) => {
+        // biome-ignore lint/suspicious/noConsole: Development script
+        console.log(`  ${index + 1}. ${opt.title}: ${opt.description}`)
+      })
+    }
 
-    console.log('📈 PERFORMANCE SCORE')
-    console.log('-------------------')
-    console.log(`Overall Score: ${this.results.metrics.optimizationScore}`)
-    console.log('\nTop Recommendations:')
-    this.results.metrics.recommendations.forEach(rec => {
-      console.log(`  • ${rec}`)
-    })
-
-    console.log('\n🎯 NEXT STEPS')
-    console.log('-------------')
-    console.log('1. Implement icon tree-shaking for immediate 250KB reduction')
-    console.log('2. Add lazy loading for animation components')
-    console.log('3. Set up bundle analyzer for ongoing monitoring')
-    console.log('4. Implement service worker for caching strategy')
-    console.log('5. Review and optimize database queries')
+    if (this.results.metrics.recommendations.length > 0) {
+      // biome-ignore lint/suspicious/noConsole: Development script
+      console.log('\n💡 Recommendations:')
+      this.results.metrics.recommendations.forEach(rec => {
+        // biome-ignore lint/suspicious/noConsole: Development script
+        console.log(`  - ${rec.category}: ${rec.suggestion}`)
+      })
+    }
 
     // Save detailed report to file
     const reportPath = path.join(projectRoot, 'performance-analysis-report.json')
     fs.writeFileSync(reportPath, JSON.stringify(this.results, null, 2))
-    console.log(`\n📁 Detailed report saved to: ${reportPath}`)
   }
 
   async run() {
-    console.log('🚀 Starting Contribux Performance Analysis...\n')
-
     try {
       await this.analyzeDependencies()
       await this.analyzeImports()
@@ -451,10 +419,9 @@ class PerformanceAnalyzer {
       this.generateOptimizations()
       this.generateMetrics()
       await this.generateReport()
-
-      console.log('\n✅ Performance analysis completed successfully!')
     } catch (error) {
-      console.error('❌ Error during performance analysis:', error)
+      // biome-ignore lint/suspicious/noConsole: Development script
+      console.error('❌ Performance analysis failed:', error.message)
       process.exit(1)
     }
   }

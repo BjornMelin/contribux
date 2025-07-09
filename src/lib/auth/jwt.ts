@@ -460,11 +460,11 @@ async function fetchRefreshTokenData(tokenHash: string): Promise<RefreshTokenDat
     LIMIT 1
   `
 
-  if ((result as any[]).length === 0) {
+  if ((result as unknown[]).length === 0) {
     throw new Error('Invalid refresh token')
   }
 
-  const tokenData = (result as any[])[0] as RefreshTokenData | undefined
+  const tokenData = (result as unknown[])[0] as RefreshTokenData | undefined
   if (!tokenData) {
     throw new Error('Invalid refresh token')
   }

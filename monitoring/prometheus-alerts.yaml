@@ -1,0 +1,278 @@
+# Prometheus Alerting Rules for Contribux AI Application
+# Production-ready alerts for AI workloads, SLA monitoring, and security
+
+groups:
+  # AI Agent Performance Alerts
+  - name: ai_agent_performance
+    interval: 30s
+    rules:
+      - alert: AIAgentHighLatency
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(ai_agent_request_duration_bucket[5m])) by (le, operation)
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+          component: ai-agent
+        annotations:
+          summary: "AI Agent operation {{ $labels.operation }} P95 latency > 2s"
+          description: "The 95th percentile latency for AI agent operation {{ $labels.operation }} is {{ $value }}s, exceeding the 2s threshold."
+          runbook_url: "https://contribux.ai/runbooks/ai-agent-latency"
+
+      - alert: AIAgentErrorRate
+        expr: |
+          sum(rate(ai_agent_errors_total[5m])) by (operation, error_type)
+          / sum(rate(ai_agent_requests_total[5m])) by (operation) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          component: ai-agent
+        annotations:
+          summary: "AI Agent error rate > 5% for {{ $labels.operation }}"
+          description: "Error rate is {{ $value | humanizePercentage }} for operation {{ $labels.operation }} with error type {{ $labels.error_type }}"
+
+      - alert: AIModelTokenUsageHigh
+        expr: |
+          sum(rate(ai_model_tokens_used_total[5m])) by (model) 
+          > 1000
+        for: 10m
+        labels:
+          severity: warning
+          component: ai-model
+          cost_impact: high
+        annotations:
+          summary: "High token usage for model {{ $labels.model }}"
+          description: "Token usage rate is {{ $value }} tokens/sec, which may impact costs"
+
+  # Vector Search Performance
+  - name: vector_search_performance
+    interval: 30s
+    rules:
+      - alert: VectorSearchSlowQueries
+        expr: |
+          histogram_quantile(0.99, 
+            sum(rate(vector_search_latency_bucket[5m])) by (le, index_name)
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          component: vector-search
+        annotations:
+          summary: "Vector search P99 latency > 500ms for index {{ $labels.index_name }}"
+          description: "99th percentile latency is {{ $value }}s for vector search on index {{ $labels.index_name }}"
+
+      - alert: VectorIndexHealthDegraded
+        expr: |
+          vector_index_health_score < 0.8
+        for: 10m
+        labels:
+          severity: critical
+          component: vector-search
+        annotations:
+          summary: "Vector index health score below threshold"
+          description: "Index {{ $labels.index_name }} health score is {{ $value }}, indicating potential issues"
+
+  # SLA Monitoring
+  - name: sla_monitoring
+    interval: 30s
+    rules:
+      - alert: SLAViolationAPIAvailability
+        expr: |
+          sum(rate(http_requests_total{status!~"5.."}[5m])) by (service)
+          / sum(rate(http_requests_total[5m])) by (service) < 0.999
+        for: 5m
+        labels:
+          severity: critical
+          sla_type: availability
+        annotations:
+          summary: "API availability SLA violation for {{ $labels.service }}"
+          description: "Availability is {{ $value | humanizePercentage }}, below 99.9% SLA"
+
+      - alert: SLAViolationResponseTime
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, endpoint)
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+          sla_type: latency
+        annotations:
+          summary: "Response time SLA violation for {{ $labels.endpoint }}"
+          description: "P95 response time is {{ $value }}s, exceeding 1s SLA"
+
+  # Serverless Function Monitoring
+  - name: serverless_monitoring
+    interval: 30s
+    rules:
+      - alert: EdgeFunctionColdStartHigh
+        expr: |
+          sum(rate(vercel_function_cold_starts_total[5m])) by (function_name)
+          / sum(rate(vercel_function_invocations_total[5m])) by (function_name) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: edge-functions
+        annotations:
+          summary: "High cold start rate for {{ $labels.function_name }}"
+          description: "Cold start rate is {{ $value | humanizePercentage }}, impacting performance"
+
+      - alert: EdgeFunctionMemoryHigh
+        expr: |
+          vercel_function_memory_used_bytes 
+          / vercel_function_memory_limit_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          component: edge-functions
+        annotations:
+          summary: "Edge function {{ $labels.function_name }} memory usage > 90%"
+          description: "Memory usage is {{ $value | humanizePercentage }} of limit"
+
+      - alert: EdgeFunctionTimeoutRate
+        expr: |
+          sum(rate(vercel_function_timeouts_total[5m])) by (function_name)
+          / sum(rate(vercel_function_invocations_total[5m])) by (function_name) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+          component: edge-functions
+        annotations:
+          summary: "High timeout rate for {{ $labels.function_name }}"
+          description: "Timeout rate is {{ $value | humanizePercentage }}, indicating performance issues"
+
+  # Security Monitoring
+  - name: security_monitoring
+    interval: 30s
+    rules:
+      - alert: AIPromptInjectionDetected
+        expr: |
+          sum(rate(ai_security_prompt_injection_attempts_total[5m])) by (source_ip, user_id) > 5
+        for: 2m
+        labels:
+          severity: critical
+          security_type: prompt_injection
+        annotations:
+          summary: "Potential prompt injection attack detected"
+          description: "{{ $value }} injection attempts from IP {{ $labels.source_ip }} by user {{ $labels.user_id }}"
+          action: "Block IP and investigate user activity"
+
+      - alert: SensitiveDataLeakageRisk
+        expr: |
+          sum(rate(ai_output_sensitive_data_detected_total[5m])) by (data_type, model) > 0
+        for: 1m
+        labels:
+          severity: critical
+          security_type: data_leakage
+        annotations:
+          summary: "Sensitive data detected in AI output"
+          description: "{{ $labels.data_type }} detected in output from model {{ $labels.model }}"
+
+      - alert: UnauthorizedAPIAccess
+        expr: |
+          sum(rate(http_requests_total{status="401"}[5m])) by (endpoint, source_ip) > 10
+        for: 5m
+        labels:
+          severity: warning
+          security_type: unauthorized_access
+        annotations:
+          summary: "High rate of unauthorized access attempts"
+          description: "{{ $value }} unauthorized attempts to {{ $labels.endpoint }} from {{ $labels.source_ip }}"
+
+  # Resource Utilization
+  - name: resource_monitoring
+    interval: 30s
+    rules:
+      - alert: DatabaseConnectionPoolExhausted
+        expr: |
+          pg_stat_database_numbackends 
+          / pg_settings_max_connections > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "Database connection pool > 80% utilized"
+          description: "Connection pool usage is {{ $value | humanizePercentage }}"
+
+      - alert: VectorStorageCapacityHigh
+        expr: |
+          vector_storage_used_bytes 
+          / vector_storage_capacity_bytes > 0.85
+        for: 10m
+        labels:
+          severity: warning
+          component: vector-storage
+        annotations:
+          summary: "Vector storage capacity > 85%"
+          description: "Storage usage is {{ $value | humanizePercentage }}, consider scaling"
+
+  # Core Web Vitals Monitoring
+  - name: web_vitals_monitoring
+    interval: 30s
+    rules:
+      - alert: LCPDegradation
+        expr: |
+          histogram_quantile(0.75,
+            sum(rate(web_vitals_lcp_bucket[5m])) by (le, page)
+          ) > 2.5
+        for: 10m
+        labels:
+          severity: warning
+          web_vital: lcp
+        annotations:
+          summary: "LCP > 2.5s for page {{ $labels.page }}"
+          description: "75th percentile LCP is {{ $value }}s, impacting user experience"
+
+      - alert: INPDegradation
+        expr: |
+          histogram_quantile(0.75,
+            sum(rate(web_vitals_inp_bucket[5m])) by (le, page)
+          ) > 200
+        for: 10m
+        labels:
+          severity: warning
+          web_vital: inp
+        annotations:
+          summary: "INP > 200ms for page {{ $labels.page }}"
+          description: "75th percentile INP is {{ $value }}ms, indicating poor interactivity"
+
+      - alert: CLSDegradation
+        expr: |
+          histogram_quantile(0.75,
+            sum(rate(web_vitals_cls_bucket[5m])) by (le, page)
+          ) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+          web_vital: cls
+        annotations:
+          summary: "CLS > 0.1 for page {{ $labels.page }}"
+          description: "75th percentile CLS is {{ $value }}, indicating layout instability"
+
+  # Cost Monitoring
+  - name: cost_monitoring
+    interval: 60s
+    rules:
+      - alert: AIInferenceCostSpike
+        expr: |
+          sum(increase(ai_inference_cost_dollars[1h])) by (model, operation) > 100
+        for: 5m
+        labels:
+          severity: warning
+          cost_category: ai_inference
+        annotations:
+          summary: "AI inference cost spike detected"
+          description: "Hourly cost for {{ $labels.model }} on {{ $labels.operation }} is ${{ $value }}"
+
+      - alert: MonthlyBudgetExceeded
+        expr: |
+          sum(ai_total_cost_dollars_mtd) > 5000
+        for: 5m
+        labels:
+          severity: critical
+          cost_category: budget
+        annotations:
+          summary: "Monthly AI budget exceeded"
+          description: "Month-to-date AI costs are ${{ $value }}, exceeding $5000 budget"

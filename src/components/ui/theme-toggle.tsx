@@ -13,10 +13,10 @@
 'use client'
 
 import { MotionDiv } from '@/components/motion'
-import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { Monitor, Moon, Sun } from 'lucide-react'
+import { useTheme } from 'next-themes'
 import { useEffect, useState } from 'react'
 
 interface ThemeToggleProps {

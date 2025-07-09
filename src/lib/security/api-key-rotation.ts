@@ -4,10 +4,10 @@
  * Implements key versioning, gradual migration, and audit logging
  */
 
-import { randomBytes, createHash, timingSafeEqual } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
+import type { RedisClientType } from '@redis/client'
 import { z } from 'zod'
-import { Redis } from '@redis/client'
-import { auditLogger, AuditEventType, AuditSeverity } from './audit-logger'
+import { AuditEventType, AuditSeverity, auditLogger } from './audit-logger'
 import { SecurityError, SecurityErrorType } from './error-boundaries'
 
 // API Key configuration
@@ -62,13 +62,10 @@ export const ApiKeyRotationSchema = z.object({
  */
 export class ApiKeyManager {
   private config: ApiKeyConfig
-  private redis: Redis | null
+  private redis: RedisClientType | null
   private cache: Map<string, ApiKeyMetadata> = new Map()
-  
-  constructor(
-    config: Partial<ApiKeyConfig> = {},
-    redis?: Redis
-  ) {
+
+  constructor(config: Partial<ApiKeyConfig> = {}, redis?: RedisClientType) {
     this.config = {
       keyLength: 32,
       hashAlgorithm: 'sha256',
@@ -82,7 +79,7 @@ export class ApiKeyManager {
     }
     this.redis = redis || null
   }
-  
+
   /**
    * List all API keys for a user
    */
@@ -95,11 +92,15 @@ export class ApiKeyManager {
       throw new SecurityError(
         SecurityErrorType.OPERATION_FAILED,
         'Failed to list user API keys',
-        { userId, error: error instanceof Error ? error.message : 'Unknown error' }
+        500,
+        {
+          userId,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
       )
     }
   }
-  
+
   /**
    * Generate a new API key
    */
@@ -124,7 +125,7 @@ export class ApiKeyManager {
         'Only one active API key is allowed per user'
       )
     }
-    
+
     if (activeKeys.length >= this.config.maxActiveKeys) {
       throw new SecurityError(
         SecurityErrorType.AUTHORIZATION,
@@ -134,24 +135,24 @@ export class ApiKeyManager {
         `Maximum of ${this.config.maxActiveKeys} active keys allowed`
       )
     }
-    
+
     // Generate key
     const keyBytes = randomBytes(this.config.keyLength)
     const key = this.config.keyPrefix + keyBytes.toString('base64url')
     const keyHash = this.hashKey(key)
     const keyId = randomBytes(16).toString('hex')
-    
+
     // Calculate expiration
     const expiresAt = new Date()
     expiresAt.setDate(expiresAt.getDate() + this.config.rotationIntervalDays)
-    
+
     // Create metadata
     const keyMetadata: ApiKeyMetadata = {
       id: keyId,
       userId,
       name,
       keyHash,
-      keyPrefix: key.slice(0, 8) + '****',
+      keyPrefix: `${key.slice(0, 8)}****`,
       version: 1,
       permissions,
       createdAt: new Date(),
@@ -159,10 +160,10 @@ export class ApiKeyManager {
       status: 'active',
       metadata,
     }
-    
+
     // Store in database
     await this.storeKey(keyMetadata)
-    
+
     // Log key creation
     await auditLogger.log({
       type: AuditEventType.SECURITY_CONFIG_CHANGE,
@@ -180,14 +181,14 @@ export class ApiKeyManager {
         expiresAt,
       },
     })
-    
+
     return {
       key,
       keyId,
       expiresAt,
     }
   }
-  
+
   /**
    * Validate an API key
    */
@@ -200,43 +201,41 @@ export class ApiKeyManager {
           reason: 'Invalid key format',
         }
       }
-      
+
       const keyHash = this.hashKey(key)
-      
+
       // Check cache first
-      const cachedKey = Array.from(this.cache.values())
-        .find(k => k.keyHash === keyHash)
-      
+      const cachedKey = Array.from(this.cache.values()).find(k => k.keyHash === keyHash)
+
       if (cachedKey) {
         return this.validateKeyMetadata(cachedKey)
       }
-      
+
       // Search in database
       const keyMetadata = await this.findKeyByHash(keyHash)
-      
+
       if (!keyMetadata) {
         return {
           valid: false,
           reason: 'Invalid API key',
         }
       }
-      
+
       // Update cache
       this.cache.set(keyMetadata.id, keyMetadata)
-      
+
       // Update last used
       await this.updateLastUsed(keyMetadata.id)
-      
+
       return this.validateKeyMetadata(keyMetadata)
-    } catch (error) {
-      console.error('[ApiKeyManager] Validation error:', error)
+    } catch (_error) {
       return {
         valid: false,
         reason: 'Validation error',
       }
     }
   }
-  
+
   /**
    * Rotate an API key
    */
@@ -253,35 +252,22 @@ export class ApiKeyManager {
   }> {
     // Get existing key
     const oldKey = await this.getKey(keyId)
-    
+
     if (!oldKey || oldKey.userId !== userId) {
-      throw new SecurityError(
-        SecurityErrorType.AUTHORIZATION,
-        'API key not found',
-        404
-      )
+      throw new SecurityError(SecurityErrorType.AUTHORIZATION, 'API key not found', 404)
     }
-    
+
     if (oldKey.status !== 'active') {
-      throw new SecurityError(
-        SecurityErrorType.VALIDATION,
-        'Cannot rotate inactive key',
-        400
-      )
+      throw new SecurityError(SecurityErrorType.VALIDATION, 'Cannot rotate inactive key', 400)
     }
-    
+
     // Generate new key with same permissions
-    const result = await this.generateKey(
-      userId,
-      `${oldKey.name} (Rotated)`,
-      oldKey.permissions,
-      {
-        ...oldKey.metadata,
-        rotatedFrom: keyId,
-        rotationReason: reason,
-      }
-    )
-    
+    const result = await this.generateKey(userId, `${oldKey.name} (Rotated)`, oldKey.permissions, {
+      ...oldKey.metadata,
+      rotatedFrom: keyId,
+      rotationReason: reason,
+    })
+
     // Update old key status
     if (immediate) {
       await this.revokeKey(keyId, userId, `Rotated: ${reason}`)
@@ -289,9 +275,9 @@ export class ApiKeyManager {
       // Set grace period
       const gracePeriodEnd = new Date()
       gracePeriodEnd.setDate(gracePeriodEnd.getDate() + this.config.gracePeriodDays)
-      
+
       await this.updateKeyStatus(keyId, 'rotating', gracePeriodEnd)
-      
+
       // Log rotation
       await auditLogger.log({
         type: AuditEventType.SECURITY_CONFIG_CHANGE,
@@ -310,7 +296,7 @@ export class ApiKeyManager {
           immediate,
         },
       })
-      
+
       return {
         oldKeyId: keyId,
         newKey: result.key,
@@ -318,37 +304,29 @@ export class ApiKeyManager {
         gracePeriodEnd,
       }
     }
-    
+
     return {
       oldKeyId: keyId,
       newKey: result.key,
       newKeyId: result.keyId,
     }
   }
-  
+
   /**
    * Revoke an API key
    */
-  async revokeKey(
-    keyId: string,
-    userId: string,
-    reason: string
-  ): Promise<void> {
+  async revokeKey(keyId: string, userId: string, reason: string): Promise<void> {
     const key = await this.getKey(keyId)
-    
+
     if (!key || key.userId !== userId) {
-      throw new SecurityError(
-        SecurityErrorType.AUTHORIZATION,
-        'API key not found',
-        404
-      )
+      throw new SecurityError(SecurityErrorType.AUTHORIZATION, 'API key not found', 404)
     }
-    
+
     await this.updateKeyStatus(keyId, 'revoked')
-    
+
     // Remove from cache
     this.cache.delete(keyId)
-    
+
     // Log revocation
     await auditLogger.log({
       type: AuditEventType.SECURITY_CONFIG_CHANGE,
@@ -365,23 +343,21 @@ export class ApiKeyManager {
       },
     })
   }
-  
+
   /**
    * Get user's API keys
    */
-  async getUserKeys(
-    userId: string,
-    status?: ApiKeyMetadata['status']
-  ): Promise<ApiKeyMetadata[]> {
+  async getUserKeys(userId: string, status?: ApiKeyMetadata['status']): Promise<ApiKeyMetadata[]> {
     if (!this.redis) {
       // In-memory fallback
-      return Array.from(this.cache.values())
-        .filter(k => k.userId === userId && (!status || k.status === status))
+      return Array.from(this.cache.values()).filter(
+        k => k.userId === userId && (!status || k.status === status)
+      )
     }
-    
+
     const pattern = `apikey:user:${userId}:*`
     const keys = await this.redis.keys(pattern)
-    
+
     const metadata: ApiKeyMetadata[] = []
     for (const key of keys) {
       const data = await this.redis.get(key)
@@ -391,39 +367,34 @@ export class ApiKeyManager {
           if (!status || keyMeta.status === status) {
             metadata.push(keyMeta)
           }
-        } catch {}
+        } catch {
+          // Ignore malformed metadata in Redis - corrupted data should not break the operation
+        }
       }
     }
-    
-    return metadata.sort((a, b) => 
-      b.createdAt.getTime() - a.createdAt.getTime()
-    )
+
+    return metadata.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
   }
-  
+
   /**
    * Check keys requiring rotation
    */
   async getKeysRequiringRotation(): Promise<ApiKeyMetadata[]> {
-    const now = new Date()
+    const _now = new Date()
     const rotationThreshold = new Date()
-    rotationThreshold.setDate(
-      rotationThreshold.getDate() - this.config.rotationIntervalDays
-    )
-    
+    rotationThreshold.setDate(rotationThreshold.getDate() - this.config.rotationIntervalDays)
+
     if (!this.redis) {
-      return Array.from(this.cache.values())
-        .filter(k => 
-          k.status === 'active' &&
-          k.createdAt < rotationThreshold &&
-          this.config.requireRotation
-        )
+      return Array.from(this.cache.values()).filter(
+        k => k.status === 'active' && k.createdAt < rotationThreshold && this.config.requireRotation
+      )
     }
-    
+
     // Query from database
     const keys: ApiKeyMetadata[] = []
     const pattern = 'apikey:*'
     const allKeys = await this.redis.keys(pattern)
-    
+
     for (const key of allKeys) {
       const data = await this.redis.get(key)
       if (data) {
@@ -436,76 +407,96 @@ export class ApiKeyManager {
           ) {
             keys.push(keyMeta)
           }
-        } catch {}
-      }
-    }
-    
-    return keys
-  }
-  
-  /**
-   * Cleanup expired keys
-   */
-  async cleanupExpiredKeys(): Promise<number> {
-    const now = new Date()
-    let cleaned = 0
-    
-    if (!this.redis) {
-      // In-memory cleanup
-      for (const [id, key] of this.cache.entries()) {
-        if (
-          (key.status === 'rotating' || key.status === 'expired') &&
-          key.expiresAt &&
-          key.expiresAt < now
-        ) {
-          this.cache.delete(id)
-          cleaned++
+        } catch {
+          // Ignore malformed metadata in Redis - corrupted data should not break rotation check
         }
       }
-      return cleaned
     }
-    
-    // Database cleanup
+
+    return keys
+  }
+
+  /**
+   * Check if a key should be cleaned up based on status and expiration
+   */
+  private shouldCleanupKey(keyMeta: ApiKeyMetadata, now: Date): boolean {
+    return (
+      (keyMeta.status === 'rotating' || keyMeta.status === 'expired') &&
+      keyMeta.expiresAt !== undefined &&
+      keyMeta.expiresAt < now
+    )
+  }
+
+  /**
+   * Cleanup expired keys from in-memory cache
+   */
+  private cleanupInMemoryKeys(now: Date): number {
+    let cleaned = 0
+
+    for (const [id, key] of this.cache.entries()) {
+      if (this.shouldCleanupKey(key, now)) {
+        this.cache.delete(id)
+        cleaned++
+      }
+    }
+
+    return cleaned
+  }
+
+  /**
+   * Cleanup expired keys from Redis database
+   */
+  private async cleanupRedisKeys(now: Date): Promise<number> {
+    if (!this.redis) return 0
+
+    let cleaned = 0
     const pattern = 'apikey:*'
     const allKeys = await this.redis.keys(pattern)
-    
+
     for (const key of allKeys) {
       const data = await this.redis.get(key)
       if (data) {
         try {
           const keyMeta = JSON.parse(data) as ApiKeyMetadata
-          if (
-            (keyMeta.status === 'rotating' || keyMeta.status === 'expired') &&
-            keyMeta.expiresAt &&
-            new Date(keyMeta.expiresAt) < now
-          ) {
+          if (this.shouldCleanupKey(keyMeta, now)) {
             await this.redis.del(key)
             cleaned++
           }
-        } catch {}
+        } catch {
+          // Ignore malformed metadata in Redis - corrupted data should not break cleanup process
+        }
       }
     }
-    
+
     return cleaned
   }
-  
+
+  /**
+   * Cleanup expired keys
+   */
+  async cleanupExpiredKeys(): Promise<number> {
+    const now = new Date()
+
+    if (!this.redis) {
+      return this.cleanupInMemoryKeys(now)
+    }
+
+    return this.cleanupRedisKeys(now)
+  }
+
   /**
    * Hash an API key
    */
   private hashKey(key: string): string {
-    return createHash(this.config.hashAlgorithm)
-      .update(key)
-      .digest('hex')
+    return createHash(this.config.hashAlgorithm).update(key).digest('hex')
   }
-  
+
   /**
    * Validate key metadata
    */
-  private validateKeyMetadata(
-    metadata: ApiKeyMetadata
-  ): KeyValidationResult {
+  private validateKeyMetadata(metadata: ApiKeyMetadata): KeyValidationResult {
     const now = new Date()
-    
+
     // Check status
     if (metadata.status === 'revoked') {
       return {
@@ -513,14 +504,14 @@ export class ApiKeyManager {
         reason: 'Key has been revoked',
       }
     }
-    
+
     if (metadata.status === 'expired') {
       return {
         valid: false,
         reason: 'Key has expired',
       }
     }
-    
+
     // Check expiration
     if (metadata.expiresAt && metadata.expiresAt < now) {
       return {
@@ -528,17 +519,13 @@ export class ApiKeyManager {
         reason: 'Key has expired',
       }
     }
-    
+
     // Check if rotation is required
     const rotationThreshold = new Date()
-    rotationThreshold.setDate(
-      rotationThreshold.getDate() - this.config.rotationIntervalDays
-    )
-    
-    const requiresRotation = 
-      metadata.createdAt < rotationThreshold &&
-      this.config.requireRotation
-    
+    rotationThreshold.setDate(rotationThreshold.getDate() - this.config.rotationIntervalDays)
+
+    const requiresRotation = metadata.createdAt < rotationThreshold && this.config.requireRotation
+
     return {
       valid: true,
       keyId: metadata.id,
@@ -547,7 +534,7 @@ export class ApiKeyManager {
       requiresRotation,
     }
   }
-  
+
   /**
    * Store key in database
    */
@@ -555,15 +542,15 @@ export class ApiKeyManager {
     const key = `apikey:${metadata.id}`
     const userKey = `apikey:user:${metadata.userId}:${metadata.id}`
     const hashKey = `apikey:hash:${metadata.keyHash}`
-    
+
     if (this.redis) {
       const data = JSON.stringify(metadata)
       const ttl = metadata.expiresAt
         ? Math.floor((metadata.expiresAt.getTime() - Date.now()) / 1000)
         : undefined
-      
+
       const multi = this.redis.multi()
-      
+
       // Store main key
       if (ttl) {
         multi.set(key, data, { EX: ttl })
@@ -574,51 +561,48 @@ export class ApiKeyManager {
         multi.set(userKey, data)
         multi.set(hashKey, metadata.id)
       }
-      
+
       await multi.exec()
     }
-    
+
     // Also store in cache
     this.cache.set(metadata.id, metadata)
   }
-  
+
   /**
    * Find key by hash
    */
-  private async findKeyByHash(
-    keyHash: string
-  ): Promise<ApiKeyMetadata | null> {
+  private async findKeyByHash(keyHash: string): Promise<ApiKeyMetadata | null> {
     if (!this.redis) {
-      return Array.from(this.cache.values())
-        .find(k => k.keyHash === keyHash) || null
+      return Array.from(this.cache.values()).find(k => k.keyHash === keyHash) || null
     }
-    
+
     const keyId = await this.redis.get(`apikey:hash:${keyHash}`)
     if (!keyId) return null
-    
+
     return this.getKey(keyId)
   }
-  
+
   /**
    * Get key by ID
    */
   private async getKey(keyId: string): Promise<ApiKeyMetadata | null> {
     if (this.cache.has(keyId)) {
-      return this.cache.get(keyId)!
+      return this.cache.get(keyId) || null
     }
-    
+
     if (!this.redis) return null
-    
+
     const data = await this.redis.get(`apikey:${keyId}`)
     if (!data) return null
-    
+
     try {
       return JSON.parse(data) as ApiKeyMetadata
     } catch {
       return null
     }
   }
-  
+
   /**
    * Update key status
    */
@@ -629,22 +613,22 @@ export class ApiKeyManager {
   ): Promise<void> {
     const key = await this.getKey(keyId)
     if (!key) return
-    
+
     key.status = status
     if (expiresAt) {
       key.expiresAt = expiresAt
     }
-    
+
     await this.storeKey(key)
   }
-  
+
   /**
    * Update last used timestamp
    */
   private async updateLastUsed(keyId: string): Promise<void> {
     const key = await this.getKey(keyId)
     if (!key) return
-    
+
     key.lastUsedAt = new Date()
     await this.storeKey(key)
   }
@@ -671,21 +655,21 @@ export async function apiKeyAuthMiddleware(
     required: true,
     ...config,
   }
-  
+
   // Extract API key from request
   let apiKey: string | null = null
-  
+
   // Check header
   if (options.headerName) {
     apiKey = request.headers.get(options.headerName)
   }
-  
+
   // Check query parameter
   if (!apiKey && options.queryParam) {
     const url = new URL(request.url)
     apiKey = url.searchParams.get(options.queryParam)
   }
-  
+
   // Check cookie
   if (!apiKey && options.cookieName) {
     const cookies = request.headers.get('cookie')
@@ -696,7 +680,7 @@ export async function apiKeyAuthMiddleware(
       }
     }
   }
-  
+
   // No key found
   if (!apiKey) {
     if (options.required) {
@@ -710,10 +694,10 @@ export async function apiKeyAuthMiddleware(
     }
     return null
   }
-  
+
   // Validate key
   const result = await apiKeyManager.validateKey(apiKey)
-  
+
   if (!result.valid && options.required) {
     throw new SecurityError(
       SecurityErrorType.AUTHENTICATION,
@@ -723,6 +707,6 @@ export async function apiKeyAuthMiddleware(
       result.reason
     )
   }
-  
+
   return result
 }

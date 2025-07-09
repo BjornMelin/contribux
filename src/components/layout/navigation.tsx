@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { ThemeToggle, ThemeToggleCompact } from '@/components/ui/theme-toggle'
 import { cn } from '@/lib/utils'
 import { Github, Home, LogOut, Menu, Settings, Sparkles, X } from 'lucide-react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
@@ -70,7 +71,7 @@ export function Navigation() {
           </div>
 
           {/* Desktop Auth Buttons */}
-          <div className="hidden items-center space-x-4 md:flex">
+          <div className="hidden md:flex items-center space-x-3">
             <ThemeToggle />
             {status === 'loading' ? (
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -78,9 +79,11 @@ export function Navigation() {
               <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-2">
                   {session?.user?.image && (
-                    <img
+                    <Image
                       src={session.user.image}
                       alt={session.user.name || 'User'}
+                      width={32}
+                      height={32}
                       className="h-8 w-8 rounded-full border border-border"
                     />
                   )}
@@ -161,9 +164,11 @@ export function Navigation() {
                 <>
                   <div className="mb-3 flex items-center space-x-3 px-3">
                     {session?.user?.image && (
-                      <img
+                      <Image
                         src={session.user.image}
                         alt={session.user.name || 'User'}
+                        width={40}
+                        height={40}
                         className="h-10 w-10 rounded-full border border-border"
                       />
                     )}

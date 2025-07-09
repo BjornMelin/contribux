@@ -300,7 +300,7 @@ export const securityTestHandlers: HttpHandler[] = [
       bodyToCheck = JSON.stringify(parsedBody)
 
       // Extract and append individual field values for better detection
-      const extractAndAppend = (obj: any, _parentKey = '') => {
+      const extractAndAppend = (obj: unknown, _parentKey = '') => {
         if (typeof obj === 'string') {
           bodyToCheck += ` ${obj}`
         } else if (typeof obj === 'object' && obj !== null) {

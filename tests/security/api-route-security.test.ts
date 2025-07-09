@@ -290,7 +290,7 @@ const securityServer = setupServer(
       return HttpResponse.json({ error: 'CSRF token required' }, { status: 403 })
     }
 
-    let body
+    let body: unknown
     try {
       body = await request.json()
     } catch {

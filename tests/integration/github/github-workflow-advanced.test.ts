@@ -215,17 +215,11 @@ describe('GitHub Advanced Workflows Integration', () => {
 
       // Step 3: Get detailed info for first repository
       const firstRepo = userRepos.items[0]
-      const detailedRepo = await client.getRepository({
-        owner: firstRepo.owner.login,
-        repo: firstRepo.name,
-      })
+      const detailedRepo = await client.getRepository(firstRepo.owner.login, firstRepo.name)
       expect(detailedRepo.full_name).toBe(firstRepo.full_name)
 
       // Step 4: Get issues for that repository
-      const issues = await client.listIssues(
-        { owner: firstRepo.owner.login, repo: firstRepo.name },
-        { per_page: 3 }
-      )
+      const issues = await client.listIssues(firstRepo.owner.login, firstRepo.name, { per_page: 3 })
       expect(Array.isArray(issues)).toBe(true)
     })
 
@@ -254,10 +248,7 @@ describe('GitHub Advanced Workflows Integration', () => {
       expect(graphqlResult.viewer.login).toBe('testuser')
 
       // REST API for detailed repository info
-      const restResult = await client.getRepository({
-        owner: 'testowner',
-        repo: 'testrepo',
-      })
+      const restResult = await client.getRepository('testowner', 'testrepo')
 
       expect(restResult.owner.login).toBe('testowner')
       expect(restResult.name).toBe('testrepo')
@@ -369,11 +360,11 @@ describe('GitHub Advanced Workflows Integration', () => {
       const repoParams = { owner: 'testowner', repo: 'testrepo' }
 
       // First call
-      const repo1 = await client.getRepository(repoParams)
+      const repo1 = await client.getRepository(repoParams.owner, repoParams.repo)
       expect(repo1.name).toBe('testrepo')
 
       // Second call (should be faster due to caching)
-      const repo2 = await client.getRepository(repoParams)
+      const repo2 = await client.getRepository(repoParams.owner, repoParams.repo)
       expect(repo2.name).toBe(repo1.name)
       expect(repo2.id).toBe(repo1.id)
     })

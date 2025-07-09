@@ -75,7 +75,7 @@ export async function teardownSearchTestContext(context: SearchTestContext): Pro
 
   try {
     // Only attempt cleanup if connection is still valid
-    if (connection && connection.sql) {
+    if (connection?.sql) {
       await cleanupTestData(connection.sql, testIds)
     }
   } catch (error) {
@@ -87,7 +87,7 @@ export async function teardownSearchTestContext(context: SearchTestContext): Pro
 
   try {
     // Let TestDatabaseManager handle connection cleanup
-    if (connection && connection.cleanup) {
+    if (connection?.cleanup) {
       await connection.cleanup()
     }
   } catch (error) {

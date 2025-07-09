@@ -36,13 +36,13 @@ vi.mock('@/lib/db/config', () => ({
 }))
 
 describe('WebAuthn Server Functions', () => {
-  let mockSql: any
+  let mockSql: ReturnType<typeof vi.fn>
 
   beforeEach(async () => {
     vi.clearAllMocks()
     // Get the mocked sql function
     const { sql } = await import('@/lib/db/config')
-    mockSql = sql as any
+    mockSql = sql as ReturnType<typeof vi.fn>
     mockSql.mockResolvedValue([])
   })
 

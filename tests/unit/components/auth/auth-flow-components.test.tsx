@@ -19,6 +19,7 @@ import { SignInButton } from '@/app/auth/signin/signin-button'
 import { LinkedAccounts } from '@/components/auth/LinkedAccounts'
 import { render, screen, waitFor } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
+import type React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   cleanupComponentTest,
@@ -39,13 +40,23 @@ vi.mock('framer-motion', () => ({
       exit,
       transition,
       ...props
-    }: any) => (
+    }: {
+      children?: React.ReactNode
+      className?: string
+      style?: React.CSSProperties
+      whileHover?: unknown
+      animate?: unknown
+      initial?: unknown
+      exit?: unknown
+      transition?: unknown
+      [key: string]: unknown
+    }) => (
       <div className={className} style={style} {...props}>
         {children}
       </div>
     ),
   },
-  AnimatePresence: ({ children }: any) => children,
+  AnimatePresence: ({ children }: { children?: React.ReactNode }) => children,
 }))
 
 // Create mock functions first before using them in vi.mock
@@ -197,7 +208,12 @@ describe('Authentication Flow Components', () => {
       })
 
       // Mock a promise that doesn't resolve immediately
-      mockSignIn.mockImplementation(() => new Promise(() => {}))
+      mockSignIn.mockImplementation(
+        () =>
+          new Promise(() => {
+            /* intentionally empty - creates a pending promise for testing loading states */
+          })
+      )
 
       const user = userEvent.setup()
       render(<SignInButton />)
@@ -491,7 +507,12 @@ describe('Authentication Flow Components', () => {
       })
 
       // Mock slow API response
-      mockFetch.mockImplementation(() => new Promise(() => {}))
+      mockFetch.mockImplementation(
+        () =>
+          new Promise(() => {
+            /* intentionally empty - creates a pending promise for testing loading states */
+          })
+      )
 
       render(<LinkedAccounts userId="test-user-id" />)
 

@@ -4,9 +4,9 @@
  * Implements log retention, filtering, and analysis capabilities
  */
 
-import { z } from 'zod'
 import { randomUUID } from 'node:crypto'
-import { Redis } from '@redis/client'
+import type { RedisClientType } from '@redis/client'
+import { z } from 'zod'
 
 // Audit event types
 export enum AuditEventType {
@@ -17,12 +17,12 @@ export enum AuditEventType {
   AUTH_TOKEN_REFRESH = 'auth.token.refresh',
   AUTH_MFA_SUCCESS = 'auth.mfa.success',
   AUTH_MFA_FAILURE = 'auth.mfa.failure',
-  
+
   // Authorization events
   AUTHZ_SUCCESS = 'authz.success',
   AUTHZ_FAILURE = 'authz.failure',
   AUTHZ_ROLE_CHANGE = 'authz.role.change',
-  
+
   // API access events
   API_ACCESS = 'api.access',
   API_RATE_LIMIT = 'api.rate_limit',
@@ -30,23 +30,23 @@ export enum AuditEventType {
   API_KEY_CREATED = 'api.key.created',
   API_KEY_ROTATED = 'api.key.rotated',
   API_KEY_REVOKED = 'api.key.revoked',
-  
+
   // Security events
   SECURITY_VIOLATION = 'security.violation',
   SECURITY_SCAN = 'security.scan',
   SECURITY_CONFIG_CHANGE = 'security.config.change',
-  
+
   // Data access events
   DATA_ACCESS = 'data.access',
   DATA_MODIFICATION = 'data.modification',
   DATA_EXPORT = 'data.export',
   DATA_DELETION = 'data.deletion',
-  
+
   // Webhook events
   WEBHOOK_RECEIVED = 'webhook.received',
   WEBHOOK_VALIDATED = 'webhook.validated',
   WEBHOOK_FAILED = 'webhook.failed',
-  
+
   // System events
   SYSTEM_START = 'system.start',
   SYSTEM_STOP = 'system.stop',
@@ -69,7 +69,7 @@ export const AuditEventSchema = z.object({
   timestamp: z.date(),
   type: z.nativeEnum(AuditEventType),
   severity: z.nativeEnum(AuditSeverity),
-  
+
   // Actor information
   actor: z.object({
     id: z.string().optional(),
@@ -78,32 +78,49 @@ export const AuditEventSchema = z.object({
     userAgent: z.string().optional(),
     sessionId: z.string().optional(),
   }),
-  
+
   // Target information
-  target: z.object({
-    type: z.string(),
-    id: z.string().optional(),
-    name: z.string().optional(),
-    metadata: z.record(z.unknown()).optional(),
-  }).optional(),
-  
+  target: z
+    .object({
+      type: z.string(),
+      id: z.string().optional(),
+      name: z.string().optional(),
+      metadata: z.record(z.unknown()).optional(),
+    })
+    .optional(),
+
   // Event details
   action: z.string(),
   result: z.enum(['success', 'failure', 'error']),
   reason: z.string().optional(),
-  
+
   // Additional context
   metadata: z.record(z.unknown()).optional(),
-  
+
   // Compliance fields
-  compliance: z.object({
-    regulations: z.array(z.string()).optional(),
-    dataClassification: z.string().optional(),
-    retentionDays: z.number().optional(),
-  }).optional(),
+  compliance: z
+    .object({
+      regulations: z.array(z.string()).optional(),
+      dataClassification: z.string().optional(),
+      retentionDays: z.number().optional(),
+    })
+    .optional(),
 })
 
 export type AuditEvent = z.infer<typeof AuditEventSchema>
+
+// Security metadata type for audit events
+export interface SecurityMetadata {
+  ip: string
+  userAgent: string
+  requestId: string
+  method: string
+  path: string
+  query: Record<string, string>
+  headers: Record<string, string>
+  timestamp: string
+  [key: string]: unknown
+}
 
 // Audit logger configuration
 export interface AuditLoggerConfig {
@@ -112,7 +129,7 @@ export interface AuditLoggerConfig {
   logToFile: boolean
   logToDatabase: boolean
   filePath?: string
-  redisClient?: Redis | null
+  redisClient?: RedisClientType | null
   retentionDays: number
   minSeverity: AuditSeverity
   excludeTypes?: AuditEventType[]
@@ -126,14 +143,14 @@ export interface AuditLoggerConfig {
  */
 export class SecurityAuditLogger {
   private config: AuditLoggerConfig
-  private redis: Redis | null
+  private redis: RedisClientType | null
   private queue: AuditEvent[] = []
   private flushInterval: NodeJS.Timeout | null = null
 
   constructor(config: AuditLoggerConfig) {
     this.config = config
     this.redis = config.redisClient || null
-    
+
     if (this.config.enabled) {
       this.startFlushInterval()
     }
@@ -183,7 +200,12 @@ export class SecurityAuditLogger {
     })
   }
 
-  async logAuthFailure(username: string, method: string, reason: string, ip?: string): Promise<void> {
+  async logAuthFailure(
+    username: string,
+    method: string,
+    reason: string,
+    ip?: string
+  ): Promise<void> {
     await this.log({
       type: AuditEventType.AUTH_FAILURE,
       severity: AuditSeverity.WARNING,
@@ -298,50 +320,90 @@ export class SecurityAuditLogger {
     offset?: number
   }): Promise<AuditEvent[]> {
     if (!this.redis) {
-      console.warn('[AuditLogger] Cannot query logs without Redis connection')
       return []
     }
 
-    // Build query
+    const eventIds = await this.getEventIds(filters)
+    return await this.fetchAndFilterEvents(eventIds, filters)
+  }
+
+  /**
+   * Get event IDs from Redis sorted set
+   */
+  private async getEventIds(filters: {
+    startDate?: Date
+    endDate?: Date
+    limit?: number
+    offset?: number
+  }): Promise<string[]> {
     const key = 'audit:events'
     const start = filters.startDate?.getTime() || 0
     const end = filters.endDate?.getTime() || Date.now()
 
-    // Get events from Redis sorted set
-    const eventIds = await this.redis.zRangeByScore(
-      key,
-      start,
-      end,
-      {
+    return (
+      (await this.redis?.zRangeByScore(key, start, end, {
         LIMIT: {
           offset: filters.offset || 0,
           count: filters.limit || 100,
         },
-      }
+      })) || []
     )
+  }
 
-    // Fetch full events
+  /**
+   * Fetch and filter events from Redis
+   */
+  private async fetchAndFilterEvents(
+    eventIds: string[],
+    filters: {
+      types?: AuditEventType[]
+      severities?: AuditSeverity[]
+      actorId?: string
+      targetId?: string
+    }
+  ): Promise<AuditEvent[]> {
     const events: AuditEvent[] = []
+
     for (const eventId of eventIds) {
-      const data = await this.redis.get(`audit:event:${eventId}`)
-      if (data) {
-        try {
-          const event = JSON.parse(data) as AuditEvent
-          
-          // Apply filters
-          if (filters.types && !filters.types.includes(event.type)) continue
-          if (filters.severities && !filters.severities.includes(event.severity)) continue
-          if (filters.actorId && event.actor.id !== filters.actorId) continue
-          if (filters.targetId && event.target?.id !== filters.targetId) continue
-          
-          events.push(event)
-        } catch (error) {
-          console.error('[AuditLogger] Failed to parse event:', error)
-        }
+      const event = await this.fetchSingleEvent(eventId)
+      if (event && this.eventMatchesFilters(event, filters)) {
+        events.push(event)
       }
     }
 
     return events
+  }
+
+  /**
+   * Fetch a single event from Redis
+   */
+  private async fetchSingleEvent(eventId: string): Promise<AuditEvent | null> {
+    try {
+      const data = await this.redis?.get(`audit:event:${eventId}`)
+      return data ? (JSON.parse(data) as AuditEvent) : null
+    } catch (_error) {
+      // Ignore malformed events from Redis
+      return null
+    }
+  }
+
+  /**
+   * Check if event matches the provided filters
+   */
+  private eventMatchesFilters(
+    event: AuditEvent,
+    filters: {
+      types?: AuditEventType[]
+      severities?: AuditSeverity[]
+      actorId?: string
+      targetId?: string
+    }
+  ): boolean {
+    if (filters.types && !filters.types.includes(event.type)) return false
+    if (filters.severities && !filters.severities.includes(event.severity)) return false
+    if (filters.actorId && event.actor.id !== filters.actorId) return false
+    if (filters.targetId && event.target?.id !== filters.targetId) return false
+    return true
   }
 
   /**
@@ -357,7 +419,7 @@ export class SecurityAuditLogger {
 
     for (const event of events) {
       let key: string
-      
+
       switch (groupBy) {
         case 'type':
           key = event.type
@@ -372,7 +434,7 @@ export class SecurityAuditLogger {
           key = event.timestamp.toISOString().split('T')[0]
           break
       }
-      
+
       report[key] = (report[key] || 0) + 1
     }
 
@@ -391,7 +453,7 @@ export class SecurityAuditLogger {
       [AuditSeverity.ERROR]: 3,
       [AuditSeverity.CRITICAL]: 4,
     }
-    
+
     if (severityLevels[severity] < severityLevels[this.config.minSeverity]) {
       return false
     }
@@ -400,8 +462,8 @@ export class SecurityAuditLogger {
     if (this.config.includeOnlyTypes && !this.config.includeOnlyTypes.includes(type)) {
       return false
     }
-    
-    if (this.config.excludeTypes && this.config.excludeTypes.includes(type)) {
+
+    if (this.config.excludeTypes?.includes(type)) {
       return false
     }
 
@@ -417,20 +479,20 @@ export class SecurityAuditLogger {
     }
 
     const sanitized = JSON.parse(JSON.stringify(event))
-    
+
     // Recursively sanitize fields
-    const sanitizeObject = (obj: any, path: string = '') => {
+    const sanitizeObject = (obj: Record<string, unknown>, path = '') => {
       for (const key in obj) {
         const fullPath = path ? `${path}.${key}` : key
-        
+
         if (this.config.sanitizeFields?.includes(fullPath)) {
           obj[key] = '[REDACTED]'
-        } else if (typeof obj[key] === 'object' && obj[key] !== null) {
-          sanitizeObject(obj[key], fullPath)
+        } else if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
+          sanitizeObject(obj[key] as Record<string, unknown>, fullPath)
         }
       }
     }
-    
+
     sanitizeObject(sanitized)
     return sanitized
   }
@@ -447,7 +509,12 @@ export class SecurityAuditLogger {
     // Log to console
     if (this.config.logToConsole) {
       for (const event of events) {
-        console.log('[AUDIT]', JSON.stringify(event))
+        // biome-ignore lint/suspicious/noConsole: Intentional console logging for audit events when configured
+        console.log(`[AUDIT] ${event.type}: ${event.action}`, {
+          severity: event.severity,
+          actor: event.actor.id,
+          timestamp: event.timestamp.toISOString(),
+        })
       }
     }
 
@@ -455,36 +522,36 @@ export class SecurityAuditLogger {
     if (this.config.logToDatabase && this.redis) {
       try {
         const pipeline = this.redis.multi()
-        
+
         for (const event of events) {
           const eventKey = `audit:event:${event.id}`
           const ttl = (event.compliance?.retentionDays || this.config.retentionDays) * 86400
-          
+
           // Store event
           pipeline.set(eventKey, JSON.stringify(event), { EX: ttl })
-          
+
           // Add to sorted set for querying
           pipeline.zAdd('audit:events', {
             score: event.timestamp.getTime(),
             value: event.id,
           })
-          
+
           // Add to type index
           pipeline.zAdd(`audit:type:${event.type}`, {
             score: event.timestamp.getTime(),
             value: event.id,
           })
-          
+
           // Add to severity index
           pipeline.zAdd(`audit:severity:${event.severity}`, {
             score: event.timestamp.getTime(),
             value: event.id,
           })
         }
-        
+
         await pipeline.exec()
-      } catch (error) {
-        console.error('[AuditLogger] Failed to write to Redis:', error)
+      } catch (_error) {
+        // Redis errors should not break audit logging
       }
     }
   }
@@ -494,8 +561,8 @@ export class SecurityAuditLogger {
    */
   private startFlushInterval(): void {
     this.flushInterval = setInterval(() => {
-      this.flush().catch(error => {
-        console.error('[AuditLogger] Flush error:', error)
+      this.flush().catch(_error => {
+        // Flush errors should not interrupt the interval
       })
     }, 5000) // Flush every 5 seconds
   }
@@ -508,7 +575,7 @@ export class SecurityAuditLogger {
       clearInterval(this.flushInterval)
       this.flushInterval = null
     }
-    
+
     await this.flush()
   }
 }

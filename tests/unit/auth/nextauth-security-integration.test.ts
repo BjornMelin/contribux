@@ -2,6 +2,7 @@
  * @vitest-environment node
  */
 
+import type { Account, User } from 'next-auth'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock Next.js modules first to prevent import issues
@@ -61,6 +62,16 @@ vi.mock('@/lib/validation/env', () => ({
 
 import { authConfig } from '@/lib/auth/index'
 import { sql } from '@/lib/db/config'
+
+// Type definitions for test data
+interface DbUser {
+  id: string
+  email: string
+  name: string
+  github_id?: string
+}
+
+type DbResult<T> = T[]
 
 describe('NextAuth OAuth Security Integration', () => {
   let mockSql: ReturnType<typeof vi.mocked>
@@ -160,14 +171,14 @@ describe('NextAuth OAuth Security Integration', () => {
           name: 'Test User',
           github_id: 'github-123',
         },
-      ] as any)
+      ] as DbResult<DbUser>)
 
       // Test JWT callback
       if (authConfig.callbacks?.jwt) {
         const jwtResult = await authConfig.callbacks.jwt({
           token: mockToken,
           user: mockUser,
-          account: mockToken.account as any,
+          account: mockToken.account as Account,
           profile: undefined,
           trigger: 'signIn',
         })
@@ -285,7 +296,7 @@ describe('NextAuth OAuth Security Integration', () => {
 
     it('should implement token revocation', async () => {
       // Mock database account deletion
-      mockSql.mockResolvedValueOnce([] as any)
+      mockSql.mockResolvedValueOnce([] as DbResult<DbUser>)
 
       // Test account unlinking (token revocation)
       const mockUser = { id: 'user-123', email: 'test@example.com' }
@@ -350,8 +361,8 @@ describe('NextAuth OAuth Security Integration', () => {
       if (authConfig.callbacks?.signIn) {
         // Test with invalid account
         const result = await authConfig.callbacks.signIn({
-          user: null as any,
-          account: null as any,
+          user: null as unknown as User,
+          account: null as unknown as Account,
           profile: undefined,
           email: { verificationRequest: false },
           credentials: undefined,
@@ -372,7 +383,7 @@ describe('NextAuth OAuth Security Integration', () => {
           email: 'test@example.com',
           name: 'Test User',
         },
-      ] as any)
+      ] as DbResult<DbUser>)
 
       if (authConfig.callbacks?.signIn) {
         await authConfig.callbacks.signIn({
@@ -421,7 +432,7 @@ describe('NextAuth OAuth Security Integration', () => {
             email: input.email,
             name: input.name,
           },
-        ] as any)
+        ] as DbResult<DbUser>)
 
         if (authConfig.callbacks?.signIn) {
           const result = await authConfig.callbacks.signIn({

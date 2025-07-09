@@ -123,6 +123,7 @@ export class TestEnvironmentManager {
     }
 
     // Reset timers
+    // biome-ignore lint/correctness/useHookAtTopLevel: vi.useRealTimers is a Vitest method, not a React hook
     vi.useRealTimers()
   }
 

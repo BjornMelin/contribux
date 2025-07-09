@@ -308,7 +308,7 @@ describe('Drizzle Migration Testing Suite', () => {
         preferences: {
           theme: 'dark',
           notifications: true, // Old structure
-        } as any,
+        } as Record<string, unknown>,
       })
 
       // Simulate data migration - restructure preferences
@@ -333,7 +333,7 @@ describe('Drizzle Migration Testing Suite', () => {
         SELECT preferences FROM users WHERE id = ${user.id}
       `
 
-      const prefs = migratedUser[0]?.preferences as any
+      const prefs = migratedUser[0]?.preferences as Record<string, unknown>
       expect(prefs.emailNotifications).toBe(true)
       expect(prefs.notifications).toBeUndefined()
       expect(prefs.theme).toBe('dark')
@@ -403,7 +403,7 @@ describe('Drizzle Migration Testing Suite', () => {
             preferences: {
               theme: 'light',
               oldSetting: `value-${i}`, // Old setting to migrate
-            } as any,
+            } as Record<string, unknown>,
           })
         )
       )

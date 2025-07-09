@@ -35,6 +35,20 @@ interface QueryMetrics {
   timestamp: Date
 }
 
+// Vector search result interface
+interface VectorSearchResult {
+  repository: typeof schema.repositories.$inferSelect
+  similarity: number
+}
+
+// Hybrid search result interface
+interface HybridSearchResult {
+  repository: typeof schema.repositories.$inferSelect
+  textScore: number
+  vectorScore: number
+  hybridScore: number
+}
+
 // Intelligent cache key generator
 function generateCacheKey(queryType: string, params: Record<string, unknown>): string {
   const normalizedParams = Object.keys(params)
@@ -348,7 +362,7 @@ export class OptimizedQueryBuilder {
           .orderBy(desc(sql`1 - (${schema.repositories.embedding} <=> ${embeddingVector}::vector)`))
           .limit(limit)
 
-        return results.map((row: any) => ({
+        return results.map((row: VectorSearchResult) => ({
           ...row.repository,
           similarity: row.similarity,
           metadata: includeMetadata ? row.repository : undefined,
@@ -428,7 +442,7 @@ export class OptimizedQueryBuilder {
           .orderBy(desc(sql`hybrid_score`))
           .limit(limit)
 
-        return results.map((row: any) => ({
+        return results.map((row: HybridSearchResult) => ({
           ...row.repository,
           scores: {
             text: row.textScore,
@@ -472,14 +486,16 @@ export class OptimizedQueryBuilder {
         } = params
 
         // Get user profile for personalization
-        const userProfile = await (db as any).query.users.findFirst({
-          where: eq(schema.users.id, userId),
-          columns: {
-            id: true,
-            preferences: true,
-            profile: true,
-          },
-        })
+        const userProfile = await db
+          .select({
+            id: schema.users.id,
+            preferences: schema.users.preferences,
+            profile: schema.users.profile,
+          })
+          .from(schema.users)
+          .where(eq(schema.users.id, userId))
+          .limit(1)
+          .then(rows => rows[0] || null)
 
         if (!userProfile) {
           throw new Error('User not found')

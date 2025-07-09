@@ -113,7 +113,7 @@ describe('GitHub Basic Workflows Integration', () => {
         auth: { type: 'token', token: 'test_token' },
       })
 
-      const repo = await client.getRepository({ owner: 'testowner', repo: 'testrepo' })
+      const repo = await client.getRepository('testowner', 'testrepo')
 
       expect(repo).toMatchObject({
         name: 'testrepo',
@@ -210,10 +210,7 @@ describe('GitHub Basic Workflows Integration', () => {
         auth: { type: 'token', token: 'test_token' },
       })
 
-      const issues = await client.listIssues(
-        { owner: 'testuser', repo: 'test-repo' },
-        { per_page: 5 }
-      )
+      const issues = await client.listIssues('testuser', 'test-repo', { per_page: 5 })
 
       expect(issues).toHaveLength(2)
       expect(issues[0]).toMatchObject({
@@ -308,7 +305,7 @@ describe('GitHub Basic Workflows Integration', () => {
       // Mix of REST and GraphQL operations
       const operations = [
         client.getAuthenticatedUser(),
-        client.getRepository({ owner: 'testowner', repo: 'testrepo' }),
+        client.getRepository('testowner', 'testrepo'),
         client.graphql('query { viewer { login } }'),
         client.getRateLimit(),
       ]
@@ -342,10 +339,7 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('Real API Basic Workflow Integration', (
 
   describe('End-to-End API Usage', () => {
     it('should get a public repository', async () => {
-      const repo = await client.getRepository({
-        owner: 'microsoft',
-        repo: 'vscode',
-      })
+      const repo = await client.getRepository('microsoft', 'vscode')
 
       expect(repo).toBeDefined()
       expect(repo.name).toBe('vscode')
@@ -395,10 +389,7 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('Real API Basic Workflow Integration', (
   describe('Error Handling Integration', () => {
     it('should handle 404 errors gracefully', async () => {
       await expect(async () => {
-        await client.getRepository({
-          owner: 'nonexistent-user-12345',
-          repo: 'nonexistent-repo-12345',
-        })
+        await client.getRepository('nonexistent-user-12345', 'nonexistent-repo-12345')
       }).rejects.toThrow(GitHubError)
     }, 10000)
   })

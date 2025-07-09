@@ -54,17 +54,20 @@ async function recordMigration(sql, filename, group) {
   `
 }
 
-async function runMigrations() {
+function initializeDatabaseConnection() {
   const databaseUrl = process.env.DATABASE_URL_TEST || process.env.DATABASE_URL
 
   if (!databaseUrl) {
+    // biome-ignore lint/suspicious/noConsole: Development script
+    console.error('No database URL found. Set DATABASE_URL or DATABASE_URL_TEST')
     process.exit(1)
   }
 
-  const sql = neon(databaseUrl)
+  return neon(databaseUrl)
+}
 
-  // Define migration groups
-  const migrationGroups = [
+function getMigrationGroups() {
+  return [
     {
       name: 'Core Schema',
       directory: path.join(__dirname, '../../database/init'),
@@ -76,121 +79,135 @@ async function runMigrations() {
       files: ['add_webauthn_credentials.sql'],
     },
   ]
+}
+
+async function ensureMigrationTable(sql) {
+  await sql`
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      id SERIAL PRIMARY KEY,
+      filename VARCHAR(255) UNIQUE NOT NULL,
+      applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      migration_group VARCHAR(100) DEFAULT 'core'
+    )
+  `
+}
+
+// Helper function to handle missing file scenarios
+function handleMissingFile(group, filename) {
+  if (fs.existsSync(group.directory)) {
+    const files = fs.readdirSync(group.directory)
+    // biome-ignore lint/suspicious/noConsole: Development script
+    console.log(`  ! ${filename} not found. Available files:`, files)
+  } else {
+    // biome-ignore lint/suspicious/noConsole: Development script
+    console.log(`  ! Directory ${group.directory} does not exist`)
+  }
+}
+
+// Helper function to execute single migration file
+async function executeSingleMigration(sql, filename, group) {
+  // Check if already applied
+  if (await isMigrationApplied(sql, filename)) {
+    // biome-ignore lint/suspicious/noConsole: Development script
+    console.log(`  ✓ ${filename} (already applied)`)
+    return
+  }
+
+  const filePath = resolveMigrationPath(group, filename)
+
+  if (!fs.existsSync(filePath)) {
+    handleMissingFile(group, filename)
+    return // Skip missing files instead of failing
+  }
+
+  const content = fs.readFileSync(filePath, 'utf8')
+  await applyMigrationWithErrorHandling(sql, filename, content, group)
+}
+
+// Helper function to apply migration with error handling
+async function applyMigrationWithErrorHandling(sql, filename, content, group) {
+  try {
+    // biome-ignore lint/suspicious/noConsole: Development script
+    console.log(`  → Applying ${filename}...`)
+    await executeMigrationStatements(sql, content)
+    await recordMigration(sql, filename, group)
+    // biome-ignore lint/suspicious/noConsole: Development script
+    console.log(`  ✓ ${filename} applied successfully`)
+  } catch (error) {
+    handleMigrationError(filename, error)
+    throw error
+  }
+}
+
+// Helper function to handle migration errors
+function handleMigrationError(filename, _error) {
+  // For WebAuthn migration, provide helpful context
+  if (filename.includes('webauthn')) {
+    // biome-ignore lint/suspicious/noConsole: Development script
+    console.log('  ! WebAuthn migration failed. This is expected if the table already exists.')
+  }
+}
+
+async function executeMigrationGroups(sql, migrationGroups) {
+  for (const group of migrationGroups) {
+    // biome-ignore lint/suspicious/noConsole: Development script
+    console.log(`\nProcessing ${group.name}...`)
+
+    for (const filename of group.files) {
+      await executeSingleMigration(sql, filename, group)
+    }
+  }
+}
+
+async function verifyMigrationResults(sql) {
+  // biome-ignore lint/suspicious/noConsole: Development script
+  console.log('\nVerifying migration results...')
+
+  const extensions = await sql`
+    SELECT extname FROM pg_extension 
+    WHERE extname IN ('uuid-ossp', 'pgcrypto', 'pg_trgm', 'vector')
+    ORDER BY extname
+  `
+
+  const tables = await sql`
+    SELECT tablename FROM pg_tables 
+    WHERE schemaname = 'public' 
+    AND tablename NOT LIKE 'pg_%'
+    AND tablename != 'schema_migrations'
+    ORDER BY tablename
+  `
+
+  // Check for WebAuthn specific verification
+  const webauthnTable = await sql`
+    SELECT EXISTS (
+      SELECT FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      AND table_name = 'webauthn_credentials'
+    ) as exists
+  `
+
+  // biome-ignore lint/suspicious/noConsole: Development script
+  console.log(`Extensions: ${extensions.map(e => e.extname).join(', ')}`)
+  // biome-ignore lint/suspicious/noConsole: Development script
+  console.log(`Tables: ${tables.map(t => t.tablename).join(', ')}`)
+  // biome-ignore lint/suspicious/noConsole: Development script
+  console.log(`WebAuthn support: ${webauthnTable[0]?.exists ? 'enabled' : 'disabled'}`)
+}
+
+async function runMigrations() {
+  const sql = initializeDatabaseConnection()
+  const migrationGroups = getMigrationGroups()
 
   try {
-    // Create migrations tracking table
-    await sql`
-      CREATE TABLE IF NOT EXISTS schema_migrations (
-        id SERIAL PRIMARY KEY,
-        filename VARCHAR(255) UNIQUE NOT NULL,
-        applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        migration_group VARCHAR(100) DEFAULT 'core'
-      )
-    `
+    await ensureMigrationTable(sql)
+    await executeMigrationGroups(sql, migrationGroups)
+    await verifyMigrationResults(sql)
 
-    // Run migrations by group
-    for (const group of migrationGroups) {
-      for (const filename of group.files) {
-        // Check if already applied
-        if (await isMigrationApplied(sql, filename)) {
-          continue
-        }
-
-        const filePath = resolveMigrationPath(group, filename)
-
-        if (!fs.existsSync(filePath)) {
-          if (fs.existsSync(group.directory)) {
-            const files = fs.readdirSync(group.directory)
-            files.forEach(_file => {
-              // File found in directory
-            })
-          } else {
-            // Directory does not exist
-          }
-          continue // Skip missing files instead of failing
-        }
-
-        const content = fs.readFileSync(filePath, 'utf8')
-
-        try {
-          await executeMigrationStatements(sql, content)
-          await recordMigration(sql, filename, group)
-        } catch (error) {
-          // For WebAuthn migration, provide helpful context
-          if (filename.includes('webauthn')) {
-            // Handle WebAuthn migration error
-          }
-
-          throw error
-        }
-      }
-    }
-
-    const _extensions = await sql`
-      SELECT extname FROM pg_extension 
-      WHERE extname IN ('uuid-ossp', 'pgcrypto', 'pg_trgm', 'vector')
-      ORDER BY extname
-    `
-
-    const _tables = await sql`
-      SELECT tablename FROM pg_tables 
-      WHERE schemaname = 'public' 
-      AND tablename NOT LIKE 'pg_%'
-      AND tablename != 'schema_migrations'
-      ORDER BY tablename
-    `
-
-    // Check for WebAuthn specific verification
-    const webauthnTable = await sql`
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE table_schema = 'public' 
-        AND table_name = 'webauthn_credentials'
-      ) as exists
-    `
-
-    if (webauthnTable[0].exists) {
-      // Check WebAuthn table structure
-      const _webauthnColumns = await sql`
-        SELECT column_name FROM information_schema.columns
-        WHERE table_schema = 'public' AND table_name = 'webauthn_credentials'
-        ORDER BY ordinal_position
-      `
-
-      // Check foreign key
-      const foreignKeys = await sql`
-        SELECT 
-          tc.constraint_name,
-          kcu.column_name,
-          ccu.table_name AS foreign_table_name
-        FROM information_schema.table_constraints AS tc 
-        JOIN information_schema.key_column_usage AS kcu
-          ON tc.constraint_name = kcu.constraint_name
-        JOIN information_schema.constraint_column_usage AS ccu
-          ON ccu.constraint_name = tc.constraint_name
-        WHERE tc.constraint_type = 'FOREIGN KEY'
-        AND tc.table_name = 'webauthn_credentials'
-      `
-
-      if (foreignKeys.length > 0) {
-        // Foreign keys found
-      } else {
-        // No foreign keys found
-      }
-    } else {
-      // WebAuthn credentials table not found
-    }
-    const appliedMigrations = await sql`
-      SELECT filename, migration_group, applied_at 
-      FROM schema_migrations 
-      ORDER BY applied_at DESC 
-      LIMIT 10
-    `
-
-    appliedMigrations.forEach(_m => {
-      // Track applied migration
-    })
-  } catch (_error) {
+    // biome-ignore lint/suspicious/noConsole: Development script
+    console.log('\nMigrations completed successfully!')
+  } catch (error) {
+    // biome-ignore lint/suspicious/noConsole: Development script
+    console.error('Migration failed:', error.message)
     process.exit(1)
   }
 }
@@ -225,9 +242,8 @@ async function checkMigrationStatus() {
       FROM schema_migrations 
       ORDER BY applied_at ASC
     `
-    appliedMigrations.forEach(_m => {
-      // Track applied migration
-    })
+    // Track applied migrations count
+    const _appliedCount = appliedMigrations.length
 
     // Check for pending migrations
     const allMigrationFiles = [
@@ -241,12 +257,15 @@ async function checkMigrationStatus() {
     const appliedFileNames = appliedMigrations.map(m => m.filename)
     const pendingMigrations = allMigrationFiles.filter(f => !appliedFileNames.includes(f))
 
-    if (pendingMigrations.length > 0) {
-      pendingMigrations.forEach(_f => {
-        // Track pending migration
-      })
+    const pendingCount = pendingMigrations.length
+
+    // Log migration status
+    if (pendingCount > 0) {
+      // biome-ignore lint/suspicious/noConsole: Development script
+      console.log(`  ${pendingCount} pending migrations found`)
     } else {
-      // No pending migrations
+      // biome-ignore lint/suspicious/noConsole: Development script
+      console.log('  All migrations up to date')
     }
     const tables = await sql`
       SELECT tablename FROM pg_tables 
@@ -256,7 +275,11 @@ async function checkMigrationStatus() {
     `
 
     // WebAuthn specific check
-    const _webauthnExists = tables.some(t => t.tablename === 'webauthn_credentials')
+    const webauthnExists = tables.some(t => t.tablename === 'webauthn_credentials')
+    if (webauthnExists) {
+      // biome-ignore lint/suspicious/noConsole: Development script
+      console.log('  WebAuthn support enabled')
+    }
   } catch (_error) {
     process.exit(1)
   }

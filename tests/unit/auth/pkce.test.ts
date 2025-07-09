@@ -1,10 +1,10 @@
 import {
-  generatePKCEChallenge,
-  generateCodeChallenge,
-  verifyPKCEChallenge,
-  validatePKCESecure,
   calculateEntropy,
+  generateCodeChallenge,
   generateEnhancedPKCEChallenge,
+  generatePKCEChallenge,
+  validatePKCESecure,
+  verifyPKCEChallenge,
 } from '@/lib/auth/pkce'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -190,8 +190,11 @@ describe('PKCE (Proof Key for Code Exchange)', () => {
     })
 
     it('should handle validation errors securely', async () => {
+      // Type for intentionally malformed test inputs
+      type MalformedPKCEInput = string | null
+
       // Test with malformed inputs
-      const testCases = [
+      const testCases: { verifier: MalformedPKCEInput; challenge: MalformedPKCEInput }[] = [
         { verifier: '', challenge: 'valid-challenge' },
         { verifier: 'valid-verifier', challenge: '' },
         { verifier: null, challenge: 'valid-challenge' },
@@ -201,8 +204,8 @@ describe('PKCE (Proof Key for Code Exchange)', () => {
       for (const testCase of testCases) {
         try {
           const result = await validatePKCESecure(
-            testCase.verifier as any,
-            testCase.challenge as any
+            testCase.verifier as string,
+            testCase.challenge as string
           )
           expect(result.valid).toBe(false)
         } catch (error) {

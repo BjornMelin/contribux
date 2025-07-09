@@ -41,7 +41,7 @@ export type ApiEndpoint<
 // Dynamic route generation with parameter extraction
 type ExtractParams<T extends string> = T extends `${string}[${infer P}]${infer Rest}`
   ? { [K in P]: string } & ExtractParams<Rest>
-  : {}
+  : Record<string, never>
 
 export type RouteParams<T extends string> = ExtractParams<T>
 
@@ -91,7 +91,7 @@ export type Compose<F extends readonly ((...args: unknown[]) => unknown)[]> = F 
 // Deep readonly with recursion
 export type DeepReadonly<T> = {
   readonly [P in keyof T]: T[P] extends object
-    ? T[P] extends Function
+    ? T[P] extends (...args: unknown[]) => unknown
       ? T[P]
       : DeepReadonly<T[P]>
     : T[P]
@@ -107,7 +107,7 @@ export type MapValues<T, U> = {
 
 // Extract function names from object
 export type FunctionKeys<T> = {
-  [K in keyof T]: T[K] extends Function ? K : never
+  [K in keyof T]: T[K] extends (...args: unknown[]) => unknown ? K : never
 }[keyof T]
 
 // =============================================================================

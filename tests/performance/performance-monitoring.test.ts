@@ -33,7 +33,7 @@ interface PerformanceMetric {
   value: number
   threshold: number
   timestamp: Date
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 interface PerformanceBaseline {
@@ -55,7 +55,7 @@ interface PerformanceAlert {
   severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
   message: string
   timestamp: Date
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 interface PerformanceReport {
@@ -805,6 +805,5 @@ describe('Performance Monitoring & Alerting', () => {
   })
 })
 
-// Export monitoring utilities for integration
-export { PerformanceMonitor, MONITORING_CONFIG, PERFORMANCE_CATEGORIES }
-export type { PerformanceMetric, PerformanceBaseline, PerformanceAlert, PerformanceReport }
+// Monitoring utilities for integration testing
+// Note: Exports removed to comply with noExportsInTest lint rule

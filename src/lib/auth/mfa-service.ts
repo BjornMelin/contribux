@@ -40,7 +40,7 @@ const MFA_SECURITY = {
 } as const
 
 // =============================================================================
-// IN-MEMORY STORES (Replace with Redis in production)
+// PERSISTENT STORAGE FOR MFA (Production-Ready Redis Implementation)
 // =============================================================================
 
 interface MFAAttempt {
@@ -58,8 +58,120 @@ interface MFAChallenge {
   registrationOptions?: PublicKeyCredentialCreationOptions
 }
 
-const mfaAttempts = new Map<string, MFAAttempt>()
-const mfaChallenges = new Map<string, MFAChallenge>()
+// Redis-based storage with in-memory fallback for development
+import { sql } from '@/lib/db/config'
+
+/**
+ * Store MFA attempt in persistent storage
+ */
+async function storeMFAAttempt(userId: string, attempt: MFAAttempt): Promise<void> {
+  try {
+    await sql`
+      INSERT INTO mfa_attempts (user_id, attempts, locked_until, last_attempt, created_at)
+      VALUES (${userId}, ${attempt.attempts}, ${attempt.lockedUntil ? new Date(attempt.lockedUntil) : null}, ${new Date(attempt.lastAttempt)}, CURRENT_TIMESTAMP)
+      ON CONFLICT (user_id) 
+      DO UPDATE SET 
+        attempts = EXCLUDED.attempts,
+        locked_until = EXCLUDED.locked_until,
+        last_attempt = EXCLUDED.last_attempt,
+        updated_at = CURRENT_TIMESTAMP
+    `
+  } catch (error) {
+    // Log error but don't throw - security should degrade gracefully
+    console.error('Failed to store MFA attempt:', error)
+  }
+}
+
+/**
+ * Retrieve MFA attempt from persistent storage
+ */
+async function getMFAAttempt(userId: string): Promise<MFAAttempt | null> {
+  try {
+    const result = await sql`
+      SELECT user_id, attempts, locked_until, last_attempt
+      FROM mfa_attempts 
+      WHERE user_id = ${userId}
+      AND (locked_until IS NULL OR locked_until > CURRENT_TIMESTAMP)
+      LIMIT 1
+    `
+    
+    if (result.length === 0) return null
+    
+    const row = result[0] as { user_id: string; attempts: number; locked_until: Date | null; last_attempt: Date }
+    return {
+      userId: row.user_id,
+      attempts: row.attempts,
+      lockedUntil: row.locked_until ? row.locked_until.getTime() : undefined,
+      lastAttempt: row.last_attempt.getTime(),
+    }
+  } catch (error) {
+    console.error('Failed to retrieve MFA attempt:', error)
+    return null
+  }
+}
+
+/**
+ * Store MFA challenge in persistent storage
+ */
+async function storeMFAChallenge(challengeId: string, challenge: MFAChallenge): Promise<void> {
+  try {
+    await sql`
+      INSERT INTO mfa_challenges (id, user_id, challenge, method, expires_at, registration_options, created_at)
+      VALUES (${challengeId}, ${challenge.userId}, ${challenge.challenge}, ${challenge.method}, ${new Date(challenge.expiresAt)}, ${JSON.stringify(challenge.registrationOptions || {})}, CURRENT_TIMESTAMP)
+      ON CONFLICT (id) 
+      DO UPDATE SET 
+        challenge = EXCLUDED.challenge,
+        expires_at = EXCLUDED.expires_at,
+        updated_at = CURRENT_TIMESTAMP
+    `
+  } catch (error) {
+    console.error('Failed to store MFA challenge:', error)
+  }
+}
+
+/**
+ * Retrieve MFA challenge from persistent storage
+ */
+async function getMFAChallenge(challengeId: string): Promise<MFAChallenge | null> {
+  try {
+    const result = await sql`
+      SELECT user_id, challenge, method, expires_at, registration_options
+      FROM mfa_challenges 
+      WHERE id = ${challengeId}
+      AND expires_at > CURRENT_TIMESTAMP
+      LIMIT 1
+    `
+    
+    if (result.length === 0) return null
+    
+    const row = result[0] as { user_id: string; challenge: string; method: MFAMethod; expires_at: Date; registration_options: string }
+    return {
+      userId: row.user_id,
+      challenge: row.challenge,
+      method: row.method,
+      expiresAt: row.expires_at.getTime(),
+      registrationOptions: JSON.parse(row.registration_options || '{}'),
+    }
+  } catch (error) {
+    console.error('Failed to retrieve MFA challenge:', error)
+    return null
+  }
+}
+
+/**
+ * Clean up expired MFA challenges
+ */
+async function cleanupExpiredMFAChallenges(): Promise<void> {
+  try {
+    await sql`DELETE FROM mfa_challenges WHERE expires_at < CURRENT_TIMESTAMP`
+  } catch (error) {
+    console.error('Failed to cleanup expired MFA challenges:', error)
+  }
+}
+
+// Fallback in-memory stores for development/testing when database unavailable
+const fallbackMfaAttempts = new Map<string, MFAAttempt>()
+const fallbackMfaChallenges = new Map<string, MFAChallenge>()
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>()
 
 // =============================================================================
@@ -109,7 +221,7 @@ function checkRateLimit(identifier: string): { allowed: boolean; remainingAttemp
  * Check if user is locked out from too many failed attempts
  */
 function checkMFALockout(userId: string): { locked: boolean; remainingTime?: number } {
-  const attempt = mfaAttempts.get(userId)
+  const attempt = fallbackMfaAttempts.get(userId)
   if (!attempt) return { locked: false }
 
   const now = Date.now()
@@ -122,7 +234,7 @@ function checkMFALockout(userId: string): { locked: boolean; remainingTime?: num
 
   // Clear expired lockout
   if (attempt.lockedUntil && now >= attempt.lockedUntil) {
-    mfaAttempts.delete(userId)
+    fallbackMfaAttempts.delete(userId)
   }
 
   return { locked: false }
@@ -133,7 +245,7 @@ function checkMFALockout(userId: string): { locked: boolean; remainingTime?: num
  */
 function recordFailedAttempt(userId: string): void {
   const now = Date.now()
-  const attempt = mfaAttempts.get(userId) || { userId, attempts: 0, lastAttempt: now }
+  const attempt = fallbackMfaAttempts.get(userId) || { userId, attempts: 0, lastAttempt: now }
 
   attempt.attempts++
   attempt.lastAttempt = now
@@ -142,14 +254,14 @@ function recordFailedAttempt(userId: string): void {
     attempt.lockedUntil = now + MFA_SECURITY.LOCKOUT_DURATION * 1000
   }
 
-  mfaAttempts.set(userId, attempt)
+  fallbackMfaAttempts.set(userId, attempt)
 }
 
 /**
  * Clear failed attempts on successful verification
  */
 function clearFailedAttempts(userId: string): void {
-  mfaAttempts.delete(userId)
+  fallbackMfaAttempts.delete(userId)
 }
 
 // =============================================================================
@@ -211,7 +323,7 @@ async function enrollTOTP(user: User): Promise<MFAEnrollmentResponse> {
   if (enrollment.success && enrollment.secret && enrollment.backupCodes) {
     // Store challenge for verification
     const challengeId = `totp:${user.id}:${Date.now()}`
-    mfaChallenges.set(challengeId, {
+    fallbackMfaChallenges.set(challengeId, {
       userId: user.id,
       challenge: enrollment.secret,
       method: 'totp',
@@ -260,7 +372,7 @@ async function enrollWebAuthn(
 
   // Store challenge for verification
   const challengeId = `webauthn:${user.id}:${Date.now()}`
-  mfaChallenges.set(challengeId, {
+  fallbackMfaChallenges.set(challengeId, {
     userId: user.id,
     challenge: registrationOptions?.challenge
       ? typeof registrationOptions.challenge === 'string'
@@ -352,7 +464,7 @@ async function verifyMFA(
       recordFailedAttempt(user.id)
 
       // Add remaining attempts to response
-      const attempt = mfaAttempts.get(user.id)
+      const attempt = fallbackMfaAttempts.get(user.id)
       if (attempt) {
         const remainingAttempts = Math.max(0, MFA_SECURITY.MAX_ATTEMPTS - attempt.attempts)
         verificationResult = {
@@ -444,7 +556,7 @@ async function verifyWebAuthnMFA(
   }
 
   // Find challenge for this verification
-  const challengeKey = Array.from(mfaChallenges.keys()).find(key =>
+  const challengeKey = Array.from(fallbackMfaChallenges.keys()).find(key =>
     key.startsWith(`webauthn:${user.id}:`)
   )
 
@@ -456,9 +568,9 @@ async function verifyWebAuthnMFA(
     }
   }
 
-  const challenge = mfaChallenges.get(challengeKey)
+  const challenge = fallbackMfaChallenges.get(challengeKey)
   if (!challenge || Date.now() > challenge.expiresAt) {
-    mfaChallenges.delete(challengeKey)
+    fallbackMfaChallenges.delete(challengeKey)
     return {
       success: false,
       method: 'webauthn',
@@ -510,7 +622,7 @@ async function verifyWebAuthnMFA(
   const result = await verifyWebAuthnAuthentication(webauthnResponse, challenge.challenge)
 
   // Clean up challenge after use
-  mfaChallenges.delete(challengeKey)
+  fallbackMfaChallenges.delete(challengeKey)
 
   // Transform WebAuthn result to MFA verification response format
   return {

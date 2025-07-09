@@ -2,10 +2,41 @@ import { oauthConfig } from '@/lib/config/oauth'
 import { sql } from '@/lib/db/config'
 import { env } from '@/lib/validation/env'
 import type { OAuthCallbackParams, OAuthTokens, User } from '@/types/auth'
+import { brandAsEmail, brandAsGitHubUsername, brandAsUUID } from '@/types/base'
 import { z } from 'zod'
 import { logSecurityEvent } from './audit'
 import { decryptOAuthToken, encryptOAuthToken } from './crypto'
 import { generateEnhancedPKCEChallenge, validatePKCESecure } from './pkce'
+
+// Database query result interfaces
+interface CountResult {
+  count: number
+}
+
+interface UserResult {
+  id: string
+  email: string
+  name: string | null
+  avatar_url: string | null
+  github_id: number
+  github_username: string
+  is_verified: boolean
+  created_at: Date
+  updated_at: Date
+}
+
+interface AccountResult {
+  id: string
+  user_id: string
+  provider: string
+  provider_account_id: string
+  access_token: string | null
+  refresh_token: string | null
+  expires_at: Date | null
+  token_type: string | null
+  scope: string | null
+  id_token: string | null
+}
 
 // OAuth configuration
 const GITHUB_AUTH_URL = 'https://github.com/login/oauth/authorize'
@@ -785,7 +816,7 @@ export async function detectOAuthAttack(
     AND created_at > NOW() - INTERVAL '5 minutes'
   `
 
-  if ((recentAttempts as any[])[0]?.count > 10) {
+  if ((recentAttempts as CountResult[])[0]?.count > 10) {
     patterns.push('rapid_succession_attempts')
     riskLevel = 'high'
   }
@@ -799,7 +830,7 @@ export async function detectOAuthAttack(
     AND created_at > NOW() - INTERVAL '1 hour'
   `
 
-  if ((invalidStateAttempts as any[])[0]?.count > 5) {
+  if ((invalidStateAttempts as CountResult[])[0]?.count > 5) {
     patterns.push('invalid_state_patterns')
     // Escalate to high risk level
     riskLevel = 'high'
@@ -983,6 +1014,22 @@ async function fetchGitHubUserProfile(accessToken: string): Promise<GitHubUserPr
   return await userResponse.json()
 }
 
+// Helper function to convert UserResult to User
+function convertUserResultToUser(userResult: UserResult): User {
+  return {
+    id: brandAsUUID(userResult.id),
+    email: brandAsEmail(userResult.email),
+    displayName: userResult.name || userResult.github_username,
+    username: userResult.github_username,
+    githubUsername: brandAsGitHubUsername(userResult.github_username),
+    emailVerified: userResult.is_verified,
+    twoFactorEnabled: false, // Default value - update based on your requirements
+    failedLoginAttempts: 0, // Default value - update based on your requirements
+    createdAt: userResult.created_at,
+    updatedAt: userResult.updated_at,
+  }
+}
+
 // Helper function to find existing user or create new one
 async function findOrCreateUser(githubUser: GitHubUserProfile): Promise<User> {
   const userResult = await sql`
@@ -992,16 +1039,16 @@ async function findOrCreateUser(githubUser: GitHubUserProfile): Promise<User> {
     LIMIT 1
   `
 
-  if ((userResult as any[]).length === 0) {
+  if ((userResult as UserResult[]).length === 0) {
     return await createNewUser(githubUser)
   }
 
-  const existingUser = (userResult as any[])[0]
+  const existingUser = (userResult as UserResult[])[0]
   if (!existingUser) {
     throw new Error('User data not found')
   }
 
-  return existingUser as User
+  return convertUserResultToUser(existingUser)
 }
 
 // Helper function to create a new user
@@ -1021,12 +1068,12 @@ async function createNewUser(githubUser: GitHubUserProfile): Promise<User> {
     RETURNING *
   `
 
-  const newUser = (newUserResult as any[])[0]
+  const newUser = (newUserResult as UserResult[])[0]
   if (!newUser) {
     throw new Error('Failed to create user')
   }
 
-  return newUser as User
+  return convertUserResultToUser(newUser)
 }
 
 // Helper function to store OAuth account with encrypted tokens
@@ -1097,14 +1144,19 @@ export async function refreshOAuthTokens(params: {
     LIMIT 1
   `
 
-  if ((accountResult as any[]).length === 0) {
+  if ((accountResult as AccountResult[]).length === 0) {
     throw new Error('No refresh token available')
   }
 
-  const account = (accountResult as any[])[0]
+  const account = (accountResult as AccountResult[])[0]
   if (!account) {
     throw new Error('OAuth account not found')
   }
+
+  if (!account.refresh_token) {
+    throw new Error('No refresh token available for this account')
+  }
+
   const refreshToken = await decryptOAuthToken(
     account.refresh_token,
     params.userId,
@@ -1170,7 +1222,7 @@ export async function unlinkOAuthAccount(params: {
     LIMIT 1
   `
 
-  if ((accountResult as any[]).length === 0) {
+  if ((accountResult as AccountResult[]).length === 0) {
     throw new Error('OAuth account not found')
   }
 
@@ -1182,7 +1234,7 @@ export async function unlinkOAuthAccount(params: {
     AND provider != ${params.provider}
   `
 
-  const otherOAuthCount = Number((otherOAuthCountResult as any[])[0]?.count || 0)
+  const otherOAuthCount = Number((otherOAuthCountResult as CountResult[])[0]?.count || 0)
 
   if (otherOAuthCount === 0) {
     throw new Error('Cannot unlink last authentication method')

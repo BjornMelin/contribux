@@ -39,10 +39,32 @@ const LOAD_PARAMS = {
   STRESS_CONCURRENT_QUERIES: 100,
 }
 
+interface PostgreSQLExecutionPlan {
+  Plan: {
+    'Node Type': string
+    'Relation Name'?: string
+    'Startup Cost': number
+    'Total Cost': number
+    'Plan Rows': number
+    'Plan Width': number
+    'Actual Startup Time'?: number
+    'Actual Total Time'?: number
+    'Actual Rows'?: number
+    'Actual Loops'?: number
+    Plans?: PostgreSQLExecutionPlan[]
+  }
+  'Planning Time'?: number
+  'Execution Time'?: number
+  'Trigger Name'?: string
+  Relation?: string
+  Time?: number
+  Calls?: number
+}
+
 interface QueryPerformanceMetrics {
   duration: number
   rowsAffected?: number
-  queryPlan?: any
+  queryPlan?: PostgreSQLExecutionPlan
   cacheHit?: boolean
 }
 
@@ -527,11 +549,12 @@ describe('Database Performance Testing', () => {
         SELECT * FROM users WHERE primary_provider = 'github' LIMIT 10
       `)
 
-      const plan = explainResult[0] as any
-      console.log('📈 Query execution plan:', JSON.stringify(plan, null, 2))
+      const plan = explainResult[0] as { explain: PostgreSQLExecutionPlan[] }
+      const executionPlan = plan.explain[0]
+      console.log('📈 Query execution plan:', JSON.stringify(executionPlan, null, 2))
 
       // Check that the query doesn't do a full table scan for indexed columns
-      const planText = JSON.stringify(plan)
+      const planText = JSON.stringify(executionPlan)
       expect(planText).not.toMatch(/Seq Scan/)
     })
 
@@ -546,11 +569,12 @@ describe('Database Performance Testing', () => {
         LIMIT 20
       `)
 
-      const plan = explainResult[0] as any
-      console.log('🔗 JOIN query execution plan:', JSON.stringify(plan, null, 2))
+      const plan = explainResult[0] as { explain: PostgreSQLExecutionPlan[] }
+      const executionPlan = plan.explain[0]
+      console.log('🔗 JOIN query execution plan:', JSON.stringify(executionPlan, null, 2))
 
       // Ensure the query completes in reasonable time
-      const executionTime = plan?.['Execution Time'] || 0
+      const executionTime = executionPlan?.['Execution Time'] || 0
       expect(executionTime).toBeLessThan(DB_PERFORMANCE_THRESHOLDS.COMPLEX_QUERY)
     })
   })

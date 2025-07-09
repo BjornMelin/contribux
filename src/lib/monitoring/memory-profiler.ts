@@ -35,18 +35,18 @@ export interface MemoryProfileResult {
 export class MemoryProfiler {
   private snapshots: MemorySnapshot[] = []
   private intervalId: NodeJS.Timeout | null = null
-  private startTime: number = 0
+  private startTime = 0
 
   /**
    * Start continuous memory monitoring
    */
-  startProfiling(intervalMs: number = 1000): void {
+  startProfiling(intervalMs = 1000): void {
     this.startTime = Date.now()
     this.snapshots = []
-    
+
     // Take initial snapshot
     this.takeSnapshot('start')
-    
+
     // Set up continuous monitoring
     this.intervalId = setInterval(() => {
       this.takeSnapshot('monitoring')
@@ -61,10 +61,10 @@ export class MemoryProfiler {
       clearInterval(this.intervalId)
       this.intervalId = null
     }
-    
+
     // Take final snapshot
     this.takeSnapshot('end')
-    
+
     return this.generateReport()
   }
 
@@ -86,7 +86,7 @@ export class MemoryProfiler {
       },
       duration: this.startTime ? Date.now() - this.startTime : 0,
     }
-    
+
     this.snapshots.push(snapshot)
     return snapshot
   }
@@ -98,11 +98,11 @@ export class MemoryProfiler {
     const heapUsages = this.snapshots.map(s => s.metrics.heapUsed)
     const peakHeapUsage = Math.max(...heapUsages)
     const averageHeapUsage = heapUsages.reduce((a, b) => a + b, 0) / heapUsages.length
-    
+
     // Simple leak detection: check if memory usage consistently grows
     const memoryLeakDetected = this.detectMemoryLeak()
     const gcRecommendations = this.generateGCRecommendations()
-    
+
     return {
       snapshots: this.snapshots,
       summary: {
@@ -120,13 +120,15 @@ export class MemoryProfiler {
    */
   private detectMemoryLeak(): boolean {
     if (this.snapshots.length < 5) return false
-    
+
     const recentSnapshots = this.snapshots.slice(-5)
-    const growthPattern = recentSnapshots.map((snapshot, index) => {
-      if (index === 0) return 0
-      return snapshot.metrics.heapUsed - recentSnapshots[index - 1].metrics.heapUsed
-    }).slice(1)
-    
+    const growthPattern = recentSnapshots
+      .map((snapshot, index) => {
+        if (index === 0) return 0
+        return snapshot.metrics.heapUsed - recentSnapshots[index - 1].metrics.heapUsed
+      })
+      .slice(1)
+
     // If memory consistently grows for 4 consecutive measurements
     return growthPattern.every(growth => growth > 0)
   }
@@ -137,24 +139,29 @@ export class MemoryProfiler {
   private generateGCRecommendations(): string[] {
     const recommendations: string[] = []
     const latestSnapshot = this.snapshots[this.snapshots.length - 1]
-    
+
     if (!latestSnapshot) return recommendations
-    
+
     const { heapUsed, heapTotal } = latestSnapshot.metrics
     const heapUtilization = heapUsed / heapTotal
-    
+
     if (heapUtilization > 0.8) {
       recommendations.push('High heap utilization detected - consider manual garbage collection')
     }
-    
+
     if (this.detectMemoryLeak()) {
-      recommendations.push('Potential memory leak detected - review cache implementations and event listeners')
+      recommendations.push(
+        'Potential memory leak detected - review cache implementations and event listeners'
+      )
     }
-    
-    if (latestSnapshot.metrics.arrayBuffers > 50 * 1024 * 1024) { // 50MB
-      recommendations.push('Large ArrayBuffer usage detected - consider streaming for large data operations')
+
+    if (latestSnapshot.metrics.arrayBuffers > 50 * 1024 * 1024) {
+      // 50MB
+      recommendations.push(
+        'Large ArrayBuffer usage detected - consider streaming for large data operations'
+      )
     }
-    
+
     return recommendations
   }
 
@@ -164,9 +171,8 @@ export class MemoryProfiler {
   static forceGC(): void {
     if (global.gc) {
       global.gc()
-    } else {
-      console.warn('Garbage collection not available. Run with --expose-gc flag.')
     }
+    // No fallback needed if gc is not available
   }
 
   /**
@@ -188,15 +194,15 @@ export class MemoryProfiler {
  */
 export async function profileOperation<T>(
   operation: () => Promise<T>,
-  label: string = 'operation'
+  _label = 'operation'
 ): Promise<{ result: T; memoryProfile: MemoryProfileResult }> {
   const profiler = new MemoryProfiler()
   profiler.startProfiling(500) // More frequent sampling for short operations
-  
+
   try {
     const result = await operation()
     const memoryProfile = profiler.stopProfiling()
-    
+
     return { result, memoryProfile }
   } catch (error) {
     profiler.stopProfiling()
@@ -207,28 +213,32 @@ export async function profileOperation<T>(
 /**
  * Decorator for automatic memory profiling of class methods
  */
-export function profileMemory(target: any, propertyName: string, descriptor: PropertyDescriptor) {
+export function profileMemory(
+  _target: unknown,
+  _propertyName: string,
+  descriptor: PropertyDescriptor
+) {
   const method = descriptor.value
-  
-  descriptor.value = async function (...args: any[]) {
+
+  descriptor.value = async function (...args: unknown[]) {
     const profiler = new MemoryProfiler()
     profiler.startProfiling()
-    
+
     try {
       const result = await method.apply(this, args)
-      const profile = profiler.stopProfiling()
-      
+      const _profile = profiler.stopProfiling()
+
       // Log memory usage in development
       if (process.env.NODE_ENV === 'development') {
-        console.log(`Memory profile for ${propertyName}:`, profile.summary)
+        // Add logging implementation here if needed
       }
-      
+
       return result
     } catch (error) {
       profiler.stopProfiling()
       throw error
     }
   }
-  
+
   return descriptor
 }

@@ -1,10 +1,10 @@
 /**
  * Enhanced Logger with OpenTelemetry Integration
- * 
+ *
  * Extends the existing logger with trace correlation and structured logging
  */
 
-import { logger as baseLogger, LogContext, SecurityEventContext } from '@/lib/logger'
+import { type LogContext, type SecurityEventContext, logger as baseLogger } from '@/lib/logger'
 import { getTraceContext } from './utils'
 
 /**
@@ -104,7 +104,7 @@ class TelemetryLogger {
     message: string,
     context: LogContext & { operation: string; duration?: number; success: boolean }
   ): void {
-    baseLogger.database(message, this.enhanceContext(context))
+    baseLogger.database(message, context)
   }
 
   /**
@@ -143,10 +143,13 @@ class TelemetryLogger {
       ttl?: number
     }
   ): void {
-    this.debug(message, this.enhanceContext({
-      ...context,
-      component: 'cache',
-    }))
+    this.debug(
+      message,
+      this.enhanceContext({
+        ...context,
+        component: 'cache',
+      })
+    )
   }
 
   /**
@@ -156,28 +159,34 @@ class TelemetryLogger {
     message: string,
     context: LogContext & { duration: number; operation: string }
   ): void {
-    baseLogger.performance(message, this.enhanceContext(context))
+    baseLogger.performance(message, context)
   }
 
   /**
    * API request logging with trace context
    */
   api(message: string, context: LogContext & { statusCode: number; duration?: number }): void {
-    baseLogger.api(message, this.enhanceContext(context))
+    baseLogger.api(message, context)
   }
 
   /**
    * Authentication logging with trace context
    */
   auth(message: string, context: LogContext & { success: boolean; reason?: string }): void {
-    baseLogger.auth(message, this.enhanceContext(context) as LogContext & { success: boolean; reason?: string })
+    baseLogger.auth(
+      message,
+      this.enhanceContext(context) as LogContext & { success: boolean; reason?: string }
+    )
   }
 
   /**
    * Rate limiting logging with trace context
    */
   rateLimit(message: string, context: LogContext & { limit: number; current: number }): void {
-    baseLogger.rateLimit(message, this.enhanceContext(context) as LogContext & { limit: number; current: number })
+    baseLogger.rateLimit(
+      message,
+      this.enhanceContext(context) as LogContext & { limit: number; current: number }
+    )
   }
 
   /**
@@ -187,7 +196,13 @@ class TelemetryLogger {
     message: string,
     context: LogContext & { eventType: 'enrollment' | 'verification' | 'disable'; success: boolean }
   ): void {
-    baseLogger.mfa(message, this.enhanceContext(context) as LogContext & { eventType: 'enrollment' | 'verification' | 'disable'; success: boolean })
+    baseLogger.mfa(
+      message,
+      this.enhanceContext(context) as LogContext & {
+        eventType: 'enrollment' | 'verification' | 'disable'
+        success: boolean
+      }
+    )
   }
 }
 

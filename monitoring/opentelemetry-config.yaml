@@ -1,0 +1,253 @@
+# OpenTelemetry Collector Configuration for Contribux AI Application
+# Production-ready configuration with AI workload monitoring
+
+receivers:
+  # OTLP receiver for OpenTelemetry Protocol
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+        cors:
+          allowed_origins:
+            - http://localhost:3000
+            - https://*.vercel.app
+            - https://contribux.ai
+
+  # Prometheus receiver for scraping metrics
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: 'ai-agent-metrics'
+          scrape_interval: 15s
+          static_configs:
+            - targets: ['localhost:9090']
+          metric_relabel_configs:
+            # AI-specific metric relabeling
+            - source_labels: [__name__]
+              regex: 'ai_agent_.*'
+              target_label: subsystem
+              replacement: 'ai_agent'
+
+        - job_name: 'vector-search-metrics'
+          scrape_interval: 30s
+          static_configs:
+            - targets: ['localhost:9091']
+
+  # Host metrics for infrastructure monitoring
+  hostmetrics:
+    collection_interval: 10s
+    scrapers:
+      cpu:
+      memory:
+      disk:
+      filesystem:
+      network:
+      load:
+      processes:
+
+  # Custom receiver for AI workload metrics
+  statsd:
+    endpoint: localhost:8125
+    aggregation_interval: 60s
+    enable_metric_type: true
+    timer_histogram_mapping:
+      - statsd_type: "histogram"
+        observer_type: "histogram"
+        histogram:
+          buckets: [0.01, 0.05, 0.1, 0.5, 1, 2.5, 5, 10]
+
+processors:
+  # Batch processor for efficiency
+  batch:
+    timeout: 10s
+    send_batch_size: 1024
+    send_batch_max_size: 2048
+
+  # Resource detection for cloud environments
+  resourcedetection:
+    detectors: [env, system, docker, ec2, gcp, azure]
+    timeout: 5s
+    override: false
+
+  # AI-specific attributes processor
+  attributes:
+    actions:
+      - key: service.name
+        value: "contribux-ai"
+        action: upsert
+      - key: deployment.environment
+        from_attribute: VERCEL_ENV
+        action: insert
+      - key: ai.model.provider
+        value: "openai"
+        action: insert
+      - key: ai.workload.type
+        from_attribute: workload_type
+        action: upsert
+
+  # Memory limiter to prevent OOMs
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 90
+
+  # Filter processor for sensitive data
+  filter:
+    error_mode: propagate
+    logs:
+      exclude:
+        match_type: regexp
+        record_attributes:
+          - key: message
+            value: '.*(password|token|key|secret).*'
+
+  # Resource attribute promotion for Prometheus compatibility
+  transform:
+    metric_statements:
+      - context: resource
+        statements:
+          - set(attributes["k8s.namespace.name"], resource.attributes["k8s.namespace.name"])
+          - set(attributes["k8s.pod.name"], resource.attributes["k8s.pod.name"]) 
+          - set(attributes["service.name"], resource.attributes["service.name"])
+          - set(attributes["service.version"], resource.attributes["service.version"])
+
+  # AI workload metrics enrichment
+  metricstransform:
+    transforms:
+      - include: ai.agent.request.duration
+        match_type: strict
+        action: update
+        operations:
+          - action: add_label
+            new_label: ai.operation.type
+            new_value: inference
+      - include: vector.search.latency
+        match_type: strict
+        action: update
+        operations:
+          - action: add_label
+            new_label: index.type
+            new_value: hnsw
+
+exporters:
+  # Prometheus exporter for metrics
+  prometheus:
+    endpoint: "0.0.0.0:8888"
+    namespace: contribux
+    const_labels:
+      environment: production
+      service: ai-platform
+    enable_open_metrics: true
+    resource_to_telemetry_conversion:
+      enabled: true
+
+  # OTLP exporter for Grafana Cloud
+  otlp/grafana:
+    endpoint: ${GRAFANA_OTLP_ENDPOINT}
+    headers:
+      authorization: Basic ${GRAFANA_API_KEY}
+    compression: gzip
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 30s
+      max_elapsed_time: 300s
+
+  # Jaeger exporter for distributed tracing
+  jaeger:
+    endpoint: ${JAEGER_ENDPOINT}
+    tls:
+      insecure: false
+      ca_file: /etc/ssl/certs/ca-certificates.crt
+
+  # Datadog exporter for Vercel integration
+  datadog:
+    api:
+      site: ${DD_SITE}
+      key: ${DD_API_KEY}
+    hostname_source: config_or_system
+    env: production
+    service: contribux
+    version: ${SERVICE_VERSION}
+    tags:
+      - "ai:enabled"
+      - "serverless:vercel"
+
+  # AWS CloudWatch for metrics storage
+  awscloudwatchmetrics:
+    region: ${AWS_REGION}
+    namespace: Contribux/AI
+    dimension_rollup_option: NoDimensionRollup
+    metric_declarations:
+      - dimensions: [[service.name], [service.name, ai.model.name]]
+        metric_name_selectors:
+          - "ai.agent.*"
+          - "vector.search.*"
+          - "api.request.*"
+
+  # Logging exporter for debugging
+  logging:
+    loglevel: info
+    sampling_initial: 10
+    sampling_thereafter: 100
+
+extensions:
+  # Health check extension
+  health_check:
+    endpoint: 0.0.0.0:13133
+    path: "/health"
+    check_collector_pipeline:
+      enabled: true
+      interval: 5s
+      exporter_failure_threshold: 5
+
+  # Performance profiler
+  pprof:
+    endpoint: 0.0.0.0:1777
+
+  # zPages for debugging
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+  # OAuth2 client for secure endpoints
+  oauth2client:
+    client_id: ${OAUTH_CLIENT_ID}
+    client_secret: ${OAUTH_CLIENT_SECRET}
+    token_url: ${OAUTH_TOKEN_URL}
+    scopes: ["api.metrics"]
+
+service:
+  # Enable extensions
+  extensions: [health_check, pprof, zpages, oauth2client]
+
+  # Pipeline definitions
+  pipelines:
+    # Traces pipeline
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resourcedetection, attributes, filter]
+      exporters: [jaeger, datadog, logging]
+
+    # Metrics pipeline
+    metrics:
+      receivers: [otlp, prometheus, hostmetrics, statsd]
+      processors: [memory_limiter, batch, resourcedetection, attributes, transform, metricstransform]
+      exporters: [prometheus, otlp/grafana, awscloudwatchmetrics, datadog]
+
+    # Logs pipeline
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resourcedetection, attributes, filter]
+      exporters: [otlp/grafana, datadog, logging]
+
+  # Telemetry configuration
+  telemetry:
+    logs:
+      level: info
+      initial_fields:
+        service: otel-collector
+    metrics:
+      level: detailed
+      address: 0.0.0.0:8889

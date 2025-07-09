@@ -21,28 +21,25 @@ export const getPrivateCacheKey = (
 }
 
 /**
- * Test client configuration options
+ * Test client configuration options - Updated for simplified GitHubClient
  */
 export const testClientConfigs = {
   basicToken: {
-    auth: { type: 'token' as const, token: 'ghp_test_token' },
+    accessToken: 'ghp_test_token',
   },
   tokenWithCache: {
-    auth: { type: 'token' as const, token: 'ghp_test_token' },
-    cache: { maxSize: 100, maxAge: 60000 },
+    accessToken: 'ghp_test_token',
+    // Note: cache config is internal to GitHubClient, not configurable
   },
   customConfig: {
-    auth: { type: 'token' as const, token: 'ghp_test_token' },
+    accessToken: 'ghp_test_token',
     baseUrl: 'https://api.github.com',
     userAgent: 'test-agent/1.0',
-    cache: {
-      maxSize: 500,
-      maxAge: 300000,
-    },
+    timeout: 30000,
   },
   retryConfig: {
-    auth: { type: 'token' as const, token: 'ghp_test_token' },
-    retry: { retries: 2, doNotRetry: [] },
+    accessToken: 'ghp_test_token',
+    timeout: 10000,
   },
 } as const
 
@@ -282,7 +279,7 @@ export function createConcurrentTestPromises(client: GitHubClient) {
   return [
     client.getAuthenticatedUser(),
     client.getUser('testuser'),
-    client.getRepository({ owner: 'testowner', repo: 'testrepo' }),
+    client.getRepository('testowner', 'testrepo'),
   ]
 }
 

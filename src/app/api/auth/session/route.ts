@@ -3,15 +3,15 @@
  * Returns the current session status for demo authentication with rate limiting
  */
 
+import {
+  applyProgressiveDelay,
+  checkAuthRateLimit,
+  createRateLimitResponse,
+  recordAuthResult,
+} from '@/lib/security/auth-rate-limiting'
 import { jwtVerify } from 'jose'
 import { cookies } from 'next/headers'
 import { type NextRequest, NextResponse } from 'next/server'
-import { 
-  checkAuthRateLimit, 
-  recordAuthResult, 
-  createRateLimitResponse,
-  applyProgressiveDelay 
-} from '@/lib/security/auth-rate-limiting'
 
 export async function GET(request: NextRequest) {
   // Apply authentication rate limiting
@@ -61,13 +61,12 @@ export async function GET(request: NextRequest) {
         },
         expires: new Date((payload.exp as number) * 1000).toISOString(),
       })
-    } catch (error) {
+    } catch (_error) {
       // Invalid token - record as failed authentication
       recordAuthResult(request, false)
       return NextResponse.json({ user: null }, { status: 200 })
     }
-  } catch (error) {
-    console.error('Session check failed:', error)
+  } catch (_error) {
     recordAuthResult(request, false)
     return NextResponse.json({ user: null }, { status: 200 })
   }

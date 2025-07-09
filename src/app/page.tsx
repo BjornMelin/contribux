@@ -14,15 +14,15 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-background via-muted/10 to-background">
       {/* Hero Section with Beautiful Gradient */}
-      <section className="relative overflow-hidden px-4 pb-16 pt-24">
+      <section className="relative overflow-hidden px-4 pt-32 pb-24">
         {/* Background Effects */}
-        <div className="absolute inset-0 -z-10">
+        <div className="-z-10 absolute inset-0">
           <div className="absolute top-0 left-1/4 h-96 w-96 animate-pulse rounded-full bg-purple-500/20 opacity-50 mix-blend-multiply blur-3xl filter" />
           <div className="absolute top-0 right-1/4 h-96 w-96 animate-pulse rounded-full bg-blue-500/20 opacity-50 mix-blend-multiply blur-3xl filter [animation-delay:2s]" />
           <div className="absolute bottom-0 left-1/2 h-96 w-96 animate-pulse rounded-full bg-pink-500/20 opacity-50 mix-blend-multiply blur-3xl filter [animation-delay:4s]" />
         </div>
 
-        <div className="mx-auto max-w-7xl">
+        <div className="mx-auto max-w-6xl">
           <MotionDiv
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -36,7 +36,7 @@ export default function Home() {
               </span>
             </div>
 
-            <h1 className="mb-6 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text font-bold text-transparent text-5xl tracking-tight sm:text-7xl">
+            <h1 className="mb-8 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text font-bold text-5xl text-transparent tracking-tight sm:text-7xl">
               Find Your Perfect
               <br />
               <span className="bg-gradient-to-r from-primary via-purple-500 to-blue-500 bg-clip-text text-transparent">
@@ -44,12 +44,12 @@ export default function Home() {
               </span>
             </h1>
 
-            <p className="mx-auto mb-10 max-w-2xl text-muted-foreground text-lg sm:text-xl">
+            <p className="mx-auto mb-12 max-w-2xl text-lg text-muted-foreground sm:text-xl">
               Discover repositories that match your skills, interests, and expertise. Contribute to
               projects that matter with AI-powered recommendations.
             </p>
 
-            <div className="flex flex-wrap items-center justify-center gap-4">
+            <div className="mb-16 flex flex-wrap items-center justify-center gap-4">
               {!isAuthenticated ? (
                 <>
                   <Link href="/auth/signin">
@@ -83,9 +83,9 @@ export default function Home() {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="mt-20 grid grid-cols-1 gap-8 md:grid-cols-3"
+            className="mt-24 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3"
           >
-            <div className="group relative overflow-hidden rounded-2xl border bg-card p-8 transition-all hover:shadow-lg">
+            <div className="group relative overflow-hidden rounded-2xl border bg-card p-4 transition-all hover:shadow-lg sm:p-6 lg:p-8">
               <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
               <div className="relative">
                 <div className="mb-4 inline-flex rounded-lg bg-primary/10 p-3">
@@ -94,6 +94,8 @@ export default function Home() {
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
+                    role="img"
+                    aria-label="AI-Powered Matching"
                   >
                     <path
                       strokeLinecap="round"
@@ -103,15 +105,15 @@ export default function Home() {
                     />
                   </svg>
                 </div>
-                <h3 className="mb-2 font-semibold text-xl">AI-Powered Matching</h3>
-                <p className="text-muted-foreground">
+                <h3 className="mb-2 font-semibold text-lg sm:text-xl">AI-Powered Matching</h3>
+                <p className="text-muted-foreground text-sm sm:text-base">
                   Our intelligent algorithms analyze your skills and interests to find the perfect
                   repositories for you.
                 </p>
               </div>
             </div>
 
-            <div className="group relative overflow-hidden rounded-2xl border bg-card p-8 transition-all hover:shadow-lg">
+            <div className="group relative overflow-hidden rounded-2xl border bg-card p-4 transition-all hover:shadow-lg sm:p-6 lg:p-8">
               <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
               <div className="relative">
                 <div className="mb-4 inline-flex rounded-lg bg-purple-500/10 p-3">
@@ -120,6 +122,8 @@ export default function Home() {
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
+                    role="img"
+                    aria-label="Community Insights"
                   >
                     <path
                       strokeLinecap="round"
@@ -129,15 +133,15 @@ export default function Home() {
                     />
                   </svg>
                 </div>
-                <h3 className="mb-2 font-semibold text-xl">Community Insights</h3>
-                <p className="text-muted-foreground">
+                <h3 className="mb-2 font-semibold text-lg sm:text-xl">Community Insights</h3>
+                <p className="text-muted-foreground text-sm sm:text-base">
                   See real-time activity, maintainer responsiveness, and community health metrics at
                   a glance.
                 </p>
               </div>
             </div>
 
-            <div className="group relative overflow-hidden rounded-2xl border bg-card p-8 transition-all hover:shadow-lg">
+            <div className="group relative overflow-hidden rounded-2xl border bg-card p-4 transition-all hover:shadow-lg sm:p-6 lg:p-8">
               <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
               <div className="relative">
                 <div className="mb-4 inline-flex rounded-lg bg-blue-500/10 p-3">
@@ -146,6 +150,8 @@ export default function Home() {
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
+                    role="img"
+                    aria-label="Good First Issues"
                   >
                     <path
                       strokeLinecap="round"
@@ -155,8 +161,8 @@ export default function Home() {
                     />
                   </svg>
                 </div>
-                <h3 className="mb-2 font-semibold text-xl">Good First Issues</h3>
-                <p className="text-muted-foreground">
+                <h3 className="mb-2 font-semibold text-lg sm:text-xl">Good First Issues</h3>
+                <p className="text-muted-foreground text-sm sm:text-base">
                   Find beginner-friendly issues tailored to your experience level and grow your
                   contribution portfolio.
                 </p>
@@ -167,14 +173,16 @@ export default function Home() {
       </section>
 
       {/* Search Section */}
-      <section id={isAuthenticated ? 'search' : 'search-demo'} className="py-16">
-        <MotionDiv
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, delay: 0.4 }}
-        >
-          <OptimizedSearchExample />
-        </MotionDiv>
+      <section id={isAuthenticated ? 'search' : 'search-demo'} className="px-4 py-24">
+        <div className="mx-auto max-w-6xl">
+          <MotionDiv
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+          >
+            <OptimizedSearchExample />
+          </MotionDiv>
+        </div>
       </section>
     </main>
   )

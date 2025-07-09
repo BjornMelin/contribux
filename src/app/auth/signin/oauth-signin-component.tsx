@@ -9,12 +9,16 @@ import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
 
 // Safe NextAuth import with error handling
-let signIn: any = null
+type SignInFunction =
+  | ((provider?: string, options?: { callbackUrl?: string }) => Promise<void>)
+  | null
+
+let signIn: SignInFunction = null
 try {
   const nextAuthReact = require('next-auth/react')
   signIn = nextAuthReact.signIn
-} catch (error) {
-  console.warn('NextAuth not properly configured, falling back to manual OAuth')
+} catch (_error) {
+  // NextAuth not available, fallback will be used
 }
 
 // Aurora Button Component

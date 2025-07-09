@@ -30,7 +30,7 @@ describe('Test Database Manager', () => {
 
     // Access the private method via reflection for testing
     const strategy = (
-      manager as TestDatabaseManager & { determineOptimalStrategy: () => string }
+      manager as TestDatabaseManagerType & { determineOptimalStrategy: () => string }
     ).determineOptimalStrategy()
     expect(strategy).toBe('pglite')
   })

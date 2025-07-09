@@ -472,10 +472,10 @@ export async function withWebAuthnTestRollback<T>(
   }
 }
 
-// Legacy class wrapper for backward compatibility
-export class WebAuthnTestTransaction {
-  static withRollback = withWebAuthnTestRollback
-}
+// Legacy wrapper for backward compatibility
+export const WebAuthnTestTransaction = {
+  withRollback: withWebAuthnTestRollback,
+} as const
 
 /**
  * Performance testing utilities for WebAuthn operations

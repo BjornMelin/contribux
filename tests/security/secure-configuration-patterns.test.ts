@@ -35,8 +35,12 @@ describe('Secure Configuration Patterns', () => {
     })
 
     // Mock console methods to capture output
-    mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
-    mockConsoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {
+      /* intentionally empty - suppress console output during tests */
+    })
+    mockConsoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {
+      /* intentionally empty - suppress console output during tests */
+    })
 
     // Clear environment variables for clean test state
     const configVars = [
@@ -769,7 +773,7 @@ describe('Secure Configuration Patterns', () => {
         },
       ]
 
-      attackScenarios.forEach(({ name, payload }) => {
+      attackScenarios.forEach(({ _name, payload }) => {
         const testValue = `safe-prefix-${payload}-safe-suffix-with-sufficient-length`
         vi.stubEnv('ATTACK_TEST', testValue)
 

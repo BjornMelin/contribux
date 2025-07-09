@@ -2,23 +2,23 @@
 
 /**
  * Bundle Size Analysis and Optimization Script
- * 
+ *
  * Analyzes the impact of new dependencies (Octokit, WebAuthn, NextAuth, etc.)
  * on bundle size and provides optimization recommendations.
- * 
+ *
  * This addresses PR review requirements for bundle size impact assessment.
  */
 
 import { execSync } from 'node:child_process'
-import { readFileSync, writeFileSync, existsSync } from 'node:fs'
-import { resolve, join } from 'node:path'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const PROJECT_ROOT = resolve(__dirname, '..')
 
 // Color utilities for console output
-const colors = {
+const _colors = {
   red: '\x1b[31m',
   green: '\x1b[32m',
   yellow: '\x1b[33m',
@@ -30,11 +30,11 @@ const colors = {
 }
 
 const log = {
-  info: (msg) => console.log(`${colors.blue}ℹ${colors.reset} ${msg}`),
-  success: (msg) => console.log(`${colors.green}✓${colors.reset} ${msg}`),
-  warning: (msg) => console.log(`${colors.yellow}⚠${colors.reset} ${msg}`),
-  error: (msg) => console.log(`${colors.red}✗${colors.reset} ${msg}`),
-  section: (msg) => console.log(`\n${colors.bold}${colors.cyan}${msg}${colors.reset}`),
+  info: msg => console.log(`ℹ️ ${msg}`),
+  success: msg => console.log(`✅ ${msg}`),
+  warning: msg => console.log(`⚠️ ${msg}`),
+  error: msg => console.error(`❌ ${msg}`),
+  section: msg => console.log(`\n📊 ${msg}\n${'='.repeat(50)}`),
 }
 
 class BundleSizeAnalyzer {
@@ -46,7 +46,7 @@ class BundleSizeAnalyzer {
       recommendations: [],
       summary: {},
     }
-    
+
     // Critical dependencies introduced in PR #7
     this.criticalDependencies = [
       '@octokit/rest',
@@ -68,17 +68,17 @@ class BundleSizeAnalyzer {
   async runAnalysis() {
     try {
       log.section('🔍 Bundle Size Analysis Starting...')
-      
+
       await this.analyzePackageJSON()
       await this.analyzeDependencySizes()
       await this.generateNextJSBundleReport()
       await this.calculateBundleImpact()
       await this.generateOptimizationRecommendations()
       await this.generateReport()
-      
+
       log.section('📊 Bundle Size Analysis Complete!')
       this.printSummary()
-      
+
       return this.results
     } catch (error) {
       log.error(`Bundle analysis failed: ${error.message}`)
@@ -91,22 +91,22 @@ class BundleSizeAnalyzer {
    */
   async analyzePackageJSON() {
     log.info('📦 Analyzing package.json dependencies...')
-    
+
     const packagePath = join(PROJECT_ROOT, 'package.json')
     if (!existsSync(packagePath)) {
       throw new Error('package.json not found')
     }
-    
+
     const packageJSON = JSON.parse(readFileSync(packagePath, 'utf8'))
     const allDeps = {
       ...packageJSON.dependencies,
       ...packageJSON.devDependencies,
     }
-    
+
     this.results.dependencies.total = Object.keys(allDeps).length
     this.results.dependencies.production = Object.keys(packageJSON.dependencies || {}).length
     this.results.dependencies.development = Object.keys(packageJSON.devDependencies || {}).length
-    
+
     // Analyze critical dependencies
     this.results.dependencies.critical = []
     for (const dep of this.criticalDependencies) {
@@ -118,7 +118,7 @@ class BundleSizeAnalyzer {
         })
       }
     }
-    
+
     log.success(`Found ${this.results.dependencies.total} total dependencies`)
     log.success(`${this.results.dependencies.critical.length} critical dependencies from PR #7`)
   }
@@ -128,22 +128,22 @@ class BundleSizeAnalyzer {
    */
   async analyzeDependencySizes() {
     log.info('📏 Analyzing dependency sizes...')
-    
+
     const dependencySizes = {}
-    
+
     for (const dep of this.results.dependencies.critical) {
       try {
         log.info(`  Analyzing ${dep.name}...`)
-        
+
         // Get package size info using npm pack --dry-run
         const packOutput = execSync(`npm pack ${dep.name} --dry-run --json`, {
           cwd: PROJECT_ROOT,
           encoding: 'utf8',
           stdio: ['pipe', 'pipe', 'pipe'],
         })
-        
+
         const packInfo = JSON.parse(packOutput)[0]
-        
+
         dependencySizes[dep.name] = {
           version: dep.version,
           type: dep.type,
@@ -152,7 +152,6 @@ class BundleSizeAnalyzer {
           fileCount: packInfo.fileCount || 0,
           bundled: packInfo.bundled || [],
         }
-        
       } catch (error) {
         log.warning(`Could not analyze ${dep.name}: ${error.message}`)
         dependencySizes[dep.name] = {
@@ -162,7 +161,7 @@ class BundleSizeAnalyzer {
         }
       }
     }
-    
+
     this.results.dependencies.sizes = dependencySizes
     log.success('Dependency size analysis complete')
   }
@@ -172,12 +171,12 @@ class BundleSizeAnalyzer {
    */
   async generateNextJSBundleReport() {
     log.info('🏗️  Generating Next.js bundle report...')
-    
+
     try {
       // First, ensure dependencies are installed
       log.info('Installing dependencies...')
       execSync('pnpm install', { cwd: PROJECT_ROOT, stdio: 'inherit' })
-      
+
       // Generate production build with bundle analysis
       log.info('Building Next.js application...')
       const buildOutput = execSync('pnpm build', {
@@ -185,25 +184,24 @@ class BundleSizeAnalyzer {
         encoding: 'utf8',
         stdio: ['pipe', 'pipe', 'pipe'],
       })
-      
+
       // Parse build output for bundle information
       this.results.bundles.buildOutput = buildOutput
       this.results.bundles.buildSuccess = true
-      
+
       // Check for .next/analyze directory or bundle analyzer output
       const analyzeDir = join(PROJECT_ROOT, '.next', 'analyze')
       if (existsSync(analyzeDir)) {
         log.success('Bundle analyzer data found')
         this.results.bundles.analyzerAvailable = true
       }
-      
+
       log.success('Next.js bundle analysis complete')
-      
     } catch (error) {
       log.warning(`Next.js build failed: ${error.message}`)
       this.results.bundles.buildSuccess = false
       this.results.bundles.buildError = error.message
-      
+
       // Continue analysis even if build fails
       log.info('Continuing analysis without build data...')
     }
@@ -214,23 +212,23 @@ class BundleSizeAnalyzer {
    */
   async calculateBundleImpact() {
     log.info('📈 Calculating bundle impact...')
-    
+
     const impact = {
       totalDependencySize: 0,
       criticalDependencySize: 0,
       largestDependencies: [],
       riskFactors: [],
     }
-    
+
     // Calculate total size impact
     for (const [name, info] of Object.entries(this.results.dependencies.sizes)) {
       if (info.unpackedSize) {
         impact.totalDependencySize += info.unpackedSize
-        
+
         if (info.type === 'production') {
           impact.criticalDependencySize += info.unpackedSize
         }
-        
+
         impact.largestDependencies.push({
           name,
           size: info.unpackedSize,
@@ -238,26 +236,28 @@ class BundleSizeAnalyzer {
         })
       }
     }
-    
+
     // Sort by size descending
     impact.largestDependencies.sort((a, b) => b.size - a.size)
     impact.largestDependencies = impact.largestDependencies.slice(0, 10)
-    
+
     // Identify risk factors
-    if (impact.criticalDependencySize > 5 * 1024 * 1024) { // 5MB
+    if (impact.criticalDependencySize > 5 * 1024 * 1024) {
+      // 5MB
       impact.riskFactors.push('Large production bundle size (>5MB)')
     }
-    
-    if (impact.largestDependencies[0]?.size > 2 * 1024 * 1024) { // 2MB
+
+    if (impact.largestDependencies[0]?.size > 2 * 1024 * 1024) {
+      // 2MB
       impact.riskFactors.push(`Single large dependency: ${impact.largestDependencies[0].name}`)
     }
-    
+
     if (this.results.dependencies.critical.length > 10) {
       impact.riskFactors.push('High number of new dependencies')
     }
-    
+
     this.results.bundles.impact = impact
-    
+
     log.success(`Bundle impact calculated: ${this.formatSize(impact.totalDependencySize)} total`)
   }
 
@@ -266,10 +266,10 @@ class BundleSizeAnalyzer {
    */
   async generateOptimizationRecommendations() {
     log.info('💡 Generating optimization recommendations...')
-    
+
     const recommendations = []
     const impact = this.results.bundles.impact
-    
+
     // Bundle size recommendations
     if (impact.criticalDependencySize > 3 * 1024 * 1024) {
       recommendations.push({
@@ -281,10 +281,11 @@ class BundleSizeAnalyzer {
         impact: 'Could reduce initial bundle size by 30-50%',
       })
     }
-    
+
     // Dependency-specific recommendations
     for (const dep of impact.largestDependencies.slice(0, 3)) {
-      if (dep.size > 1024 * 1024) { // 1MB
+      if (dep.size > 1024 * 1024) {
+        // 1MB
         recommendations.push({
           type: 'dependency-optimization',
           priority: 'medium',
@@ -295,7 +296,7 @@ class BundleSizeAnalyzer {
         })
       }
     }
-    
+
     // Development dependency recommendations
     const devDeps = this.results.dependencies.critical.filter(d => d.type === 'development')
     if (devDeps.length > 5) {
@@ -308,7 +309,7 @@ class BundleSizeAnalyzer {
         impact: 'Faster install times and reduced node_modules size',
       })
     }
-    
+
     // Security recommendations
     recommendations.push({
       type: 'security',
@@ -318,7 +319,7 @@ class BundleSizeAnalyzer {
       implementation: 'Add GitHub Actions workflow for dependency vulnerability scanning',
       impact: 'Improved security posture and compliance',
     })
-    
+
     // Performance recommendations
     recommendations.push({
       type: 'performance',
@@ -328,7 +329,7 @@ class BundleSizeAnalyzer {
       implementation: 'Add bundle analyzer to CI/CD pipeline with size thresholds',
       impact: 'Prevent bundle size regressions in future PRs',
     })
-    
+
     this.results.recommendations = recommendations
     log.success(`Generated ${recommendations.length} optimization recommendations`)
   }
@@ -338,18 +339,18 @@ class BundleSizeAnalyzer {
    */
   async generateReport() {
     log.info('📄 Generating bundle analysis report...')
-    
+
     const reportPath = join(PROJECT_ROOT, 'bundle-analysis-report.json')
     const markdownPath = join(PROJECT_ROOT, 'BUNDLE_ANALYSIS.md')
-    
+
     // Write JSON report
     writeFileSync(reportPath, JSON.stringify(this.results, null, 2))
-    
+
     // Generate markdown report
     const markdown = this.generateMarkdownReport()
     writeFileSync(markdownPath, markdown)
-    
-    log.success(`Reports generated:`)
+
+    log.success('Reports generated:')
     log.success(`  JSON: ${reportPath}`)
     log.success(`  Markdown: ${markdownPath}`)
   }
@@ -359,7 +360,7 @@ class BundleSizeAnalyzer {
    */
   generateMarkdownReport() {
     const { dependencies, bundles, recommendations } = this.results
-    
+
     return `# Bundle Size Analysis Report
 
 Generated: ${this.results.timestamp}
@@ -373,15 +374,16 @@ Generated: ${this.results.timestamp}
 
 ## Critical Dependencies (PR #7)
 
-${dependencies.critical.map(dep => 
-  `- **${dep.name}** (${dep.version}) - ${dep.type}`
-).join('\n')}
+${dependencies.critical.map(dep => `- **${dep.name}** (${dep.version}) - ${dep.type}`).join('\n')}
 
 ## Largest Dependencies
 
-${bundles.impact?.largestDependencies?.slice(0, 5).map((dep, i) => 
-  `${i + 1}. **${dep.name}** - ${this.formatSize(dep.size)} (${dep.type})`
-).join('\n') || 'No size data available'}
+${
+  bundles.impact?.largestDependencies
+    ?.slice(0, 5)
+    .map((dep, i) => `${i + 1}. **${dep.name}** - ${this.formatSize(dep.size)} (${dep.type})`)
+    .join('\n') || 'No size data available'
+}
 
 ## Risk Factors
 
@@ -389,14 +391,18 @@ ${bundles.impact?.riskFactors?.map(risk => `- ⚠️ ${risk}`).join('\n') || 'No
 
 ## Optimization Recommendations
 
-${recommendations.map((rec, i) => `
+${recommendations
+  .map(
+    (rec, i) => `
 ### ${i + 1}. ${rec.title} (${rec.priority.toUpperCase()})
 
 **Type**: ${rec.type}
 **Description**: ${rec.description}
 **Implementation**: ${rec.implementation}
 **Expected Impact**: ${rec.impact}
-`).join('\n')}
+`
+  )
+  .join('\n')}
 
 ## Build Status
 
@@ -413,34 +419,16 @@ ${bundles.buildError ? `\nBuild Error: ${bundles.buildError}` : ''}
    * Print summary to console
    */
   printSummary() {
-    const { dependencies, bundles, recommendations } = this.results
-    
-    console.log('\n' + '='.repeat(60))
-    console.log(`${colors.bold}${colors.cyan}BUNDLE SIZE ANALYSIS SUMMARY${colors.reset}`)
-    console.log('='.repeat(60))
-    
-    console.log(`\n${colors.bold}Dependencies:${colors.reset}`)
-    console.log(`  Total: ${dependencies.total}`)
-    console.log(`  Critical (PR #7): ${dependencies.critical.length}`)
-    
+    const { bundles } = this.results
+
     if (bundles.impact) {
-      console.log(`\n${colors.bold}Bundle Impact:${colors.reset}`)
-      console.log(`  Total Size: ${this.formatSize(bundles.impact.totalDependencySize)}`)
-      console.log(`  Production Size: ${this.formatSize(bundles.impact.criticalDependencySize)}`)
-      
       if (bundles.impact.riskFactors.length > 0) {
-        console.log(`\n${colors.bold}${colors.yellow}Risk Factors:${colors.reset}`)
+        log.section('Risk Factors')
         bundles.impact.riskFactors.forEach(risk => {
-          console.log(`  ${colors.yellow}⚠${colors.reset} ${risk}`)
+          log.warning(`${risk.factor}: ${risk.description}`)
         })
       }
     }
-    
-    console.log(`\n${colors.bold}Recommendations:${colors.reset}`)
-    console.log(`  Generated: ${recommendations.length}`)
-    console.log(`  High Priority: ${recommendations.filter(r => r.priority === 'high').length}`)
-    
-    console.log('\n' + '='.repeat(60))
   }
 
   /**
@@ -448,25 +436,26 @@ ${bundles.buildError ? `\nBuild Error: ${bundles.buildError}` : ''}
    */
   formatSize(bytes) {
     if (!bytes || bytes === 0) return '0 B'
-    
+
     const units = ['B', 'KB', 'MB', 'GB']
     const k = 1024
     const i = Math.floor(Math.log(bytes) / Math.log(k))
-    
-    return `${(bytes / Math.pow(k, i)).toFixed(1)} ${units[i]}`
+
+    return `${(bytes / k ** i).toFixed(1)} ${units[i]}`
   }
 }
 
 // Run analysis if called directly
 if (import.meta.url === `file://${process.argv[1]}`) {
   const analyzer = new BundleSizeAnalyzer()
-  
-  analyzer.runAnalysis()
-    .then((results) => {
+
+  analyzer
+    .runAnalysis()
+    .then(() => {
       log.success('Bundle size analysis completed successfully')
       process.exit(0)
     })
-    .catch((error) => {
+    .catch(error => {
       log.error(`Bundle size analysis failed: ${error.message}`)
       process.exit(1)
     })

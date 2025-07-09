@@ -15,7 +15,7 @@ class PerformanceTestHelper {
     duration: number
     timestamp: number
     success: boolean
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
   }> = []
 
   static getInstance() {
@@ -29,7 +29,7 @@ class PerformanceTestHelper {
     operation: string,
     duration: number,
     success: boolean,
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
   ) {
     this.metrics.push({
       operation,
@@ -75,7 +75,10 @@ class PerformanceTestHelper {
 }
 
 // Mock API functions for testing
-async function mockDatabaseQuery(complexity: 'simple' | 'complex' = 'simple'): Promise<any> {
+async function mockDatabaseQuery(complexity: 'simple' | 'complex' = 'simple'): Promise<{
+  success: boolean
+  data: { result: string }
+}> {
   const timer = new PerformanceTimer()
   const helper = PerformanceTestHelper.getInstance()
 
@@ -97,7 +100,13 @@ async function mockDatabaseQuery(complexity: 'simple' | 'complex' = 'simple'): P
   }
 }
 
-async function mockAPICall(endpoint: string, load: 'light' | 'heavy' = 'light'): Promise<any> {
+async function mockAPICall(
+  endpoint: string,
+  load: 'light' | 'heavy' = 'light'
+): Promise<{
+  success: boolean
+  data: { endpoint: string; response: string }
+}> {
   const timer = new PerformanceTimer()
   const helper = PerformanceTestHelper.getInstance()
 
@@ -271,7 +280,7 @@ describe('Performance + Monitoring Integration', () => {
     test('should maintain performance under sustained load', async () => {
       const duration = 5000 // 5 seconds
       const startTime = Date.now()
-      const requests: Promise<any>[] = []
+      const requests: Promise<{ success: boolean; data: Record<string, unknown> }>[] = []
 
       // Generate sustained load
       const intervalId = setInterval(() => {
@@ -306,7 +315,7 @@ describe('Performance + Monitoring Integration', () => {
   describe('Error Recovery Performance', () => {
     test('should handle service failures with minimal impact', async () => {
       // Test with deliberate failures
-      const mockFailingCall = async (): Promise<any> => {
+      const mockFailingCall = async (): Promise<{ success: boolean }> => {
         const timer = new PerformanceTimer()
 
         try {
@@ -329,7 +338,7 @@ describe('Performance + Monitoring Integration', () => {
       }
 
       // Execute calls with retries
-      const executeWithRetry = async (maxRetries = 3): Promise<any> => {
+      const executeWithRetry = async (maxRetries = 3): Promise<{ success: boolean }> => {
         for (let attempt = 0; attempt < maxRetries; attempt++) {
           try {
             return await mockFailingCall()
@@ -351,7 +360,9 @@ describe('Performance + Monitoring Integration', () => {
     })
 
     test('should degrade gracefully under high error rates', async () => {
-      const mockDegradingService = async (errorRate: number): Promise<any> => {
+      const mockDegradingService = async (
+        errorRate: number
+      ): Promise<{ success: boolean; fallback?: boolean }> => {
         const timer = new PerformanceTimer()
 
         try {
@@ -483,7 +494,10 @@ describe('Performance + Monitoring Integration', () => {
     test('should aggregate performance data correctly', async () => {
       // Generate varied performance data
       const operations = ['search', 'auth', 'database']
-      const promises: Promise<any>[] = []
+      const promises: Promise<{
+        success: boolean
+        data: { endpoint: string; response: string }
+      }>[] = []
 
       for (const operation of operations) {
         for (let i = 0; i < 50; i++) {

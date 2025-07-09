@@ -4,7 +4,7 @@ import Google from 'next-auth/providers/google'
 
 import { sql } from '@/lib/db/config'
 import { env } from '@/lib/validation/env'
-import type { User as AuthUser } from '@/types/auth'
+import type { User as AuthUser, OAuthProvider } from '@/types/auth'
 import {
   type GitHubProfile,
   type GoogleProfile,
@@ -12,6 +12,17 @@ import {
   extractGoogleUserData,
   parseOAuthProfile,
 } from '@/types/oauth'
+
+// Database query result interfaces
+interface UserQueryResult extends AuthUser {
+  connected_providers: string[]
+  primary_provider: OAuthProvider
+}
+
+interface ExistingAccountResult extends AuthUser {
+  provider: OAuthProvider
+  provider_account_id: string
+}
 
 /**
  * NextAuth.js configuration for multi-provider OAuth authentication
@@ -97,11 +108,8 @@ export const authConfig: AuthOptions = {
           LIMIT 1
         `
 
-        if ((userResult as any[]).length > 0) {
-          const user = (userResult as any[])[0] as AuthUser & {
-            connected_providers: string[]
-            primary_provider: string
-          }
+        if ((userResult as UserQueryResult[]).length > 0) {
+          const user = (userResult as UserQueryResult[])[0]
 
           // Return new session object that matches NextAuth Session type
           const userUpdate: typeof session.user = {
@@ -241,9 +249,9 @@ async function handleMultiProviderSignIn({
       LIMIT 1
     `
 
-    if ((existingAccountResult as any[]).length > 0) {
+    if ((existingAccountResult as ExistingAccountResult[]).length > 0) {
       // Account exists - update tokens and return user
-      const existingUser = (existingAccountResult as any[])[0] as AuthUser
+      const existingUser = (existingAccountResult as ExistingAccountResult[])[0]
       await updateOAuthTokens(existingUser.id, account)
       return { success: true, user: existingUser }
     }
@@ -253,9 +261,9 @@ async function handleMultiProviderSignIn({
       SELECT * FROM users WHERE email = ${user.email} LIMIT 1
     `
 
-    if ((existingUserResult as any[]).length > 0) {
+    if ((existingUserResult as unknown[]).length > 0) {
       // User exists with same email - implement account linking
-      const existingUser = (existingUserResult as any[])[0] as AuthUser
+      const existingUser = (existingUserResult as unknown[])[0] as AuthUser
       return await linkAccountToExistingUser(existingUser, account, profile)
     }
 
@@ -282,7 +290,7 @@ async function linkAccountToExistingUser(
       LIMIT 1
     `
 
-    if ((existingLinkResult as any[]).length > 0) {
+    if ((existingLinkResult as unknown[]).length > 0) {
       // Provider already linked - update tokens
       await updateOAuthTokens(existingUser.id, account)
       return { success: true, user: existingUser }
@@ -359,7 +367,7 @@ async function createNewUserWithOAuth(
       RETURNING *
     `
 
-    const newUser = (newUserResult as any[])[0] as AuthUser
+    const newUser = (newUserResult as unknown[])[0] as AuthUser
 
     // Create OAuth account as primary
     await sql`

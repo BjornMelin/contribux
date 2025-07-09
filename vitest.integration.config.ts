@@ -1,4 +1,3 @@
-import { cpus } from 'node:os'
 import path from 'node:path'
 import react from '@vitejs/plugin-react'
 import tsconfigPaths from 'vite-tsconfig-paths'
@@ -40,9 +39,7 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
 
-    include: [
-      'tests/integration/**/*.{test,spec}.{js,ts,tsx}',
-    ],
+    include: ['tests/integration/**/*.{test,spec}.{js,ts,tsx}'],
 
     exclude: [
       ...configDefaults.exclude,

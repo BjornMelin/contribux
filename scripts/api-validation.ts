@@ -142,6 +142,123 @@ const _SearchRepositoriesResponseSchema = z.object({
   }),
 })
 
+// Helper function to create skip result
+function createSkipResult(testName: string, description: string): TestResult {
+  return {
+    name: testName,
+    description: description || 'Server not running',
+    status: 'SKIP',
+    error: 'Development server not running',
+    responseTime: 0,
+    httpCode: undefined,
+    timestamp: new Date().toISOString(),
+  }
+}
+
+// Helper function to prepare fetch options
+function prepareFetchOptions(
+  method: string,
+  headers: Record<string, string>,
+  body?: unknown
+): RequestInit {
+  const fetchOptions: RequestInit = {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      ...headers,
+    },
+  }
+
+  if (body && method !== 'GET') {
+    fetchOptions.body = typeof body === 'string' ? body : JSON.stringify(body)
+  }
+
+  return fetchOptions
+}
+
+// Helper function to parse response data
+function parseResponseData(responseText: string): unknown {
+  try {
+    return responseText ? JSON.parse(responseText) : null
+  } catch {
+    return responseText
+  }
+}
+
+// Helper function to validate test response
+function validateResponse(
+  response: Response,
+  responseTime: number,
+  expectedStatus: number,
+  responseData: unknown,
+  schema?: z.ZodSchema
+): { passed: boolean; reason: string } {
+  let testPassed = true
+  let failureReason = ''
+
+  // Check HTTP status
+  if (response.status !== expectedStatus) {
+    testPassed = false
+    failureReason = `Expected status ${expectedStatus}, got ${response.status}`
+  }
+
+  // Check response time
+  if (responseTime > MAX_RESPONSE_TIME) {
+    testPassed = false
+    const timeError = `Response time ${responseTime}ms exceeds ${MAX_RESPONSE_TIME}ms`
+    failureReason = failureReason ? `${failureReason}; ${timeError}` : timeError
+  }
+
+  // Validate schema if provided
+  if (schema && response.status >= 200 && response.status < 300) {
+    try {
+      schema.parse(responseData)
+    } catch (schemaError) {
+      testPassed = false
+      const schemaErrorMessage = `Schema validation failed: ${schemaError}`
+      failureReason = failureReason ? `${failureReason}; ${schemaErrorMessage}` : schemaErrorMessage
+    }
+  }
+
+  return { passed: testPassed, reason: failureReason }
+}
+
+// Helper function to record test result
+function recordTestResult(result: TestResult, passed: boolean, failureReason?: string): void {
+  if (passed) {
+    passedTests++
+    printSuccess(`${result.name} (${result.responseTime}ms)`)
+  } else {
+    failedTests++
+    printFailure(`${result.name} - ${failureReason}`)
+  }
+  testResults.push(result)
+}
+
+// Helper function to handle test errors
+function handleTestError(
+  testName: string,
+  description: string,
+  startTime: number,
+  error: unknown
+): TestResult {
+  errorTests++
+  const responseTime = Date.now() - startTime
+  const result: TestResult = {
+    name: testName,
+    description,
+    status: 'ERROR',
+    error: error instanceof Error ? error.message : 'Unknown error',
+    responseTime,
+    httpCode: undefined,
+    timestamp: new Date().toISOString(),
+  }
+
+  printError(`${testName} - ${result.error}`)
+  testResults.push(result)
+  return result
+}
+
 // Test execution function
 async function runTest(
   testName: string,
@@ -158,7 +275,6 @@ async function runTest(
 ): Promise<TestResult> {
   totalTests++
   const startTime = Date.now()
-
   printTest(testName)
 
   const {
@@ -174,107 +290,42 @@ async function runTest(
     // Skip if server is not running (for some tests)
     if (!skipNetworkCheck && !(await isServerRunning())) {
       skippedTests++
-      const result: TestResult = {
-        name: testName,
-        description: description || 'Server not running',
-        status: 'SKIP',
-        error: 'Development server not running',
-        responseTime: 0,
-        httpCode: undefined,
-        timestamp: new Date().toISOString(),
-      }
+      const result = createSkipResult(testName, description)
       printSkip(`${testName} - Server not running`)
       testResults.push(result)
       return result
     }
 
-    // Prepare fetch options
-    const fetchOptions: RequestInit = {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        ...headers,
-      },
-    }
-
-    if (body && method !== 'GET') {
-      fetchOptions.body = typeof body === 'string' ? body : JSON.stringify(body)
-    }
-
-    // Execute request
+    // Prepare and execute request
+    const fetchOptions = prepareFetchOptions(method, headers, body)
     const response = await fetch(endpoint, fetchOptions)
     const responseTime = Date.now() - startTime
     const responseText = await response.text()
-
-    let responseData: unknown
-    try {
-      responseData = responseText ? JSON.parse(responseText) : null
-    } catch {
-      responseData = responseText
-    }
+    const responseData = parseResponseData(responseText)
 
     // Validate response
-    let testPassed = true
-    let failureReason = ''
-
-    // Check HTTP status
-    if (response.status !== expectedStatus) {
-      testPassed = false
-      failureReason = `Expected status ${expectedStatus}, got ${response.status}`
-    }
-
-    // Check response time
-    if (responseTime > MAX_RESPONSE_TIME) {
-      testPassed = false
-      failureReason = `${failureReason ? `${failureReason}; ` : ''}Response time ${responseTime}ms exceeds ${MAX_RESPONSE_TIME}ms`
-    }
-
-    // Validate schema if provided
-    if (schema && response.status >= 200 && response.status < 300) {
-      try {
-        schema.parse(responseData)
-      } catch (schemaError) {
-        testPassed = false
-        failureReason = `${failureReason ? `${failureReason}; ` : ''}Schema validation failed: ${schemaError}`
-      }
-    }
+    const { passed, reason } = validateResponse(
+      response,
+      responseTime,
+      expectedStatus,
+      responseData,
+      schema
+    )
 
     const result: TestResult = {
       name: testName,
       description,
-      status: testPassed ? 'PASS' : 'FAIL',
-      error: testPassed ? undefined : failureReason,
+      status: passed ? 'PASS' : 'FAIL',
+      error: passed ? undefined : reason,
       responseTime,
       httpCode: response.status,
       timestamp: new Date().toISOString(),
     }
 
-    if (testPassed) {
-      passedTests++
-      printSuccess(`${testName} (${responseTime}ms)`)
-    } else {
-      failedTests++
-      printFailure(`${testName} - ${failureReason}`)
-    }
-
-    testResults.push(result)
+    recordTestResult(result, passed, reason)
     return result
   } catch (error) {
-    errorTests++
-    const responseTime = Date.now() - startTime
-    const result: TestResult = {
-      name: testName,
-      description,
-      status: 'ERROR',
-      error: error instanceof Error ? error.message : 'Unknown error',
-      responseTime,
-      httpCode: undefined,
-      timestamp: new Date().toISOString(),
-    }
-
-    printError(`${testName} - ${result.error}`)
-    testResults.push(result)
-    return result
+    return handleTestError(testName, description, startTime, error)
   }
 }
 

@@ -20,11 +20,11 @@ export default async function setup() {
       writable: WritableStream
 
       constructor() {
-        const { readable, writable } = new TransformStream()
-        this.readable = readable
-        this.writable = writable
+        // Simple mock streams for testing
+        this.readable = {} as ReadableStream
+        this.writable = {} as WritableStream
       }
-    } as any
+    } as typeof TransformStream
   }
 
   // Global test utilities

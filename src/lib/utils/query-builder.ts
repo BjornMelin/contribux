@@ -46,12 +46,34 @@ export function buildWhereConditions(table: PgTable, filters: Record<string, unk
 }
 
 /**
+ * Type-safe helper to get column from table
+ */
+function getTableColumn(table: PgTable, key: string): PgColumn | null {
+  // Safely access table properties using bracket notation
+  const tableRecord = table as unknown as Record<string, unknown>
+  const column = tableRecord[key]
+
+  // Check if the column has the expected Drizzle column structure
+  if (
+    column &&
+    typeof column === 'object' &&
+    column !== null &&
+    'dataType' in column &&
+    'columnType' in column
+  ) {
+    return column as PgColumn
+  }
+
+  return null
+}
+
+/**
  * Build single WHERE condition for a field
  */
 function buildSingleWhereCondition(table: PgTable, key: string, value: unknown): SQL | null {
   if (value === undefined || value === null) return null
 
-  const column = (table as any)[key] as PgColumn | undefined
+  const column = getTableColumn(table, key)
   if (!column) return null
 
   return createConditionForValue(column, value)
@@ -104,7 +126,7 @@ export function buildOrderBy(
   const sortOptions = sort && sort.length > 0 ? sort : [defaultSort]
 
   return sortOptions.map(({ field, direction }) => {
-    const column = (table as any)[field] as PgColumn | undefined
+    const column = getTableColumn(table, field)
     if (!column) {
       throw new Error(`Invalid sort field: ${field}`)
     }

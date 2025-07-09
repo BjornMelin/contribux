@@ -145,6 +145,18 @@ export function getInputValue(value: FormValue, type: 'text' | 'number'): string
 }
 
 /**
+ * Type guard for multiselect array values
+ */
+function isMultiselectArray(value: unknown): value is Array<string | number | boolean> {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      item => typeof item === 'string' || typeof item === 'number' || typeof item === 'boolean'
+    )
+  )
+}
+
+/**
  * Get checked state for checkboxes
  */
 export function getCheckedState(
@@ -154,11 +166,76 @@ export function getCheckedState(
 ): boolean {
   if (optionValue !== undefined) {
     // For multiselect checkboxes
-    return Array.isArray(value) ? (value as any[]).includes(optionValue) : false
+    return isMultiselectArray(value)
+      ? (value as Array<string | number | boolean>).includes(optionValue)
+      : false
   }
 
   // For toggle checkboxes
   return typeof value === 'boolean' ? value : defaultChecked
+}
+
+/**
+ * Check if value is empty/null/undefined
+ */
+function isEmpty(value: FormValue): boolean {
+  return value === undefined || value === null || value === ''
+}
+
+/**
+ * Validate required field constraint
+ */
+function validateRequired(value: FormValue, required?: boolean): string[] {
+  if (required && isEmpty(value)) {
+    return ['This field is required']
+  }
+  return []
+}
+
+/**
+ * Validate numeric min/max constraints
+ */
+function validateNumericRange(value: FormValue, min?: number, max?: number): string[] {
+  const errors: string[] = []
+  const numValue = Number(value)
+
+  if (min !== undefined && numValue < min) {
+    errors.push(`Value must be at least ${min}`)
+  }
+
+  if (max !== undefined && numValue > max) {
+    errors.push(`Value must be at most ${max}`)
+  }
+
+  return errors
+}
+
+/**
+ * Validate string length constraints
+ */
+function validateStringLength(value: FormValue, minLength?: number, maxLength?: number): string[] {
+  const errors: string[] = []
+  const stringValue = String(value)
+
+  if (minLength !== undefined && stringValue.length < minLength) {
+    errors.push(`Must be at least ${minLength} characters`)
+  }
+
+  if (maxLength !== undefined && stringValue.length > maxLength) {
+    errors.push(`Must be at most ${maxLength} characters`)
+  }
+
+  return errors
+}
+
+/**
+ * Validate pattern matching constraint
+ */
+function validatePattern(value: FormValue, pattern?: RegExp): string[] {
+  if (pattern && !pattern.test(String(value))) {
+    return ['Invalid format']
+  }
+  return []
 }
 
 /**
@@ -177,33 +254,22 @@ export function validateInput(
 ): { valid: boolean; errors: string[] } {
   const errors: string[] = []
 
-  if (constraints.required && (value === undefined || value === null || value === '')) {
-    errors.push('This field is required')
+  // Check required constraint
+  errors.push(...validateRequired(value, constraints.required))
+
+  // Skip other validations if value is empty (but not required)
+  if (isEmpty(value)) {
+    return { valid: errors.length === 0, errors }
   }
 
-  if (value !== undefined && value !== null && value !== '') {
-    if (constraints.min !== undefined && Number(value) < constraints.min) {
-      errors.push(`Value must be at least ${constraints.min}`)
-    }
+  // Validate numeric constraints
+  errors.push(...validateNumericRange(value, constraints.min, constraints.max))
 
-    if (constraints.max !== undefined && Number(value) > constraints.max) {
-      errors.push(`Value must be at most ${constraints.max}`)
-    }
+  // Validate string length constraints
+  errors.push(...validateStringLength(value, constraints.minLength, constraints.maxLength))
 
-    const stringValue = String(value)
-
-    if (constraints.minLength !== undefined && stringValue.length < constraints.minLength) {
-      errors.push(`Must be at least ${constraints.minLength} characters`)
-    }
-
-    if (constraints.maxLength !== undefined && stringValue.length > constraints.maxLength) {
-      errors.push(`Must be at most ${constraints.maxLength} characters`)
-    }
-
-    if (constraints.pattern && !constraints.pattern.test(stringValue)) {
-      errors.push('Invalid format')
-    }
-  }
+  // Validate pattern constraint
+  errors.push(...validatePattern(value, constraints.pattern))
 
   return {
     valid: errors.length === 0,

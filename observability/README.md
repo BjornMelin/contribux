@@ -1,6 +1,7 @@
 # Contribux Observability Setup
 
-This directory contains the observability stack configuration for the Contribux application, providing comprehensive monitoring, tracing, and metrics collection.
+This directory contains the observability stack configuration for the Contribux application,
+providing comprehensive monitoring, tracing, and metrics collection.
 
 ## 🎯 Overview
 
@@ -36,11 +37,11 @@ pnpm dev
 
 ### 3. Access the Dashboards
 
-- **Application**: http://localhost:3000
-- **Observability Dashboard**: http://localhost:3000/observability
-- **Jaeger UI**: http://localhost:16686
-- **Prometheus**: http://localhost:9090
-- **Grafana**: http://localhost:3001 (admin/admin)
+- **Application**: <http://localhost:3000>
+- **Observability Dashboard**: <http://localhost:3000/observability>
+- **Jaeger UI**: <http://localhost:16686>
+- **Prometheus**: <http://localhost:9090>
+- **Grafana**: <http://localhost:3001> (admin/admin)
 
 ## 📊 Monitoring Endpoints
 
@@ -163,7 +164,7 @@ The included dashboard shows:
 
 ### Custom Dashboards
 
-1. Access Grafana at http://localhost:3001
+1. Access Grafana at <http://localhost:3001>
 2. Login with admin/admin
 3. Create new dashboards using the Prometheus datasource
 4. Use the metrics listed above for your panels
@@ -219,7 +220,7 @@ groups:
 
 2. **Metrics not appearing in Prometheus**
    - Verify Prometheus can scrape the app: `curl http://localhost:3000/api/metrics`
-   - Check Prometheus targets: http://localhost:9090/targets
+   - Check Prometheus targets: <http://localhost:9090/targets>
    - Review Prometheus logs: `docker-compose logs prometheus`
 
 3. **Grafana connection issues**

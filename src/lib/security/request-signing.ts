@@ -58,7 +58,7 @@ export class RequestSigner {
     method: string,
     path: string,
     options?: {
-      body?: any
+      body?: unknown
       queryParams?: Record<string, string>
       headers?: Record<string, string>
     }
@@ -75,9 +75,8 @@ export class RequestSigner {
 
     // Include body if configured
     if (this.config.includeBody && options?.body) {
-      components.body = typeof options.body === 'string' 
-        ? options.body 
-        : JSON.stringify(options.body)
+      components.body =
+        typeof options.body === 'string' ? options.body : JSON.stringify(options.body)
     }
 
     // Include query params if configured
@@ -113,71 +112,156 @@ export class RequestSigner {
     path: string,
     headers: Record<string, string>,
     options?: {
-      body?: any
+      body?: unknown
       queryParams?: Record<string, string>
     }
   ): { valid: boolean; error?: string } {
     try {
-      // Extract signature components from headers
-      const signature = headers['x-signature'] || headers['X-Signature']
-      const algorithm = headers['x-signature-algorithm'] || headers['X-Signature-Algorithm']
-      const timestamp = parseInt(headers['x-timestamp'] || headers['X-Timestamp'] || '0')
-      const nonce = headers['x-nonce'] || headers['X-Nonce']
-
-      if (!signature || !timestamp || !nonce) {
-        return { valid: false, error: 'Missing signature components' }
+      // Extract and validate signature components
+      const extractResult = this.extractSignatureComponents(headers)
+      if (!extractResult.valid) {
+        return extractResult
       }
 
-      if (algorithm !== this.config.algorithm) {
-        return { valid: false, error: 'Invalid signature algorithm' }
+      const { signature, timestamp, nonce } = extractResult
+
+      // Type assertions since validation passed
+      if (typeof timestamp !== 'number' || !nonce || !signature) {
+        return { valid: false, error: 'Invalid signature component types' }
       }
 
-      // Check timestamp freshness
-      const now = Math.floor(Date.now() / 1000)
-      if (Math.abs(now - timestamp) > this.config.timestampTolerance) {
-        return { valid: false, error: 'Request timestamp outside tolerance window' }
+      // Validate request timing (timestamp is guaranteed to be number after check above)
+      const timestampResult = this.validateTimestamp(timestamp as number)
+      if (!timestampResult.valid) {
+        return timestampResult
       }
 
-      // Build signature components
-      const components: SignatureComponents = {
-        method: method.toUpperCase(),
-        path,
-        timestamp,
-        nonce,
-      }
-
-      if (this.config.includeBody && options?.body) {
-        components.body = typeof options.body === 'string'
-          ? options.body
-          : JSON.stringify(options.body)
-      }
-
-      if (this.config.includeQueryParams && options?.queryParams) {
-        components.queryParams = this.canonicalizeQueryParams(options.queryParams)
-      }
-
-      // Generate expected signature
-      const expectedSignature = this.generateSignature(components)
-
-      // Timing-safe comparison
-      const providedBuffer = Buffer.from(signature, 'hex')
-      const expectedBuffer = Buffer.from(expectedSignature, 'hex')
-
-      if (providedBuffer.length !== expectedBuffer.length) {
-        return { valid: false, error: 'Invalid signature length' }
-      }
-
-      if (!timingSafeEqual(providedBuffer, expectedBuffer)) {
-        return { valid: false, error: 'Invalid signature' }
-      }
-
-      return { valid: true }
+      // Verify signature authenticity
+      return this.verifySignatureAuthenticity(method, path, signature, timestamp, nonce, options)
     } catch (error) {
-      return { 
-        valid: false, 
-        error: error instanceof Error ? error.message : 'Signature verification failed' 
-      }
+      return this.handleVerificationError(error)
     }
+  }
+
+  /**
+   * Verify signature authenticity using timing-safe comparison
+   */
+  private verifySignatureAuthenticity(
+    method: string,
+    path: string,
+    signature: string,
+    timestamp: number,
+    nonce: string,
+    options?: {
+      body?: unknown
+      queryParams?: Record<string, string>
+    }
+  ): { valid: boolean; error?: string } {
+    const components = this.buildSignatureComponents(method, path, timestamp, nonce, options)
+    return this.performSignatureVerification(signature, components)
+  }
+
+  /**
+   * Handle verification errors consistently
+   */
+  private handleVerificationError(error: unknown): { valid: boolean; error?: string } {
+    return {
+      valid: false,
+      error: error instanceof Error ? error.message : 'Signature verification failed',
+    }
+  }
+
+  /**
+   * Extract signature components from headers
+   */
+  private extractSignatureComponents(headers: Record<string, string>): {
+    valid: boolean
+    error?: string
+    signature?: string
+    timestamp?: number
+    nonce?: string
+  } {
+    const signature = headers['x-signature'] || headers['X-Signature']
+    const algorithm = headers['x-signature-algorithm'] || headers['X-Signature-Algorithm']
+    const timestamp = Number.parseInt(headers['x-timestamp'] || headers['X-Timestamp'] || '0')
+    const nonce = headers['x-nonce'] || headers['X-Nonce']
+
+    if (!signature || !timestamp || !nonce) {
+      return { valid: false, error: 'Missing signature components' }
+    }
+
+    if (algorithm !== this.config.algorithm) {
+      return { valid: false, error: 'Invalid signature algorithm' }
+    }
+
+    return { valid: true, signature, timestamp, nonce }
+  }
+
+  /**
+   * Validate request timestamp
+   */
+  private validateTimestamp(timestamp: number): { valid: boolean; error?: string } {
+    const now = Math.floor(Date.now() / 1000)
+    if (Math.abs(now - timestamp) > this.config.timestampTolerance) {
+      return { valid: false, error: 'Request timestamp outside tolerance window' }
+    }
+    return { valid: true }
+  }
+
+  /**
+   * Build signature components for verification
+   */
+  private buildSignatureComponents(
+    method: string,
+    path: string,
+    timestamp: number,
+    nonce: string,
+    options?: {
+      body?: unknown
+      queryParams?: Record<string, string>
+    }
+  ): SignatureComponents {
+    const components: SignatureComponents = {
+      method: method.toUpperCase(),
+      path,
+      timestamp,
+      nonce,
+    }
+
+    if (this.config.includeBody && options?.body) {
+      components.body =
+        typeof options.body === 'string' ? options.body : JSON.stringify(options.body)
+    }
+
+    if (this.config.includeQueryParams && options?.queryParams) {
+      components.queryParams = this.canonicalizeQueryParams(options.queryParams)
+    }
+
+    return components
+  }
+
+  /**
+   * Perform timing-safe signature verification
+   */
+  private performSignatureVerification(
+    providedSignature: string,
+    components: SignatureComponents
+  ): { valid: boolean; error?: string } {
+    const expectedSignature = this.generateSignature(components)
+
+    // Timing-safe comparison
+    const providedBuffer = Buffer.from(providedSignature, 'hex')
+    const expectedBuffer = Buffer.from(expectedSignature, 'hex')
+
+    if (providedBuffer.length !== expectedBuffer.length) {
+      return { valid: false, error: 'Invalid signature length' }
+    }
+
+    if (!timingSafeEqual(providedBuffer, expectedBuffer)) {
+      return { valid: false, error: 'Invalid signature' }
+    }
+
+    return { valid: true }
   }
 
   /**
@@ -212,7 +296,7 @@ export class RequestSigner {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
       .join('&')
-    
+
     return sorted
   }
 }
@@ -221,32 +305,116 @@ export class RequestSigner {
  * Express/Next.js middleware for request signing verification
  */
 export function createSigningMiddleware(signer: RequestSigner) {
-  return async (req: any, res: any, next: any) => {
-    // Skip signing for public endpoints
-    if (req.path.startsWith('/api/public/') || req.path.startsWith('/health')) {
-      return next()
+  return async (req: unknown, res: unknown, next: unknown) => {
+    // Validate middleware prerequisites
+    const validationResult = validateMiddlewareInputs(req, res, next)
+    if (!validationResult.isValid) {
+      return validationResult.result
     }
 
-    const headers = req.headers as Record<string, string>
-    const result = signer.verifyRequest(
-      req.method,
-      req.path,
-      headers,
-      {
-        body: req.body,
-        queryParams: req.query,
-      }
-    )
+    const { reqObj, resObj } = validationResult
 
-    if (!result.valid) {
-      return res.status(401).json({
-        error: 'Invalid request signature',
-        message: result.error,
-      })
+    // Check if endpoint should skip signing
+    if (shouldSkipSigning(reqObj.path)) {
+      if (typeof next === 'function') return next()
+      return
     }
 
-    next()
+    // Perform signature verification
+    return performSignatureVerification(signer, reqObj, resObj, next)
   }
+}
+
+/**
+ * Validate middleware inputs and extract typed objects
+ */
+function validateMiddlewareInputs(
+  req: unknown,
+  res: unknown,
+  next: unknown
+):
+  | {
+      isValid: false
+      result?: undefined
+      reqObj?: undefined
+      resObj?: undefined
+    }
+  | {
+      isValid: true
+      reqObj: {
+        path: string
+        headers: Record<string, string>
+        method: string
+        body?: unknown
+        query?: unknown
+      }
+      resObj: { status: (code: number) => { json: (data: unknown) => unknown } }
+    } {
+  // Validate request object
+  if (!req || typeof req !== 'object' || !('path' in req) || !('headers' in req)) {
+    if (typeof next === 'function') next()
+    return { isValid: false, result: undefined }
+  }
+
+  // Validate response object
+  if (!res || typeof res !== 'object' || !('status' in res)) {
+    if (typeof next === 'function') next()
+    return { isValid: false, result: undefined }
+  }
+
+  const reqObj = req as {
+    path: string
+    headers: Record<string, string>
+    method: string
+    body?: unknown
+    query?: unknown
+  }
+  const resObj = res as { status: (code: number) => { json: (data: unknown) => unknown } }
+
+  return { isValid: true, reqObj, resObj }
+}
+
+/**
+ * Check if the endpoint should skip signing verification
+ */
+function shouldSkipSigning(path: string): boolean {
+  return path.startsWith('/api/public/') || path.startsWith('/health')
+}
+
+/**
+ * Perform signature verification and handle the result
+ */
+function performSignatureVerification(
+  signer: RequestSigner,
+  reqObj: {
+    path: string
+    headers: Record<string, string>
+    method: string
+    body?: unknown
+    query?: unknown
+  },
+  resObj: { status: (code: number) => { json: (data: unknown) => unknown } },
+  next: unknown
+): unknown {
+  const headers = reqObj.headers || {}
+  const result = signer.verifyRequest(reqObj.method, reqObj.path, headers, {
+    body: reqObj.body,
+    queryParams: reqObj.query as Record<string, string> | undefined,
+  })
+
+  if (!result.valid) {
+    return resObj.status(401).json({
+      error: 'Invalid request signature',
+      message: result.error,
+    })
+  }
+
+  if (typeof next === 'function') {
+    return next()
+  }
+
+  // Return undefined if next is not a function (middleware continues)
+  return undefined
 }
 
 /**
@@ -263,9 +431,9 @@ export class SignedFetch {
 
   async fetch(
     path: string,
-    options?: RequestInit & { 
+    options?: RequestInit & {
       queryParams?: Record<string, string>
-      skipSigning?: boolean 
+      skipSigning?: boolean
     }
   ): Promise<Response> {
     if (options?.skipSigning) {
@@ -273,7 +441,7 @@ export class SignedFetch {
     }
 
     const url = new URL(path, this.baseUrl)
-    
+
     // Add query params to URL
     if (options?.queryParams) {
       Object.entries(options.queryParams).forEach(([key, value]) => {
@@ -282,15 +450,11 @@ export class SignedFetch {
     }
 
     // Sign the request
-    const signed = this.signer.signRequest(
-      options?.method || 'GET',
-      url.pathname,
-      {
-        body: options?.body,
-        queryParams: options?.queryParams,
-        headers: options?.headers as Record<string, string>,
-      }
-    )
+    const signed = this.signer.signRequest(options?.method || 'GET', url.pathname, {
+      body: options?.body,
+      queryParams: options?.queryParams,
+      headers: options?.headers as Record<string, string> | undefined,
+    })
 
     // Merge signed headers with existing headers
     const headers = {

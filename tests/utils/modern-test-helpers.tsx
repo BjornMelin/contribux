@@ -12,7 +12,7 @@ import type React from 'react'
 import { afterEach, beforeEach, vi } from 'vitest'
 
 // Conditionally import userEvent only when in DOM environment
-let userEvent: any = null
+let userEvent: typeof import('@testing-library/user-event') | null = null
 if (typeof window !== 'undefined') {
   import('@testing-library/user-event').then(module => {
     userEvent = module.userEvent

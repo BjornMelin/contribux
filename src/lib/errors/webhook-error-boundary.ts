@@ -3,11 +3,11 @@
  * Specialized error handling for webhook processing with circuit breaker
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { AuditEventType, AuditSeverity, auditLogger } from '@/lib/security/audit-logger'
 import { CircuitBreaker } from '@/lib/security/error-boundaries'
-import { ErrorClassifier, ErrorCategory, ErrorSeverity } from './error-classification'
+import { NextResponse } from 'next/server'
+import { ErrorClassifier, ErrorSeverity } from './error-classification'
 import { ErrorRecoveryManager } from './error-recovery'
-import { auditLogger, AuditEventType, AuditSeverity } from '@/lib/security/audit-logger'
 
 // Webhook error types
 export interface WebhookError extends Error {
@@ -28,15 +28,30 @@ export interface WebhookResult {
   nextRetryDelay?: number
 }
 
+// Webhook context type for better type safety
+export interface WebhookContext {
+  event: string
+  deliveryId: string
+  repository?: string
+  source?: string
+  attemptNumber?: number
+}
+
+// Circuit breaker status interface
+interface CircuitBreakerStatus {
+  state: 'closed' | 'open' | 'half-open'
+  failures: number
+}
+
 // Circuit breaker configuration for webhooks
 const WEBHOOK_CIRCUIT_BREAKER_CONFIG = {
   failureThreshold: 5,
   resetTimeout: 60000, // 1 minute
   onOpen: () => {
-    console.error('[WebhookBoundary] Circuit breaker opened - webhook processing disabled')
+    // Circuit breaker opened - could log or emit metrics here
   },
   onClose: () => {
-    console.log('[WebhookBoundary] Circuit breaker closed - webhook processing resumed')
+    // Circuit breaker closed - could log recovery here
   },
 }
 
@@ -50,7 +65,86 @@ function getWebhookCircuitBreaker(source: string): CircuitBreaker {
   if (!webhookCircuitBreakers.has(source)) {
     webhookCircuitBreakers.set(source, new CircuitBreaker(WEBHOOK_CIRCUIT_BREAKER_CONFIG))
   }
-  return webhookCircuitBreakers.get(source)!
+  const breaker = webhookCircuitBreakers.get(source)
+  if (!breaker) {
+    throw new Error(`Failed to create circuit breaker for source: ${source}`)
+  }
+  return breaker
+}
+
+/**
+ * Log successful webhook processing
+ */
+async function logWebhookSuccess(context: WebhookContext): Promise<void> {
+  await auditLogger.log({
+    type: AuditEventType.WEBHOOK_RECEIVED,
+    severity: AuditSeverity.INFO,
+    actor: {
+      id: context.source || 'github',
+      type: 'system',
+    },
+    action: `Processed ${context.event} webhook`,
+    result: 'success',
+    metadata: {
+      event: context.event,
+      repository: context.repository,
+      attemptNumber: context.attemptNumber || 1,
+      deliveryId: context.deliveryId,
+    },
+  })
+}
+
+/**
+ * Create webhook-specific error from generic error
+ */
+function createWebhookError(
+  error: unknown,
+  context: WebhookContext,
+  classification: ReturnType<typeof ErrorClassifier.classify>
+): WebhookError {
+  const webhookError: WebhookError = error instanceof Error ? error : new Error(String(error))
+  webhookError.webhookEvent = context.event
+  webhookError.deliveryId = context.deliveryId
+  webhookError.repository = context.repository
+  webhookError.attemptNumber = context.attemptNumber || 1
+  webhookError.isRetryable = classification.isTransient
+  return webhookError
+}
+
+/**
+ * Log webhook processing error
+ */
+async function logWebhookError(
+  webhookError: WebhookError,
+  context: WebhookContext,
+  classification: ReturnType<typeof ErrorClassifier.classify>
+): Promise<void> {
+  const severityMap: Record<ErrorSeverity, AuditSeverity> = {
+    [ErrorSeverity.CRITICAL]: AuditSeverity.CRITICAL,
+    [ErrorSeverity.HIGH]: AuditSeverity.ERROR,
+    [ErrorSeverity.MEDIUM]: AuditSeverity.WARNING,
+    [ErrorSeverity.LOW]: AuditSeverity.INFO,
+  }
+
+  await auditLogger.log({
+    type: AuditEventType.WEBHOOK_RECEIVED,
+    severity: severityMap[classification.severity],
+    actor: {
+      id: context.source || 'github',
+      type: 'system',
+    },
+    action: `Failed to process ${context.event} webhook`,
+    result: 'error',
+    reason: webhookError.message,
+    metadata: {
+      ...ErrorRecoveryManager.formatForLogging(webhookError, classification),
+      event: context.event,
+      repository: context.repository,
+      attemptNumber: context.attemptNumber || 1,
+      isRetryable: classification.isTransient,
+      deliveryId: context.deliveryId,
+    },
+  })
 }
 
 /**
@@ -58,87 +152,37 @@ function getWebhookCircuitBreaker(source: string): CircuitBreaker {
  */
 export async function withWebhookErrorBoundary<T>(
   operation: () => Promise<T>,
-  context: {
-    event: string
-    deliveryId: string
-    repository?: string
-    source?: string
-    attemptNumber?: number
-  }
+  context: WebhookContext
 ): Promise<WebhookResult> {
   const circuitBreaker = getWebhookCircuitBreaker(context.source || 'github')
-  
+
   try {
-    // Check circuit breaker first
+    // Execute operation through circuit breaker
     await circuitBreaker.execute(async () => {
       await operation()
     })
-    
+
     // Log successful processing
-    await auditLogger.log({
-      type: AuditEventType.WEBHOOK_RECEIVED,
-      severity: AuditSeverity.INFO,
-      actor: {
-        id: context.source || 'github',
-        type: 'system',
-      },
-      action: `Processed ${context.event} webhook`,
-      result: 'success',
-      metadata: {
-        event: context.event,
-        repository: context.repository,
-        attemptNumber: context.attemptNumber || 1,
-        deliveryId: context.deliveryId,
-      },
-    })
-    
+    await logWebhookSuccess(context)
+
     return {
       success: true,
       deliveryId: context.deliveryId,
       event: context.event,
     }
   } catch (error) {
-    // Classify the error
+    // Classify and handle error
     const classification = ErrorClassifier.classify(error)
-    
-    // Create webhook-specific error
-    const webhookError: WebhookError = error instanceof Error ? error : new Error(String(error))
-    webhookError.webhookEvent = context.event
-    webhookError.deliveryId = context.deliveryId
-    webhookError.repository = context.repository
-    webhookError.attemptNumber = context.attemptNumber || 1
-    webhookError.isRetryable = classification.isTransient
-    
-    // Log error with classification
-    await auditLogger.log({
-      type: AuditEventType.WEBHOOK_RECEIVED,
-      severity: classification.severity === ErrorSeverity.CRITICAL 
-        ? AuditSeverity.CRITICAL 
-        : classification.severity === ErrorSeverity.HIGH 
-          ? AuditSeverity.ERROR 
-          : AuditSeverity.WARNING,
-      actor: {
-        id: context.source || 'github',
-        type: 'system',
-      },
-      action: `Failed to process ${context.event} webhook`,
-      result: 'error',
-      reason: webhookError.message,
-      metadata: {
-        ...ErrorRecoveryManager.formatForLogging(error, classification),
-        event: context.event,
-        repository: context.repository,
-        attemptNumber: context.attemptNumber || 1,
-        isRetryable: classification.isTransient,
-        deliveryId: context.deliveryId,
-      },
-    })
-    
+    const webhookError = createWebhookError(error, context, classification)
+
+    // Log error
+    await logWebhookError(webhookError, context, classification)
+
     // Calculate retry delay if applicable
     const nextRetryDelay = ErrorClassifier.shouldRetry(classification)
       ? ErrorClassifier.getRetryDelay(classification, (context.attemptNumber || 0) + 1)
       : undefined
-    
+
     return {
       success: false,
       error: classification.userMessage,
@@ -161,7 +205,7 @@ export function createWebhookErrorResponse(result: WebhookResult): NextResponse 
         message: `Successfully processed ${result.event} event`,
         deliveryId: result.deliveryId,
       },
-      { 
+      {
         status: 200,
         headers: {
           'X-Webhook-Delivery-ID': result.deliveryId || '',
@@ -169,7 +213,7 @@ export function createWebhookErrorResponse(result: WebhookResult): NextResponse 
       }
     )
   }
-  
+
   // Determine appropriate status code based on error type
   let statusCode = 500
   if (!result.retryable) {
@@ -177,7 +221,7 @@ export function createWebhookErrorResponse(result: WebhookResult): NextResponse 
   } else if (result.nextRetryDelay && result.nextRetryDelay > 0) {
     statusCode = 503 // Service unavailable for retryable errors
   }
-  
+
   const response = NextResponse.json(
     {
       success: false,
@@ -185,7 +229,7 @@ export function createWebhookErrorResponse(result: WebhookResult): NextResponse 
       deliveryId: result.deliveryId,
       retryable: result.retryable,
     },
-    { 
+    {
       status: statusCode,
       headers: {
         'X-Webhook-Delivery-ID': result.deliveryId || '',
@@ -195,7 +239,7 @@ export function createWebhookErrorResponse(result: WebhookResult): NextResponse 
       },
     }
   )
-  
+
   return response
 }
 
@@ -203,38 +247,37 @@ export function createWebhookErrorResponse(result: WebhookResult): NextResponse 
  * Webhook retry queue for failed webhooks
  */
 export class WebhookRetryQueue {
-  private queue: Map<string, {
-    webhook: WebhookError
-    context: any
-    retryCount: number
-    nextRetryTime: number
-  }> = new Map()
-  
+  private queue: Map<
+    string,
+    {
+      webhook: WebhookError
+      context: WebhookContext
+      retryCount: number
+      nextRetryTime: number
+    }
+  > = new Map()
+
   private processingTimer?: NodeJS.Timeout
-  
+
   /**
    * Add webhook to retry queue
    */
-  async enqueue(
-    error: WebhookError,
-    context: any,
-    retryDelay: number
-  ): Promise<void> {
+  async enqueue(error: WebhookError, context: WebhookContext, retryDelay: number): Promise<void> {
     const queueId = `${error.deliveryId}-${error.attemptNumber}`
-    
+
     this.queue.set(queueId, {
       webhook: error,
       context,
       retryCount: error.attemptNumber || 1,
       nextRetryTime: Date.now() + retryDelay,
     })
-    
+
     // Start processing if not already running
     if (!this.processingTimer) {
       this.startProcessing()
     }
   }
-  
+
   /**
    * Start processing retry queue
    */
@@ -243,22 +286,20 @@ export class WebhookRetryQueue {
       this.processQueue()
     }, 5000) // Check every 5 seconds
   }
-  
+
   /**
    * Process webhooks ready for retry
    */
   private async processQueue(): Promise<void> {
     const now = Date.now()
-    const readyWebhooks = Array.from(this.queue.entries())
-      .filter(([_, item]) => item.nextRetryTime <= now)
-    
+    const readyWebhooks = Array.from(this.queue.entries()).filter(
+      ([_, item]) => item.nextRetryTime <= now
+    )
+
     for (const [queueId, item] of readyWebhooks) {
       // Remove from queue
       this.queue.delete(queueId)
-      
-      // Log retry attempt
-      console.log(`[WebhookRetry] Retrying webhook ${item.webhook.deliveryId} (attempt ${item.retryCount + 1})`)
-      
+
       // Emit retry event for processing
       // In a real implementation, this would trigger the webhook handler
       // For now, we'll just log it
@@ -279,14 +320,14 @@ export class WebhookRetryQueue {
         },
       })
     }
-    
+
     // Stop processing if queue is empty
     if (this.queue.size === 0 && this.processingTimer) {
       clearInterval(this.processingTimer)
       this.processingTimer = undefined
     }
   }
-  
+
   /**
    * Get queue statistics
    */
@@ -298,25 +339,25 @@ export class WebhookRetryQueue {
       queueSize: this.queue.size,
       oldestItem: undefined as { deliveryId: string; waitTime: number } | undefined,
     }
-    
+
     if (this.queue.size > 0) {
       const now = Date.now()
       let oldestTime = Number.MAX_SAFE_INTEGER
       let oldestDeliveryId = ''
-      
+
       for (const [_, item] of this.queue) {
         if (item.nextRetryTime < oldestTime) {
           oldestTime = item.nextRetryTime
           oldestDeliveryId = item.webhook.deliveryId || ''
         }
       }
-      
+
       stats.oldestItem = {
         deliveryId: oldestDeliveryId,
         waitTime: Math.max(0, oldestTime - now),
       }
     }
-    
+
     return stats
   }
 }
@@ -325,21 +366,34 @@ export class WebhookRetryQueue {
 export const webhookRetryQueue = new WebhookRetryQueue()
 
 /**
- * Get webhook circuit breaker status
+ * Safely extract circuit breaker state
  */
-export function getWebhookCircuitBreakerStatus(): Record<string, {
-  state: 'closed' | 'open' | 'half-open'
-  failures: number
-}> {
-  const status: Record<string, any> = {}
-  
-  for (const [source, breaker] of webhookCircuitBreakers) {
-    // Access private properties for monitoring (in real implementation, expose via public method)
-    status[source] = {
-      state: (breaker as any).state,
-      failures: (breaker as any).failures,
+function extractCircuitBreakerState(breaker: CircuitBreaker): CircuitBreakerStatus {
+  // Safe fallback approach - try to access common properties or use defaults
+  try {
+    const breakerWithState = breaker as unknown as { state?: string; failures?: number }
+    return {
+      state: (breakerWithState.state as CircuitBreakerStatus['state']) || 'closed',
+      failures: breakerWithState.failures || 0,
+    }
+  } catch {
+    // Fallback to safe defaults if property access fails
+    return {
+      state: 'closed',
+      failures: 0,
     }
   }
-  
+}
+
+/**
+ * Get webhook circuit breaker status
+ */
+export function getWebhookCircuitBreakerStatus(): Record<string, CircuitBreakerStatus> {
+  const status: Record<string, CircuitBreakerStatus> = {}
+
+  for (const [source, breaker] of webhookCircuitBreakers) {
+    status[source] = extractCircuitBreakerState(breaker)
+  }
+
   return status
 }

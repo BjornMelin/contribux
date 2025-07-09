@@ -905,67 +905,65 @@ export class CryptographicSecurityTester {
 }
 
 // Utility functions for cryptographic testing
-export class CryptographicTestUtils {
-  /**
-   * Generate test certificate for testing purposes
-   */
-  static generateTestCertificate(): string {
-    // In real implementation, would generate actual test certificate
-    return 'test-certificate-data'
-  }
 
-  /**
-   * Validate certificate format
-   */
-  static validateCertificateFormat(cert: string): boolean {
-    // Basic certificate format validation
-    return cert.includes('BEGIN CERTIFICATE') && cert.includes('END CERTIFICATE')
-  }
-
-  /**
-   * Check if cipher suite is considered secure
-   */
-  static isSecureCipherSuite(cipherSuite: string): boolean {
-    const weakCiphers = ['RC4', 'DES', '3DES', 'MD5', 'SHA1', 'NULL', 'EXPORT', 'ANONYMOUS']
-    return !weakCiphers.some(weak => cipherSuite.toUpperCase().includes(weak))
-  }
-
-  /**
-   * Generate secure random token for testing
-   */
-  static generateSecureToken(length = 32): string {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-    let result = ''
-
-    for (let i = 0; i < length; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length))
-    }
-
-    return result
-  }
-
-  /**
-   * Create test HSTS header
-   */
-  static createTestHSTSHeader(
-    maxAge = 31536000,
-    includeSubDomains = true,
-    preload = false
-  ): string {
-    let header = `max-age=${maxAge}`
-
-    if (includeSubDomains) {
-      header += '; includeSubDomains'
-    }
-
-    if (preload) {
-      header += '; preload'
-    }
-
-    return header
-  }
+/**
+ * Generate test certificate for testing purposes
+ */
+export function generateTestCertificate(): string {
+  // In real implementation, would generate actual test certificate
+  return 'test-certificate-data'
 }
 
-// Export cryptographic tester instance and utilities
+/**
+ * Validate certificate format
+ */
+export function validateCertificateFormat(cert: string): boolean {
+  // Basic certificate format validation
+  return cert.includes('BEGIN CERTIFICATE') && cert.includes('END CERTIFICATE')
+}
+
+/**
+ * Check if cipher suite is considered secure
+ */
+export function isSecureCipherSuite(cipherSuite: string): boolean {
+  const weakCiphers = ['RC4', 'DES', '3DES', 'MD5', 'SHA1', 'NULL', 'EXPORT', 'ANONYMOUS']
+  return !weakCiphers.some(weak => cipherSuite.toUpperCase().includes(weak))
+}
+
+/**
+ * Generate secure random token for testing
+ */
+export function generateSecureToken(length = 32): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  let result = ''
+
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+
+  return result
+}
+
+/**
+ * Create test HSTS header
+ */
+export function createTestHSTSHeader(
+  maxAge = 31536000,
+  includeSubDomains = true,
+  preload = false
+): string {
+  let header = `max-age=${maxAge}`
+
+  if (includeSubDomains) {
+    header += '; includeSubDomains'
+  }
+
+  if (preload) {
+    header += '; preload'
+  }
+
+  return header
+}
+
+// Export cryptographic tester instance
 export const cryptographicSecurityTester = new CryptographicSecurityTester()
-export const cryptoTestUtils = CryptographicTestUtils

@@ -589,7 +589,6 @@ import('../../src/lib/security/csp-cors')
 // =======================================================================================
 
 import { NextRequest, NextResponse } from 'next/server'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 describe('Comprehensive CORS Security Configuration', () => {
   beforeEach(() => {
@@ -884,8 +883,6 @@ describe('Comprehensive Security Headers Testing', () => {
     })
 
     it('should support report-only mode for testing', async () => {
-      const { generateCSPHeader } = await import('../../src/lib/security/csp-cors')
-
       const request = new NextRequest('https://contribux.com/api/test')
       const response = new NextResponse()
 
@@ -1815,7 +1812,9 @@ describe('Comprehensive Rate Limiting Security Testing', () => {
     })
 
     it('should log suspicious activity', async () => {
-      const logSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const logSpy = vi.spyOn(console, 'warn').mockImplementation(() => {
+        /* intentionally empty - suppress console output during tests */
+      })
 
       // Generate suspicious activity pattern
       for (let i = 0; i < 200; i++) {

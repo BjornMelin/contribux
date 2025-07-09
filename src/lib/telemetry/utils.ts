@@ -1,12 +1,11 @@
 /**
  * Telemetry Utilities
- * 
+ *
  * Provides helper functions for creating custom spans, metrics, and trace correlation
  */
 
-import { trace, metrics, context, SpanStatusCode, SpanKind } from '@opentelemetry/api'
-import { logger } from '@/lib/logger'
-import { hrtime } from 'process'
+import { hrtime } from 'node:process'
+import { SpanKind, SpanStatusCode, context, metrics, trace } from '@opentelemetry/api'
 
 // Create tracer instance
 const tracer = trace.getTracer('contribux', '1.0.0')
@@ -31,9 +30,12 @@ export const databaseOperationsCounter = meter.createCounter('database_operation
   description: 'Total number of database operations',
 })
 
-export const databaseOperationDurationHistogram = meter.createHistogram('database_operation_duration_ms', {
-  description: 'Duration of database operations in milliseconds',
-})
+export const databaseOperationDurationHistogram = meter.createHistogram(
+  'database_operation_duration_ms',
+  {
+    description: 'Duration of database operations in milliseconds',
+  }
+)
 
 export const vectorSearchCounter = meter.createCounter('vector_search_operations_total', {
   description: 'Total number of vector search operations',
@@ -99,7 +101,7 @@ export async function createGitHubSpan<T>(
 
   return createSpan(
     `github.${operation}`,
-    async (span) => {
+    async span => {
       span.setAttributes({
         'github.operation': operation,
         'service.component': 'github-api',
@@ -108,7 +110,7 @@ export async function createGitHubSpan<T>(
 
       try {
         const result = await fn(span)
-        
+
         // Record successful API call
         githubApiCallsCounter.add(1, {
           operation,
@@ -146,7 +148,7 @@ export async function createDatabaseSpan<T>(
 
   return createSpan(
     `database.${operation}`,
-    async (span) => {
+    async span => {
       span.setAttributes({
         'db.operation': operation,
         'service.component': 'database',
@@ -155,7 +157,7 @@ export async function createDatabaseSpan<T>(
 
       try {
         const result = await fn(span)
-        
+
         databaseOperationsCounter.add(1, {
           operation,
           status: 'success',
@@ -191,7 +193,7 @@ export async function createVectorSearchSpan<T>(
 
   return createSpan(
     `vector_search.${operation}`,
-    async (span) => {
+    async span => {
       span.setAttributes({
         'vector.operation': operation,
         'service.component': 'vector-search',
@@ -200,7 +202,7 @@ export async function createVectorSearchSpan<T>(
 
       try {
         const result = await fn(span)
-        
+
         vectorSearchCounter.add(1, {
           operation,
           status: 'success',
