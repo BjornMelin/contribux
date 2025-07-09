@@ -2,7 +2,8 @@
 
 ## Overview
 
-The contribux project implements dynamic CSP (Content Security Policy) nonces to prevent XSS attacks while allowing necessary inline scripts. Each request generates a unique cryptographically secure nonce.
+The contribux project implements dynamic CSP (Content Security Policy) nonces to prevent XSS attacks
+while allowing necessary inline scripts. Each request generates a unique cryptographically secure nonce.
 
 ## How It Works
 
@@ -112,6 +113,7 @@ export const defaultCSPDirectives: CSPDirectives = {
 ## Troubleshooting
 
 If scripts are blocked:
+
 1. Check the browser console for CSP violations
 2. Ensure the script has the correct nonce attribute
 3. Verify the nonce is being generated (check response headers)

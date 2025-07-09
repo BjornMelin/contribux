@@ -1,8 +1,10 @@
 # NextAuth.js v5 Testing Guide - Contribux Project
 
-**Complete Testing Documentation for NextAuth.js v5 Authentication System**
+## **Complete Testing Documentation for NextAuth.js v5 Authentication System**
 
-> This comprehensive guide covers all aspects of testing the NextAuth.js v5 authentication system implemented in the Contribux project, including unit tests, integration tests, E2E tests, security testing, and performance benchmarks.
+> This comprehensive guide covers all aspects of testing the NextAuth.js v5 authentication system
+> implemented in the Contribux project, including unit tests, integration tests, E2E tests, security testing,
+> and performance benchmarks.
 
 ## Table of Contents
 
@@ -18,11 +20,15 @@
 
 ## Overview
 
-The Contribux project implements a comprehensive NextAuth.js v5 authentication system with GitHub and Google OAuth providers. This testing suite provides 95%+ coverage across all authentication flows, security scenarios, and performance requirements.
+The Contribux project implements a comprehensive NextAuth.js v5 authentication system with GitHub and Google
+OAuth providers. This testing suite provides 95%+ coverage across all authentication flows, security scenarios,
+and performance requirements.
 
 ### Migration Context
 
-This testing suite was created during **Phase 4** migration from a custom JWT implementation (which had a CVSS 9.8 vulnerability) to NextAuth.js v5. The tests ensure the new authentication system is secure, performant, and reliable.
+This testing suite was created during **Phase 4** migration from a custom JWT implementation (which had a
+CVSS 9.8 vulnerability) to NextAuth.js v5. The tests ensure the new authentication system is secure, performant,
+and reliable.
 
 ### Key Features Tested
 
@@ -97,6 +103,7 @@ graph TB
 ```
 
 **Key Test Scenarios**:
+
 - ✅ Valid GitHub OAuth flow with PKCE
 - ✅ Valid Google OAuth flow with state validation
 - ✅ Invalid state parameter rejection
@@ -118,6 +125,7 @@ graph TB
 ```
 
 **Key Test Scenarios**:
+
 - ✅ Session creation with correct structure
 - ✅ Session token expiration validation
 - ✅ Token refresh for GitHub/Google
@@ -139,6 +147,7 @@ graph TB
 ```
 
 **Key Test Scenarios**:
+
 - ✅ CSRF protection enabled by default
 - ✅ Secure token storage configuration
 - ✅ Session fingerprinting implementation
@@ -161,6 +170,7 @@ graph TB
 ```
 
 **Key Test Scenarios**:
+
 - ✅ Unauthenticated access to public routes
 - ✅ Protected route access control
 - ✅ Admin role validation
@@ -181,6 +191,7 @@ graph TB
 ```
 
 **Key Test Scenarios**:
+
 - ✅ New user creation with OAuth account
 - ✅ Account linking for existing users
 - ✅ Token refresh database updates
@@ -204,6 +215,7 @@ graph TB
 ```
 
 **Key Test Scenarios**:
+
 - ✅ GitHub OAuth flow initiation
 - ✅ OAuth callback handling
 - ✅ Session persistence across tabs
@@ -313,28 +325,33 @@ const LOAD_TEST_PARAMS = {
 ### Performance Test Categories
 
 #### 1. Session Creation Performance
+
 - ✅ Single session creation under 50ms
 - ✅ Burst session creation (20 sessions)
 - ✅ Memory pressure testing
 
 #### 2. Token Refresh Performance
+
 - ✅ GitHub token refresh under 500ms
 - ✅ Google token refresh under 500ms
 - ✅ Concurrent token refreshes
 - ✅ Refresh failure handling
 
 #### 3. Database Operation Performance
+
 - ✅ User queries under 100ms
 - ✅ Connection timeout handling
 - ✅ Concurrent database operations
 
 #### 4. Load Testing
+
 - ✅ Light load (10 users): >95% success rate
 - ✅ Medium load (50 users): >90% success rate
 - ✅ Heavy load (100 users): >80% success rate
 - ✅ Stress load (500 users): >50% success rate
 
 #### 5. Memory Optimization
+
 - ✅ Stable memory usage during operations
 - ✅ Proper garbage collection
 - ✅ Memory growth under 50MB per 100 operations
@@ -389,7 +406,7 @@ DATABASE_URL_TEST=postgresql://test:test@localhost:5432/contribux_test
 
 ### Current Coverage Metrics
 
-```
+```text
 Authentication Module Coverage:
 ├── OAuth Flows: 98%
 ├── Session Management: 96%
@@ -441,29 +458,34 @@ pnpm test:coverage:check
 ### Security Test Categories
 
 #### 1. CSRF Protection
+
 - ✅ CSRF token generation and validation
 - ✅ State parameter security
 - ✅ Token rotation on sensitive operations
 
 #### 2. Token Storage Security
+
 - ✅ HttpOnly cookie configuration
 - ✅ Secure cookie settings in production
 - ✅ SameSite cookie protection
 - ✅ No sensitive tokens in client-side JavaScript
 
 #### 3. Session Security
+
 - ✅ Session fingerprinting
 - ✅ Suspicious activity detection
 - ✅ Session timeout implementation
 - ✅ Concurrent session management
 
 #### 4. Input Validation
+
 - ✅ Email address validation
 - ✅ Provider ID validation
 - ✅ XSS prevention
 - ✅ SQL injection prevention
 
 #### 5. Rate Limiting
+
 - ✅ Authentication rate limiting
 - ✅ OAuth provider rate limit handling
 - ✅ Brute force protection
@@ -668,7 +690,7 @@ jobs:
 
 ### Test Naming Conventions
 
-```
+```text
 tests/
 ├── unit/auth/                    # Unit tests
 ├── integration/auth/             # Integration tests
@@ -689,7 +711,9 @@ tests/
 
 ## Conclusion
 
-This comprehensive testing suite ensures the NextAuth.js v5 authentication system in the Contribux project is secure, performant, and reliable. With 95%+ coverage across all authentication scenarios, the test suite provides confidence in the system's robustness and helps prevent security vulnerabilities.
+This comprehensive testing suite ensures the NextAuth.js v5 authentication system in the Contribux project is
+secure, performant, and reliable. With 95%+ coverage across all authentication scenarios, the test suite
+provides confidence in the system's robustness and helps prevent security vulnerabilities.
 
 For questions or issues with the testing suite, please refer to the troubleshooting section or contact the development team.
 

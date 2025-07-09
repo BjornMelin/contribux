@@ -58,12 +58,14 @@ Configure these secrets in your GitHub repository under **Settings → Secrets a
 The pipeline consists of two main jobs:
 
 ### 🧪 Test Job
+
 - **Duration**: ~5-8 minutes
 - **Purpose**: Unit, integration, and database tests
 - **Neon Branch**: `ci-{run-id}-{attempt}`
 - **Timeout**: 15 minutes total
 
 ### 🎭 E2E Job
+
 - **Duration**: ~3-8 minutes
 - **Purpose**: End-to-end browser tests
 - **Neon Branch**: `e2e-{run-id}-{attempt}`
@@ -74,22 +76,28 @@ The pipeline consists of two main jobs:
 ### Common Issues
 
 #### 1. Neon API Timeouts
+
 **Error**: `curl: (28) Operation timed out`
-**Solution**: 
+**Solution**:
+
 - Check Neon API status
 - Verify API key permissions
 - Network connectivity issues
 
 #### 2. Database Connection Failures
+
 **Error**: `Connection refused` or `Invalid connection string`
 **Solution**:
+
 - Verify `NEON_PROJECT_ID` is correct
 - Check API key has branch creation permissions
 - Ensure project exists and is active
 
 #### 3. E2E Test Timeouts
+
 **Error**: `Test timeout of 30000ms exceeded`
 **Solution**:
+
 - Check web server startup (should be < 60s)
 - Verify database connectivity
 - Review Playwright configuration
@@ -112,12 +120,14 @@ psql "$DATABASE_URL" -c "SELECT version();"
 ## Performance Optimizations
 
 ### CI Environment
+
 - **Parallel Jobs**: Test and E2E run independently
 - **Browser Optimization**: Only Chromium + Mobile Chrome in CI
 - **Memory Management**: Reduced from 4GB to 2GB for CI
 - **Timeout Optimization**: Reduced webserver timeout to 60s
 
 ### Retry Logic
+
 - **Neon API**: 3 attempts with 10s backoff
 - **Playwright**: 2 retries on failure
 - **Test Execution**: 1-2 retries depending on test type
@@ -125,12 +135,14 @@ psql "$DATABASE_URL" -c "SELECT version();"
 ## Security Best Practices
 
 ✅ **Do**:
+
 - Use GitHub Secrets for all sensitive data
 - Rotate API keys regularly
 - Use minimal permissions for API keys
 - Monitor failed CI runs for potential issues
 
 ❌ **Don't**:
+
 - Commit secrets to repository
 - Share API keys in public channels
 - Use production databases for CI
@@ -139,13 +151,16 @@ psql "$DATABASE_URL" -c "SELECT version();"
 ## Monitoring
 
 ### Key Metrics to Watch
+
 - **Branch Creation Time**: Should be < 30 seconds
 - **Test Execution Time**: Should be < 10 minutes total
 - **Build Success Rate**: Target > 95%
 - **Database Cleanup**: All branches should be deleted
 
 ### Alerts
+
 Monitor for:
+
 - Repeated Neon API failures
 - Long-running CI jobs (> 20 minutes)
 - Database connection issues
@@ -158,6 +173,7 @@ Monitor for:
 - **Memory Check**: `.github/workflows/memory-check.yml` (memory profiling)
 
 Switch to the improved workflow by renaming:
+
 ```bash
 mv .github/workflows/test-with-neon.yml .github/workflows/test-with-neon-old.yml
 mv .github/workflows/test-with-neon-improved.yml .github/workflows/test-with-neon.yml

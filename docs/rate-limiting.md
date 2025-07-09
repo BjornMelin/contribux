@@ -59,13 +59,15 @@ export async function GET(req: NextRequest) {
 ## Health Monitoring
 
 Check Redis and rate limiter health at:
-```
+
+```text
 GET /api/health/redis
 ```
 
 ## Rate Limit Headers
 
 All rate-limited endpoints return the following headers:
+
 - `X-RateLimit-Limit`: Total requests allowed in the window
 - `X-RateLimit-Remaining`: Requests remaining in current window
 - `X-RateLimit-Reset`: Time when the limit resets (ISO 8601)
@@ -73,8 +75,10 @@ All rate-limited endpoints return the following headers:
 
 ## Development Mode
 
-When Upstash credentials are not configured, the system falls back to a mock implementation that allows all requests. This enables local development without Redis setup.
+When Upstash credentials are not configured, the system falls back to a mock implementation that allows
+all requests. This enables local development without Redis setup.
 
 ## Algorithm
 
-The implementation uses a sliding window algorithm via Upstash's `@upstash/ratelimit` library, providing accurate rate limiting without the issues of fixed windows.
+The implementation uses a sliding window algorithm via Upstash's `@upstash/ratelimit` library, providing
+accurate rate limiting without the issues of fixed windows.

@@ -2,7 +2,8 @@
 
 ## Problem
 
-The Neon serverless driver (`@neondatabase/serverless`) was failing in CI with a "fetch failed" error when trying to connect to a local PostgreSQL instance. This is because:
+The Neon serverless driver (`@neondatabase/serverless`) was failing in CI with a "fetch failed" error when
+trying to connect to a local PostgreSQL instance. This is because:
 
 1. **Neon uses HTTP/WebSocket connections** instead of traditional TCP connections
 2. **Local PostgreSQL only supports TCP connections**
@@ -10,7 +11,8 @@ The Neon serverless driver (`@neondatabase/serverless`) was failing in CI with a
 
 ## Solution
 
-We implemented a **conditional driver selection** pattern that automatically detects the environment and uses the appropriate database driver:
+We implemented a **conditional driver selection** pattern that automatically detects the environment and
+uses the appropriate database driver:
 
 - **Production/Neon Cloud**: Uses `@neondatabase/serverless` (HTTP/WebSocket)
 - **CI/Local Development**: Uses standard `pg` driver (TCP)
@@ -140,7 +142,7 @@ export async function createDatabaseClient(connectionString: string): Promise<Da
 The solution detects local PostgreSQL environments by checking:
 
 1. **CI environment variable**: `CI=true` (set by GitHub Actions)
-2. **Explicit flag**: `USE_LOCAL_PG=true` 
+2. **Explicit flag**: `USE_LOCAL_PG=true`
 3. **Connection string**: Contains `localhost` or `127.0.0.1`
 
 ### Dependencies Added
@@ -222,13 +224,16 @@ pnpm db:migrate
 ## Troubleshooting
 
 ### "fetch failed" Error
+
 - Ensure the conditional logic is detecting your environment correctly
 - Check that `pg` package is installed: `pnpm add pg`
 
 ### Connection Timeout
+
 - Local PostgreSQL may need different timeout settings
 - Adjust connection pool settings in `postgres.js` config
 
 ### Type Errors
+
 - Ensure both `@neondatabase/serverless` and `postgres` packages are installed
 - TypeScript types are handled through conditional imports
