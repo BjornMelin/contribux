@@ -5,7 +5,7 @@
 
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
-import { type CSPDirectives, buildCSP, defaultCSPDirectives } from './csp'
+import { buildCSP, type CSPDirectives, defaultCSPDirectives } from './csp'
 
 /**
  * Add security headers to response

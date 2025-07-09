@@ -1,12 +1,11 @@
 'use client'
 
-import { MotionDiv } from '@/components/motion'
 import { Github, Loader2, Mail } from 'lucide-react'
-
-import { Card } from '@/components/ui/card'
-import { cn } from '@/lib/utils'
 import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
+import { MotionDiv } from '@/components/motion'
+import { Card } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
 
 // Safe NextAuth import with error handling
 type SignInFunction =
@@ -33,6 +32,7 @@ const AuroraButton = ({ children, className, onClick, disabled }: AuroraButtonPr
   const [visible, setVisible] = useState(false)
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: This div is a visual wrapper for hover effects, contains actual button inside
     <div
       onMouseEnter={() => setVisible(true)}
       onMouseLeave={() => setVisible(false)}

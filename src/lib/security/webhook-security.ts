@@ -7,9 +7,9 @@
  */
 
 import { createHmac, timingSafeEqual } from 'node:crypto'
-import { GitHubWebhookPayloadSchema } from '@/types/github-integration'
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { GitHubWebhookPayloadSchema } from '@/types/github-integration'
 import { checkAuthRateLimit, createRateLimitResponse, recordAuthResult } from './auth-rate-limiting'
 
 // ==================== WEBHOOK CONFIGURATION ====================

@@ -1,5 +1,5 @@
-import { GitHubCacheManager, MemoryCacheAdapter } from '@/lib/github/caching'
 import { beforeEach, describe, expect, it } from 'vitest'
+import { GitHubCacheManager, MemoryCacheAdapter } from '@/lib/github/caching'
 
 // Type for accessing private methods in tests (unused but kept for future test expansion)
 interface _GitHubCacheManagerWithPrivates extends GitHubCacheManager {

@@ -11,6 +11,7 @@
  * 4. Zero-trust startup validation - fail securely on any security issue
  */
 
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   getEncryptionKey,
   getJwtSecret,
@@ -21,7 +22,6 @@ import {
   validateProductionSecuritySettings,
   validateSecurityConfiguration,
 } from '@/lib/validation/env'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 describe('Startup Security Validation', () => {
   let originalEnv: NodeJS.ProcessEnv

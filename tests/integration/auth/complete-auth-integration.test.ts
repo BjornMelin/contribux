@@ -3,12 +3,12 @@
  * Validates OAuth + WebAuthn + NextAuth + Database integration
  */
 
+import type { Account, Profile, User } from 'next-auth'
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest'
 import { authConfig } from '@/lib/auth/config'
 import { generateRegistrationOptions, verifyRegistrationResponse } from '@/lib/auth/webauthn'
 import { sql } from '@/lib/db/config'
 import type { AuthUser } from '@/types/auth'
-import type { Account, Profile, User } from 'next-auth'
-import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest'
 
 // Test database setup
 async function setupTestDatabase() {

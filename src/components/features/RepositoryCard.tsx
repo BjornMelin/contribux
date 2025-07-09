@@ -1,5 +1,7 @@
 'use client'
 
+import { motion } from 'framer-motion'
+import { Bookmark, Circle, ExternalLink, GitFork, Star, TrendingUp } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -12,8 +14,6 @@ import {
 } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import type { Repository } from '@/types/search'
-import { motion } from 'framer-motion'
-import { Bookmark, Circle, ExternalLink, GitFork, Star, TrendingUp } from 'lucide-react'
 
 interface RepositoryCardProps {
   repository: Repository

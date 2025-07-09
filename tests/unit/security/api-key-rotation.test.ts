@@ -3,13 +3,13 @@
  * Tests API key management, rotation, and validation functionality
  */
 
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   ApiKeyManager,
   type ApiKeyMetadata,
   apiKeyAuthMiddleware,
 } from '@/lib/security/api-key-rotation'
 import { auditLogger } from '@/lib/security/audit-logger'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Type for accessing private methods in tests
 interface ApiKeyManagerWithPrivates extends ApiKeyManager {

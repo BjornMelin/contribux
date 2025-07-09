@@ -4,11 +4,11 @@
  * Tests SQL injection prevention in table truncation operations
  */
 
-import type { DatabaseConnection } from '@/lib/test-utils/test-database-manager'
-import { TestDatabaseManager } from '@/lib/test-utils/test-database-manager'
 import type { PGlite } from '@electric-sql/pglite'
 import type { NeonQueryFunction } from '@neondatabase/serverless'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { DatabaseConnection } from '@/lib/test-utils/test-database-manager'
+import { TestDatabaseManager } from '@/lib/test-utils/test-database-manager'
 
 // Type-safe interface for accessing private methods in tests
 interface TestDatabaseManagerInternal extends TestDatabaseManager {

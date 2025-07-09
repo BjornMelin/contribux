@@ -12,6 +12,7 @@
  * 5. Test coverage for the security fixes implemented in env.ts
  */
 
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { appConfig, createConfig, databaseConfig } from '@/lib/config'
 import {
   getDatabaseUrl,
@@ -25,7 +26,6 @@ import {
   validateProductionUrls,
   validateSecretEntropy,
 } from '@/lib/validation/env'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 describe('Configuration Validation Security', () => {
   let originalEnv: NodeJS.ProcessEnv

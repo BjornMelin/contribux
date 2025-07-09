@@ -13,7 +13,7 @@
  * - OAuth Flow Edge Cases
  */
 
-import { http, HttpResponse } from 'msw'
+import { HttpResponse, http } from 'msw'
 import { describe, expect, it } from 'vitest'
 import { mswServer } from '../msw-setup'
 import { INVALID_TOKENS } from './fixtures/error-scenarios'

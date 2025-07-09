@@ -5,8 +5,8 @@
 
 'use client'
 
+import { type ComponentType, lazy, memo, Suspense } from 'react'
 import { Card } from '@/components/ui/card'
-import { type ComponentType, Suspense, lazy, memo } from 'react'
 
 // Loading fallback components
 const ComponentLoadingFallback = memo(function ComponentLoadingFallback() {

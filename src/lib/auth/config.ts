@@ -6,10 +6,10 @@ import { sql } from '@/lib/db/config'
 import { env } from '@/lib/validation/env'
 import type { User as AuthUser, OAuthProvider } from '@/types/auth'
 import {
-  type GitHubProfile,
-  type GoogleProfile,
   extractGitHubUserData,
   extractGoogleUserData,
+  type GitHubProfile,
+  type GoogleProfile,
   parseOAuthProfile,
 } from '@/types/oauth'
 

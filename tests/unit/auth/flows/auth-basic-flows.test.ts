@@ -9,8 +9,8 @@
  * - Basic error scenarios
  */
 
-import { parseRateLimitHeader } from '@/lib/github/utils'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { parseRateLimitHeader } from '@/lib/github/utils'
 import type { IntegrationTestContext } from '../../integration/infrastructure/test-config'
 import { describeIntegration, integrationTest } from '../../integration/infrastructure/test-runner'
 import { cleanupAuthMocks, mockAuthFailure } from './mocks/auth-provider-mocks'

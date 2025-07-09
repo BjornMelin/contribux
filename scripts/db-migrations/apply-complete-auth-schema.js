@@ -13,10 +13,11 @@ async function applyCompleteAuthSchema() {
   const sql = neon(process.env.DATABASE_URL)
 
   try {
+    // biome-ignore lint/suspicious/noConsole: Database migration script output
     console.log('Applying complete authentication schema...')
 
     // === WebAuthn & OAuth Tables ===
-    
+
     // Create webauthn_credentials table
     await sql`
       CREATE TABLE IF NOT EXISTS webauthn_credentials (
@@ -276,9 +277,10 @@ async function applyCompleteAuthSchema() {
       CHECK (mfa_backup_codes_count >= 0 AND mfa_backup_codes_count <= 10)
     `
 
+    // biome-ignore lint/suspicious/noConsole: Database migration script output
     console.log('✅ Complete authentication schema applied successfully!')
-    
   } catch (error) {
+    // biome-ignore lint/suspicious/noConsole: Database migration script output
     console.error('❌ Error applying authentication schema:', error)
     process.exit(1)
   }
@@ -286,6 +288,7 @@ async function applyCompleteAuthSchema() {
 
 // Run the migration if this script is executed directly
 if (require.main === module) {
+  // biome-ignore lint/suspicious/noConsole: Database migration script output
   applyCompleteAuthSchema().catch(console.error)
 }
 

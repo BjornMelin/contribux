@@ -12,10 +12,10 @@
 
 'use client'
 
-import { getQueryMetrics, queryClient, setupBackgroundSync } from '@/lib/api/query-client'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import React, { type ReactNode, useEffect, useState } from 'react'
+import { getQueryMetrics, queryClient, setupBackgroundSync } from '@/lib/api/query-client'
 
 interface QueryProviderProps {
   children: ReactNode

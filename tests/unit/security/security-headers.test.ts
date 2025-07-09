@@ -3,15 +3,15 @@
  * Tests enhanced security headers middleware functionality
  */
 
-import { auditLogger } from '@/lib/security/audit-logger'
-import {
-  SecurityHeadersManager,
-  developmentSecurityHeaders,
-  productionSecurityHeaders,
-  securityHeadersMiddleware,
-} from '@/lib/security/security-headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { auditLogger } from '@/lib/security/audit-logger'
+import {
+  developmentSecurityHeaders,
+  productionSecurityHeaders,
+  SecurityHeadersManager,
+  securityHeadersMiddleware,
+} from '@/lib/security/security-headers'
 
 // Mock audit logger
 vi.mock('@/lib/security/audit-logger', () => ({

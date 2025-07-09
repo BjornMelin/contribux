@@ -3,7 +3,7 @@
  * Pure functions for building database queries
  */
 
-import { type SQL, asc, desc, eq, gte, inArray, like, lte } from 'drizzle-orm'
+import { asc, desc, eq, gte, inArray, like, lte, type SQL } from 'drizzle-orm'
 import type { PgColumn, PgTable } from 'drizzle-orm/pg-core'
 
 export interface SortOption {

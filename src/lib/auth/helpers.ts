@@ -2,11 +2,11 @@
  * Multi-provider auth helper functions with backward compatibility
  */
 
+import { headers } from 'next/headers'
+import { z } from 'zod'
 import { auth } from '@/lib/auth'
 import { sql } from '@/lib/db/config'
 import type { OAuthProvider, User } from '@/types/auth'
-import { headers } from 'next/headers'
-import { z } from 'zod'
 
 // Database query result interfaces
 interface ProviderQueryResult {

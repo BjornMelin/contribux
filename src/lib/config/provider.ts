@@ -4,9 +4,9 @@
  * Follows Singleton pattern for consistent configuration access
  */
 
+import { z } from 'zod'
 import type { Result, ServiceFactory } from '@/lib/types/advanced'
 import { Failure, Success } from '@/lib/types/advanced'
-import { z } from 'zod'
 
 // Environment schema validation
 const environmentSchema = z.object({

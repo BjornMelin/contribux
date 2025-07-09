@@ -15,16 +15,16 @@
  * - Performance monitoring
  */
 
-import type { GitHubRepository } from '@/src/lib/github/types'
-import { cleanupComponentTest, setupComponentTest } from '@/tests/utils/modern-test-helpers'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import { http, HttpResponse } from 'msw'
+import { HttpResponse, http } from 'msw'
 import { setupServer } from 'msw/node'
 import { SessionProvider } from 'next-auth/react'
 import React, { useEffect, useMemo, useState } from 'react'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { GitHubRepository } from '@/src/lib/github/types'
+import { cleanupComponentTest, setupComponentTest } from '@/tests/utils/modern-test-helpers'
 
 // Mock components representing the actual app components
 const SearchBar = ({
@@ -245,10 +245,12 @@ describe('Component-API Integration Testing', () => {
     })
 
     vi.spyOn(React, 'useEffect').mockImplementation((effect, deps) => {
+      // biome-ignore lint/correctness/useExhaustiveDependencies: Test mock - deps is already an array
       useEffect(effect, deps)
     })
 
     vi.spyOn(React, 'useMemo').mockImplementation((factory, deps) => {
+      // biome-ignore lint/correctness/useExhaustiveDependencies: Test mock - deps is already an array
       return useMemo(factory, deps)
     })
   })

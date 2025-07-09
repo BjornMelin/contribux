@@ -1,12 +1,12 @@
 'use client'
 
+import { useId } from 'react'
 import type {
   DifficultyLevel,
   OpportunityType,
   SearchFiltersProps,
   SearchFilters as SearchFiltersType,
 } from '@/types/search'
-import { useId } from 'react'
 
 export function SearchFilters({ filters, onFiltersChange, loading = false }: SearchFiltersProps) {
   const difficultyId = useId()

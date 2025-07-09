@@ -3,6 +3,8 @@
  * Verify and store new WebAuthn credentials with rate limiting protection
  */
 
+import { type NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { auth } from '@/lib/auth/index'
 import {
   applyProgressiveDelay,
@@ -12,8 +14,6 @@ import {
 } from '@/lib/security/auth-rate-limiting'
 import { securityFeatures } from '@/lib/security/feature-flags'
 import { verifyWebAuthnRegistration } from '@/lib/security/webauthn/server'
-import { type NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
 
 const RegistrationRequestSchema = z.object({
   response: z.object({

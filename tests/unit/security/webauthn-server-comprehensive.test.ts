@@ -3,6 +3,7 @@
  * Tests for WebAuthn registration, authentication, credential management, and security
  */
 
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   generateWebAuthnAuthentication,
   generateWebAuthnRegistration,
@@ -11,7 +12,6 @@ import {
   verifyWebAuthnAuthentication,
   verifyWebAuthnRegistration,
 } from '@/lib/security/webauthn/server'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   StoredCredentialFactory,
   WebAuthnAuthenticationFactory,

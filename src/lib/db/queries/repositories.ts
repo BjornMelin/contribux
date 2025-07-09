@@ -1,9 +1,9 @@
 // Repository Queries - Drizzle ORM
 // Phase 3: Type-safe queries replacing raw SQL patterns (90% code reduction)
 
+import { and, count, desc, eq, ilike, isNotNull, or, sql } from 'drizzle-orm'
 import { appConfig } from '@/lib/config'
 import { db, schema, timedDb, vectorUtils } from '@/lib/db'
-import { and, count, desc, eq, ilike, isNotNull, or, sql } from 'drizzle-orm'
 
 export interface RepositorySearchOptions {
   limit?: number
@@ -567,7 +567,7 @@ export namespace RepositoryQueries {
               updatedAt: sql`now()`,
             })
             .where(eq(schema.repositories.id, update.id))
-            .returning({ id: schema.repositories.id })
+            .returning()
         )
 
         const batchResults = await Promise.all(batchPromises)

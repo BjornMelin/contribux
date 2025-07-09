@@ -119,7 +119,10 @@ export abstract class BaseRepository<T, ID = string> implements Repository<T, ID
     try {
       const result = await this.db.delete(this.table).where(eq(this.idColumn, id))
 
-      return result.rowCount > 0
+      return Array.isArray(result)
+        ? result.length > 0
+        : (result as { rowCount?: number }).rowCount != null &&
+            (result as { rowCount?: number }).rowCount > 0
     } catch (error) {
       this.handleError('delete', error)
       return false

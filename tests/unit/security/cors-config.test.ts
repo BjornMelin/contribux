@@ -3,17 +3,17 @@
  * Tests Cross-Origin Resource Sharing configuration and middleware
  */
 
+import { NextRequest, NextResponse } from 'next/server'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuditEventType, AuditSeverity, auditLogger } from '@/lib/security/audit-logger'
 import {
   type CorsConfig,
   CorsManager,
   CorsPresets,
   CorsSecurityMonitor,
-  DynamicCorsConfig,
   createRouteCorsMiddleware,
+  DynamicCorsConfig,
 } from '@/lib/security/cors-config'
-import { NextRequest, NextResponse } from 'next/server'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock audit logger
 vi.mock('@/lib/security/audit-logger', () => ({

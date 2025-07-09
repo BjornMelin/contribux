@@ -4,51 +4,47 @@
  * Central export point for all telemetry functionality
  */
 
-// Core telemetry utilities
+// Instrumented GitHub client
 export {
-  createSpan,
-  createGitHubSpan,
-  createDatabaseSpan,
-  createVectorSearchSpan,
-  getCurrentTraceId,
-  getCurrentSpanId,
-  getTraceContext,
-  recordGitHubRateLimit,
-  recordCacheOperation,
-  recordCacheHitRatio,
-  githubApiCallsCounter,
-  githubApiDurationHistogram,
-  githubRateLimitGauge,
-  databaseOperationsCounter,
-  databaseOperationDurationHistogram,
-  vectorSearchCounter,
-  vectorSearchDurationHistogram,
-  cacheOperationsCounter,
-  cacheHitRatioGauge,
-} from './utils'
-
-// Enhanced logger with tracing
-export {
-  telemetryLogger,
-  telemetrySecurityLogger,
-  type TelemetryLogContext,
-} from './logger'
-
+  createInstrumentedGitHubClient,
+  InstrumentedGitHubClient,
+} from '../github/instrumented-client'
 // Health check system
 export {
-  checkSystemHealth,
-  checkGitHubHealth,
-  checkDatabaseHealth,
   checkCacheHealth,
+  checkDatabaseHealth,
+  checkGitHubHealth,
+  checkSystemHealth,
   type HealthCheckResult,
   type SystemHealthResult,
 } from './health'
-
-// Instrumented GitHub client
-export {
-  InstrumentedGitHubClient,
-  createInstrumentedGitHubClient,
-} from '../github/instrumented-client'
-
 // Re-export instrumentation for app initialization
 export { default as sdk } from './instrumentation'
+// Enhanced logger with tracing
+export {
+  type TelemetryLogContext,
+  telemetryLogger,
+  telemetrySecurityLogger,
+} from './logger'
+// Core telemetry utilities
+export {
+  cacheHitRatioGauge,
+  cacheOperationsCounter,
+  createDatabaseSpan,
+  createGitHubSpan,
+  createSpan,
+  createVectorSearchSpan,
+  databaseOperationDurationHistogram,
+  databaseOperationsCounter,
+  getCurrentSpanId,
+  getCurrentTraceId,
+  getTraceContext,
+  githubApiCallsCounter,
+  githubApiDurationHistogram,
+  githubRateLimitGauge,
+  recordCacheHitRatio,
+  recordCacheOperation,
+  recordGitHubRateLimit,
+  vectorSearchCounter,
+  vectorSearchDurationHistogram,
+} from './utils'

@@ -59,11 +59,11 @@ const loadNodeModules = async () => {
   }
 }
 
+import type { NextRequest } from 'next/server'
 import { timingSafeEqual } from '@/lib/crypto-utils'
 import { sql } from '@/lib/db/config'
 import { env } from '@/lib/validation/env'
 import type { AccessTokenPayload, User } from '@/types/auth'
-import type { NextRequest } from 'next/server'
 import { createLogParams, logSecurityEvent } from './audit'
 import { verifyAccessToken } from './jwt'
 

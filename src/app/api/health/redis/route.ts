@@ -3,6 +3,7 @@
  * Monitors Redis connection and rate limiting health
  */
 
+import { NextResponse } from 'next/server'
 import { checkRedisHealth } from '@/lib/cache/redis'
 import {
   apiRateLimiter,
@@ -10,7 +11,6 @@ import {
   checkRateLimit,
   searchRateLimiter,
 } from '@/lib/security/rate-limiter'
-import { NextResponse } from 'next/server'
 
 /**
  * GET /api/health/redis

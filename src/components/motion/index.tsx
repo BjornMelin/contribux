@@ -5,10 +5,9 @@
  * Lazy-loaded Framer Motion components for reduced initial bundle size
  */
 
-import React, { Suspense, lazy } from 'react'
-
 // Type-only import for SSR safety
 import type { MotionProps } from 'framer-motion'
+import React, { lazy, Suspense } from 'react'
 
 // Fallback component for loading states
 const MotionFallback: React.FC<{ children: React.ReactNode }> = ({ children }) => (

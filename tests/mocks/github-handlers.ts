@@ -3,7 +3,7 @@
  * Replaces nock interceptors with modern MSW 2.x patterns
  */
 
-import { http, HttpResponse } from 'msw'
+import { HttpResponse, http } from 'msw'
 
 // GitHub API base URL
 const GITHUB_API_BASE = 'https://api.github.com'
@@ -211,7 +211,7 @@ export const githubHandlers = [
 
   // GET /users/:username - Get any user by username
   http.get(`${GITHUB_API_BASE}/users/:username`, ({ request, params }) => {
-    const authHeader = request.headers.get('authorization')
+    const _authHeader = request.headers.get('authorization')
     const username = params.username as string
 
     // For public user endpoints, authentication is optional but we still check for rate limiting

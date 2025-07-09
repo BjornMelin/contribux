@@ -3,11 +3,10 @@
  * Real-time performance metrics and optimization tracking
  */
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import type React from 'react'
-
 // Core icons - using our optimized icon system
 import { Activity, AlertTriangle, BarChart3, Check, Clock, Zap } from '@/components/icons'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 // Performance metrics interface
 interface PerformanceMetrics {

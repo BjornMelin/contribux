@@ -3,17 +3,17 @@
  * Tests comprehensive input validation and sanitization functionality
  */
 
+import { beforeEach, describe, expect, it } from 'vitest'
+import { z } from 'zod'
 import { SecurityError } from '@/lib/security/error-boundaries'
 import {
   CommonSchemas,
+  createValidationMiddleware,
   GitHubSchemas,
   InputValidator,
   Sanitizers,
   ValidationPatterns,
-  createValidationMiddleware,
 } from '@/lib/security/input-validation'
-import { beforeEach, describe, expect, it } from 'vitest'
-import { z } from 'zod'
 
 describe('ValidationPatterns', () => {
   describe('GITHUB_USERNAME', () => {

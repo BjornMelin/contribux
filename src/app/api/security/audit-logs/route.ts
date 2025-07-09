@@ -5,12 +5,13 @@
  * Implements GDPR-compliant data access controls.
  */
 
+import { type NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { z } from 'zod'
 import { authConfig } from '@/lib/auth'
 import { AuditEventType, AuditSeverity, auditLogger } from '@/lib/security/audit-logger'
 import { InputValidator } from '@/lib/security/input-validation'
-import { getServerSession } from 'next-auth'
-import { type NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
+
 // No audit config import needed - using hardcoded retention value
 
 // Initialize services

@@ -12,9 +12,9 @@
  * - Async Error Handling
  */
 
-import { GitHubError } from '@/lib/github/errors'
-import { http, HttpResponse } from 'msw'
+import { HttpResponse, http } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
+import { GitHubError } from '@/lib/github/errors'
 import { mswServer } from '../msw-setup'
 import {
   allEdgeCaseHandlers,
@@ -23,8 +23,8 @@ import {
   validationErrorHandlers,
 } from './mocks/error-api-mocks'
 import {
-  EDGE_CASE_PARAMS,
   createEdgeCaseClient,
+  EDGE_CASE_PARAMS,
   setupEdgeCaseTestIsolation,
 } from './setup/edge-case-setup'
 import { testErrorPropagation, validateErrorResponse } from './utils/error-test-helpers'

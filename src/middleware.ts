@@ -3,9 +3,9 @@
  * Edge Runtime compatible - lightweight authentication check only
  */
 
-import { buildCSP, generateNonce, getCSPDirectives } from '@/lib/security/csp'
-import { verifyAccessToken } from '@/lib/auth/jwt'
 import { type NextRequest, NextResponse } from 'next/server'
+import { verifyAccessToken } from '@/lib/auth/jwt'
+import { buildCSP, generateNonce, getCSPDirectives } from '@/lib/security/csp'
 
 export async function middleware(request: NextRequest) {
   // Lightweight auth check for Edge Runtime compatibility
@@ -93,7 +93,7 @@ async function lightweightAuthCheck(request: NextRequest): Promise<NextResponse 
     }
     // Token is valid, continue to route
     return undefined
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
   }
 }

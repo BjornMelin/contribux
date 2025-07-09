@@ -130,13 +130,13 @@ export interface GitHubClientTest {
  * - Integrates with GitHub's retry-after headers
  */
 
-import { auth } from '@/lib/auth'
-import { config } from '@/lib/config/provider'
 import { retry } from '@octokit/plugin-retry'
 import { throttling } from '@octokit/plugin-throttling'
 import { Octokit } from '@octokit/rest'
 import { z } from 'zod'
-import { GitHubError, createRequestContext, isRequestError } from './errors'
+import { auth } from '@/lib/auth'
+import { config } from '@/lib/config/provider'
+import { createRequestContext, GitHubError, isRequestError } from './errors'
 
 // Enhanced Octokit with plugins
 const EnhancedOctokit = Octokit.plugin(retry, throttling)
@@ -270,9 +270,14 @@ export class GitHubClient {
       // Built-in retry configuration
       retry: {
         doNotRetry: ['abuse', 'user-agent', 'invalid-request'],
-        retryFilter: (error: any) => {
+        retryFilter: (error: unknown) => {
           // Extract status code from various possible error structures
-          const status = error.status || error.response?.status || error.code
+          const errorObj = error as {
+            status?: number
+            response?: { status?: number }
+            code?: number
+          }
+          const status = errorObj.status || errorObj.response?.status || errorObj.code
 
           // Don't retry on 401 Unauthorized (authentication errors)
           if (status === 401) {
@@ -287,7 +292,7 @@ export class GitHubClient {
             return false
           }
           // Don't retry on other 4xx client errors
-          if (status >= 400 && status < 500) {
+          if (status && status >= 400 && status < 500) {
             return false
           }
           // Allow retries for 5xx server errors and network issues

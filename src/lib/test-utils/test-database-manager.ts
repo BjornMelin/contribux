@@ -1175,9 +1175,10 @@ export class TestDatabaseManager {
       } catch (error) {
         if (isPGlite) {
           // For PGlite, silently handle unsupported features
-          // eslint-disable-next-line no-console
-          process.env.NODE_ENV === 'development' &&
+          if (process.env.NODE_ENV === 'development') {
+            // biome-ignore lint/suspicious/noConsole: Legitimate debugging output for development
             console.warn('Unsupported feature in PGlite:', error)
+          }
         } else {
           // For real PostgreSQL, re-throw the error
           throw error

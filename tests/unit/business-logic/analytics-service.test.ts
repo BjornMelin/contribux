@@ -3,8 +3,8 @@
  * Tests for event tracking, metrics collection, and report generation
  */
 
-import { AnalyticsService } from '@/lib/business-logic/analytics-service'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { AnalyticsService } from '@/lib/business-logic/analytics-service'
 
 describe('AnalyticsService', () => {
   let service: AnalyticsService

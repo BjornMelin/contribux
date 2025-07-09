@@ -11,7 +11,7 @@
  */
 
 import { createHmac } from 'node:crypto'
-import { type Mock, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 
 // Mock Next.js server components
 vi.mock('next/server', () => ({
@@ -44,13 +44,13 @@ vi.mock('@/lib/security/auth-rate-limiting', () => ({
   ),
 }))
 
+import type { NextRequest } from 'next/server'
 import {
+  createWebhookSecurityResponse,
   WEBHOOK_CONFIG,
   type WebhookSecurityConfig,
   WebhookSecurityValidator,
-  createWebhookSecurityResponse,
 } from '@/lib/security/webhook-security'
-import type { NextRequest } from 'next/server'
 
 describe('WebhookSecurityValidator', () => {
   const validSecret = 'test-webhook-secret-that-is-long-enough-to-be-secure'

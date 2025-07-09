@@ -3,6 +3,8 @@
  * Comprehensive test to validate all three security implementations work together
  */
 
+import { NextRequest } from 'next/server'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   generateSecureId,
   generateSecureRandomString,
@@ -16,8 +18,6 @@ import {
   searchRateLimiter,
 } from '@/lib/security/rate-limiter'
 import { middleware } from '@/middleware'
-import { NextRequest } from 'next/server'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock Upstash for rate limiting tests
 vi.mock('@upstash/redis', () => ({

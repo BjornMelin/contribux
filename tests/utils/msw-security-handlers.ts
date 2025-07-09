@@ -5,7 +5,7 @@
 
 import { Buffer } from 'node:buffer'
 import type { HttpHandler } from 'msw'
-import { http, HttpResponse } from 'msw'
+import { HttpResponse, http } from 'msw'
 
 // Rate limiting state tracking
 const rateLimitState = new Map<string, { count: number; firstRequest: number; delays: number[] }>()

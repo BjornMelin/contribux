@@ -5,12 +5,12 @@
 
 import {
   type Counter,
+  context,
+  diag,
   type Histogram,
   type Meter,
   SpanKind,
   SpanStatusCode,
-  context,
-  diag,
   trace,
 } from '@opentelemetry/api'
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node'

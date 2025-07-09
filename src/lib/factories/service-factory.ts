@@ -4,14 +4,14 @@
  * Following Factory Pattern for complex object creation
  */
 
-import { ServiceKeys, getContainer } from '@/lib/di/container'
+import { getContainer, ServiceKeys } from '@/lib/di/container'
 import type {
   DatabaseConnectionString,
   GitHubToken,
   Result,
   ServiceFactory,
 } from '@/lib/types/advanced'
-import { Failure, Success, createBrand } from '@/lib/types/advanced'
+import { createBrand, Failure, Success } from '@/lib/types/advanced'
 
 // Type for GitHub client instance
 type GitHubClient = ReturnType<typeof import('@/lib/github').createGitHubClient>

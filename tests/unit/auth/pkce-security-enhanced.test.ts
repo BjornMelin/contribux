@@ -1,3 +1,4 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   calculateEntropy,
   generateCodeChallenge,
@@ -9,7 +10,6 @@ import {
   verifyPKCEChallenge,
   verifyPKCEChallengeSecure,
 } from '@/lib/auth/pkce'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Enhanced global crypto mock for comprehensive testing
 const mockCrypto = {

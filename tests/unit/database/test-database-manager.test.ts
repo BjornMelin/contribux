@@ -4,14 +4,12 @@
  * Tests the TestDatabaseManager functionality with PGlite
  */
 
-import type { TestDatabaseManager as TestDatabaseManagerType } from '@/lib/test-utils/test-database-manager'
 import { beforeEach, describe, expect, it } from 'vitest'
+import type { TestDatabaseManager as TestDatabaseManagerType } from '@/lib/test-utils/test-database-manager'
 
 describe('Test Database Manager', () => {
   let TestDatabaseManager: typeof TestDatabaseManagerType
-  let getTestDatabase: typeof import(
-    '../../../src/lib/test-utils/test-database-manager'
-  ).getTestDatabase
+  let getTestDatabase: typeof import('../../../src/lib/test-utils/test-database-manager').getTestDatabase
 
   beforeEach(async () => {
     // Dynamic import to avoid module resolution issues during startup

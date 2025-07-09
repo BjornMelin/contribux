@@ -436,7 +436,7 @@ describe('Environment Variable Security', () => {
 
       // Test for potential injection patterns
       const injectionPatterns = [
-        '${OTHER_VAR}',
+        '$' + '{OTHER_VAR}',
         '$(command)',
         '`command`',
         '$((expression))',

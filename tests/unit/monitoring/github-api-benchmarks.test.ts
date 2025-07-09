@@ -74,8 +74,8 @@ global.setTimeout = vi.fn().mockImplementation(fn => {
 
 import {
   BENCHMARK_CONFIG,
-  GitHubAPIBenchmark,
   createGitHubBenchmark,
+  GitHubAPIBenchmark,
   quickBenchmark,
 } from '@/lib/monitoring/github-api-benchmarks'
 

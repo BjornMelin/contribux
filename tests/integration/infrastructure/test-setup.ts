@@ -12,8 +12,8 @@ import { MetricsCollector } from './metrics-collector'
 import {
   type IntegrationTestContext,
   type IntegrationTestEnv,
-  TEST_REPOSITORIES,
   loadIntegrationTestEnv,
+  TEST_REPOSITORIES,
 } from './test-config'
 
 const execAsync = promisify(exec)

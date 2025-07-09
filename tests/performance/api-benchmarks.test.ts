@@ -2,9 +2,9 @@
  * Performance benchmark tests for API operations
  */
 
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { GitHubClient } from '@/lib/github/client'
 import { MemoryProfiler, profileOperation } from '@/lib/monitoring/memory-profiler'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 interface BenchmarkResult {
   operation: string

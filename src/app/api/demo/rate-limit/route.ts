@@ -3,8 +3,8 @@
  * Demonstrates rate limiting behavior with real-time feedback
  */
 
-import { checkApiRateLimit } from '@/lib/security/rate-limit-middleware'
 import { type NextRequest, NextResponse } from 'next/server'
+import { checkApiRateLimit } from '@/lib/security/rate-limit-middleware'
 
 /**
  * GET /api/demo/rate-limit

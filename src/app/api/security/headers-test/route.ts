@@ -5,11 +5,11 @@
  * Useful for development and security audits.
  */
 
+import { type NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
 import { authConfig } from '@/lib/auth'
 import { AuditEventType, AuditSeverity, auditLogger } from '@/lib/security/audit-logger'
 import { SecurityHeadersManager } from '@/lib/security/security-headers'
-import { getServerSession } from 'next-auth'
-import { type NextRequest, NextResponse } from 'next/server'
 
 // Initialize security headers manager
 const securityHeadersManager = new SecurityHeadersManager()

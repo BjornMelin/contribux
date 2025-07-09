@@ -1,11 +1,11 @@
 // Contribux Database Client - Drizzle ORM
 // Phase 3: Simplified connection management replacing 270+ lines of custom pooling
 
-import { env } from '@/lib/validation/env'
 import type { NeonQueryFunction } from '@neondatabase/serverless'
 import type { DrizzleConfig } from 'drizzle-orm'
 import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js'
+import { env } from '@/lib/validation/env'
 import * as schema from './schema'
 
 // Create connection based on environment
@@ -36,10 +36,13 @@ function isLocalPostgres(): boolean {
 // Type for our database instance
 type DatabaseInstance = NeonHttpDatabase<typeof schema> | PostgresJsDatabase<typeof schema>
 
+// Type for SQL instance (union of possible SQL clients)
+type SqlInstance = NeonQueryFunction<false, false> | unknown
+
 // Create database connection based on environment
 async function createDatabase(): Promise<{
   db: DatabaseInstance
-  sql: any
+  sql: SqlInstance
 }> {
   const databaseUrl = getDatabaseUrl()
   const drizzleConfig: DrizzleConfig<typeof schema> = {
@@ -60,26 +63,25 @@ async function createDatabase(): Promise<{
     const db = drizzle(sql, drizzleConfig)
 
     return { db, sql }
-  } else {
-    // Use Neon for production
-    const { neon } = await import('@neondatabase/serverless')
-    const { drizzle } = await import('drizzle-orm/neon-http')
-
-    const sql = neon(databaseUrl, {
-      fetchOptions: {
-        cache: 'no-cache',
-      },
-    })
-
-    const db = drizzle(sql, drizzleConfig)
-
-    return { db, sql }
   }
+  // Use Neon for production
+  const { neon } = await import('@neondatabase/serverless')
+  const { drizzle } = await import('drizzle-orm/neon-http')
+
+  const sql = neon(databaseUrl, {
+    fetchOptions: {
+      cache: 'no-cache',
+    },
+  })
+
+  const db = drizzle(sql, drizzleConfig)
+
+  return { db, sql }
 }
 
 // Create singleton instance
 let dbInstance: DatabaseInstance | null = null
-let sqlInstance: any = null
+let sqlInstance: SqlInstance | null = null
 
 // Initialize database connection
 async function initializeDatabase() {
@@ -97,7 +99,7 @@ export const db = new Proxy({} as DatabaseInstance, {
     if (!dbInstance) {
       throw new Error('Database not initialized. Await db operations to trigger initialization.')
     }
-    return (dbInstance as any)[prop]
+    return (dbInstance as unknown as Record<string | symbol, unknown>)[prop]
   },
 })
 
@@ -107,7 +109,7 @@ export const sql = new Proxy({} as NeonQueryFunction<false, false>, {
     if (!sqlInstance) {
       throw new Error('SQL client not initialized. Await db operations to trigger initialization.')
     }
-    return (sqlInstance as any)[prop]
+    return (sqlInstance as unknown as Record<string | symbol, unknown>)[prop]
   },
 })
 
@@ -135,7 +137,7 @@ export async function checkDatabaseHealth(): Promise<{
     const { sql } = await initializeDatabase()
 
     // Simple health check query
-    await sql`SELECT 1 as health_check`
+    await (sql as NeonQueryFunction<false, false>)`SELECT 1 as health_check`
 
     const latency = performance.now() - start
     return {

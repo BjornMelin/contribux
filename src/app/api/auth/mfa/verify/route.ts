@@ -3,10 +3,10 @@
  * Handles verification for TOTP, WebAuthn, and backup codes
  */
 
-import { generateDeviceFingerprint, verifyMFA } from '@/lib/auth/mfa-service'
-import { type MFAVerificationRequest, MFAVerificationRequestSchema, type User } from '@/types/auth'
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { generateDeviceFingerprint, verifyMFA } from '@/lib/auth/mfa-service'
+import { type MFAVerificationRequest, MFAVerificationRequestSchema, type User } from '@/types/auth'
 
 /**
  * POST /api/auth/mfa/verify

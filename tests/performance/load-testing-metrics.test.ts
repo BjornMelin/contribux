@@ -5,22 +5,22 @@
  * Focuses on comprehensive metrics collection and analysis.
  */
 
-import { GitHubClient } from '@/lib/github'
-import { http, HttpResponse } from 'msw'
+import { HttpResponse, http } from 'msw'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { GitHubClient } from '@/lib/github'
 import { createRateLimitHeaders } from '../github/test-helpers'
-import { LOAD_TEST_CONFIG, createMockUser } from './fixtures/load-test-data'
+import { createMockUser, LOAD_TEST_CONFIG } from './fixtures/load-test-data'
 import {
   PerformanceMonitor,
   setupPerformanceTest,
   validatePerformanceResults,
 } from './setup/performance-setup'
 import {
-  type PerformanceMetrics,
   addTestHandlers,
   calculatePerformanceMetrics,
   createTrackedClient,
   logPerformanceMetrics,
+  type PerformanceMetrics,
 } from './utils/load-test-helpers'
 
 describe('Load Testing - Metrics & Monitoring', () => {

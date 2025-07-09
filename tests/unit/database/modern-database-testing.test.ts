@@ -5,10 +5,10 @@
  * Shows automatic database strategy selection and modern testing patterns.
  */
 
+import { beforeEach, describe, expect, it } from 'vitest'
 import { createTestFactories } from '@/lib/test-utils/database-factories'
 import type { DatabaseConnection } from '@/lib/test-utils/test-database-manager'
 import { getTestDatabase } from '@/lib/test-utils/test-database-manager'
-import { beforeEach, describe, expect, it } from 'vitest'
 
 describe('Modern Database Testing Infrastructure', () => {
   let db: DatabaseConnection

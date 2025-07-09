@@ -39,6 +39,6 @@ export function getRateLimiter(type: 'auth' | 'api' | 'search' = 'api') {
   }
 }
 
+export type { RateLimitResult } from './rate-limiter'
 // Re-export for convenience
 export { checkRateLimit, getRequestIdentifier } from './rate-limiter'
-export type { RateLimitResult } from './rate-limiter'

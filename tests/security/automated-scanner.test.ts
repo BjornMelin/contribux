@@ -4,15 +4,15 @@
  * threat detection, and incident response capabilities
  */
 
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   AutomatedSecurityScanner,
+  createSecurityScanner,
   OWASPScanner,
   type SecurityScannerConfig,
   type ThreatDetection,
   type Vulnerability,
-  createSecurityScanner,
 } from '@/lib/security/automated-scanner'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock crypto module
 vi.mock('../../src/lib/security/crypto', () => ({

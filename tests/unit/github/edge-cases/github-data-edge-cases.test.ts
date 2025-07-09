@@ -13,7 +13,7 @@
  * - Data Consistency and Integrity
  */
 
-import { http, HttpResponse } from 'msw'
+import { HttpResponse, http } from 'msw'
 import { describe, expect, it } from 'vitest'
 import { mswServer } from '../msw-setup'
 import {
@@ -23,8 +23,8 @@ import {
 } from './fixtures/error-scenarios'
 import { malformedResponseHandlers } from './mocks/error-api-mocks'
 import {
-  EDGE_CASE_PARAMS,
   createEdgeCaseClient,
+  EDGE_CASE_PARAMS,
   setupEdgeCaseTestIsolation,
 } from './setup/edge-case-setup'
 

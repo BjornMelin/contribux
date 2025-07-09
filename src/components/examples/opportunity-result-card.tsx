@@ -5,9 +5,9 @@
 
 'use client'
 
+import { memo, useCallback } from 'react'
 import type { Opportunity } from '@/lib/api/hooks/use-opportunities'
 import { getDifficultyBadgeStyle } from '@/lib/utils/badge-styles'
-import { memo, useCallback } from 'react'
 
 interface OpportunityResultCardProps {
   opportunity: Opportunity

@@ -3,8 +3,8 @@
  * Handles repository data operations
  */
 
-import { type Repository, repositories } from '@/lib/db/schema'
 import type { PgColumn } from 'drizzle-orm/pg-core'
+import { type Repository, repositories } from '@/lib/db/schema'
 import { BaseRepository } from './base-repository'
 
 export class RepositoryRepository extends BaseRepository<Repository, string> {

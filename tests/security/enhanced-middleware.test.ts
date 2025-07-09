@@ -89,6 +89,7 @@ vi.mock('next/server', () => ({
 // Make the mocked classes globally available
 global.NextRequest = MockNextRequest as typeof NextRequest
 global.NextResponse = MockNextResponse as typeof NextResponse
+
 import { enhancedSecurityMiddleware } from '../../src/lib/security/enhanced-middleware'
 
 // Mock environment variables for testing

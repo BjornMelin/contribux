@@ -1,8 +1,8 @@
-import { env } from '@/lib/validation/env'
 import { type NeonQueryFunction, neon } from '@neondatabase/serverless'
 // Drizzle ORM Configuration - Modern Database Layer
 // Replaces raw SQL patterns with type-safe queries
-import { type NeonHttpDatabase, drizzle } from 'drizzle-orm/neon-http'
+import { drizzle, type NeonHttpDatabase } from 'drizzle-orm/neon-http'
+import { env } from '@/lib/validation/env'
 // Import the consolidated schema from schema.ts
 import * as schema from './schema'
 

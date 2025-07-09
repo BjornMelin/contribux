@@ -3,9 +3,9 @@
  * Uses AES-GCM for authenticated encryption with 256-bit keys
  */
 
+import { z } from 'zod'
 import { cryptoConfig } from '@/lib/config/crypto'
 import { sql } from '@/lib/db/config'
-import { z } from 'zod'
 
 // Encryption configuration using centralized config
 const ALGORITHM = cryptoConfig.algorithm

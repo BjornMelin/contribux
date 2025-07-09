@@ -6,8 +6,8 @@
  * Displays system health, metrics, and monitoring information
  */
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useCallback, useEffect, useState } from 'react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 interface HealthComponent {
   component: string

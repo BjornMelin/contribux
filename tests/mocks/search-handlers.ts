@@ -3,7 +3,7 @@
  * Enhanced comprehensive mocking for search endpoints with realistic data and scenarios
  */
 
-import { http, HttpResponse } from 'msw'
+import { HttpResponse, http } from 'msw'
 
 // Base URLs
 const BASE_URL = 'http://localhost:3000'

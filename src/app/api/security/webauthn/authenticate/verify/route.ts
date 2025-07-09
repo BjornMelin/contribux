@@ -3,6 +3,8 @@
  * Verify WebAuthn authentication responses with rate limiting protection
  */
 
+import { type NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import {
   applyProgressiveDelay,
   checkAuthRateLimit,
@@ -11,8 +13,6 @@ import {
 } from '@/lib/security/auth-rate-limiting'
 import { securityFeatures } from '@/lib/security/feature-flags'
 import { verifyWebAuthnAuthentication } from '@/lib/security/webauthn/server'
-import { type NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
 
 const AuthenticationRequestSchema = z.object({
   response: z.object({

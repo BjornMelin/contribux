@@ -4,8 +4,8 @@
 
 'use client'
 
-import { type MemoryMetrics, MemoryProfiler } from '@/lib/monitoring/memory-profiler'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { type MemoryMetrics, MemoryProfiler } from '@/lib/monitoring/memory-profiler'
 
 interface PerformanceMetrics {
   // Test execution metrics

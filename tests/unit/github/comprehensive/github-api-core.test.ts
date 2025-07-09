@@ -3,9 +3,9 @@
  * Tests for GitHub Client core functionality, authentication, configuration, and basic setup
  */
 
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GitHubClient } from '@/lib/github/client'
 import { GitHubError } from '@/lib/github/errors'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockUserFixtures } from '../fixtures/github-api-fixtures'
 import { mockGitHubAPI, setupMSW } from '../msw-setup'
 import { setupGitHubTestIsolation } from '../test-helpers'

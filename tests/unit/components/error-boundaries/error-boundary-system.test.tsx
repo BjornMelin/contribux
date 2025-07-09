@@ -5,7 +5,7 @@
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import React from 'react'
-import { type MockedFunction, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, type MockedFunction, vi } from 'vitest'
 
 // Mock UI components
 vi.mock('@/components/ui/button', () => ({
@@ -72,8 +72,8 @@ import {
   AuthErrorBoundary,
   ErrorBoundary,
   ErrorReporter,
-  SearchErrorBoundary,
   errorBoundaryUtils,
+  SearchErrorBoundary,
   setupGlobalErrorHandling,
   useErrorHandler,
   withErrorBoundary,

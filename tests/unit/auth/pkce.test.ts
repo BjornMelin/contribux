@@ -1,3 +1,4 @@
+import { describe, expect, it, vi } from 'vitest'
 import {
   calculateEntropy,
   generateCodeChallenge,
@@ -6,7 +7,6 @@ import {
   validatePKCESecure,
   verifyPKCEChallenge,
 } from '@/lib/auth/pkce'
-import { describe, expect, it, vi } from 'vitest'
 
 // Mock crypto.getRandomValues with truly random values for unique generation
 vi.stubGlobal('crypto', {

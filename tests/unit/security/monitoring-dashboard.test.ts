@@ -3,6 +3,7 @@
  * Tests security monitoring, alerting, and analytics functionality
  */
 
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuditEventType, AuditSeverity, auditLogger } from '@/lib/security/audit-logger'
 import {
   type AlertConfig,
@@ -10,7 +11,6 @@ import {
   type SecurityMetrics,
   SecurityMonitoringDashboard,
 } from '@/lib/security/monitoring-dashboard'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock Redis
 vi.mock('@redis/client', () => ({

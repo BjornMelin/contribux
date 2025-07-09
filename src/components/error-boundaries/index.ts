@@ -5,37 +5,35 @@
 
 // Enhanced error boundaries
 export {
-  EnhancedErrorBoundary,
-  PageErrorBoundary,
-  FeatureErrorBoundary,
   DataFetchErrorBoundary,
-  withEnhancedErrorBoundary,
+  EnhancedErrorBoundary,
+  FeatureErrorBoundary,
+  PageErrorBoundary,
   useErrorBoundary,
+  withEnhancedErrorBoundary,
 } from './enhanced-error-boundary'
-
-// UI-specific error boundaries
-export {
-  RepositoryCardErrorBoundary,
-  SearchResultsErrorBoundary,
-  ContributionOpportunitiesErrorBoundary,
-  DashboardStatsErrorBoundary,
-  BookmarksErrorBoundary,
-  AISuggestionsErrorBoundary,
-  MinimalErrorBoundary,
-  LayoutWithErrorBoundaries,
-} from './ui-error-boundaries'
-
 // Legacy error boundaries (for backward compatibility)
 export {
-  ErrorBoundary,
-  AuthErrorBoundary,
   ApiErrorBoundary,
-  SearchErrorBoundary,
-  AsyncErrorBoundary,
   AppErrorBoundaries,
-  withErrorBoundary,
-  useErrorHandler,
-  setupGlobalErrorHandling,
+  AsyncErrorBoundary,
+  AuthErrorBoundary,
+  ErrorBoundary,
   ErrorReporter,
   errorBoundaryUtils,
+  SearchErrorBoundary,
+  setupGlobalErrorHandling,
+  useErrorHandler,
+  withErrorBoundary,
 } from './error-boundary-system'
+// UI-specific error boundaries
+export {
+  AISuggestionsErrorBoundary,
+  BookmarksErrorBoundary,
+  ContributionOpportunitiesErrorBoundary,
+  DashboardStatsErrorBoundary,
+  LayoutWithErrorBoundaries,
+  MinimalErrorBoundary,
+  RepositoryCardErrorBoundary,
+  SearchResultsErrorBoundary,
+} from './ui-error-boundaries'

@@ -9,18 +9,25 @@
  * - Edge cases and accessibility
  */
 
-import { RepositoryCard } from '@/components/features/RepositoryCard'
-import type { Repository } from '@/types/search'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { RepositoryCard } from '@/components/features/RepositoryCard'
+import type { Repository } from '@/types/search'
 
 // Mock framer-motion to avoid animation issues in tests
 vi.mock('framer-motion', () => ({
   motion: {
     div: vi.fn(({ children, className, style, ...rest }) => {
       // Filter out motion-specific props that shouldn't be passed to DOM
-      const { initial, animate, transition, whileHover, whileTap, ...domProps } = rest
+      const {
+        initial: _initial,
+        animate: _animate,
+        transition: _transition,
+        whileHover: _whileHover,
+        whileTap: _whileTap,
+        ...domProps
+      } = rest
 
       return (
         <div className={className} style={style} {...domProps}>

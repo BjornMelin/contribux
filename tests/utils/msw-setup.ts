@@ -6,7 +6,7 @@
  * and fixes fetch/Node.js compatibility issues
  */
 
-import { http, type HttpHandler, HttpResponse } from 'msw'
+import { type HttpHandler, HttpResponse, http } from 'msw'
 import { setupServer } from 'msw/node'
 import { afterAll, afterEach, beforeAll } from 'vitest'
 // Import comprehensive handlers from unified setup
@@ -25,12 +25,12 @@ import {
   testScenarios,
 } from '../mocks/unified-handlers'
 import {
-  type GitHubRepositoryMock,
-  type GitHubUserMock,
   createGitHubRepositoryMock,
   createGitHubUserMock,
   createManyGitHubIssueMocks,
   createManyGitHubRepositoryMocks,
+  type GitHubRepositoryMock,
+  type GitHubUserMock,
   resetAllGitHubMockCounters,
 } from './github-mocks'
 

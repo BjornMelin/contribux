@@ -5,7 +5,6 @@
 
 import { beforeAll, describe, expect, it } from 'vitest'
 import {
-  type QueryRow,
   createGitHubRepositoryMock,
   createGitHubUserMock,
   createOpportunity,
@@ -18,6 +17,7 @@ import {
   hasValidQueryStructure,
   isValidEmbedding,
   isValidSimilarityScore,
+  type QueryRow,
   resetFactoryCounters,
   sql,
 } from './index'

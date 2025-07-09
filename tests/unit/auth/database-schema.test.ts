@@ -1,5 +1,5 @@
-import { setupTestDatabase } from '@/lib/test-utils/test-database-manager'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { setupTestDatabase } from '@/lib/test-utils/test-database-manager'
 
 // Database query result interface (snake_case from PostgreSQL)
 interface DatabaseQueryColumn {

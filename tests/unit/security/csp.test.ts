@@ -3,8 +3,8 @@
  * Tests for CSP builder and nonce generation
  */
 
-import { buildCSP, defaultCSPDirectives, generateNonce } from '@/lib/security/csp'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { buildCSP, defaultCSPDirectives, generateNonce } from '@/lib/security/csp'
 
 // Mock crypto.getRandomValues for testing
 const mockGetRandomValues = vi.fn((arr: Uint8Array) => {

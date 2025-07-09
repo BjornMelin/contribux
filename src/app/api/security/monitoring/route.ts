@@ -5,6 +5,9 @@
  * Requires admin authentication for full access.
  */
 
+import { type NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { z } from 'zod'
 import { authConfig } from '@/lib/auth'
 import { AuditEventType, AuditSeverity, auditLogger } from '@/lib/security/audit-logger'
 import {
@@ -12,9 +15,6 @@ import {
   type SecurityMetrics,
   SecurityMonitoringDashboard,
 } from '@/lib/security/monitoring-dashboard'
-import { getServerSession } from 'next-auth'
-import { type NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
 
 // Initialize monitoring dashboard
 const monitoringDashboard = new SecurityMonitoringDashboard()

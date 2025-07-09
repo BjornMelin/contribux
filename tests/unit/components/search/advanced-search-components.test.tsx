@@ -17,6 +17,10 @@
  * - Performance optimization
  */
 
+import { render, screen } from '@testing-library/react'
+import { userEvent } from '@testing-library/user-event'
+import React from 'react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   OpportunityCard,
   OpportunityList,
@@ -24,10 +28,6 @@ import {
   SearchFilters as SearchFiltersComponent,
 } from '@/components/features'
 import type { Opportunity, SearchFilters } from '@/types/search'
-import { render, screen } from '@testing-library/react'
-import { userEvent } from '@testing-library/user-event'
-import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   asUUID,
   cleanupComponentTest,

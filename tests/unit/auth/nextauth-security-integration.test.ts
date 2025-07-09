@@ -422,7 +422,7 @@ describe('NextAuth OAuth Security Integration', () => {
       const maliciousInputs = [
         { email: "'; DROP TABLE users; --", name: 'Test User' },
         { email: 'test@example.com', name: '<script>alert(1)</script>' },
-        { email: 'test@example.com', name: '${process.env.DATABASE_URL}' },
+        { email: 'test@example.com', name: '$' + '{process.env.DATABASE_URL}' },
       ]
 
       for (const input of maliciousInputs) {

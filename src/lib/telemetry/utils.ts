@@ -5,7 +5,7 @@
  */
 
 import { hrtime } from 'node:process'
-import { SpanKind, SpanStatusCode, context, metrics, trace } from '@opentelemetry/api'
+import { context, metrics, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api'
 
 // Create tracer instance
 const tracer = trace.getTracer('contribux', '1.0.0')

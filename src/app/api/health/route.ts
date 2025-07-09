@@ -4,6 +4,7 @@
  * Provides system health status for monitoring and alerting
  */
 
+import { type NextRequest, NextResponse } from 'next/server'
 import {
   checkCacheHealth,
   checkDatabaseHealth,
@@ -12,7 +13,6 @@ import {
 } from '@/lib/telemetry/health'
 import { telemetryLogger } from '@/lib/telemetry/logger'
 import { createSpan } from '@/lib/telemetry/utils'
-import { type NextRequest, NextResponse } from 'next/server'
 
 // Health check result types
 interface ComponentHealthResult {

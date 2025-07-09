@@ -10,9 +10,9 @@
  * - Circuit breaker patterns and health checks
  */
 
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GitHubClient } from '@/lib/github/client'
 import { GitHubError } from '@/lib/github/errors'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockGitHubAPI } from '../msw-setup'
 import { setupGitHubTestIsolation } from '../test-helpers'
 

@@ -3,7 +3,7 @@
  */
 
 import { cpus } from 'node:os'
-import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads'
+import { isMainThread, parentPort, Worker, workerData } from 'node:worker_threads'
 import { generateSecureId, secureWorkerId } from '@/lib/security/crypto-secure'
 import logger from '@/lib/telemetry/logger'
 

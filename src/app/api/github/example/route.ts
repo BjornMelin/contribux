@@ -3,8 +3,8 @@
  * Demonstrates how to use Upstash Redis rate limiting in API routes
  */
 
-import { withRateLimit } from '@/lib/security/rate-limit-middleware'
 import { type NextRequest, NextResponse } from 'next/server'
+import { withRateLimit } from '@/lib/security/rate-limit-middleware'
 
 /**
  * GET /api/github/example

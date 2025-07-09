@@ -5,10 +5,10 @@
 
 import { signIn } from 'next-auth/react'
 import {
+  classifyError,
   ErrorCategory,
   type ErrorClassification,
   RecoveryStrategy,
-  classifyError,
 } from './error-classification'
 
 // Recovery action types

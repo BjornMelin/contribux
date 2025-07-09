@@ -1,12 +1,12 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  type EncryptedData,
   decryptToken,
+  type EncryptedData,
   encryptToken,
   exportKey,
   generateEncryptionKey,
   importKey,
 } from '@/lib/auth/crypto'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock database
 vi.mock('@/lib/db/config', () => ({

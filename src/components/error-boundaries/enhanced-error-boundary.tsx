@@ -5,6 +5,8 @@
 
 'use client'
 
+import { AlertCircle, Clock, HelpCircle, Home, RefreshCw, ShieldOff, WifiOff } from 'lucide-react'
+import React, { Component, type PropsWithChildren } from 'react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -20,8 +22,6 @@ import {
   type RecoveryAction,
   type RecoveryWorkflow,
 } from '@/lib/errors/error-recovery'
-import { AlertCircle, Clock, HelpCircle, Home, RefreshCw, ShieldOff, WifiOff } from 'lucide-react'
-import React, { Component, type PropsWithChildren } from 'react'
 
 // Enhanced error boundary props
 interface EnhancedErrorBoundaryProps extends PropsWithChildren {

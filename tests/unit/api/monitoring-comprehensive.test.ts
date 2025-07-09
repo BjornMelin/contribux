@@ -3,14 +3,14 @@
  * Tests for request tracking, error monitoring, performance metrics, and alerting
  */
 
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   APIMonitoring,
-  MetricsStore,
-  type RequestMetrics,
   createMonitoringMiddleware,
   getAPIMonitoringSnapshot,
+  MetricsStore,
+  type RequestMetrics,
 } from '@/lib/api/monitoring'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Type for accessing private methods/properties in tests
 interface APIMonitoringTestAccess {

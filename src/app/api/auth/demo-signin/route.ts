@@ -3,15 +3,15 @@
  * Creates a mock authentication session for development testing with rate limiting
  */
 
+import { SignJWT } from 'jose'
+import { cookies } from 'next/headers'
+import { type NextRequest, NextResponse } from 'next/server'
 import {
   applyProgressiveDelay,
   checkAuthRateLimit,
   createRateLimitResponse,
   recordAuthResult,
 } from '@/lib/security/auth-rate-limiting'
-import { SignJWT } from 'jose'
-import { cookies } from 'next/headers'
-import { type NextRequest, NextResponse } from 'next/server'
 
 // Demo user data for testing
 const DEMO_USERS = {

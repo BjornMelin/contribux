@@ -3,10 +3,10 @@
  * Provides real-time metrics data for the dashboard in JSON format
  */
 
+import { type NextRequest, NextResponse } from 'next/server'
 import { getQueryMetrics } from '@/lib/api/query-client'
 import { telemetryLogger } from '@/lib/telemetry/logger'
 import { createSpan } from '@/lib/telemetry/utils'
-import { type NextRequest, NextResponse } from 'next/server'
 
 // Type definitions for dashboard metrics
 interface DashboardMetrics {

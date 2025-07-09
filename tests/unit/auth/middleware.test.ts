@@ -68,10 +68,10 @@ vi.mock('@/lib/validation/env', () => ({
   },
 }))
 
+import { NextRequest } from 'next/server'
 import { verifyAccessToken } from '@/lib/auth/jwt'
 import { authMiddleware } from '@/lib/auth/middleware'
 import { sql } from '@/lib/db/config'
-import { NextRequest } from 'next/server'
 
 describe('Auth Middleware', () => {
   beforeEach(() => {

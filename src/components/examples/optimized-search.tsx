@@ -13,9 +13,9 @@
 
 'use client'
 
+import { useMemo } from 'react'
 import { useSaveOpportunity } from '@/lib/api/hooks/use-opportunities'
 import { useRepositoryBookmark } from '@/lib/api/hooks/use-repositories'
-import { useMemo } from 'react'
 
 // Import extracted components
 import { BeginnerSidebar } from './beginner-sidebar'

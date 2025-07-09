@@ -4,8 +4,8 @@
  * Monitors the health of various system components and exposes metrics
  */
 
+import { metrics, type Span } from '@opentelemetry/api'
 import { InstrumentedGitHubClient } from '@/lib/github/instrumented-client'
-import { type Span, metrics } from '@opentelemetry/api'
 import { telemetryLogger } from './logger'
 import { createDatabaseSpan, createGitHubSpan, createSpan } from './utils'
 
@@ -200,7 +200,11 @@ export async function checkDatabaseHealth(): Promise<HealthCheckResult> {
       const { neon } = await import('@neondatabase/serverless')
 
       // Create direct connection with explicit options for health check
-      const sql = neon(process.env.DATABASE_URL!, {
+      const databaseUrl = process.env.DATABASE_URL
+      if (!databaseUrl) {
+        throw new Error('DATABASE_URL environment variable is required')
+      }
+      const sql = neon(databaseUrl, {
         fetchOptions: {
           cache: 'no-cache',
         },

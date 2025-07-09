@@ -8,14 +8,14 @@
  * - Error handling and monitoring
  */
 
+import { NextRequest, NextResponse } from 'next/server'
+import { afterEach, beforeEach, describe, expect, it, type MockedFunction, vi } from 'vitest'
 import {
   getSecurityPreset,
   integratedSecurityMiddleware,
   securityMiddleware,
   securityPresets,
 } from '@/lib/security/integrated-security-middleware'
-import { NextRequest, NextResponse } from 'next/server'
-import { type MockedFunction, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock all security dependencies
 vi.mock('@/lib/security/api-key-rotation', () => ({

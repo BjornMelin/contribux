@@ -3,7 +3,7 @@
  * Mock Service Worker handlers for comprehensive WebAuthn testing
  */
 
-import { http, HttpResponse } from 'msw'
+import { HttpResponse, http } from 'msw'
 import { z } from 'zod'
 
 // Type definitions for WebAuthn requests/responses

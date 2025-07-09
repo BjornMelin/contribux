@@ -448,7 +448,7 @@ export class SecurityMonitoringDashboard {
       a =>
         a.type === alertId &&
         a.status === 'active' &&
-        new Date().getTime() - a.timestamp.getTime() < config.cooldownMinutes * 60 * 1000
+        Date.now() - a.timestamp.getTime() < config.cooldownMinutes * 60 * 1000
     )
 
     if (existingAlert) return

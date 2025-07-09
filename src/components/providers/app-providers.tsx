@@ -89,9 +89,7 @@ function MockSessionProvider({ children }: { children: ReactNode }) {
         } else {
           setStatus('unauthenticated')
         }
-      } catch (error) {
-        // If request fails or times out, set to unauthenticated
-        console.warn('Session check failed:', error)
+      } catch (_error) {
         setStatus('unauthenticated')
       }
     }
@@ -102,7 +100,6 @@ function MockSessionProvider({ children }: { children: ReactNode }) {
     const fallbackTimer = setTimeout(() => {
       setStatus(currentStatus => {
         if (currentStatus === 'loading') {
-          console.warn('Session check taking too long, defaulting to unauthenticated')
           return 'unauthenticated'
         }
         return currentStatus
@@ -134,6 +131,7 @@ function MockSessionProvider({ children }: { children: ReactNode }) {
     try {
       // Clear the session cookie (client-side only)
       if (typeof window !== 'undefined') {
+        // biome-ignore lint/suspicious/noDocumentCookie: Required for session cleanup, Cookie Store API not widely supported yet
         document.cookie = 'next-auth.session-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
       }
       setSession(null)

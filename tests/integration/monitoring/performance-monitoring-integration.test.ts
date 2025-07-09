@@ -3,9 +3,9 @@
  * Validates system performance with monitoring integration under various load conditions
  */
 
+import { beforeAll, beforeEach, describe, expect, test } from 'vitest'
 import { apiMonitoring } from '@/lib/api/monitoring'
 import { PerformanceTimer } from '@/lib/middleware/monitoring-middleware'
-import { beforeAll, beforeEach, describe, expect, test } from 'vitest'
 
 // Performance test utilities
 class PerformanceTestHelper {

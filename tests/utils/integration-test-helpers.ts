@@ -3,8 +3,8 @@
  * Node.js environment helpers without DOM dependencies
  */
 
-import type { UUID } from '@/types/base'
 import { vi } from 'vitest'
+import type { UUID } from '@/types/base'
 
 /**
  * Setup function for integration tests

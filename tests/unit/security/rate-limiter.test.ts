@@ -3,6 +3,7 @@
  * Tests for the Upstash Redis-based distributed rate limiting
  */
 
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   apiRateLimiter,
   authRateLimiter,
@@ -10,7 +11,6 @@ import {
   getRequestIdentifier,
   searchRateLimiter,
 } from '@/lib/security/rate-limiter'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Type for mock rate limiter
 interface MockRateLimiter {

@@ -1,5 +1,8 @@
 'use client'
 
+import { AnimatePresence, motion } from 'framer-motion'
+import { Bookmark, ExternalLink, Star } from 'lucide-react'
+import * as React from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -12,9 +15,6 @@ import {
 } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import type { Opportunity } from '@/types/search'
-import { AnimatePresence, motion } from 'framer-motion'
-import { Bookmark, ExternalLink, Star } from 'lucide-react'
-import * as React from 'react'
 
 // Animated Bookmark Button
 const AnimatedBookmarkButton: React.FC<{ isSaved: boolean; onToggle: () => void }> = ({

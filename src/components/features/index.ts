@@ -1,5 +1,5 @@
 export { OpportunityCard } from './OpportunityCard'
 export { OpportunityList } from './OpportunityList'
+export { RepositoryCard } from './RepositoryCard'
 export { SearchBar } from './SearchBar'
 export { SearchFilters } from './SearchFilters'
-export { RepositoryCard } from './RepositoryCard'

@@ -5,12 +5,12 @@
  */
 
 import {
-  SecureRandomPool,
   generateSecureId,
   generateSecureRandomString,
   getSecureRandomBytes,
   getSecureRandomFloat,
   getSecureRandomInt,
+  SecureRandomPool,
 } from '../src/lib/security/crypto-secure'
 
 interface BenchmarkResult {
@@ -229,4 +229,5 @@ function detectRuntime(): string {
   return 'Unknown'
 }
 
+// biome-ignore lint/suspicious/noConsole: Script error handling
 runBenchmarks().catch(console.error)

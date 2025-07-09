@@ -10,12 +10,12 @@
  * - Authentication recovery patterns
  */
 
+import { fc, test as fcTest } from '@fast-check/vitest'
+import { HttpResponse, http } from 'msw'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { GitHubClientConfig } from '@/lib/github/client'
 import { GitHubClient } from '@/lib/github/client'
 import { GitHubError } from '@/lib/github/errors'
-import { fc, test as fcTest } from '@fast-check/vitest'
-import { http, HttpResponse } from 'msw'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockGitHubAPI, mswServer } from '../msw-setup'
 import { setupGitHubTestIsolation } from '../test-helpers'
 

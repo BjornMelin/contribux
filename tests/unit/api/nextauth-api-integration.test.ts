@@ -3,7 +3,7 @@
  * Tests NextAuth API endpoints using MSW with proper authentication flow simulation
  */
 
-import { http, HttpResponse } from 'msw'
+import { HttpResponse, http } from 'msw'
 import { setupServer } from 'msw/node'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 

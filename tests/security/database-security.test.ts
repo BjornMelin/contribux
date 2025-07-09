@@ -4,22 +4,22 @@
  * connection security, data access control, and encryption validation
  */
 
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { db, sql } from '@/lib/db/config'
 import { RepositoryQueries } from '@/lib/db/queries/repositories'
 import { UserQueries } from '@/lib/db/queries/users'
 import {
-  SafeSearchQuerySchema,
-  SafeStringSchema50,
-  UserDataSchema,
-  VectorEmbeddingSchema,
   buildSafeFilterConditions,
   detectSuspiciousQuery,
+  SafeSearchQuerySchema,
+  SafeStringSchema50,
   sanitizeArrayInput,
   sanitizeJsonInput,
   sanitizeSearchQuery,
   sanitizeVectorEmbedding,
+  UserDataSchema,
+  VectorEmbeddingSchema,
 } from '@/lib/db/schema'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Type definitions for mock database query builder
 interface MockDrizzleQueryBuilder {

@@ -3,10 +3,10 @@
  * Provides endpoints for performance monitoring, optimization, and diagnostics
  */
 
-import { apiMonitoring } from '@/lib/api/monitoring'
-import { sql } from '@/lib/db/config'
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { apiMonitoring } from '@/lib/api/monitoring'
+import { sql } from '@/lib/db/config'
 
 // Performance response types
 interface PerformanceMetrics {

@@ -1,9 +1,9 @@
 // Opportunity Queries - Drizzle ORM
 // Phase 3: Type-safe queries for contribution opportunities
 
+import { and, count, desc, eq, gte, ilike, isNotNull, lte, or, sql } from 'drizzle-orm'
 import { appConfig } from '@/lib/config'
 import { db, schema, timedDb, vectorUtils } from '@/lib/db'
-import { and, count, desc, eq, gte, ilike, isNotNull, lte, or, sql } from 'drizzle-orm'
 
 export interface OpportunitySearchOptions {
   limit?: number
@@ -762,7 +762,7 @@ export namespace OpportunityQueries {
               updatedAt: sql`now()`,
             })
             .where(eq(schema.opportunities.id, update.id))
-            .returning({ id: schema.opportunities.id })
+            .returning()
         )
 
         const batchResults = await Promise.all(batchPromises)

@@ -3,6 +3,7 @@
  * Tests for WebAuthn credential storage and retrieval operations
  */
 
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { sql } from '@/lib/db/config'
 import {
   generateWebAuthnAuthentication,
@@ -12,7 +13,6 @@ import {
   verifyWebAuthnAuthentication,
   verifyWebAuthnRegistration,
 } from '@/lib/security/webauthn/server'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock the security feature flags
 vi.mock('@/lib/security/feature-flags', () => ({

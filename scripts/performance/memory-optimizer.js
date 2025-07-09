@@ -246,6 +246,7 @@ async function main() {
 }
 
 if (require.main === module) {
+  // biome-ignore lint/suspicious/noConsole: Script error handling
   main().catch(console.error)
 }
 

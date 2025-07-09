@@ -3,9 +3,9 @@
  * Centralized configuration for all supported OAuth providers
  */
 
+import { z } from 'zod'
 import type { GitHubProfile, GoogleProfile, LinkedInProfile, MicrosoftProfile } from '@/types/oauth'
 import { parseOAuthProfile } from '@/types/oauth'
-import { z } from 'zod'
 
 // Provider metadata interface
 export interface ProviderMetadata {

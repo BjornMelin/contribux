@@ -3,9 +3,9 @@
  * Provides search functionality for GitHub repositories
  */
 
-import { withRateLimit } from '@/lib/security/rate-limit-middleware'
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { withRateLimit } from '@/lib/security/rate-limit-middleware'
 
 // Search query schema
 const searchSchema = z.object({

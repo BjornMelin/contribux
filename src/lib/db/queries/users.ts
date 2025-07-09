@@ -1,9 +1,9 @@
 // User Queries - Drizzle ORM
 // Phase 3: Type-safe queries replacing raw SQL patterns
 
+import { and, count, desc, eq, sql } from 'drizzle-orm'
 import { db, schema, timedDb } from '@/lib/db'
 import type { NewUserActivity } from '@/lib/db/schema'
-import { and, count, desc, eq, sql } from 'drizzle-orm'
 
 export interface UserPreferences {
   emailNotifications?: boolean
@@ -607,7 +607,7 @@ export namespace UserQueries {
       const results = await db
         .delete(schema.userActivity)
         .where(sql`${schema.userActivity.createdAt} < ${cutoffDate}`)
-        .returning({ id: schema.userActivity.id })
+        .returning()
 
       return results.length
     })

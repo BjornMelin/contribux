@@ -456,7 +456,7 @@ export class InputValidator {
       /<!ENTITY|SYSTEM|PUBLIC|file:\/\/|expect:\/\//i,
 
       // Directory traversal
-      /\.\.[\/\\]|\.\.[\/\\]\.\./,
+      /\.\.[/\\]|\.\.[/\\]\.\./,
     ]
 
     for (const pattern of injectionPatterns) {

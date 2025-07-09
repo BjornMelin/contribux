@@ -5,9 +5,9 @@
  * to verify client functionality in a live environment.
  */
 
+import { afterEach, beforeEach, expect } from 'vitest'
 import { GitHubClient } from '@/lib/github/client'
 import { parseRateLimitHeader } from '@/lib/github/utils'
-import { afterEach, beforeEach, expect } from 'vitest'
 import type { IntegrationTestContext } from '../infrastructure/test-config'
 import {
   describeIntegration,

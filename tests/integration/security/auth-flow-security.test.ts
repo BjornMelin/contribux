@@ -10,15 +10,15 @@
  * - Cross-component security integration
  */
 
+import { NextRequest } from 'next/server'
+import { getServerSession, signIn, signOut } from 'next-auth/next'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { GitHubClient } from '@/lib/github'
 import { ApiKeyRotationService } from '@/lib/security/api-key-rotation'
 import { AuditEventType, AuditSeverity, auditLogger } from '@/lib/security/audit-logger'
 import { SecurityMonitoringDashboard } from '@/lib/security/monitoring-dashboard'
-import { getServerSession, signIn, signOut } from 'next-auth/next'
-import { NextRequest } from 'next/server'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock dependencies
 vi.mock('next-auth/next')

@@ -137,17 +137,14 @@ class PerformanceAnalyzer {
   async isDependencyUsed(depName, files) {
     const importPatterns = [
       new RegExp(
-        `import.*from\\s+['"]\@?${depName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}['"]`,
+        `import.*from\\s+['"]\@?${depName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}['"]`,
         'g'
       ),
       new RegExp(
-        `require\\(['"]\@?${depName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}['"]\\)`,
+        `require\\(['"]\@?${depName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}['"]\\)`,
         'g'
       ),
-      new RegExp(
-        `import\\(['"]\@?${depName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}['"]\\)`,
-        'g'
-      ),
+      new RegExp(`import\\(['"]\@?${depName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}['"]\\)`, 'g'),
     ]
 
     for (const file of files) {

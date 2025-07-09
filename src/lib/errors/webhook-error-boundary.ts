@@ -3,9 +3,9 @@
  * Specialized error handling for webhook processing with circuit breaker
  */
 
+import { NextResponse } from 'next/server'
 import { AuditEventType, AuditSeverity, auditLogger } from '@/lib/security/audit-logger'
 import { CircuitBreaker } from '@/lib/security/error-boundaries'
-import { NextResponse } from 'next/server'
 import { ErrorClassifier, ErrorSeverity } from './error-classification'
 import { ErrorRecoveryManager } from './error-recovery'
 

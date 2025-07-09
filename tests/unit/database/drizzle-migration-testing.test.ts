@@ -5,10 +5,10 @@
  * and data integrity during database evolution.
  */
 
+import { beforeEach, describe, expect, it } from 'vitest'
 import { createTestFactories } from '@/lib/test-utils/database-factories'
 import type { DatabaseConnection } from '@/lib/test-utils/test-database-manager'
 import { getTestDatabase } from '@/lib/test-utils/test-database-manager'
-import { beforeEach, describe, expect, it } from 'vitest'
 
 describe('Drizzle Migration Testing Suite', () => {
   let testDb: DatabaseConnection

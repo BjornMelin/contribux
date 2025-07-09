@@ -5,11 +5,6 @@
 
 'use client'
 
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { ErrorCategory, type ErrorClassification } from '@/lib/errors/error-classification'
-import type { RecoveryWorkflow } from '@/lib/errors/error-recovery'
 import {
   AlertTriangle,
   Archive,
@@ -21,6 +16,11 @@ import {
   Sparkles,
 } from 'lucide-react'
 import type React from 'react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { ErrorCategory, type ErrorClassification } from '@/lib/errors/error-classification'
+import type { RecoveryWorkflow } from '@/lib/errors/error-recovery'
 import { EnhancedErrorBoundary } from './enhanced-error-boundary'
 
 // Repository Card Error Boundary

@@ -1,10 +1,5 @@
 'use client'
 
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Activity,
   AlertCircle,
@@ -27,6 +22,11 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Progress } from '@/components/ui/progress'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 interface MetricData {
   timestamp: number
@@ -87,7 +87,6 @@ export function RealTimeMonitoringDashboard() {
 
     // Only connect if authenticated
     if (!authToken) {
-      console.warn('WebSocket connection requires authentication')
       return
     }
 
@@ -196,7 +195,7 @@ export function RealTimeMonitoringDashboard() {
     [updateMetricsWithValue, updateSimpleMetrics, updateNumericValue]
   )
 
-  const handleMetricUpdate = useCallback(
+  const _handleMetricUpdate = useCallback(
     (data: { type: string; [key: string]: unknown }) => {
       setLastUpdated(new Date())
       const handler = metricHandlers(data)

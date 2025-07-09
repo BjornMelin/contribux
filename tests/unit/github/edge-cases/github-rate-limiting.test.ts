@@ -12,16 +12,16 @@
  * - Quota Management and Recovery
  */
 
+import { HttpResponse, http } from 'msw'
+import { describe, expect, it } from 'vitest'
 import { GitHubRateLimitError } from '@/lib/github/errors'
 import { parseRateLimitHeader } from '@/lib/github/utils'
-import { http, HttpResponse } from 'msw'
-import { describe, expect, it } from 'vitest'
 import { mswServer } from '../msw-setup'
 import { rateLimitingHandlers, secondaryRateLimitHandlers } from './mocks/error-api-mocks'
 import {
+  createEdgeCaseClient,
   EDGE_CASE_PARAMS,
   RATE_LIMIT_EDGE_CASE_CONFIG,
-  createEdgeCaseClient,
   setupEdgeCaseTestIsolation,
 } from './setup/edge-case-setup'
 import {

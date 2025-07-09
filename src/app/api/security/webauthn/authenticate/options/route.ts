@@ -3,10 +3,10 @@
  * Generate authentication options for existing WebAuthn credentials
  */
 
-import { securityFeatures } from '@/lib/security/feature-flags'
-import { generateWebAuthnAuthentication } from '@/lib/security/webauthn/server'
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { securityFeatures } from '@/lib/security/feature-flags'
+import { generateWebAuthnAuthentication } from '@/lib/security/webauthn/server'
 
 const AuthOptionsRequestSchema = z.object({
   userId: z.string().optional(), // Optional for user-less authentication

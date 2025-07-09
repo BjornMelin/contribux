@@ -1,11 +1,11 @@
 'use client'
 
+import { ArrowRight, Github, Sparkles, Zap } from 'lucide-react'
+import Link from 'next/link'
 import { OptimizedSearchExample } from '@/components/examples/optimized-search'
 import { MotionDiv } from '@/components/motion'
 import { useSession } from '@/components/providers/app-providers'
 import { Button } from '@/components/ui/button'
-import { ArrowRight, Github, Sparkles, Zap } from 'lucide-react'
-import Link from 'next/link'
 
 export default function Home() {
   const { status } = useSession()

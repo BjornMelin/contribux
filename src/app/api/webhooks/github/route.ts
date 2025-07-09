@@ -9,21 +9,21 @@
  * - Proper error handling and responses
  */
 
+import type { NextRequest } from 'next/server'
 import { ErrorClassifier } from '@/lib/errors/error-classification'
 import { errorMonitor } from '@/lib/errors/error-monitoring'
 import {
-  type WebhookError,
   createWebhookErrorResponse,
+  type WebhookError,
   webhookRetryQueue,
   withWebhookErrorBoundary,
 } from '@/lib/errors/webhook-error-boundary'
 import {
-  type WebhookSecurityResult,
   createWebhookSecurityResponse,
   createWebhookValidator,
+  type WebhookSecurityResult,
 } from '@/lib/security/webhook-security'
 import type { GitHubWebhookPayload } from '@/types/github-integration'
-import type { NextRequest } from 'next/server'
 
 // Initialize webhook security validator
 const webhookValidator = createWebhookValidator()

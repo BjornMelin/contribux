@@ -106,11 +106,7 @@ export function validateCacheKey(components: string[]): boolean {
  * Create cache options with defaults
  */
 export function createCacheOptions(
-  options: {
-    memoryTtl?: number
-    redisTtl?: number
-    skipCache?: boolean
-  } = {}
+  options: { memoryTtl?: number; redisTtl?: number; skipCache?: boolean } = {}
 ): {
   memoryTtl: number
   redisTtl: number

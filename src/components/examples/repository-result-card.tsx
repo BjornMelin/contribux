@@ -5,8 +5,8 @@
 
 'use client'
 
-import type { Repository } from '@/lib/api/hooks/use-repositories'
 import { memo, useCallback } from 'react'
+import type { Repository } from '@/lib/api/hooks/use-repositories'
 
 interface RepositoryResultCardProps {
   repository: Repository

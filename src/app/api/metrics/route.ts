@@ -4,10 +4,10 @@
  * Exposes application metrics in Prometheus format for monitoring
  */
 
-import { telemetryLogger } from '@/lib/telemetry/logger'
-import { createSpan } from '@/lib/telemetry/utils'
 import { type NextRequest, NextResponse } from 'next/server'
 import { register } from 'prom-client'
+import { telemetryLogger } from '@/lib/telemetry/logger'
+import { createSpan } from '@/lib/telemetry/utils'
 
 export async function GET(_request: NextRequest) {
   return createSpan(

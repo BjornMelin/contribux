@@ -11,6 +11,7 @@
  * - Compression for large cache entries
  */
 
+import { Redis } from 'ioredis'
 import {
   type CacheMetrics,
   type CacheTierMetrics,
@@ -18,7 +19,6 @@ import {
   recordOperationTime,
 } from '@/lib/utils/cache-utils'
 import { estimateObjectSize } from '@/lib/utils/object-transformation'
-import { Redis } from 'ioredis'
 
 // Cache configuration
 interface CacheConfig {

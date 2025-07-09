@@ -6,11 +6,11 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { ApiKeyManager } from './api-key-rotation'
-import { AuditEventType, AuditSeverity, type SecurityMetadata, auditLogger } from './audit-logger'
+import { AuditEventType, AuditSeverity, auditLogger, type SecurityMetadata } from './audit-logger'
 import {
   CorsManager,
-  DynamicCorsConfig,
   checkSuspiciousCorsPatterns,
+  DynamicCorsConfig,
   logCorsViolation,
 } from './cors-config'
 import { SecurityError, SecurityErrorType, withSecurityBoundary } from './error-boundaries'

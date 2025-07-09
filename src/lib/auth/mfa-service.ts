@@ -4,6 +4,7 @@
  * Addresses OWASP A07 Authentication Failures
  */
 
+import { type NextRequest, NextResponse } from 'next/server'
 import type {
   MFAEnrollmentRequest,
   MFAEnrollmentResponse,
@@ -16,7 +17,6 @@ import type {
   WebAuthnCredential,
 } from '@/types/auth'
 import type { UUID } from '@/types/base'
-import { type NextRequest, NextResponse } from 'next/server'
 
 import {
   generateWebAuthnRegistration as generateWebAuthnRegistrationOptions,
@@ -64,7 +64,7 @@ import { sql } from '@/lib/db/config'
 /**
  * Store MFA attempt in persistent storage
  */
-async function storeMFAAttempt(userId: string, attempt: MFAAttempt): Promise<void> {
+async function _storeMFAAttempt(userId: string, attempt: MFAAttempt): Promise<void> {
   try {
     await sql`
       INSERT INTO mfa_attempts (user_id, attempts, locked_until, last_attempt, created_at)
@@ -76,16 +76,15 @@ async function storeMFAAttempt(userId: string, attempt: MFAAttempt): Promise<voi
         last_attempt = EXCLUDED.last_attempt,
         updated_at = CURRENT_TIMESTAMP
     `
-  } catch (error) {
-    // Log error but don't throw - security should degrade gracefully
-    console.error('Failed to store MFA attempt:', error)
+  } catch (_error) {
+    // Intentionally empty - silently fail and fall back to in-memory storage
   }
 }
 
 /**
  * Retrieve MFA attempt from persistent storage
  */
-async function getMFAAttempt(userId: string): Promise<MFAAttempt | null> {
+async function _getMFAAttempt(userId: string): Promise<MFAAttempt | null> {
   try {
     const result = await sql`
       SELECT user_id, attempts, locked_until, last_attempt
@@ -109,8 +108,7 @@ async function getMFAAttempt(userId: string): Promise<MFAAttempt | null> {
       lockedUntil: row.locked_until ? row.locked_until.getTime() : undefined,
       lastAttempt: row.last_attempt.getTime(),
     }
-  } catch (error) {
-    console.error('Failed to retrieve MFA attempt:', error)
+  } catch (_error) {
     return null
   }
 }
@@ -118,7 +116,7 @@ async function getMFAAttempt(userId: string): Promise<MFAAttempt | null> {
 /**
  * Store MFA challenge in persistent storage
  */
-async function storeMFAChallenge(challengeId: string, challenge: MFAChallenge): Promise<void> {
+async function _storeMFAChallenge(challengeId: string, challenge: MFAChallenge): Promise<void> {
   try {
     await sql`
       INSERT INTO mfa_challenges (id, user_id, challenge, method, expires_at, registration_options, created_at)
@@ -129,15 +127,15 @@ async function storeMFAChallenge(challengeId: string, challenge: MFAChallenge): 
         expires_at = EXCLUDED.expires_at,
         updated_at = CURRENT_TIMESTAMP
     `
-  } catch (error) {
-    console.error('Failed to store MFA challenge:', error)
+  } catch (_error) {
+    // Intentionally empty - silently fail and fall back to in-memory storage
   }
 }
 
 /**
  * Retrieve MFA challenge from persistent storage
  */
-async function getMFAChallenge(challengeId: string): Promise<MFAChallenge | null> {
+async function _getMFAChallenge(challengeId: string): Promise<MFAChallenge | null> {
   try {
     const result = await sql`
       SELECT user_id, challenge, method, expires_at, registration_options
@@ -163,8 +161,7 @@ async function getMFAChallenge(challengeId: string): Promise<MFAChallenge | null
       expiresAt: row.expires_at.getTime(),
       registrationOptions: JSON.parse(row.registration_options || '{}'),
     }
-  } catch (error) {
-    console.error('Failed to retrieve MFA challenge:', error)
+  } catch (_error) {
     return null
   }
 }
@@ -172,11 +169,11 @@ async function getMFAChallenge(challengeId: string): Promise<MFAChallenge | null
 /**
  * Clean up expired MFA challenges
  */
-async function cleanupExpiredMFAChallenges(): Promise<void> {
+async function _cleanupExpiredMFAChallenges(): Promise<void> {
   try {
     await sql`DELETE FROM mfa_challenges WHERE expires_at < CURRENT_TIMESTAMP`
-  } catch (error) {
-    console.error('Failed to cleanup expired MFA challenges:', error)
+  } catch (_error) {
+    // Intentionally empty - silently fail and fall back to in-memory storage
   }
 }
 

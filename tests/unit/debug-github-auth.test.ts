@@ -3,9 +3,9 @@
  * Test to verify correct GitHubClient configuration format
  */
 
-import { GitHubClient } from '@/lib/github/client'
-import { describe, expect, it, beforeAll, afterAll, afterEach } from 'vitest'
 import { setupServer } from 'msw/node'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { GitHubClient } from '@/lib/github/client'
 import { githubHandlers } from '../mocks/github-handlers'
 
 // Setup MSW server
@@ -45,7 +45,7 @@ describe('Debug GitHub Authentication', () => {
     try {
       const wrongConfig = {
         auth: { type: 'token' as const, token: 'ghp_test_token' },
-      } as any
+      } as unknown as ConstructorParameters<typeof GitHubClient>[0]
 
       const client = new GitHubClient(wrongConfig)
       console.log('Wrong config actually works?', client)

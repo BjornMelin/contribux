@@ -3,8 +3,8 @@
  * Handles opportunity data operations
  */
 
-import { type Opportunity, opportunities } from '@/lib/db/schema'
 import type { PgColumn } from 'drizzle-orm/pg-core'
+import { type Opportunity, opportunities } from '@/lib/db/schema'
 import { BaseRepository } from './base-repository'
 
 export class OpportunityRepository extends BaseRepository<Opportunity, string> {

@@ -20,8 +20,8 @@ export {
   ChevronUp,
   Clock,
   ExternalLink,
-  Github,
   GitBranch,
+  Github,
   Loader2,
   Lock,
   Mail,
@@ -97,6 +97,7 @@ export const IconWrapper: React.FC<IconProps & { children: React.ReactNode }> = 
     <span
       className={`inline-flex items-center justify-center ${className}`}
       style={{ width: iconSize, height: iconSize }}
+      role="img"
       aria-label={ariaLabel}
       {...props}
     >

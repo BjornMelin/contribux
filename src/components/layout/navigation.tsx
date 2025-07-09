@@ -1,15 +1,15 @@
 'use client'
 
-import { MotionDiv } from '@/components/motion'
-import { useSession } from '@/components/providers/app-providers'
-import { Button } from '@/components/ui/button'
-import { ThemeToggle, ThemeToggleCompact } from '@/components/ui/theme-toggle'
-import { cn } from '@/lib/utils'
 import { Github, Home, LogOut, Menu, Settings, Sparkles, X } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
+import { MotionDiv } from '@/components/motion'
+import { useSession } from '@/components/providers/app-providers'
+import { Button } from '@/components/ui/button'
+import { ThemeToggle, ThemeToggleCompact } from '@/components/ui/theme-toggle'
+import { cn } from '@/lib/utils'
 
 const navItems = [
   { href: '/', label: 'Home', icon: Home },
@@ -71,7 +71,7 @@ export function Navigation() {
           </div>
 
           {/* Desktop Auth Buttons */}
-          <div className="hidden md:flex items-center space-x-3">
+          <div className="hidden items-center space-x-3 md:flex">
             <ThemeToggle />
             {status === 'loading' ? (
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />

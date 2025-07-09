@@ -4,9 +4,9 @@
  * Covers PKCE, state validation, callback handling, and error scenarios
  */
 
-import { authConfig } from '@/lib/auth/config'
 import type { Account, Profile } from 'next-auth'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { authConfig } from '@/lib/auth/config'
 
 // Type for OAuth provider configuration
 interface OAuthProviderConfig {

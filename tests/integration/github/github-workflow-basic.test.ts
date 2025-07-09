@@ -10,11 +10,11 @@
  * - Simple content operations
  */
 
-import type { GitHubClientConfig } from '@/lib/github/client'
-import { GitHubClient, createGitHubClient } from '@/lib/github/client'
-import { GitHubError } from '@/lib/github/errors'
 import { fc, test as fcTest } from '@fast-check/vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { GitHubClientConfig } from '@/lib/github/client'
+import { createGitHubClient, GitHubClient } from '@/lib/github/client'
+import { GitHubError } from '@/lib/github/errors'
 import { mockGitHubAPI } from '../msw-setup'
 import { setupGitHubTestIsolation } from '../test-helpers'
 

@@ -4,7 +4,7 @@
  * Extends the existing logger with trace correlation and structured logging
  */
 
-import { type LogContext, type SecurityEventContext, logger as baseLogger } from '@/lib/logger'
+import { logger as baseLogger, type LogContext, type SecurityEventContext } from '@/lib/logger'
 import { getTraceContext } from './utils'
 
 /**

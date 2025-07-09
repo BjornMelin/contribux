@@ -4,11 +4,11 @@
  * Phase 3: Migrated to Drizzle ORM with type-safe queries
  */
 
-import { auth } from '@/lib/auth'
-import { OpportunityQueries, type OpportunitySearchOptions } from '@/lib/db/queries/opportunities'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import { auth } from '@/lib/auth'
+import { OpportunityQueries, type OpportunitySearchOptions } from '@/lib/db/queries/opportunities'
 
 // Request validation schema
 const SearchOpportunitiesQuerySchema = z.object({

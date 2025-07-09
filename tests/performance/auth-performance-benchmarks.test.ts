@@ -4,16 +4,16 @@
  */
 
 import { performance } from 'node:perf_hooks'
-import { authConfig } from '@/lib/auth/config'
 import type { MockedFunction } from 'vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { authConfig } from '@/lib/auth/config'
 import {
   type AuthenticationStateManager,
+  createMockJWT,
+  createMockSession,
   type DatabaseMockHelper,
   OAuthFlowSimulator,
   PerformanceTestHelper,
-  createMockJWT,
-  createMockSession,
   setupAuthTestEnvironment,
 } from '../utils/auth-test-utilities'
 

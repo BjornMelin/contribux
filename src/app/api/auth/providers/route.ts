@@ -1,20 +1,21 @@
-import { auth } from '@/lib/auth'
-import { getUserProviders } from '@/lib/auth/helpers'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
+import { auth } from '@/lib/auth'
+import { getUserProviders } from '@/lib/auth/helpers'
 
 export async function GET(request: NextRequest) {
   try {
     // In development mode with demo providers, auth might not be fully functional
-    let session: any = null
-    let authError: any = null
+    let session: unknown = null
+    let _authError: unknown = null
 
     try {
       if (typeof auth === 'function') {
         session = await auth()
       }
     } catch (error) {
-      authError = error
+      _authError = error
+      // biome-ignore lint/suspicious/noConsole: Server-side error logging
       console.warn('Auth function not available, running in demo mode:', error)
     }
 
@@ -59,6 +60,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ providers })
   } catch (error) {
+    // biome-ignore lint/suspicious/noConsole: Server-side error logging
     console.error('Providers endpoint error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

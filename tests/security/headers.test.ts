@@ -60,6 +60,7 @@ vi.mock('next/server', () => {
     NextResponse: MockNextResponse,
   }
 })
+
 import { addSecurityHeaders, handleCorsOptions } from '../../src/lib/security/headers'
 
 /**

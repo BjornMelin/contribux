@@ -3,11 +3,11 @@
  * Comprehensive utilities for authentication state management, mocking, and test setup
  */
 
+import type { NextRequest } from 'next/server'
+import type { Account, JWT, Profile, Session } from 'next-auth'
+import { type MockedFunction, vi } from 'vitest'
 import type { User as AuthUser } from '@/types/auth'
 import type { Email, UUID } from '@/types/base'
-import type { Account, JWT, Profile, Session } from 'next-auth'
-import type { NextRequest } from 'next/server'
-import { type MockedFunction, vi } from 'vitest'
 
 // =============================================================================
 // Mock Data Factories

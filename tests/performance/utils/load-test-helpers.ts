@@ -3,9 +3,9 @@
  * Shared across all performance test suites
  */
 
-import { GitHubClient, type GitHubClientConfig, type TokenInfo } from '@/lib/github'
-import { http, HttpResponse } from 'msw'
+import { HttpResponse, http } from 'msw'
 import { setupServer } from 'msw/node'
+import { GitHubClient, type GitHubClientConfig, type TokenInfo } from '@/lib/github'
 import { mswServer } from '../../github/msw-setup'
 import { createRateLimitHeaders } from '../../github/test-helpers'
 
