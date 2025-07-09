@@ -291,6 +291,7 @@ sudo -u postgres psql -c "ALTER USER $USER CREATEDB SUPERUSER;"
 - [pgvector Documentation](https://github.com/pgvector/pgvector)
 - [Neon Documentation](https://neon.tech/docs)
 - [Drizzle ORM Documentation](https://orm.drizzle.team/)
+- [GitHub Token Setup Guide](./github-token-setup.md) - Required for GitHub API access
 
 ## 🆘 Getting Help
 
