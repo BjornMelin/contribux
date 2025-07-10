@@ -48,6 +48,7 @@ export default defineConfig({
       'tests/unit/**/*.{test,spec}.{js,ts,tsx}',
       'tests/security/**/*.{test,spec}.{js,ts,tsx}',
       'tests/mocks/**/*.{test,spec}.{js,ts,tsx}',
+      'tests/config/**/*.{test,spec}.{js,ts,tsx}',
       'src/**/*.{test,spec}.{js,ts,tsx}',
     ],
 
@@ -61,7 +62,7 @@ export default defineConfig({
       '.next/**/*',
     ],
 
-    setupFiles: ['./tests/setup.ts'],
+    setupFiles: ['./tests/setup-enhanced.ts'],
 
     // Optimized pool configuration for Vitest 3.2+
     pool: 'threads',
@@ -106,9 +107,19 @@ export default defineConfig({
       json: './test-results.json',
     },
 
-    // Environment configuration
+    // Environment configuration - Enhanced isolation
     env: {
       NODE_ENV: 'test',
+      VITEST: 'true',
+      SKIP_ENV_VALIDATION: 'true',
+      // Isolated test environment
+      LOG_LEVEL: 'warn',
+      ENABLE_OAUTH: 'false',
+      ENABLE_WEBAUTHN: 'false',
+      ENABLE_AUDIT_LOGS: 'false',
+      // Test security keys
+      NEXTAUTH_SECRET: 'unit-test-secret-32-chars-minimum-for-testing',
+      ENCRYPTION_KEY: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
     },
   },
 })
