@@ -46,40 +46,52 @@ export async function middleware(request: NextRequest) {
   response.headers.set('X-Frame-Options', 'DENY')
   response.headers.set('X-Content-Type-Options', 'nosniff')
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
-  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), accelerometer=(), gyroscope=(), display-capture=(), screen-wake-lock=(), web-share=()')
+  response.headers.set(
+    'Permissions-Policy',
+    'camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), accelerometer=(), gyroscope=(), display-capture=(), screen-wake-lock=(), web-share=()'
+  )
 
   // Enhanced security headers for modern web security
   if (isProduction()) {
     // HTTP Strict Transport Security (HSTS) - 2 years, include subdomains, preload
-    response.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload')
-    
+    response.headers.set(
+      'Strict-Transport-Security',
+      'max-age=63072000; includeSubDomains; preload'
+    )
+
     // Cross-Origin policies for enhanced security
     response.headers.set('Cross-Origin-Embedder-Policy', 'require-corp')
     response.headers.set('Cross-Origin-Opener-Policy', 'same-origin')
     response.headers.set('Cross-Origin-Resource-Policy', 'same-site')
-    
+
     // Network Error Logging for monitoring
-    response.headers.set('NEL', JSON.stringify({
-      report_to: 'network-errors',
-      max_age: 86400,
-      include_subdomains: true,
-      success_fraction: 0.01,
-      failure_fraction: 1.0
-    }))
-    
+    response.headers.set(
+      'NEL',
+      JSON.stringify({
+        report_to: 'network-errors',
+        max_age: 86400,
+        include_subdomains: true,
+        success_fraction: 0.01,
+        failure_fraction: 1.0,
+      })
+    )
+
     // Report-To header for modern reporting
-    response.headers.set('Report-To', JSON.stringify([
-      {
-        group: 'csp-violations',
-        max_age: 86400,
-        endpoints: [{ url: '/api/security/csp-report' }]
-      },
-      {
-        group: 'network-errors',
-        max_age: 86400,
-        endpoints: [{ url: '/api/security/network-report' }]
-      }
-    ]))
+    response.headers.set(
+      'Report-To',
+      JSON.stringify([
+        {
+          group: 'csp-violations',
+          max_age: 86400,
+          endpoints: [{ url: '/api/security/csp-report' }],
+        },
+        {
+          group: 'network-errors',
+          max_age: 86400,
+          endpoints: [{ url: '/api/security/network-report' }],
+        },
+      ])
+    )
   } else {
     // Development-specific security headers (less strict)
     response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
@@ -92,7 +104,7 @@ export async function middleware(request: NextRequest) {
   response.headers.set('X-DNS-Prefetch-Control', 'off')
   response.headers.set('X-Download-Options', 'noopen')
   response.headers.set('X-Permitted-Cross-Domain-Policies', 'none')
-  
+
   // Remove potentially dangerous headers
   response.headers.delete('X-Powered-By')
   response.headers.delete('Server')
@@ -107,7 +119,10 @@ export async function middleware(request: NextRequest) {
     response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
     response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
     response.headers.set('Access-Control-Allow-Credentials', 'true')
-    response.headers.set('Access-Control-Expose-Headers', 'X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, X-RateLimit-Policy')
+    response.headers.set(
+      'Access-Control-Expose-Headers',
+      'X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, X-RateLimit-Policy'
+    )
   }
 
   // Merge rate limit headers from the rate limit response

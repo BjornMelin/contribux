@@ -36,63 +36,63 @@ export const rateLimitConfigs = {
     max: 50, // Reduced from 100 for better security
     message: 'Too many authentication attempts. Please try again later.',
   },
-  
+
   // General API endpoints - balanced for normal usage
   api: {
     windowMs: 60 * 60 * 1000, // 1 hour
     max: 1000, // Standard rate for API calls
     message: 'API rate limit exceeded. Please try again later.',
   },
-  
+
   // Search endpoints - moderate limits due to computational cost
   search: {
     windowMs: 60 * 1000, // 1 minute
     max: 30, // Reduced from 60 for better performance
     message: 'Search rate limit exceeded. Please try again in a minute.',
   },
-  
+
   // WebAuthn/MFA endpoints - very strict limits
   webauthn: {
     windowMs: 5 * 60 * 1000, // 5 minutes
     max: 10, // Very strict for security-critical operations
     message: 'WebAuthn rate limit exceeded. Please wait before trying again.',
   },
-  
+
   // GitHub webhooks - higher limits for legitimate traffic
   webhook: {
     windowMs: 60 * 1000, // 1 minute
     max: 100, // Higher for webhook bursts
     message: 'Webhook rate limit exceeded.',
   },
-  
+
   // Admin endpoints - very strict limits
   admin: {
     windowMs: 60 * 60 * 1000, // 1 hour
     max: 100, // Lower limit for admin operations
     message: 'Admin rate limit exceeded. Please contact support.',
   },
-  
+
   // Public endpoints - moderate limits
   public: {
     windowMs: 60 * 1000, // 1 minute
     max: 100, // Generous for public access
     message: 'Public API rate limit exceeded. Please try again later.',
   },
-  
+
   // Analytics/monitoring endpoints - strict limits
   analytics: {
     windowMs: 60 * 1000, // 1 minute
     max: 20, // Limited to prevent abuse
     message: 'Analytics rate limit exceeded.',
   },
-  
+
   // Security reporting endpoints - strict limits with allowance for legitimate reports
   security: {
     windowMs: 60 * 1000, // 1 minute
     max: 10, // Strict to prevent spam
     message: 'Security reporting rate limit exceeded.',
   },
-  
+
   // Demo endpoints - very strict limits
   demo: {
     windowMs: 60 * 1000, // 1 minute
@@ -110,26 +110,29 @@ function createRateLimiter(config: { windowMs: number; max: number; message?: st
 
   if (!url || !token) {
     console.warn('⚠️  Upstash Redis not configured. Using fallback rate limiter.')
-    
+
     // Enhanced fallback rate limiter with in-memory storage
     const fallbackStorage = new Map<string, { count: number; resetTime: number }>()
-    
+
     // Cleanup expired entries every 5 minutes
-    setInterval(() => {
-      const now = Date.now()
-      for (const [key, value] of fallbackStorage.entries()) {
-        if (now > value.resetTime) {
-          fallbackStorage.delete(key)
+    setInterval(
+      () => {
+        const now = Date.now()
+        for (const [key, value] of fallbackStorage.entries()) {
+          if (now > value.resetTime) {
+            fallbackStorage.delete(key)
+          }
         }
-      }
-    }, 5 * 60 * 1000)
-    
+      },
+      5 * 60 * 1000
+    )
+
     return {
       limit: async (identifier: string) => {
         const now = Date.now()
         const resetTime = now + config.windowMs
         const existing = fallbackStorage.get(identifier)
-        
+
         if (!existing || now > existing.resetTime) {
           // Reset or create new entry
           fallbackStorage.set(identifier, { count: 1, resetTime })
@@ -140,7 +143,7 @@ function createRateLimiter(config: { windowMs: number; max: number; message?: st
             reset: resetTime,
           }
         }
-        
+
         if (existing.count >= config.max) {
           return {
             success: false,
@@ -149,7 +152,7 @@ function createRateLimiter(config: { windowMs: number; max: number; message?: st
             reset: existing.resetTime,
           }
         }
-        
+
         existing.count++
         return {
           success: true,
@@ -162,7 +165,7 @@ function createRateLimiter(config: { windowMs: number; max: number; message?: st
   }
 
   const redis = new Redis({ url, token })
-  
+
   // Enhanced production rate limiter with analytics and monitoring
   return new Ratelimit({
     redis,
@@ -208,18 +211,21 @@ export async function checkRateLimit(
     const startTime = Date.now()
     const result = await limiter.limit(identifier)
     const duration = Date.now() - startTime
-    
+
     // Log rate limit check for monitoring
     if (process.env.NODE_ENV === 'production') {
-      console.log(`Rate limit check: ${identifier} - ${result.success ? 'ALLOWED' : 'BLOCKED'} (${duration}ms)`, {
-        endpoint: context?.endpoint,
-        method: context?.method,
-        remaining: result.remaining,
-        limit: result.limit,
-        userAgent: context?.userAgent?.substring(0, 100) // Truncate for privacy
-      })
+      console.log(
+        `Rate limit check: ${identifier} - ${result.success ? 'ALLOWED' : 'BLOCKED'} (${duration}ms)`,
+        {
+          endpoint: context?.endpoint,
+          method: context?.method,
+          remaining: result.remaining,
+          limit: result.limit,
+          userAgent: context?.userAgent?.substring(0, 100), // Truncate for privacy
+        }
+      )
     }
-    
+
     return {
       success: result.success,
       limit: result.limit,
@@ -235,7 +241,7 @@ export async function checkRateLimit(
       identifier: identifier.substring(0, 20) + '...', // Truncate for privacy
       context,
     })
-    
+
     // Graceful fallback - allow request but log the issue
     return {
       success: true,
@@ -257,11 +263,11 @@ export async function enhancedRateLimitMiddleware(req: NextRequest) {
   const path = req.nextUrl.pathname
   const method = req.method
   const userAgent = req.headers.get('user-agent') || 'unknown'
-  
+
   // Determine rate limiter based on path with enhanced routing
   let limiter: ReturnType<typeof createRateLimiter>
   let limiterType: keyof typeof rateLimitConfigs
-  
+
   // Security-critical endpoints
   if (path.startsWith('/api/auth/')) {
     limiter = authRateLimiter
@@ -281,7 +287,11 @@ export async function enhancedRateLimitMiddleware(req: NextRequest) {
   } else if (path.startsWith('/api/admin/') || path.includes('/admin/')) {
     limiter = adminRateLimiter
     limiterType = 'admin'
-  } else if (path.startsWith('/api/analytics/') || path.startsWith('/api/metrics/') || path.startsWith('/api/monitoring/')) {
+  } else if (
+    path.startsWith('/api/analytics/') ||
+    path.startsWith('/api/metrics/') ||
+    path.startsWith('/api/monitoring/')
+  ) {
     limiter = analyticsRateLimiter
     limiterType = 'analytics'
   } else if (path.startsWith('/api/demo/')) {
@@ -300,12 +310,12 @@ export async function enhancedRateLimitMiddleware(req: NextRequest) {
 
   // Get identifier from request with enhanced detection
   const identifier = getEnhancedRequestIdentifier(req)
-  
+
   // Check rate limit with context
   const result = await checkRateLimit(limiter, identifier, {
     endpoint: path,
     method,
-    userAgent
+    userAgent,
   })
 
   if (!result.success) {
@@ -385,7 +395,7 @@ export function getEnhancedRequestIdentifier(req: NextRequest): string {
 
   // 4. Get client IP with enhanced detection
   const clientIP = getClientIP(req)
-  
+
   // 5. Add user agent fingerprint for better identification
   const userAgent = req.headers.get('user-agent')
   if (userAgent) {
@@ -435,7 +445,7 @@ function simpleHash(str: string): string {
   let hash = 0
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i)
-    hash = ((hash << 5) - hash) + char
+    hash = (hash << 5) - hash + char
     hash = hash & hash // Convert to 32-bit integer
   }
   return Math.abs(hash).toString(16).substring(0, 8)
@@ -448,7 +458,7 @@ function parseJWTPayload(token: string): any {
   try {
     const parts = token.split('.')
     if (parts.length !== 3) return null
-    
+
     const payload = parts[1]
     const decoded = Buffer.from(payload, 'base64').toString()
     return JSON.parse(decoded)
@@ -462,12 +472,12 @@ function parseJWTPayload(token: string): any {
  */
 export function getRateLimiterForEndpoint(path: string): {
   limiter: ReturnType<typeof createRateLimiter>
-  config: typeof rateLimitConfigs[keyof typeof rateLimitConfigs]
+  config: (typeof rateLimitConfigs)[keyof typeof rateLimitConfigs]
   type: keyof typeof rateLimitConfigs
 } {
   let limiter: ReturnType<typeof createRateLimiter>
   let type: keyof typeof rateLimitConfigs
-  
+
   if (path.startsWith('/api/auth/')) {
     limiter = authRateLimiter
     type = 'auth'
@@ -486,7 +496,11 @@ export function getRateLimiterForEndpoint(path: string): {
   } else if (path.startsWith('/api/admin/') || path.includes('/admin/')) {
     limiter = adminRateLimiter
     type = 'admin'
-  } else if (path.startsWith('/api/analytics/') || path.startsWith('/api/metrics/') || path.startsWith('/api/monitoring/')) {
+  } else if (
+    path.startsWith('/api/analytics/') ||
+    path.startsWith('/api/metrics/') ||
+    path.startsWith('/api/monitoring/')
+  ) {
     limiter = analyticsRateLimiter
     type = 'analytics'
   } else if (path.startsWith('/api/demo/')) {
@@ -499,11 +513,11 @@ export function getRateLimiterForEndpoint(path: string): {
     limiter = apiRateLimiter
     type = 'api'
   }
-  
+
   return {
     limiter,
     config: rateLimitConfigs[type],
-    type
+    type,
   }
 }
 

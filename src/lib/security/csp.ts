@@ -45,7 +45,7 @@ export function buildCSP(directives: CSPDirectives, nonce?: string): string {
     if (!sources || sources.length === 0) {
       // Handle directives without sources
       if (
-        directive === 'upgrade-insecure-requests' || 
+        directive === 'upgrade-insecure-requests' ||
         directive === 'block-all-mixed-content' ||
         directive === 'require-trusted-types-for'
       ) {
@@ -106,7 +106,7 @@ export function getCSPDirectives(): CSPDirectives {
       "'self'",
       "'strict-dynamic'",
       // Allow wasm in production for better performance
-      ...(isProduction ? ["'wasm-unsafe-eval'"] : [])
+      ...(isProduction ? ["'wasm-unsafe-eval'"] : []),
     ],
     'style-src': [
       "'self'",
@@ -115,26 +115,26 @@ export function getCSPDirectives(): CSPDirectives {
       "'sha256-tQjf8gvb2ROOMapIxFvFAYBeUJ0v1HCbOcSmDNXGtDo='",
     ],
     'font-src': [
-      "'self'", 
+      "'self'",
       'https://fonts.gstatic.com',
       // Modern font loading with data URLs
-      'data:'
+      'data:',
     ],
     'img-src': [
-      "'self'", 
-      'data:', 
-      'https:', 
+      "'self'",
+      'data:',
+      'https:',
       'blob:',
       // Modern image formats and optimizations
       'https://avatars.githubusercontent.com',
       'https://github.com',
-      'https://raw.githubusercontent.com'
+      'https://raw.githubusercontent.com',
     ],
     'connect-src': [
       "'self'",
       'https://api.github.com',
       // GitHub GraphQL API
-      'https://api.github.com/graphql'
+      'https://api.github.com/graphql',
     ],
     'frame-ancestors': ["'none'"],
     'form-action': ["'self'"],
@@ -148,7 +148,7 @@ export function getCSPDirectives(): CSPDirectives {
     'frame-src': ["'none'"],
     'upgrade-insecure-requests': [],
     'block-all-mixed-content': [],
-    
+
     // Modern CSP Level 3 directives for enhanced security
     'fenced-frame-src': ["'none'"],
     'navigate-to': ["'self'", 'https://github.com', 'https://api.github.com'],
@@ -157,41 +157,24 @@ export function getCSPDirectives(): CSPDirectives {
   // Production-specific CSP directives
   if (isProduction) {
     // Add AI/ML APIs for production features
-    baseDirectives['connect-src']?.push(
-      'https://api.openai.com',
-      'https://*.openai.com'
-    )
-    
+    baseDirectives['connect-src']?.push('https://api.openai.com', 'https://*.openai.com')
+
     // Add Neon database connections with wildcards for edge locations
-    baseDirectives['connect-src']?.push(
-      'https://*.neon.tech',
-      'https://*.neon.build'
-    )
-    
+    baseDirectives['connect-src']?.push('https://*.neon.tech', 'https://*.neon.build')
+
     // Add Vercel deployment domains
-    baseDirectives['connect-src']?.push(
-      'https://contribux.vercel.app',
-      'https://*.vercel.app'
-    )
-    
+    baseDirectives['connect-src']?.push('https://contribux.vercel.app', 'https://*.vercel.app')
+
     // Enhanced reporting for CSP violations
     baseDirectives['report-uri'] = ['/api/security/csp-report']
     baseDirectives['report-to'] = ['csp-violations']
-    
+
     // Enable Trusted Types for DOM XSS prevention in production
-    baseDirectives['trusted-types'] = [
-      'default',
-      'nextjs-inline-script',
-      'react-render'
-    ]
+    baseDirectives['trusted-types'] = ['default', 'nextjs-inline-script', 'react-render']
     baseDirectives['require-trusted-types-for'] = ['script']
-    
+
     // Strict navigation control in production
-    baseDirectives['navigate-to']?.push(
-      'https://contribux.vercel.app',
-      'https://*.github.com'
-    )
-    
+    baseDirectives['navigate-to']?.push('https://contribux.vercel.app', 'https://*.github.com')
   } else {
     // Development/preview-specific sources
     baseDirectives['script-src']?.push(
@@ -199,11 +182,11 @@ export function getCSPDirectives(): CSPDirectives {
       "'unsafe-eval'", // Allow eval in development for hot reloading
       "'unsafe-inline'" // Temporary for development debugging
     )
-    
+
     baseDirectives['style-src']?.push(
       "'unsafe-inline'" // Allow inline styles in development
     )
-    
+
     baseDirectives['connect-src']?.push(
       'https://vercel.live',
       'http://localhost:*',
@@ -213,25 +196,19 @@ export function getCSPDirectives(): CSPDirectives {
       'http://127.0.0.1:*',
       'ws://127.0.0.1:*'
     )
-    
+
     // More permissive img-src for development
-    baseDirectives['img-src']?.push(
-      'http://localhost:*',
-      'http://127.0.0.1:*'
-    )
-    
+    baseDirectives['img-src']?.push('http://localhost:*', 'http://127.0.0.1:*')
+
     // Allow more navigation in development
-    baseDirectives['navigate-to']?.push(
-      'http://localhost:*',
-      'http://127.0.0.1:*'
-    )
-    
+    baseDirectives['navigate-to']?.push('http://localhost:*', 'http://127.0.0.1:*')
+
     // Relaxed trusted types for development
     baseDirectives['trusted-types'] = [
       'default',
       'nextjs-inline-script',
       'react-render',
-      'webpack-dev-server'
+      'webpack-dev-server',
     ]
   }
 

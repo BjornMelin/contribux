@@ -4,13 +4,13 @@
  */
 
 import { type NextRequest, NextResponse } from 'next/server'
-import { 
-  apiRateLimiter, 
-  authRateLimiter, 
-  checkRateLimit, 
+import {
+  apiRateLimiter,
+  authRateLimiter,
+  checkRateLimit,
   searchRateLimiter,
   getRateLimiterForEndpoint,
-  getEnhancedRequestIdentifier 
+  getEnhancedRequestIdentifier,
 } from './rate-limiter'
 
 /**
@@ -68,7 +68,7 @@ export async function rateLimitMiddleware(req: NextRequest) {
   const result = await checkRateLimit(limiter, identifier, {
     endpoint: path,
     method: req.method,
-    userAgent: req.headers.get('user-agent') || 'unknown'
+    userAgent: req.headers.get('user-agent') || 'unknown',
   })
 
   if (!result.success) {
@@ -119,26 +119,45 @@ export async function rateLimitMiddleware(req: NextRequest) {
  */
 export async function checkApiRateLimit(
   req: NextRequest,
-  limiterType: 'auth' | 'api' | 'search' | 'webauthn' | 'webhook' | 'admin' | 'public' | 'analytics' | 'security' | 'demo' = 'api'
+  limiterType:
+    | 'auth'
+    | 'api'
+    | 'search'
+    | 'webauthn'
+    | 'webhook'
+    | 'admin'
+    | 'public'
+    | 'analytics'
+    | 'security'
+    | 'demo' = 'api'
 ): Promise<{ allowed: boolean; headers: Record<string, string> }> {
   const { limiter, config } = getRateLimiterForEndpoint(
-    limiterType === 'auth' ? '/api/auth/' :
-    limiterType === 'search' ? '/api/search/' :
-    limiterType === 'webauthn' ? '/api/security/webauthn/' :
-    limiterType === 'webhook' ? '/api/webhooks/' :
-    limiterType === 'admin' ? '/api/admin/' :
-    limiterType === 'public' ? '/api/health/' :
-    limiterType === 'analytics' ? '/api/analytics/' :
-    limiterType === 'security' ? '/api/security/' :
-    limiterType === 'demo' ? '/api/demo/' :
-    '/api/'
+    limiterType === 'auth'
+      ? '/api/auth/'
+      : limiterType === 'search'
+        ? '/api/search/'
+        : limiterType === 'webauthn'
+          ? '/api/security/webauthn/'
+          : limiterType === 'webhook'
+            ? '/api/webhooks/'
+            : limiterType === 'admin'
+              ? '/api/admin/'
+              : limiterType === 'public'
+                ? '/api/health/'
+                : limiterType === 'analytics'
+                  ? '/api/analytics/'
+                  : limiterType === 'security'
+                    ? '/api/security/'
+                    : limiterType === 'demo'
+                      ? '/api/demo/'
+                      : '/api/'
   )
 
   const identifier = getEnhancedRequestIdentifier(req)
   const result = await checkRateLimit(limiter, identifier, {
     endpoint: req.nextUrl.pathname,
     method: req.method,
-    userAgent: req.headers.get('user-agent') || 'unknown'
+    userAgent: req.headers.get('user-agent') || 'unknown',
   })
 
   const headers: Record<string, string> = {
@@ -165,7 +184,17 @@ export async function checkApiRateLimit(
 export function withRateLimit<T extends any[]>(
   handler: (req: NextRequest, ...args: T) => Promise<Response>,
   options: {
-    limiterType?: 'auth' | 'api' | 'search' | 'webauthn' | 'webhook' | 'admin' | 'public' | 'analytics' | 'security' | 'demo'
+    limiterType?:
+      | 'auth'
+      | 'api'
+      | 'search'
+      | 'webauthn'
+      | 'webhook'
+      | 'admin'
+      | 'public'
+      | 'analytics'
+      | 'security'
+      | 'demo'
     customIdentifier?: (req: NextRequest) => string
     skipRateLimit?: (req: NextRequest) => boolean
   } = {}
@@ -178,18 +207,27 @@ export function withRateLimit<T extends any[]>(
 
     // Get the rate limiter configuration
     const { limiter, config, type } = getRateLimiterForEndpoint(
-      options.limiterType ? 
-        (options.limiterType === 'auth' ? '/api/auth/' :
-         options.limiterType === 'search' ? '/api/search/' :
-         options.limiterType === 'webauthn' ? '/api/security/webauthn/' :
-         options.limiterType === 'webhook' ? '/api/webhooks/' :
-         options.limiterType === 'admin' ? '/api/admin/' :
-         options.limiterType === 'public' ? '/api/health/' :
-         options.limiterType === 'analytics' ? '/api/analytics/' :
-         options.limiterType === 'security' ? '/api/security/' :
-         options.limiterType === 'demo' ? '/api/demo/' :
-         '/api/') :
-        req.nextUrl.pathname
+      options.limiterType
+        ? options.limiterType === 'auth'
+          ? '/api/auth/'
+          : options.limiterType === 'search'
+            ? '/api/search/'
+            : options.limiterType === 'webauthn'
+              ? '/api/security/webauthn/'
+              : options.limiterType === 'webhook'
+                ? '/api/webhooks/'
+                : options.limiterType === 'admin'
+                  ? '/api/admin/'
+                  : options.limiterType === 'public'
+                    ? '/api/health/'
+                    : options.limiterType === 'analytics'
+                      ? '/api/analytics/'
+                      : options.limiterType === 'security'
+                        ? '/api/security/'
+                        : options.limiterType === 'demo'
+                          ? '/api/demo/'
+                          : '/api/'
+        : req.nextUrl.pathname
     )
 
     // Get identifier (custom or default)
@@ -199,7 +237,7 @@ export function withRateLimit<T extends any[]>(
     const result = await checkRateLimit(limiter, identifier, {
       endpoint: req.nextUrl.pathname,
       method: req.method,
-      userAgent: req.headers.get('user-agent') || 'unknown'
+      userAgent: req.headers.get('user-agent') || 'unknown',
     })
 
     // Create response headers
@@ -249,7 +287,17 @@ export function withRateLimit<T extends any[]>(
 export async function checkApiRateLimitStatus(
   req: NextRequest,
   options: {
-    limiterType?: 'auth' | 'api' | 'search' | 'webauthn' | 'webhook' | 'admin' | 'public' | 'analytics' | 'security' | 'demo'
+    limiterType?:
+      | 'auth'
+      | 'api'
+      | 'search'
+      | 'webauthn'
+      | 'webhook'
+      | 'admin'
+      | 'public'
+      | 'analytics'
+      | 'security'
+      | 'demo'
     customIdentifier?: string
   } = {}
 ): Promise<{
@@ -261,25 +309,34 @@ export async function checkApiRateLimitStatus(
   headers: Record<string, string>
 }> {
   const { limiter, config } = getRateLimiterForEndpoint(
-    options.limiterType ? 
-      (options.limiterType === 'auth' ? '/api/auth/' :
-       options.limiterType === 'search' ? '/api/search/' :
-       options.limiterType === 'webauthn' ? '/api/security/webauthn/' :
-       options.limiterType === 'webhook' ? '/api/webhooks/' :
-       options.limiterType === 'admin' ? '/api/admin/' :
-       options.limiterType === 'public' ? '/api/health/' :
-       options.limiterType === 'analytics' ? '/api/analytics/' :
-       options.limiterType === 'security' ? '/api/security/' :
-       options.limiterType === 'demo' ? '/api/demo/' :
-       '/api/') :
-      req.nextUrl.pathname
+    options.limiterType
+      ? options.limiterType === 'auth'
+        ? '/api/auth/'
+        : options.limiterType === 'search'
+          ? '/api/search/'
+          : options.limiterType === 'webauthn'
+            ? '/api/security/webauthn/'
+            : options.limiterType === 'webhook'
+              ? '/api/webhooks/'
+              : options.limiterType === 'admin'
+                ? '/api/admin/'
+                : options.limiterType === 'public'
+                  ? '/api/health/'
+                  : options.limiterType === 'analytics'
+                    ? '/api/analytics/'
+                    : options.limiterType === 'security'
+                      ? '/api/security/'
+                      : options.limiterType === 'demo'
+                        ? '/api/demo/'
+                        : '/api/'
+      : req.nextUrl.pathname
   )
 
   const identifier = options.customIdentifier || getEnhancedRequestIdentifier(req)
   const result = await checkRateLimit(limiter, identifier, {
     endpoint: req.nextUrl.pathname,
     method: req.method,
-    userAgent: req.headers.get('user-agent') || 'unknown'
+    userAgent: req.headers.get('user-agent') || 'unknown',
   })
 
   const headers: Record<string, string> = {
