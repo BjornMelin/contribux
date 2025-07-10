@@ -4,14 +4,10 @@
  */
 
 import NextAuth, { type AuthOptions } from 'next-auth'
+import { getProviders, isAuthConfigured } from './providers/index'
 
 // NextAuth.js TypeScript declarations
-declare module 'next-auth' {
-  interface Session {
-    accessToken?: string
-    provider?: string
-  }
-}
+// Session interface is already defined in src/types/next-auth.d.ts
 
 declare module 'next-auth/jwt' {
   interface JWT {
@@ -20,55 +16,12 @@ declare module 'next-auth/jwt' {
   }
 }
 
-// Create demo GitHub provider for development testing
-const GitHubDemoProvider = {
-  id: 'github',
-  name: 'GitHub',
-  type: 'oauth' as const,
-  // Mock OAuth endpoints that will work for development
-  authorization: { url: 'javascript:void(0)', params: { scope: 'read:user user:email' } },
-  token: 'javascript:void(0)',
-  userinfo: 'javascript:void(0)',
-  clientId: 'demo-github-client-id',
-  clientSecret: 'demo-github-client-secret',
-  profile(_profile: Record<string, unknown>) {
-    return {
-      id: 'demo-github-123',
-      name: 'Demo GitHub User',
-      email: 'demo@github.com',
-      image: 'https://github.com/github.png',
-      emailVerified: new Date(),
-    }
-  },
-}
+// Demo GitHub provider has been moved to ./providers/demo.ts
 
-// Create demo Google provider for development testing
-const GoogleDemoProvider = {
-  id: 'google',
-  name: 'Google',
-  type: 'oauth' as const,
-  // Mock OAuth endpoints that will work for development
-  authorization: { url: 'javascript:void(0)', params: { scope: 'openid email profile' } },
-  token: 'javascript:void(0)',
-  userinfo: 'javascript:void(0)',
-  clientId: 'demo-google-client-id',
-  clientSecret: 'demo-google-client-secret',
-  profile(_profile: Record<string, unknown>) {
-    return {
-      id: 'demo-google-456',
-      name: 'Demo Google User',
-      email: 'demo@google.com',
-      image: 'https://lh3.googleusercontent.com/a/default-user=s96-c',
-      emailVerified: new Date(),
-    }
-  },
-}
+// Demo Google provider has been moved to ./providers/demo.ts
 
 const authConfig: AuthOptions = {
-  providers: [
-    // In development, use demo providers that simulate GitHub and Google
-    ...(process.env.NODE_ENV === 'development' ? [GitHubDemoProvider, GoogleDemoProvider] : []),
-  ],
+  providers: getProviders(),
 
   session: {
     strategy: 'jwt',
@@ -114,13 +67,19 @@ const authConfig: AuthOptions = {
       // Create session from token
       if (token.sub) {
         session.user = {
+          ...session.user,
           id: token.sub,
           name: token.name || 'Demo User',
           email: token.email || 'demo@example.com',
           image: token.picture || null,
-        }
-        session.accessToken = token.accessToken
-        session.provider = token.provider
+          login: undefined,
+          githubId: undefined,
+          githubUsername: undefined,
+          connectedProviders: [token.provider || 'demo'],
+          primaryProvider: token.provider || 'demo',
+        } as any
+        // Store additional session data
+        ;(session as any).accessToken = token.accessToken
       }
       return session
     },
@@ -132,7 +91,9 @@ const authConfig: AuthOptions = {
       }
 
       // In production, implement proper validation
-      return false
+      // For now, allow all sign-ins but this should be customized
+      // based on your specific requirements
+      return true
     },
   },
 

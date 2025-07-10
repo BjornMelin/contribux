@@ -3,7 +3,7 @@ import GitHub from 'next-auth/providers/github'
 import Google from 'next-auth/providers/google'
 
 import { sql } from '@/lib/db/config'
-import { env } from '@/lib/validation/env'
+import { env, isDevelopment, isProduction } from '@/lib/validation/env'
 import type { User as AuthUser, OAuthProvider } from '@/types/auth'
 import {
   extractGitHubUserData,
@@ -177,9 +177,9 @@ export const authConfig: AuthOptions = {
   },
   secret: env.NEXTAUTH_SECRET || '',
   // Enable debug mode in development
-  debug: process.env.NODE_ENV === 'development',
+  debug: isDevelopment(),
   // Enhanced security settings
-  useSecureCookies: process.env.NODE_ENV === 'production',
+  useSecureCookies: isProduction(),
   cookies: {
     sessionToken: {
       name: '__Secure-next-auth.session-token',
@@ -187,7 +187,7 @@ export const authConfig: AuthOptions = {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure: process.env.NODE_ENV === 'production',
+        secure: isProduction(),
       },
     },
   },
