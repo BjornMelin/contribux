@@ -35,16 +35,16 @@ function createPinoConfig() {
     level: isDevelopment ? 'debug' : isProduction ? 'info' : 'error',
     customLevels,
     useOnlyCustomLevels: false,
-    
+
     // Structured logging formatters
     formatters: {
       level: (label: string, number: number) => ({
         level: label,
         levelValue: number,
       }),
-      
+
       // Add service metadata
-      bindings: (bindings) => ({
+      bindings: bindings => ({
         service: 'contribux',
         version: process.env.npm_package_version || '0.1.0',
         environment: env.NODE_ENV,
@@ -171,6 +171,70 @@ export function createChildLogger(parent: pino.Logger, context: Record<string, u
 export const createPinoLogger = () => {
   const config = createPinoConfig()
   return pino(config)
+}
+/**
+ * Create Pino logger with OpenTelemetry integration for enhanced observability
+ * Follows 2025 best practices for correlation with traces and metrics
+ */
+export const createPinoLoggerWithOtel = () => {
+  const config = createPinoConfig()
+
+  // Enhanced configuration for OpenTelemetry correlation
+  const otelConfig: pino.LoggerOptions = {
+    ...config,
+
+    // Add OpenTelemetry correlation
+    mixin() {
+      const trace = require('@opentelemetry/api').trace
+      const span = trace.getActiveSpan()
+
+      if (span) {
+        const spanContext = span.spanContext()
+        return {
+          traceId: spanContext.traceId,
+          spanId: spanContext.spanId,
+          traceFlags: spanContext.traceFlags,
+        }
+      }
+
+      return {}
+    },
+
+    // Enhanced formatters with correlation IDs
+    formatters: {
+      ...config.formatters,
+
+      // Add correlation metadata to all logs
+      bindings: bindings => ({
+        ...config.formatters?.bindings?.(bindings),
+        correlationId: crypto.randomUUID(),
+        timestamp: Date.now(),
+      }),
+    },
+  }
+
+  return pino(otelConfig)
+}
+
+/**
+ * Create child logger with enhanced context for error monitoring
+ */
+export const createErrorLogger = (context: {
+  component?: string
+  operation?: string
+  userId?: string
+  sessionId?: string
+  requestId?: string
+}) => {
+  const logger = createPinoLoggerWithOtel()
+
+  return logger.child({
+    context: {
+      ...context,
+      errorMonitoring: true,
+      timestamp: new Date().toISOString(),
+    },
+  })
 }
 
 /**

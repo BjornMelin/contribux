@@ -4,9 +4,9 @@
  * Addresses OWASP A05 Security Misconfiguration
  */
 
-import { 
-  compatibilityLogger as logger, 
-  compatibilitySecurityLogger as securityLogger 
+import {
+  compatibilityLogger as logger,
+  compatibilitySecurityLogger as securityLogger,
 } from '@/lib/logging'
 
 // Re-export types for backward compatibility

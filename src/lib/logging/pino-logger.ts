@@ -4,7 +4,12 @@
  */
 
 import type { Logger as PinoLogger } from 'pino'
-import { pinoLogger, type LogContext, type SecurityEventContext, type PerformanceContext } from './pino-config'
+import {
+  pinoLogger,
+  type LogContext,
+  type SecurityEventContext,
+  type PerformanceContext,
+} from './pino-config'
 import { env } from '@/lib/validation/env'
 
 /**
@@ -64,11 +69,11 @@ export class PinoEnhancedLogger {
         },
       }),
       ...(error &&
-        typeof error === 'object' &&
-        'code' in error &&
-        typeof (error as Record<string, unknown>).code === 'string' 
-          ? { errorCode: (error as Record<string, unknown>).code }
-          : {}),
+      typeof error === 'object' &&
+      'code' in error &&
+      typeof (error as Record<string, unknown>).code === 'string'
+        ? { errorCode: (error as Record<string, unknown>).code }
+        : {}),
     }
 
     this.logger.error(errorContext, message)
@@ -104,7 +109,7 @@ export class PinoEnhancedLogger {
 
     // Use custom security level if available, otherwise use appropriate level
     const logLevel = context.severity === 'critical' ? 'fatal' : 'warn'
-    
+
     if (this.logger.isLevelEnabled('security')) {
       // Use custom security level
       ;(this.logger as any).security(securityContext, message)
@@ -292,7 +297,7 @@ export class PinoEnhancedLogger {
     }
   ): void {
     const level = context.statusCode >= 500 ? 'error' : context.statusCode >= 400 ? 'warn' : 'info'
-    
+
     this.logger[level](
       {
         ...context,
@@ -400,7 +405,7 @@ export class PinoEnhancedLogger {
     // - PagerDuty
     // - Email alerts
     // - Security incident management system
-    
+
     // For now, we'll log to stderr with high priority
     process.stderr.write(
       JSON.stringify({

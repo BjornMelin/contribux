@@ -4,9 +4,9 @@
  */
 
 // Core Pino configuration and logger
-export { 
-  pinoLogger, 
-  createPinoLogger, 
+export {
+  pinoLogger,
+  createPinoLogger,
   createChildLogger,
   type LogContext,
   type SecurityEventContext,
@@ -14,7 +14,7 @@ export {
 } from './pino-config'
 
 // Enhanced Pino logger with extended functionality
-export { 
+export {
   PinoEnhancedLogger,
   enhancedLogger,
   pinoSecurityLogger,

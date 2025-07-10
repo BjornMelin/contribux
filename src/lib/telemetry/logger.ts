@@ -1,13 +1,13 @@
 /**
  * Enhanced Logger with OpenTelemetry Integration and Pino Structured Logging
- * 
+ *
  * Extends the Pino logger with trace correlation and telemetry context
  */
 
-import { 
-  compatibilityTelemetryLogger, 
-  type LogContext, 
-  type SecurityEventContext 
+import {
+  compatibilityTelemetryLogger,
+  type LogContext,
+  type SecurityEventContext,
 } from '@/lib/logging'
 import { getTraceContext } from './utils'
 
@@ -73,7 +73,10 @@ class TelemetryLogger {
    * Security event logging with trace context
    */
   security(message: string, context: SecurityEventContext): void {
-    compatibilityTelemetryLogger.security(message, this.enhanceContext(context) as SecurityEventContext)
+    compatibilityTelemetryLogger.security(
+      message,
+      this.enhanceContext(context) as SecurityEventContext
+    )
   }
 
   /**

@@ -9,10 +9,10 @@ async function testPinoLogging() {
   console.log('Testing Pino structured logging...\n')
 
   // Test basic logging
-  logger.info('Application started', { 
-    version: '1.0.0', 
+  logger.info('Application started', {
+    version: '1.0.0',
     environment: process.env.NODE_ENV || 'development',
-    component: 'test-runner'
+    component: 'test-runner',
   })
 
   // Test error logging
@@ -21,7 +21,7 @@ async function testPinoLogging() {
   } catch (error) {
     logger.error('Test error occurred', error, {
       component: 'test-runner',
-      operation: 'error-test'
+      operation: 'error-test',
     })
   }
 
@@ -29,29 +29,29 @@ async function testPinoLogging() {
   securityLogger.authenticationSuccess('user123', {
     ip: '192.168.1.100',
     userAgent: 'Mozilla/5.0 Test Browser',
-    component: 'test-runner'
+    component: 'test-runner',
   })
 
   // Test performance logging
   const startTime = Date.now()
   await new Promise(resolve => setTimeout(resolve, 100))
   const duration = Date.now() - startTime
-  
+
   logger.performance('Test operation completed', {
     operation: 'test-delay',
     duration,
-    component: 'test-runner'
+    component: 'test-runner',
   })
 
   // Test child logger
-  const childLogger = logger.child({ 
-    requestId: 'req-123', 
-    userId: 'user456' 
+  const childLogger = logger.child({
+    requestId: 'req-123',
+    userId: 'user456',
   })
-  
+
   childLogger.info('Child logger test', {
     operation: 'child-test',
-    component: 'test-runner'
+    component: 'test-runner',
   })
 
   // Test database logging
@@ -59,14 +59,14 @@ async function testPinoLogging() {
     operation: 'SELECT',
     duration: 45,
     success: true,
-    component: 'test-runner'
+    component: 'test-runner',
   })
 
   // Test API logging
   logger.api('API request processed', {
     statusCode: 200,
     duration: 120,
-    component: 'test-runner'
+    component: 'test-runner',
   })
 
   console.log('\nPino logging test completed. Check the output above for structured JSON logs.')

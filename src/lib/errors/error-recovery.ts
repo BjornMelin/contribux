@@ -101,6 +101,9 @@ function getWorkflowBuilder(
     [ErrorCategory.BUSINESS_LOGIC]: buildBusinessLogicWorkflow,
     [ErrorCategory.CONFIGURATION]: buildConfigurationWorkflow,
     [ErrorCategory.INTERNAL_ERROR]: buildInternalErrorWorkflow,
+    [ErrorCategory.DATABASE_CONNECTION]: buildDatabaseConnectionWorkflow,
+    [ErrorCategory.DATABASE_TRANSACTION]: buildDatabaseTransactionWorkflow,
+    [ErrorCategory.DATABASE_QUERY]: buildDatabaseQueryWorkflow,
   }
 
   return builders[category] || builders[ErrorCategory.INTERNAL_ERROR]
@@ -596,6 +599,105 @@ export function formatForLogging(
   return {
     ...baseInfo,
     error: String(error),
+  }
+}
+
+/**
+ * Database Connection Error Workflow
+ */
+function buildDatabaseConnectionWorkflow(
+  classification: ErrorClassification,
+  context?: { retryAction?: () => Promise<void>; fallbackAction?: () => void }
+): RecoveryWorkflow {
+  return {
+    title: 'Database Connection Issue',
+    description: classification.userMessage,
+    actions: [
+      {
+        type: 'button',
+        label: 'Retry Connection',
+        action: async () => {
+          if (context?.retryAction) {
+            await context.retryAction()
+          }
+        },
+      },
+      {
+        type: 'button',
+        label: 'Use Cached Data',
+        action: () => {
+          if (context?.fallbackAction) {
+            context.fallbackAction()
+          }
+        },
+      },
+    ],
+  }
+}
+
+/**
+ * Database Transaction Error Workflow
+ */
+function buildDatabaseTransactionWorkflow(
+  classification: ErrorClassification,
+  context?: { retryAction?: () => Promise<void>; fallbackAction?: () => void }
+): RecoveryWorkflow {
+  return {
+    title: 'Database Transaction Error',
+    description: classification.userMessage,
+    actions: [
+      {
+        type: 'button',
+        label: 'Retry Transaction',
+        action: async () => {
+          if (context?.retryAction) {
+            await context.retryAction()
+          }
+        },
+      },
+      {
+        type: 'button',
+        label: 'Cancel',
+        action: () => {
+          if (context?.fallbackAction) {
+            context.fallbackAction()
+          }
+        },
+      },
+    ],
+  }
+}
+
+/**
+ * Database Query Error Workflow
+ */
+function buildDatabaseQueryWorkflow(
+  classification: ErrorClassification,
+  context?: { retryAction?: () => Promise<void>; fallbackAction?: () => void }
+): RecoveryWorkflow {
+  return {
+    title: 'Database Query Error',
+    description: classification.userMessage,
+    actions: [
+      {
+        type: 'button',
+        label: 'Retry Query',
+        action: async () => {
+          if (context?.retryAction) {
+            await context.retryAction()
+          }
+        },
+      },
+      {
+        type: 'button',
+        label: 'Try Alternative Query',
+        action: () => {
+          if (context?.fallbackAction) {
+            context.fallbackAction()
+          }
+        },
+      },
+    ],
   }
 }
 

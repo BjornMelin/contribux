@@ -21,6 +21,11 @@ export enum ErrorCategory {
   DATA_INTEGRITY = 'data_integrity',
   RESOURCE_NOT_FOUND = 'resource_not_found',
 
+  // Database Errors
+  DATABASE_CONNECTION = 'database_connection',
+  DATABASE_TRANSACTION = 'database_transaction',
+  DATABASE_QUERY = 'database_query',
+
   // Application Errors
   BUSINESS_LOGIC = 'business_logic',
   CONFIGURATION = 'configuration',
@@ -335,6 +340,10 @@ export function getErrorRetryDelay(classification: ErrorClassification, attempt:
     [ErrorCategory.SERVICE_UNAVAILABLE]: 3000,
     [ErrorCategory.RATE_LIMIT_EXCEEDED]: 5000,
     [ErrorCategory.GITHUB_API_ERROR]: 2000,
+    // Database errors
+    [ErrorCategory.DATABASE_CONNECTION]: 2000,
+    [ErrorCategory.DATABASE_TRANSACTION]: 1000,
+    [ErrorCategory.DATABASE_QUERY]: 500,
     // Default for other categories
     [ErrorCategory.AUTH_EXPIRED]: 0,
     [ErrorCategory.AUTH_INVALID]: 0,
