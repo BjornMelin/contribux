@@ -144,25 +144,47 @@ function createJsonResponse(result: HealthResult, statusCode: number): NextRespo
  * Handle health check errors
  */
 function handleHealthCheckError(error: unknown, component: string | null): NextResponse {
+  const { ErrorHandler } = require('@/lib/errors/enhanced-error-handler')
+  const { extractRequestContext } = require('@/lib/errors/error-utils')
+
   telemetryLogger.error('Health check failed', error, {
     path: '/api/health',
     method: 'GET',
     component: component ?? undefined,
   })
 
-  return NextResponse.json(
+  // Create enhanced error for health check failures
+  const enhancedError = ErrorHandler.createError(
+    'HEALTH_CHECK_ERROR',
+    'Health check failed. System monitoring is temporarily unavailable.',
+    'internal',
+    'high',
     {
-      error: 'Health check failed',
-      message: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: new Date().toISOString(),
-    },
-    {
-      status: 500,
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
+      originalError: error,
+      context: {
+        component: component || 'system',
+        endpoint: '/api/health',
+        timestamp: new Date().toISOString(),
+        operation: 'health_check',
       },
+      actionableSteps: [
+        'Check if all system components are operational',
+        'Verify database and external service connections',
+        'Review system logs for detailed error information',
+        'Contact support if health checks continue to fail',
+      ],
+      developmentDetails: `Health check failed for component '${component || 'system'}': ${error instanceof Error ? error.message : String(error)}`,
+      documentationLinks: ['/docs/monitoring#health-checks'],
+      productionMessage:
+        'System health monitoring is temporarily unavailable. Our team has been notified.',
     }
   )
+
+  // Log the enhanced error
+  ErrorHandler.logError(enhancedError)
+
+  // Return enhanced error response
+  return ErrorHandler.toHttpResponse(enhancedError)
 }
 
 /**

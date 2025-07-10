@@ -21,34 +21,78 @@ const searchSchema = z.object({
  * GET /api/search/repositories
  * Search GitHub repositories with rate limiting
  */
-export const GET = withRateLimit(async (req: NextRequest) => {
-  try {
-    // Parse search parameters
-    const url = new URL(req.url)
-    const params = Object.fromEntries(url.searchParams)
+export const GET = withRateLimit(
+  async (req: NextRequest) => {
+    const {
+      withEnhancedErrorHandling,
+      ErrorHandler,
+    } = require('@/lib/errors/enhanced-error-handler')
+    const { extractRequestContext } = require('@/lib/errors/error-utils')
 
-    // Validate input
-    const validatedParams = searchSchema.parse({
-      ...params,
-      per_page: params.per_page ? Number.parseInt(params.per_page) : undefined,
-      page: params.page ? Number.parseInt(params.page) : undefined,
-    })
+    return withEnhancedErrorHandling(async (request: NextRequest) => {
+      const requestContext = extractRequestContext(request)
 
-    // TODO: Implement actual GitHub search logic here
-    // This is a placeholder response
-    return NextResponse.json({
-      total_count: 0,
-      items: [],
-      query: validatedParams,
-      message: 'Repository search endpoint with rate limiting (60 req/min)',
-    })
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Invalid search parameters', details: error.errors },
-        { status: 400 }
-      )
-    }
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
-}, { limiterType: 'search' }) // Using 'search' rate limiter (60 req/min)
+      try {
+        // Parse search parameters
+        const url = new URL(request.url)
+        const params = Object.fromEntries(url.searchParams)
+
+        // Validate input with enhanced error handling
+        const validatedParams = searchSchema.parse({
+          ...params,
+          per_page: params.per_page ? Number.parseInt(params.per_page) : undefined,
+          page: params.page ? Number.parseInt(params.page) : undefined,
+        })
+
+        // TODO: Implement actual GitHub search logic here
+        // This is a placeholder response
+        return NextResponse.json({
+          total_count: 0,
+          items: [],
+          query: validatedParams,
+          message: 'Repository search endpoint with rate limiting (60 req/min)',
+          correlationId: requestContext.timestamp, // Temporary correlation ID
+        })
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          const enhancedError = ErrorHandler.createValidationError(error, {
+            endpoint: '/api/search/repositories',
+            operation: 'repository_search',
+            requestMethod: 'GET',
+            ...requestContext,
+          })
+          ErrorHandler.logError(enhancedError, request)
+          return ErrorHandler.toHttpResponse(enhancedError)
+        }
+
+        // Handle other errors
+        const enhancedError = ErrorHandler.createError(
+          'SEARCH_ERROR',
+          'An error occurred while searching repositories.',
+          'internal',
+          'medium',
+          {
+            originalError: error,
+            endpoint: '/api/search/repositories',
+            context: {
+              operation: 'repository_search',
+              requestMethod: 'GET',
+              ...requestContext,
+            },
+            actionableSteps: [
+              'Try modifying your search query',
+              'Check if all search parameters are valid',
+              'Contact support if the issue persists',
+            ],
+            developmentDetails: `Repository search failed: ${error instanceof Error ? error.message : String(error)}`,
+            documentationLinks: ['/docs/api/search#repositories'],
+          }
+        )
+
+        ErrorHandler.logError(enhancedError, request)
+        return ErrorHandler.toHttpResponse(enhancedError)
+      }
+    })(req)
+  },
+  { limiterType: 'search' }
+) // Using 'search' rate limiter (60 req/min)

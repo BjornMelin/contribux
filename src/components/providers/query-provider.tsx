@@ -252,9 +252,7 @@ export function QueryProvider({ children }: QueryProviderProps) {
         {children}
 
         {/* Development tools - only in development */}
-        {isDevelopment() && (
-          <ReactQueryDevtools initialIsOpen={false} position="bottom" />
-        )}
+        {isDevelopment() && <ReactQueryDevtools initialIsOpen={false} position="bottom" />}
       </QueryErrorBoundary>
     </QueryClientProvider>
   )
