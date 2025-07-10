@@ -20,6 +20,16 @@ export type CSPDirectives = {
   'worker-src'?: string[]
   'child-src'?: string[]
   'manifest-src'?: string[]
+  'prefetch-src'?: string[]
+  'report-uri'?: string[]
+  'report-to'?: string[]
+  'upgrade-insecure-requests'?: string[]
+  'block-all-mixed-content'?: string[]
+  // Modern CSP Level 3 directives
+  'trusted-types'?: string[]
+  'require-trusted-types-for'?: string[]
+  'fenced-frame-src'?: string[]
+  'navigate-to'?: string[]
 }
 
 /**
@@ -32,7 +42,17 @@ export function buildCSP(directives: CSPDirectives, nonce?: string): string {
 
   // Process each directive
   for (const [directive, sources] of Object.entries(directives)) {
-    if (!sources || sources.length === 0) continue
+    if (!sources || sources.length === 0) {
+      // Handle directives without sources
+      if (
+        directive === 'upgrade-insecure-requests' || 
+        directive === 'block-all-mixed-content' ||
+        directive === 'require-trusted-types-for'
+      ) {
+        csp.push(directive)
+      }
+      continue
+    }
 
     // Add nonce to script-src and style-src if provided
     const processedSources = [...sources]
@@ -40,7 +60,20 @@ export function buildCSP(directives: CSPDirectives, nonce?: string): string {
       processedSources.push(`'nonce-${nonce}'`)
     }
 
-    csp.push(`${directive} ${processedSources.join(' ')}`)
+    // Handle special directive formats
+    if (directive === 'report-uri') {
+      csp.push(`report-uri ${processedSources.join(' ')}`)
+    } else if (directive === 'report-to') {
+      csp.push(`report-to ${processedSources.join(' ')}`)
+    } else if (directive === 'require-trusted-types-for') {
+      // Special handling for trusted types - sources should be 'script'
+      csp.push(`require-trusted-types-for ${processedSources.join(' ')}`)
+    } else if (directive === 'trusted-types') {
+      // Trusted types policy names
+      csp.push(`trusted-types ${processedSources.join(' ')}`)
+    } else {
+      csp.push(`${directive} ${processedSources.join(' ')}`)
+    }
   }
 
   return `${csp.join('; ')};`
@@ -69,26 +102,137 @@ export function getCSPDirectives(): CSPDirectives {
 
   const baseDirectives: CSPDirectives = {
     'default-src': ["'self'"],
-    'script-src': ["'self'"],
+    'script-src': [
+      "'self'",
+      "'strict-dynamic'",
+      // Allow wasm in production for better performance
+      ...(isProduction ? ["'wasm-unsafe-eval'"] : [])
+    ],
     'style-src': [
       "'self'",
       'https://fonts.googleapis.com',
       // TODO: Remove this SHA once all inline styles are migrated to nonce-based
       "'sha256-tQjf8gvb2ROOMapIxFvFAYBeUJ0v1HCbOcSmDNXGtDo='",
     ],
-    'font-src': ["'self'", 'https://fonts.gstatic.com'],
-    'img-src': ["'self'", 'data:', 'https:', 'blob:'],
-    'connect-src': ["'self'", 'https://api.github.com'],
+    'font-src': [
+      "'self'", 
+      'https://fonts.gstatic.com',
+      // Modern font loading with data URLs
+      'data:'
+    ],
+    'img-src': [
+      "'self'", 
+      'data:', 
+      'https:', 
+      'blob:',
+      // Modern image formats and optimizations
+      'https://avatars.githubusercontent.com',
+      'https://github.com',
+      'https://raw.githubusercontent.com'
+    ],
+    'connect-src': [
+      "'self'",
+      'https://api.github.com',
+      // GitHub GraphQL API
+      'https://api.github.com/graphql'
+    ],
     'frame-ancestors': ["'none'"],
     'form-action': ["'self'"],
     'base-uri': ["'self'"],
     'object-src': ["'none'"],
+    'worker-src': ["'self'", 'blob:'],
+    'child-src': ["'self'"],
+    'manifest-src': ["'self'"],
+    'media-src': ["'self'", 'blob:', 'data:'],
+    'prefetch-src': ["'self'"],
+    'frame-src': ["'none'"],
+    'upgrade-insecure-requests': [],
+    'block-all-mixed-content': [],
+    
+    // Modern CSP Level 3 directives for enhanced security
+    'fenced-frame-src': ["'none'"],
+    'navigate-to': ["'self'", 'https://github.com', 'https://api.github.com'],
   }
 
-  // Add development/preview-specific sources
-  if (!isProduction) {
-    baseDirectives['script-src']?.push('https://vercel.live')
-    baseDirectives['connect-src']?.push('https://vercel.live')
+  // Production-specific CSP directives
+  if (isProduction) {
+    // Add AI/ML APIs for production features
+    baseDirectives['connect-src']?.push(
+      'https://api.openai.com',
+      'https://*.openai.com'
+    )
+    
+    // Add Neon database connections with wildcards for edge locations
+    baseDirectives['connect-src']?.push(
+      'https://*.neon.tech',
+      'https://*.neon.build'
+    )
+    
+    // Add Vercel deployment domains
+    baseDirectives['connect-src']?.push(
+      'https://contribux.vercel.app',
+      'https://*.vercel.app'
+    )
+    
+    // Enhanced reporting for CSP violations
+    baseDirectives['report-uri'] = ['/api/security/csp-report']
+    baseDirectives['report-to'] = ['csp-violations']
+    
+    // Enable Trusted Types for DOM XSS prevention in production
+    baseDirectives['trusted-types'] = [
+      'default',
+      'nextjs-inline-script',
+      'react-render'
+    ]
+    baseDirectives['require-trusted-types-for'] = ['script']
+    
+    // Strict navigation control in production
+    baseDirectives['navigate-to']?.push(
+      'https://contribux.vercel.app',
+      'https://*.github.com'
+    )
+    
+  } else {
+    // Development/preview-specific sources
+    baseDirectives['script-src']?.push(
+      'https://vercel.live',
+      "'unsafe-eval'", // Allow eval in development for hot reloading
+      "'unsafe-inline'" // Temporary for development debugging
+    )
+    
+    baseDirectives['style-src']?.push(
+      "'unsafe-inline'" // Allow inline styles in development
+    )
+    
+    baseDirectives['connect-src']?.push(
+      'https://vercel.live',
+      'http://localhost:*',
+      'ws://localhost:*',
+      'wss://localhost:*',
+      // Hot reloading and development servers
+      'http://127.0.0.1:*',
+      'ws://127.0.0.1:*'
+    )
+    
+    // More permissive img-src for development
+    baseDirectives['img-src']?.push(
+      'http://localhost:*',
+      'http://127.0.0.1:*'
+    )
+    
+    // Allow more navigation in development
+    baseDirectives['navigate-to']?.push(
+      'http://localhost:*',
+      'http://127.0.0.1:*'
+    )
+    
+    // Relaxed trusted types for development
+    baseDirectives['trusted-types'] = [
+      'default',
+      'nextjs-inline-script',
+      'react-render',
+      'webpack-dev-server'
+    ]
   }
 
   return baseDirectives
