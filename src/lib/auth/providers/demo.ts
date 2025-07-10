@@ -1,6 +1,6 @@
 /**
  * Demo authentication providers for development environment only
- * 
+ *
  * SECURITY: These providers are strictly for development use and should never
  * be included in production builds. They use mock OAuth endpoints and simulate
  * authentication flows without actual OAuth verification.
@@ -18,9 +18,9 @@ export const GitHubDemoProvider: Provider = {
   name: 'GitHub',
   type: 'oauth' as const,
   // Mock OAuth endpoints - these don't perform actual OAuth
-  authorization: { 
-    url: 'javascript:void(0)', 
-    params: { scope: 'read:user user:email' } 
+  authorization: {
+    url: 'javascript:void(0)',
+    params: { scope: 'read:user user:email' },
   },
   token: 'javascript:void(0)',
   userinfo: 'javascript:void(0)',
@@ -46,9 +46,9 @@ export const GoogleDemoProvider: Provider = {
   name: 'Google',
   type: 'oauth' as const,
   // Mock OAuth endpoints - these don't perform actual OAuth
-  authorization: { 
-    url: 'javascript:void(0)', 
-    params: { scope: 'openid email profile' } 
+  authorization: {
+    url: 'javascript:void(0)',
+    params: { scope: 'openid email profile' },
   },
   token: 'javascript:void(0)',
   userinfo: 'javascript:void(0)',
@@ -74,6 +74,6 @@ export function getDemoProviders(): Provider[] {
     console.warn('Demo providers requested in non-development environment')
     return []
   }
-  
+
   return [GitHubDemoProvider, GoogleDemoProvider]
 }

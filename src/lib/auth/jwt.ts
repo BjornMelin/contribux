@@ -94,10 +94,10 @@ const getJwtSecret = (): Uint8Array => {
   if (process.env.NODE_ENV === 'test') {
     // Validate test environment requirements
     validateTestEnvironment()
-    
+
     // Convert string secret to Uint8Array for jose with enhanced security
     const encoded = new TextEncoder().encode(secret)
-    
+
     // Create a new Uint8Array from the encoded bytes to ensure it's a proper instance
     // This ensures proper isolation in test environment
     return new Uint8Array(Array.from(encoded))
@@ -135,12 +135,16 @@ function validateTestEnvironment(): void {
 
   // Prevent use of production secrets in test environment
   if (testSecret.includes('prod') || testSecret.includes('production')) {
-    throw new Error('Test environment validation failed: Production secrets detected in test environment')
+    throw new Error(
+      'Test environment validation failed: Production secrets detected in test environment'
+    )
   }
 
   // Ensure test secret is properly isolated
   if (process.env.NODE_ENV === 'test' && !testSecret.includes('test')) {
-    console.warn('Warning: Test environment JWT secret should contain "test" identifier for clarity')
+    console.warn(
+      'Warning: Test environment JWT secret should contain "test" identifier for clarity'
+    )
   }
 }
 
@@ -150,17 +154,23 @@ function validateTestEnvironment(): void {
 function validateProductionEnvironment(secret: string): void {
   // Ensure production secret meets security requirements
   if (secret.length < 64) {
-    throw new Error('Production environment validation failed: JWT secret must be at least 64 characters in production')
+    throw new Error(
+      'Production environment validation failed: JWT secret must be at least 64 characters in production'
+    )
   }
 
   // Prevent use of test secrets in production
   if (secret.includes('test') || secret.includes('demo')) {
-    throw new Error('Production environment validation failed: Test secrets detected in production environment')
+    throw new Error(
+      'Production environment validation failed: Test secrets detected in production environment'
+    )
   }
 
   // Validate secret entropy (basic check)
   if (secret === secret.toLowerCase() || secret === secret.toUpperCase()) {
-    throw new Error('Production environment validation failed: JWT secret must contain mixed case characters')
+    throw new Error(
+      'Production environment validation failed: JWT secret must contain mixed case characters'
+    )
   }
 
   // Check for common patterns that indicate weak secrets
@@ -178,37 +188,39 @@ function validateJWTPayload(payload: Record<string, unknown>): void {
   if (!payload.sub) {
     throw new Error('JWT payload validation failed: Subject (sub) is required')
   }
-  
+
   if (!payload.iat) {
     throw new Error('JWT payload validation failed: Issued at (iat) is required')
   }
-  
+
   if (!payload.exp) {
     throw new Error('JWT payload validation failed: Expiration (exp) is required')
   }
-  
+
   // Validate types
   if (typeof payload.sub !== 'string') {
     throw new Error('JWT payload validation failed: Subject (sub) must be a string')
   }
-  
+
   if (typeof payload.iat !== 'number') {
     throw new Error('JWT payload validation failed: Issued at (iat) must be a number')
   }
-  
+
   if (typeof payload.exp !== 'number') {
     throw new Error('JWT payload validation failed: Expiration (exp) must be a number')
   }
-  
+
   // Validate expiration is in the future
   if (payload.exp <= payload.iat) {
     throw new Error('JWT payload validation failed: Expiration must be after issued at time')
   }
-  
+
   // Validate expiration is not too far in the future (max 7 days)
-  const maxExpiration = payload.iat + (7 * 24 * 60 * 60) // 7 days in seconds
+  const maxExpiration = payload.iat + 7 * 24 * 60 * 60 // 7 days in seconds
   if (payload.exp > maxExpiration) {
-    throw new Error('JWT payload validation failed: Expiration exceeds maximum allowed time (7 days)')
+    throw new Error(
+      'JWT payload validation failed: Expiration exceeds maximum allowed time (7 days)'
+    )
   }
 }
 
@@ -219,15 +231,15 @@ function validateTestSecret(secret: Uint8Array): void {
   if (process.env.NODE_ENV !== 'test') {
     return
   }
-  
+
   if (!secret || secret.length === 0) {
     throw new Error('Test environment validation failed: Secret cannot be empty')
   }
-  
+
   if (secret.length < 32) {
     throw new Error('Test environment validation failed: Secret must be at least 32 bytes')
   }
-  
+
   // Additional test environment checks
   const secretString = new TextDecoder().decode(secret)
   if (secretString.includes('production') || secretString.includes('prod')) {
@@ -242,15 +254,15 @@ function validateProductionSecret(secret: Uint8Array): void {
   if (process.env.NODE_ENV !== 'production') {
     return
   }
-  
+
   if (!secret || secret.length === 0) {
     throw new Error('Production environment validation failed: Secret cannot be empty')
   }
-  
+
   if (secret.length < 64) {
     throw new Error('Production environment validation failed: Secret must be at least 64 bytes')
   }
-  
+
   // Additional production environment checks
   const secretString = new TextDecoder().decode(secret)
   if (secretString.includes('test') || secretString.includes('demo')) {
@@ -265,17 +277,17 @@ function validateAudience(audience: string[]): void {
   if (!audience || audience.length === 0) {
     throw new Error('JWT validation failed: Audience cannot be empty')
   }
-  
+
   for (const aud of audience) {
     if (typeof aud !== 'string' || aud.trim().length === 0) {
       throw new Error('JWT validation failed: Audience must be non-empty strings')
     }
-    
+
     // Validate audience format
     if (process.env.NODE_ENV === 'test' && !aud.includes('test') && !aud.includes('contribux')) {
       throw new Error('JWT validation failed: Invalid audience for test environment')
     }
-    
+
     if (process.env.NODE_ENV === 'production' && (aud.includes('test') || aud.includes('demo'))) {
       throw new Error('JWT validation failed: Test audience detected in production environment')
     }
@@ -289,20 +301,20 @@ function validateExpiration(exp: number): void {
   if (typeof exp !== 'number' || exp <= 0) {
     throw new Error('JWT validation failed: Expiration must be a positive number')
   }
-  
+
   const now = Math.floor(Date.now() / 1000)
-  
+
   // Validate expiration is in the future
   if (exp <= now) {
     throw new Error('JWT validation failed: Token expiration must be in the future')
   }
-  
+
   // Validate expiration is not too far in the future
-  const maxExpiration = now + (7 * 24 * 60 * 60) // 7 days in seconds
+  const maxExpiration = now + 7 * 24 * 60 * 60 // 7 days in seconds
   if (exp > maxExpiration) {
     throw new Error('JWT validation failed: Token expiration exceeds maximum allowed time (7 days)')
   }
-  
+
   // Test environment specific checks
   if (process.env.NODE_ENV === 'test') {
     // In test environment, allow shorter expiration times but validate they're reasonable
@@ -320,18 +332,20 @@ function validateSubject(sub: string): void {
   if (typeof sub !== 'string' || sub.trim().length === 0) {
     throw new Error('JWT validation failed: Subject must be a non-empty string')
   }
-  
+
   // Validate UUID format for user IDs
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
   if (!uuidRegex.test(sub)) {
     throw new Error('JWT validation failed: Subject must be a valid UUID')
   }
-  
+
   // Test environment specific checks
   if (process.env.NODE_ENV === 'test' && !sub.includes('test') && !sub.startsWith('demo-')) {
-    console.warn('Warning: Test environment subject should contain "test" or start with "demo-" for clarity')
+    console.warn(
+      'Warning: Test environment subject should contain "test" or start with "demo-" for clarity'
+    )
   }
-  
+
   // Production environment specific checks
   if (process.env.NODE_ENV === 'production' && (sub.includes('test') || sub.includes('demo'))) {
     throw new Error('JWT validation failed: Test subject detected in production environment')
@@ -345,18 +359,31 @@ function validateJTI(jti: string): void {
   if (typeof jti !== 'string' || jti.trim().length === 0) {
     throw new Error('JWT validation failed: JTI must be a non-empty string')
   }
-  
+
   // Validate JTI format (should be UUID)
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
   if (!uuidRegex.test(jti)) {
     throw new Error('JWT validation failed: JTI must be a valid UUID')
   }
-  
+
   // Additional entropy check for production
   if (process.env.NODE_ENV === 'production') {
     // Check for sufficient randomness (simple check for non-sequential patterns)
     const jtiLower = jti.toLowerCase()
-    const sequentialPatterns = ['123', 'abc', '000', '111', '222', '333', '444', '555', '666', '777', '888', '999']
+    const sequentialPatterns = [
+      '123',
+      'abc',
+      '000',
+      '111',
+      '222',
+      '333',
+      '444',
+      '555',
+      '666',
+      '777',
+      '888',
+      '999',
+    ]
     if (sequentialPatterns.some(pattern => jtiLower.includes(pattern))) {
       throw new Error('JWT validation failed: JTI appears to have insufficient entropy')
     }
@@ -370,54 +397,53 @@ function validateTokenFormat(token: string): void {
   if (typeof token !== 'string' || token.trim().length === 0) {
     throw new Error('JWT validation failed: Token must be a non-empty string')
   }
-  
+
   // Validate JWT structure (header.payload.signature)
   const parts = token.split('.')
   if (parts.length !== 3) {
     throw new Error('JWT validation failed: Token must have exactly 3 parts separated by dots')
   }
-  
+
   const [header, payload, signature] = parts
   if (!header || !payload || !signature) {
     throw new Error('JWT validation failed: All token parts must be non-empty')
   }
-  
+
   // Validate base64url encoding
   try {
     // Try to decode each part to ensure valid base64url
     const decodedHeader = JSON.parse(new TextDecoder().decode(base64url.decode(header)))
     const decodedPayload = JSON.parse(new TextDecoder().decode(base64url.decode(payload)))
-    
+
     // Validate header structure
     if (!decodedHeader.alg || !decodedHeader.typ) {
       throw new Error('JWT validation failed: Invalid token header structure')
     }
-    
+
     // Validate algorithm (only allow HS256)
     if (decodedHeader.alg !== 'HS256') {
       throw new Error('JWT validation failed: Only HS256 algorithm is allowed')
     }
-    
+
     // Validate type
     if (decodedHeader.typ !== 'JWT') {
       throw new Error('JWT validation failed: Token type must be JWT')
     }
-    
+
     // Test environment specific header validation
     if (process.env.NODE_ENV === 'test' && decodedHeader.env && decodedHeader.env !== 'test') {
       throw new Error('JWT validation failed: Token environment mismatch in test environment')
     }
-    
+
     // Production environment specific header validation
     if (process.env.NODE_ENV === 'production' && decodedHeader.env === 'test') {
       throw new Error('JWT validation failed: Test token detected in production environment')
     }
-    
+
     // Basic payload structure validation
     if (!decodedPayload.sub || !decodedPayload.iat || !decodedPayload.exp) {
       throw new Error('JWT validation failed: Token missing required claims')
     }
-    
   } catch (error) {
     if (error instanceof Error && error.message.startsWith('JWT validation failed:')) {
       throw error
@@ -437,33 +463,33 @@ function validateVerifiedPayload(payload: Record<string, unknown>): void {
       throw new Error(`JWT validation failed: Missing required claim: ${claim}`)
     }
   }
-  
+
   // Validate claim types
   if (typeof payload.sub !== 'string') {
     throw new Error('JWT validation failed: Subject must be a string')
   }
-  
+
   if (typeof payload.iat !== 'number') {
     throw new Error('JWT validation failed: Issued at must be a number')
   }
-  
+
   if (typeof payload.exp !== 'number') {
     throw new Error('JWT validation failed: Expiration must be a number')
   }
-  
+
   if (typeof payload.iss !== 'string') {
     throw new Error('JWT validation failed: Issuer must be a string')
   }
-  
+
   if (typeof payload.jti !== 'string') {
     throw new Error('JWT validation failed: JTI must be a string')
   }
-  
+
   // Validate issuer
   if (payload.iss !== TOKEN_ISSUER) {
     throw new Error('JWT validation failed: Invalid issuer')
   }
-  
+
   // Validate audience
   if (Array.isArray(payload.aud)) {
     if (!payload.aud.includes(TOKEN_AUDIENCE[0])) {
@@ -472,22 +498,31 @@ function validateVerifiedPayload(payload: Record<string, unknown>): void {
   } else if (payload.aud !== TOKEN_AUDIENCE[0]) {
     throw new Error('JWT validation failed: Invalid audience')
   }
-  
+
   // Test environment specific validation
   if (process.env.NODE_ENV === 'test') {
     // Allow test-specific subjects and JTIs
-    if (typeof payload.sub === 'string' && !payload.sub.includes('test') && !payload.sub.startsWith('demo-')) {
-      console.warn('Warning: Test environment token subject should contain "test" or start with "demo-"')
+    if (
+      typeof payload.sub === 'string' &&
+      !payload.sub.includes('test') &&
+      !payload.sub.startsWith('demo-')
+    ) {
+      console.warn(
+        'Warning: Test environment token subject should contain "test" or start with "demo-"'
+      )
     }
   }
-  
+
   // Production environment specific validation
   if (process.env.NODE_ENV === 'production') {
     // Reject test-specific subjects and JTIs
-    if (typeof payload.sub === 'string' && (payload.sub.includes('test') || payload.sub.includes('demo'))) {
+    if (
+      typeof payload.sub === 'string' &&
+      (payload.sub.includes('test') || payload.sub.includes('demo'))
+    ) {
       throw new Error('JWT validation failed: Test subject detected in production environment')
     }
-    
+
     if (typeof payload.jti === 'string' && payload.jti.includes('test')) {
       throw new Error('JWT validation failed: Test JTI detected in production environment')
     }
@@ -498,59 +533,95 @@ function validateVerifiedPayload(payload: Record<string, unknown>): void {
  * Enhanced JWT verification error handling
  */
 function handleJWTVerificationError(error: unknown): never {
-  // Map jose errors to our expected error messages for backward compatibility
+  // Import enhanced error handler
+  const { ErrorHandler } = require('@/lib/errors/enhanced-error-handler')
+
+  // Map jose errors to our enhanced error system
   if (error instanceof joseErrors.JWTExpired) {
-    throw new Error('Token expired')
+    throw ErrorHandler.createAuthError('token_expired', error, {
+      joseErrorType: 'JWTExpired',
+      originalMessage: error.message,
+    })
   }
+
   if (error instanceof joseErrors.JWTInvalid) {
-    throw new Error('Invalid token')
+    throw ErrorHandler.createAuthError('invalid_token', error, {
+      joseErrorType: 'JWTInvalid',
+      originalMessage: error.message,
+    })
   }
+
   if (error instanceof joseErrors.JWSInvalid) {
-    throw new Error('Invalid token signature')
+    throw ErrorHandler.createAuthError('invalid_token', error, {
+      joseErrorType: 'JWSInvalid',
+      originalMessage: error.message,
+      issue: 'signature_verification_failed',
+    })
   }
+
   if (error instanceof joseErrors.JWTClaimValidationFailed) {
-    // Provide more specific error for test environment
-    if (process.env.NODE_ENV === 'test') {
-      throw new Error(`Token claim validation failed: ${error.message || 'Unknown validation error'}`)
-    }
-    throw new Error('Invalid token')
+    throw ErrorHandler.createAuthError('invalid_token', error, {
+      joseErrorType: 'JWTClaimValidationFailed',
+      originalMessage: error.message,
+      issue: 'claim_validation_failed',
+    })
   }
-  
-  // Handle our custom validation errors
+
+  // Handle our custom validation errors with enhanced context
   if (error instanceof Error && error.message.startsWith('JWT validation failed:')) {
-    if (process.env.NODE_ENV === 'test') {
-      throw error // Preserve detailed error messages in test environment
-    }
-    throw new Error('Invalid token') // Generic error message in production
+    throw ErrorHandler.createAuthError('invalid_token', error, {
+      validationType: 'custom_validation',
+      originalMessage: error.message,
+    })
   }
-  
-  // Handle environment-specific validation errors
-  if (error instanceof Error && (
-    error.message.includes('Test environment validation failed:') ||
-    error.message.includes('Production environment validation failed:')
-  )) {
-    throw error // Always preserve environment validation errors
+
+  // Handle environment-specific validation errors with enhanced details
+  if (
+    error instanceof Error &&
+    (error.message.includes('Test environment validation failed:') ||
+      error.message.includes('Production environment validation failed:'))
+  ) {
+    throw ErrorHandler.createError(
+      'JWT_ENVIRONMENT_VALIDATION_ERROR',
+      'JWT validation failed due to environment configuration.',
+      'authentication',
+      'high',
+      {
+        originalError: error,
+        context: {
+          environment: process.env.NODE_ENV,
+          validationType: 'environment_specific',
+        },
+        actionableSteps: [
+          'Check environment configuration settings',
+          'Verify JWT secrets are properly configured for this environment',
+          'Ensure environment-specific validation rules are correct',
+        ],
+        developmentDetails: `Environment validation error: ${error.message}. Check JWT configuration for ${process.env.NODE_ENV} environment.`,
+        documentationLinks: ['/docs/authentication#environment-configuration'],
+      }
+    )
   }
-  
-  // For any other errors, throw a generic invalid token error
-  if (process.env.NODE_ENV === 'test') {
-    throw new Error(`JWT verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
-  }
-  throw new Error('Invalid token')
+
+  // For any other errors, create a generic authentication error with context
+  throw ErrorHandler.createAuthError('invalid_token', error, {
+    errorType: 'unknown_jwt_error',
+    originalMessage: error instanceof Error ? error.message : String(error),
+  })
 }
 
 // JWT implementation using jose library for standards compliance and security
 async function signJWT(payload: Record<string, unknown>, secret: Uint8Array): Promise<string> {
   // Enhanced payload validation
   validateJWTPayload(payload)
-  
+
   // Create a proper Uint8Array instance for JSDOM environment compatibility
   // This fixes the "payload must be an instance of Uint8Array" error in test environments
   let normalizedSecret: Uint8Array
   if (process.env.NODE_ENV === 'test') {
     // Enhanced test environment secret validation
     validateTestSecret(secret)
-    
+
     // In test environment, ensure we have a real Uint8Array instance
     if (secret instanceof Uint8Array) {
       normalizedSecret = new Uint8Array(secret)
@@ -566,11 +637,11 @@ async function signJWT(payload: Record<string, unknown>, secret: Uint8Array): Pr
 
   // Enhanced JWT creation with strict security controls
   const jwt = new SignJWT(payload)
-    .setProtectedHeader({ 
-      alg: 'HS256', 
+    .setProtectedHeader({
+      alg: 'HS256',
       typ: 'JWT',
       // Add additional security headers for test environment isolation
-      ...(process.env.NODE_ENV === 'test' && { env: 'test' })
+      ...(process.env.NODE_ENV === 'test' && { env: 'test' }),
     })
     .setIssuer((payload.iss as string) || TOKEN_ISSUER)
     .setIssuedAt()
@@ -609,7 +680,9 @@ async function signJWT(payload: Record<string, unknown>, secret: Uint8Array): Pr
   } catch (error) {
     // Enhanced error handling with environment-specific controls
     if (process.env.NODE_ENV === 'test') {
-      throw new Error(`Test environment JWT signing failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      throw new Error(
+        `Test environment JWT signing failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      )
     }
     throw new Error('JWT signing failed')
   }
@@ -619,13 +692,13 @@ async function verifyJWT(token: string, secret: Uint8Array): Promise<Record<stri
   try {
     // Enhanced token format validation
     validateTokenFormat(token)
-    
+
     // Create a proper Uint8Array instance for JSDOM environment compatibility
     let normalizedSecret: Uint8Array
     if (process.env.NODE_ENV === 'test') {
       // Enhanced test environment validation
       validateTestSecret(secret)
-      
+
       // In test environment, ensure we have a real Uint8Array instance
       if (secret instanceof Uint8Array) {
         normalizedSecret = new Uint8Array(secret)
@@ -649,16 +722,16 @@ async function verifyJWT(token: string, secret: Uint8Array): Promise<Record<stri
       // Require specific claims
       requiredClaims: ['sub', 'iat', 'exp', 'jti'],
       // Set current date for consistent testing
-      ...(process.env.NODE_ENV === 'test' && { 
-        currentDate: new Date() 
-      })
+      ...(process.env.NODE_ENV === 'test' && {
+        currentDate: new Date(),
+      }),
     }
 
     const { payload } = await jwtVerify(token, normalizedSecret, verifyOptions)
-    
+
     // Enhanced payload validation after verification
     validateVerifiedPayload(payload)
-    
+
     return payload as Record<string, unknown>
   } catch (error) {
     // Enhanced error handling with environment-specific controls
@@ -836,17 +909,25 @@ function validateTestEnvironmentPayload(payload: AccessTokenPayload): void {
   // Validate expiration times are reasonable for test environment
   if (payload.exp && payload.iat) {
     const tokenLifetime = payload.exp - payload.iat
-    if (tokenLifetime > 24 * 60 * 60) { // More than 24 hours
-      throw new Error('Test environment validation failed: Token lifetime exceeds maximum for test environment')
+    if (tokenLifetime > 24 * 60 * 60) {
+      // More than 24 hours
+      throw new Error(
+        'Test environment validation failed: Token lifetime exceeds maximum for test environment'
+      )
     }
-    if (tokenLifetime < 60) { // Less than 1 minute
-      throw new Error('Test environment validation failed: Token lifetime too short for test environment')
+    if (tokenLifetime < 60) {
+      // Less than 1 minute
+      throw new Error(
+        'Test environment validation failed: Token lifetime too short for test environment'
+      )
     }
   }
 
   // Validate auth method is appropriate for test environment
   if (payload.authMethod && payload.authMethod !== 'oauth') {
-    throw new Error('Test environment validation failed: Only OAuth auth method allowed in test environment')
+    throw new Error(
+      'Test environment validation failed: Only OAuth auth method allowed in test environment'
+    )
   }
 
   // Validate issuer and audience for test environment
@@ -868,7 +949,7 @@ function tryParseMockJWT(token: string): AccessTokenPayload | null {
   try {
     // Enhanced token format validation for test environment
     validateTokenFormat(token)
-    
+
     const parts = token.split('.')
     if (parts.length === 3) {
       const [headerPart, payloadPart, signaturePart] = parts
@@ -904,7 +985,9 @@ function tryParseMockJWT(token: string): AccessTokenPayload | null {
         if (process.env.NODE_ENV === 'test') {
           // Validate signature contains test-specific patterns
           if (!actualSignature.includes('test-sig-')) {
-            throw new Error('Test environment validation failed: Invalid signature format for test environment')
+            throw new Error(
+              'Test environment validation failed: Invalid signature format for test environment'
+            )
           }
 
           // Validate JTI in signature matches payload JTI

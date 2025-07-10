@@ -450,28 +450,99 @@ async function validateCSRFAndRespond(
 }
 
 function handleAuthError(error: unknown): NextResponse {
+  // Import enhanced error handler
+  const { ErrorHandler, isEnhancedError } = require('@/lib/errors/enhanced-error-handler')
+
+  // Handle enhanced errors that are already properly formatted
+  if (isEnhancedError(error)) {
+    return ErrorHandler.toHttpResponse(error)
+  }
+
   if (error instanceof Error) {
+    // Map existing error messages to enhanced error types
     if (error.message === 'Token expired') {
-      return NextResponse.json({ error: 'Token expired' }, { status: 401 })
+      const enhancedError = ErrorHandler.createAuthError('token_expired', error, {
+        middleware: 'auth_middleware',
+        timestamp: new Date().toISOString(),
+      })
+      return ErrorHandler.toHttpResponse(enhancedError)
     }
+
     if (error.message === 'Authentication required') {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+      const enhancedError = ErrorHandler.createAuthError('no_token', error, {
+        middleware: 'auth_middleware',
+        timestamp: new Date().toISOString(),
+      })
+      return ErrorHandler.toHttpResponse(enhancedError)
     }
+
     if (error.message === 'Invalid token') {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+      const enhancedError = ErrorHandler.createAuthError('invalid_token', error, {
+        middleware: 'auth_middleware',
+        timestamp: new Date().toISOString(),
+      })
+      return ErrorHandler.toHttpResponse(enhancedError)
     }
+
     if (error.message === 'User not found') {
-      return NextResponse.json(
-        { error: 'User account not found or has been disabled' },
-        { status: 403 }
+      const enhancedError = ErrorHandler.createError(
+        'AUTH_USER_NOT_FOUND',
+        'User account not found or has been disabled.',
+        'authentication',
+        'medium',
+        {
+          originalError: error,
+          context: {
+            middleware: 'auth_middleware',
+            timestamp: new Date().toISOString(),
+          },
+          actionableSteps: [
+            'Verify your account exists and is active',
+            'Try signing out and signing in again',
+            'Contact support if you believe this is an error',
+          ],
+          developmentDetails:
+            'User lookup failed in authentication middleware. Check user existence in database.',
+          documentationLinks: ['/docs/authentication#user-accounts'],
+          productionMessage: 'User account not found or has been disabled.',
+        }
       )
+      return ErrorHandler.toHttpResponse(enhancedError)
     }
+
     if (error.message === 'Account locked') {
-      return NextResponse.json({ error: 'User account is temporarily locked' }, { status: 423 })
+      const enhancedError = ErrorHandler.createAuthError('account_locked', error, {
+        middleware: 'auth_middleware',
+        timestamp: new Date().toISOString(),
+      })
+      return ErrorHandler.toHttpResponse(enhancedError)
     }
   }
 
-  return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  // Handle any other authentication errors as generic internal server errors
+  const enhancedError = ErrorHandler.createError(
+    'AUTH_MIDDLEWARE_ERROR',
+    'An authentication error occurred while processing your request.',
+    'authentication',
+    'high',
+    {
+      originalError: error,
+      context: {
+        middleware: 'auth_middleware',
+        timestamp: new Date().toISOString(),
+      },
+      actionableSteps: [
+        'Try refreshing the page and attempting to sign in again',
+        'Clear your browser cookies and try again',
+        'Contact support if the issue persists',
+      ],
+      developmentDetails: `Unhandled authentication error in middleware: ${error instanceof Error ? error.message : String(error)}`,
+      documentationLinks: ['/docs/authentication#troubleshooting'],
+      productionMessage: 'An authentication error occurred. Please try again.',
+    }
+  )
+
+  return ErrorHandler.toHttpResponse(enhancedError)
 }
 
 /**
