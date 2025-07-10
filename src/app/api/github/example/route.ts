@@ -24,4 +24,4 @@ export const GET = withRateLimit(async (_req: NextRequest) => {
   } catch (_error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-}, 'api') // Using 'api' rate limiter (1000 req/hour)
+}, { limiterType: 'api' }) // Using 'api' rate limiter (1000 req/hour)

@@ -51,4 +51,4 @@ export const GET = withRateLimit(async (req: NextRequest) => {
     }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-}, 'search') // Using 'search' rate limiter (60 req/min)
+}, { limiterType: 'search' }) // Using 'search' rate limiter (60 req/min)

@@ -4,64 +4,25 @@
  */
 
 import { type NextRequest, NextResponse } from 'next/server'
-import { apiRateLimiter, authRateLimiter, checkRateLimit, searchRateLimiter } from './rate-limiter'
+import { 
+  apiRateLimiter, 
+  authRateLimiter, 
+  checkRateLimit, 
+  searchRateLimiter,
+  getRateLimiterForEndpoint,
+  getEnhancedRequestIdentifier 
+} from './rate-limiter'
 
 /**
- * Rate limit a Next.js API route handler
+ * Simple rate limit check for backwards compatibility
  * @param handler - The API route handler function
  * @param limiterType - The type of rate limiter to use
  */
-export function withRateLimit(
+export function withBasicRateLimit(
   handler: (req: NextRequest) => Promise<Response>,
   limiterType: 'auth' | 'api' | 'search' = 'api'
 ) {
-  return async (req: NextRequest) => {
-    // Select the appropriate rate limiter
-    const limiter =
-      limiterType === 'auth'
-        ? authRateLimiter
-        : limiterType === 'search'
-          ? searchRateLimiter
-          : apiRateLimiter
-
-    // Get identifier from request
-    const identifier = getNextRequestIdentifier(req)
-
-    // Check rate limit
-    const result = await checkRateLimit(limiter, identifier)
-
-    // Create response headers
-    const headers = new Headers({
-      'X-RateLimit-Limit': result.limit.toString(),
-      'X-RateLimit-Remaining': result.remaining.toString(),
-      'X-RateLimit-Reset': result.reset.toISOString(),
-    })
-
-    if (!result.success) {
-      if (result.retryAfter) {
-        headers.set('Retry-After', result.retryAfter.toString())
-      }
-
-      return NextResponse.json(
-        {
-          error: 'Too Many Requests',
-          message: 'Rate limit exceeded. Please try again later.',
-          retryAfter: result.retryAfter,
-        },
-        { status: 429, headers }
-      )
-    }
-
-    // Call the original handler
-    const response = await handler(req)
-
-    // Add rate limit headers to response
-    result.limit && response.headers.set('X-RateLimit-Limit', result.limit.toString())
-    result.remaining && response.headers.set('X-RateLimit-Remaining', result.remaining.toString())
-    response.headers.set('X-RateLimit-Reset', result.reset.toISOString())
-
-    return response
-  }
+  return withRateLimit(handler, { limiterType })
 }
 
 /**
@@ -97,34 +58,25 @@ function getNextRequestIdentifier(req: NextRequest): string {
 export async function rateLimitMiddleware(req: NextRequest) {
   const path = req.nextUrl.pathname
 
-  // Determine rate limiter based on path
-  let limiterType: 'auth' | 'api' | 'search' = 'api'
-
-  if (path.startsWith('/api/auth/')) {
-    limiterType = 'auth'
-  } else if (path.startsWith('/api/search/')) {
-    limiterType = 'search'
-  }
-
-  // Select the appropriate rate limiter
-  const limiter =
-    limiterType === 'auth'
-      ? authRateLimiter
-      : limiterType === 'search'
-        ? searchRateLimiter
-        : apiRateLimiter
+  // Use the enhanced rate limiting system
+  const { limiter, config, type } = getRateLimiterForEndpoint(path)
 
   // Get identifier from request
-  const identifier = getNextRequestIdentifier(req)
+  const identifier = getEnhancedRequestIdentifier(req)
 
-  // Check rate limit
-  const result = await checkRateLimit(limiter, identifier)
+  // Check rate limit with context
+  const result = await checkRateLimit(limiter, identifier, {
+    endpoint: path,
+    method: req.method,
+    userAgent: req.headers.get('user-agent') || 'unknown'
+  })
 
   if (!result.success) {
     const rateLimitHeaders: Record<string, string> = {
       'X-RateLimit-Limit': result.limit.toString(),
       'X-RateLimit-Remaining': '0',
       'X-RateLimit-Reset': result.reset.toISOString(),
+      'X-RateLimit-Policy': `${config.max} requests per ${config.windowMs}ms`,
     }
 
     if (result.retryAfter) {
@@ -133,9 +85,15 @@ export async function rateLimitMiddleware(req: NextRequest) {
 
     return NextResponse.json(
       {
-        error: 'Too Many Requests',
-        message: 'Rate limit exceeded. Please try again later.',
+        error: 'Rate Limit Exceeded',
+        message: config.message || 'Rate limit exceeded. Please try again later.',
+        type: 'RATE_LIMIT_EXCEEDED',
         retryAfter: result.retryAfter,
+        limit: result.limit,
+        remaining: 0,
+        reset: result.reset.toISOString(),
+        endpoint: path,
+        policy: `${config.max} requests per ${config.windowMs}ms`,
       },
       {
         status: 429,
@@ -144,12 +102,13 @@ export async function rateLimitMiddleware(req: NextRequest) {
     )
   }
 
-  // Continue with the request
+  // Continue with the request, adding rate limit headers
   return NextResponse.next({
     headers: {
       'X-RateLimit-Limit': result.limit.toString(),
       'X-RateLimit-Remaining': result.remaining.toString(),
       'X-RateLimit-Reset': result.reset.toISOString(),
+      'X-RateLimit-Policy': `${config.max} requests per ${config.windowMs}ms`,
     },
   })
 }
@@ -160,22 +119,33 @@ export async function rateLimitMiddleware(req: NextRequest) {
  */
 export async function checkApiRateLimit(
   req: NextRequest,
-  limiterType: 'auth' | 'api' | 'search' = 'api'
+  limiterType: 'auth' | 'api' | 'search' | 'webauthn' | 'webhook' | 'admin' | 'public' | 'analytics' | 'security' | 'demo' = 'api'
 ): Promise<{ allowed: boolean; headers: Record<string, string> }> {
-  const limiter =
-    limiterType === 'auth'
-      ? authRateLimiter
-      : limiterType === 'search'
-        ? searchRateLimiter
-        : apiRateLimiter
+  const { limiter, config } = getRateLimiterForEndpoint(
+    limiterType === 'auth' ? '/api/auth/' :
+    limiterType === 'search' ? '/api/search/' :
+    limiterType === 'webauthn' ? '/api/security/webauthn/' :
+    limiterType === 'webhook' ? '/api/webhooks/' :
+    limiterType === 'admin' ? '/api/admin/' :
+    limiterType === 'public' ? '/api/health/' :
+    limiterType === 'analytics' ? '/api/analytics/' :
+    limiterType === 'security' ? '/api/security/' :
+    limiterType === 'demo' ? '/api/demo/' :
+    '/api/'
+  )
 
-  const identifier = getNextRequestIdentifier(req)
-  const result = await checkRateLimit(limiter, identifier)
+  const identifier = getEnhancedRequestIdentifier(req)
+  const result = await checkRateLimit(limiter, identifier, {
+    endpoint: req.nextUrl.pathname,
+    method: req.method,
+    userAgent: req.headers.get('user-agent') || 'unknown'
+  })
 
   const headers: Record<string, string> = {
     'X-RateLimit-Limit': result.limit.toString(),
     'X-RateLimit-Remaining': result.remaining.toString(),
     'X-RateLimit-Reset': result.reset.toISOString(),
+    'X-RateLimit-Policy': `${config.max} requests per ${config.windowMs}ms`,
   }
 
   if (!result.success && result.retryAfter) {
@@ -184,6 +154,151 @@ export async function checkApiRateLimit(
 
   return {
     allowed: result.success,
+    headers,
+  }
+}
+
+/**
+ * Comprehensive rate limiting wrapper for API routes
+ * Automatically handles rate limiting and returns appropriate responses
+ */
+export function withRateLimit<T extends any[]>(
+  handler: (req: NextRequest, ...args: T) => Promise<Response>,
+  options: {
+    limiterType?: 'auth' | 'api' | 'search' | 'webauthn' | 'webhook' | 'admin' | 'public' | 'analytics' | 'security' | 'demo'
+    customIdentifier?: (req: NextRequest) => string
+    skipRateLimit?: (req: NextRequest) => boolean
+  } = {}
+) {
+  return async (req: NextRequest, ...args: T) => {
+    // Allow skipping rate limit for certain conditions
+    if (options.skipRateLimit?.(req)) {
+      return handler(req, ...args)
+    }
+
+    // Get the rate limiter configuration
+    const { limiter, config, type } = getRateLimiterForEndpoint(
+      options.limiterType ? 
+        (options.limiterType === 'auth' ? '/api/auth/' :
+         options.limiterType === 'search' ? '/api/search/' :
+         options.limiterType === 'webauthn' ? '/api/security/webauthn/' :
+         options.limiterType === 'webhook' ? '/api/webhooks/' :
+         options.limiterType === 'admin' ? '/api/admin/' :
+         options.limiterType === 'public' ? '/api/health/' :
+         options.limiterType === 'analytics' ? '/api/analytics/' :
+         options.limiterType === 'security' ? '/api/security/' :
+         options.limiterType === 'demo' ? '/api/demo/' :
+         '/api/') :
+        req.nextUrl.pathname
+    )
+
+    // Get identifier (custom or default)
+    const identifier = options.customIdentifier?.(req) || getEnhancedRequestIdentifier(req)
+
+    // Check rate limit
+    const result = await checkRateLimit(limiter, identifier, {
+      endpoint: req.nextUrl.pathname,
+      method: req.method,
+      userAgent: req.headers.get('user-agent') || 'unknown'
+    })
+
+    // Create response headers
+    const rateLimitHeaders = new Headers({
+      'X-RateLimit-Limit': result.limit.toString(),
+      'X-RateLimit-Remaining': result.remaining.toString(),
+      'X-RateLimit-Reset': result.reset.toISOString(),
+      'X-RateLimit-Policy': `${config.max} requests per ${config.windowMs}ms`,
+    })
+
+    if (!result.success) {
+      if (result.retryAfter) {
+        rateLimitHeaders.set('Retry-After', result.retryAfter.toString())
+      }
+
+      return NextResponse.json(
+        {
+          error: 'Rate Limit Exceeded',
+          message: config.message || 'Rate limit exceeded. Please try again later.',
+          type: 'RATE_LIMIT_EXCEEDED',
+          retryAfter: result.retryAfter,
+          limit: result.limit,
+          remaining: 0,
+          reset: result.reset.toISOString(),
+          endpoint: req.nextUrl.pathname,
+          policy: `${config.max} requests per ${config.windowMs}ms`,
+        },
+        { status: 429, headers: rateLimitHeaders }
+      )
+    }
+
+    // Call the original handler
+    const response = await handler(req, ...args)
+
+    // Add rate limit headers to response
+    for (const [key, value] of rateLimitHeaders) {
+      response.headers.set(key, value)
+    }
+
+    return response
+  }
+}
+
+/**
+ * Simple rate limit check for conditional logic in API routes
+ */
+export async function checkApiRateLimitStatus(
+  req: NextRequest,
+  options: {
+    limiterType?: 'auth' | 'api' | 'search' | 'webauthn' | 'webhook' | 'admin' | 'public' | 'analytics' | 'security' | 'demo'
+    customIdentifier?: string
+  } = {}
+): Promise<{
+  success: boolean
+  limit: number
+  remaining: number
+  reset: Date
+  retryAfter: number | null
+  headers: Record<string, string>
+}> {
+  const { limiter, config } = getRateLimiterForEndpoint(
+    options.limiterType ? 
+      (options.limiterType === 'auth' ? '/api/auth/' :
+       options.limiterType === 'search' ? '/api/search/' :
+       options.limiterType === 'webauthn' ? '/api/security/webauthn/' :
+       options.limiterType === 'webhook' ? '/api/webhooks/' :
+       options.limiterType === 'admin' ? '/api/admin/' :
+       options.limiterType === 'public' ? '/api/health/' :
+       options.limiterType === 'analytics' ? '/api/analytics/' :
+       options.limiterType === 'security' ? '/api/security/' :
+       options.limiterType === 'demo' ? '/api/demo/' :
+       '/api/') :
+      req.nextUrl.pathname
+  )
+
+  const identifier = options.customIdentifier || getEnhancedRequestIdentifier(req)
+  const result = await checkRateLimit(limiter, identifier, {
+    endpoint: req.nextUrl.pathname,
+    method: req.method,
+    userAgent: req.headers.get('user-agent') || 'unknown'
+  })
+
+  const headers: Record<string, string> = {
+    'X-RateLimit-Limit': result.limit.toString(),
+    'X-RateLimit-Remaining': result.remaining.toString(),
+    'X-RateLimit-Reset': result.reset.toISOString(),
+    'X-RateLimit-Policy': `${config.max} requests per ${config.windowMs}ms`,
+  }
+
+  if (!result.success && result.retryAfter) {
+    headers['Retry-After'] = result.retryAfter.toString()
+  }
+
+  return {
+    success: result.success,
+    limit: result.limit,
+    remaining: result.remaining,
+    reset: result.reset,
+    retryAfter: result.retryAfter,
     headers,
   }
 }
