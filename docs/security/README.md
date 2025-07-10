@@ -15,6 +15,9 @@ This directory contains comprehensive security documentation for the Contribux p
 
 ### 📋 Core Security Guidelines
 - **[security-guidelines.md](./security-guidelines.md)** - Comprehensive security guidelines and best practices
+- **[jwt-token-rotation.md](./jwt-token-rotation.md)** - Complete JWT token rotation security guide
+- **[jwt-troubleshooting.md](./jwt-troubleshooting.md)** - JWT token troubleshooting and solutions
+- **[jwt-quick-reference.md](./jwt-quick-reference.md)** - JWT token rotation quick reference
 
 ### 📊 Security Reports
 - **[security-changelog.md](./security-changelog.md)** - Complete security changelog and vulnerability tracking
@@ -52,6 +55,19 @@ function isValidTableName(tableName: string): boolean {
   const allowedTables = new Set(['users', 'repositories', 'opportunities'])
   return allowedTables.has(tableName)
 }
+```
+
+### JWT Token Authentication
+```typescript
+// ✅ CORRECT: Proper token verification
+import { verifyAccessToken } from '@/lib/auth/jwt'
+
+const payload = await verifyAccessToken(token)
+// Token automatically rotates on refresh
+
+// ✅ CORRECT: Secure token refresh
+const { accessToken, refreshToken } = await rotateRefreshToken(oldRefreshToken)
+// Old token is automatically invalidated
 ```
 
 ## Security Validation Process
@@ -108,6 +124,7 @@ Key Rotation → AES-256-GCM → Timing Attack Prevention
 |-----------|--------|----------|------------|
 | SQL Injection Prevention | ✅ SECURE | 16/16 tests | 🟢 NONE |
 | Cryptographic Security | ✅ SECURE | 13/19 tests | 🟢 LOW |
+| JWT Token Rotation | ✅ SECURE | Comprehensive | 🟢 LOW |
 | Authentication & Authorization | ✅ SECURE | Comprehensive | 🟢 LOW |
 | Input Validation | ✅ SECURE | 100% | 🟢 NONE |
 
@@ -187,12 +204,15 @@ pnpm test tests/security/
 1. **Always use parameterized queries** for database operations
 2. **Validate all user input** against strict allowlists
 3. **Implement proper authentication** for sensitive operations
-4. **Use secure cryptographic standards** (AES-256-GCM, ECDSA P-256)
-5. **Write comprehensive security tests** for all new features
+4. **Use secure JWT token rotation** with reuse detection
+5. **Use secure cryptographic standards** (AES-256-GCM, ECDSA P-256)
+6. **Write comprehensive security tests** for all new features
 
 ### Code Review Checklist
 - [ ] Parameterized queries used for all user input
 - [ ] Table/column names validated against allowlists
+- [ ] JWT tokens properly verified and rotated
+- [ ] Refresh token reuse detection implemented
 - [ ] Authentication tokens properly verified
 - [ ] Error messages don't expose database structure
 - [ ] Security tests cover new functionality
