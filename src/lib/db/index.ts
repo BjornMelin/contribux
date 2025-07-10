@@ -68,7 +68,7 @@ async function createDatabase(): Promise<{
 
     return { db, sql }
   }
-  
+
   // Use Neon with built-in PgBouncer pooling for production/cloud
   const { neon } = await import('@neondatabase/serverless')
   const { drizzle } = await import('drizzle-orm/neon-http')

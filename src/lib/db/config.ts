@@ -8,7 +8,7 @@ import * as schema from './schema'
 
 /**
  * Enhanced Database Configuration with Neon's Built-in Connection Pooling
- * 
+ *
  * Following Neon's best practices for serverless environments:
  * - Uses Neon's PgBouncer pooling (up to 10,000 concurrent connections)
  * - Optimized for serverless/edge functions
@@ -29,7 +29,7 @@ interface NeonConnectionOptions {
 // Branch-specific connections for different environments with type safety
 export const getDatabaseUrl = (branch: 'main' | 'dev' | 'test' = 'main', pooled = true): string => {
   let baseUrl: string
-  
+
   switch (branch) {
     case 'dev':
       baseUrl = env.DATABASE_URL_DEV || env.DATABASE_URL
@@ -57,7 +57,7 @@ function isLocalPostgres(url: string = env.DATABASE_URL): boolean {
     process.env.USE_LOCAL_PG === 'true' ||
     url.includes('localhost') ||
     url.includes('127.0.0.1') ||
-    url.includes('postgres://') && !url.includes('neon.tech')
+    (url.includes('postgres://') && !url.includes('neon.tech'))
   )
 }
 
@@ -126,7 +126,7 @@ export const connectionConfig = {
   neonPoolMode: 'transaction', // Neon uses transaction pooling
   neonMaxClientConnections: 10000, // Neon's PgBouncer limit
   neonDefaultPoolSize: '0.9 * max_connections', // Neon's formula
-  
+
   // Application-level settings for monitoring and timeouts
   connectionTimeout: env.DB_CONNECTION_TIMEOUT || 30000, // 30s for serverless
   queryTimeout: env.DB_QUERY_TIMEOUT || 30000, // 30s for complex queries
@@ -136,7 +136,7 @@ export const connectionConfig = {
   healthCheckInterval: env.DB_HEALTH_CHECK_INTERVAL || 60000, // 1 minute
   maxRetries: env.DB_MAX_RETRIES || 3,
   retryDelay: env.DB_RETRY_DELAY || 1000, // 1s base delay
-  
+
   // Serverless optimizations
   idleTimeout: env.DB_IDLE_TIMEOUT || 5000, // Short for serverless
   maxLifetime: env.DB_MAX_LIFETIME || 300000, // 5 minutes max
@@ -149,10 +149,10 @@ export const db = new Proxy({} as NeonHttpDatabase<typeof schema>, {
     if (!dbInstance) {
       // Use pooled connection for Drizzle ORM
       const pooledSql = createNeonConnection(getDatabaseUrl('main', true))
-      dbInstance = drizzle({ 
-        client: pooledSql, 
+      dbInstance = drizzle({
+        client: pooledSql,
         schema,
-        logger: env.NODE_ENV === 'development'
+        logger: env.NODE_ENV === 'development',
       })
     }
     return Reflect.get(dbInstance, prop)
@@ -180,13 +180,13 @@ export const dbConfig = {
 // Enhanced connection utilities for different use cases
 export const createConnectionByType = {
   // Pooled connection (recommended for most use cases)
-  pooled: (branch: 'main' | 'dev' | 'test' = 'main') => 
+  pooled: (branch: 'main' | 'dev' | 'test' = 'main') =>
     createNeonConnection(getDatabaseUrl(branch, true)),
-  
+
   // Direct connection (for migrations, admin tasks)
-  direct: (branch: 'main' | 'dev' | 'test' = 'main') => 
+  direct: (branch: 'main' | 'dev' | 'test' = 'main') =>
     createNeonConnection(getDatabaseUrl(branch, false)),
-    
+
   // Edge-optimized connection (ultra-fast for edge functions)
   edge: (branch: 'main' | 'dev' | 'test' = 'main') => {
     const url = getDatabaseUrl(branch, true)
@@ -196,7 +196,7 @@ export const createConnectionByType = {
         signal: AbortSignal.timeout(10000), // 10s timeout for edge
       },
     })
-  }
+  },
 }
 
 // Performance monitoring utilities
@@ -243,7 +243,7 @@ export const connectionHealth = {
         error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
-  }
+  },
 }
 
 // Export the consolidated schema
