@@ -44,8 +44,11 @@ export const env = createEnv({
 
     // Security configuration
     ALLOWED_REDIRECT_URIS: z.string().optional(),
-    ENCRYPTION_KEY: z.string().regex(/^[0-9a-fA-F]{64}$/).optional(),
-    
+    ENCRYPTION_KEY: z
+      .string()
+      .regex(/^[0-9a-fA-F]{64}$/)
+      .optional(),
+
     // CSRF and security
     CSRF_SECRET: z.string().min(32).optional(),
     REQUEST_SIGNING_SECRET: z.string().min(32).optional(),
@@ -82,7 +85,7 @@ export const env = createEnv({
     DB_HEALTH_CHECK_INTERVAL: z.coerce.number().int().min(1000).default(30000),
     DB_MAX_RETRIES: z.coerce.number().int().min(0).default(3),
     DB_RETRY_DELAY: z.coerce.number().int().min(100).default(1000),
-    
+
     // Enhanced database connection configuration for Neon pooling
     DB_STATEMENT_TIMEOUT: z.coerce.number().int().min(1000).default(30000),
     DB_IDLE_TIMEOUT: z.coerce.number().int().min(1000).default(30000),
@@ -300,7 +303,7 @@ export const env = createEnv({
   /**
    * Custom validation error handler
    */
-  onValidationError: (error) => {
+  onValidationError: error => {
     console.error('❌ Invalid environment variables:', error)
     throw new Error('Invalid environment variables')
   },
@@ -308,7 +311,7 @@ export const env = createEnv({
   /**
    * Custom handler for server-side access on client
    */
-  onInvalidAccess: (variable) => {
+  onInvalidAccess: variable => {
     throw new Error(
       `❌ Attempted to access server-side environment variable "${variable}" on the client`
     )
@@ -348,9 +351,7 @@ export function getJwtSecret(): string {
 // Helper function for encryption key
 export function getEncryptionKey(): string {
   if (!env.ENCRYPTION_KEY) {
-    throw new Error(
-      'ENCRYPTION_KEY is required. Generate one with: openssl rand -hex 32'
-    )
+    throw new Error('ENCRYPTION_KEY is required. Generate one with: openssl rand -hex 32')
   }
   return env.ENCRYPTION_KEY
 }
@@ -484,7 +485,11 @@ export const getRateLimitConfig = () => ({
 
 // CORS configuration
 export const getCorsConfig = () => ({
-  origins: env.CORS_ORIGINS?.split(',') || env.CORS_ALLOWED_ORIGINS?.split(',') || env.ALLOWED_ORIGINS?.split(',') || [],
+  origins:
+    env.CORS_ORIGINS?.split(',') ||
+    env.CORS_ALLOWED_ORIGINS?.split(',') ||
+    env.ALLOWED_ORIGINS?.split(',') ||
+    [],
 })
 
 // GitHub configuration
@@ -529,11 +534,7 @@ export const getVercelConfig = () => ({
 export function validateProductionSecurity(): void {
   if (!isProduction()) return
 
-  const requiredProdVars = [
-    'DATABASE_URL',
-    'NEXTAUTH_SECRET',
-    'ENCRYPTION_KEY',
-  ]
+  const requiredProdVars = ['DATABASE_URL', 'NEXTAUTH_SECRET', 'ENCRYPTION_KEY']
 
   const missing = requiredProdVars.filter(varName => !process.env[varName])
   if (missing.length > 0) {
@@ -567,14 +568,13 @@ export function validateEnvironmentOnStartup(): void {
   try {
     // Validate production security if applicable
     validateProductionSecurity()
-    
+
     // Log environment info (non-sensitive)
     console.info('✅ Environment validation successful')
     console.info(`📝 NODE_ENV: ${env.NODE_ENV}`)
     console.info(`🔗 Database: ${getDatabaseUrl().includes('localhost') ? 'Local' : 'Remote'}`)
     console.info(`🔐 OAuth: ${env.ENABLE_OAUTH ? 'Enabled' : 'Disabled'}`)
     console.info(`🧪 Environment: ${env.VERCEL_ENV || env.NODE_ENV}`)
-    
   } catch (error) {
     console.error('❌ Environment validation failed:', error)
     throw error
