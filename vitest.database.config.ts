@@ -55,7 +55,7 @@ export default defineConfig({
       '.next/**/*',
     ],
 
-    setupFiles: ['./tests/setup-database.ts'],
+    setupFiles: ['./tests/setup-database-enhanced.ts'],
 
     // Optimized execution for database tests with connection pooling
     pool: 'threads',
@@ -80,13 +80,23 @@ export default defineConfig({
       json: './database-test-results.json',
     },
 
-    // Database test environment with connection optimization
+    // Database test environment with enhanced isolation
     env: {
       NODE_ENV: 'test',
+      VITEST: 'true',
+      SKIP_ENV_VALIDATION: 'true',
       CI: process.env.CI || 'false',
-      // Enable database connection pooling
+      // Database connection pooling
       DATABASE_POOL_MAX: '5',
       DATABASE_POOL_MIN: '1',
+      // Enhanced database test isolation
+      LOG_LEVEL: 'warn',
+      // Test database URL will be set by enhanced test setup
+      DATABASE_URL_TEST:
+        process.env.DATABASE_URL_TEST || 'postgresql://test:test@localhost:5432/contribux_test_db',
+      // Test security keys
+      NEXTAUTH_SECRET: 'database-test-secret-32-chars-minimum-for-testing',
+      ENCRYPTION_KEY: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
     },
 
     // Improved memory management

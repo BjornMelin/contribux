@@ -19,7 +19,11 @@ vi.mock('@/lib/config/auth', () => ({
 vi.mock('@/lib/crypto-utils', () => ({
   base64url: {
     encode: vi.fn((data: Uint8Array) => {
-      return Buffer.from(data).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+      return Buffer.from(data)
+        .toString('base64')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '')
     }),
     decode: vi.fn((str: string) => {
       const base64 = str.replace(/-/g, '+').replace(/_/g, '/')
@@ -246,7 +250,8 @@ describe('Enhanced JWT Validation Security Tests', () => {
 
     it('should validate production secret entropy requirements', async () => {
       // Set weak secret for production
-      process.env.JWT_SECRET = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+      process.env.JWT_SECRET =
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
 
       const testUser = {
         id: 'prod-user-1234-5678-9012-123456789012',
@@ -335,10 +340,14 @@ describe('Enhanced JWT Validation Security Tests', () => {
       const { base64url } = await import('@/lib/crypto-utils')
       vi.mocked(base64url.decode).mockImplementation((str: string) => {
         if (str === 'header') {
-          return new TextEncoder().encode(JSON.stringify({ alg: 'HS256', typ: 'JWT', env: 'production' }))
+          return new TextEncoder().encode(
+            JSON.stringify({ alg: 'HS256', typ: 'JWT', env: 'production' })
+          )
         }
         if (str === 'payload') {
-          return new TextEncoder().encode(JSON.stringify({ sub: 'test-user', iat: 1234567890, exp: 1234567890 + 900 }))
+          return new TextEncoder().encode(
+            JSON.stringify({ sub: 'test-user', iat: 1234567890, exp: 1234567890 + 900 })
+          )
         }
         return new Uint8Array()
       })
@@ -403,13 +412,15 @@ describe('Enhanced JWT Validation Security Tests', () => {
       const mockPayload = {
         sub: 'test-user-1234-5678-9012-123456789012',
         iat: now,
-        exp: now + (8 * 24 * 60 * 60), // 8 days - exceeds maximum
+        exp: now + 8 * 24 * 60 * 60, // 8 days - exceeds maximum
       }
 
       expect(() => {
-        const maxExpiration = mockPayload.iat + (7 * 24 * 60 * 60) // 7 days
+        const maxExpiration = mockPayload.iat + 7 * 24 * 60 * 60 // 7 days
         if (mockPayload.exp > maxExpiration) {
-          throw new Error('JWT payload validation failed: Expiration exceeds maximum allowed time (7 days)')
+          throw new Error(
+            'JWT payload validation failed: Expiration exceeds maximum allowed time (7 days)'
+          )
         }
       }).toThrow('JWT payload validation failed: Expiration exceeds maximum allowed time (7 days)')
     })
@@ -473,7 +484,7 @@ describe('Enhanced JWT Validation Security Tests', () => {
     it('should validate JTI entropy in production', async () => {
       // Set production environment
       process.env.NODE_ENV = 'production'
-      
+
       // Mock generateUUID to return sequential pattern
       const { generateUUID } = await import('@/lib/crypto-utils')
       vi.mocked(generateUUID).mockReturnValue('1234-1234-1234-1234-123456789012')
@@ -572,17 +583,21 @@ describe('Enhanced JWT Validation Security Tests', () => {
         email: 'test@example.com',
         sessionId: 'test-session-id',
         iat: now,
-        exp: now + (25 * 60 * 60), // 25 hours - exceeds test environment maximum
+        exp: now + 25 * 60 * 60, // 25 hours - exceeds test environment maximum
       }
 
       expect(() => {
         if (invalidPayload.exp && invalidPayload.iat) {
           const tokenLifetime = invalidPayload.exp - invalidPayload.iat
           if (tokenLifetime > 24 * 60 * 60) {
-            throw new Error('Test environment validation failed: Token lifetime exceeds maximum for test environment')
+            throw new Error(
+              'Test environment validation failed: Token lifetime exceeds maximum for test environment'
+            )
           }
         }
-      }).toThrow('Test environment validation failed: Token lifetime exceeds maximum for test environment')
+      }).toThrow(
+        'Test environment validation failed: Token lifetime exceeds maximum for test environment'
+      )
     })
 
     it('should validate test environment minimum token lifetime', async () => {
@@ -599,10 +614,14 @@ describe('Enhanced JWT Validation Security Tests', () => {
         if (invalidPayload.exp && invalidPayload.iat) {
           const tokenLifetime = invalidPayload.exp - invalidPayload.iat
           if (tokenLifetime < 60) {
-            throw new Error('Test environment validation failed: Token lifetime too short for test environment')
+            throw new Error(
+              'Test environment validation failed: Token lifetime too short for test environment'
+            )
           }
         }
-      }).toThrow('Test environment validation failed: Token lifetime too short for test environment')
+      }).toThrow(
+        'Test environment validation failed: Token lifetime too short for test environment'
+      )
     })
   })
 
@@ -620,11 +639,15 @@ describe('Enhanced JWT Validation Security Tests', () => {
       }
 
       const { base64url } = await import('@/lib/crypto-utils')
-      
+
       // Mock the base64url encoding/decoding
       vi.mocked(base64url.encode).mockImplementation((data: Uint8Array) => {
         const str = new TextDecoder().decode(data)
-        return Buffer.from(str).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+        return Buffer.from(str)
+          .toString('base64')
+          .replace(/\+/g, '-')
+          .replace(/\//g, '_')
+          .replace(/=/g, '')
       })
 
       vi.mocked(base64url.decode).mockImplementation((str: string) => {
@@ -641,7 +664,7 @@ describe('Enhanced JWT Validation Security Tests', () => {
       })
 
       const mockToken = 'header.payload.signature'
-      
+
       // This should work with the mock JWT handling
       const result = await verifyAccessToken(mockToken)
       expect(result).toBeDefined()
@@ -655,7 +678,7 @@ describe('Enhanced JWT Validation Security Tests', () => {
       }
 
       const { base64url } = await import('@/lib/crypto-utils')
-      
+
       vi.mocked(base64url.decode).mockImplementation((str: string) => {
         if (str === 'header') {
           return new TextEncoder().encode(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
@@ -670,7 +693,7 @@ describe('Enhanced JWT Validation Security Tests', () => {
       })
 
       const mockToken = 'header.payload.signature'
-      
+
       await expect(verifyAccessToken(mockToken)).rejects.toThrow('Invalid token signature')
     })
   })
