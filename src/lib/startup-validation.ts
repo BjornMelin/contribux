@@ -9,11 +9,12 @@
  * fail-fast behavior for misconfigured environments.
  */
 
-import { validateEnvironmentOnStartup } from './validation/env'
+import { validateEnvironmentOnStartup, isTest, isProduction, env } from './validation/env'
 
 // Helper function to check if validation should be skipped
 function shouldSkipValidation(): boolean {
-  return process.env.SKIP_ENV_VALIDATION === 'true' || process.env.NODE_ENV === 'test'
+  // Check the environment variable directly since skipValidation is a config option, not an env property
+  return process.env.SKIP_ENV_VALIDATION === 'true' || isTest()
 }
 
 /**
@@ -40,7 +41,7 @@ export function validateApplicationOnStartup(): void {
     validateAuthenticationServices(env)
   } catch (_error) {
     // In test environment, throw error instead of exiting process
-    if (process.env.NODE_ENV === 'test') {
+    if (isTest()) {
       throw _error
     }
 
@@ -58,7 +59,7 @@ function validateAuthenticationServices(env: Record<string, unknown>): void {
   if (env.ENABLE_OAUTH) {
     if (env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET) {
       enabledServices.push('GitHub OAuth')
-    } else if (env.NODE_ENV === 'production') {
+    } else if (isProduction()) {
       throw new Error('OAuth is enabled but GitHub credentials are missing in production')
     }
   }
