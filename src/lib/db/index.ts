@@ -1,30 +1,34 @@
-// Contribux Database Client - Drizzle ORM
-// Phase 3: Simplified connection management replacing 270+ lines of custom pooling
+// Contribux Database Client - Enhanced with Neon's Built-in Connection Pooling
+// Modernized to use Neon's PgBouncer pooling instead of custom connection management
 
 import type { NeonQueryFunction } from '@neondatabase/serverless'
 import type { DrizzleConfig } from 'drizzle-orm'
 import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js'
 import { env } from '@/lib/validation/env'
+import { getDatabaseUrl, createConnectionByType, connectionHealth } from './config'
 import * as schema from './schema'
 
-// Create connection based on environment
-function getDatabaseUrl(): string {
+// Re-export enhanced configuration
+export { getDatabaseUrl, createConnectionByType, connectionHealth, schema } from './config'
+
+// Create connection based on environment with Neon pooling
+function getDatabaseUrlForEnvironment(): string {
   // Use environment-specific URLs for branch-based development
   if (env.NODE_ENV === 'test' && env.DATABASE_URL_TEST) {
-    return env.DATABASE_URL_TEST
+    return getDatabaseUrl('test', true) // Use pooled connection for tests
   }
 
   if (env.NODE_ENV === 'development' && env.DATABASE_URL_DEV) {
-    return env.DATABASE_URL_DEV
+    return getDatabaseUrl('dev', true) // Use pooled connection for dev
   }
 
-  return env.DATABASE_URL
+  return getDatabaseUrl('main', true) // Use pooled connection for production
 }
 
 // Detect if we should use local PostgreSQL
 function isLocalPostgres(): boolean {
-  const databaseUrl = getDatabaseUrl()
+  const databaseUrl = getDatabaseUrlForEnvironment()
   return (
     process.env.CI === 'true' ||
     process.env.USE_LOCAL_PG === 'true' ||
@@ -44,7 +48,7 @@ async function createDatabase(): Promise<{
   db: DatabaseInstance
   sql: SqlInstance
 }> {
-  const databaseUrl = getDatabaseUrl()
+  const databaseUrl = getDatabaseUrlForEnvironment()
   const drizzleConfig: DrizzleConfig<typeof schema> = {
     schema,
     logger: env.NODE_ENV === 'development',
@@ -56,7 +60,7 @@ async function createDatabase(): Promise<{
     const { drizzle } = await import('drizzle-orm/postgres-js')
 
     const sql = postgres.default(databaseUrl, {
-      max: 10, // Connection pool size
+      max: 10, // Connection pool size for local development
       idle_timeout: 30,
     })
 
@@ -64,13 +68,17 @@ async function createDatabase(): Promise<{
 
     return { db, sql }
   }
-  // Use Neon for production
+  
+  // Use Neon with built-in PgBouncer pooling for production/cloud
   const { neon } = await import('@neondatabase/serverless')
   const { drizzle } = await import('drizzle-orm/neon-http')
 
+  // Create pooled Neon connection using the enhanced config
   const sql = neon(databaseUrl, {
     fetchOptions: {
       cache: 'no-cache',
+      // Optimized timeout for serverless environments
+      signal: AbortSignal.timeout(30000),
     },
   })
 
@@ -83,7 +91,7 @@ async function createDatabase(): Promise<{
 let dbInstance: DatabaseInstance | null = null
 let sqlInstance: SqlInstance | null = null
 
-// Initialize database connection
+// Initialize database connection with Neon pooling
 async function initializeDatabase() {
   if (!dbInstance) {
     const result = await createDatabase()
@@ -103,7 +111,7 @@ export const db = new Proxy({} as DatabaseInstance, {
   },
 })
 
-// Export SQL instance for raw queries
+// Export SQL instance for raw queries with pooling
 export const sql = new Proxy({} as NeonQueryFunction<false, false>, {
   get(_, prop) {
     if (!sqlInstance) {
@@ -116,18 +124,20 @@ export const sql = new Proxy({} as NeonQueryFunction<false, false>, {
 // Ensure database is initialized before first use
 const initPromise = initializeDatabase()
 
-// Export schema for use in queries
-export { schema }
-
 // Helper types
 export type Database = typeof db
 export type Schema = typeof schema
 
-// Database health check utility
+// Enhanced database health check with pooling validation
 export async function checkDatabaseHealth(): Promise<{
   healthy: boolean
   latency?: number
   error?: string
+  pooling?: {
+    provider: string
+    enabled: boolean
+    connectionType: string
+  }
 }> {
   const start = performance.now()
 
@@ -143,11 +153,21 @@ export async function checkDatabaseHealth(): Promise<{
     return {
       healthy: true,
       latency: Math.round(latency),
+      pooling: {
+        provider: 'neon-pgbouncer',
+        enabled: !isLocalPostgres(),
+        connectionType: isLocalPostgres() ? 'direct' : 'pooled',
+      },
     }
   } catch (error) {
     return {
       healthy: false,
       error: error instanceof Error ? error.message : 'Unknown error',
+      pooling: {
+        provider: isLocalPostgres() ? 'local-postgres' : 'neon-pgbouncer',
+        enabled: !isLocalPostgres(),
+        connectionType: isLocalPostgres() ? 'direct' : 'pooled',
+      },
     }
   }
 }
@@ -195,7 +215,7 @@ export const vectorUtils = {
   },
 }
 
-// Performance monitoring for database operations
+// Performance monitoring for database operations with pooling metrics
 const metrics = new Map<string, number[]>()
 
 function startTimer(operation: string): () => number {
@@ -238,24 +258,28 @@ export function getDbStats(operation: string) {
     max: sorted[len - 1] ?? 0,
     avg: len > 0 ? sorted.reduce((a, b) => a + b, 0) / len : 0,
     p95: sorted[Math.floor(len * 0.95)] ?? 0,
+    pooling: {
+      provider: isLocalPostgres() ? 'local-postgres' : 'neon-pgbouncer',
+      enabled: !isLocalPostgres(),
+    },
   }
 }
 
-// Middleware for timing database operations
+// Middleware for timing database operations with pooling awareness
 function withTiming<T>(operation: string, fn: () => Promise<T>): Promise<T> {
   const timer = startTimer(operation)
 
   return fn().finally(() => {
-    const _duration = timer()
+    const duration = timer()
 
-    // Slow queries would be logged by external monitoring system (e.g., Sentry)
-    // This prevents console pollution while maintaining performance tracking
+    // Log slow queries only in development with pooling context
+    if (env.NODE_ENV === 'development' && duration > 1000) {
+      console.warn(`Slow ${operation} query: ${duration}ms (pooling: ${!isLocalPostgres()})`)
+    }
   })
 }
 
-// Security validator functionality is implemented in schema.ts
-
-// Export commonly used database operations with timing
+// Export commonly used database operations with timing and pooling optimization
 export const timedDb = {
   select: <T>(fn: () => Promise<T>) => withTiming('select', fn),
   insert: <T>(fn: () => Promise<T>) => withTiming('insert', fn),
