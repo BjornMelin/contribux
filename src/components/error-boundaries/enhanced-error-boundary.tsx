@@ -22,6 +22,7 @@ import {
   type RecoveryAction,
   type RecoveryWorkflow,
 } from '@/lib/errors/error-recovery'
+import { isDevelopment } from '@/lib/validation/env'
 
 // Enhanced error boundary props
 interface EnhancedErrorBoundaryProps extends PropsWithChildren {
@@ -416,7 +417,7 @@ function EnhancedErrorFallback({
         </div>
 
         {/* Technical details in development */}
-        {process.env.NODE_ENV === 'development' && workflow.showTechnicalDetails && (
+        {isDevelopment() && workflow.showTechnicalDetails && (
           <details className="mt-4">
             <summary className="cursor-pointer text-sm opacity-70">
               Technical Details (Development)

@@ -27,6 +27,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { env } from '@/lib/validation/env'
 
 interface MetricData {
   timestamp: number
@@ -91,7 +92,7 @@ export function RealTimeMonitoringDashboard() {
     }
 
     // Create WebSocket connection with authentication
-    const wsEndpoint = process.env.NEXT_PUBLIC_WS_ENDPOINT || 'ws://localhost:8080/metrics'
+    const wsEndpoint = env.NEXT_PUBLIC_WS_ENDPOINT || 'ws://localhost:8080/metrics'
     const wsUrl = new URL(wsEndpoint)
     wsUrl.searchParams.set('token', authToken)
 

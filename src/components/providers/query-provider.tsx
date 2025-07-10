@@ -16,6 +16,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import React, { type ReactNode, useEffect, useState } from 'react'
 import { getQueryMetrics, queryClient, setupBackgroundSync } from '@/lib/api/query-client'
+import { isDevelopment, isProduction } from '@/lib/validation/env'
 
 interface QueryProviderProps {
   children: ReactNode
@@ -42,7 +43,7 @@ class QueryErrorBoundary extends React.Component<
 
   override componentDidCatch(_error: Error, _errorInfo: React.ErrorInfo) {
     // Log to external error service in production
-    if (process.env.NODE_ENV === 'production') {
+    if (isProduction()) {
       // Example: Sentry.captureException(error, { extra: errorInfo })
     }
   }
@@ -83,7 +84,7 @@ class QueryErrorBoundary extends React.Component<
               We encountered an unexpected error. Please try refreshing the page.
             </div>
 
-            {process.env.NODE_ENV === 'development' && this.state.error && (
+            {isDevelopment() && this.state.error && (
               <details className="mb-4">
                 <summary className="cursor-pointer font-medium text-gray-700 text-sm">
                   Error Details (Development)
@@ -156,7 +157,7 @@ function processQueryMetrics() {
 // Performance monitoring component
 function QueryPerformanceMonitor() {
   useEffect(() => {
-    if (process.env.NODE_ENV !== 'development') {
+    if (!isDevelopment()) {
       return () => {
         // Cleanup function for non-development environment
       }
@@ -251,7 +252,7 @@ export function QueryProvider({ children }: QueryProviderProps) {
         {children}
 
         {/* Development tools - only in development */}
-        {process.env.NODE_ENV === 'development' && (
+        {isDevelopment() && (
           <ReactQueryDevtools initialIsOpen={false} position="bottom" />
         )}
       </QueryErrorBoundary>

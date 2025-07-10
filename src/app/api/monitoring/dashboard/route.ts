@@ -7,6 +7,7 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { apiMonitoring } from '@/lib/api/monitoring'
 import { sql } from '@/lib/db/config'
+import { isProduction } from '@/lib/validation/env'
 
 // Dashboard response types
 interface ServiceHealth {
@@ -162,7 +163,7 @@ async function checkMonitoringHealth(): Promise<ServiceHealth> {
     const responseTime = Date.now() - startTime
 
     // Check if monitoring is collecting data
-    if (metrics.overview.totalRequests === 0 && process.env.NODE_ENV === 'production') {
+    if (metrics.overview.totalRequests === 0 && isProduction()) {
       return {
         status: 'degraded',
         responseTime,

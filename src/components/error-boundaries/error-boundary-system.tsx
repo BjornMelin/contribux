@@ -10,6 +10,7 @@ import React from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { isDevelopment } from '@/lib/validation/env'
 import {
   type ErrorInfo as CustomErrorInfo,
   type ErrorBoundaryState,
@@ -148,7 +149,7 @@ function DefaultErrorFallback({ error, retry, reset, canRetry }: ErrorFallbackPr
             Reset
           </Button>
         </div>
-        {process.env.NODE_ENV === 'development' && (
+        {isDevelopment() && (
           <details className="mt-4 text-left">
             <summary className="cursor-pointer text-destructive/70 text-sm">
               Error Details (Development)

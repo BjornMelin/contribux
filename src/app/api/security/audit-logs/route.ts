@@ -11,8 +11,7 @@ import { z } from 'zod'
 import { authConfig } from '@/lib/auth'
 import { AuditEventType, AuditSeverity, auditLogger } from '@/lib/security/audit-logger'
 import { InputValidator } from '@/lib/security/input-validation'
-
-// No audit config import needed - using hardcoded retention value
+import { getAdminConfig } from '@/lib/validation/env'
 
 // Initialize services
 const inputValidator = new InputValidator()
@@ -76,7 +75,8 @@ interface QueryResult {
 async function isAdmin(userId: string): Promise<boolean> {
   // TODO: Implement proper admin check from database
   // For now, this is a placeholder
-  return process.env.ADMIN_USER_IDS?.split(',').includes(userId) || false
+  const adminConfig = getAdminConfig()
+  return adminConfig.userIds.includes(userId)
 }
 
 /**
