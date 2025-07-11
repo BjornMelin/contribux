@@ -1,35 +1,35 @@
 /**
  * @vitest-environment node
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { type NextRequest } from 'next/server'
-import { getServerSession } from 'next-auth'
+
 import jwt from 'jsonwebtoken'
-import { 
-  validateSession,
-  refreshToken,
-  validateJWT,
-  handleOAuthCallback,
-  generateJWT,
-  createSessionCookie,
-  encryptSession,
-  decryptSession,
+import type { NextRequest } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import {
   checkSessionRotation,
-  rotateSession,
-  generateTOTPSecret,
+  createSessionCookie,
+  decryptSession,
+  encryptSession,
+  generateJWT,
   generateTOTPCode,
-  validateTOTP,
-  validateBackupCode,
+  generateTOTPSecret,
+  handleOAuthCallback,
   linkOAuthAccount,
-  unlinkOAuthAccount,
+  refreshToken,
+  rotateSession,
   type SessionData,
-  type TokenPayload
+  type TokenPayload,
+  unlinkOAuthAccount,
+  validateBackupCode,
+  validateJWT,
+  validateSession,
+  validateTOTP,
 } from '@/lib/auth/session-management'
-import { authConfig } from '@/lib/auth'
 
 // Mock next-auth
 vi.mock('next-auth', () => ({
-  getServerSession: vi.fn()
+  getServerSession: vi.fn(),
 }))
 
 // Mock jsonwebtoken
@@ -37,8 +37,8 @@ vi.mock('jsonwebtoken', () => ({
   default: {
     sign: vi.fn(),
     verify: vi.fn(),
-    decode: vi.fn()
-  }
+    decode: vi.fn(),
+  },
 }))
 
 describe('Authentication Flow Tests', () => {
@@ -47,11 +47,11 @@ describe('Authentication Flow Tests', () => {
       id: 'user-123',
       email: 'test@example.com',
       name: 'Test User',
-      image: 'https://example.com/avatar.jpg'
+      image: 'https://example.com/avatar.jpg',
     },
     expires: new Date(Date.now() + 3600000).toISOString(),
     accessToken: 'mock-access-token',
-    refreshToken: 'mock-refresh-token'
+    refreshToken: 'mock-refresh-token',
   }
 
   beforeEach(() => {
@@ -67,9 +67,9 @@ describe('Authentication Flow Tests', () => {
   describe('Session Validation', () => {
     it('should validate active session', async () => {
       vi.mocked(getServerSession).mockResolvedValueOnce(mockSession)
-      
+
       const result = await validateSession()
-      
+
       expect(result.valid).toBe(true)
       expect(result.session).toEqual(mockSession)
       expect(result.expired).toBe(false)
@@ -78,12 +78,12 @@ describe('Authentication Flow Tests', () => {
     it('should detect expired session', async () => {
       const expiredSession = {
         ...mockSession,
-        expires: new Date(Date.now() - 1000).toISOString()
+        expires: new Date(Date.now() - 1000).toISOString(),
       }
       vi.mocked(getServerSession).mockResolvedValueOnce(expiredSession)
-      
+
       const result = await validateSession()
-      
+
       expect(result.valid).toBe(false)
       expect(result.expired).toBe(true)
       expect(result.error).toBe('Session expired')
@@ -91,9 +91,9 @@ describe('Authentication Flow Tests', () => {
 
     it('should handle missing session', async () => {
       vi.mocked(getServerSession).mockResolvedValueOnce(null)
-      
+
       const result = await validateSession()
-      
+
       expect(result.valid).toBe(false)
       expect(result.session).toBeNull()
       expect(result.error).toBe('No session found')
@@ -101,9 +101,9 @@ describe('Authentication Flow Tests', () => {
 
     it('should handle session validation errors', async () => {
       vi.mocked(getServerSession).mockRejectedValueOnce(new Error('Database error'))
-      
+
       const result = await validateSession()
-      
+
       expect(result.valid).toBe(false)
       expect(result.error).toBe('Session validation failed')
     })
@@ -114,15 +114,15 @@ describe('Authentication Flow Tests', () => {
       sub: 'user-123',
       email: 'test@example.com',
       iat: Math.floor(Date.now() / 1000),
-      exp: Math.floor(Date.now() / 1000) + 3600
+      exp: Math.floor(Date.now() / 1000) + 3600,
     }
 
     it('should validate valid JWT token', async () => {
       const token = 'valid.jwt.token'
       vi.mocked(jwt.verify).mockReturnValueOnce(mockPayload as any)
-      
+
       const result = await validateJWT(token)
-      
+
       expect(result.valid).toBe(true)
       expect(result.payload).toEqual(mockPayload)
       expect(jwt.verify).toHaveBeenCalledWith(token, process.env.JWT_SECRET)
@@ -131,12 +131,12 @@ describe('Authentication Flow Tests', () => {
     it('should reject expired JWT token', async () => {
       const expiredPayload = {
         ...mockPayload,
-        exp: Math.floor(Date.now() / 1000) - 1000
+        exp: Math.floor(Date.now() / 1000) - 1000,
       }
       vi.mocked(jwt.verify).mockReturnValueOnce(expiredPayload as any)
-      
+
       const result = await validateJWT('expired.jwt.token')
-      
+
       expect(result.valid).toBe(false)
       expect(result.error).toBe('Token expired')
     })
@@ -145,9 +145,9 @@ describe('Authentication Flow Tests', () => {
       vi.mocked(jwt.verify).mockImplementationOnce(() => {
         throw new Error('jwt malformed')
       })
-      
+
       const result = await validateJWT('malformed.token')
-      
+
       expect(result.valid).toBe(false)
       expect(result.error).toContain('Invalid token')
     })
@@ -155,14 +155,14 @@ describe('Authentication Flow Tests', () => {
     it('should generate new JWT token', async () => {
       const newToken = 'new.jwt.token'
       vi.mocked(jwt.sign).mockReturnValueOnce(newToken)
-      
+
       const payload = {
         sub: 'user-123',
-        email: 'test@example.com'
+        email: 'test@example.com',
       }
-      
+
       const token = await generateJWT(payload)
-      
+
       expect(token).toBe(newToken)
       expect(jwt.sign).toHaveBeenCalledWith(
         expect.objectContaining(payload),
@@ -178,23 +178,23 @@ describe('Authentication Flow Tests', () => {
       const newTokens = {
         accessToken: 'new.access.token',
         refreshToken: 'new.refresh.token',
-        expiresIn: 3600
+        expiresIn: 3600,
       }
-      
+
       // Mock token validation
       vi.mocked(jwt.verify).mockReturnValueOnce({
         sub: 'user-123',
-        type: 'refresh'
+        type: 'refresh',
       } as any)
-      
+
       // Mock API call for token refresh
       global.fetch = vi.fn().mockResolvedValueOnce({
         ok: true,
-        json: async () => newTokens
+        json: async () => newTokens,
       })
-      
+
       const result = await refreshToken(oldToken)
-      
+
       expect(result.success).toBe(true)
       expect(result.tokens).toEqual(newTokens)
     })
@@ -203,24 +203,24 @@ describe('Authentication Flow Tests', () => {
       vi.mocked(jwt.verify).mockImplementationOnce(() => {
         throw new Error('Invalid token')
       })
-      
+
       const result = await refreshToken('invalid.token')
-      
+
       expect(result.success).toBe(false)
       expect(result.error).toBe('Invalid refresh token')
     })
 
     it('should handle refresh API errors', async () => {
       vi.mocked(jwt.verify).mockReturnValueOnce({ sub: 'user-123' } as any)
-      
+
       global.fetch = vi.fn().mockResolvedValueOnce({
         ok: false,
         status: 401,
-        json: async () => ({ error: 'Token expired' })
+        json: async () => ({ error: 'Token expired' }),
       })
-      
+
       const result = await refreshToken('valid.token')
-      
+
       expect(result.success).toBe(false)
       expect(result.error).toContain('Token refresh failed')
     })
@@ -230,21 +230,21 @@ describe('Authentication Flow Tests', () => {
     it('should handle successful OAuth callback', async () => {
       const mockRequest = {
         url: 'http://localhost:3000/auth/callback?code=auth-code&state=state-value',
-        method: 'GET'
+        method: 'GET',
       } as NextRequest
-      
+
       // Mock OAuth token exchange
       global.fetch = vi.fn().mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           access_token: 'github-access-token',
           token_type: 'bearer',
-          scope: 'read:user'
-        })
+          scope: 'read:user',
+        }),
       })
-      
+
       const result = await handleOAuthCallback(mockRequest, 'github')
-      
+
       expect(result.success).toBe(true)
       expect(result.provider).toBe('github')
       expect(result.tokens?.access_token).toBe('github-access-token')
@@ -254,12 +254,12 @@ describe('Authentication Flow Tests', () => {
       const mockRequest = {
         url: 'http://localhost:3000/auth/callback?code=auth-code&state=invalid-state',
         cookies: {
-          get: vi.fn().mockReturnValue({ value: 'expected-state' })
-        }
+          get: vi.fn().mockReturnValue({ value: 'expected-state' }),
+        },
       } as any
-      
+
       const result = await handleOAuthCallback(mockRequest, 'github')
-      
+
       expect(result.success).toBe(false)
       expect(result.error).toBe('Invalid state parameter')
     })
@@ -267,11 +267,11 @@ describe('Authentication Flow Tests', () => {
     it('should handle missing authorization code', async () => {
       const mockRequest = {
         url: 'http://localhost:3000/auth/callback?state=state-value',
-        method: 'GET'
+        method: 'GET',
       } as NextRequest
-      
+
       const result = await handleOAuthCallback(mockRequest, 'github')
-      
+
       expect(result.success).toBe(false)
       expect(result.error).toBe('Missing authorization code')
     })
@@ -279,11 +279,11 @@ describe('Authentication Flow Tests', () => {
     it('should handle OAuth provider errors', async () => {
       const mockRequest = {
         url: 'http://localhost:3000/auth/callback?error=access_denied&error_description=User+denied+access',
-        method: 'GET'
+        method: 'GET',
       } as NextRequest
-      
+
       const result = await handleOAuthCallback(mockRequest, 'github')
-      
+
       expect(result.success).toBe(false)
       expect(result.error).toBe('access_denied')
       expect(result.errorDescription).toBe('User denied access')
@@ -295,39 +295,39 @@ describe('Authentication Flow Tests', () => {
       const sessionData = {
         userId: 'user-123',
         email: 'test@example.com',
-        expires: Date.now() + 3600000
+        expires: Date.now() + 3600000,
       }
-      
+
       const cookie = await createSessionCookie(sessionData)
-      
+
       expect(cookie).toMatchObject({
         name: 'session',
         value: expect.any(String),
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        maxAge: expect.any(Number)
+        maxAge: expect.any(Number),
       })
     })
 
     it('should encrypt session data', async () => {
       const sessionData = { userId: 'user-123', sensitive: 'data' }
       const encrypted = await encryptSession(sessionData)
-      
+
       expect(encrypted).not.toContain('user-123')
       expect(encrypted).not.toContain('sensitive')
-      
+
       const decrypted = await decryptSession(encrypted)
       expect(decrypted).toEqual(sessionData)
     })
 
     it('should handle session rotation', async () => {
       // Create a session that's 3 hours old (older than 2 hour threshold)
-      const oldSession = { userId: 'user-123', createdAt: Date.now() - (3 * 60 * 60 * 1000) }
+      const oldSession = { userId: 'user-123', createdAt: Date.now() - 3 * 60 * 60 * 1000 }
       const shouldRotate = checkSessionRotation(oldSession)
-      
+
       expect(shouldRotate).toBe(true)
-      
+
       const newSession = await rotateSession(oldSession)
       expect(newSession.createdAt).toBeGreaterThan(oldSession.createdAt)
       expect(newSession.userId).toBe(oldSession.userId)
@@ -337,7 +337,7 @@ describe('Authentication Flow Tests', () => {
   describe('Multi-Factor Authentication', () => {
     it('should generate TOTP secret', async () => {
       const result = await generateTOTPSecret('user-123')
-      
+
       expect(result.secret).toMatch(/^[A-Z2-7]{32}$/)
       expect(result.qrCode).toContain('data:image/png;base64')
       expect(result.backupCodes).toHaveLength(10)
@@ -346,16 +346,16 @@ describe('Authentication Flow Tests', () => {
     it('should validate correct TOTP code', async () => {
       const secret = 'JBSWY3DPEHPK3PXP'
       const code = generateTOTPCode(secret)
-      
+
       const result = await validateTOTP(code, secret)
-      
+
       expect(result.valid).toBe(true)
       expect(result.window).toBeDefined()
     })
 
     it('should reject invalid TOTP code', async () => {
       const result = await validateTOTP('000000', 'JBSWY3DPEHPK3PXP')
-      
+
       expect(result.valid).toBe(false)
       expect(result.error).toBe('Invalid code')
     })
@@ -363,7 +363,7 @@ describe('Authentication Flow Tests', () => {
     it('should handle backup codes', async () => {
       const backupCodes = ['ABC123', 'DEF456', 'GHI789']
       const result = await validateBackupCode('DEF456', backupCodes)
-      
+
       expect(result.valid).toBe(true)
       expect(result.remainingCodes).toEqual(['ABC123', 'GHI789'])
     })
@@ -375,11 +375,11 @@ describe('Authentication Flow Tests', () => {
       const oauthAccount = {
         provider: 'github',
         providerAccountId: 'github-456',
-        access_token: 'token'
+        access_token: 'token',
       }
-      
+
       const result = await linkOAuthAccount(userId, oauthAccount)
-      
+
       expect(result.success).toBe(true)
       expect(result.linked).toBe(true)
     })
@@ -387,16 +387,16 @@ describe('Authentication Flow Tests', () => {
     it('should prevent duplicate account linking', async () => {
       const result = await linkOAuthAccount('user-123', {
         provider: 'github',
-        providerAccountId: 'already-linked-id'
+        providerAccountId: 'already-linked-id',
       })
-      
+
       expect(result.success).toBe(false)
       expect(result.error).toBe('Account already linked')
     })
 
     it('should handle account unlinking', async () => {
       const result = await unlinkOAuthAccount('user-123', 'github')
-      
+
       expect(result.success).toBe(true)
       expect(result.requiresPasswordSet).toBe(true)
     })

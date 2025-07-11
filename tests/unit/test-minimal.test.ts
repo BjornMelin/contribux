@@ -22,7 +22,7 @@ describe('GitHubClient Minimal Test', () => {
   it('should have expected methods on GitHubClient instance', async () => {
     const { GitHubClient } = await import('@/lib/github/client')
     const client = new GitHubClient({})
-    
+
     console.log('Available methods on client:')
     console.log('getUser:', typeof client.getUser)
     console.log('getRepository:', typeof client.getRepository)
@@ -46,19 +46,19 @@ describe('GitHubClient Minimal Test', () => {
     const { GitHubClient } = await import('@/lib/github/client')
     const prototypeMethods = Object.getOwnPropertyNames(GitHubClient.prototype)
     console.log('GitHubClient prototype methods:', prototypeMethods)
-    
+
     const client = new GitHubClient({})
     const clientProperties = Object.getOwnPropertyNames(client)
     console.log('Client own properties:', clientProperties)
-    
+
     // Check if getUser exists on prototype
     const hasGetUserOnPrototype = 'getUser' in GitHubClient.prototype
     console.log('getUser exists on prototype:', hasGetUserOnPrototype)
-    
+
     // Check descriptor
     const getUserDescriptor = Object.getOwnPropertyDescriptor(GitHubClient.prototype, 'getUser')
     console.log('getUser descriptor:', getUserDescriptor)
-    
+
     // Force the test to fail so we can see the output
     expect(prototypeMethods).toContain('getUser')
     expect(clientProperties).toContain('getUser')

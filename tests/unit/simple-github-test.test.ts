@@ -11,10 +11,10 @@ describe('Simple GitHub Test', () => {
       console.log('✅ Import successful')
       console.log('GitHubClient type:', typeof GitHubClient)
       console.log('GitHubClient name:', GitHubClient.name)
-      
+
       expect(GitHubClient).toBeDefined()
       expect(typeof GitHubClient).toBe('function')
-      
+
       // Try to create instance
       const client = new GitHubClient({})
       console.log('✅ Client created')
@@ -23,7 +23,7 @@ describe('Simple GitHub Test', () => {
       console.log('Has getRepository:', typeof client.getRepository)
       console.log('Has searchRepositories:', typeof client.searchRepositories)
       console.log('All methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(client)))
-      
+
       expect(client).toBeDefined()
       expect(typeof client.getRepository).toBe('function')
       expect(typeof client.searchRepositories).toBe('function')

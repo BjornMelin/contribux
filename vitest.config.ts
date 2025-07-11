@@ -43,7 +43,7 @@ export default defineConfig({
     // Modern Vitest 3.2+ configuration
     globals: true,
     environment: 'jsdom',
-    
+
     // Mock configuration
     mockReset: true,
     clearMocks: true,
@@ -69,15 +69,20 @@ export default defineConfig({
 
     setupFiles: ['./tests/setup-enhanced.ts', './tests/unit/setup-mocks.ts'],
 
-    // Optimized pool configuration for Vitest 3.2+
+    // Enhanced pool configuration for Vitest 3.2+ with performance optimizations
     pool: 'threads',
     poolOptions: {
       threads: {
         singleThread: false,
         minThreads: 1,
-        maxThreads: Math.min(4, cpus().length),
+        maxThreads: Math.min(6, Math.max(2, cpus().length)),
+        useAtomics: true, // Vitest 3.2+ feature for better performance
+        isolate: true, // Enhanced test isolation
       },
     },
+
+    // Vitest 3.2+ experimental features for better performance
+    experimentalVmThreads: true,
 
     // Modern coverage configuration
     coverage: {

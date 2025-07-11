@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest'
 // Helper function to resolve the actual strategy used by the test database manager
 function resolveTestDatabaseStrategy(): string {
   const envStrategy = process.env.TEST_DB_STRATEGY
-  
+
   if (envStrategy) {
     // Map legacy values to current strategy names (same logic as TestDatabaseManager)
     if (envStrategy === 'postgres' || envStrategy === 'local') {
@@ -22,7 +22,7 @@ function resolveTestDatabaseStrategy(): string {
     }
     return envStrategy
   }
-  
+
   // Default to pglite for tests
   return 'pglite'
 }
@@ -42,31 +42,30 @@ describe('Database Connection Infrastructure', () => {
   it('should correctly map legacy strategy names', () => {
     const originalStrategy = process.env.TEST_DB_STRATEGY
     const originalNodeEnv = process.env.NODE_ENV
-    
+
     try {
       // Ensure we're in test environment
       process.env.NODE_ENV = 'test'
-      
+
       // Test postgres -> pglite mapping
       process.env.TEST_DB_STRATEGY = 'postgres'
       expect(resolveTestDatabaseStrategy()).toBe('pglite')
-      
+
       // Test local -> pglite mapping
       process.env.TEST_DB_STRATEGY = 'local'
       expect(resolveTestDatabaseStrategy()).toBe('pglite')
-      
+
       // Test neon -> pglite mapping
       process.env.TEST_DB_STRATEGY = 'neon'
       expect(resolveTestDatabaseStrategy()).toBe('pglite')
-      
+
       // Test direct pglite value
       process.env.TEST_DB_STRATEGY = 'pglite'
       expect(resolveTestDatabaseStrategy()).toBe('pglite')
-      
+
       // Test mock strategy (should pass through)
       process.env.TEST_DB_STRATEGY = 'mock'
       expect(resolveTestDatabaseStrategy()).toBe('mock')
-      
     } finally {
       // Restore original values
       process.env.TEST_DB_STRATEGY = originalStrategy

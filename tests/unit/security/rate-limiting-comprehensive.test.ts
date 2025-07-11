@@ -1,16 +1,16 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { NextRequest } from 'next/server'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   checkApiRateLimit,
-  withRateLimit,
   checkApiRateLimitStatus,
   rateLimitMiddleware,
+  withRateLimit,
 } from '@/lib/security/rate-limit-middleware'
 import {
-  rateLimitConfigs,
-  getEnhancedRequestIdentifier,
   getClientIP,
+  getEnhancedRequestIdentifier,
   getRateLimiterForEndpoint,
+  rateLimitConfigs,
 } from '@/lib/security/rate-limiter'
 
 // Mock Upstash Redis to avoid external dependencies

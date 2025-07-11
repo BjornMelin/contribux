@@ -3,14 +3,14 @@
  * Unified test environment setup with comprehensive isolation and configuration
  */
 
-import { beforeAll, beforeEach, afterEach, afterAll, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, vi } from 'vitest'
+import { EnhancedTestDatabaseManager } from './test-database-manager'
 import {
-  type TestEnvironmentType,
-  type TestEnvironmentConfig,
   loadTestEnvironment,
+  type TestEnvironmentConfig,
+  type TestEnvironmentType,
   validateTestEnvironment,
 } from './test-environment.config'
-import { EnhancedTestDatabaseManager } from './test-database-manager'
 import { TestServiceMockManager } from './test-service-mocks'
 
 // Global test state

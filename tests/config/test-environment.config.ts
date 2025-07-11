@@ -3,8 +3,8 @@
  * Provides comprehensive test environment setup with full isolation
  */
 
-import { config } from 'dotenv'
 import path from 'node:path'
+import { config } from 'dotenv'
 import type { TestUser } from '@/lib/test-utils/database-factories'
 
 // Test environment types

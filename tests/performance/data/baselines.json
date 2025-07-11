@@ -1,1 +1,82 @@
-{}
+{
+  "API_HEALTH_CHECK": {
+    "category": "API_HEALTH_CHECK",
+    "p50": 62.41313934534865,
+    "p95": 79.59922774247721,
+    "p99": 79.59922774247721,
+    "mean": 64.42292842815445,
+    "standardDeviation": 9.00983780309404,
+    "sampleCount": 10,
+    "lastUpdated": "2025-07-11T16:21:51.146Z"
+  },
+  "DB_SIMPLE_QUERY": {
+    "category": "DB_SIMPLE_QUERY",
+    "p50": 28.735686895997418,
+    "p95": 33.51485008266403,
+    "p99": 33.51485008266403,
+    "mean": 27.69687151388702,
+    "standardDeviation": 3.2099494650986875,
+    "sampleCount": 10,
+    "lastUpdated": "2025-07-11T16:21:51.146Z"
+  },
+  "TEST_REGRESSION": {
+    "category": "TEST_REGRESSION",
+    "p50": 104.51266775451178,
+    "p95": 107.17452886160748,
+    "p99": 107.17452886160748,
+    "mean": 103.8765282457509,
+    "standardDeviation": 2.9964151749231966,
+    "sampleCount": 5,
+    "lastUpdated": "2025-07-11T16:21:51.148Z"
+  },
+  "TEST_IMPROVEMENT": {
+    "category": "TEST_IMPROVEMENT",
+    "p50": 213.25515763287157,
+    "p95": 219.1667438988943,
+    "p99": 219.1667438988943,
+    "mean": 211.65698359380366,
+    "standardDeviation": 6.824337260739035,
+    "sampleCount": 5,
+    "lastUpdated": "2025-07-11T16:21:51.154Z"
+  },
+  "TEST_ANOMALY": {
+    "category": "TEST_ANOMALY",
+    "p50": 101.39323252637001,
+    "p95": 103.95886521788813,
+    "p99": 103.95886521788813,
+    "mean": 101.70706590570042,
+    "standardDeviation": 1.1615836462494509,
+    "sampleCount": 10,
+    "lastUpdated": "2025-07-11T16:21:51.157Z"
+  },
+  "TREND_TEST_IMPROVING": {
+    "category": "TREND_TEST_IMPROVING",
+    "p50": 204.35899075769765,
+    "p95": 209.04205897276663,
+    "p99": 209.04205897276663,
+    "mean": 205.76687110606568,
+    "standardDeviation": 2.655411219223189,
+    "sampleCount": 5,
+    "lastUpdated": "2025-07-11T16:21:51.164Z"
+  },
+  "TREND_TEST_DEGRADING": {
+    "category": "TREND_TEST_DEGRADING",
+    "p50": 103.31078307670302,
+    "p95": 106.09622195074918,
+    "p99": 106.09622195074918,
+    "mean": 102.95166405405982,
+    "standardDeviation": 2.0080661919056455,
+    "sampleCount": 5,
+    "lastUpdated": "2025-07-11T16:21:51.164Z"
+  },
+  "TREND_TEST_STABLE": {
+    "category": "TREND_TEST_STABLE",
+    "p50": 105.84494485870987,
+    "p95": 109.3156004753779,
+    "p99": 109.3156004753779,
+    "mean": 106.45768816141644,
+    "standardDeviation": 2.1965450724251867,
+    "sampleCount": 5,
+    "lastUpdated": "2025-07-11T16:21:51.164Z"
+  }
+}

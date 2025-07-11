@@ -165,14 +165,14 @@ describe('CSP Builder', () => {
 
     it('should generate cryptographically secure nonce', () => {
       const nonce = generateNonce()
-      
+
       // Should be base64url-safe (no +, /, or = characters)
-      expect(nonce).not.toMatch(/[\+\/=]/)
-      
+      expect(nonce).not.toMatch(/[+/=]/)
+
       // Should be consistent length
       expect(nonce.length).toBeGreaterThan(10)
       expect(nonce.length).toBeLessThan(30)
-      
+
       // Should generate different values each time
       const nonce2 = generateNonce()
       expect(nonce).not.toBe(nonce2)

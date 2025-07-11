@@ -53,16 +53,16 @@ vi.mock('next/server', () => {
   }
 
   MockNextResponse.prototype.headers = {
-    get: vi.fn().mockImplementation(function(this: any, key: string) {
+    get: vi.fn().mockImplementation(function (this: any, key: string) {
       return this._internalHeaders?.get(key) || null
     }),
-    set: vi.fn().mockImplementation(function(this: any, key: string, value: string) {
+    set: vi.fn().mockImplementation(function (this: any, key: string, value: string) {
       if (!this._internalHeaders) {
         this._internalHeaders = new Map()
       }
       this._internalHeaders.set(key, value)
     }),
-    has: vi.fn().mockImplementation(function(this: any, key: string) {
+    has: vi.fn().mockImplementation(function (this: any, key: string) {
       return this._internalHeaders?.has(key) || false
     }),
   }
@@ -358,7 +358,7 @@ describe('Security Headers', () => {
       // Should not allow unsafe practices
       expect(csp).not.toContain("'unsafe-inline'")
       expect(csp).not.toContain("'unsafe-eval'")
-      
+
       // Data URIs should only be allowed for specific sources (img, font, media)
       expect(csp).not.toContain("script-src 'self' data:")
       expect(csp).not.toContain("default-src 'self' data:")

@@ -140,11 +140,11 @@ export * from './utils/test-factories'
 // Export enhanced utilities
 export { type testUtils, testConfig, addCleanupTask }
 export {
-  setupUnitTests,
-  setupIntegrationTests,
   setupDatabaseTests,
   setupE2ETests,
+  setupIntegrationTests,
   setupPerformanceTests,
+  setupUnitTests,
 } from './config/enhanced-test-setup'
 
 console.log(`✅ Enhanced test setup loaded for ${testType} tests`)

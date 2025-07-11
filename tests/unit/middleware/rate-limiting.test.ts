@@ -1,11 +1,15 @@
 /**
  * @vitest-environment node
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { RateLimiter, MemoryStore, RedisStore, rateLimitMiddleware } from '@/lib/middleware/rate-limit-middleware'
+
 import { NextRequest, NextResponse } from 'next/server'
-import { headers } from 'next/headers'
-import Redis from 'ioredis'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  MemoryStore,
+  RateLimiter,
+  RedisStore,
+  rateLimitMiddleware,
+} from '@/lib/middleware/rate-limit-middleware'
 
 // Mock Redis
 vi.mock('ioredis', () => ({
@@ -16,8 +20,8 @@ vi.mock('ioredis', () => ({
     del: vi.fn(),
     pipeline: vi.fn().mockReturnThis(),
     exec: vi.fn(),
-    ttl: vi.fn()
-  }))
+    ttl: vi.fn(),
+  })),
 }))
 
 // Mock next/headers
@@ -26,11 +30,11 @@ vi.mock('next/headers', () => ({
     get: vi.fn((name: string) => {
       const mockHeaders: Record<string, string> = {
         'x-forwarded-for': '192.168.1.1',
-        'user-agent': 'test-agent'
+        'user-agent': 'test-agent',
       }
       return mockHeaders[name] || null
-    })
-  }))
+    }),
+  })),
 }))
 
 describe('Rate Limiting Tests', () => {
@@ -43,7 +47,7 @@ describe('Rate Limiting Tests', () => {
       rateLimiter = new RateLimiter({
         windowMs: 60000, // 1 minute
         max: 10,
-        store
+        store,
       })
     })
 
@@ -54,7 +58,7 @@ describe('Rate Limiting Tests', () => {
 
     it('should allow requests within limit', async () => {
       const identifier = 'test-user'
-      
+
       for (let i = 0; i < 10; i++) {
         const result = await rateLimiter.check(identifier)
         expect(result.allowed).toBe(true)
@@ -65,12 +69,12 @@ describe('Rate Limiting Tests', () => {
 
     it('should block requests exceeding limit', async () => {
       const identifier = 'test-user'
-      
+
       // Exhaust the limit
       for (let i = 0; i < 10; i++) {
         await rateLimiter.check(identifier)
       }
-      
+
       // 11th request should be blocked
       const result = await rateLimiter.check(identifier)
       expect(result.allowed).toBe(false)
@@ -80,15 +84,15 @@ describe('Rate Limiting Tests', () => {
 
     it('should reset after window expires', async () => {
       const identifier = 'test-user'
-      
+
       // Exhaust the limit
       for (let i = 0; i < 10; i++) {
         await rateLimiter.check(identifier)
       }
-      
+
       // Move time forward past the window
       vi.setSystemTime(Date.now() + 61000)
-      
+
       // Should be allowed again
       const result = await rateLimiter.check(identifier)
       expect(result.allowed).toBe(true)
@@ -100,27 +104,27 @@ describe('Rate Limiting Tests', () => {
         windowMs: 60000,
         max: 10,
         store,
-        skip: (identifier) => identifier.startsWith('admin-')
+        skip: identifier => identifier.startsWith('admin-'),
       })
-      
+
       // Admin users should bypass rate limiting
       for (let i = 0; i < 20; i++) {
         const result = await rateLimiter.check('admin-user')
         expect(result.allowed).toBe(true)
-        expect(result.remaining).toBe(Infinity)
+        expect(result.remaining).toBe(Number.POSITIVE_INFINITY)
       }
     })
 
     it('should support custom key generators', async () => {
       const keyGenerator = vi.fn((identifier: string) => `custom:${identifier}`)
-      
+
       rateLimiter = new RateLimiter({
         windowMs: 60000,
         max: 10,
         store,
-        keyGenerator
+        keyGenerator,
       })
-      
+
       await rateLimiter.check('user123')
       expect(keyGenerator).toHaveBeenCalledWith('user123')
     })
@@ -138,7 +142,7 @@ describe('Rate Limiting Tests', () => {
         del: vi.fn(),
         incr: vi.fn(),
         expire: vi.fn(),
-        exec: vi.fn()
+        exec: vi.fn(),
       }
       redisStore = new RedisStore({ client: mockRedis })
     })
@@ -147,11 +151,14 @@ describe('Rate Limiting Tests', () => {
       mockRedis.pipeline.mockReturnValue({
         incr: vi.fn().mockReturnThis(),
         expire: vi.fn().mockReturnThis(),
-        exec: vi.fn().mockResolvedValue([[null, 1], [null, 1]])
+        exec: vi.fn().mockResolvedValue([
+          [null, 1],
+          [null, 1],
+        ]),
       })
-      
+
       const result = await redisStore.increment('test-key')
-      
+
       expect(result.count).toBe(1)
       expect(mockRedis.pipeline).toHaveBeenCalled()
     })
@@ -160,22 +167,22 @@ describe('Rate Limiting Tests', () => {
       mockRedis.pipeline.mockReturnValue({
         incr: vi.fn().mockReturnThis(),
         expire: vi.fn().mockReturnThis(),
-        exec: vi.fn().mockRejectedValue(new Error('Redis error'))
+        exec: vi.fn().mockRejectedValue(new Error('Redis error')),
       })
-      
+
       await expect(redisStore.increment('test-key')).rejects.toThrow('Redis error')
     })
 
     it('should get current count', async () => {
       mockRedis.get.mockResolvedValue('5')
-      
+
       const count = await redisStore.get('test-key')
       expect(count).toBe(5)
     })
 
     it('should reset key', async () => {
       mockRedis.del.mockResolvedValue(1)
-      
+
       await redisStore.reset('test-key')
       expect(mockRedis.del).toHaveBeenCalledWith('test-key')
     })
@@ -186,19 +193,17 @@ describe('Rate Limiting Tests', () => {
       const request = new NextRequest('http://localhost/api/search', {
         method: 'GET',
         headers: {
-          'x-forwarded-for': '192.168.1.1'
-        }
+          'x-forwarded-for': '192.168.1.1',
+        },
       })
-      
-      const handler = vi.fn().mockResolvedValue(
-        NextResponse.json({ data: 'test' })
-      )
-      
+
+      const handler = vi.fn().mockResolvedValue(NextResponse.json({ data: 'test' }))
+
       const middleware = rateLimitMiddleware({
         windowMs: 60000,
-        max: 5
+        max: 5,
       })
-      
+
       // Make requests within limit
       for (let i = 0; i < 5; i++) {
         const response = await middleware(request, handler)
@@ -206,13 +211,13 @@ describe('Rate Limiting Tests', () => {
         expect(response.headers.get('x-ratelimit-limit')).toBe('5')
         expect(response.headers.get('x-ratelimit-remaining')).toBe(String(4 - i))
       }
-      
+
       // 6th request should be rate limited
       const response = await middleware(request, handler)
       expect(response.status).toBe(429)
       expect(response.headers.get('x-ratelimit-remaining')).toBe('0')
       expect(response.headers.get('retry-after')).toBeDefined()
-      
+
       const body = await response.json()
       expect(body.error).toContain('Too many requests')
     })
@@ -221,22 +226,20 @@ describe('Rate Limiting Tests', () => {
       const middleware = rateLimitMiddleware({
         windowMs: 60000,
         max: 3,
-        keyGenerator: 'ip'
+        keyGenerator: 'ip',
       })
-      
-      const handler = vi.fn().mockResolvedValue(
-        NextResponse.json({ data: 'test' })
-      )
-      
+
+      const handler = vi.fn().mockResolvedValue(NextResponse.json({ data: 'test' }))
+
       // Different IPs should have separate limits
       const request1 = new NextRequest('http://localhost/api/test', {
-        headers: { 'x-forwarded-for': '192.168.1.1' }
+        headers: { 'x-forwarded-for': '192.168.1.1' },
       })
-      
+
       const request2 = new NextRequest('http://localhost/api/test', {
-        headers: { 'x-forwarded-for': '192.168.1.2' }
+        headers: { 'x-forwarded-for': '192.168.1.2' },
       })
-      
+
       // Both IPs can make 3 requests
       for (let i = 0; i < 3; i++) {
         const response1 = await middleware(request1, handler)
@@ -250,21 +253,19 @@ describe('Rate Limiting Tests', () => {
       const middleware = rateLimitMiddleware({
         windowMs: 60000,
         max: 10,
-        keyGenerator: 'user'
+        keyGenerator: 'user',
       })
-      
-      const handler = vi.fn().mockResolvedValue(
-        NextResponse.json({ data: 'test' })
-      )
-      
+
+      const handler = vi.fn().mockResolvedValue(NextResponse.json({ data: 'test' }))
+
       // Authenticated request
       const request = new NextRequest('http://localhost/api/test', {
         headers: {
-          'authorization': 'Bearer valid-token',
-          'x-user-id': 'user123'
-        }
+          authorization: 'Bearer valid-token',
+          'x-user-id': 'user123',
+        },
       })
-      
+
       const response = await middleware(request, handler)
       expect(response.status).toBe(200)
       expect(response.headers.get('x-ratelimit-limit')).toBe('10')
@@ -272,30 +273,28 @@ describe('Rate Limiting Tests', () => {
 
     it('should handle custom rate limit handlers', async () => {
       const onLimitReached = vi.fn()
-      
+
       const middleware = rateLimitMiddleware({
         windowMs: 60000,
         max: 1,
-        onLimitReached
+        onLimitReached,
       })
-      
-      const handler = vi.fn().mockResolvedValue(
-        NextResponse.json({ data: 'test' })
-      )
-      
+
+      const handler = vi.fn().mockResolvedValue(NextResponse.json({ data: 'test' }))
+
       const request = new NextRequest('http://localhost/api/test')
-      
+
       // First request OK
       await middleware(request, handler)
-      
+
       // Second request triggers limit
       await middleware(request, handler)
-      
+
       expect(onLimitReached).toHaveBeenCalledWith(
         expect.objectContaining({
           identifier: expect.any(String),
           limit: 1,
-          windowMs: 60000
+          windowMs: 60000,
         })
       )
     })
@@ -308,25 +307,25 @@ describe('Rate Limiting Tests', () => {
         max: 10,
         standardHeaders: true,
         legacyHeaders: false,
-        slidingWindow: true
+        slidingWindow: true,
       })
-      
+
       const identifier = 'test-user'
-      
+
       // Make 5 requests
       for (let i = 0; i < 5; i++) {
         await rateLimiter.check(identifier)
       }
-      
+
       // Move time forward 30 seconds
       vi.setSystemTime(Date.now() + 30000)
-      
+
       // Make 5 more requests
       for (let i = 0; i < 5; i++) {
         const result = await rateLimiter.check(identifier)
         expect(result.allowed).toBe(true)
       }
-      
+
       // 11th request should still be blocked (sliding window)
       const result = await rateLimiter.check(identifier)
       expect(result.allowed).toBe(false)
@@ -340,46 +339,49 @@ describe('Rate Limiting Tests', () => {
           expire: vi.fn().mockReturnThis(),
           exec: vi.fn().mockImplementation(() => {
             counter++
-            return Promise.resolve([[null, counter], [null, 1]])
-          })
+            return Promise.resolve([
+              [null, counter],
+              [null, 1],
+            ])
+          }),
         }),
         get: vi.fn(),
-        del: vi.fn()
+        del: vi.fn(),
       }
-      const store = new RedisStore({ 
+      const store = new RedisStore({
         client: redisClient,
-        prefix: 'rl:distributed:'
+        prefix: 'rl:distributed:',
       })
-      
+
       const rateLimiter1 = new RateLimiter({
         windowMs: 60000,
         max: 10,
-        store
+        store,
       })
-      
+
       const rateLimiter2 = new RateLimiter({
         windowMs: 60000,
         max: 10,
-        store
+        store,
       })
-      
+
       // Simulate requests from different servers
       const identifier = 'shared-user'
-      
+
       // 5 requests from server 1
       for (let i = 0; i < 5; i++) {
         await rateLimiter1.check(identifier)
       }
-      
+
       // 5 requests from server 2
       for (let i = 0; i < 5; i++) {
         await rateLimiter2.check(identifier)
       }
-      
+
       // 11th request should be blocked on either server
       const result1 = await rateLimiter1.check(identifier)
       const result2 = await rateLimiter2.check(identifier)
-      
+
       expect(result1.allowed).toBe(false)
       expect(result2.allowed).toBe(false)
     })
@@ -388,37 +390,37 @@ describe('Rate Limiting Tests', () => {
       const rateLimiters = {
         free: new RateLimiter({
           windowMs: 3600000, // 1 hour
-          max: 100
+          max: 100,
         }),
         pro: new RateLimiter({
           windowMs: 3600000,
-          max: 1000
+          max: 1000,
         }),
         enterprise: new RateLimiter({
           windowMs: 3600000,
-          max: 10000
-        })
+          max: 10000,
+        }),
       }
-      
+
       // Function to get user tier
       const getUserTier = (userId: string) => {
         if (userId.includes('enterprise')) return 'enterprise'
         if (userId.includes('pro')) return 'pro'
         return 'free'
       }
-      
+
       // Test different tiers
       const users = [
         { id: 'free-user', expectedLimit: 100 },
         { id: 'pro-user', expectedLimit: 1000 },
-        { id: 'enterprise-user', expectedLimit: 10000 }
+        { id: 'enterprise-user', expectedLimit: 10000 },
       ]
-      
+
       for (const user of users) {
         const tier = getUserTier(user.id)
         const rateLimiter = rateLimiters[tier as keyof typeof rateLimiters]
         const result = await rateLimiter.check(user.id)
-        
+
         expect(result.limit).toBe(user.expectedLimit)
       }
     })
@@ -428,30 +430,30 @@ describe('Rate Limiting Tests', () => {
       const operationCosts = {
         search: 1,
         aiAnalysis: 10,
-        bulkExport: 50
+        bulkExport: 50,
       }
-      
+
       const rateLimiter = new RateLimiter({
         windowMs: 60000,
         max: 100, // 100 cost units per minute
-        points: true // Enable point-based limiting
+        points: true, // Enable point-based limiting
       })
-      
+
       const identifier = 'test-user'
       let totalCost = 0
-      
+
       // Perform various operations
       const operations = [
         { type: 'search', count: 50 },
         { type: 'aiAnalysis', count: 3 },
-        { type: 'bulkExport', count: 1 }
+        { type: 'bulkExport', count: 1 },
       ]
-      
+
       for (const op of operations) {
         for (let i = 0; i < op.count; i++) {
           const cost = operationCosts[op.type as keyof typeof operationCosts]
           const result = await rateLimiter.consume(identifier, cost)
-          
+
           if (totalCost + cost <= 100) {
             expect(result.allowed).toBe(true)
             totalCost += cost
@@ -467,24 +469,22 @@ describe('Rate Limiting Tests', () => {
   describe('Rate Limit Bypass & Special Cases', () => {
     it('should bypass rate limiting for whitelisted IPs', async () => {
       const whitelist = ['127.0.0.1', '192.168.1.100']
-      
+
       const middleware = rateLimitMiddleware({
         windowMs: 60000,
         max: 1,
-        skip: (req) => {
+        skip: req => {
           const ip = req.headers.get('x-forwarded-for') || ''
           return whitelist.includes(ip)
-        }
+        },
       })
-      
-      const handler = vi.fn().mockResolvedValue(
-        NextResponse.json({ data: 'test' })
-      )
-      
+
+      const handler = vi.fn().mockResolvedValue(NextResponse.json({ data: 'test' }))
+
       const request = new NextRequest('http://localhost/api/test', {
-        headers: { 'x-forwarded-for': '127.0.0.1' }
+        headers: { 'x-forwarded-for': '127.0.0.1' },
       })
-      
+
       // Should bypass rate limiting
       for (let i = 0; i < 10; i++) {
         const response = await middleware(request, handler)
@@ -496,20 +496,20 @@ describe('Rate Limiting Tests', () => {
       const endpointLimits = {
         '/api/search': { windowMs: 60000, max: 60 },
         '/api/ai/analyze': { windowMs: 60000, max: 10 },
-        '/api/export': { windowMs: 3600000, max: 5 }
+        '/api/export': { windowMs: 3600000, max: 5 },
       }
-      
+
       const getEndpointLimiter = (path: string) => {
         const config = endpointLimits[path as keyof typeof endpointLimits]
         return config ? new RateLimiter(config) : null
       }
-      
+
       // Test different endpoints
       for (const [endpoint, config] of Object.entries(endpointLimits)) {
         const limiter = getEndpointLimiter(endpoint)
         expect(limiter).toBeDefined()
-        
-        const result = await limiter!.check('test-user')
+
+        const result = await limiter?.check('test-user')
         expect(result.limit).toBe(config.max)
       }
     })
@@ -518,30 +518,28 @@ describe('Rate Limiting Tests', () => {
       const apiKeyLimits = new Map([
         ['key-basic-123', { tier: 'basic', limit: 100 }],
         ['key-pro-456', { tier: 'pro', limit: 1000 }],
-        ['key-unlimited-789', { tier: 'unlimited', limit: Infinity }]
+        ['key-unlimited-789', { tier: 'unlimited', limit: Number.POSITIVE_INFINITY }],
       ])
-      
+
       const middleware = rateLimitMiddleware({
         windowMs: 3600000,
-        max: (req) => {
+        max: req => {
           const apiKey = req.headers.get('x-api-key')
           const config = apiKeyLimits.get(apiKey || '')
           return config?.limit || 10 // Default limit
         },
-        keyGenerator: (req) => {
+        keyGenerator: req => {
           return req.headers.get('x-api-key') || 'anonymous'
-        }
+        },
       })
-      
-      const handler = vi.fn().mockResolvedValue(
-        NextResponse.json({ data: 'test' })
-      )
-      
+
+      const handler = vi.fn().mockResolvedValue(NextResponse.json({ data: 'test' }))
+
       // Test basic tier
       const basicRequest = new NextRequest('http://localhost/api/test', {
-        headers: { 'x-api-key': 'key-basic-123' }
+        headers: { 'x-api-key': 'key-basic-123' },
       })
-      
+
       const response = await middleware(basicRequest, handler)
       expect(response.headers.get('x-ratelimit-limit')).toBe('100')
     })

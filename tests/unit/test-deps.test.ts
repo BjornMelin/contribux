@@ -29,7 +29,9 @@ describe('Dependencies Test', () => {
 
   it('should import GitHub errors', async () => {
     try {
-      const { GitHubError, isRequestError, createRequestContext } = await import('@/lib/github/errors')
+      const { GitHubError, isRequestError, createRequestContext } = await import(
+        '@/lib/github/errors'
+      )
       console.log('GitHub errors imported successfully')
       expect(GitHubError).toBeDefined()
       expect(isRequestError).toBeDefined()
@@ -60,11 +62,11 @@ describe('Dependencies Test', () => {
       const { Octokit } = await import('@octokit/rest')
       const { retry } = await import('@octokit/plugin-retry')
       const { throttling } = await import('@octokit/plugin-throttling')
-      
+
       const EnhancedOctokit = Octokit.plugin(retry, throttling)
       console.log('Enhanced Octokit created successfully')
       expect(EnhancedOctokit).toBeDefined()
-      
+
       // Try to instantiate it
       const instance = new EnhancedOctokit()
       expect(instance).toBeDefined()

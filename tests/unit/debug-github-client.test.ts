@@ -9,7 +9,7 @@ describe('GitHubClient Debug', () => {
   it('should create a GitHubClient instance', () => {
     let client: any
     let error: any
-    
+
     try {
       client = new GitHubClient({ accessToken: 'test-token' })
       console.log('✅ Client created successfully')
@@ -17,7 +17,7 @@ describe('GitHubClient Debug', () => {
       error = e
       console.log('❌ Constructor failed:', e)
     }
-    
+
     if (client) {
       console.log('Client instance:', client)
       console.log('Client constructor:', client.constructor.name)
@@ -25,10 +25,10 @@ describe('GitHubClient Debug', () => {
       console.log('Client methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(client)))
       console.log('Has getRepository:', typeof client.getRepository)
       console.log('Has searchRepositories:', typeof client.searchRepositories)
-      
+
       // Check if it's actually the right class
       console.log('Instance of GitHubClient?', client instanceof GitHubClient)
-      
+
       expect(client).toBeInstanceOf(GitHubClient)
       expect(typeof client.getRepository).toBe('function')
       expect(typeof client.searchRepositories).toBe('function')

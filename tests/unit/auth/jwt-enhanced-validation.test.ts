@@ -3,7 +3,7 @@
  * Tests the security improvements made to src/lib/auth/jwt.ts
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock the dependencies before importing the JWT module
 vi.mock('@/lib/config/auth', () => ({
@@ -44,7 +44,9 @@ vi.mock('@/lib/db/config', () => ({
 vi.mock('@/lib/validation/env', () => ({
   getJwtSecret: vi.fn().mockImplementation(() => {
     const secret = process.env.JWT_SECRET
-    return secret && secret !== 'undefined' ? secret : 'test-jwt-secret-32-characters-long-for-testing'
+    return secret && secret !== 'undefined'
+      ? secret
+      : 'test-jwt-secret-32-characters-long-for-testing'
   }),
 }))
 
@@ -53,7 +55,7 @@ vi.mock('@/types/base', () => ({
 }))
 
 // Import after mocking
-import { generateAccessToken, verifyAccessToken, base64urlEncode } from '@/lib/auth/jwt'
+import { base64urlEncode, generateAccessToken, verifyAccessToken } from '@/lib/auth/jwt'
 
 describe('Enhanced JWT Validation Security Tests', () => {
   const originalEnv = process.env
@@ -92,9 +94,7 @@ describe('Enhanced JWT Validation Security Tests', () => {
       const testSession = { id: 'test-session-id' }
 
       // Should throw error for invalid NODE_ENV (implementation throws JWT signing error)
-      await expect(generateAccessToken(testUser, testSession)).rejects.toThrow(
-        'JWT signing failed'
-      )
+      await expect(generateAccessToken(testUser, testSession)).rejects.toThrow('JWT signing failed')
 
       // Restore NODE_ENV
       process.env.NODE_ENV = originalNodeEnv
@@ -225,7 +225,9 @@ describe('Enhanced JWT Validation Security Tests', () => {
     it('should prevent test secrets in production environment', async () => {
       // Mock the JWT secret function to return a test-like secret (64+ chars with 'test' keyword)
       const { getJwtSecret } = await import('@/lib/validation/env')
-      vi.mocked(getJwtSecret).mockReturnValueOnce('test-secret-for-production-validation-with-64-plus-characters-needed')
+      vi.mocked(getJwtSecret).mockReturnValueOnce(
+        'test-secret-for-production-validation-with-64-plus-characters-needed'
+      )
 
       const testUser = {
         id: '12345678-1234-1234-1234-123456789012',
@@ -243,7 +245,9 @@ describe('Enhanced JWT Validation Security Tests', () => {
     it('should validate production secret entropy requirements', async () => {
       // Mock the JWT secret function to return a weak secret (all lowercase, 64+ chars, no test keywords)
       const { getJwtSecret } = await import('@/lib/validation/env')
-      vi.mocked(getJwtSecret).mockReturnValueOnce('productionweaksecret12345678901234567890123456789012345678901234567890')
+      vi.mocked(getJwtSecret).mockReturnValueOnce(
+        'productionweaksecret12345678901234567890123456789012345678901234567890'
+      )
 
       const testUser = {
         id: '12345678-1234-1234-1234-123456789012',
@@ -261,7 +265,9 @@ describe('Enhanced JWT Validation Security Tests', () => {
     it('should detect weak patterns in production secrets', async () => {
       // Mock the JWT secret function to return a secret with weak patterns (contains "password", 64+ chars, mixed case)
       const { getJwtSecret } = await import('@/lib/validation/env')
-      vi.mocked(getJwtSecret).mockReturnValueOnce('MyPassword123SecretKey64CharactersLongForProductionValidationExtra')
+      vi.mocked(getJwtSecret).mockReturnValueOnce(
+        'MyPassword123SecretKey64CharactersLongForProductionValidationExtra'
+      )
 
       const testUser = {
         id: '12345678-1234-1234-1234-123456789012',
@@ -452,15 +458,17 @@ describe('Enhanced JWT Validation Security Tests', () => {
       // but the validation logic can be tested with proper production setup
       const originalNodeEnv = process.env.NODE_ENV
       const originalSecret = process.env.JWT_SECRET
-      
+
       try {
         // Set production environment to trigger validation
         process.env.NODE_ENV = 'production'
-        
+
         // Mock the JWT secret function to return a valid production secret (64+ chars, mixed case, no weak patterns)
         const { getJwtSecret } = await import('@/lib/validation/env')
-        vi.mocked(getJwtSecret).mockReturnValue('MyStrongAuth64CharacterMinimumLengthForProductionEnvironmentJTITestsSafe')
-        
+        vi.mocked(getJwtSecret).mockReturnValue(
+          'MyStrongAuth64CharacterMinimumLengthForProductionEnvironmentJTITestsSafe'
+        )
+
         // Mock generateUUID to return invalid format for this test only
         const { generateUUID } = await import('@/lib/crypto-utils')
         const originalImplementation = vi.mocked(generateUUID).getMockImplementation()
@@ -477,7 +485,7 @@ describe('Enhanced JWT Validation Security Tests', () => {
         await expect(generateAccessToken(testUser, testSession)).rejects.toThrow(
           'JWT validation failed: JTI must be a valid UUID'
         )
-        
+
         // Restore original mock implementation
         if (originalImplementation) {
           vi.mocked(generateUUID).mockImplementation(originalImplementation)
@@ -495,13 +503,15 @@ describe('Enhanced JWT Validation Security Tests', () => {
       // Set production environment
       const originalNodeEnv = process.env.NODE_ENV
       const originalSecret = process.env.JWT_SECRET
-      
+
       try {
         process.env.NODE_ENV = 'production'
-        
+
         // Mock the JWT secret function to return a valid production secret (64+ chars, mixed case, no weak patterns)
         const { getJwtSecret } = await import('@/lib/validation/env')
-        vi.mocked(getJwtSecret).mockReturnValue('MyStrongAuth64CharacterMinimumLengthForProductionEnvironmentJTITestsSafe')
+        vi.mocked(getJwtSecret).mockReturnValue(
+          'MyStrongAuth64CharacterMinimumLengthForProductionEnvironmentJTITestsSafe'
+        )
 
         // Mock generateUUID to return sequential pattern
         const { generateUUID } = await import('@/lib/crypto-utils')
@@ -566,9 +576,7 @@ describe('Enhanced JWT Validation Security Tests', () => {
       }
       const testSession = { id: 'test-session-id' }
 
-      await expect(generateAccessToken(testUser, testSession)).rejects.toThrow(
-        'JWT signing failed'
-      )
+      await expect(generateAccessToken(testUser, testSession)).rejects.toThrow('JWT signing failed')
 
       // Restore NODE_ENV
       process.env.NODE_ENV = originalNodeEnv
@@ -658,7 +666,7 @@ describe('Enhanced JWT Validation Security Tests', () => {
       // Ensure we're in test environment
       const originalNodeEnv = process.env.NODE_ENV
       process.env.NODE_ENV = 'test'
-      
+
       try {
         // Create a valid mock JWT token structure
         const mockHeader = { alg: 'HS256', typ: 'JWT', env: 'test' }
@@ -679,13 +687,13 @@ describe('Enhanced JWT Validation Security Tests', () => {
           .replace(/\+/g, '-')
           .replace(/\//g, '_')
           .replace(/=/g, '')
-        
+
         const payloadEncoded = Buffer.from(JSON.stringify(mockPayload))
           .toString('base64')
           .replace(/\+/g, '-')
           .replace(/\//g, '_')
           .replace(/=/g, '')
-        
+
         const signatureEncoded = Buffer.from(`test-sig-${mockPayload.jti}-${Date.now()}`)
           .toString('base64')
           .replace(/\+/g, '-')
@@ -768,7 +776,7 @@ describe('Enhanced JWT Validation Security Tests', () => {
       const originalSecret = process.env.JWT_SECRET
       process.env.NODE_ENV = 'test'
       process.env.JWT_SECRET = 'test-jwt-secret-32-characters-long-for-testing'
-      
+
       // Test that existing token verification still works
       const testUser = {
         id: '12345678-1234-1234-1234-123456789012',
@@ -784,7 +792,7 @@ describe('Enhanced JWT Validation Security Tests', () => {
       expect(payload.sub).toBe(testUser.id)
       expect(payload.email).toBe(testUser.email)
       expect(payload.sessionId).toBe(testSession.id)
-      
+
       // Restore environment
       process.env.NODE_ENV = originalNodeEnv
       process.env.JWT_SECRET = originalSecret

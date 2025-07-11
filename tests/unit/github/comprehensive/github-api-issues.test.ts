@@ -561,10 +561,18 @@ describe('GitHubClient - Issues & Pull Requests', () => {
       const issueParams1 = { owner: 'testowner', repo: 'testrepo', issueNumber: 1 }
       const issueParams2 = { issueNumber: 1, repo: 'testrepo', owner: 'testowner' }
 
-      const issue1 = await client.getIssue(issueParams1.owner, issueParams1.repo, issueParams1.issueNumber)
+      const issue1 = await client.getIssue(
+        issueParams1.owner,
+        issueParams1.repo,
+        issueParams1.issueNumber
+      )
       const stats1 = client.getCacheStats()
 
-      const issue2 = await client.getIssue(issueParams2.owner, issueParams2.repo, issueParams2.issueNumber)
+      const issue2 = await client.getIssue(
+        issueParams2.owner,
+        issueParams2.repo,
+        issueParams2.issueNumber
+      )
       const stats2 = client.getCacheStats()
 
       // Should be the same issue and should hit cache

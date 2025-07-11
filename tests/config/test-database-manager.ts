@@ -5,9 +5,9 @@
 
 import { spawn } from 'node:child_process'
 import {
-  type TestEnvironmentConfig,
-  getTestDatabaseUrl,
   createTestEnvironmentName,
+  getTestDatabaseUrl,
+  type TestEnvironmentConfig,
 } from './test-environment.config'
 
 interface DatabaseConnection {

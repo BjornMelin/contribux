@@ -825,7 +825,7 @@ describe('Error Boundary System', () => {
       // Create a handled rejected promise to avoid unhandled rejection
       const rejectedPromise = Promise.reject(new Error('Test'))
       rejectedPromise.catch(() => {}) // Handle the rejection to prevent warnings
-      
+
       const rejectionEvent = new PromiseRejectionEvent('unhandledrejection', {
         promise: rejectedPromise,
         reason: new Error('Test'),

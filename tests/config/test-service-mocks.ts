@@ -3,7 +3,7 @@
  * Provides comprehensive mocking for external services with environment-specific configuration
  */
 
-import { beforeAll, afterAll, vi } from 'vitest'
+import { afterAll, beforeAll, vi } from 'vitest'
 import type { TestEnvironmentConfig } from './test-environment.config'
 
 // Mock server instance type
@@ -379,7 +379,7 @@ export class TestServiceMockManager {
           }
         }),
 
-        getRepositoryIssues: vi.fn().mockImplementation(async (owner: string, repo: string) => {
+        getRepositoryIssues: vi.fn().mockImplementation(async (_owner: string, _repo: string) => {
           return {
             total_count: 1,
             items: [
@@ -421,18 +421,20 @@ export class TestServiceMockManager {
           avatar_url: 'https://github.com/images/test-user.png',
         }),
 
-        getIssue: vi.fn().mockImplementation(async (owner: string, repo: string, issueNumber: number) => {
-          return {
-            id: issueNumber,
-            number: issueNumber,
-            title: `Issue ${issueNumber}`,
-            body: `Mocked issue ${issueNumber}`,
-            state: 'open',
-            user: { login: 'testuser', id: 1 },
-          }
-        }),
+        getIssue: vi
+          .fn()
+          .mockImplementation(async (_owner: string, _repo: string, issueNumber: number) => {
+            return {
+              id: issueNumber,
+              number: issueNumber,
+              title: `Issue ${issueNumber}`,
+              body: `Mocked issue ${issueNumber}`,
+              state: 'open',
+              user: { login: 'testuser', id: 1 },
+            }
+          }),
 
-        listIssues: vi.fn().mockImplementation(async (owner: string, repo: string) => {
+        listIssues: vi.fn().mockImplementation(async (_owner: string, _repo: string) => {
           return [
             {
               id: 1,
@@ -445,18 +447,20 @@ export class TestServiceMockManager {
           ]
         }),
 
-        getPullRequest: vi.fn().mockImplementation(async (owner: string, repo: string, pullNumber: number) => {
-          return {
-            id: pullNumber,
-            number: pullNumber,
-            title: `Pull Request ${pullNumber}`,
-            body: `Mocked pull request ${pullNumber}`,
-            state: 'open',
-            user: { login: 'testuser', id: 1 },
-          }
-        }),
+        getPullRequest: vi
+          .fn()
+          .mockImplementation(async (_owner: string, _repo: string, pullNumber: number) => {
+            return {
+              id: pullNumber,
+              number: pullNumber,
+              title: `Pull Request ${pullNumber}`,
+              body: `Mocked pull request ${pullNumber}`,
+              state: 'open',
+              user: { login: 'testuser', id: 1 },
+            }
+          }),
 
-        listPullRequests: vi.fn().mockImplementation(async (owner: string, repo: string) => {
+        listPullRequests: vi.fn().mockImplementation(async (_owner: string, _repo: string) => {
           return [
             {
               id: 1,
@@ -469,25 +473,29 @@ export class TestServiceMockManager {
           ]
         }),
 
-        listIssueComments: vi.fn().mockImplementation(async (owner: string, repo: string, issueNumber: number) => {
-          return [
-            {
-              id: 1,
-              body: 'Mocked comment',
+        listIssueComments: vi
+          .fn()
+          .mockImplementation(async (_owner: string, _repo: string, _issueNumber: number) => {
+            return [
+              {
+                id: 1,
+                body: 'Mocked comment',
+                user: { login: 'testuser', id: 1 },
+                created_at: new Date().toISOString(),
+              },
+            ]
+          }),
+
+        getComment: vi
+          .fn()
+          .mockImplementation(async (_owner: string, _repo: string, commentId: number) => {
+            return {
+              id: commentId,
+              body: `Mocked comment ${commentId}`,
               user: { login: 'testuser', id: 1 },
               created_at: new Date().toISOString(),
-            },
-          ]
-        }),
-
-        getComment: vi.fn().mockImplementation(async (owner: string, repo: string, commentId: number) => {
-          return {
-            id: commentId,
-            body: `Mocked comment ${commentId}`,
-            user: { login: 'testuser', id: 1 },
-            created_at: new Date().toISOString(),
-          }
-        }),
+            }
+          }),
 
         getRateLimit: vi.fn().mockResolvedValue({
           limit: 5000,
@@ -531,7 +539,7 @@ export class TestServiceMockManager {
         return new (vi.mocked(require('@/lib/github/client').GitHubClient))()
       }),
 
-      createGitHubClient: vi.fn().mockImplementation((config: any) => {
+      createGitHubClient: vi.fn().mockImplementation((_config: any) => {
         return new (vi.mocked(require('@/lib/github/client').GitHubClient))()
       }),
     }))
@@ -546,14 +554,14 @@ export class TestServiceMockManager {
     const authConfig = this.config.services?.auth
 
     // Provide fallback configuration if auth config is not available
-    const defaultUser = authConfig?.defaultUser || {
+    const _defaultUser = authConfig?.defaultUser || {
       id: 'test-user-id',
       name: 'Test User',
       email: 'test@example.com',
       login: 'testuser',
       avatar_url: 'https://github.com/images/error/testuser_happy.gif',
     }
-    const sessionTimeout = authConfig?.sessionTimeout || 24 * 60 * 60 * 1000 // 24 hours
+    const _sessionTimeout = authConfig?.sessionTimeout || 24 * 60 * 60 * 1000 // 24 hours
 
     vi.mock('@/lib/auth', () => ({
       auth: vi.fn().mockResolvedValue({

@@ -3,7 +3,7 @@
  * Validates modern CSP directives and security configuration
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { buildCSP, generateNonce, getCSPDirectives } from '@/lib/security/csp'
 
 describe('CSP Configuration', () => {

@@ -3,15 +3,15 @@
  * Ensures the enhanced test environment is working correctly
  */
 
-import { describe, it, expect, beforeAll } from 'vitest'
-import {
-  loadTestEnvironment,
-  validateTestEnvironment,
-  getTestDatabaseUrl,
-  createTestEnvironmentName,
-  TEST_ENVIRONMENTS,
-} from './test-environment.config'
+import { beforeAll, describe, expect, it } from 'vitest'
 import { EnhancedTestDatabaseManager } from './test-database-manager'
+import {
+  createTestEnvironmentName,
+  getTestDatabaseUrl,
+  loadTestEnvironment,
+  TEST_ENVIRONMENTS,
+  validateTestEnvironment,
+} from './test-environment.config'
 import { TestServiceMockManager } from './test-service-mocks'
 
 describe('Enhanced Test Environment Configuration', () => {

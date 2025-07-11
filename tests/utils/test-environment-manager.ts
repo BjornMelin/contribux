@@ -342,31 +342,37 @@ export class TestEnvironmentManager {
           name: 'Test User',
           email: 'test@example.com',
         }),
-        getIssue: vi.fn().mockImplementation(async (owner: string, repo: string, issueNumber: number) => ({
-          id: issueNumber,
-          number: issueNumber,
-          title: `Issue ${issueNumber}`,
-          body: `Test issue ${issueNumber}`,
-          state: 'open',
-          user: { login: 'testuser', id: 1 },
-        })),
+        getIssue: vi
+          .fn()
+          .mockImplementation(async (_owner: string, _repo: string, issueNumber: number) => ({
+            id: issueNumber,
+            number: issueNumber,
+            title: `Issue ${issueNumber}`,
+            body: `Test issue ${issueNumber}`,
+            state: 'open',
+            user: { login: 'testuser', id: 1 },
+          })),
         listIssues: vi.fn().mockResolvedValue([]),
-        getPullRequest: vi.fn().mockImplementation(async (owner: string, repo: string, pullNumber: number) => ({
-          id: pullNumber,
-          number: pullNumber,
-          title: `Pull Request ${pullNumber}`,
-          body: `Test pull request ${pullNumber}`,
-          state: 'open',
-          user: { login: 'testuser', id: 1 },
-        })),
+        getPullRequest: vi
+          .fn()
+          .mockImplementation(async (_owner: string, _repo: string, pullNumber: number) => ({
+            id: pullNumber,
+            number: pullNumber,
+            title: `Pull Request ${pullNumber}`,
+            body: `Test pull request ${pullNumber}`,
+            state: 'open',
+            user: { login: 'testuser', id: 1 },
+          })),
         listPullRequests: vi.fn().mockResolvedValue([]),
         listIssueComments: vi.fn().mockResolvedValue([]),
-        getComment: vi.fn().mockImplementation(async (owner: string, repo: string, commentId: number) => ({
-          id: commentId,
-          body: `Test comment ${commentId}`,
-          user: { login: 'testuser', id: 1 },
-          created_at: new Date().toISOString(),
-        })),
+        getComment: vi
+          .fn()
+          .mockImplementation(async (_owner: string, _repo: string, commentId: number) => ({
+            id: commentId,
+            body: `Test comment ${commentId}`,
+            user: { login: 'testuser', id: 1 },
+            created_at: new Date().toISOString(),
+          })),
         getRateLimit: vi.fn().mockResolvedValue({
           limit: 5000,
           remaining: 4999,
@@ -391,9 +397,9 @@ export class TestEnvironmentManager {
           maxCacheSize: 100,
         }),
       })),
-      createGitHubClient: vi.fn().mockImplementation(() => 
-        new (vi.fn().mockImplementation(() => ({})))()
-      ),
+      createGitHubClient: vi
+        .fn()
+        .mockImplementation(() => new (vi.fn().mockImplementation(() => ({})))()),
     }))
   }
 
