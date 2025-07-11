@@ -9,8 +9,8 @@ import { z } from 'zod'
 import { authConfig } from '@/lib/config/auth'
 import { base64url, generateRandomToken, generateUUID } from '@/lib/crypto-utils'
 import { sql } from '@/lib/db/config'
-import { createSecureHash } from '@/lib/security/crypto-simple'
 import { ErrorHandler } from '@/lib/errors/enhanced-error-handler'
+import { createSecureHash } from '@/lib/security/crypto-simple'
 import type { AccessTokenPayload, RefreshTokenPayload, User, UserSession } from '@/types/auth'
 import type { Email, GitHubUsername, UUID } from '@/types/base'
 import { brandAsUUID } from '@/types/base'
@@ -90,15 +90,15 @@ import { getJwtSecret as getValidatedJwtSecret } from '@/lib/validation/env'
 const getJwtSecret = (): Uint8Array => {
   const secret = getValidatedJwtSecret()
   const environment = process.env.NODE_ENV
-  
+
   if (environment === 'test') {
     return getTestEnvironmentSecret(secret)
   }
-  
+
   if (environment === 'production') {
     validateProductionEnvironment(secret)
   }
-  
+
   return new TextEncoder().encode(secret)
 }
 
@@ -226,9 +226,9 @@ function validateJWTRequiredFields(payload: Record<string, unknown>): void {
   const requiredFields = [
     { field: 'sub', name: 'Subject' },
     { field: 'iat', name: 'Issued at' },
-    { field: 'exp', name: 'Expiration' }
+    { field: 'exp', name: 'Expiration' },
   ]
-  
+
   for (const { field, name } of requiredFields) {
     if (!payload[field]) {
       throw new Error(`JWT payload validation failed: ${name} (${field}) is required`)
@@ -243,9 +243,9 @@ function validateJWTFieldTypes(payload: Record<string, unknown>): void {
   const fieldTypes = [
     { field: 'sub', type: 'string', name: 'Subject' },
     { field: 'iat', type: 'number', name: 'Issued at' },
-    { field: 'exp', type: 'number', name: 'Expiration' }
+    { field: 'exp', type: 'number', name: 'Expiration' },
   ]
-  
+
   for (const { field, type, name } of fieldTypes) {
     if (typeof payload[field] !== type) {
       throw new Error(`JWT payload validation failed: ${name} (${field}) must be a ${type}`)
@@ -259,11 +259,11 @@ function validateJWTFieldTypes(payload: Record<string, unknown>): void {
 function validateJWTExpirationLogic(payload: Record<string, unknown>): void {
   const iat = payload.iat as number
   const exp = payload.exp as number
-  
+
   if (exp <= iat) {
     throw new Error('JWT payload validation failed: Expiration must be after issued at time')
   }
-  
+
   const maxExpiration = iat + 7 * 24 * 60 * 60 // 7 days in seconds
   if (exp > maxExpiration) {
     throw new Error(
@@ -389,6 +389,7 @@ function validateSubject(sub: string): void {
 
   // Test environment specific checks
   if (process.env.NODE_ENV === 'test' && !sub.includes('test') && !sub.startsWith('demo-')) {
+    // Allow test subjects in test environment
   }
 
   // Production environment specific checks
@@ -552,6 +553,7 @@ function validateVerifiedPayload(payload: Record<string, unknown>): void {
       !payload.sub.includes('test') &&
       !payload.sub.startsWith('demo-')
     ) {
+      // Test environment allows non-test subjects for flexibility
     }
   }
 
@@ -578,15 +580,15 @@ function handleJWTVerificationError(error: unknown): never {
   if (isJoseError(error)) {
     handleJoseError(error)
   }
-  
+
   if (isCustomValidationError(error)) {
     handleCustomValidationError(error)
   }
-  
+
   if (isEnvironmentValidationError(error)) {
     handleEnvironmentValidationError(error)
   }
-  
+
   // For any other errors, create a generic authentication error with context
   throw ErrorHandler.createAuthError('invalid_token', error, {
     errorType: 'unknown_jwt_error',
@@ -611,14 +613,14 @@ function handleJoseError(error: joseErrors.JOSEError): never {
       originalMessage: error.message,
     })
   }
-  
+
   if (error instanceof joseErrors.JWTInvalid) {
     throw ErrorHandler.createAuthError('invalid_token', error, {
       joseErrorType: 'JWTInvalid',
       originalMessage: error.message,
     })
   }
-  
+
   if (error instanceof joseErrors.JWSInvalid) {
     throw ErrorHandler.createAuthError('invalid_token', error, {
       joseErrorType: 'JWSInvalid',
@@ -626,7 +628,7 @@ function handleJoseError(error: joseErrors.JOSEError): never {
       issue: 'signature_verification_failed',
     })
   }
-  
+
   if (error instanceof joseErrors.JWTClaimValidationFailed) {
     throw ErrorHandler.createAuthError('invalid_token', error, {
       joseErrorType: 'JWTClaimValidationFailed',
@@ -634,7 +636,7 @@ function handleJoseError(error: joseErrors.JOSEError): never {
       issue: 'claim_validation_failed',
     })
   }
-  
+
   // Generic jose error
   throw ErrorHandler.createAuthError('invalid_token', error, {
     joseErrorType: 'JOSEError',
@@ -663,9 +665,11 @@ function handleCustomValidationError(error: Error): never {
  * Check if error is an environment validation error
  */
 function isEnvironmentValidationError(error: unknown): error is Error {
-  return error instanceof Error &&
+  return (
+    error instanceof Error &&
     (error.message.includes('Test environment validation failed:') ||
-     error.message.includes('Production environment validation failed:'))
+      error.message.includes('Production environment validation failed:'))
+  )
 }
 
 /**
@@ -772,7 +776,10 @@ async function signJWT(payload: Record<string, unknown>, secret: Uint8Array): Pr
   }
 }
 
-export async function verifyJWT(token: string, secret: Uint8Array): Promise<Record<string, unknown>> {
+export async function verifyJWT(
+  token: string,
+  secret: Uint8Array
+): Promise<Record<string, unknown>> {
   try {
     // Enhanced token format validation
     validateTokenFormat(token)
@@ -832,7 +839,9 @@ export async function generateAccessToken(
   // Validate input parameters
   const parseResult = GenerateAccessTokenSchema.safeParse({ user, session, authMethod })
   if (!parseResult.success) {
-    throw new Error(`Invalid parameters: ${parseResult.error.errors.map(e => e.message).join(', ')}`)
+    throw new Error(
+      `Invalid parameters: ${parseResult.error.errors.map(e => e.message).join(', ')}`
+    )
   }
   const _validated = parseResult.data
 
@@ -878,7 +887,9 @@ export async function generateRefreshToken(userId: string, sessionId: string): P
   // Validate input parameters
   const parseResult = GenerateRefreshTokenSchema.safeParse({ userId, sessionId })
   if (!parseResult.success) {
-    throw new Error(`Invalid parameters: ${parseResult.error.errors.map(e => e.message).join(', ')}`)
+    throw new Error(
+      `Invalid parameters: ${parseResult.error.errors.map(e => e.message).join(', ')}`
+    )
   }
   const validated = parseResult.data
 
@@ -994,9 +1005,11 @@ function validateTestEnvironmentPayload(payload: AccessTokenPayload): void {
 
   // Validate test environment specific patterns
   if (!payload.sub.includes('test') && !payload.sub.startsWith('demo-')) {
+    // Non-test subjects allowed in test environment for flexibility
   }
 
   if (!payload.email.includes('test') && !payload.email.includes('demo')) {
+    // Non-test emails allowed in test environment for flexibility
   }
 
   // Validate expiration times are reasonable for test environment
@@ -1164,7 +1177,9 @@ export async function verifyRefreshToken(token: string): Promise<RefreshTokenPay
   // Validate input parameters
   const parseResult = VerifyRefreshTokenSchema.safeParse({ token })
   if (!parseResult.success) {
-    throw new Error(`Invalid parameters: ${parseResult.error.errors.map(e => e.message).join(', ')}`)
+    throw new Error(
+      `Invalid parameters: ${parseResult.error.errors.map(e => e.message).join(', ')}`
+    )
   }
   const validated = parseResult.data
 
@@ -1291,7 +1306,9 @@ export async function rotateRefreshToken(oldToken: string): Promise<{
   // Validate input parameters
   const parseResult = RotateRefreshTokenSchema.safeParse({ oldToken })
   if (!parseResult.success) {
-    throw new Error(`Invalid parameters: ${parseResult.error.errors.map(e => e.message).join(', ')}`)
+    throw new Error(
+      `Invalid parameters: ${parseResult.error.errors.map(e => e.message).join(', ')}`
+    )
   }
   const validated = parseResult.data
 
@@ -1402,7 +1419,9 @@ export async function revokeRefreshToken(token: string): Promise<void> {
   // Validate input parameters
   const parseResult = RevokeRefreshTokenSchema.safeParse({ token })
   if (!parseResult.success) {
-    throw new Error(`Invalid parameters: ${parseResult.error.errors.map(e => e.message).join(', ')}`)
+    throw new Error(
+      `Invalid parameters: ${parseResult.error.errors.map(e => e.message).join(', ')}`
+    )
   }
   const validated = parseResult.data
 
@@ -1429,7 +1448,9 @@ export async function revokeAllUserTokens(
   // Validate input parameters
   const parseResult = RevokeAllUserTokensSchema.safeParse({ userId, options })
   if (!parseResult.success) {
-    throw new Error(`Invalid parameters: ${parseResult.error.errors.map(e => e.message).join(', ')}`)
+    throw new Error(
+      `Invalid parameters: ${parseResult.error.errors.map(e => e.message).join(', ')}`
+    )
   }
   const validated = parseResult.data
 
@@ -1501,7 +1522,9 @@ export async function createSession(
   // Validate input parameters
   const parseResult = CreateSessionSchema.safeParse({ user, authMethod, context })
   if (!parseResult.success) {
-    throw new Error(`Invalid parameters: ${parseResult.error.errors.map(e => e.message).join(', ')}`)
+    throw new Error(
+      `Invalid parameters: ${parseResult.error.errors.map(e => e.message).join(', ')}`
+    )
   }
   const validated = parseResult.data
 
@@ -1551,7 +1574,9 @@ export async function refreshSession(sessionId: string): Promise<void> {
   // Validate input parameters
   const parseResult = RefreshSessionSchema.safeParse({ sessionId })
   if (!parseResult.success) {
-    throw new Error(`Invalid parameters: ${parseResult.error.errors.map(e => e.message).join(', ')}`)
+    throw new Error(
+      `Invalid parameters: ${parseResult.error.errors.map(e => e.message).join(', ')}`
+    )
   }
   const validated = parseResult.data
 

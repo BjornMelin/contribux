@@ -389,3 +389,9 @@ setInterval(
   },
   5 * 60 * 1000
 ) // Cleanup every 5 minutes
+
+/**
+ * Export aliases for test compatibility
+ */
+export const edgeSecurityMiddleware = enhancedSecurityMiddleware
+export const enhancedEdgeMiddleware = enhancedSecurityMiddleware

@@ -3,7 +3,7 @@
  * This version works without database connectivity or OAuth credentials
  */
 
-import NextAuth, { type AuthOptions } from 'next-auth'
+import NextAuth, { type AuthOptions, type Session, type User } from 'next-auth'
 import { getProviders } from './providers/index'
 
 // NextAuth.js TypeScript declarations
@@ -71,15 +71,16 @@ const authConfig: AuthOptions = {
           id: token.sub,
           name: token.name || 'Demo User',
           email: token.email || 'demo@example.com',
+          emailVerified: token.email_verified ? new Date(token.email_verified as string) : null,
           image: token.picture || null,
           login: undefined,
           githubId: undefined,
           githubUsername: undefined,
           connectedProviders: [token.provider || 'demo'],
           primaryProvider: token.provider || 'demo',
-        } as any
+        } as User
         // Store additional session data
-        ;(session as any).accessToken = token.accessToken
+        ;(session as Session).accessToken = token.accessToken
       }
       return session
     },

@@ -3,15 +3,14 @@
  * Provides various security middleware functions for Next.js
  */
 
-import { type NextRequest, NextResponse } from 'next/server'
-import { SecurityHeadersManager } from '@/lib/security/security-headers'
-import { verifyAccessToken } from '@/lib/auth/jwt'
-import { validateSession } from '@/lib/auth/session'
-import { checkPermission } from '@/lib/auth/permissions'
-import { z } from 'zod'
+import crypto, { timingSafeEqual } from 'node:crypto'
 import ipaddr from 'ipaddr.js'
-import { timingSafeEqual } from 'node:crypto'
-import crypto from 'node:crypto'
+import { type NextRequest, NextResponse } from 'next/server'
+import type { z } from 'zod'
+import { verifyAccessToken } from '@/lib/auth/jwt'
+import { checkPermission } from '@/lib/auth/permissions'
+import { validateSession } from '@/lib/auth/session'
+import { SecurityHeadersManager } from '@/lib/security/security-headers'
 
 export type MiddlewareHandler = (req: NextRequest) => Promise<NextResponse>
 
@@ -22,16 +21,18 @@ export async function securityMiddleware(
 ): Promise<NextResponse> {
   const response = await handler(request)
   const manager = new SecurityHeadersManager()
-  
+
   // Check if request is HTTPS
   const isHttps = request.url.startsWith('https:')
-  
+
   return manager.applyHeaders(request, response, {
-    hsts: isHttps ? {
-      maxAge: 31536000,
-      includeSubDomains: true,
-      preload: true
-    } : undefined
+    hsts: isHttps
+      ? {
+          maxAge: 31536000,
+          includeSubDomains: true,
+          preload: true,
+        }
+      : undefined,
   })
 }
 
@@ -47,7 +48,7 @@ export interface CorsConfig {
 export function corsMiddleware(config: CorsConfig) {
   return async (request: NextRequest, handler: MiddlewareHandler): Promise<NextResponse> => {
     const origin = request.headers.get('origin')
-    
+
     // Handle preflight requests
     if (request.method === 'OPTIONS') {
       return handlePreflight(request, config)
@@ -55,10 +56,7 @@ export function corsMiddleware(config: CorsConfig) {
 
     // Check origin
     if (origin && !isOriginAllowed(origin, config.allowedOrigins)) {
-      return NextResponse.json(
-        { error: 'CORS: Origin not allowed' },
-        { status: 403 }
-      )
+      return NextResponse.json({ error: 'CORS: Origin not allowed' }, { status: 403 })
     }
 
     // Call handler
@@ -83,16 +81,13 @@ export function corsMiddleware(config: CorsConfig) {
 
 function handlePreflight(request: NextRequest, config: CorsConfig): NextResponse {
   const origin = request.headers.get('origin')
-  
+
   if (!origin || !isOriginAllowed(origin, config.allowedOrigins)) {
-    return NextResponse.json(
-      { error: 'CORS: Origin not allowed' },
-      { status: 403 }
-    )
+    return NextResponse.json({ error: 'CORS: Origin not allowed' }, { status: 403 })
   }
 
   const headers = new Headers()
-  
+
   if (Array.isArray(config.allowedOrigins) && config.allowedOrigins.includes('*')) {
     headers.set('Access-Control-Allow-Origin', '*')
   } else {
@@ -118,7 +113,10 @@ function handlePreflight(request: NextRequest, config: CorsConfig): NextResponse
   return new NextResponse(null, { status: 204, headers })
 }
 
-function isOriginAllowed(origin: string, allowedOrigins: string[] | ((origin: string) => boolean)): boolean {
+function isOriginAllowed(
+  origin: string,
+  allowedOrigins: string[] | ((origin: string) => boolean)
+): boolean {
   if (typeof allowedOrigins === 'function') {
     return allowedOrigins(origin)
   }
@@ -161,10 +159,7 @@ export function authMiddleware(config: AuthConfig = {}) {
       }
 
       if (!user && !config.optional) {
-        return NextResponse.json(
-          { error: 'Authorization required' },
-          { status: 401 }
-        )
+        return NextResponse.json({ error: 'Authorization required' }, { status: 401 })
       }
 
       // Check permissions if required
@@ -173,10 +168,7 @@ export function authMiddleware(config: AuthConfig = {}) {
           const userId = user.userId || user.id || user.sub
           const hasPermission = await checkPermission(userId, permission)
           if (!hasPermission) {
-            return NextResponse.json(
-              { error: 'Insufficient permissions' },
-              { status: 403 }
-            )
+            return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
           }
         }
       }
@@ -184,11 +176,8 @@ export function authMiddleware(config: AuthConfig = {}) {
       // Add user to request context
       const enhancedRequest = Object.assign(request, { user })
       return handler(enhancedRequest)
-    } catch (error) {
-      return NextResponse.json(
-        { error: 'Authentication failed' },
-        { status: 401 }
-      )
+    } catch (_error) {
+      return NextResponse.json({ error: 'Authentication failed' }, { status: 401 })
     }
   }
 }
@@ -201,12 +190,9 @@ export interface IPWhitelistConfig {
 export function ipWhitelistMiddleware(config: IPWhitelistConfig) {
   return async (request: NextRequest, handler: MiddlewareHandler): Promise<NextResponse> => {
     const clientIP = getClientIP(request)
-    
+
     if (!isIPAllowed(clientIP, config.whitelist)) {
-      return NextResponse.json(
-        { error: 'Access denied: IP not whitelisted' },
-        { status: 403 }
-      )
+      return NextResponse.json({ error: 'Access denied: IP not whitelisted' }, { status: 403 })
     }
 
     return handler(request)
@@ -224,19 +210,18 @@ function isIPAllowed(ip: string, whitelist: string[]): boolean {
 
   try {
     const clientAddr = ipaddr.process(ip)
-    
+
     return whitelist.some(range => {
       try {
         if (range.includes('/')) {
           // CIDR notation
           const [rangeIP, prefixLength] = range.split('/')
           const rangeAddr = ipaddr.process(rangeIP)
-          return clientAddr.match(rangeAddr, parseInt(prefixLength, 10))
-        } else {
-          // Single IP
-          const rangeAddr = ipaddr.process(range)
-          return clientAddr.toString() === rangeAddr.toString()
+          return clientAddr.match(rangeAddr, Number.parseInt(prefixLength, 10))
         }
+        // Single IP
+        const rangeAddr = ipaddr.process(range)
+        return clientAddr.toString() === rangeAddr.toString()
       } catch {
         return false
       }
@@ -300,11 +285,8 @@ export function requestValidationMiddleware(config: ValidationConfig) {
       // Add validated data to request
       const enhancedRequest = Object.assign(request, validatedData)
       return handler(enhancedRequest)
-    } catch (error) {
-      return NextResponse.json(
-        { error: 'Request processing failed' },
-        { status: 400 }
-      )
+    } catch (_error) {
+      return NextResponse.json({ error: 'Request processing failed' }, { status: 400 })
     }
   }
 }
@@ -332,7 +314,7 @@ export function antiCsrfMiddleware(config: CSRFConfig = {}) {
     // Skip CSRF validation for safe methods but still pass enhanced request
     if (['GET', 'HEAD', 'OPTIONS'].includes(method)) {
       const response = await handler(enhancedRequest)
-      
+
       // Set CSRF cookie if token was generated
       if (enhancedRequest.generateCsrfToken) {
         const newToken = await enhancedRequest.generateCsrfToken()
@@ -342,7 +324,7 @@ export function antiCsrfMiddleware(config: CSRFConfig = {}) {
           sameSite: 'strict',
         })
       }
-      
+
       return response
     }
 
@@ -350,27 +332,24 @@ export function antiCsrfMiddleware(config: CSRFConfig = {}) {
     const cookieValue = request.cookies.get(cookieName)?.value
 
     if (!token || !cookieValue) {
-      return NextResponse.json(
-        { error: 'CSRF token missing' },
-        { status: 403 }
-      )
+      return NextResponse.json({ error: 'CSRF token missing' }, { status: 403 })
     }
 
     // In a real implementation, you'd verify the CSRF token properly
     // For testing, we'll use a simple check
     const isValid = validateCSRFToken(token, cookieValue, secret)
-    
+
     if (!isValid) {
-      return NextResponse.json(
-        { error: 'CSRF token invalid' },
-        { status: 403 }
-      )
+      return NextResponse.json({ error: 'CSRF token invalid' }, { status: 403 })
     }
 
     const response = await handler(enhancedRequest)
 
     // Set CSRF cookie if needed
-    if (enhancedRequest.generateCsrfToken && typeof enhancedRequest.generateCsrfToken === 'function') {
+    if (
+      enhancedRequest.generateCsrfToken &&
+      typeof enhancedRequest.generateCsrfToken === 'function'
+    ) {
       const newToken = await enhancedRequest.generateCsrfToken()
       response.cookies.set(cookieName, newToken, {
         httpOnly: true,
@@ -383,21 +362,21 @@ export function antiCsrfMiddleware(config: CSRFConfig = {}) {
   }
 }
 
-function validateCSRFToken(token: string, secret: string, serverSecret: string): boolean {
+function validateCSRFToken(token: string, secret: string, _serverSecret: string): boolean {
   // Simplified CSRF validation for testing
   if (!token || !secret) return false
-  
+
   // For test environment, use simple string comparison
   if (process.env.NODE_ENV === 'test' || process.env.VITEST) {
     return token === secret
   }
-  
+
   try {
     const tokenBuffer = Buffer.from(token, 'hex')
     const secretBuffer = Buffer.from(secret, 'hex')
-    
+
     if (tokenBuffer.length !== secretBuffer.length) return false
-    
+
     // Use timing-safe comparison with fallback for test environments
     try {
       return timingSafeEqual(tokenBuffer, secretBuffer)
@@ -414,7 +393,7 @@ function validateCSRFToken(token: string, secret: string, serverSecret: string):
   }
 }
 
-async function generateCSRFToken(secret: string): Promise<string> {
+async function generateCSRFToken(_secret: string): Promise<string> {
   return crypto.randomBytes(32).toString('hex')
 }
 

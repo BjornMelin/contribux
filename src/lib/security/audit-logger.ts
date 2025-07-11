@@ -580,14 +580,52 @@ export class SecurityAuditLogger {
   }
 }
 
-// Default audit logger instance
-export const auditLogger = new SecurityAuditLogger({
-  enabled: process.env.NODE_ENV === 'production',
-  logToConsole: process.env.NODE_ENV !== 'production',
-  logToFile: false,
-  logToDatabase: true,
-  retentionDays: 90,
-  minSeverity: AuditSeverity.INFO,
-  sanitizeFields: ['password', 'token', 'secret', 'apiKey'],
-  complianceMode: true,
-})
+// Lazy-loaded audit logger instance to avoid module initialization issues
+let _auditLogger: SecurityAuditLogger | null = null
+
+function getAuditLogger(): SecurityAuditLogger {
+  if (!_auditLogger) {
+    _auditLogger = new SecurityAuditLogger({
+      enabled: process.env.NODE_ENV === 'production',
+      logToConsole: process.env.NODE_ENV !== 'production',
+      logToFile: false,
+      logToDatabase: true,
+      retentionDays: 90,
+      minSeverity: AuditSeverity.INFO,
+      sanitizeFields: ['password', 'token', 'secret', 'apiKey'],
+      complianceMode: true,
+    })
+  }
+  return _auditLogger
+}
+
+// Maintain backward compatibility with getters that lazily initialize
+export const auditLogger = {
+  get log() {
+    return getAuditLogger().log.bind(getAuditLogger())
+  },
+  get logAuthSuccess() {
+    return getAuditLogger().logAuthSuccess.bind(getAuditLogger())
+  },
+  get logAuthFailure() {
+    return getAuditLogger().logAuthFailure.bind(getAuditLogger())
+  },
+  get logApiAccess() {
+    return getAuditLogger().logApiAccess.bind(getAuditLogger())
+  },
+  get logSecurityViolation() {
+    return getAuditLogger().logSecurityViolation.bind(getAuditLogger())
+  },
+  get logDataAccess() {
+    return getAuditLogger().logDataAccess.bind(getAuditLogger())
+  },
+  get query() {
+    return getAuditLogger().query.bind(getAuditLogger())
+  },
+  get generateReport() {
+    return getAuditLogger().generateReport.bind(getAuditLogger())
+  },
+  get stop() {
+    return getAuditLogger().stop.bind(getAuditLogger())
+  },
+}

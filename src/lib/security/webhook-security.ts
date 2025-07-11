@@ -6,9 +6,9 @@
  * This addresses PR review requirements for webhook security.
  */
 
-import { createHmac, timingSafeEqual } from 'node:crypto'
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { createHmac, timingSafeEqualSync as timingSafeEqual } from '@/lib/crypto-utils'
 import { GitHubWebhookPayloadSchema } from '@/types/github-integration'
 import { checkAuthRateLimit, createRateLimitResponse, recordAuthResult } from './auth-rate-limiting'
 
@@ -370,7 +370,7 @@ export class WebhookSecurityValidator {
     if (!parseResult.success) {
       return {
         success: false,
-        error: `Invalid headers: ${parseResult.error.errors.map(e => e.message).join(', ')}`
+        error: `Invalid headers: ${parseResult.error.errors.map(e => e.message).join(', ')}`,
       }
     }
 
@@ -409,22 +409,20 @@ export class WebhookSecurityValidator {
         }
       }
 
-      // Compute expected signature
-      const hmac = createHmac('sha256', this.secret)
-      const expectedSignature = `sha256=${hmac.update(body, 'utf8').digest('hex')}`
+      // Compute expected signature using Edge Runtime compatible crypto
+      const hmac = await createHmac('sha256', this.secret)
+      hmac.update(body)
+      const expectedSignature = `sha256=${await hmac.digest('hex')}`
 
       // Timing-safe comparison to prevent timing attacks
-      const providedSignature = Buffer.from(signature, 'utf8')
-      const computedSignature = Buffer.from(expectedSignature, 'utf8')
-
-      if (providedSignature.length !== computedSignature.length) {
+      if (signature.length !== expectedSignature.length) {
         return {
           success: false,
           error: 'Signature length mismatch',
         }
       }
 
-      if (!timingSafeEqual(providedSignature, computedSignature)) {
+      if (!timingSafeEqual(signature, expectedSignature)) {
         return {
           success: false,
           error: 'Signature verification failed',

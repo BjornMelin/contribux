@@ -4,12 +4,13 @@
  */
 
 import { type NextRequest, NextResponse } from 'next/server'
-import { RateLimiter, MemoryStore, RedisStore, keyGenerators, type RateLimitConfig } from './rate-limiter'
+import { keyGenerators, MemoryStore, type RateLimitConfig, RateLimiter } from './rate-limiter'
 
 // Re-export for test compatibility
-export { RateLimiter, MemoryStore, RedisStore, keyGenerators } from './rate-limiter'
+export { keyGenerators, MemoryStore, RateLimiter, RedisStore } from './rate-limiter'
 
-export interface RateLimitMiddlewareConfig extends Omit<RateLimitConfig, 'skip' | 'max' | 'keyGenerator'> {
+export interface RateLimitMiddlewareConfig
+  extends Omit<RateLimitConfig, 'skip' | 'max' | 'keyGenerator'> {
   max: number | ((req: NextRequest) => number)
   keyGenerator?: 'ip' | 'user' | 'combined' | ((req: NextRequest) => string)
   skip?: (req: NextRequest) => boolean
@@ -21,7 +22,7 @@ export type MiddlewareHandler = (req: NextRequest) => Promise<NextResponse>
 export function rateLimitMiddleware(config: RateLimitMiddlewareConfig) {
   // Create store once outside the request handler to persist across requests
   const sharedStore = config.store || new MemoryStore()
-  
+
   return async (request: NextRequest, handler: MiddlewareHandler): Promise<NextResponse> => {
     // Check skip condition at request level
     if (config.skip?.(request)) {
@@ -66,7 +67,7 @@ export function rateLimitMiddleware(config: RateLimitMiddlewareConfig) {
       config.onLimitReached?.({
         identifier,
         limit: result.limit,
-        windowMs: config.windowMs
+        windowMs: config.windowMs,
       })
 
       const headers = new Headers({

@@ -197,7 +197,7 @@ async function checkRequestSignature(
 
       const body = await request.clone().text()
       const url = new URL(request.url)
-      const result = requestSigner.verifyRequest(
+      const result = await requestSigner.verifyRequest(
         request.method,
         url.pathname,
         Object.fromEntries(request.headers.entries()),
@@ -372,7 +372,7 @@ async function applySecurityHeaders(
     return response
   }
 
-  const enhancedResponse = headersManager.applyHeaders(request, response)
+  const enhancedResponse = await headersManager.applyHeaders(request, response)
   securityChecks.securityHeaders = {
     passed: true,
     details: 'Security headers applied',
@@ -385,7 +385,7 @@ async function applySecurityHeaders(
 
     if (corsManagerConfig) {
       const corsManager = new CorsManager(corsManagerConfig)
-      return corsManager.applyCorsHeaders(request, enhancedResponse)
+      return await corsManager.applyCorsHeaders(request, enhancedResponse)
     }
   }
 

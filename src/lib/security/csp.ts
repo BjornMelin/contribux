@@ -54,7 +54,11 @@ export function buildCSP(directives: CSPDirectives, nonce?: string): string {
 /**
  * Build individual directive value
  */
-function buildDirectiveValue(directive: string, sources: string[] | undefined, nonce?: string): string | null {
+function buildDirectiveValue(
+  directive: string,
+  sources: string[] | undefined,
+  nonce?: string
+): string | null {
   if (!sources || sources.length === 0) {
     return handleEmptySourcesDirective(directive)
   }
@@ -70,9 +74,9 @@ function handleEmptySourcesDirective(directive: string): string | null {
   const standaloneDirectives = [
     'upgrade-insecure-requests',
     'block-all-mixed-content',
-    'require-trusted-types-for'
+    'require-trusted-types-for',
   ]
-  
+
   return standaloneDirectives.includes(directive) ? directive : null
 }
 
@@ -81,11 +85,11 @@ function handleEmptySourcesDirective(directive: string): string | null {
  */
 function processSourcesWithNonce(directive: string, sources: string[], nonce?: string): string[] {
   const processedSources = [...sources]
-  
+
   if (nonce && isNonceableDirective(directive)) {
     processedSources.push(`'nonce-${nonce}'`)
   }
-  
+
   return processedSources
 }
 
@@ -104,9 +108,9 @@ function formatDirective(directive: string, sources: string[]): string {
     'report-uri': `report-uri ${sources.join(' ')}`,
     'report-to': `report-to ${sources.join(' ')}`,
     'require-trusted-types-for': `require-trusted-types-for ${sources.join(' ')}`,
-    'trusted-types': `trusted-types ${sources.join(' ')}`
+    'trusted-types': `trusted-types ${sources.join(' ')}`,
   }
-  
+
   return specialFormatDirectives[directive] || `${directive} ${sources.join(' ')}`
 }
 

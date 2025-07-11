@@ -3,8 +3,8 @@
  * Implements RFC 6238 with security enhancements for production use
  */
 
-import * as crypto from 'node:crypto'
 import { z } from 'zod'
+import { createHash, createHmac, randomBytes } from '@/lib/crypto-utils'
 import type { MFAEnrollmentResponse, MFAVerificationResponse, TOTPCredential } from '@/types/auth'
 
 // =============================================================================
@@ -31,17 +31,38 @@ const _QR_CODE_SIZE = 200
 // =============================================================================
 
 /**
+ * Convert hex string to Uint8Array (Edge Runtime compatible)
+ */
+function hexToUint8Array(hex: string): Uint8Array {
+  const bytes = new Uint8Array(hex.length / 2)
+  for (let i = 0; i < hex.length; i += 2) {
+    bytes[i / 2] = Number.parseInt(hex.substr(i, 2), 16)
+  }
+  return bytes
+}
+
+/**
+ * Convert Uint8Array to Uint8Array (for consistency)
+ */
+function _uint8ArrayFromArray(bytes: number[]): Uint8Array {
+  return new Uint8Array(bytes)
+}
+
+/**
  * Generate cryptographically secure random secret
  */
 function generateSecureSecret(): string {
-  const bytes = crypto.randomBytes(TOTP_DEFAULTS.SECRET_LENGTH)
-  return base32Encode(bytes)
+  const bytes = randomBytes(TOTP_DEFAULTS.SECRET_LENGTH)
+  const hexString = bytes.toString('hex')
+  // Convert hex string to Uint8Array for Edge Runtime compatibility
+  const uint8Array = hexToUint8Array(hexString)
+  return base32Encode(uint8Array)
 }
 
 /**
  * Base32 encoding without padding (RFC 4648)
  */
-function base32Encode(buffer: Buffer): string {
+function base32Encode(buffer: Uint8Array): string {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
   let result = ''
   let bits = 0
@@ -96,12 +117,20 @@ function base32Decode(encoded: string): Buffer {
 /**
  * Generate HMAC-based One-Time Password (RFC 4226)
  */
-function generateHOTP(secret: Buffer, counter: number, digits: number): string {
-  const hmac = crypto.createHmac('sha1', secret)
-  const counterBuffer = Buffer.alloc(8)
-  counterBuffer.writeBigUInt64BE(BigInt(counter))
+async function generateHOTP(secret: Buffer, counter: number, digits: number): Promise<string> {
+  const hmac = await createHmac('sha1', secret)
 
-  const hash = hmac.update(counterBuffer).digest()
+  // Create 8-byte counter in big-endian format (Edge Runtime compatible)
+  const counterBuffer = new Uint8Array(8)
+  let counterBigInt = BigInt(counter)
+  for (let i = 7; i >= 0; i--) {
+    counterBuffer[i] = Number(counterBigInt & 0xffn)
+    counterBigInt = counterBigInt >> 8n
+  }
+
+  hmac.update(counterBuffer)
+  const digest = await hmac.digest('hex')
+  const hash = hexToUint8Array(digest)
   const offset = (hash[hash.length - 1] || 0) & 0x0f
 
   const code =
@@ -116,37 +145,37 @@ function generateHOTP(secret: Buffer, counter: number, digits: number): string {
 /**
  * Generate Time-based One-Time Password (RFC 6238)
  */
-function generateTOTP(
+async function generateTOTP(
   secret: string,
   timestamp?: number,
   period = TOTP_DEFAULTS.PERIOD,
   digits = TOTP_DEFAULTS.DIGITS
-): string {
+): Promise<string> {
   const time = Math.floor((timestamp || Date.now()) / 1000)
   const counter = Math.floor(time / period)
-  const secretBuffer = base32Decode(secret)
+  const secretBytes = base32Decode(secret)
 
-  return generateHOTP(secretBuffer, counter, digits)
+  return await generateHOTP(secretBytes, counter, digits)
 }
 
 /**
  * Verify TOTP with time window tolerance
  */
-function verifyTOTP(
+async function verifyTOTP(
   token: string,
   secret: string,
   timestamp?: number,
   window = TOTP_DEFAULTS.WINDOW,
   period = TOTP_DEFAULTS.PERIOD,
   digits = TOTP_DEFAULTS.DIGITS
-): { valid: boolean; timeStepUsed?: number } {
+): Promise<{ valid: boolean; timeStepUsed?: number }> {
   const time = Math.floor((timestamp || Date.now()) / 1000)
   const currentCounter = Math.floor(time / period)
 
   // Check current time step and surrounding window
   for (let i = -window; i <= window; i++) {
     const counter = currentCounter + i
-    const expectedToken = generateTOTP(secret, counter * period * 1000, period, digits)
+    const expectedToken = await generateTOTP(secret, counter * period * 1000, period, digits)
 
     if (timingSafeEqual(token, expectedToken)) {
       return { valid: true, timeStepUsed: counter }
@@ -179,8 +208,14 @@ function generateBackupCodes(count = TOTP_DEFAULTS.BACKUP_CODES_COUNT): string[]
   const codes: string[] = []
 
   for (let i = 0; i < count; i++) {
-    const bytes = crypto.randomBytes(TOTP_DEFAULTS.BACKUP_CODE_LENGTH)
-    const code = bytes.toString('hex').toUpperCase().slice(0, TOTP_DEFAULTS.BACKUP_CODE_LENGTH)
+    const bytes = randomBytes(TOTP_DEFAULTS.BACKUP_CODE_LENGTH)
+    const code = Array.from(
+      new Uint8Array(Buffer.from(bytes.toString('hex'), 'hex')),
+      (byte: number) => byte.toString(16).padStart(2, '0')
+    )
+      .join('')
+      .toUpperCase()
+      .slice(0, TOTP_DEFAULTS.BACKUP_CODE_LENGTH)
     codes.push(code)
   }
 
@@ -278,7 +313,7 @@ export async function verifyTOTPToken(
     const { token } = validatedParams
 
     // Verify token against stored secret
-    const verification = verifyTOTP(
+    const verification = await verifyTOTP(
       token,
       storedCredential.secret,
       undefined,
@@ -333,7 +368,9 @@ export async function verifyBackupCode(
     const { backupCode } = validatedParams
 
     // Hash the provided backup code for comparison
-    const hashedCode = crypto.createHash('sha256').update(backupCode).digest('hex')
+    const hash = await createHash('sha256')
+    hash.update(backupCode)
+    const hashedCode = await hash.digest('hex')
 
     // Check if the hashed code exists in stored backup codes
     const isValidCode = storedBackupCodes.some(storedCode =>
@@ -364,16 +401,22 @@ export async function verifyBackupCode(
 /**
  * Hash backup codes for secure storage
  */
-function hashBackupCodesImpl(plainTextCodes: string[]): string[] {
-  return plainTextCodes.map(code => crypto.createHash('sha256').update(code).digest('hex'))
+async function hashBackupCodesImpl(plainTextCodes: string[]): Promise<string[]> {
+  const hashedCodes: string[] = []
+  for (const code of plainTextCodes) {
+    const hash = await createHash('sha256')
+    hash.update(code)
+    hashedCodes.push(await hash.digest('hex'))
+  }
+  return hashedCodes
 }
 
 /**
  * Generate new backup codes (for regeneration)
  */
-export function regenerateBackupCodes(): { plainText: string[]; hashed: string[] } {
+export async function regenerateBackupCodes(): Promise<{ plainText: string[]; hashed: string[] }> {
   const plainText = generateBackupCodes()
-  const hashed = hashBackupCodesImpl(plainText)
+  const hashed = await hashBackupCodesImpl(plainText)
 
   return { plainText, hashed }
 }

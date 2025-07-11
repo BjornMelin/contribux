@@ -6,7 +6,9 @@
  */
 
 import type { AuthOptions } from 'next-auth'
+
 type Provider = AuthOptions['providers'][number]
+
 import { getDemoProviders } from './demo'
 import { getProductionProviders, validateProductionConfig } from './production'
 

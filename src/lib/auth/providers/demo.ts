@@ -7,6 +7,7 @@
  */
 
 import type { AuthOptions } from 'next-auth'
+
 type Provider = AuthOptions['providers'][number]
 
 /**

@@ -4,9 +4,9 @@
  * Implements key versioning, gradual migration, and audit logging
  */
 
-import { createHash, randomBytes } from 'node:crypto'
 import type { RedisClientType } from '@redis/client'
 import { z } from 'zod'
+import { createHash, randomBytes } from '@/lib/crypto-utils'
 import { AuditEventType, AuditSeverity, auditLogger } from './audit-logger'
 import { SecurityError, SecurityErrorType } from './error-boundaries'
 
@@ -139,7 +139,7 @@ export class ApiKeyManager {
     // Generate key
     const keyBytes = randomBytes(this.config.keyLength)
     const key = this.config.keyPrefix + keyBytes.toString('base64url')
-    const keyHash = this.hashKey(key)
+    const keyHash = await this.hashKey(key)
     const keyId = randomBytes(16).toString('hex')
 
     // Calculate expiration
@@ -202,7 +202,7 @@ export class ApiKeyManager {
         }
       }
 
-      const keyHash = this.hashKey(key)
+      const keyHash = await this.hashKey(key)
 
       // Check cache first
       const cachedKey = Array.from(this.cache.values()).find(k => k.keyHash === keyHash)
@@ -487,8 +487,10 @@ export class ApiKeyManager {
   /**
    * Hash an API key
    */
-  private hashKey(key: string): string {
-    return createHash(this.config.hashAlgorithm).update(key).digest('hex')
+  private async hashKey(key: string): Promise<string> {
+    const hasher = await createHash(this.config.hashAlgorithm)
+    hasher.update(key)
+    return await hasher.digest('hex')
   }
 
   /**

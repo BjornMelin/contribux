@@ -6,15 +6,25 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import {
   checkRateLimit,
-  getRateLimiterForEndpoint,
   getEnhancedRequestIdentifier,
+  getRateLimiterForEndpoint,
 } from './rate-limiter'
 
 /**
  * Map limiter type to endpoint path
  */
 function getLimiterEndpoint(
-  limiterType: 'auth' | 'api' | 'search' | 'webauthn' | 'webhook' | 'admin' | 'public' | 'analytics' | 'security' | 'demo'
+  limiterType:
+    | 'auth'
+    | 'api'
+    | 'search'
+    | 'webauthn'
+    | 'webhook'
+    | 'admin'
+    | 'public'
+    | 'analytics'
+    | 'security'
+    | 'demo'
 ): string {
   const endpointMap: Record<typeof limiterType, string> = {
     auth: '/api/auth/',
@@ -26,9 +36,9 @@ function getLimiterEndpoint(
     analytics: '/api/analytics/',
     security: '/api/security/',
     demo: '/api/demo/',
-    api: '/api/'
+    api: '/api/',
   }
-  
+
   return endpointMap[limiterType]
 }
 
@@ -206,7 +216,9 @@ export function withRateLimit<T extends any[]>(
     }
 
     // Get the rate limiter configuration
-    const endpoint = options.limiterType ? getLimiterEndpoint(options.limiterType) : req.nextUrl.pathname
+    const endpoint = options.limiterType
+      ? getLimiterEndpoint(options.limiterType)
+      : req.nextUrl.pathname
     const { limiter, config, type } = getRateLimiterForEndpoint(endpoint)
 
     // Get identifier (custom or default)
@@ -287,7 +299,9 @@ export async function checkApiRateLimitStatus(
   retryAfter: number | null
   headers: Record<string, string>
 }> {
-  const endpoint = options.limiterType ? getLimiterEndpoint(options.limiterType) : req.nextUrl.pathname
+  const endpoint = options.limiterType
+    ? getLimiterEndpoint(options.limiterType)
+    : req.nextUrl.pathname
   const { limiter, config } = getRateLimiterForEndpoint(endpoint)
 
   const identifier = options.customIdentifier || getEnhancedRequestIdentifier(req)

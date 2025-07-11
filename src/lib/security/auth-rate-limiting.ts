@@ -158,6 +158,9 @@ export function checkAuthRateLimit(request: NextRequest): {
     return { allowed: true }
   }
 
+  // Ensure cleanup timer is running
+  ensureCleanupTimer()
+
   const config = getAuthRateLimitConfig()
   const ip = getClientIP(request)
   const now = Date.now()
@@ -374,10 +377,26 @@ export function getAuthRateLimitStats(): {
   }
 }
 
-// Periodic cleanup
-setInterval(
-  () => {
-    cleanupAuthRateLimit(Date.now())
-  },
-  10 * 60 * 1000 // Cleanup every 10 minutes
-)
+// Periodic cleanup (only in runtime environment)
+let cleanupTimer: NodeJS.Timeout | null = null
+
+function ensureCleanupTimer(): void {
+  // Only start cleanup timer in actual runtime environment (not during build or static analysis)
+  if (
+    typeof window === 'undefined' &&
+    process.env.NODE_ENV !== 'test' &&
+    process.env.NODE_ENV === 'production' &&
+    typeof process !== 'undefined' &&
+    !process.env.NEXT_PHASE && // Next.js build phases
+    !cleanupTimer
+  ) {
+    try {
+      cleanupTimer = setInterval(
+        () => {
+          cleanupAuthRateLimit(Date.now())
+        },
+        10 * 60 * 1000 // Cleanup every 10 minutes
+      )
+    } catch (_error) {}
+  }
+}

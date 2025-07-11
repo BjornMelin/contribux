@@ -4,8 +4,8 @@
  * Provides flexible configuration for different security requirements
  */
 
-import { createHash, randomUUID } from 'node:crypto'
 import { type NextRequest, NextResponse } from 'next/server'
+import { createHash, randomUUID } from '@/lib/crypto-utils'
 
 // Security header configuration
 export interface SecurityHeadersConfig {
@@ -166,7 +166,7 @@ export class SecurityHeadersManager {
   /**
    * Apply security headers to response
    */
-  applyHeaders(
+  async applyHeaders(
     request: NextRequest,
     response: NextResponse,
     options?: {
@@ -187,11 +187,11 @@ export class SecurityHeadersManager {
         directives?: Record<string, string[]>
       }
     }
-  ): NextResponse {
+  ): Promise<NextResponse> {
     const headers = response.headers
 
     // Generate nonce if needed
-    const nonce = this.resolveNonce(options)
+    const nonce = await this.resolveNonce(options)
 
     // Apply all security headers using focused helper methods
     this.applyContentSecurityPolicy(headers, options, nonce)
@@ -269,15 +269,20 @@ export class SecurityHeadersManager {
   /**
    * Resolve nonce value for CSP
    */
-  private resolveNonce(options?: {
+  private async resolveNonce(options?: {
     nonce?: string
     csp?: { useNonce?: boolean }
-  }): string | undefined {
-    return options?.nonce || options?.csp?.useNonce
-      ? this.generateNonce()
-      : this.config.generateNonce
-        ? this.generateNonce()
-        : undefined
+  }): Promise<string | undefined> {
+    if (options?.nonce) {
+      return options.nonce
+    }
+    if (options?.csp?.useNonce) {
+      return await this.generateNonce()
+    }
+    if (this.config.generateNonce) {
+      return await this.generateNonce()
+    }
+    return undefined
   }
 
   /**
@@ -364,7 +369,7 @@ export class SecurityHeadersManager {
       options?.contentTypeOptions !== undefined
         ? options.contentTypeOptions
         : this.config.xContentTypeOptions
-    
+
     // Handle both boolean and string values
     if (contentTypeOptions === true || contentTypeOptions === 'nosniff') {
       headers.set('X-Content-Type-Options', 'nosniff')
@@ -515,20 +520,19 @@ export class SecurityHeadersManager {
   /**
    * Generate CSP nonce
    */
-  private generateNonce(): string {
-    return createHash('sha256')
-      .update(randomUUID())
-      .digest('base64')
-      .replace(/[^a-zA-Z0-9]/g, '')
-      .slice(0, 16)
+  private async generateNonce(): Promise<string> {
+    const hash = await createHash('sha256')
+    hash.update(randomUUID())
+    const digest = await hash.digest('base64')
+    return digest.replace(/[^a-zA-Z0-9]/g, '').slice(0, 16)
   }
 
   /**
    * Create middleware function
    */
   createMiddleware() {
-    return (request: NextRequest, response: NextResponse) => {
-      return this.applyHeaders(request, response)
+    return async (request: NextRequest, response: NextResponse) => {
+      return await this.applyHeaders(request, response)
     }
   }
 
@@ -721,11 +725,11 @@ export const securityHeaders = new SecurityHeadersManager()
  */
 export function securityHeadersMiddleware(
   config?: SecurityHeadersConfig
-): (request: NextRequest) => NextResponse {
+): (request: NextRequest) => Promise<NextResponse> {
   const manager = new SecurityHeadersManager(config)
 
-  return (request: NextRequest) => {
+  return async (request: NextRequest) => {
     const response = NextResponse.next()
-    return manager.applyHeaders(request, response)
+    return await manager.applyHeaders(request, response)
   }
 }

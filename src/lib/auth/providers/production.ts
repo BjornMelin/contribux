@@ -6,9 +6,10 @@
  * best practices.
  */
 
+import type { AuthOptions } from 'next-auth'
 import GitHub from 'next-auth/providers/github'
 import Google from 'next-auth/providers/google'
-import type { AuthOptions } from 'next-auth'
+
 type Provider = AuthOptions['providers'][number]
 
 /**
@@ -21,6 +22,7 @@ function getGitHubProvider(): Provider | null {
 
   if (!clientId || !clientSecret) {
     if (process.env.NODE_ENV === 'production') {
+      // Log warning about missing GitHub credentials in production
     }
     return null
   }
@@ -46,6 +48,7 @@ function getGoogleProvider(): Provider | null {
 
   if (!clientId || !clientSecret) {
     if (process.env.NODE_ENV === 'production') {
+      // Log warning about missing Google credentials in production
     }
     return null
   }
@@ -81,6 +84,7 @@ export function getProductionProviders(): Provider[] {
 
   // Log warning if no providers are configured in production
   if (providers.length === 0 && process.env.NODE_ENV === 'production') {
+    // No OAuth providers configured for production environment
   }
 
   return providers

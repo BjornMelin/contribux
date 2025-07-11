@@ -4,8 +4,8 @@
  * Provides request integrity and authenticity verification
  */
 
-import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 import { z } from 'zod'
+import { createHmac, randomBytes, timingSafeEqualSync as timingSafeEqual } from '@/lib/crypto-utils'
 
 // Request signing configuration
 export const RequestSigningConfigSchema = z.object({
@@ -54,7 +54,7 @@ export class RequestSigner {
   /**
    * Sign a request
    */
-  signRequest(
+  async signRequest(
     method: string,
     path: string,
     options?: {
@@ -62,7 +62,7 @@ export class RequestSigner {
       queryParams?: Record<string, string>
       headers?: Record<string, string>
     }
-  ): SignedRequest {
+  ): Promise<SignedRequest> {
     const timestamp = Math.floor(Date.now() / 1000)
     const nonce = randomBytes(this.config.nonceSize).toString('hex')
 
@@ -84,7 +84,7 @@ export class RequestSigner {
       components.queryParams = this.canonicalizeQueryParams(options.queryParams)
     }
 
-    const signature = this.generateSignature(components)
+    const signature = await this.generateSignature(components)
 
     return {
       method: components.method,
@@ -107,7 +107,7 @@ export class RequestSigner {
   /**
    * Verify a signed request
    */
-  verifyRequest(
+  async verifyRequest(
     method: string,
     path: string,
     headers: Record<string, string>,
@@ -115,7 +115,7 @@ export class RequestSigner {
       body?: unknown
       queryParams?: Record<string, string>
     }
-  ): { valid: boolean; error?: string } {
+  ): Promise<{ valid: boolean; error?: string }> {
     try {
       // Extract and validate signature components
       const extractResult = this.extractSignatureComponents(headers)
@@ -137,7 +137,14 @@ export class RequestSigner {
       }
 
       // Verify signature authenticity
-      return this.verifySignatureAuthenticity(method, path, signature, timestamp, nonce, options)
+      return await this.verifySignatureAuthenticity(
+        method,
+        path,
+        signature,
+        timestamp,
+        nonce,
+        options
+      )
     } catch (error) {
       return this.handleVerificationError(error)
     }
@@ -146,7 +153,7 @@ export class RequestSigner {
   /**
    * Verify signature authenticity using timing-safe comparison
    */
-  private verifySignatureAuthenticity(
+  private async verifySignatureAuthenticity(
     method: string,
     path: string,
     signature: string,
@@ -156,9 +163,9 @@ export class RequestSigner {
       body?: unknown
       queryParams?: Record<string, string>
     }
-  ): { valid: boolean; error?: string } {
+  ): Promise<{ valid: boolean; error?: string }> {
     const components = this.buildSignatureComponents(method, path, timestamp, nonce, options)
-    return this.performSignatureVerification(signature, components)
+    return await this.performSignatureVerification(signature, components)
   }
 
   /**
@@ -243,21 +250,18 @@ export class RequestSigner {
   /**
    * Perform timing-safe signature verification
    */
-  private performSignatureVerification(
+  private async performSignatureVerification(
     providedSignature: string,
     components: SignatureComponents
-  ): { valid: boolean; error?: string } {
-    const expectedSignature = this.generateSignature(components)
+  ): Promise<{ valid: boolean; error?: string }> {
+    const expectedSignature = await this.generateSignature(components)
 
-    // Timing-safe comparison
-    const providedBuffer = Buffer.from(providedSignature, 'hex')
-    const expectedBuffer = Buffer.from(expectedSignature, 'hex')
-
-    if (providedBuffer.length !== expectedBuffer.length) {
+    // Timing-safe comparison using Edge Runtime compatible approach
+    if (providedSignature.length !== expectedSignature.length) {
       return { valid: false, error: 'Invalid signature length' }
     }
 
-    if (!timingSafeEqual(providedBuffer, expectedBuffer)) {
+    if (!timingSafeEqual(providedSignature, expectedSignature)) {
       return { valid: false, error: 'Invalid signature' }
     }
 
@@ -267,7 +271,7 @@ export class RequestSigner {
   /**
    * Generate signature for components
    */
-  private generateSignature(components: SignatureComponents): string {
+  private async generateSignature(components: SignatureComponents): Promise<string> {
     const parts = [
       components.method,
       components.path,
@@ -284,8 +288,9 @@ export class RequestSigner {
     }
 
     const message = parts.join('\n')
-    const hmac = createHmac(this.config.algorithm, this.config.secret)
-    return hmac.update(message, 'utf8').digest('hex')
+    const hmac = await createHmac(this.config.algorithm, this.config.secret)
+    hmac.update(message)
+    return await hmac.digest('hex')
   }
 
   /**
@@ -321,7 +326,7 @@ export function createSigningMiddleware(signer: RequestSigner) {
     }
 
     // Perform signature verification
-    return performSignatureVerification(signer, reqObj, resObj, next)
+    return await performSignatureVerification(signer, reqObj, resObj, next)
   }
 }
 
@@ -384,7 +389,7 @@ function shouldSkipSigning(path: string): boolean {
 /**
  * Perform signature verification and handle the result
  */
-function performSignatureVerification(
+async function performSignatureVerification(
   signer: RequestSigner,
   reqObj: {
     path: string
@@ -395,9 +400,9 @@ function performSignatureVerification(
   },
   resObj: { status: (code: number) => { json: (data: unknown) => unknown } },
   next: unknown
-): unknown {
+): Promise<unknown> {
   const headers = reqObj.headers || {}
-  const result = signer.verifyRequest(reqObj.method, reqObj.path, headers, {
+  const result = await signer.verifyRequest(reqObj.method, reqObj.path, headers, {
     body: reqObj.body,
     queryParams: reqObj.query as Record<string, string> | undefined,
   })
@@ -450,7 +455,7 @@ export class SignedFetch {
     }
 
     // Sign the request
-    const signed = this.signer.signRequest(options?.method || 'GET', url.pathname, {
+    const signed = await this.signer.signRequest(options?.method || 'GET', url.pathname, {
       body: options?.body,
       queryParams: options?.queryParams,
       headers: options?.headers as Record<string, string> | undefined,

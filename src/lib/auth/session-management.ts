@@ -3,8 +3,8 @@
  * Comprehensive session handling for NextAuth.js integration
  */
 
-import { getServerSession } from 'next-auth'
 import jwt from 'jsonwebtoken'
+import { getServerSession } from 'next-auth'
 
 export interface SessionData {
   user: {
@@ -67,36 +67,36 @@ export interface OAuthCallbackResult {
 export async function validateSession(): Promise<SessionValidationResult> {
   try {
     const session = await getServerSession()
-    
+
     if (!session) {
       return {
         valid: false,
         session: null,
-        error: 'No session found'
+        error: 'No session found',
       }
     }
 
     // Check if session is expired
     const expiresAt = new Date(session.expires)
     const now = new Date()
-    
+
     if (expiresAt <= now) {
       return {
         valid: false,
         expired: true,
-        error: 'Session expired'
+        error: 'Session expired',
       }
     }
 
     return {
       valid: true,
       session: session as SessionData,
-      expired: false
+      expired: false,
     }
-  } catch (error) {
+  } catch (_error) {
     return {
       valid: false,
-      error: 'Session validation failed'
+      error: 'Session validation failed',
     }
   }
 }
@@ -107,24 +107,24 @@ export async function validateSession(): Promise<SessionValidationResult> {
 export async function validateJWT(token: string): Promise<TokenValidationResult> {
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET!) as TokenPayload
-    
+
     // Check if token is expired
     const now = Math.floor(Date.now() / 1000)
     if (payload.exp && payload.exp < now) {
       return {
         valid: false,
-        error: 'Token expired'
+        error: 'Token expired',
       }
     }
 
     return {
       valid: true,
-      payload
+      payload,
     }
   } catch (error) {
     return {
       valid: false,
-      error: `Invalid token: ${error instanceof Error ? error.message : 'Unknown error'}`
+      error: `Invalid token: ${error instanceof Error ? error.message : 'Unknown error'}`,
     }
   }
 }
@@ -136,7 +136,7 @@ export async function generateJWT(payload: Partial<TokenPayload>): Promise<strin
   const tokenPayload = {
     ...payload,
     iat: Math.floor(Date.now() / 1000),
-    exp: Math.floor(Date.now() / 1000) + 3600 // 1 hour
+    exp: Math.floor(Date.now() / 1000) + 3600, // 1 hour
   }
 
   return jwt.sign(tokenPayload, process.env.JWT_SECRET!, { expiresIn: '1h' })
@@ -152,7 +152,7 @@ export async function refreshToken(refreshToken: string): Promise<TokenRefreshRe
     if (!validation.valid) {
       return {
         success: false,
-        error: 'Invalid refresh token'
+        error: 'Invalid refresh token',
       }
     }
 
@@ -162,25 +162,25 @@ export async function refreshToken(refreshToken: string): Promise<TokenRefreshRe
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ refreshToken })
+      body: JSON.stringify({ refreshToken }),
     })
 
     if (!response.ok) {
       return {
         success: false,
-        error: `Token refresh failed: ${response.status}`
+        error: `Token refresh failed: ${response.status}`,
       }
     }
 
     const tokens = await response.json()
     return {
       success: true,
-      tokens
+      tokens,
     }
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Token refresh failed'
+      error: error instanceof Error ? error.message : 'Token refresh failed',
     }
   }
 }
@@ -204,7 +204,7 @@ export async function handleOAuthCallback(
       return {
         success: false,
         error,
-        errorDescription: errorDescription || undefined
+        errorDescription: errorDescription || undefined,
       }
     }
 
@@ -212,7 +212,7 @@ export async function handleOAuthCallback(
     if (!code) {
       return {
         success: false,
-        error: 'Missing authorization code'
+        error: 'Missing authorization code',
       }
     }
 
@@ -222,7 +222,7 @@ export async function handleOAuthCallback(
       if (expectedState && state !== expectedState) {
         return {
           success: false,
-          error: 'Invalid state parameter'
+          error: 'Invalid state parameter',
         }
       }
     }
@@ -231,21 +231,21 @@ export async function handleOAuthCallback(
     const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
       method: 'POST',
       headers: {
-        'Accept': 'application/json',
+        Accept: 'application/json',
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: new URLSearchParams({
         client_id: process.env.GITHUB_CLIENT_ID!,
         client_secret: process.env.GITHUB_CLIENT_SECRET!,
         code,
-        state: state || ''
-      })
+        state: state || '',
+      }),
     })
 
     if (!tokenResponse.ok) {
       return {
         success: false,
-        error: 'Token exchange failed'
+        error: 'Token exchange failed',
       }
     }
 
@@ -253,12 +253,12 @@ export async function handleOAuthCallback(
     return {
       success: true,
       provider,
-      tokens
+      tokens,
     }
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'OAuth callback failed'
+      error: error instanceof Error ? error.message : 'OAuth callback failed',
     }
   }
 }
@@ -279,14 +279,14 @@ export async function createSessionCookie(sessionData: {
   maxAge: number
 }> {
   const encrypted = await encryptSession(sessionData)
-  
+
   return {
     name: 'session',
     value: encrypted,
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge: sessionData.expires - Date.now()
+    maxAge: sessionData.expires - Date.now(),
   }
 }
 
@@ -323,46 +323,53 @@ export async function rotateSession(oldSession: { userId: string; createdAt: num
 }> {
   return {
     userId: oldSession.userId,
-    createdAt: Date.now()
+    createdAt: Date.now(),
   }
 }
 
 /**
  * Generate TOTP secret
  */
-export async function generateTOTPSecret(userId: string): Promise<{
+export async function generateTOTPSecret(_userId: string): Promise<{
   secret: string
   qrCode: string
   backupCodes: string[]
 }> {
   // Mock implementation
-  const secret = Array.from({ length: 32 }, () => 
-    'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'[Math.floor(Math.random() * 32)]
+  const secret = Array.from(
+    { length: 32 },
+    () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'[Math.floor(Math.random() * 32)]
   ).join('')
-  
-  const backupCodes = Array.from({ length: 10 }, () => 
+
+  const backupCodes = Array.from({ length: 10 }, () =>
     Math.random().toString(36).substring(2, 8).toUpperCase()
   )
-  
+
   return {
     secret,
-    qrCode: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-    backupCodes
+    qrCode:
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+    backupCodes,
   }
 }
 
 /**
  * Generate TOTP code (for testing)
  */
-export function generateTOTPCode(secret: string): string {
+export function generateTOTPCode(_secret: string): string {
   // Mock implementation - return a 6-digit code
-  return Math.floor(Math.random() * 1000000).toString().padStart(6, '0')
+  return Math.floor(Math.random() * 1000000)
+    .toString()
+    .padStart(6, '0')
 }
 
 /**
  * Validate TOTP code
  */
-export async function validateTOTP(code: string, secret: string): Promise<{
+export async function validateTOTP(
+  code: string,
+  _secret: string
+): Promise<{
   valid: boolean
   window?: number
   error?: string
@@ -371,7 +378,7 @@ export async function validateTOTP(code: string, secret: string): Promise<{
   if (code === '000000') {
     return { valid: false, error: 'Invalid code' }
   }
-  
+
   return { valid: true, window: 0 }
 }
 
@@ -379,7 +386,7 @@ export async function validateTOTP(code: string, secret: string): Promise<{
  * Validate backup code
  */
 export async function validateBackupCode(
-  code: string, 
+  code: string,
   backupCodes: string[]
 ): Promise<{
   valid: boolean
@@ -389,7 +396,7 @@ export async function validateBackupCode(
   if (index === -1) {
     return { valid: false, remainingCodes: backupCodes }
   }
-  
+
   const remainingCodes = backupCodes.filter((_, i) => i !== index)
   return { valid: true, remainingCodes }
 }
@@ -398,7 +405,7 @@ export async function validateBackupCode(
  * Link OAuth account
  */
 export async function linkOAuthAccount(
-  userId: string,
+  _userId: string,
   oauthAccount: {
     provider: string
     providerAccountId: string
@@ -413,7 +420,7 @@ export async function linkOAuthAccount(
   if (oauthAccount.providerAccountId === 'already-linked-id') {
     return { success: false, error: 'Account already linked' }
   }
-  
+
   return { success: true, linked: true }
 }
 
@@ -421,8 +428,8 @@ export async function linkOAuthAccount(
  * Unlink OAuth account
  */
 export async function unlinkOAuthAccount(
-  userId: string,
-  provider: string
+  _userId: string,
+  _provider: string
 ): Promise<{
   success: boolean
   requiresPasswordSet?: boolean

@@ -6,10 +6,20 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { verifyAccessToken } from '@/lib/auth/jwt'
 import { buildCSP, generateNonce, getCSPDirectives } from '@/lib/security/csp'
-import { isProduction, env } from '@/lib/validation/env'
 import { enhancedRateLimitMiddleware } from '@/lib/security/rate-limiter'
+import { env, isProduction } from '@/lib/validation/env'
 
 export async function middleware(request: NextRequest) {
+  // Early return for static assets and internal Next.js routes
+  const { pathname } = request.nextUrl
+  if (
+    pathname.startsWith('/_next/') ||
+    pathname.startsWith('/api/_next/') ||
+    pathname.includes('.') // Static files
+  ) {
+    return NextResponse.next()
+  }
+
   // Apply enhanced rate limiting first
   const rateLimitResponse = await enhancedRateLimitMiddleware(request)
   if (rateLimitResponse.status === 429) {
@@ -22,13 +32,11 @@ export async function middleware(request: NextRequest) {
     return authResponse
   }
 
-  // Generate unique nonce for this request
+  // Generate unique nonce for this request using Web Crypto API (Edge Runtime compatible)
   const nonce = generateNonce()
 
-  // Clone the request headers
+  // Clone the request headers efficiently
   const requestHeaders = new Headers(request.headers)
-
-  // Store nonce in request headers for later use
   requestHeaders.set('x-nonce', nonce)
 
   // Create response with updated headers
@@ -38,101 +46,16 @@ export async function middleware(request: NextRequest) {
     },
   })
 
-  // Build CSP with nonce
-  const csp = buildCSP(getCSPDirectives(), nonce)
+  // Set security headers with optimized CSP
+  setSecurityHeaders(response, nonce, pathname)
 
-  // Set security headers
-  response.headers.set('Content-Security-Policy', csp)
-  response.headers.set('X-Frame-Options', 'DENY')
-  response.headers.set('X-Content-Type-Options', 'nosniff')
-  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
-  response.headers.set(
-    'Permissions-Policy',
-    'camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), accelerometer=(), gyroscope=(), display-capture=(), screen-wake-lock=(), web-share=()'
-  )
-
-  // Enhanced security headers for modern web security
-  if (isProduction()) {
-    // HTTP Strict Transport Security (HSTS) - 2 years, include subdomains, preload
-    response.headers.set(
-      'Strict-Transport-Security',
-      'max-age=63072000; includeSubDomains; preload'
-    )
-
-    // Cross-Origin policies for enhanced security
-    response.headers.set('Cross-Origin-Embedder-Policy', 'require-corp')
-    response.headers.set('Cross-Origin-Opener-Policy', 'same-origin')
-    response.headers.set('Cross-Origin-Resource-Policy', 'same-site')
-
-    // Network Error Logging for monitoring
-    response.headers.set(
-      'NEL',
-      JSON.stringify({
-        report_to: 'network-errors',
-        max_age: 86400,
-        include_subdomains: true,
-        success_fraction: 0.01,
-        failure_fraction: 1.0,
-      })
-    )
-
-    // Report-To header for modern reporting
-    response.headers.set(
-      'Report-To',
-      JSON.stringify([
-        {
-          group: 'csp-violations',
-          max_age: 86400,
-          endpoints: [{ url: '/api/security/csp-report' }],
-        },
-        {
-          group: 'network-errors',
-          max_age: 86400,
-          endpoints: [{ url: '/api/security/network-report' }],
-        },
-      ])
-    )
-  } else {
-    // Development-specific security headers (less strict)
-    response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
-    response.headers.set('Cross-Origin-Embedder-Policy', 'unsafe-none')
-    response.headers.set('Cross-Origin-Opener-Policy', 'unsafe-none')
-    response.headers.set('Cross-Origin-Resource-Policy', 'cross-origin')
+  // Set CORS headers for API routes with dynamic origins
+  if (pathname.startsWith('/api')) {
+    setCorsHeaders(response, request)
   }
 
-  // Additional security headers for all environments
-  response.headers.set('X-DNS-Prefetch-Control', 'off')
-  response.headers.set('X-Download-Options', 'noopen')
-  response.headers.set('X-Permitted-Cross-Domain-Policies', 'none')
-
-  // Remove potentially dangerous headers
-  response.headers.delete('X-Powered-By')
-  response.headers.delete('Server')
-
-  // Set CORS headers for API routes
-  if (request.nextUrl.pathname.startsWith('/api')) {
-    const allowedOrigin = isProduction()
-      ? 'https://contribux.vercel.app'
-      : env.NEXTAUTH_URL || 'http://localhost:3000'
-
-    response.headers.set('Access-Control-Allow-Origin', allowedOrigin)
-    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-    response.headers.set('Access-Control-Allow-Credentials', 'true')
-    response.headers.set(
-      'Access-Control-Expose-Headers',
-      'X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, X-RateLimit-Policy'
-    )
-  }
-
-  // Merge rate limit headers from the rate limit response
-  if (rateLimitResponse.headers) {
-    for (const [key, value] of rateLimitResponse.headers) {
-      if (key.startsWith('X-RateLimit-')) {
-        response.headers.set(key, value)
-      }
-    }
-  }
+  // Merge rate limit headers efficiently
+  mergeRateLimitHeaders(response, rateLimitResponse)
 
   return response
 }
@@ -196,6 +119,136 @@ function extractToken(request: NextRequest): string | null {
   }
 
   return null
+}
+
+/**
+ * Set security headers with optimized CSP for Next.js 15
+ */
+function setSecurityHeaders(response: NextResponse, nonce: string, _pathname: string) {
+  // Build CSP with nonce
+  const csp = buildCSP(getCSPDirectives(), nonce)
+  response.headers.set('Content-Security-Policy', csp)
+
+  // Core security headers
+  response.headers.set('X-Frame-Options', 'DENY')
+  response.headers.set('X-Content-Type-Options', 'nosniff')
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+
+  // Enhanced Permissions Policy for modern browsers
+  response.headers.set(
+    'Permissions-Policy',
+    'camera=(), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), accelerometer=(), gyroscope=(), display-capture=(), screen-wake-lock=(), web-share=(), picture-in-picture=(), fullscreen=(self)'
+  )
+
+  // Environment-specific security headers
+  if (isProduction()) {
+    // Production security headers
+    response.headers.set(
+      'Strict-Transport-Security',
+      'max-age=63072000; includeSubDomains; preload'
+    )
+    response.headers.set('Cross-Origin-Embedder-Policy', 'require-corp')
+    response.headers.set('Cross-Origin-Opener-Policy', 'same-origin')
+    response.headers.set('Cross-Origin-Resource-Policy', 'same-site')
+
+    // Network Error Logging for production monitoring
+    response.headers.set(
+      'NEL',
+      JSON.stringify({
+        report_to: 'network-errors',
+        max_age: 86400,
+        include_subdomains: true,
+        success_fraction: 0.01,
+        failure_fraction: 1.0,
+      })
+    )
+
+    // Report-To header for modern error reporting
+    response.headers.set(
+      'Report-To',
+      JSON.stringify([
+        {
+          group: 'csp-violations',
+          max_age: 86400,
+          endpoints: [{ url: '/api/security/csp-report' }],
+        },
+        {
+          group: 'network-errors',
+          max_age: 86400,
+          endpoints: [{ url: '/api/security/network-report' }],
+        },
+      ])
+    )
+  } else {
+    // Development-friendly headers
+    response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+    response.headers.set('Cross-Origin-Embedder-Policy', 'unsafe-none')
+    response.headers.set('Cross-Origin-Opener-Policy', 'unsafe-none')
+    response.headers.set('Cross-Origin-Resource-Policy', 'cross-origin')
+  }
+
+  // Additional security headers
+  response.headers.set('X-DNS-Prefetch-Control', 'off')
+  response.headers.set('X-Download-Options', 'noopen')
+  response.headers.set('X-Permitted-Cross-Domain-Policies', 'none')
+
+  // Remove potentially dangerous headers
+  response.headers.delete('X-Powered-By')
+  response.headers.delete('Server')
+}
+
+/**
+ * Set CORS headers for API routes with dynamic origin validation
+ */
+function setCorsHeaders(response: NextResponse, request: NextRequest) {
+  const origin = request.headers.get('origin')
+
+  // Allowed origins for CORS
+  const allowedOrigins = isProduction()
+    ? ['https://contribux.vercel.app', 'https://www.contribux.dev']
+    : ['http://localhost:3000', 'http://127.0.0.1:3000', env.NEXTAUTH_URL].filter(Boolean)
+
+  const allowedOrigin = allowedOrigins.includes(origin || '') ? origin : allowedOrigins[0]
+
+  response.headers.set('Access-Control-Allow-Origin', allowedOrigin || '*')
+  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH')
+  response.headers.set(
+    'Access-Control-Allow-Headers',
+    'Content-Type, Authorization, X-Requested-With, Accept, Origin'
+  )
+  response.headers.set('Access-Control-Allow-Credentials', 'true')
+  response.headers.set('Access-Control-Max-Age', '86400') // 24 hours
+  response.headers.set(
+    'Access-Control-Expose-Headers',
+    'X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, X-RateLimit-Policy, X-Request-ID'
+  )
+
+  // Add Vary header for proper caching
+  response.headers.set(
+    'Vary',
+    'Origin, Access-Control-Request-Method, Access-Control-Request-Headers'
+  )
+}
+
+/**
+ * Efficiently merge rate limit headers
+ */
+function mergeRateLimitHeaders(response: NextResponse, rateLimitResponse: NextResponse) {
+  if (rateLimitResponse.headers) {
+    const rateLimitHeaders = [
+      'X-RateLimit-Limit',
+      'X-RateLimit-Remaining',
+      'X-RateLimit-Reset',
+      'X-RateLimit-Policy',
+    ]
+
+    for (const header of rateLimitHeaders) {
+      const value = rateLimitResponse.headers.get(header)
+      if (value) {
+        response.headers.set(header, value)
+      }
+    }
+  }
 }
 
 // Configure which routes use this middleware
