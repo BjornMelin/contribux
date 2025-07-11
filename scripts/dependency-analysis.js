@@ -246,11 +246,10 @@ if (require.main === module) {
   const analyzer = new DependencyAnalyzer()
 
   if (args.includes('--complete') || args.includes('-c')) {
-    // biome-ignore lint/suspicious/noConsole: Script error handling
     analyzer.runCompleteAnalysis().catch(console.error)
   } else {
     // Default to size analysis for backward compatibility
-    // biome-ignore lint/suspicious/noConsole: Script error handling
+
     analyzer.analyzeSizes().catch(console.error)
   }
 }

@@ -77,7 +77,6 @@ class DependencySecurityAuditor {
       // 7. Generate final report
       await this.generateSecurityReport()
     } catch (error) {
-      // biome-ignore lint/suspicious/noConsole: Development script
       console.error('❌ Security audit failed:', error.message)
       this.results.passed = false
     }
@@ -147,7 +146,7 @@ class DependencySecurityAuditor {
       }
     } catch (_error) {
       // License audit failed - continue with other checks
-      // biome-ignore lint/suspicious/noConsole: CLI script user feedback
+
       console.log('  Warning: License audit failed, continuing with other security checks')
     }
   }
@@ -174,7 +173,7 @@ class DependencySecurityAuditor {
       }
     } catch (_error) {
       // Package size audit failed - continue with other checks
-      // biome-ignore lint/suspicious/noConsole: CLI script user feedback
+
       console.log('  Warning: Package size audit failed, continuing with other security checks')
     }
   }
@@ -275,7 +274,6 @@ class DependencySecurityAuditor {
     }
 
     if (this.results.recommendations.length > 0) {
-      // biome-ignore lint/suspicious/noConsole: CLI script user feedback
       console.log(`  Generated ${this.results.recommendations.length} security recommendations`)
     }
     for (const packageName of NEW_DEPENDENCIES) {
@@ -284,7 +282,6 @@ class DependencySecurityAuditor {
         vuln => vuln.name === packageName
       )
       if (pkgVulns.length > 0) {
-        // biome-ignore lint/suspicious/noConsole: CLI script user feedback
         console.log(`  Found ${pkgVulns.length} vulnerabilities for ${packageName}`)
       }
     }
@@ -295,7 +292,6 @@ class DependencySecurityAuditor {
 
     // GitHub Actions compatible output
     if (process.env.GITHUB_ACTIONS) {
-      // biome-ignore lint/suspicious/noConsole: GitHub Actions output
       console.log(
         '::notice::Security audit completed - check security-audit-report.json for details'
       )
@@ -304,7 +300,6 @@ class DependencySecurityAuditor {
     if (!this.results.passed) {
       process.exit(1)
     } else {
-      // biome-ignore lint/suspicious/noConsole: CLI script user feedback
       console.log('  ✅ Security audit passed - no critical issues found')
     }
   }
@@ -344,7 +339,6 @@ async function main() {
 // Run if called directly
 if (import.meta.url === `file://${process.argv[1]}`) {
   main().catch(error => {
-    // biome-ignore lint/suspicious/noConsole: CLI script error output
     console.error('❌ Security audit failed:', error.message)
     process.exit(1)
   })

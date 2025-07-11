@@ -473,21 +473,21 @@ class BundleAnalyzer {
 
     // Log key metrics
     const topChunks = buildStats.chunks.slice(0, 5)
-    // biome-ignore lint/suspicious/noConsole: CLI script user feedback
+
     console.log(`  Analyzed ${topChunks.length} top chunks`)
 
     if (dependencyImpact.heavyDependencies && dependencyImpact.heavyDependencies.length > 0) {
       const topDeps = dependencyImpact.heavyDependencies.slice(0, 5)
-      // biome-ignore lint/suspicious/noConsole: CLI script user feedback
+
       console.log(`  Found ${topDeps.length} heavy dependencies`)
     }
 
     const topOpportunities = optimizationOpportunities.slice(0, 5)
-    // biome-ignore lint/suspicious/noConsole: CLI script user feedback
+
     console.log(`  Identified ${topOpportunities.length} optimization opportunities`)
 
     const highPriorityItems = optimizationOpportunities.filter(op => op.priority === 'high')
-    // biome-ignore lint/suspicious/noConsole: CLI script user feedback
+
     console.log(`  Found ${highPriorityItems.length} high-priority optimization items`)
 
     // Save detailed report
@@ -516,7 +516,6 @@ class BundleAnalyzer {
       this.calculatePerformanceMetrics()
       await this.generateReport()
     } catch (error) {
-      // biome-ignore lint/suspicious/noConsole: CLI script error output
       console.error('❌ Bundle analysis failed:', error.message)
       process.exit(1)
     }

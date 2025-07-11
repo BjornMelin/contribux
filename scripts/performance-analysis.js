@@ -355,50 +355,39 @@ class PerformanceAnalyzer {
   }
 
   async generateReport() {
-    // biome-ignore lint/suspicious/noConsole: Development script
     console.log('\n📊 Performance Analysis Report\n')
 
     if (this.results.dependencyAnalysis.largeDependencies.length > 0) {
-      // biome-ignore lint/suspicious/noConsole: Development script
       console.log('🔍 Large Dependencies:')
       this.results.dependencyAnalysis.largeDependencies.forEach(dep => {
-        // biome-ignore lint/suspicious/noConsole: Development script
         console.log(`  - ${dep.name}: ${dep.size} (${dep.impact})`)
       })
     }
 
     if (this.results.dependencyAnalysis.unusedDependencies.length > 0) {
-      // biome-ignore lint/suspicious/noConsole: Development script
       console.log('\n🗑️ Unused Dependencies:')
       this.results.dependencyAnalysis.unusedDependencies.forEach(dep => {
-        // biome-ignore lint/suspicious/noConsole: Development script
         console.log(`  - ${dep.name}: ${dep.reason}`)
       })
     }
 
     if (this.results.importAnalysis.heavyImports.length > 0) {
-      // biome-ignore lint/suspicious/noConsole: Development script
       console.log('\n⚡ Heavy Imports:')
       this.results.importAnalysis.heavyImports.forEach(item => {
-        // biome-ignore lint/suspicious/noConsole: Development script
         console.log(`  - ${item.module}: ${item.size} in ${item.file}`)
       })
     }
 
     if (this.results.optimizations.length > 0) {
-      // biome-ignore lint/suspicious/noConsole: Development script
       console.log('\n🚀 Optimization Opportunities:')
       this.results.optimizations.forEach((opt, index) => {
-        // biome-ignore lint/suspicious/noConsole: Development script
         console.log(`  ${index + 1}. ${opt.title}: ${opt.description}`)
       })
     }
 
     if (this.results.metrics.recommendations.length > 0) {
-      // biome-ignore lint/suspicious/noConsole: Development script
       console.log('\n💡 Recommendations:')
       this.results.metrics.recommendations.forEach(rec => {
-        // biome-ignore lint/suspicious/noConsole: Development script
         console.log(`  - ${rec.category}: ${rec.suggestion}`)
       })
     }
@@ -417,7 +406,6 @@ class PerformanceAnalyzer {
       this.generateMetrics()
       await this.generateReport()
     } catch (error) {
-      // biome-ignore lint/suspicious/noConsole: Development script
       console.error('❌ Performance analysis failed:', error.message)
       process.exit(1)
     }

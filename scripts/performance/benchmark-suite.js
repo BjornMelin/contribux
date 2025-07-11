@@ -309,13 +309,11 @@ class PerformanceBenchmarks {
         ORDER BY idx_tup_read DESC
       `
       indexStats.slice(0, 10).forEach(stat => {
-        // biome-ignore lint/suspicious/noConsole: Development script
         console.log(
           `Index: ${stat.indexname}, Scans: ${stat.idx_scan}, Tuples: ${stat.idx_tup_read}`
         )
       })
     } catch (error) {
-      // biome-ignore lint/suspicious/noConsole: Development script
       console.error('Error fetching index statistics:', error.message)
     }
   }
