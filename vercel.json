@@ -1,0 +1,110 @@
+{
+  "buildCommand": "pnpm build",
+  "outputDirectory": ".next",
+  "installCommand": "pnpm install",
+  "framework": "nextjs",
+  "functions": {
+    "src/app/api/**/*.ts": {
+      "runtime": "nodejs20.x",
+      "maxDuration": 60,
+      "memory": 1024
+    },
+    "src/app/api/webhooks/**/*.ts": {
+      "runtime": "nodejs20.x", 
+      "maxDuration": 30,
+      "memory": 512
+    },
+    "src/app/api/auth/**/*.ts": {
+      "runtime": "nodejs20.x",
+      "maxDuration": 30,
+      "memory": 512
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/health",
+      "destination": "/api/monitoring/health"
+    },
+    {
+      "source": "/api/metrics",
+      "destination": "/api/monitoring/metrics"  
+    },
+    {
+      "source": "/performance",
+      "destination": "/api/monitoring/performance"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options", 
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=()"
+        }
+      ]
+    },
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        },
+        {
+          "key": "Connection",
+          "value": "close"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "header",
+          "key": "host",
+          "value": "contribux.vercel.app"
+        }
+      ],
+      "headers": [
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=31536000; includeSubDomains; preload"
+        }
+      ]
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production",
+    "NEXT_TELEMETRY_DISABLED": "1"
+  },
+  "regions": ["iad1", "sfo1", "lhr1"],
+  "trailingSlash": false,
+  "cleanUrls": true,
+  "crons": [
+    {
+      "path": "/api/cron/health-check",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/performance-metrics",
+      "schedule": "*/15 * * * *"
+    }
+  ]
+}

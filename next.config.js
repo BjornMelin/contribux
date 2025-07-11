@@ -7,6 +7,9 @@ if (typeof global !== 'undefined') {
   }
 }
 
+// Bundle analyzer import
+import withBundleAnalyzer from '@next/bundle-analyzer'
+
 // CRITICAL: Prevent environment validation during build process
 // This must be set before ANY modules are imported
 if (process.env.NODE_ENV !== 'development' && !process.env.SKIP_ENV_VALIDATION) {
@@ -24,38 +27,55 @@ const nextConfig = {
   // Removed framer-motion from transpilePackages to avoid conflict
   transpilePackages: [],
 
-  // Memory optimization settings
+  // Next.js 15.3.5+ optimizations and performance features
   experimental: {
-    // Reduce memory usage in development
+    // Enhanced memory optimization for development
     webpackMemoryOptimizations: true,
-    // Enable test proxy for Playwright testing
-    testProxy: true,
-    // Next.js 15 performance features
+
+    // Next.js 15.3+ performance features
     staleTimes: {
       dynamic: 30,
       static: 180,
     },
-    // Temporarily disabled - requires critters package
-    // optimizeCss: true,
+
+    // Enhanced CSS optimization (available in 15.3+)
+    optimizeCss: {
+      preload: true,
+      inlineFonts: true,
+    },
+
+    // Modern bundle optimization
+    optimizePackageImports: [
+      'lucide-react',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-progress',
+      '@radix-ui/react-slot',
+      '@radix-ui/react-tabs',
+      'framer-motion',
+      'recharts',
+    ],
+
     // CRITICAL: Disable fallback for webpack runtime
     fallbackNodePolyfills: false,
+
+    // Next.js 15.3+ App Router enhancements
+    optimizeServerReact: true,
   },
 
   // Server external packages (moved from experimental in Next.js 15)
   serverExternalPackages: ['@neondatabase/serverless', 'ioredis', 'pg'],
 
-  // Turbopack configuration for development builds
+  // Enhanced Turbopack configuration for Next.js 15.3+
   turbopack: {
-    // Resolve aliases for better module resolution
+    // Optimized resolve aliases for better module resolution
     resolveAlias: {
-      // Example: Add aliases if needed in the future
+      '@': './src',
+      // Optimize common library imports
+      'react-query': '@tanstack/react-query',
     },
-    // Custom file extensions if needed
+
+    // Enhanced file extensions with optimized ordering
     resolveExtensions: ['.tsx', '.ts', '.jsx', '.js', '.mjs', '.json'],
-    // Rules for webpack loaders (if any custom loaders are needed)
-    rules: {
-      // Future: Add custom loader rules here if needed
-    },
   },
 
   // Webpack optimization configuration
@@ -227,8 +247,25 @@ const nextConfig = {
 
   // Module optimization for barrel files (icon libraries, etc)
   modularizeImports: {
-    // Future: Add optimizations when icon packages are installed
+    // Optimize lucide-react imports for better tree-shaking
+    'lucide-react': {
+      transform: 'lucide-react/dist/esm/icons/{{kebabCase member}}',
+      preventFullImport: true,
+    },
+    // Optimize @radix-ui imports
+    '@radix-ui/react-**': {
+      transform: '@radix-ui/react-{{member}}/dist/index.js',
+    },
+    // Optimize recharts imports
+    recharts: {
+      transform: 'recharts/es6/{{member}}',
+    },
   },
 }
 
-export default nextConfig
+// Bundle analyzer configuration
+const bundleAnalyzer = withBundleAnalyzer({
+  enabled: process.env.ANALYZE === 'true',
+})
+
+export default bundleAnalyzer(nextConfig)

@@ -242,7 +242,8 @@
         "**/*.config.ts",
         "**/*.config.mjs",
         "**/next.config.js",
-        "**/vitest.config.ts"
+        "**/vitest.config.ts",
+        "**/scripts/**/*.js"
       ],
       "linter": {
         "rules": {
