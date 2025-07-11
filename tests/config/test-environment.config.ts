@@ -5,6 +5,7 @@
 
 import { config } from 'dotenv'
 import path from 'node:path'
+import type { TestUser } from '@/lib/test-utils/database-factories'
 
 // Test environment types
 export type TestEnvironmentType = 'unit' | 'integration' | 'database' | 'e2e' | 'performance'
@@ -62,7 +63,7 @@ export interface TestServiceConfig {
   /** Authentication mock settings */
   auth: {
     enabled: boolean
-    defaultUser: any
+    defaultUser: TestUser | null
     sessionTimeout: number
   }
   /** External service mocks */
@@ -146,8 +147,12 @@ export const TEST_ENVIRONMENTS: Record<TestEnvironmentType, TestEnvironmentConfi
         enabled: true,
         defaultUser: {
           id: 'test-user-integration',
+          github_id: 'github-integration-123',
+          github_username: 'integration-test-user',
           email: 'integration@test.com',
           name: 'Integration Test User',
+          avatar_url: 'https://github.com/images/test-user-integration.png',
+          preferences: {},
         },
         sessionTimeout: 3600000,
       },
@@ -229,8 +234,12 @@ export const TEST_ENVIRONMENTS: Record<TestEnvironmentType, TestEnvironmentConfi
         enabled: true,
         defaultUser: {
           id: 'test-user-e2e',
+          github_id: 'github-e2e-456',
+          github_username: 'e2e-test-user',
           email: 'e2e@test.com',
           name: 'E2E Test User',
+          avatar_url: 'https://github.com/images/test-user-e2e.png',
+          preferences: {},
         },
         sessionTimeout: 7200000,
       },

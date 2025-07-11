@@ -10,6 +10,7 @@ import { authConfig } from '@/lib/config/auth'
 import { base64url, generateRandomToken, generateUUID } from '@/lib/crypto-utils'
 import { sql } from '@/lib/db/config'
 import { createSecureHash } from '@/lib/security/crypto-simple'
+import { ErrorHandler } from '@/lib/errors/enhanced-error-handler'
 import type { AccessTokenPayload, RefreshTokenPayload, User, UserSession } from '@/types/auth'
 import type { Email, GitHubUsername, UUID } from '@/types/base'
 import { brandAsUUID } from '@/types/base'
@@ -87,61 +88,72 @@ import { getJwtSecret as getValidatedJwtSecret } from '@/lib/validation/env'
 
 // JWT signing secret from validated environment with enhanced test environment controls
 const getJwtSecret = (): Uint8Array => {
-  // Use the validated JWT secret from our environment validation system
   const secret = getValidatedJwtSecret()
-
-  // Enhanced test environment validation
-  if (process.env.NODE_ENV === 'test') {
-    // Validate test environment requirements
-    validateTestEnvironment()
-
-    // Convert string secret to Uint8Array for jose with enhanced security
-    const encoded = new TextEncoder().encode(secret)
-
-    // Create a new Uint8Array from the encoded bytes to ensure it's a proper instance
-    // This ensures proper isolation in test environment
-    return new Uint8Array(Array.from(encoded))
+  const environment = process.env.NODE_ENV
+  
+  if (environment === 'test') {
+    return getTestEnvironmentSecret(secret)
   }
-
-  // Production environment handling
-  if (process.env.NODE_ENV === 'production') {
-    // Additional production security checks
+  
+  if (environment === 'production') {
     validateProductionEnvironment(secret)
   }
+  
+  return new TextEncoder().encode(secret)
+}
 
+/**
+ * Get JWT secret for test environment
+ */
+function getTestEnvironmentSecret(secret: string): Uint8Array {
+  validateTestEnvironment()
   const encoded = new TextEncoder().encode(secret)
-  return encoded
+  // Create a new Uint8Array from the encoded bytes to ensure it's a proper instance
+  // This ensures proper isolation in test environment
+  return new Uint8Array(Array.from(encoded))
 }
 
 /**
  * Enhanced test environment validation
  */
 function validateTestEnvironment(): void {
-  // Ensure test environment has proper configuration
+  validateEnvironmentConfiguration()
+  const testSecret = getTestSecret()
+  validateTestSecretRequirements(testSecret)
+}
+
+/**
+ * Validate environment configuration
+ */
+function validateEnvironmentConfiguration(): void {
   if (!process.env.NODE_ENV || process.env.NODE_ENV !== 'test') {
     throw new Error('Test environment validation failed: NODE_ENV must be set to "test"')
   }
+}
 
-  // Check for test-specific JWT secret
+/**
+ * Get test-specific JWT secret
+ */
+function getTestSecret(): string {
   const testSecret = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET
   if (!testSecret) {
     throw new Error('Test environment validation failed: JWT_SECRET or NEXTAUTH_SECRET required')
   }
+  return testSecret
+}
 
-  // Validate test secret meets minimum requirements
+/**
+ * Validate test secret requirements
+ */
+function validateTestSecretRequirements(testSecret: string): void {
   if (testSecret.length < 32) {
     throw new Error('Test environment validation failed: JWT secret must be at least 32 characters')
   }
 
-  // Prevent use of production secrets in test environment
   if (testSecret.includes('prod') || testSecret.includes('production')) {
     throw new Error(
       'Test environment validation failed: Production secrets detected in test environment'
     )
-  }
-
-  // Ensure test secret is properly isolated
-  if (process.env.NODE_ENV === 'test' && !testSecret.includes('test')) {
   }
 }
 
@@ -149,28 +161,49 @@ function validateTestEnvironment(): void {
  * Enhanced production environment validation
  */
 function validateProductionEnvironment(secret: string): void {
-  // Ensure production secret meets security requirements
+  validateProductionSecretLength(secret)
+  validateProductionSecretNotTest(secret)
+  validateProductionSecretEntropy(secret)
+  validateProductionSecretPatterns(secret)
+}
+
+/**
+ * Validate production secret length
+ */
+function validateProductionSecretLength(secret: string): void {
   if (secret.length < 64) {
     throw new Error(
       'Production environment validation failed: JWT secret must be at least 64 characters in production'
     )
   }
+}
 
-  // Prevent use of test secrets in production
+/**
+ * Validate production secret doesn't contain test patterns
+ */
+function validateProductionSecretNotTest(secret: string): void {
   if (secret.includes('test') || secret.includes('demo')) {
     throw new Error(
       'Production environment validation failed: Test secrets detected in production environment'
     )
   }
+}
 
-  // Validate secret entropy (basic check)
+/**
+ * Validate production secret entropy
+ */
+function validateProductionSecretEntropy(secret: string): void {
   if (secret === secret.toLowerCase() || secret === secret.toUpperCase()) {
     throw new Error(
       'Production environment validation failed: JWT secret must contain mixed case characters'
     )
   }
+}
 
-  // Check for common patterns that indicate weak secrets
+/**
+ * Validate production secret doesn't contain weak patterns
+ */
+function validateProductionSecretPatterns(secret: string): void {
   const weakPatterns = ['123', 'abc', 'password', 'secret', 'key']
   if (weakPatterns.some(pattern => secret.toLowerCase().includes(pattern))) {
     throw new Error('Production environment validation failed: JWT secret contains weak patterns')
@@ -181,40 +214,58 @@ function validateProductionEnvironment(secret: string): void {
  * Enhanced JWT payload validation
  */
 function validateJWTPayload(payload: Record<string, unknown>): void {
-  // Validate required fields
-  if (!payload.sub) {
-    throw new Error('JWT payload validation failed: Subject (sub) is required')
-  }
+  validateJWTRequiredFields(payload)
+  validateJWTFieldTypes(payload)
+  validateJWTExpirationLogic(payload)
+}
 
-  if (!payload.iat) {
-    throw new Error('JWT payload validation failed: Issued at (iat) is required')
+/**
+ * Validate JWT required fields
+ */
+function validateJWTRequiredFields(payload: Record<string, unknown>): void {
+  const requiredFields = [
+    { field: 'sub', name: 'Subject' },
+    { field: 'iat', name: 'Issued at' },
+    { field: 'exp', name: 'Expiration' }
+  ]
+  
+  for (const { field, name } of requiredFields) {
+    if (!payload[field]) {
+      throw new Error(`JWT payload validation failed: ${name} (${field}) is required`)
+    }
   }
+}
 
-  if (!payload.exp) {
-    throw new Error('JWT payload validation failed: Expiration (exp) is required')
+/**
+ * Validate JWT field types
+ */
+function validateJWTFieldTypes(payload: Record<string, unknown>): void {
+  const fieldTypes = [
+    { field: 'sub', type: 'string', name: 'Subject' },
+    { field: 'iat', type: 'number', name: 'Issued at' },
+    { field: 'exp', type: 'number', name: 'Expiration' }
+  ]
+  
+  for (const { field, type, name } of fieldTypes) {
+    if (typeof payload[field] !== type) {
+      throw new Error(`JWT payload validation failed: ${name} (${field}) must be a ${type}`)
+    }
   }
+}
 
-  // Validate types
-  if (typeof payload.sub !== 'string') {
-    throw new Error('JWT payload validation failed: Subject (sub) must be a string')
-  }
-
-  if (typeof payload.iat !== 'number') {
-    throw new Error('JWT payload validation failed: Issued at (iat) must be a number')
-  }
-
-  if (typeof payload.exp !== 'number') {
-    throw new Error('JWT payload validation failed: Expiration (exp) must be a number')
-  }
-
-  // Validate expiration is in the future
-  if (payload.exp <= payload.iat) {
+/**
+ * Validate JWT expiration logic
+ */
+function validateJWTExpirationLogic(payload: Record<string, unknown>): void {
+  const iat = payload.iat as number
+  const exp = payload.exp as number
+  
+  if (exp <= iat) {
     throw new Error('JWT payload validation failed: Expiration must be after issued at time')
   }
-
-  // Validate expiration is not too far in the future (max 7 days)
-  const maxExpiration = payload.iat + 7 * 24 * 60 * 60 // 7 days in seconds
-  if (payload.exp > maxExpiration) {
+  
+  const maxExpiration = iat + 7 * 24 * 60 * 60 // 7 days in seconds
+  if (exp > maxExpiration) {
     throw new Error(
       'JWT payload validation failed: Expiration exceeds maximum allowed time (7 days)'
     )
@@ -524,24 +575,50 @@ function validateVerifiedPayload(payload: Record<string, unknown>): void {
  * Enhanced JWT verification error handling
  */
 function handleJWTVerificationError(error: unknown): never {
-  // Import enhanced error handler
-  const { ErrorHandler } = require('@/lib/errors/enhanced-error-handler')
+  if (isJoseError(error)) {
+    handleJoseError(error)
+  }
+  
+  if (isCustomValidationError(error)) {
+    handleCustomValidationError(error)
+  }
+  
+  if (isEnvironmentValidationError(error)) {
+    handleEnvironmentValidationError(error)
+  }
+  
+  // For any other errors, create a generic authentication error with context
+  throw ErrorHandler.createAuthError('invalid_token', error, {
+    errorType: 'unknown_jwt_error',
+    originalMessage: error instanceof Error ? error.message : String(error),
+  })
+}
 
-  // Map jose errors to our enhanced error system
+/**
+ * Check if error is a jose library error
+ */
+function isJoseError(error: unknown): error is joseErrors.JOSEError {
+  return error instanceof joseErrors.JOSEError
+}
+
+/**
+ * Handle jose library errors
+ */
+function handleJoseError(error: joseErrors.JOSEError): never {
   if (error instanceof joseErrors.JWTExpired) {
     throw ErrorHandler.createAuthError('token_expired', error, {
       joseErrorType: 'JWTExpired',
       originalMessage: error.message,
     })
   }
-
+  
   if (error instanceof joseErrors.JWTInvalid) {
     throw ErrorHandler.createAuthError('invalid_token', error, {
       joseErrorType: 'JWTInvalid',
       originalMessage: error.message,
     })
   }
-
+  
   if (error instanceof joseErrors.JWSInvalid) {
     throw ErrorHandler.createAuthError('invalid_token', error, {
       joseErrorType: 'JWSInvalid',
@@ -549,7 +626,7 @@ function handleJWTVerificationError(error: unknown): never {
       issue: 'signature_verification_failed',
     })
   }
-
+  
   if (error instanceof joseErrors.JWTClaimValidationFailed) {
     throw ErrorHandler.createAuthError('invalid_token', error, {
       joseErrorType: 'JWTClaimValidationFailed',
@@ -557,48 +634,64 @@ function handleJWTVerificationError(error: unknown): never {
       issue: 'claim_validation_failed',
     })
   }
-
-  // Handle our custom validation errors with enhanced context
-  if (error instanceof Error && error.message.startsWith('JWT validation failed:')) {
-    throw ErrorHandler.createAuthError('invalid_token', error, {
-      validationType: 'custom_validation',
-      originalMessage: error.message,
-    })
-  }
-
-  // Handle environment-specific validation errors with enhanced details
-  if (
-    error instanceof Error &&
-    (error.message.includes('Test environment validation failed:') ||
-      error.message.includes('Production environment validation failed:'))
-  ) {
-    throw ErrorHandler.createError(
-      'JWT_ENVIRONMENT_VALIDATION_ERROR',
-      'JWT validation failed due to environment configuration.',
-      'authentication',
-      'high',
-      {
-        originalError: error,
-        context: {
-          environment: process.env.NODE_ENV,
-          validationType: 'environment_specific',
-        },
-        actionableSteps: [
-          'Check environment configuration settings',
-          'Verify JWT secrets are properly configured for this environment',
-          'Ensure environment-specific validation rules are correct',
-        ],
-        developmentDetails: `Environment validation error: ${error.message}. Check JWT configuration for ${process.env.NODE_ENV} environment.`,
-        documentationLinks: ['/docs/authentication#environment-configuration'],
-      }
-    )
-  }
-
-  // For any other errors, create a generic authentication error with context
+  
+  // Generic jose error
   throw ErrorHandler.createAuthError('invalid_token', error, {
-    errorType: 'unknown_jwt_error',
-    originalMessage: error instanceof Error ? error.message : String(error),
+    joseErrorType: 'JOSEError',
+    originalMessage: error.message,
   })
+}
+
+/**
+ * Check if error is a custom validation error
+ */
+function isCustomValidationError(error: unknown): error is Error {
+  return error instanceof Error && error.message.startsWith('JWT validation failed:')
+}
+
+/**
+ * Handle custom validation errors
+ */
+function handleCustomValidationError(error: Error): never {
+  throw ErrorHandler.createAuthError('invalid_token', error, {
+    validationType: 'custom_validation',
+    originalMessage: error.message,
+  })
+}
+
+/**
+ * Check if error is an environment validation error
+ */
+function isEnvironmentValidationError(error: unknown): error is Error {
+  return error instanceof Error &&
+    (error.message.includes('Test environment validation failed:') ||
+     error.message.includes('Production environment validation failed:'))
+}
+
+/**
+ * Handle environment validation errors
+ */
+function handleEnvironmentValidationError(error: Error): never {
+  throw ErrorHandler.createError(
+    'JWT_ENVIRONMENT_VALIDATION_ERROR',
+    'JWT validation failed due to environment configuration.',
+    'authentication',
+    'high',
+    {
+      originalError: error,
+      context: {
+        environment: process.env.NODE_ENV,
+        validationType: 'environment_specific',
+      },
+      actionableSteps: [
+        'Check environment configuration settings',
+        'Verify JWT secrets are properly configured for this environment',
+        'Ensure environment-specific validation rules are correct',
+      ],
+      developmentDetails: `Environment validation error: ${error.message}. Check JWT configuration for ${process.env.NODE_ENV} environment.`,
+      documentationLinks: ['/docs/authentication#environment-configuration'],
+    }
+  )
 }
 
 // JWT implementation using jose library for standards compliance and security
@@ -737,7 +830,11 @@ export async function generateAccessToken(
   authMethod?: string
 ): Promise<string> {
   // Validate input parameters
-  const _validated = GenerateAccessTokenSchema.parse({ user, session, authMethod })
+  const parseResult = GenerateAccessTokenSchema.safeParse({ user, session, authMethod })
+  if (!parseResult.success) {
+    throw new Error(`Invalid parameters: ${parseResult.error.errors.map(e => e.message).join(', ')}`)
+  }
+  const _validated = parseResult.data
 
   const now = Math.floor(Date.now() / 1000)
 
@@ -779,7 +876,11 @@ export async function generateAccessToken(
 // Generate refresh token
 export async function generateRefreshToken(userId: string, sessionId: string): Promise<string> {
   // Validate input parameters
-  const validated = GenerateRefreshTokenSchema.parse({ userId, sessionId })
+  const parseResult = GenerateRefreshTokenSchema.safeParse({ userId, sessionId })
+  if (!parseResult.success) {
+    throw new Error(`Invalid parameters: ${parseResult.error.errors.map(e => e.message).join(', ')}`)
+  }
+  const validated = parseResult.data
 
   // Generate cryptographically secure random token
   const token = generateRandomToken(32)
@@ -827,7 +928,10 @@ export async function generateRefreshToken(userId: string, sessionId: string): P
 export async function verifyAccessToken(token: string): Promise<AccessTokenPayload> {
   // Enhanced input validation with custom error handling
   try {
-    VerifyAccessTokenSchema.parse({ token })
+    const parseResult = VerifyAccessTokenSchema.safeParse({ token })
+    if (!parseResult.success) {
+      throw parseResult.error
+    }
   } catch (error) {
     // Transform Zod validation errors to expected test format
     if (error instanceof z.ZodError) {
@@ -1058,7 +1162,11 @@ async function tryTestFallbackVerification(
 // Verify refresh token
 export async function verifyRefreshToken(token: string): Promise<RefreshTokenPayload> {
   // Validate input parameters
-  const validated = VerifyRefreshTokenSchema.parse({ token })
+  const parseResult = VerifyRefreshTokenSchema.safeParse({ token })
+  if (!parseResult.success) {
+    throw new Error(`Invalid parameters: ${parseResult.error.errors.map(e => e.message).join(', ')}`)
+  }
+  const validated = parseResult.data
 
   if (!validated.token) {
     throw new Error('No token provided')
@@ -1181,7 +1289,11 @@ export async function rotateRefreshToken(oldToken: string): Promise<{
   expiresIn: number
 }> {
   // Validate input parameters
-  const validated = RotateRefreshTokenSchema.parse({ oldToken })
+  const parseResult = RotateRefreshTokenSchema.safeParse({ oldToken })
+  if (!parseResult.success) {
+    throw new Error(`Invalid parameters: ${parseResult.error.errors.map(e => e.message).join(', ')}`)
+  }
+  const validated = parseResult.data
 
   const payload = await verifyOldTokenWithSecurityCheck(validated.oldToken)
   const { user, session } = await getUserAndSession(payload)
@@ -1288,7 +1400,11 @@ async function revokeOldToken(oldToken: string, newTokenId: string): Promise<voi
 // Revoke specific refresh token
 export async function revokeRefreshToken(token: string): Promise<void> {
   // Validate input parameters
-  const validated = RevokeRefreshTokenSchema.parse({ token })
+  const parseResult = RevokeRefreshTokenSchema.safeParse({ token })
+  if (!parseResult.success) {
+    throw new Error(`Invalid parameters: ${parseResult.error.errors.map(e => e.message).join(', ')}`)
+  }
+  const validated = parseResult.data
 
   const parts = validated.token.split('.')
   if (parts.length < 1) {
@@ -1311,7 +1427,11 @@ export async function revokeAllUserTokens(
   options?: { terminateSessions?: boolean }
 ): Promise<void> {
   // Validate input parameters
-  const validated = RevokeAllUserTokensSchema.parse({ userId, options })
+  const parseResult = RevokeAllUserTokensSchema.safeParse({ userId, options })
+  if (!parseResult.success) {
+    throw new Error(`Invalid parameters: ${parseResult.error.errors.map(e => e.message).join(', ')}`)
+  }
+  const validated = parseResult.data
 
   // Revoke all refresh tokens
   await sql`SELECT revoke_all_user_tokens(${validated.userId})`
@@ -1379,7 +1499,11 @@ export async function createSession(
   }
 ): Promise<{ session: UserSession; accessToken: string; refreshToken: string }> {
   // Validate input parameters
-  const validated = CreateSessionSchema.parse({ user, authMethod, context })
+  const parseResult = CreateSessionSchema.safeParse({ user, authMethod, context })
+  if (!parseResult.success) {
+    throw new Error(`Invalid parameters: ${parseResult.error.errors.map(e => e.message).join(', ')}`)
+  }
+  const validated = parseResult.data
 
   // Create session
   const sessionId = generateRandomToken(16)
@@ -1425,7 +1549,11 @@ export async function createSession(
 
 export async function refreshSession(sessionId: string): Promise<void> {
   // Validate input parameters
-  const validated = RefreshSessionSchema.parse({ sessionId })
+  const parseResult = RefreshSessionSchema.safeParse({ sessionId })
+  if (!parseResult.success) {
+    throw new Error(`Invalid parameters: ${parseResult.error.errors.map(e => e.message).join(', ')}`)
+  }
+  const validated = parseResult.data
 
   await sql`
     UPDATE user_sessions

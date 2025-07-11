@@ -362,25 +362,23 @@ export class WebhookSecurityValidator {
     deliveryId?: string
     error?: string
   }> {
-    try {
-      const headers = Object.fromEntries(request.headers.entries())
+    const headers = Object.fromEntries(request.headers.entries())
 
-      // Validate required headers exist and are properly formatted
-      const validatedHeaders = WebhookHeadersSchema.parse(headers)
+    // Validate required headers exist and are properly formatted
+    const parseResult = WebhookHeadersSchema.safeParse(headers)
 
-      return {
-        success: true,
-        event: validatedHeaders[WEBHOOK_CONFIG.eventHeader] as AllowedWebhookEvent,
-        deliveryId: validatedHeaders[WEBHOOK_CONFIG.deliveryHeader],
-      }
-    } catch (error) {
+    if (!parseResult.success) {
       return {
         success: false,
-        error:
-          error instanceof z.ZodError
-            ? `Invalid headers: ${error.errors.map(e => e.message).join(', ')}`
-            : 'Header validation failed',
+        error: `Invalid headers: ${parseResult.error.errors.map(e => e.message).join(', ')}`
       }
+    }
+
+    const validatedHeaders = parseResult.data
+    return {
+      success: true,
+      event: validatedHeaders[WEBHOOK_CONFIG.eventHeader] as AllowedWebhookEvent,
+      deliveryId: validatedHeaders[WEBHOOK_CONFIG.deliveryHeader],
     }
   }
 

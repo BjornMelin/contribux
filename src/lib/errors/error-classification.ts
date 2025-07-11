@@ -58,16 +58,22 @@ export enum RecoveryStrategy {
   NO_RECOVERY = 'no_recovery',
 }
 
-// Error classification result
-export interface ErrorClassification {
-  category: ErrorCategory
-  severity: ErrorSeverity
-  isTransient: boolean
-  recoveryStrategies: RecoveryStrategy[]
-  userMessage: string
-  technicalDetails?: string
-  metadata?: Record<string, unknown>
-}
+// Import Zod
+import { z } from 'zod'
+
+// Error classification schema
+export const ErrorClassificationSchema = z.object({
+  category: z.nativeEnum(ErrorCategory),
+  severity: z.nativeEnum(ErrorSeverity),
+  isTransient: z.boolean(),
+  recoveryStrategies: z.array(z.nativeEnum(RecoveryStrategy)),
+  userMessage: z.string(),
+  technicalDetails: z.string().optional(),
+  metadata: z.record(z.unknown()).optional(),
+})
+
+// Error classification type
+export type ErrorClassification = z.infer<typeof ErrorClassificationSchema>
 
 // Helper functions (internal use)
 function isSecurityError(error: unknown): error is { type: string; statusCode: number } {
@@ -306,13 +312,21 @@ export function classifyError(error: unknown): ErrorClassification {
   }
 
   // Default classification
+  let technicalDetails = 'Unknown error'
+  try {
+    technicalDetails = String(error)
+  } catch {
+    // Handle objects that can't be converted to string
+    technicalDetails = 'Error object cannot be stringified'
+  }
+  
   return {
     category: ErrorCategory.INTERNAL_ERROR,
     severity: ErrorSeverity.HIGH,
     isTransient: false,
     recoveryStrategies: [RecoveryStrategy.USER_INTERVENTION],
     userMessage: 'An unexpected error occurred. Please try again or contact support.',
-    technicalDetails: String(error),
+    technicalDetails,
   }
 }
 

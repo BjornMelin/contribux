@@ -619,7 +619,7 @@ function transformGitHubSearchResults<T extends GitHubApiRepository | GitHubApiI
 export const GitHubWebhookPayloadSchema = z.object({
   action: z.string(),
   issue: GitHubIssueTransformSchema.optional(),
-  pull_request: z.any().optional(),
+  pull_request: z.unknown().optional(), // Pull request structure is similar to issue but more complex
   repository: GitHubRepositoryTransformSchema,
   sender: z.object({
     login: z.string(),

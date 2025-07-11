@@ -11,6 +11,28 @@ import {
 } from './rate-limiter'
 
 /**
+ * Map limiter type to endpoint path
+ */
+function getLimiterEndpoint(
+  limiterType: 'auth' | 'api' | 'search' | 'webauthn' | 'webhook' | 'admin' | 'public' | 'analytics' | 'security' | 'demo'
+): string {
+  const endpointMap: Record<typeof limiterType, string> = {
+    auth: '/api/auth/',
+    search: '/api/search/',
+    webauthn: '/api/security/webauthn/',
+    webhook: '/api/webhooks/',
+    admin: '/api/admin/',
+    public: '/api/health/',
+    analytics: '/api/analytics/',
+    security: '/api/security/',
+    demo: '/api/demo/',
+    api: '/api/'
+  }
+  
+  return endpointMap[limiterType]
+}
+
+/**
  * Simple rate limit check for backwards compatibility
  * @param handler - The API route handler function
  * @param limiterType - The type of rate limiter to use
@@ -128,27 +150,8 @@ export async function checkApiRateLimit(
     | 'security'
     | 'demo' = 'api'
 ): Promise<{ allowed: boolean; headers: Record<string, string> }> {
-  const { limiter, config } = getRateLimiterForEndpoint(
-    limiterType === 'auth'
-      ? '/api/auth/'
-      : limiterType === 'search'
-        ? '/api/search/'
-        : limiterType === 'webauthn'
-          ? '/api/security/webauthn/'
-          : limiterType === 'webhook'
-            ? '/api/webhooks/'
-            : limiterType === 'admin'
-              ? '/api/admin/'
-              : limiterType === 'public'
-                ? '/api/health/'
-                : limiterType === 'analytics'
-                  ? '/api/analytics/'
-                  : limiterType === 'security'
-                    ? '/api/security/'
-                    : limiterType === 'demo'
-                      ? '/api/demo/'
-                      : '/api/'
-  )
+  const endpoint = getLimiterEndpoint(limiterType)
+  const { limiter, config } = getRateLimiterForEndpoint(endpoint)
 
   const identifier = getEnhancedRequestIdentifier(req)
   const result = await checkRateLimit(limiter, identifier, {
@@ -203,29 +206,8 @@ export function withRateLimit<T extends any[]>(
     }
 
     // Get the rate limiter configuration
-    const { limiter, config, type } = getRateLimiterForEndpoint(
-      options.limiterType
-        ? options.limiterType === 'auth'
-          ? '/api/auth/'
-          : options.limiterType === 'search'
-            ? '/api/search/'
-            : options.limiterType === 'webauthn'
-              ? '/api/security/webauthn/'
-              : options.limiterType === 'webhook'
-                ? '/api/webhooks/'
-                : options.limiterType === 'admin'
-                  ? '/api/admin/'
-                  : options.limiterType === 'public'
-                    ? '/api/health/'
-                    : options.limiterType === 'analytics'
-                      ? '/api/analytics/'
-                      : options.limiterType === 'security'
-                        ? '/api/security/'
-                        : options.limiterType === 'demo'
-                          ? '/api/demo/'
-                          : '/api/'
-        : req.nextUrl.pathname
-    )
+    const endpoint = options.limiterType ? getLimiterEndpoint(options.limiterType) : req.nextUrl.pathname
+    const { limiter, config, type } = getRateLimiterForEndpoint(endpoint)
 
     // Get identifier (custom or default)
     const identifier = options.customIdentifier?.(req) || getEnhancedRequestIdentifier(req)
@@ -305,29 +287,8 @@ export async function checkApiRateLimitStatus(
   retryAfter: number | null
   headers: Record<string, string>
 }> {
-  const { limiter, config } = getRateLimiterForEndpoint(
-    options.limiterType
-      ? options.limiterType === 'auth'
-        ? '/api/auth/'
-        : options.limiterType === 'search'
-          ? '/api/search/'
-          : options.limiterType === 'webauthn'
-            ? '/api/security/webauthn/'
-            : options.limiterType === 'webhook'
-              ? '/api/webhooks/'
-              : options.limiterType === 'admin'
-                ? '/api/admin/'
-                : options.limiterType === 'public'
-                  ? '/api/health/'
-                  : options.limiterType === 'analytics'
-                    ? '/api/analytics/'
-                    : options.limiterType === 'security'
-                      ? '/api/security/'
-                      : options.limiterType === 'demo'
-                        ? '/api/demo/'
-                        : '/api/'
-      : req.nextUrl.pathname
-  )
+  const endpoint = options.limiterType ? getLimiterEndpoint(options.limiterType) : req.nextUrl.pathname
+  const { limiter, config } = getRateLimiterForEndpoint(endpoint)
 
   const identifier = options.customIdentifier || getEnhancedRequestIdentifier(req)
   const result = await checkRateLimit(limiter, identifier, {

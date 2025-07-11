@@ -38,11 +38,23 @@ export const GET = withRateLimit(
         const params = Object.fromEntries(url.searchParams)
 
         // Validate input with enhanced error handling
-        const validatedParams = searchSchema.parse({
+        const parseResult = searchSchema.safeParse({
           ...params,
           per_page: params.per_page ? Number.parseInt(params.per_page) : undefined,
           page: params.page ? Number.parseInt(params.page) : undefined,
         })
+
+        if (!parseResult.success) {
+          throw ErrorHandler.createError(
+            'INVALID_PARAMS',
+            parseResult.error.errors.map(e => e.message).join(', '),
+            'validation',
+            'low',
+            { context: requestContext }
+          )
+        }
+
+        const validatedParams = parseResult.data
 
         // TODO: Implement actual GitHub search logic here
         // This is a placeholder response

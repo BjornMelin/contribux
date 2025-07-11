@@ -7,11 +7,13 @@ import { beforeAll, afterAll, vi } from 'vitest'
 import type { TestEnvironmentConfig } from './test-environment.config'
 
 // Mock server instance type
+// MSW handlers are dynamically imported and don't have a stable type
+// Using unknown[] is appropriate here as the handlers are validated at runtime by MSW
 interface MockServer {
   listen: (options?: { onUnhandledRequest?: string }) => void
   resetHandlers: () => void
   close: () => void
-  use: (...handlers: any[]) => void
+  use: (...handlers: unknown[]) => void
 }
 
 // Service mock registry

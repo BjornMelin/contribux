@@ -5,7 +5,7 @@
 
 import { type NextRequest, NextResponse } from 'next/server'
 import { ZodError } from 'zod'
-import { randomUUID } from 'node:crypto'
+import { randomUUID } from 'crypto'
 
 // Error severity levels
 export type ErrorSeverity = 'low' | 'medium' | 'high' | 'critical'
@@ -387,7 +387,27 @@ export class ErrorHandler {
     const status = statusMap[error.code] || 500
 
     // Create response body with appropriate level of detail
-    const responseBody: any = {
+    interface ErrorResponseBody {
+      error: {
+        code: string
+        message: string
+        correlationId: string
+        timestamp: string
+        category: ErrorCategory
+        severity: ErrorSeverity
+        actionableSteps?: string[]
+        documentationLinks?: string[]
+        details?: {
+          development?: string
+          production?: string
+        }
+        context?: Record<string, unknown>
+        originalError?: string
+        stackTrace?: string
+      }
+    }
+
+    const responseBody: ErrorResponseBody = {
       error: {
         code: error.code,
         message: error.message,

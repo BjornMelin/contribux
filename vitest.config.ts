@@ -43,6 +43,11 @@ export default defineConfig({
     // Modern Vitest 3.2+ configuration
     globals: true,
     environment: 'jsdom',
+    
+    // Mock configuration
+    mockReset: true,
+    clearMocks: true,
+    restoreMocks: true,
 
     include: [
       'tests/unit/**/*.{test,spec}.{js,ts,tsx}',
@@ -62,7 +67,7 @@ export default defineConfig({
       '.next/**/*',
     ],
 
-    setupFiles: ['./tests/setup-enhanced.ts'],
+    setupFiles: ['./tests/setup-enhanced.ts', './tests/unit/setup-mocks.ts'],
 
     // Optimized pool configuration for Vitest 3.2+
     pool: 'threads',

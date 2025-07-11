@@ -8,7 +8,7 @@ import { ErrorCategory, type ErrorClassification, ErrorSeverity } from './error-
 import { createErrorLogger } from '@/lib/logging/pino-config'
 
 // Import crypto for generating IDs
-import crypto from 'node:crypto'
+import crypto from 'crypto'
 
 // Context interface for error logging
 interface ErrorContext {
@@ -132,7 +132,7 @@ export class ErrorDashboard {
    * Get error analytics with filtering
    */
   async getErrorAnalytics(filter: ErrorAnalyticsFilter): Promise<ErrorAnalytics> {
-    const errors = this.errorMonitor.errors // Access private property
+    const errors = Array.from(this.errorMonitor.getErrors()) // Use getter method
 
     // Apply filters
     const filteredErrors = errors.filter(error => {
@@ -179,7 +179,7 @@ export class ErrorDashboard {
    */
   async generateIncidentReport(incidentId: string): Promise<IncidentReport> {
     // This would typically fetch from a database in a real implementation
-    const errors = this.errorMonitor.errors
+    const errors = Array.from(this.errorMonitor.getErrors())
 
     // For demo purposes, create a synthetic incident
     const incidentStart = Date.now() - 2 * 60 * 60 * 1000 // 2 hours ago
@@ -818,8 +818,8 @@ export class ProductionAlertingConfig {
     }
   } {
     return {
-      channels: alertingSystem.alertChannels.length,
-      rules: alertingSystem.alertingRules.length,
+      channels: alertingSystem.getAlertChannelsCount(),
+      rules: alertingSystem.getAlertingRulesCount(),
       environment: process.env.NODE_ENV || 'unknown',
       integrations: {
         slack: !!process.env.SLACK_WEBHOOK_URL,
@@ -866,7 +866,7 @@ export class ProductionAlertingConfig {
       const metrics = monitor.getMetrics()
       const alertStats = alerting.getAlertingStats()
 
-      const isHealthy = metrics !== null && alertStats !== null && alerting.alertChannels.length > 0
+      const isHealthy = metrics !== null && alertStats !== null && alerting.getAlertChannelsCount() > 0
 
       return {
         status: isHealthy ? 'healthy' : 'degraded',
@@ -874,7 +874,7 @@ export class ProductionAlertingConfig {
           errorMonitor: !!metrics,
           alertingSystem: !!alertStats,
           dashboard: !!dashboard,
-          channels: alerting.alertChannels.length,
+          channels: alerting.getAlertChannelsCount(),
           lastAlert:
             alertStats.totalAlerts > 0
               ? alerting.getAlertHistory(1)[0]?.timestamp.toISOString()
@@ -1026,6 +1026,13 @@ export class ErrorMonitor {
       ErrorMonitor.instance = new ErrorMonitor()
     }
     return ErrorMonitor.instance
+  }
+
+  /**
+   * Get all error entries (read-only)
+   */
+  getErrors(): ReadonlyArray<ErrorEntry> {
+    return this.errors
   }
 
   /**
@@ -1360,6 +1367,20 @@ export class AlertingSystem {
 
   constructor() {
     this.initializeDefaultRules()
+  }
+
+  /**
+   * Get alert channels count
+   */
+  getAlertChannelsCount(): number {
+    return this.alertChannels.length
+  }
+
+  /**
+   * Get alerting rules count
+   */
+  getAlertingRulesCount(): number {
+    return this.alertingRules.length
   }
 
   /**

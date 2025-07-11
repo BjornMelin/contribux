@@ -30,46 +30,52 @@ const auditLogQuerySchema = z.object({
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
 })
 
-// TypeScript interfaces
+// TypeScript interfaces derived from Zod schemas
 type AuditLogQueryParams = z.infer<typeof auditLogQuerySchema>
 
-interface QueryParams {
-  [key: string]: string | number
-}
+const queryParamsSchema = z.record(z.union([z.string(), z.number()]))
+type QueryParams = z.infer<typeof queryParamsSchema>
 
-interface AuditLogFilters {
-  type?: AuditEventType
-  severity?: AuditSeverity
-  action?: { contains: string }
-  timestamp?: { gte?: Date; lte?: Date }
-  actor?: { id: string }
-}
+const auditLogFiltersSchema = z.object({
+  type: z.nativeEnum(AuditEventType).optional(),
+  severity: z.nativeEnum(AuditSeverity).optional(),
+  action: z.object({ contains: z.string() }).optional(),
+  timestamp: z.object({ 
+    gte: z.date().optional(), 
+    lte: z.date().optional() 
+  }).optional(),
+  actor: z.object({ id: z.string() }).optional(),
+})
+type AuditLogFilters = z.infer<typeof auditLogFiltersSchema>
 
-interface QueryOptions {
-  limit: number
-  offset: number
-  orderBy: Record<string, 'asc' | 'desc'>
-}
+const queryOptionsSchema = z.object({
+  limit: z.number(),
+  offset: z.number(),
+  orderBy: z.record(z.enum(['asc', 'desc'])),
+})
+type QueryOptions = z.infer<typeof queryOptionsSchema>
 
-interface MockAuditLog {
-  id: string
-  type: AuditEventType
-  severity: AuditSeverity
-  timestamp: string
-  actor: {
-    type: string
-    id: string
-    ip: string
-  }
-  action: string
-  result: string
-  metadata: Record<string, unknown>
-}
+const mockAuditLogSchema = z.object({
+  id: z.string(),
+  type: z.nativeEnum(AuditEventType),
+  severity: z.nativeEnum(AuditSeverity),
+  timestamp: z.string(),
+  actor: z.object({
+    type: z.string(),
+    id: z.string(),
+    ip: z.string(),
+  }),
+  action: z.string(),
+  result: z.string(),
+  metadata: z.record(z.unknown()),
+})
+type MockAuditLog = z.infer<typeof mockAuditLogSchema>
 
-interface QueryResult {
-  data: MockAuditLog[]
-  total: number
-}
+const queryResultSchema = z.object({
+  data: z.array(mockAuditLogSchema),
+  total: z.number(),
+})
+type QueryResult = z.infer<typeof queryResultSchema>
 
 // Helper function to check if user has admin privileges
 async function isAdmin(userId: string): Promise<boolean> {

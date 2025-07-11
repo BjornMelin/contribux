@@ -42,41 +42,72 @@ export function buildCSP(directives: CSPDirectives, nonce?: string): string {
 
   // Process each directive
   for (const [directive, sources] of Object.entries(directives)) {
-    if (!sources || sources.length === 0) {
-      // Handle directives without sources
-      if (
-        directive === 'upgrade-insecure-requests' ||
-        directive === 'block-all-mixed-content' ||
-        directive === 'require-trusted-types-for'
-      ) {
-        csp.push(directive)
-      }
-      continue
-    }
-
-    // Add nonce to script-src and style-src if provided
-    const processedSources = [...sources]
-    if (nonce && (directive === 'script-src' || directive === 'style-src')) {
-      processedSources.push(`'nonce-${nonce}'`)
-    }
-
-    // Handle special directive formats
-    if (directive === 'report-uri') {
-      csp.push(`report-uri ${processedSources.join(' ')}`)
-    } else if (directive === 'report-to') {
-      csp.push(`report-to ${processedSources.join(' ')}`)
-    } else if (directive === 'require-trusted-types-for') {
-      // Special handling for trusted types - sources should be 'script'
-      csp.push(`require-trusted-types-for ${processedSources.join(' ')}`)
-    } else if (directive === 'trusted-types') {
-      // Trusted types policy names
-      csp.push(`trusted-types ${processedSources.join(' ')}`)
-    } else {
-      csp.push(`${directive} ${processedSources.join(' ')}`)
+    const directiveValue = buildDirectiveValue(directive, sources, nonce)
+    if (directiveValue) {
+      csp.push(directiveValue)
     }
   }
 
   return `${csp.join('; ')};`
+}
+
+/**
+ * Build individual directive value
+ */
+function buildDirectiveValue(directive: string, sources: string[] | undefined, nonce?: string): string | null {
+  if (!sources || sources.length === 0) {
+    return handleEmptySourcesDirective(directive)
+  }
+
+  const processedSources = processSourcesWithNonce(directive, sources, nonce)
+  return formatDirective(directive, processedSources)
+}
+
+/**
+ * Handle directives that don't require sources
+ */
+function handleEmptySourcesDirective(directive: string): string | null {
+  const standaloneDirectives = [
+    'upgrade-insecure-requests',
+    'block-all-mixed-content',
+    'require-trusted-types-for'
+  ]
+  
+  return standaloneDirectives.includes(directive) ? directive : null
+}
+
+/**
+ * Process sources and add nonce if applicable
+ */
+function processSourcesWithNonce(directive: string, sources: string[], nonce?: string): string[] {
+  const processedSources = [...sources]
+  
+  if (nonce && isNonceableDirective(directive)) {
+    processedSources.push(`'nonce-${nonce}'`)
+  }
+  
+  return processedSources
+}
+
+/**
+ * Check if directive supports nonce
+ */
+function isNonceableDirective(directive: string): boolean {
+  return directive === 'script-src' || directive === 'style-src'
+}
+
+/**
+ * Format directive based on its type
+ */
+function formatDirective(directive: string, sources: string[]): string {
+  const specialFormatDirectives: Record<string, string> = {
+    'report-uri': `report-uri ${sources.join(' ')}`,
+    'report-to': `report-to ${sources.join(' ')}`,
+    'require-trusted-types-for': `require-trusted-types-for ${sources.join(' ')}`,
+    'trusted-types': `trusted-types ${sources.join(' ')}`
+  }
+  
+  return specialFormatDirectives[directive] || `${directive} ${sources.join(' ')}`
 }
 
 /**

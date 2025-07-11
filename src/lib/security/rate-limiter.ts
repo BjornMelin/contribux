@@ -435,7 +435,20 @@ function simpleHash(str: string): string {
 /**
  * Parse JWT payload without verification (for identifier purposes only)
  */
-function parseJWTPayload(token: string): any {
+/**
+ * JWT payload interface
+ */
+interface JWTPayload {
+  sub?: string
+  aud?: string | string[]
+  exp?: number
+  iat?: number
+  iss?: string
+  jti?: string
+  [key: string]: unknown
+}
+
+function parseJWTPayload(token: string): JWTPayload | null {
   try {
     const parts = token.split('.')
     if (parts.length !== 3) return null

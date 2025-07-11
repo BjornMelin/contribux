@@ -105,7 +105,7 @@ const ErrorResponseSchema = z.object({
   error: z.object({
     code: z.string(),
     message: z.string(),
-    details: z.any().optional(),
+    details: z.record(z.unknown()).optional(),
   }),
   request_id: z.string().optional(),
 })
@@ -211,11 +211,10 @@ function validateResponse(
 
   // Validate schema if provided
   if (schema && response.status >= 200 && response.status < 300) {
-    try {
-      schema.parse(responseData)
-    } catch (schemaError) {
+    const parseResult = schema.safeParse(responseData)
+    if (!parseResult.success) {
       testPassed = false
-      const schemaErrorMessage = `Schema validation failed: ${schemaError}`
+      const schemaErrorMessage = `Schema validation failed: ${parseResult.error.errors.map(e => e.message).join(', ')}`
       failureReason = failureReason ? `${failureReason}; ${schemaErrorMessage}` : schemaErrorMessage
     }
   }

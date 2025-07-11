@@ -97,7 +97,14 @@ export type GitHubLabel = z.infer<typeof GitHubLabelSchema>
 export type GitHubComment = z.infer<typeof GitHubCommentSchema>
 export type GitHubOrganization = z.infer<typeof GitHubOrganizationSchema>
 
-export interface SearchResult<T> {
+// Search result schema - generic version
+export const SearchResultSchema = <T extends z.ZodTypeAny>(itemSchema: T) => z.object({
+  total_count: z.number(),
+  incomplete_results: z.boolean(),
+  items: z.array(itemSchema),
+})
+
+export type SearchResult<T> = {
   total_count: number
   incomplete_results: boolean
   items: T[]
@@ -252,7 +259,11 @@ export class GitHubClient {
 
   constructor(config: GitHubClientConfig = {}) {
     // Validate configuration
-    const validatedConfig = GitHubClientConfigSchema.parse(config)
+    const parseResult = GitHubClientConfigSchema.safeParse(config)
+    if (!parseResult.success) {
+      throw new Error(`Invalid GitHub client configuration: ${parseResult.error.errors.map(e => e.message).join(', ')}`)
+    }
+    const validatedConfig = parseResult.data
 
     // Create Octokit instance with built-in plugins
     this.octokit = new EnhancedOctokit({

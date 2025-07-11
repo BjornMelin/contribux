@@ -90,7 +90,9 @@ function ThrowError({ shouldThrow, message }: { shouldThrow: boolean; message?: 
 function AsyncThrowError({ shouldThrow }: { shouldThrow: boolean }) {
   React.useEffect(() => {
     if (shouldThrow) {
-      Promise.reject(new Error('Async test error'))
+      // Create a handled rejection to prevent unhandled rejection warnings
+      const rejection = Promise.reject(new Error('Async test error'))
+      rejection.catch(() => {}) // Handle the rejection
     }
   }, [shouldThrow])
   return <div>Async component</div>
@@ -439,7 +441,11 @@ describe('Error Boundary System', () => {
 
       // Trigger unhandled rejection event
       const rejectionEvent = new PromiseRejectionEvent('unhandledrejection', {
-        promise: Promise.reject(new Error('Async error')),
+        promise: (() => {
+          const p = Promise.reject(new Error('Async error'))
+          p.catch(() => {}) // Handle rejection
+          return p
+        })(),
         reason: new Error('Async error'),
       })
 
@@ -459,7 +465,11 @@ describe('Error Boundary System', () => {
       )
 
       const rejectionEvent = new PromiseRejectionEvent('unhandledrejection', {
-        promise: Promise.reject('String error'),
+        promise: (() => {
+          const p = Promise.reject('String error')
+          p.catch(() => {}) // Handle rejection
+          return p
+        })(),
         reason: 'String error',
       })
 
@@ -481,7 +491,11 @@ describe('Error Boundary System', () => {
       )
 
       const rejectionEvent = new PromiseRejectionEvent('unhandledrejection', {
-        promise: Promise.reject(new Error('Async callback error')),
+        promise: (() => {
+          const p = Promise.reject(new Error('Async callback error'))
+          p.catch(() => {}) // Handle rejection
+          return p
+        })(),
         reason: new Error('Async callback error'),
       })
 
@@ -507,7 +521,11 @@ describe('Error Boundary System', () => {
       )
 
       const rejectionEvent = new PromiseRejectionEvent('unhandledrejection', {
-        promise: Promise.reject(new Error('Reset test error')),
+        promise: (() => {
+          const p = Promise.reject(new Error('Reset test error'))
+          p.catch(() => {}) // Handle rejection
+          return p
+        })(),
         reason: new Error('Reset test error'),
       })
 
@@ -804,8 +822,12 @@ describe('Error Boundary System', () => {
         </AsyncErrorBoundary>
       )
 
+      // Create a handled rejected promise to avoid unhandled rejection
+      const rejectedPromise = Promise.reject(new Error('Test'))
+      rejectedPromise.catch(() => {}) // Handle the rejection to prevent warnings
+      
       const rejectionEvent = new PromiseRejectionEvent('unhandledrejection', {
-        promise: Promise.reject(new Error('Test')),
+        promise: rejectedPromise,
         reason: new Error('Test'),
       })
       rejectionEvent.preventDefault = preventDefaultSpy

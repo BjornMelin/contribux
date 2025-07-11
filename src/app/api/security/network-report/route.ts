@@ -58,55 +58,122 @@ const nelReportBatchSchema = z.array(nelReportSchema)
  */
 function analyzeNetworkError(report: z.infer<typeof nelReportSchema>) {
   const { type, url, status_code, elapsed_time, phase } = report
-
-  // Determine severity based on error type
-  let severity: AuditSeverity = AuditSeverity.INFO
-  let category = 'network-error'
-  let actionRequired = false
-
-  if (type.startsWith('dns.')) {
-    severity = AuditSeverity.WARNING
-    category = 'dns-error'
-    actionRequired = type === 'dns.name_not_resolved'
-  } else if (type.startsWith('tcp.')) {
-    severity = AuditSeverity.WARNING
-    category = 'connection-error'
-    actionRequired = type === 'tcp.refused' || type === 'tcp.timed_out'
-  } else if (type.startsWith('tls.')) {
-    severity = AuditSeverity.ERROR
-    category = 'tls-error'
-    actionRequired = true
-  } else if (type.startsWith('http.')) {
-    severity = status_code && status_code >= 500 ? AuditSeverity.ERROR : AuditSeverity.WARNING
-    category = 'http-error'
-    actionRequired = status_code ? status_code >= 500 : false
-  } else if (type === 'abandoned') {
-    severity = AuditSeverity.INFO
-    category = 'performance-issue'
-    actionRequired = elapsed_time ? elapsed_time > 30000 : false
-  }
-
-  // Check for suspicious patterns
-  const patterns = {
-    isDNSAttack: type.startsWith('dns.') && url.includes('suspicious'),
-    isPerformanceIssue: elapsed_time ? elapsed_time > 10000 : false,
-    isCertificateIssue: type.startsWith('tls.cert.'),
-    isConnectionIssue: type.startsWith('tcp.') && phase === 'connection',
-  }
-
+  
+  const errorAnalysis = getErrorAnalysis(type, status_code, elapsed_time)
+  const patterns = detectSuspiciousPatterns(type, url, elapsed_time, phase)
+  
   return {
-    severity,
-    category,
-    actionRequired,
+    severity: errorAnalysis.severity,
+    category: errorAnalysis.category,
+    actionRequired: errorAnalysis.actionRequired,
     patterns,
     recommendation: getRecommendation(type, patterns),
   }
 }
 
 /**
+ * Error type configuration schema
+ */
+const errorTypeConfigSchema = z.object({
+  severity: z.nativeEnum(AuditSeverity),
+  category: z.string(),
+  actionRequired: z.union([
+    z.boolean(),
+    z.function()
+      .args(z.string(), z.number().optional(), z.number().optional())
+      .returns(z.boolean())
+  ])
+})
+type ErrorTypeConfig = z.infer<typeof errorTypeConfigSchema>
+
+/**
+ * Get error analysis based on type
+ */
+function getErrorAnalysis(type: string, statusCode?: number, elapsedTime?: number): {
+  severity: AuditSeverity
+  category: string
+  actionRequired: boolean
+} {
+  const errorTypeConfigs: Record<string, ErrorTypeConfig> = {
+    'dns': {
+      severity: AuditSeverity.WARNING,
+      category: 'dns-error',
+      actionRequired: (t) => t === 'dns.name_not_resolved'
+    },
+    'tcp': {
+      severity: AuditSeverity.WARNING,
+      category: 'connection-error',
+      actionRequired: (t) => t === 'tcp.refused' || t === 'tcp.timed_out'
+    },
+    'tls': {
+      severity: AuditSeverity.ERROR,
+      category: 'tls-error',
+      actionRequired: true
+    },
+    'http': {
+      severity: statusCode && statusCode >= 500 ? AuditSeverity.ERROR : AuditSeverity.WARNING,
+      category: 'http-error',
+      actionRequired: statusCode ? statusCode >= 500 : false
+    },
+    'abandoned': {
+      severity: AuditSeverity.INFO,
+      category: 'performance-issue',
+      actionRequired: elapsedTime ? elapsedTime > 30000 : false
+    }
+  }
+  
+  // Find matching error type
+  for (const [prefix, config] of Object.entries(errorTypeConfigs)) {
+    if (type === prefix || type.startsWith(`${prefix}.`)) {
+      return {
+        severity: config.severity,
+        category: config.category,
+        actionRequired: typeof config.actionRequired === 'function' 
+          ? config.actionRequired(type, statusCode, elapsedTime)
+          : config.actionRequired
+      }
+    }
+  }
+  
+  // Default for unknown types
+  return {
+    severity: AuditSeverity.INFO,
+    category: 'network-error',
+    actionRequired: false
+  }
+}
+
+/**
+ * Detect suspicious patterns in the error
+ */
+function detectSuspiciousPatterns(
+  type: string,
+  url: string,
+  elapsedTime?: number,
+  phase?: string
+): NetworkErrorPatterns {
+  return {
+    isDNSAttack: type.startsWith('dns.') && url.includes('suspicious'),
+    isPerformanceIssue: elapsedTime ? elapsedTime > 10000 : false,
+    isCertificateIssue: type.startsWith('tls.cert.'),
+    isConnectionIssue: type.startsWith('tcp.') && phase === 'connection',
+  }
+}
+
+/**
  * Get recommendation based on error type and patterns
  */
-function getRecommendation(type: string, patterns: any): string {
+/**
+ * Network error patterns interface
+ */
+interface NetworkErrorPatterns {
+  isCertificateIssue: boolean
+  isDNSAttack: boolean
+  isPerformanceIssue: boolean
+  isConnectionIssue: boolean
+}
+
+function getRecommendation(type: string, patterns: NetworkErrorPatterns): string {
   if (patterns.isCertificateIssue) {
     return 'Check SSL/TLS certificate validity and configuration'
   }
