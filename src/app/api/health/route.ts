@@ -145,7 +145,7 @@ function createJsonResponse(result: HealthResult, statusCode: number): NextRespo
  */
 function handleHealthCheckError(error: unknown, component: string | null): NextResponse {
   const { ErrorHandler } = require('@/lib/errors/enhanced-error-handler')
-  const { extractRequestContext } = require('@/lib/errors/error-utils')
+  // const { extractRequestContext } = require('@/lib/errors/error-utils') // TODO: Use for enhanced error reporting
 
   telemetryLogger.error('Health check failed', error, {
     path: '/api/health',

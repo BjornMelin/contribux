@@ -96,7 +96,9 @@ export async function createDatabaseClient(connectionString: string): Promise<Da
         query?: (query: string, params: unknown[]) => Promise<QueryResult>
       }
       if (sqlWithQuery.query) {
-        return await sqlWithQuery.query(queryText, params)
+        const result = await sqlWithQuery.query(queryText, params)
+        // Wrap array result in QueryResult interface
+        return Array.isArray(result) ? { rows: result } : result
       }
       // Fallback: manually construct the query (less safe, but works)
       const result = await sql`${queryText}` // This won't work with params

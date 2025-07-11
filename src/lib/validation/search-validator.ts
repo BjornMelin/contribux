@@ -20,23 +20,24 @@ export interface ParsedQuery {
 export class SearchValidator {
   sanitizeQuery(query: string): string {
     // Remove script tags and other dangerous HTML
-    return query.replace(/<script[^>]*>.*?<\/script>/gi, '')
-                .replace(/<[^>]+>/g, '')
-                .trim()
+    return query
+      .replace(/<script[^>]*>.*?<\/script>/gi, '')
+      .replace(/<[^>]+>/g, '')
+      .trim()
   }
 
   validateQuery(query: string): ValidationResult {
     if (query.length > 256) {
       return {
         valid: false,
-        error: 'Query too long (maximum 256 characters)'
+        error: 'Query too long (maximum 256 characters)',
       }
     }
 
     if (query.length < 1) {
       return {
         valid: false,
-        error: 'Query cannot be empty'
+        error: 'Query cannot be empty',
       }
     }
 
@@ -48,7 +49,7 @@ export class SearchValidator {
       baseQuery: '',
       terms: [],
       requiredTerms: [],
-      excludedTerms: []
+      excludedTerms: [],
     }
 
     // Extract language operator
@@ -61,7 +62,7 @@ export class SearchValidator {
     // Extract stars operator
     const starsMatch = query.match(/stars:>(\d+)/)
     if (starsMatch) {
-      result.minStars = parseInt(starsMatch[1], 10)
+      result.minStars = Number.parseInt(starsMatch[1], 10)
       query = query.replace(/stars:>\d+/g, '').trim()
     }
 
@@ -81,7 +82,7 @@ export class SearchValidator {
       baseQuery: query,
       terms: [],
       requiredTerms: [],
-      excludedTerms: []
+      excludedTerms: [],
     }
 
     // Extract quoted phrases (required terms)

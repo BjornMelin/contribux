@@ -10,7 +10,7 @@ import { getDatabaseUrl } from './config'
 import * as schema from './schema'
 
 // Re-export enhanced configuration
-export { getDatabaseUrl, createConnectionByType, connectionHealth, schema } from './config'
+export { connectionHealth, createConnectionByType, getDatabaseUrl, schema } from './config'
 
 // Create connection based on environment with Neon pooling
 function getDatabaseUrlForEnvironment(): string {
@@ -274,6 +274,7 @@ function withTiming<T>(operation: string, fn: () => Promise<T>): Promise<T> {
 
     // Log slow queries only in development with pooling context
     if (env.NODE_ENV === 'development' && duration > 1000) {
+      // Slow query logging will be implemented when monitoring is needed
     }
   })
 }

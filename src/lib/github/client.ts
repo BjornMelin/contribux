@@ -109,11 +109,12 @@ export type GitHubComment = z.infer<typeof GitHubCommentSchema>
 export type GitHubOrganization = z.infer<typeof GitHubOrganizationSchema>
 
 // Search result schema - generic version
-export const SearchResultSchema = <T extends z.ZodTypeAny>(itemSchema: T) => z.object({
-  total_count: z.number(),
-  incomplete_results: z.boolean(),
-  items: z.array(itemSchema),
-})
+export const SearchResultSchema = <T extends z.ZodTypeAny>(itemSchema: T) =>
+  z.object({
+    total_count: z.number(),
+    incomplete_results: z.boolean(),
+    items: z.array(itemSchema),
+  })
 
 export type SearchResult<T> = {
   total_count: number
@@ -261,7 +262,9 @@ export class GitHubClient {
     // Validate configuration
     const parseResult = GitHubClientConfigSchema.safeParse(config)
     if (!parseResult.success) {
-      throw new Error(`Invalid GitHub client configuration: ${parseResult.error.errors.map(e => e.message).join(', ')}`)
+      throw new Error(
+        `Invalid GitHub client configuration: ${parseResult.error.errors.map(e => e.message).join(', ')}`
+      )
     }
     const validatedConfig = parseResult.data
 

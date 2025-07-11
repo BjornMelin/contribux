@@ -1,4 +1,4 @@
-import type { NeonQueryFunction } from '@neondatabase/serverless'
+import type { NeonQueryFunction, QueryResult } from '@neondatabase/serverless'
 
 // PostgreSQL execution plan node interface
 export interface PostgreSQLPlanNode {
@@ -119,7 +119,7 @@ export class DatabaseQueryOptimizer {
 
     try {
       // Get query execution plan
-      const explainResult = await this.db(`EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${query}`)
+      const explainResult = await this.db.query(`EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${query}`)
 
       const executionTime = performance.now() - startTime
 
@@ -326,7 +326,12 @@ export class DatabaseQueryOptimizer {
       ORDER BY tablename, indexname
     `
 
-    const indexes = (await this.db(indexQuery)) as PostgreSQLIndex[]
+    const indexResult = await this.db.query(indexQuery)
+    // Handle both array results and QueryResult objects
+    const indexRows = Array.isArray(indexResult)
+      ? indexResult
+      : (indexResult as QueryResult).rows || []
+    const indexes = indexRows as PostgreSQLIndex[]
 
     // Common index recommendations for the schema
     const suggestedIndexes = [

@@ -58,10 +58,10 @@ const nelReportBatchSchema = z.array(nelReportSchema)
  */
 function analyzeNetworkError(report: z.infer<typeof nelReportSchema>) {
   const { type, url, status_code, elapsed_time, phase } = report
-  
+
   const errorAnalysis = getErrorAnalysis(type, status_code, elapsed_time)
   const patterns = detectSuspiciousPatterns(type, url, elapsed_time, phase)
-  
+
   return {
     severity: errorAnalysis.severity,
     category: errorAnalysis.category,
@@ -79,67 +79,73 @@ const errorTypeConfigSchema = z.object({
   category: z.string(),
   actionRequired: z.union([
     z.boolean(),
-    z.function()
+    z
+      .function()
       .args(z.string(), z.number().optional(), z.number().optional())
-      .returns(z.boolean())
-  ])
+      .returns(z.boolean()),
+  ]),
 })
 type ErrorTypeConfig = z.infer<typeof errorTypeConfigSchema>
 
 /**
  * Get error analysis based on type
  */
-function getErrorAnalysis(type: string, statusCode?: number, elapsedTime?: number): {
+function getErrorAnalysis(
+  type: string,
+  statusCode?: number,
+  elapsedTime?: number
+): {
   severity: AuditSeverity
   category: string
   actionRequired: boolean
 } {
   const errorTypeConfigs: Record<string, ErrorTypeConfig> = {
-    'dns': {
+    dns: {
       severity: AuditSeverity.WARNING,
       category: 'dns-error',
-      actionRequired: (t) => t === 'dns.name_not_resolved'
+      actionRequired: t => t === 'dns.name_not_resolved',
     },
-    'tcp': {
+    tcp: {
       severity: AuditSeverity.WARNING,
       category: 'connection-error',
-      actionRequired: (t) => t === 'tcp.refused' || t === 'tcp.timed_out'
+      actionRequired: t => t === 'tcp.refused' || t === 'tcp.timed_out',
     },
-    'tls': {
+    tls: {
       severity: AuditSeverity.ERROR,
       category: 'tls-error',
-      actionRequired: true
+      actionRequired: true,
     },
-    'http': {
+    http: {
       severity: statusCode && statusCode >= 500 ? AuditSeverity.ERROR : AuditSeverity.WARNING,
       category: 'http-error',
-      actionRequired: statusCode ? statusCode >= 500 : false
+      actionRequired: statusCode ? statusCode >= 500 : false,
     },
-    'abandoned': {
+    abandoned: {
       severity: AuditSeverity.INFO,
       category: 'performance-issue',
-      actionRequired: elapsedTime ? elapsedTime > 30000 : false
-    }
+      actionRequired: elapsedTime ? elapsedTime > 30000 : false,
+    },
   }
-  
+
   // Find matching error type
   for (const [prefix, config] of Object.entries(errorTypeConfigs)) {
     if (type === prefix || type.startsWith(`${prefix}.`)) {
       return {
         severity: config.severity,
         category: config.category,
-        actionRequired: typeof config.actionRequired === 'function' 
-          ? config.actionRequired(type, statusCode, elapsedTime)
-          : config.actionRequired
+        actionRequired:
+          typeof config.actionRequired === 'function'
+            ? config.actionRequired(type, statusCode, elapsedTime)
+            : config.actionRequired,
       }
     }
   }
-  
+
   // Default for unknown types
   return {
     severity: AuditSeverity.INFO,
     category: 'network-error',
-    actionRequired: false
+    actionRequired: false,
   }
 }
 

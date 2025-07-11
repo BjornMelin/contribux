@@ -564,12 +564,8 @@ export function validateProductionSecurity(): void {
  * Validates environment configuration on application startup
  */
 export function validateEnvironmentOnStartup(): void {
-  try {
-    // Validate production security if applicable
-    validateProductionSecurity()
-  } catch (error) {
-    throw error
-  }
+  // Validate production security if applicable
+  validateProductionSecurity()
 }
 
 /**

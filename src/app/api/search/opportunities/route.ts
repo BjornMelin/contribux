@@ -11,42 +11,185 @@ import { auth } from '@/lib/auth'
 import { OpportunityQueries, type OpportunitySearchOptions } from '@/lib/db/queries/opportunities'
 
 // Request validation schema
-const SearchOpportunitiesQuerySchema = z.object({
-  q: z.string().optional(),
-  page: z.string().pipe(z.coerce.number().int().min(1)).default('1'),
-  per_page: z.string().pipe(z.coerce.number().int().min(1).max(100)).default('20'),
-  difficulty: z.enum(['beginner', 'intermediate', 'advanced']).optional(),
-  min_difficulty_score: z.string().pipe(z.coerce.number().int().min(1).max(10)).optional(),
-  max_difficulty_score: z.string().pipe(z.coerce.number().int().min(1).max(10)).optional(),
-  min_impact_score: z.string().pipe(z.coerce.number().int().min(1).max(10)).optional(),
-  max_impact_score: z.string().pipe(z.coerce.number().int().min(1).max(10)).optional(),
-  repository_id: z.string().uuid().optional(),
-  good_first_issue: z
-    .string()
-    .optional()
-    .transform(str => str === 'true'),
-  mentorship_available: z
-    .string()
-    .optional()
-    .transform(str => str === 'true'),
-  hacktoberfest: z
-    .string()
-    .optional()
-    .transform(str => str === 'true'),
-  labels: z
-    .string()
-    .optional()
-    .transform(str => (str ? str.split(',').filter(Boolean) : [])),
-  skills_required: z
-    .string()
-    .optional()
-    .transform(str => (str ? str.split(',').filter(Boolean) : [])),
-  sort_by: z
-    .enum(['difficulty', 'impact', 'match', 'created', 'updated', 'relevance'])
-    .optional()
-    .default('match'),
-  order: z.enum(['asc', 'desc']).optional().default('desc'),
-})
+const SearchOpportunitiesQuerySchema = z
+  .object({
+    q: z.string().optional(),
+    page: z.string().pipe(z.coerce.number().int().min(1)).default('1'),
+    per_page: z.string().pipe(z.coerce.number().int().min(1).max(100)).default('20'),
+    difficulty: z.enum(['beginner', 'intermediate', 'advanced']).optional(),
+    min_difficulty_score: z.string().pipe(z.coerce.number().int().min(1).max(10)).optional(),
+    max_difficulty_score: z.string().pipe(z.coerce.number().int().min(1).max(10)).optional(),
+    min_impact_score: z.string().pipe(z.coerce.number().int().min(1).max(10)).optional(),
+    max_impact_score: z.string().pipe(z.coerce.number().int().min(1).max(10)).optional(),
+    repository_id: z.string().uuid().optional(),
+    good_first_issue: z
+      .string()
+      .optional()
+      .transform(str => str === 'true'),
+    mentorship_available: z
+      .string()
+      .optional()
+      .transform(str => str === 'true'),
+    hacktoberfest: z
+      .string()
+      .optional()
+      .transform(str => str === 'true'),
+    labels: z
+      .string()
+      .optional()
+      .transform(str => (str ? str.split(',').filter(Boolean) : [])),
+    skills_required: z
+      .string()
+      .optional()
+      .transform(str => (str ? str.split(',').filter(Boolean) : [])),
+    sort_by: z
+      .enum(['difficulty', 'impact', 'match', 'created', 'updated', 'relevance'])
+      .optional()
+      .default('match'),
+    order: z.enum(['asc', 'desc']).optional().default('desc'),
+  })
+  .transform(data => ({
+    ...data,
+    // Add computed pagination metadata
+    offset: (data.page - 1) * data.per_page,
+    limit: data.per_page,
+    // Normalize search query
+    normalizedQuery: data.q?.trim().toLowerCase(),
+    // Parse difficulty range for easier processing
+    difficultyRange:
+      data.min_difficulty_score && data.max_difficulty_score
+        ? ([data.min_difficulty_score, data.max_difficulty_score] as const)
+        : undefined,
+    // Parse impact range
+    impactRange:
+      data.min_impact_score && data.max_impact_score
+        ? ([data.min_impact_score, data.max_impact_score] as const)
+        : undefined,
+  }))
+  .superRefine((data, ctx) => {
+    // Advanced validation rules using superRefine for complex business logic
+
+    // Validate difficulty range consistency
+    if (data.min_difficulty_score && data.max_difficulty_score) {
+      if (data.min_difficulty_score > data.max_difficulty_score) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Minimum difficulty score cannot be greater than maximum difficulty score',
+          path: ['min_difficulty_score'],
+        })
+      }
+    }
+
+    // Validate impact range consistency
+    if (data.min_impact_score && data.max_impact_score) {
+      if (data.min_impact_score > data.max_impact_score) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Minimum impact score cannot be greater than maximum impact score',
+          path: ['min_impact_score'],
+        })
+      }
+    }
+
+    // Validate search query constraints
+    if (data.q && data.q.length > 0) {
+      // Check for minimum search length
+      if (data.q.trim().length < 2) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Search query must be at least 2 characters long',
+          path: ['q'],
+        })
+      }
+
+      // Check for prohibited characters
+      if (/[<>{}[\]\\]/.test(data.q)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Search query contains prohibited characters',
+          path: ['q'],
+        })
+      }
+    }
+
+    // Validate labels format
+    if (data.labels?.some(label => label.length > 50)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Label names cannot exceed 50 characters',
+        path: ['labels'],
+      })
+    }
+
+    // Validate skills format
+    if (data.skills_required?.some(skill => skill.length > 30)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Skill names cannot exceed 30 characters',
+        path: ['skills_required'],
+      })
+    }
+
+    // Validate pagination constraints
+    const maxAllowedOffset = 10000 // Prevent deep pagination performance issues
+    if (data.offset > maxAllowedOffset) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Pagination offset cannot exceed ${maxAllowedOffset}. Please use more specific search criteria.`,
+        path: ['page'],
+      })
+    }
+
+    // Business logic validation for conflicting filters
+    if (
+      data.difficulty === 'beginner' &&
+      data.min_difficulty_score &&
+      data.min_difficulty_score > 3
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Beginner difficulty conflicts with minimum difficulty score greater than 3',
+        path: ['difficulty'],
+      })
+    }
+
+    if (
+      data.difficulty === 'advanced' &&
+      data.max_difficulty_score &&
+      data.max_difficulty_score < 7
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Advanced difficulty conflicts with maximum difficulty score less than 7',
+        path: ['difficulty'],
+      })
+    }
+  })
+  .refine(
+    data => {
+      // Global validation: ensure at least one search criterion is provided for performance
+      const hasSearchCriteria = !!(
+        data.q ||
+        data.difficulty ||
+        data.min_difficulty_score ||
+        data.max_difficulty_score ||
+        data.min_impact_score ||
+        data.max_impact_score ||
+        data.repository_id ||
+        data.good_first_issue ||
+        data.mentorship_available ||
+        data.hacktoberfest ||
+        data.labels?.length ||
+        data.skills_required?.length
+      )
+
+      return hasSearchCriteria
+    },
+    {
+      message: 'At least one search criterion must be provided',
+      path: [],
+    }
+  )
 
 // Response schema - Updated to match new Drizzle schema structure
 const OpportunitySchema = z.object({

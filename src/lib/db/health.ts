@@ -25,29 +25,29 @@ export interface DatabaseMetrics {
 export async function checkDatabaseConnection(): Promise<HealthCheckResult> {
   try {
     const start = Date.now()
-    
+
     // Mock database connection check
     await new Promise(resolve => setTimeout(resolve, 10))
-    
+
     const responseTime = Date.now() - start
-    
+
     if (responseTime > 1000) {
       return {
         status: 'degraded',
         responseTime,
-        warning: 'High response time'
+        warning: 'High response time',
       }
     }
-    
+
     return {
       status: 'healthy',
       responseTime,
-      version: 'PostgreSQL 16.1'
+      version: 'PostgreSQL 16.1',
     }
   } catch (error) {
     return {
       status: 'unhealthy',
-      error: error instanceof Error ? error.message : 'Unknown database error'
+      error: error instanceof Error ? error.message : 'Unknown database error',
     }
   }
 }
@@ -57,11 +57,11 @@ export async function getDatabaseMetrics(): Promise<DatabaseMetrics> {
     connections: {
       active: 5,
       idle: 10,
-      total: 15
+      total: 15,
     },
     queryStats: {
       slowQueries: 2,
-      avgQueryTime: 45
-    }
+      avgQueryTime: 45,
+    },
   }
 }

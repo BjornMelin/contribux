@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Apply security headers
-    const securedResponse = securityHeadersManager.applyHeaders(request, testResponse)
+    const securedResponse = await securityHeadersManager.applyHeaders(request, testResponse)
 
     // TODO: Implement header validation when method is available
     const validation = { isValid: true, missing: [], issues: [], recommendations: [] }

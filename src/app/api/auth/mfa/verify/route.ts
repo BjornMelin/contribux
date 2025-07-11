@@ -113,13 +113,16 @@ export async function POST(req: NextRequest) {
  * Generate MFA session token
  */
 async function generateMFASessionToken(userId: string, method: string): Promise<string> {
-  const crypto = await import('node:crypto')
+  const { getRandomBytes, uint8ArrayToHex } = await import('@/lib/crypto-utils')
   const timestamp = Date.now()
-  const randomBytes = crypto.randomBytes(16).toString('hex')
+  const randomBytes = uint8ArrayToHex(getRandomBytes(16))
 
   // Simple session token (in production, use JWT or similar)
   const payload = `${userId}:${method}:${timestamp}:${randomBytes}`
-  return Buffer.from(payload).toString('base64url')
+  const encoder = new TextEncoder()
+  const bytes = encoder.encode(payload)
+  const base64 = btoa(String.fromCharCode(...bytes))
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
 }
 
 /**

@@ -25,8 +25,15 @@ import {
 } from '@/lib/security/webhook-security'
 import type { GitHubWebhookPayload } from '@/types/github-integration'
 
-// Initialize webhook security validator
-const webhookValidator = createWebhookValidator()
+// Lazy-load webhook security validator to avoid module initialization issues
+let webhookValidator: ReturnType<typeof createWebhookValidator> | null = null
+
+function getWebhookValidator() {
+  if (!webhookValidator) {
+    webhookValidator = createWebhookValidator()
+  }
+  return webhookValidator
+}
 
 /**
  * Handle GitHub webhook POST requests with comprehensive security and error handling
@@ -37,8 +44,9 @@ export async function POST(request: NextRequest) {
   let event: string | undefined
 
   try {
-    // Comprehensive security validation
-    securityResult = await webhookValidator.validateWebhook(request)
+    // Comprehensive security validation (lazy-loaded)
+    const validator = getWebhookValidator()
+    securityResult = await validator.validateWebhook(request)
 
     if (!securityResult.success) {
       // Return appropriate security response

@@ -40,10 +40,12 @@ const auditLogFiltersSchema = z.object({
   type: z.nativeEnum(AuditEventType).optional(),
   severity: z.nativeEnum(AuditSeverity).optional(),
   action: z.object({ contains: z.string() }).optional(),
-  timestamp: z.object({ 
-    gte: z.date().optional(), 
-    lte: z.date().optional() 
-  }).optional(),
+  timestamp: z
+    .object({
+      gte: z.date().optional(),
+      lte: z.date().optional(),
+    })
+    .optional(),
   actor: z.object({ id: z.string() }).optional(),
 })
 type AuditLogFilters = z.infer<typeof auditLogFiltersSchema>
@@ -69,7 +71,7 @@ const mockAuditLogSchema = z.object({
   result: z.string(),
   metadata: z.record(z.unknown()),
 })
-type MockAuditLog = z.infer<typeof mockAuditLogSchema>
+// type MockAuditLog = z.infer<typeof mockAuditLogSchema> // Currently unused but may be needed for future development
 
 const queryResultSchema = z.object({
   data: z.array(mockAuditLogSchema),
