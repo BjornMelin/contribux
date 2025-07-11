@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "lib": ["dom", "dom.iterable", "ES2022"],
+    "target": "ES2023",
+    "lib": ["dom", "dom.iterable", "ES2023"],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -22,14 +22,42 @@
     "paths": {
       "@/*": ["./src/*"]
     },
-    // Disabled for compatibility with existing codebase
-    "exactOptionalPropertyTypes": false,
-    // Additional strictness options for better type safety
-    "noUncheckedIndexedAccess": false,
+    
+    // Enhanced TypeScript 5.8+ strictness for better type safety
+    // Note: Some strict options disabled for Zod v4 and environment variable compatibility
+    "exactOptionalPropertyTypes": false, // Disabled for Zod v4 compatibility
+    "noUncheckedIndexedAccess": false, // Disabled for process.env access patterns
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "noImplicitOverride": true
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": false, // Disabled for Zod .errors property access
+    "useUnknownInCatchVariables": true,
+    
+    // Performance optimizations
+    "assumeChangesOnlyAffectDirectDependencies": true,
+    "skipDefaultLibCheck": true,
+    
+    // Enhanced module detection
+    "moduleDetection": "force",
+    
+    // Better error reporting
+    "noErrorTruncation": true,
+    "preserveWatchOutput": true,
+    
+    // Emit optimizations for Next.js
+    "verbatimModuleSyntax": false,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    
+    // Enhanced type checking
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true
   },
-  "include": ["next-env.d.ts", "src/**/*.ts", "src/**/*.tsx", ".next/types/**/*.ts"],
+  "include": ["next-env.d.ts", "src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts", ".next/types/**/*.ts"],
   "exclude": ["node_modules", "tests/**/*", "**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"]
 }
