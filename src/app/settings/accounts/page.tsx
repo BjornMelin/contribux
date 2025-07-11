@@ -3,10 +3,10 @@
 // Force dynamic rendering for authentication-dependent page
 export const dynamic = 'force-dynamic'
 
-import { Check, X } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { LinkedAccounts } from '@/components/auth/LinkedAccounts'
+import { Check, X } from '@/components/icons'
 import { MotionDiv, OptimizedAnimatePresence } from '@/components/motion'
 import { useSession } from '@/components/providers/app-providers'
 

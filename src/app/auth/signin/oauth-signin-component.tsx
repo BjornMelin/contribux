@@ -1,8 +1,8 @@
 'use client'
 
-import { Github, Loader2, Mail } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
+import { Github, Loader2, Mail } from '@/components/icons'
 import { MotionDiv } from '@/components/motion'
 import { Card } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
