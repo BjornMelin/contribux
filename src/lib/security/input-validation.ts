@@ -264,7 +264,7 @@ export const ApiSchemas = {
     query: CommonSchemas.searchQuery,
     language: z.string().max(50).optional(),
     topic: z.string().max(50).optional(),
-    sort: z.enum(['stars', 'forks', 'updated', 'best-match']).optional(),
+    sort: z.enum(['stars', 'forks', 'updated']).optional(),
     order: z.enum(['asc', 'desc']).optional(),
     page: z.number().int().min(1).default(1),
     limit: z.number().int().min(1).max(100).default(20),

@@ -11,7 +11,11 @@
  * - Error handling scenarios
  */
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+// Use real GitHubClient for these tests - override global mocks
+vi.mock('@/lib/github/client', () => vi.importActual('@/lib/github/client'))
+
 import { GitHubClient } from '@/lib/github'
 import type { GitHubClientConfig } from '@/lib/github/client'
 import { createGitHubClient } from '@/lib/github/client'

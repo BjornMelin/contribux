@@ -2,9 +2,7 @@
  * @vitest-environment node
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { RateLimiter } from '@/lib/middleware/rate-limiter'
-import { MemoryStore, RedisStore } from '@/lib/middleware/rate-limit-stores'
-import { rateLimitMiddleware } from '@/lib/middleware/rate-limit-middleware'
+import { RateLimiter, MemoryStore, RedisStore, rateLimitMiddleware } from '@/lib/middleware/rate-limit-middleware'
 import { NextRequest, NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import Redis from 'ioredis'
@@ -24,10 +22,15 @@ vi.mock('ioredis', () => ({
 
 // Mock next/headers
 vi.mock('next/headers', () => ({
-  headers: vi.fn(() => new Map([
-    ['x-forwarded-for', '192.168.1.1'],
-    ['user-agent', 'test-agent']
-  ]))
+  headers: vi.fn(() => ({
+    get: vi.fn((name: string) => {
+      const mockHeaders: Record<string, string> = {
+        'x-forwarded-for': '192.168.1.1',
+        'user-agent': 'test-agent'
+      }
+      return mockHeaders[name] || null
+    })
+  }))
 }))
 
 describe('Rate Limiting Tests', () => {
@@ -128,7 +131,15 @@ describe('Rate Limiting Tests', () => {
     let mockRedis: any
 
     beforeEach(() => {
-      mockRedis = new Redis()
+      // Create a proper mock Redis client
+      mockRedis = {
+        pipeline: vi.fn(),
+        get: vi.fn(),
+        del: vi.fn(),
+        incr: vi.fn(),
+        expire: vi.fn(),
+        exec: vi.fn()
+      }
       redisStore = new RedisStore({ client: mockRedis })
     })
 
@@ -322,7 +333,19 @@ describe('Rate Limiting Tests', () => {
     })
 
     it('should support distributed rate limiting', async () => {
-      const redisClient = new Redis()
+      let counter = 0
+      const redisClient = {
+        pipeline: vi.fn().mockReturnValue({
+          incr: vi.fn().mockReturnThis(),
+          expire: vi.fn().mockReturnThis(),
+          exec: vi.fn().mockImplementation(() => {
+            counter++
+            return Promise.resolve([[null, counter], [null, 1]])
+          })
+        }),
+        get: vi.fn(),
+        del: vi.fn()
+      }
       const store = new RedisStore({ 
         client: redisClient,
         prefix: 'rl:distributed:'

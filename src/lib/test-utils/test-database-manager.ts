@@ -16,7 +16,7 @@ import { NeonBranchManager } from './neon-branch-manager'
 // Load test environment
 config({ path: '.env.test' })
 
-export type DatabaseStrategy = 'pglite' | 'neon-branch' | 'neon-transaction' | 'mock'
+export type DatabaseStrategy = 'pglite' | 'neon-branch' | 'neon-transaction' | 'mock' | 'postgres' | 'neon' | 'local'
 
 export interface TestDatabaseConfig {
   strategy: DatabaseStrategy
@@ -508,6 +508,15 @@ export class TestDatabaseManager {
     // Check environment variables for override
     const envStrategy = process.env.TEST_DB_STRATEGY as DatabaseStrategy
     if (envStrategy) {
+      // Map legacy values to current strategy names
+      if (envStrategy === 'postgres' || envStrategy === 'local') {
+        // For tests, prefer in-memory testing with PGlite
+        return process.env.NODE_ENV === 'test' ? 'pglite' : 'neon-transaction'
+      }
+      if (envStrategy === 'neon') {
+        // Map 'neon' to appropriate strategy based on environment
+        return process.env.NODE_ENV === 'test' ? 'pglite' : 'neon-transaction'
+      }
       return envStrategy
     }
 
@@ -580,6 +589,9 @@ export class TestDatabaseManager {
         return this.createNeonBranchConnection(testId, config)
 
       case 'neon-transaction':
+      case 'postgres': // Alias for neon-transaction for backward compatibility
+      case 'neon': // Legacy alias for neon-transaction
+      case 'local': // Legacy alias for neon-transaction
         return this.createNeonTransactionConnection(testId, config)
 
       case 'mock':
@@ -787,7 +799,7 @@ export class TestDatabaseManager {
         return handleInsertQuery(mockData, query, values)
       }
 
-      if (query.includes('update') || query.includes('truncate') || query.includes('create')) {
+      if (query.includes('update') || query.includes('truncate') || query.includes('create') || query.includes('alter')) {
         return []
       }
 
@@ -1304,7 +1316,7 @@ export class TestDatabaseManager {
     db: PGlite,
     strings: TemplateStringsArray,
     values: unknown[]
-  ): Promise<{ rows: unknown[] }> {
+  ): Promise<unknown[]> {
     // Simple check if db exists and has query method
     if (!db || typeof db.query !== 'function') {
       throw new Error('Database connection is not available')
@@ -1316,12 +1328,12 @@ export class TestDatabaseManager {
     // Handle transaction commands for PGlite compatibility
     if (this.isTransactionCommand(finalQuery)) {
       // PGlite handles transactions differently - just return empty result
-      return { rows: [] }
+      return []
     }
 
     const result = await db.query(finalQuery, finalParams)
-    // Return Neon-compatible format with rows property
-    return { rows: (result as { rows?: unknown[] }).rows || [] }
+    // Return direct rows array like Neon does
+    return (result as { rows?: unknown[] }).rows || []
   }
 
   /**
@@ -1339,9 +1351,9 @@ export class TestDatabaseManager {
   /**
    * Handle query execution errors
    */
-  private handleQueryError(error: unknown): { rows: unknown[] } {
+  private handleQueryError(error: unknown): unknown[] {
     if (error instanceof Error && this.isPGliteConnectionError(error)) {
-      return { rows: [] }
+      return []
     }
     throw error
   }
@@ -1843,4 +1855,16 @@ export class TestDatabaseManager {
       profile_embedding: values[6] || '[0.25,0.25,0.25]',
     }
   }
+}
+
+/**
+ * Convenience function to get a test database connection
+ * This is the function that tests expect to use
+ */
+export async function getTestDatabase(
+  testId: string,
+  config: Partial<TestDatabaseConfig> = {}
+): Promise<DatabaseConnection> {
+  const manager = TestDatabaseManager.getInstance()
+  return manager.getConnection(testId, config)
 }

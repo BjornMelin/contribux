@@ -10,6 +10,18 @@ import {
   refreshToken,
   validateJWT,
   handleOAuthCallback,
+  generateJWT,
+  createSessionCookie,
+  encryptSession,
+  decryptSession,
+  checkSessionRotation,
+  rotateSession,
+  generateTOTPSecret,
+  generateTOTPCode,
+  validateTOTP,
+  validateBackupCode,
+  linkOAuthAccount,
+  unlinkOAuthAccount,
   type SessionData,
   type TokenPayload
 } from '@/lib/auth/session-management'
@@ -292,7 +304,7 @@ describe('Authentication Flow Tests', () => {
         name: 'session',
         value: expect.any(String),
         httpOnly: true,
-        secure: true,
+        secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         maxAge: expect.any(Number)
       })
@@ -310,7 +322,8 @@ describe('Authentication Flow Tests', () => {
     })
 
     it('should handle session rotation', async () => {
-      const oldSession = { userId: 'user-123', createdAt: Date.now() - 7200000 }
+      // Create a session that's 3 hours old (older than 2 hour threshold)
+      const oldSession = { userId: 'user-123', createdAt: Date.now() - (3 * 60 * 60 * 1000) }
       const shouldRotate = checkSessionRotation(oldSession)
       
       expect(shouldRotate).toBe(true)

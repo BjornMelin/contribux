@@ -9,6 +9,17 @@
  * - REST and GraphQL support
  */
 
+import { retry } from '@octokit/plugin-retry'
+import { throttling } from '@octokit/plugin-throttling'
+import { Octokit } from '@octokit/rest'
+import { z } from 'zod'
+import { auth } from '@/lib/auth'
+import { config } from '@/lib/config/provider'
+import { createRequestContext, GitHubError, isRequestError } from './errors'
+
+// Enhanced Octokit with plugins
+const EnhancedOctokit = Octokit.plugin(retry, throttling)
+
 // Zod schemas for validation
 const GitHubUserSchema = z.object({
   login: z.string(),
@@ -136,17 +147,6 @@ export interface GitHubClientTest {
  * - Prevents retry on non-retryable errors (abuse, 4xx errors)
  * - Integrates with GitHub's retry-after headers
  */
-
-import { retry } from '@octokit/plugin-retry'
-import { throttling } from '@octokit/plugin-throttling'
-import { Octokit } from '@octokit/rest'
-import { z } from 'zod'
-import { auth } from '@/lib/auth'
-import { config } from '@/lib/config/provider'
-import { createRequestContext, GitHubError, isRequestError } from './errors'
-
-// Enhanced Octokit with plugins
-const EnhancedOctokit = Octokit.plugin(retry, throttling)
 
 // Simplified configuration schema
 const GitHubClientConfigSchema = z.object({
@@ -333,11 +333,17 @@ export class GitHubClient {
       throw new Error('No valid session or access token found')
     }
 
-    const githubConfig = config.getSection('github')
+    let timeout = 30000 // Default timeout
+    try {
+      const githubConfig = config.getSection('github')
+      timeout = githubConfig.timeout
+    } catch {
+      // Config not available, use defaults
+    }
 
     return new GitHubClient({
       accessToken: session.accessToken,
-      timeout: githubConfig.timeout,
+      timeout,
     })
   }
 

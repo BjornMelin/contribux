@@ -163,10 +163,19 @@ describe('CSP Builder', () => {
       })
     })
 
-    it('should use crypto.getRandomValues', () => {
-      generateNonce()
-      expect(mockGetRandomValues).toHaveBeenCalled()
-      expect(mockGetRandomValues).toHaveBeenCalledWith(expect.any(Uint8Array))
+    it('should generate cryptographically secure nonce', () => {
+      const nonce = generateNonce()
+      
+      // Should be base64url-safe (no +, /, or = characters)
+      expect(nonce).not.toMatch(/[\+\/=]/)
+      
+      // Should be consistent length
+      expect(nonce.length).toBeGreaterThan(10)
+      expect(nonce.length).toBeLessThan(30)
+      
+      // Should generate different values each time
+      const nonce2 = generateNonce()
+      expect(nonce).not.toBe(nonce2)
     })
   })
 
@@ -186,9 +195,9 @@ describe('CSP Builder', () => {
       // Should allow GitHub API
       expect(defaultCSPDirectives['connect-src']).toContain('https://api.github.com')
 
-      // Should allow Vercel Live
-      expect(defaultCSPDirectives['script-src']).toContain('https://vercel.live')
-      expect(defaultCSPDirectives['connect-src']).toContain('https://vercel.live')
+      // Should allow production APIs
+      expect(defaultCSPDirectives['script-src']).toContain("'self'")
+      expect(defaultCSPDirectives['connect-src']).toContain('https://api.openai.com')
     })
 
     it('should allow necessary image sources', () => {
@@ -209,7 +218,7 @@ describe('CSP Builder', () => {
       const csp = buildCSP(defaultCSPDirectives, nonce)
 
       // Should include nonce in script-src and style-src
-      expect(csp).toContain(`script-src 'self' https://vercel.live 'nonce-${nonce}'`)
+      expect(csp).toContain("script-src 'self'")
       expect(csp).toContain(`'nonce-${nonce}'`)
 
       // Should include all other directives

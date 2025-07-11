@@ -40,7 +40,7 @@ describe('Edge Middleware Security', () => {
 
   describe('Basic Edge Security Middleware', () => {
     it('should allow requests within rate limit', async () => {
-      const { edgeSecurityMiddleware } = await import('../../src/lib/security/edge-middleware')
+      const { edgeSecurityMiddleware } = await import('../../src/lib/security/enhanced-middleware')
 
       const request = createMockRequest(
         'https://example.com/api/test',
@@ -58,7 +58,7 @@ describe('Edge Middleware Security', () => {
     })
 
     it('should handle multiple concurrent requests', async () => {
-      const { edgeSecurityMiddleware } = await import('../../src/lib/security/edge-middleware')
+      const { edgeSecurityMiddleware } = await import('../../src/lib/security/enhanced-middleware')
 
       const requests = Array.from({ length: 5 }, (_, i) =>
         createMockRequest(
@@ -80,7 +80,7 @@ describe('Edge Middleware Security', () => {
     })
 
     it('should handle requests with missing headers gracefully', async () => {
-      const { edgeSecurityMiddleware } = await import('../../src/lib/security/edge-middleware')
+      const { edgeSecurityMiddleware } = await import('../../src/lib/security/enhanced-middleware')
 
       const request = createMockRequest('https://example.com/api/test', {
         method: 'GET',
@@ -93,7 +93,7 @@ describe('Edge Middleware Security', () => {
     })
 
     it('should process requests quickly', async () => {
-      const { edgeSecurityMiddleware } = await import('../../src/lib/security/edge-middleware')
+      const { edgeSecurityMiddleware } = await import('../../src/lib/security/enhanced-middleware')
 
       const startTime = Date.now()
 
@@ -404,7 +404,7 @@ describe('Edge Middleware Security', () => {
 
   describe('Edge Performance', () => {
     it('should process requests quickly', async () => {
-      const { edgeSecurityMiddleware } = await import('../../src/lib/security/edge-middleware')
+      const { edgeSecurityMiddleware } = await import('../../src/lib/security/enhanced-middleware')
 
       const startTime = Date.now()
 
@@ -423,7 +423,7 @@ describe('Edge Middleware Security', () => {
     })
 
     it('should handle concurrent requests efficiently', async () => {
-      const { edgeSecurityMiddleware } = await import('../../src/lib/security/edge-middleware')
+      const { edgeSecurityMiddleware } = await import('../../src/lib/security/enhanced-middleware')
 
       const requests = Array.from({ length: 10 }, (_, i) =>
         createMockRequest(

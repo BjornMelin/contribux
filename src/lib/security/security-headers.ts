@@ -173,7 +173,7 @@ export class SecurityHeadersManager {
       nonce?: string
       reportOnly?: boolean
       frameOptions?: string | false
-      contentTypeOptions?: boolean | false
+      contentTypeOptions?: boolean | string | false
       referrerPolicy?: string
       hsts?: {
         maxAge: number
@@ -214,9 +214,17 @@ export class SecurityHeadersManager {
         includeSubDomains?: boolean
         preload?: boolean
       }
+      isHttps?: boolean
     }
   ): void {
-    this.applyStrictTransportSecurity(headers, options)
+    // Only apply HSTS if explicitly provided in options
+    // When undefined is passed, it means HTTPS was not detected
+    if (options?.hsts) {
+      this.applyStrictTransportSecurity(headers, options)
+    } else if (options === undefined && this.config.strictTransportSecurity) {
+      // Apply default config only when no options object was passed at all
+      this.applyStrictTransportSecurity(headers, options)
+    }
   }
 
   /**
@@ -226,7 +234,7 @@ export class SecurityHeadersManager {
     headers: Headers,
     options?: {
       frameOptions?: string | false
-      contentTypeOptions?: boolean | false
+      contentTypeOptions?: boolean | string | false
     }
   ): void {
     this.applyFrameOptions(headers, options)
@@ -350,13 +358,15 @@ export class SecurityHeadersManager {
    */
   private applyContentTypeOptions(
     headers: Headers,
-    options?: { contentTypeOptions?: boolean | false }
+    options?: { contentTypeOptions?: boolean | string | false }
   ): void {
     const contentTypeOptions =
       options?.contentTypeOptions !== undefined
         ? options.contentTypeOptions
         : this.config.xContentTypeOptions
-    if (contentTypeOptions === true) {
+    
+    // Handle both boolean and string values
+    if (contentTypeOptions === true || contentTypeOptions === 'nosniff') {
       headers.set('X-Content-Type-Options', 'nosniff')
     }
   }

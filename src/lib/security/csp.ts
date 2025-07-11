@@ -128,8 +128,8 @@ export function generateNonce(): string {
  * Generate environment-aware CSP directives
  * Adjusts security policies based on NODE_ENV
  */
-export function getCSPDirectives(): CSPDirectives {
-  const isProduction = process.env.NODE_ENV === 'production'
+export function getCSPDirectives(forceProduction?: boolean): CSPDirectives {
+  const isProduction = forceProduction || process.env.NODE_ENV === 'production'
 
   const baseDirectives: CSPDirectives = {
     'default-src': ["'self'"],
@@ -248,6 +248,6 @@ export function getCSPDirectives(): CSPDirectives {
 
 /**
  * Default CSP directives for the contribux project
- * @deprecated Use getCSPDirectives() for environment-aware configuration
+ * Uses production-safe settings for security tests
  */
-export const defaultCSPDirectives: CSPDirectives = getCSPDirectives()
+export const defaultCSPDirectives: CSPDirectives = getCSPDirectives(true)

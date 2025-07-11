@@ -122,8 +122,10 @@ function createPinoConfig() {
   }
 
   if (isProduction) {
+    // Remove custom formatters when using transport.targets
+    const { formatters, ...productionConfig } = baseConfig
     return {
-      ...baseConfig,
+      ...productionConfig,
       // Production uses JSON output for log aggregation
       transport: {
         targets: [
@@ -200,17 +202,19 @@ export const createPinoLoggerWithOtel = () => {
       return {}
     },
 
-    // Enhanced formatters with correlation IDs
-    formatters: {
-      ...config.formatters,
+    // Enhanced formatters with correlation IDs (only if formatters exist)
+    ...((config as any).formatters && {
+      formatters: {
+        ...(config as any).formatters,
 
-      // Add correlation metadata to all logs
-      bindings: bindings => ({
-        ...config.formatters?.bindings?.(bindings),
-        correlationId: crypto.randomUUID(),
-        timestamp: Date.now(),
-      }),
-    },
+        // Add correlation metadata to all logs
+        bindings: (bindings: any) => ({
+          ...(config as any).formatters?.bindings?.(bindings),
+          correlationId: crypto.randomUUID(),
+          timestamp: Date.now(),
+        }),
+      },
+    }),
   }
 
   return pino(otelConfig)

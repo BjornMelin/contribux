@@ -300,16 +300,79 @@ export class TestEnvironmentManager {
   private setupGitHubAPIMocking(): void {
     vi.mock('@/lib/github/client', () => ({
       GitHubClient: vi.fn().mockImplementation(() => ({
+        // Core API methods
         searchRepositories: vi.fn().mockResolvedValue({
           total_count: 0,
           incomplete_results: false,
           items: [],
         }),
+        getRepository: vi.fn().mockImplementation(async (owner: string, repo: string) => ({
+          id: 1,
+          name: repo,
+          full_name: `${owner}/${repo}`,
+          description: `Test repository ${repo}`,
+          language: 'TypeScript',
+          stargazers_count: 0,
+          owner: { login: owner, id: 1 },
+        })),
         searchIssues: vi.fn().mockResolvedValue({
           total_count: 0,
           incomplete_results: false,
           items: [],
         }),
+        getRepositoryIssues: vi.fn().mockResolvedValue({
+          total_count: 0,
+          items: [],
+        }),
+        getCurrentUser: vi.fn().mockResolvedValue({
+          login: 'testuser',
+          id: 1,
+          name: 'Test User',
+          email: 'test@example.com',
+        }),
+        getUser: vi.fn().mockImplementation(async (username?: string) => ({
+          login: username || 'testuser',
+          id: 1,
+          name: 'Test User',
+          email: 'test@example.com',
+        })),
+        getAuthenticatedUser: vi.fn().mockResolvedValue({
+          login: 'testuser',
+          id: 1,
+          name: 'Test User',
+          email: 'test@example.com',
+        }),
+        getIssue: vi.fn().mockImplementation(async (owner: string, repo: string, issueNumber: number) => ({
+          id: issueNumber,
+          number: issueNumber,
+          title: `Issue ${issueNumber}`,
+          body: `Test issue ${issueNumber}`,
+          state: 'open',
+          user: { login: 'testuser', id: 1 },
+        })),
+        listIssues: vi.fn().mockResolvedValue([]),
+        getPullRequest: vi.fn().mockImplementation(async (owner: string, repo: string, pullNumber: number) => ({
+          id: pullNumber,
+          number: pullNumber,
+          title: `Pull Request ${pullNumber}`,
+          body: `Test pull request ${pullNumber}`,
+          state: 'open',
+          user: { login: 'testuser', id: 1 },
+        })),
+        listPullRequests: vi.fn().mockResolvedValue([]),
+        listIssueComments: vi.fn().mockResolvedValue([]),
+        getComment: vi.fn().mockImplementation(async (owner: string, repo: string, commentId: number) => ({
+          id: commentId,
+          body: `Test comment ${commentId}`,
+          user: { login: 'testuser', id: 1 },
+          created_at: new Date().toISOString(),
+        })),
+        getRateLimit: vi.fn().mockResolvedValue({
+          limit: 5000,
+          remaining: 4999,
+          reset: Date.now() / 1000 + 3600,
+        }),
+        graphql: vi.fn().mockResolvedValue({ data: { mocked: true } }),
         healthCheck: vi.fn().mockResolvedValue({
           healthy: true,
           rateLimit: {
@@ -318,8 +381,19 @@ export class TestEnvironmentManager {
             reset: Date.now() / 1000 + 3600,
           },
         }),
+        // Utility methods
+        getCacheStats: vi.fn().mockReturnValue({ size: 0, hits: 0, misses: 0 }),
+        clearCache: vi.fn(),
+        destroy: vi.fn().mockResolvedValue(undefined),
+        getMemoryStats: vi.fn().mockReturnValue({
+          cacheSize: 0,
+          memorySizeMB: 0,
+          maxCacheSize: 100,
+        }),
       })),
-      createGitHubClient: vi.fn(),
+      createGitHubClient: vi.fn().mockImplementation(() => 
+        new (vi.fn().mockImplementation(() => ({})))()
+      ),
     }))
   }
 

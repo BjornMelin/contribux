@@ -4,6 +4,10 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+// Use real GitHubClient for these tests - override global mocks
+vi.mock('@/lib/github/client', () => vi.importActual('@/lib/github/client'))
+
 import { GitHubClient } from '@/lib/github/client'
 import { GitHubError } from '@/lib/github/errors'
 import { mockGitHubAPI, setupMSW } from '../msw-setup'

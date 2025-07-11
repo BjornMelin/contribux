@@ -26,6 +26,10 @@
 
 import { HttpResponse, http } from 'msw'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+// Use real GitHubClient for these tests - override global mocks
+vi.mock('@/lib/github/client', () => vi.importActual('@/lib/github/client'))
+
 import { GitHubClient } from '@/lib/github'
 import type { GitHubClientConfig } from '@/lib/github/client'
 import { GitHubError } from '@/lib/github/errors'

@@ -772,7 +772,7 @@ async function signJWT(payload: Record<string, unknown>, secret: Uint8Array): Pr
   }
 }
 
-async function verifyJWT(token: string, secret: Uint8Array): Promise<Record<string, unknown>> {
+export async function verifyJWT(token: string, secret: Uint8Array): Promise<Record<string, unknown>> {
   try {
     // Enhanced token format validation
     validateTokenFormat(token)

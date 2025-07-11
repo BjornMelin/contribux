@@ -34,10 +34,12 @@ vi.mock('next/server', () => {
     public status: number
     public headers: Map<string, string>
     private body: BodyInit | null
+    private _internalHeaders: Map<string, string>
 
     constructor(body?: BodyInit | null, init?: ResponseInit) {
       this.status = init?.status || 200
       this.headers = new Map()
+      this._internalHeaders = new Map()
       this.body = body || null
     }
 
@@ -51,8 +53,18 @@ vi.mock('next/server', () => {
   }
 
   MockNextResponse.prototype.headers = {
-    get: vi.fn((_key: string) => null),
-    set: vi.fn(),
+    get: vi.fn().mockImplementation(function(this: any, key: string) {
+      return this._internalHeaders?.get(key) || null
+    }),
+    set: vi.fn().mockImplementation(function(this: any, key: string, value: string) {
+      if (!this._internalHeaders) {
+        this._internalHeaders = new Map()
+      }
+      this._internalHeaders.set(key, value)
+    }),
+    has: vi.fn().mockImplementation(function(this: any, key: string) {
+      return this._internalHeaders?.has(key) || false
+    }),
   }
 
   return {
@@ -128,11 +140,11 @@ describe('Security Headers', () => {
       const csp = result.headers.get('Content-Security-Policy')
       expect(csp).toBeTruthy()
       expect(csp).toContain("default-src 'self'")
-      expect(csp).toContain("script-src 'self' https://vercel.live")
+      expect(csp).toContain("script-src 'self'")
       expect(csp).toContain("style-src 'self' https://fonts.googleapis.com")
       expect(csp).toContain("font-src 'self' https://fonts.gstatic.com")
       expect(csp).toContain("img-src 'self' data: https: blob:")
-      expect(csp).toContain("connect-src 'self' https://api.github.com https://vercel.live")
+      expect(csp).toContain("connect-src 'self' https://api.github.com")
       expect(csp).toContain("frame-ancestors 'none'")
       expect(csp).toContain("form-action 'self'")
       expect(csp).toContain("base-uri 'self'")
@@ -153,7 +165,8 @@ describe('Security Headers', () => {
 
       const csp = result.headers.get('Content-Security-Policy')
       expect(csp).not.toContain('unsafe-inline')
-      expect(csp).not.toContain('unsafe-eval')
+      // Production CSP allows wasm-unsafe-eval for WebAssembly performance
+      expect(csp).not.toContain("'unsafe-eval'")
     })
 
     it('should return the same response object', () => {
@@ -184,11 +197,11 @@ describe('Security Headers', () => {
 
       const csp = result.headers.get('Content-Security-Policy')
 
-      // Verify specific allowed domains
-      expect(csp).toContain('https://vercel.live') // Vercel analytics
+      // Verify specific allowed domains (production CSP)
       expect(csp).toContain('https://fonts.googleapis.com') // Google Fonts CSS
       expect(csp).toContain('https://fonts.gstatic.com') // Google Fonts files
       expect(csp).toContain('https://api.github.com') // GitHub API
+      expect(csp).toContain('https://avatars.githubusercontent.com') // GitHub avatars
     })
 
     it('should preserve existing headers', () => {
@@ -345,10 +358,13 @@ describe('Security Headers', () => {
       // Should not allow unsafe practices
       expect(csp).not.toContain("'unsafe-inline'")
       expect(csp).not.toContain("'unsafe-eval'")
-      expect(csp).not.toContain('data:') // Except for img-src
+      
+      // Data URIs should only be allowed for specific sources (img, font, media)
+      expect(csp).not.toContain("script-src 'self' data:")
+      expect(csp).not.toContain("default-src 'self' data:")
 
       // Should be restrictive on script sources
-      expect(csp).toContain("script-src 'self' https://vercel.live")
+      expect(csp).toContain("script-src 'self'")
     })
 
     it('should prevent clickjacking', () => {

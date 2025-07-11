@@ -582,7 +582,7 @@ describe('Automated Security Scanner', () => {
 })
 
 // Create dedicated comprehensive security test file
-import('../../src/lib/security/csp-cors')
+// Note: CORS functionality is now in src/lib/security/headers.ts
 
 // =======================================================================================
 // COMPREHENSIVE CORS SECURITY TESTING SUITE

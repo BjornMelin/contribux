@@ -8,6 +8,8 @@ import {
   generateCSPHeader,
   validateCSPDirective,
   reportCSPViolation,
+  CSPViolationAggregator,
+  analyzeCSPSecurity,
   type CSPDirectives
 } from '@/lib/middleware/csp'
 import { parseCSPHeader } from '@/lib/utils/csp-parser'

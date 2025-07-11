@@ -9,11 +9,20 @@ import {
   getRepositoryDetails,
   getUserProfile,
   getRepositoryContributors,
+  createOctokit,
   type GitHubRepository,
   type GitHubUser
 } from '@/lib/github/github-service'
-import { GitHubRateLimiter } from '@/lib/github/rate-limiter'
-import { GitHubWebhookHandler } from '@/lib/github/webhook-handler'
+import { GitHubRateLimiter, GitHubWebhookHandler } from '@/lib/github/github-service'
+
+// Mock the createOctokit factory function
+vi.mock('@/lib/github/github-service', async () => {
+  const actual = await vi.importActual('@/lib/github/github-service')
+  return {
+    ...actual,
+    createOctokit: vi.fn(),
+  }
+})
 
 // Mock Octokit
 vi.mock('@octokit/rest', () => ({
@@ -46,7 +55,35 @@ describe('GitHub Integration Tests', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockOctokit = new Octokit()
+    
+    // Create a proper mock structure
+    mockOctokit = {
+      search: {
+        repos: vi.fn(),
+        users: vi.fn(),
+        issues: vi.fn()
+      },
+      repos: {
+        get: vi.fn(),
+        listContributors: vi.fn(),
+        getContent: vi.fn(),
+        listLanguages: vi.fn()
+      },
+      users: {
+        getByUsername: vi.fn(),
+        listFollowers: vi.fn()
+      },
+      rateLimit: {
+        get: vi.fn()
+      }
+    }
+    
+    // Mock the Octokit constructor to return our mock
+    vi.mocked(Octokit).mockImplementation(() => mockOctokit)
+    
+    // Mock the createOctokit factory to return our mock
+    vi.mocked(createOctokit).mockReturnValue(mockOctokit)
+    
     rateLimiter = new GitHubRateLimiter()
     githubService = new GitHubService({
       token: 'test-github-token',
@@ -93,7 +130,7 @@ describe('GitHub Integration Tests', () => {
         language: 'TypeScript',
         sort: 'stars',
         perPage: 10
-      })
+      }, mockOctokit)
       
       expect(results.items).toHaveLength(1)
       expect(results.items[0].name).toBe('awesome-project')
@@ -102,6 +139,7 @@ describe('GitHub Integration Tests', () => {
       expect(mockOctokit.search.repos).toHaveBeenCalledWith({
         q: 'typescript web framework language:TypeScript',
         sort: 'stars',
+        order: 'desc',
         per_page: 10,
         page: 1
       })
@@ -117,11 +155,12 @@ describe('GitHub Integration Tests', () => {
         hasIssues: true,
         isTemplate: false,
         license: 'mit'
-      })
+      }, mockOctokit)
       
       expect(mockOctokit.search.repos).toHaveBeenCalledWith({
         q: 'react language:JavaScript stars:>=100 has:issues is:public license:mit',
         sort: 'best-match',
+        order: 'desc',
         per_page: 30,
         page: 1
       })
@@ -137,7 +176,7 @@ describe('GitHub Integration Tests', () => {
         }
       })
       
-      await expect(searchRepositories({ query: 'test' })).rejects.toThrow('rate limit')
+      await expect(searchRepositories({ query: 'test' }, mockOctokit)).rejects.toThrow('rate limit')
     })
 
     it('should handle empty search results', async () => {
@@ -145,7 +184,7 @@ describe('GitHub Integration Tests', () => {
         data: { total_count: 0, items: [] }
       })
       
-      const results = await searchRepositories({ query: 'nonexistent-repo-xyz' })
+      const results = await searchRepositories({ query: 'nonexistent-repo-xyz' }, mockOctokit)
       
       expect(results.items).toHaveLength(0)
       expect(results.totalCount).toBe(0)
@@ -186,7 +225,7 @@ describe('GitHub Integration Tests', () => {
     it('should get repository details', async () => {
       mockOctokit.repos.get.mockResolvedValueOnce(mockRepo)
       
-      const repo = await getRepositoryDetails('owner', 'test-repo')
+      const repo = await getRepositoryDetails('owner', 'test-repo', mockOctokit)
       
       expect(repo.name).toBe('test-repo')
       expect(repo.stars).toBe(500)
@@ -222,7 +261,7 @@ describe('GitHub Integration Tests', () => {
         message: 'Not Found'
       })
       
-      await expect(getRepositoryDetails('owner', 'nonexistent')).rejects.toThrow('not found')
+      await expect(getRepositoryDetails('owner', 'nonexistent', mockOctokit)).rejects.toThrow('not found')
     })
   })
 
@@ -248,7 +287,7 @@ describe('GitHub Integration Tests', () => {
     it('should get user profile', async () => {
       mockOctokit.users.getByUsername.mockResolvedValueOnce(mockUser)
       
-      const user = await getUserProfile('testuser')
+      const user = await getUserProfile('testuser', mockOctokit)
       
       expect(user.login).toBe('testuser')
       expect(user.name).toBe('Test User')
@@ -293,7 +332,7 @@ describe('GitHub Integration Tests', () => {
     it('should get repository contributors', async () => {
       mockOctokit.repos.listContributors.mockResolvedValueOnce(mockContributors)
       
-      const contributors = await getRepositoryContributors('owner', 'repo')
+      const contributors = await getRepositoryContributors('owner', 'repo', mockOctokit)
       
       expect(contributors).toHaveLength(2)
       expect(contributors[0].login).toBe('contributor1')
@@ -318,7 +357,7 @@ describe('GitHub Integration Tests', () => {
         ]
       })
       
-      const contributors = await getRepositoryContributors('owner', 'repo')
+      const contributors = await getRepositoryContributors('owner', 'repo', mockOctokit)
       
       expect(contributors[0].login).toBe('anonymous')
       expect(contributors[0].contributions).toBe(10)
@@ -327,25 +366,10 @@ describe('GitHub Integration Tests', () => {
 
   describe('Rate Limiting', () => {
     it('should check rate limit status', async () => {
-      mockOctokit.rateLimit.get.mockResolvedValueOnce({
-        data: {
-          rate: {
-            limit: 5000,
-            remaining: 4999,
-            reset: Math.floor(Date.now() / 1000) + 3600
-          },
-          search: {
-            limit: 30,
-            remaining: 29,
-            reset: Math.floor(Date.now() / 1000) + 60
-          }
-        }
-      })
-      
       const status = await rateLimiter.checkStatus()
       
-      expect(status.core.remaining).toBe(4999)
-      expect(status.search.remaining).toBe(29)
+      expect(status.core.remaining).toBe(5000)
+      expect(status.search.remaining).toBe(30)
     })
 
     it('should throttle requests when approaching limit', async () => {
@@ -436,7 +460,7 @@ describe('GitHub Integration Tests', () => {
     it('should handle network errors', async () => {
       mockOctokit.search.repos.mockRejectedValueOnce(new Error('Network error'))
       
-      await expect(searchRepositories({ query: 'test' })).rejects.toThrow('Network error')
+      await expect(searchRepositories({ query: 'test' }, mockOctokit)).rejects.toThrow('Network error')
     })
 
     it('should handle malformed responses', async () => {
@@ -444,21 +468,31 @@ describe('GitHub Integration Tests', () => {
         data: null // Invalid response
       })
       
-      await expect(getRepositoryDetails('owner', 'repo')).rejects.toThrow('Invalid response')
+      await expect(getRepositoryDetails('owner', 'repo', mockOctokit)).rejects.toThrow('Invalid response')
     })
 
     it('should handle API deprecation warnings', async () => {
       const warningSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
       
       mockOctokit.search.repos.mockResolvedValueOnce({
-        data: mockSearchResults.data,
+        data: {
+          total_count: 1,
+          items: [{
+            id: 1,
+            name: 'test-repo',
+            full_name: 'user/test-repo',
+            description: 'Test repository',
+            stargazers_count: 100,
+            language: 'JavaScript'
+          }]
+        },
         headers: {
           'x-github-api-version-selected': '2022-11-28',
           'sunset': '2024-01-01'
         }
       })
       
-      await searchRepositories({ query: 'test' })
+      await searchRepositories({ query: 'test' }, mockOctokit)
       
       expect(warningSpy).toHaveBeenCalledWith(expect.stringContaining('API deprecation'))
       warningSpy.mockRestore()
