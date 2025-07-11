@@ -10,7 +10,6 @@ import {
   getTestDatabaseUrl,
   createTestEnvironmentName,
   TEST_ENVIRONMENTS,
-  type TestEnvironmentType,
 } from './test-environment.config'
 import { EnhancedTestDatabaseManager } from './test-database-manager'
 import { TestServiceMockManager } from './test-service-mocks'
@@ -274,11 +273,11 @@ describe('Environment Variable Isolation', () => {
 
   it('should isolate environment variables per test type', () => {
     // Load unit test environment
-    const unitConfig = loadTestEnvironment('unit')
+    const _unitConfig = loadTestEnvironment('unit')
     expect(process.env.ENABLE_OAUTH).toBe('false')
 
     // Load integration test environment
-    const integrationConfig = loadTestEnvironment('integration')
+    const _integrationConfig = loadTestEnvironment('integration')
     expect(process.env.ENABLE_OAUTH).toBe('true')
 
     // Restore original environment
@@ -286,7 +285,7 @@ describe('Environment Variable Isolation', () => {
   })
 
   it('should set test-specific environment variables', () => {
-    const config = loadTestEnvironment('integration')
+    const _config = loadTestEnvironment('integration')
 
     expect(process.env.NODE_ENV).toBe('test')
     expect(process.env.NEXTAUTH_SECRET).toBeDefined()

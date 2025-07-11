@@ -255,7 +255,7 @@ export function createWebhookErrorResponse(result: WebhookResult): NextResponse 
  * Creates standardized error responses with proper HTTP status codes
  */
 
-import crypto from 'crypto'
+import crypto from 'node:crypto'
 
 /**
  * Create standardized API error response
@@ -388,9 +388,6 @@ function mapErrorToHttpStatus(classification: ErrorClassification): number {
 
     case ErrorCategory.NETWORK_TIMEOUT:
       return 504
-
-    case ErrorCategory.CONFIGURATION:
-    case ErrorCategory.DATA_INTEGRITY:
     default:
       return 500
   }

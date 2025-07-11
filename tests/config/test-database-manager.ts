@@ -4,7 +4,6 @@
  */
 
 import { spawn } from 'node:child_process'
-import { promisify } from 'node:util'
 import {
   type TestEnvironmentConfig,
   getTestDatabaseUrl,
@@ -42,10 +41,10 @@ export class EnhancedTestDatabaseManager {
    */
   static getInstance(envConfig: TestEnvironmentConfig): EnhancedTestDatabaseManager {
     const key = envConfig.type
-    if (!this.instances.has(key)) {
-      this.instances.set(key, new EnhancedTestDatabaseManager(envConfig))
+    if (!EnhancedTestDatabaseManager.instances.has(key)) {
+      EnhancedTestDatabaseManager.instances.set(key, new EnhancedTestDatabaseManager(envConfig))
     }
-    return this.instances.get(key)!
+    return EnhancedTestDatabaseManager.instances.get(key)!
   }
 
   /**
@@ -218,8 +217,8 @@ export class EnhancedTestDatabaseManager {
     this.cleanupTasks = []
 
     // Clear environment variables
-    delete process.env.DATABASE_URL
-    delete process.env.DATABASE_URL_TEST
+    process.env.DATABASE_URL = undefined
+    process.env.DATABASE_URL_TEST = undefined
   }
 
   /**
@@ -353,10 +352,12 @@ export class EnhancedTestDatabaseManager {
    * Static cleanup for all instances
    */
   static async cleanupAll(): Promise<void> {
-    const cleanupPromises = Array.from(this.instances.values()).map(instance => instance.cleanup())
+    const cleanupPromises = Array.from(EnhancedTestDatabaseManager.instances.values()).map(
+      instance => instance.cleanup()
+    )
 
     await Promise.allSettled(cleanupPromises)
-    this.instances.clear()
+    EnhancedTestDatabaseManager.instances.clear()
   }
 }
 

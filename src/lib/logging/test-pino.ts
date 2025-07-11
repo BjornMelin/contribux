@@ -6,8 +6,6 @@
 import { logger, securityLogger } from '@/lib/logging'
 
 async function testPinoLogging() {
-  console.log('Testing Pino structured logging...\n')
-
   // Test basic logging
   logger.info('Application started', {
     version: '1.0.0',
@@ -68,8 +66,6 @@ async function testPinoLogging() {
     duration: 120,
     component: 'test-runner',
   })
-
-  console.log('\nPino logging test completed. Check the output above for structured JSON logs.')
 }
 
 // Run the test

@@ -263,13 +263,11 @@ export function validateDevelopmentEnvironment() {
     warnings.push('NEXTAUTH_URL should use localhost in development')
   }
 
-  if (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('prod')) {
+  if (process.env.DATABASE_URL?.includes('prod')) {
     warnings.push('DATABASE_URL appears to point to production in development environment')
   }
 
   if (warnings.length > 0) {
-    // Log warnings but don't throw errors for development issues
-    console.warn('Development Environment Warnings:', warnings)
   }
 
   return true
@@ -294,7 +292,7 @@ export function validateProductionEnvironment() {
     errors.push('NEXTAUTH_SECRET must not use the default development value in production')
   }
 
-  if (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('localhost')) {
+  if (process.env.DATABASE_URL?.includes('localhost')) {
     errors.push('DATABASE_URL should not use localhost in production')
   }
 
@@ -342,8 +340,6 @@ export function validateCompleteEnvironment() {
       validatedAt: new Date().toISOString(),
     }
   } catch (error) {
-    // Log critical configuration errors
-    console.error('Environment validation failed:', error)
     throw error
   }
 }

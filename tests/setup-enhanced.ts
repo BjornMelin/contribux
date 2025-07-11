@@ -138,7 +138,7 @@ export * from './utils/test-assertions'
 export * from './utils/test-factories'
 
 // Export enhanced utilities
-export { testUtils, testConfig, addCleanupTask }
+export { type testUtils, testConfig, addCleanupTask }
 export {
   setupUnitTests,
   setupIntegrationTests,

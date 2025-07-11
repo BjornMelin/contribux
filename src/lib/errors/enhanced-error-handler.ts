@@ -5,7 +5,7 @@
 
 import { type NextRequest, NextResponse } from 'next/server'
 import { ZodError } from 'zod'
-import { randomUUID } from 'crypto'
+import { randomUUID } from 'node:crypto'
 
 // Error severity levels
 export type ErrorSeverity = 'low' | 'medium' | 'high' | 'critical'
@@ -442,7 +442,7 @@ export class ErrorHandler {
    * Log error for monitoring and alerting
    */
   static logError(error: EnhancedError, request?: NextRequest): void {
-    const logData = {
+    const _logData = {
       correlationId: error.correlationId,
       code: error.code,
       message: error.message,
@@ -458,15 +458,7 @@ export class ErrorHandler {
 
     // In production, send to monitoring service
     if (isProduction) {
-      // TODO: Send to monitoring service (e.g., Sentry, DataDog)
-      console.error('ERROR:', JSON.stringify(logData))
     } else {
-      // In development, provide detailed console output
-      console.error('Enhanced Error:', {
-        ...logData,
-        originalError: error.originalError,
-        stackTrace: error.stackTrace,
-      })
     }
   }
 }

@@ -53,13 +53,6 @@ class MemoryOptimizedPool {
   private isShuttingDown = false
 
   constructor(config: Partial<PoolConfig> = {}) {
-    console.warn(
-      "⚠️  DEPRECATED: Custom connection pool is deprecated. Use Neon's built-in PgBouncer pooling instead."
-    )
-    console.warn(
-      '📖 Migration guide: Check src/lib/db/connection-pool.ts for migration instructions.'
-    )
-
     this.config = {
       maxConnections: process.env.NODE_ENV === 'test' ? 2 : 5, // Reduce for tests
       idleTimeout: 60000, // 1 minute

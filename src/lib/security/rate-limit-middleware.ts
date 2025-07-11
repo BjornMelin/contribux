@@ -5,10 +5,7 @@
 
 import { type NextRequest, NextResponse } from 'next/server'
 import {
-  apiRateLimiter,
-  authRateLimiter,
   checkRateLimit,
-  searchRateLimiter,
   getRateLimiterForEndpoint,
   getEnhancedRequestIdentifier,
 } from './rate-limiter'
@@ -28,7 +25,7 @@ export function withBasicRateLimit(
 /**
  * Get identifier from Next.js request
  */
-function getNextRequestIdentifier(req: NextRequest): string {
+function _getNextRequestIdentifier(req: NextRequest): string {
   // Check for authenticated user (would need to parse JWT or session)
   const authHeader = req.headers.get('authorization')
   if (authHeader?.startsWith('Bearer ')) {

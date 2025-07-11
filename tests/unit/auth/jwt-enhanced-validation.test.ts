@@ -4,7 +4,6 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest'
-import { z } from 'zod'
 
 // Mock the dependencies before importing the JWT module
 vi.mock('@/lib/config/auth', () => ({
@@ -51,19 +50,7 @@ vi.mock('@/types/base', () => ({
 }))
 
 // Import after mocking
-import {
-  generateAccessToken,
-  verifyAccessToken,
-  generateRefreshToken,
-  verifyRefreshToken,
-  rotateRefreshToken,
-  revokeRefreshToken,
-  revokeAllUserTokens,
-  createSession,
-  refreshSession,
-  cleanupExpiredTokens,
-  base64urlEncode,
-} from '@/lib/auth/jwt'
+import { generateAccessToken, verifyAccessToken, base64urlEncode } from '@/lib/auth/jwt'
 
 describe('Enhanced JWT Validation Security Tests', () => {
   const originalEnv = process.env
@@ -114,8 +101,8 @@ describe('Enhanced JWT Validation Security Tests', () => {
       // Temporarily remove JWT secrets
       const originalJwtSecret = process.env.JWT_SECRET
       const originalNextAuthSecret = process.env.NEXTAUTH_SECRET
-      delete process.env.JWT_SECRET
-      delete process.env.NEXTAUTH_SECRET
+      process.env.JWT_SECRET = undefined
+      process.env.NEXTAUTH_SECRET = undefined
 
       const testUser = {
         id: 'test-user-1234-5678-9012-123456789012',

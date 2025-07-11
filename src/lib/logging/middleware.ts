@@ -3,7 +3,7 @@
  * Provides automatic HTTP request logging with correlation IDs
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import type { NextRequest, NextResponse } from 'next/server'
 import { randomUUID } from 'node:crypto'
 import { enhancedLogger } from './pino-logger'
 import { createErrorLogger } from './pino-config'
@@ -114,10 +114,9 @@ export function withRequestLogging(
           logError(requestLogger, context, error)
           throw error
         })
-    } else {
-      logResponse(requestLogger, context, result)
-      return result
     }
+    logResponse(requestLogger, context, result)
+    return result
   } catch (error) {
     logError(requestLogger, context, error)
     throw error
@@ -732,7 +731,7 @@ function logResponse(
     path: context.path,
     statusCode,
     duration,
-    responseSize: responseSize ? parseInt(responseSize, 10) : undefined,
+    responseSize: responseSize ? Number.parseInt(responseSize, 10) : undefined,
   })
 }
 
@@ -851,10 +850,9 @@ export function withPerformanceLogging(
           logPerformance(false, error)
           throw error
         })
-    } else {
-      logPerformance(true)
-      return result
     }
+    logPerformance(true)
+    return result
   } catch (error) {
     logPerformance(false, error)
     throw error
@@ -904,10 +902,9 @@ export function withDatabaseLogging<T>(
           logDatabase(false, error)
           throw error
         })
-    } else {
-      logDatabase(true)
-      return result
     }
+    logDatabase(true)
+    return result
   } catch (error) {
     logDatabase(false, error)
     throw error

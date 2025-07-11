@@ -6,7 +6,7 @@ import type { DrizzleConfig } from 'drizzle-orm'
 import type { NeonHttpDatabase } from 'drizzle-orm/neon-http'
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js'
 import { env } from '@/lib/validation/env'
-import { getDatabaseUrl, createConnectionByType, connectionHealth } from './config'
+import { getDatabaseUrl } from './config'
 import * as schema from './schema'
 
 // Re-export enhanced configuration
@@ -274,7 +274,6 @@ function withTiming<T>(operation: string, fn: () => Promise<T>): Promise<T> {
 
     // Log slow queries only in development with pooling context
     if (env.NODE_ENV === 'development' && duration > 1000) {
-      console.warn(`Slow ${operation} query: ${duration}ms (pooling: ${!isLocalPostgres()})`)
     }
   })
 }

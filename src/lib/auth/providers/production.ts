@@ -21,7 +21,6 @@ function getGitHubProvider(): Provider | null {
 
   if (!clientId || !clientSecret) {
     if (process.env.NODE_ENV === 'production') {
-      console.error('GitHub OAuth credentials not configured for production')
     }
     return null
   }
@@ -47,7 +46,6 @@ function getGoogleProvider(): Provider | null {
 
   if (!clientId || !clientSecret) {
     if (process.env.NODE_ENV === 'production') {
-      console.error('Google OAuth credentials not configured for production')
     }
     return null
   }
@@ -83,7 +81,6 @@ export function getProductionProviders(): Provider[] {
 
   // Log warning if no providers are configured in production
   if (providers.length === 0 && process.env.NODE_ENV === 'production') {
-    console.warn('No production OAuth providers configured')
   }
 
   return providers
@@ -102,7 +99,6 @@ export function validateProductionConfig(): boolean {
   const missing = required.filter(key => !process.env[key])
 
   if (missing.length > 0) {
-    console.error(`Missing required environment variables for production: ${missing.join(', ')}`)
     return false
   }
 

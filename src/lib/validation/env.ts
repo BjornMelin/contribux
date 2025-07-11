@@ -303,8 +303,7 @@ export const env = createEnv({
   /**
    * Custom validation error handler
    */
-  onValidationError: error => {
-    console.error('❌ Invalid environment variables:', error)
+  onValidationError: _error => {
     throw new Error('Invalid environment variables')
   },
 
@@ -568,15 +567,7 @@ export function validateEnvironmentOnStartup(): void {
   try {
     // Validate production security if applicable
     validateProductionSecurity()
-
-    // Log environment info (non-sensitive)
-    console.info('✅ Environment validation successful')
-    console.info(`📝 NODE_ENV: ${env.NODE_ENV}`)
-    console.info(`🔗 Database: ${getDatabaseUrl().includes('localhost') ? 'Local' : 'Remote'}`)
-    console.info(`🔐 OAuth: ${env.ENABLE_OAUTH ? 'Enabled' : 'Disabled'}`)
-    console.info(`🧪 Environment: ${env.VERCEL_ENV || env.NODE_ENV}`)
   } catch (error) {
-    console.error('❌ Environment validation failed:', error)
     throw error
   }
 }

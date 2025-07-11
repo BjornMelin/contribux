@@ -408,13 +408,13 @@ export class PinoEnhancedLogger {
 
     // For now, we'll log to stderr with high priority
     process.stderr.write(
-      JSON.stringify({
+      `${JSON.stringify({
         alert: 'SECURITY_INCIDENT',
         severity: context.severity,
         message,
         context,
         timestamp: new Date().toISOString(),
-      }) + '\n'
+      })}\n`
     )
   }
 }

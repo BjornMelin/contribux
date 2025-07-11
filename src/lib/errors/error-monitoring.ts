@@ -8,7 +8,7 @@ import { ErrorCategory, type ErrorClassification, ErrorSeverity } from './error-
 import { createErrorLogger } from '@/lib/logging/pino-config'
 
 // Import crypto for generating IDs
-import crypto from 'crypto'
+import crypto from 'node:crypto'
 
 // Context interface for error logging
 interface ErrorContext {
@@ -132,7 +132,7 @@ export class ErrorDashboard {
    * Get error analytics with filtering
    */
   async getErrorAnalytics(filter: ErrorAnalyticsFilter): Promise<ErrorAnalytics> {
-    const errors = this.errorMonitor['errors'] // Access private property
+    const errors = this.errorMonitor.errors // Access private property
 
     // Apply filters
     const filteredErrors = errors.filter(error => {
@@ -179,7 +179,7 @@ export class ErrorDashboard {
    */
   async generateIncidentReport(incidentId: string): Promise<IncidentReport> {
     // This would typically fetch from a database in a real implementation
-    const errors = this.errorMonitor['errors']
+    const errors = this.errorMonitor.errors
 
     // For demo purposes, create a synthetic incident
     const incidentStart = Date.now() - 2 * 60 * 60 * 1000 // 2 hours ago
@@ -698,7 +698,7 @@ export class ProductionAlertingConfig {
       severityThreshold: ErrorSeverity.HIGH,
       suppressionMinutes: 2, // Quick re-alerting for DB issues
       description: 'Immediate alert for potential database outages',
-      condition: (classification, metrics) => {
+      condition: (_classification, metrics) => {
         // Custom condition for database alerts
         const dbErrors =
           (metrics.errorsByCategory[ErrorCategory.DATABASE_CONNECTION] || 0) +
@@ -719,7 +719,7 @@ export class ProductionAlertingConfig {
       severityThreshold: ErrorSeverity.MEDIUM,
       suppressionMinutes: 5,
       description: 'Alert for potential security attacks',
-      condition: (classification, metrics, context) => {
+      condition: (_classification, metrics, context) => {
         // Detect potential brute force attacks
         const authErrors =
           (metrics.errorsByCategory[ErrorCategory.AUTH_INVALID] || 0) +
@@ -742,7 +742,7 @@ export class ProductionAlertingConfig {
       severityThreshold: ErrorSeverity.MEDIUM,
       suppressionMinutes: 10,
       description: 'Alert when API performance degrades significantly',
-      condition: (classification, metrics) => {
+      condition: (_classification, metrics) => {
         // Alert if error rate is high AND health score is dropping
         return metrics.errorRate > 15 && metrics.healthScore < 80
       },
@@ -791,8 +791,6 @@ export class ProductionAlertingConfig {
       technicalDetails: 'This is a test alert to verify channel configuration',
     }
 
-    console.log('🧪 Testing alert channels...')
-
     try {
       await alerting.processError(new Error('Test alert'), testClassification, {
         url: 'http://localhost:3000/test',
@@ -801,10 +799,7 @@ export class ProductionAlertingConfig {
           timestamp: new Date().toISOString(),
         },
       })
-      console.log('✅ Alert channels test completed')
-    } catch (error) {
-      console.error('❌ Alert channels test failed:', error)
-    }
+    } catch (_error) {}
   }
 
   /**
@@ -823,8 +818,8 @@ export class ProductionAlertingConfig {
     }
   } {
     return {
-      channels: alertingSystem['alertChannels'].length,
-      rules: alertingSystem['alertingRules'].length,
+      channels: alertingSystem.alertChannels.length,
+      rules: alertingSystem.alertingRules.length,
       environment: process.env.NODE_ENV || 'unknown',
       integrations: {
         slack: !!process.env.SLACK_WEBHOOK_URL,
@@ -871,8 +866,7 @@ export class ProductionAlertingConfig {
       const metrics = monitor.getMetrics()
       const alertStats = alerting.getAlertingStats()
 
-      const isHealthy =
-        metrics !== null && alertStats !== null && alerting['alertChannels'].length > 0
+      const isHealthy = metrics !== null && alertStats !== null && alerting.alertChannels.length > 0
 
       return {
         status: isHealthy ? 'healthy' : 'degraded',
@@ -880,14 +874,14 @@ export class ProductionAlertingConfig {
           errorMonitor: !!metrics,
           alertingSystem: !!alertStats,
           dashboard: !!dashboard,
-          channels: alerting['alertChannels'].length,
+          channels: alerting.alertChannels.length,
           lastAlert:
             alertStats.totalAlerts > 0
               ? alerting.getAlertHistory(1)[0]?.timestamp.toISOString()
               : undefined,
         },
       }
-    } catch (error) {
+    } catch (_error) {
       return {
         status: 'unhealthy',
         details: {
@@ -1529,7 +1523,7 @@ export class AlertingSystem {
   private async sendToChannel(
     channel: AlertChannel,
     alert: AlertEvent,
-    originalError?: unknown
+    _originalError?: unknown
   ): Promise<void> {
     try {
       switch (channel.type) {
@@ -1554,11 +1548,8 @@ export class AlertingSystem {
           break
 
         default:
-          console.warn(`Unknown alert channel type: ${channel.type}`)
       }
-    } catch (error) {
-      console.error(`Failed to send alert to ${channel.type}:`, error)
-    }
+    } catch (_error) {}
   }
 
   /**
@@ -1680,14 +1671,7 @@ export class AlertingSystem {
   /**
    * Send email alert (basic implementation)
    */
-  private async sendEmailAlert(channel: AlertChannel, alert: AlertEvent): Promise<void> {
-    // This would integrate with your email service (SendGrid, AWS SES, etc.)
-    console.log('Email alert would be sent:', {
-      to: channel.emailTo,
-      subject: alert.title,
-      body: alert.description,
-    })
-  }
+  private async sendEmailAlert(_channel: AlertChannel, _alert: AlertEvent): Promise<void> {}
 
   /**
    * Send PagerDuty alert

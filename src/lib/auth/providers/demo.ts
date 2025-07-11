@@ -71,7 +71,6 @@ export const GoogleDemoProvider: Provider = {
  */
 export function getDemoProviders(): Provider[] {
   if (process.env.NODE_ENV !== 'development') {
-    console.warn('Demo providers requested in non-development environment')
     return []
   }
 

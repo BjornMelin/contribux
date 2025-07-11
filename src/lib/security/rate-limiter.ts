@@ -5,7 +5,7 @@
 
 import { Ratelimit } from '@upstash/ratelimit'
 import { Redis } from '@upstash/redis'
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 
 // Request interface for rate limiting
 interface RateLimitRequest {
@@ -109,8 +109,6 @@ function createRateLimiter(config: { windowMs: number; max: number; message?: st
   const token = process.env.UPSTASH_REDIS_REST_TOKEN
 
   if (!url || !token) {
-    console.warn('⚠️  Upstash Redis not configured. Using fallback rate limiter.')
-
     // Enhanced fallback rate limiter with in-memory storage
     const fallbackStorage = new Map<string, { count: number; resetTime: number }>()
 
@@ -176,7 +174,7 @@ function createRateLimiter(config: { windowMs: number; max: number; message?: st
     // Add ephemeral cache for better performance
     ephemeralCache: new Map(),
     // Custom prefix for better organization
-    prefix: `@contribux/ratelimit`,
+    prefix: '@contribux/ratelimit',
     // Add timeout for Redis operations
     timeout: 5000,
   })
@@ -205,7 +203,7 @@ export const demoRateLimiter = createRateLimiter(rateLimitConfigs.demo)
 export async function checkRateLimit(
   limiter: ReturnType<typeof createRateLimiter>,
   identifier: string,
-  context?: { endpoint?: string; method?: string; userAgent?: string }
+  _context?: { endpoint?: string; method?: string; userAgent?: string }
 ) {
   try {
     const startTime = Date.now()
@@ -214,16 +212,6 @@ export async function checkRateLimit(
 
     // Log rate limit check for monitoring
     if (process.env.NODE_ENV === 'production') {
-      console.log(
-        `Rate limit check: ${identifier} - ${result.success ? 'ALLOWED' : 'BLOCKED'} (${duration}ms)`,
-        {
-          endpoint: context?.endpoint,
-          method: context?.method,
-          remaining: result.remaining,
-          limit: result.limit,
-          userAgent: context?.userAgent?.substring(0, 100), // Truncate for privacy
-        }
-      )
     }
 
     return {
@@ -234,14 +222,7 @@ export async function checkRateLimit(
       retryAfter: result.success ? null : Math.ceil((result.reset - Date.now()) / 1000),
       duration, // Add timing information
     }
-  } catch (error) {
-    // Enhanced error logging for debugging
-    console.error('Rate limit check failed:', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      identifier: identifier.substring(0, 20) + '...', // Truncate for privacy
-      context,
-    })
-
+  } catch (_error) {
     // Graceful fallback - allow request but log the issue
     return {
       success: true,

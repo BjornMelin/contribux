@@ -4,7 +4,7 @@
  */
 
 import NextAuth, { type AuthOptions } from 'next-auth'
-import { getProviders, isAuthConfigured } from './providers/index'
+import { getProviders } from './providers/index'
 
 // NextAuth.js TypeScript declarations
 // Session interface is already defined in src/types/next-auth.d.ts

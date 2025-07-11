@@ -7,7 +7,7 @@ import pino from 'pino'
 import { env } from '@/lib/validation/env'
 
 // Define log levels with numeric values
-const logLevels = {
+const _logLevels = {
   trace: 10,
   debug: 20,
   info: 30,

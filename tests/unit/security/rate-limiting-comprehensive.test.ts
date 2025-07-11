@@ -8,7 +8,6 @@ import {
 } from '@/lib/security/rate-limit-middleware'
 import {
   rateLimitConfigs,
-  checkRateLimit,
   getEnhancedRequestIdentifier,
   getClientIP,
   getRateLimiterForEndpoint,
@@ -36,8 +35,8 @@ describe('Rate Limiting System - Comprehensive Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     // Reset environment variables
-    delete process.env.UPSTASH_REDIS_REST_URL
-    delete process.env.UPSTASH_REDIS_REST_TOKEN
+    process.env.UPSTASH_REDIS_REST_URL = undefined
+    process.env.UPSTASH_REDIS_REST_TOKEN = undefined
   })
 
   afterEach(() => {
@@ -276,7 +275,7 @@ describe('Rate Limiting System - Comprehensive Tests', () => {
       const mockHandler = vi.fn().mockResolvedValue(new Response('OK'))
       const wrappedHandler = withRateLimit(mockHandler, {
         limiterType: 'api',
-        customIdentifier: req => 'custom-id-123',
+        customIdentifier: _req => 'custom-id-123',
       })
 
       const request = new NextRequest('http://localhost/api/test')
@@ -345,8 +344,8 @@ describe('Rate Limiting System - Comprehensive Tests', () => {
   describe('Fallback Rate Limiting (No Redis)', () => {
     it('should work without Redis configuration', async () => {
       // Ensure no Redis environment variables are set
-      delete process.env.UPSTASH_REDIS_REST_URL
-      delete process.env.UPSTASH_REDIS_REST_TOKEN
+      process.env.UPSTASH_REDIS_REST_URL = undefined
+      process.env.UPSTASH_REDIS_REST_TOKEN = undefined
 
       const request = new NextRequest('http://localhost/api/test')
 

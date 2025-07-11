@@ -16,42 +16,24 @@ export async function validateStartupEnvironment(): Promise<{
   validatedAt: string
 }> {
   try {
-    console.log('🔍 Validating application environment...')
-
     const validation = validateCompleteEnvironment()
-
-    console.log(`✅ Environment validation successful for ${validation.environment}`)
-    console.log(`📝 Validated at: ${validation.validatedAt}`)
 
     return validation
   } catch (error) {
-    // Enhanced error handling for startup failures
-    console.error('❌ Environment validation failed!')
-
     if (error && typeof error === 'object' && 'correlationId' in error) {
       // This is already an enhanced error, log it properly
       const enhancedError = error as any
-      console.error(`🔗 Correlation ID: ${enhancedError.correlationId}`)
-      console.error(`📋 Error Code: ${enhancedError.code}`)
-      console.error(`💬 Message: ${enhancedError.message}`)
 
       if (enhancedError.actionableSteps?.length > 0) {
-        console.error('🛠️  Actionable Steps:')
-        enhancedError.actionableSteps.forEach((step: string, index: number) => {
-          console.error(`   ${index + 1}. ${step}`)
-        })
+        enhancedError.actionableSteps.forEach((_step: string, _index: number) => {})
       }
 
       if (enhancedError.documentationLinks?.length > 0) {
-        console.error('📚 Documentation:')
-        enhancedError.documentationLinks.forEach((link: string) => {
-          console.error(`   - ${link}`)
-        })
+        enhancedError.documentationLinks.forEach((_link: string) => {})
       }
 
       // In development, show detailed context
       if (process.env.NODE_ENV === 'development' && enhancedError.context) {
-        console.error('🔧 Debug Context:', enhancedError.context)
       }
     } else {
       // Create enhanced error for unexpected startup failures
@@ -83,16 +65,12 @@ export async function validateStartupEnvironment(): Promise<{
       )
 
       ErrorHandler.logError(startupError)
-      console.error(`🔗 Correlation ID: ${startupError.correlationId}`)
     }
 
     // Exit the process for critical configuration errors
     if (process.env.NODE_ENV === 'production') {
-      console.error('🚨 Critical configuration error in production. Exiting...')
       process.exit(1)
     } else {
-      console.error('⚠️  Development mode: Continuing despite configuration errors')
-      console.error('   → Fix configuration issues before deploying to production')
     }
 
     throw error
@@ -163,7 +141,7 @@ export async function validateSpecificEnvironmentAspects(
   for (const aspect of aspects) {
     try {
       switch (aspect) {
-        case 'database':
+        case 'database': {
           const { validateDatabaseConnection } = await import(
             '@/lib/errors/environment-error-handler'
           )
@@ -174,8 +152,9 @@ export async function validateSpecificEnvironmentAspects(
             severity: 'low',
           })
           break
+        }
 
-        case 'api_keys':
+        case 'api_keys': {
           const { validateApiKeys } = await import('@/lib/errors/environment-error-handler')
           validateApiKeys()
           results.push({
@@ -184,8 +163,9 @@ export async function validateSpecificEnvironmentAspects(
             severity: 'low',
           })
           break
+        }
 
-        case 'production':
+        case 'production': {
           const { validateProductionEnvironment } = await import(
             '@/lib/errors/environment-error-handler'
           )
@@ -196,6 +176,7 @@ export async function validateSpecificEnvironmentAspects(
             severity: 'low',
           })
           break
+        }
 
         default:
           results.push({

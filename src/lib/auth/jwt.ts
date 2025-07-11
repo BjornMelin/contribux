@@ -142,9 +142,6 @@ function validateTestEnvironment(): void {
 
   // Ensure test secret is properly isolated
   if (process.env.NODE_ENV === 'test' && !testSecret.includes('test')) {
-    console.warn(
-      'Warning: Test environment JWT secret should contain "test" identifier for clarity'
-    )
   }
 }
 
@@ -341,9 +338,6 @@ function validateSubject(sub: string): void {
 
   // Test environment specific checks
   if (process.env.NODE_ENV === 'test' && !sub.includes('test') && !sub.startsWith('demo-')) {
-    console.warn(
-      'Warning: Test environment subject should contain "test" or start with "demo-" for clarity'
-    )
   }
 
   // Production environment specific checks
@@ -507,9 +501,6 @@ function validateVerifiedPayload(payload: Record<string, unknown>): void {
       !payload.sub.includes('test') &&
       !payload.sub.startsWith('demo-')
     ) {
-      console.warn(
-        'Warning: Test environment token subject should contain "test" or start with "demo-"'
-      )
     }
   }
 
@@ -899,11 +890,9 @@ function validateTestEnvironmentPayload(payload: AccessTokenPayload): void {
 
   // Validate test environment specific patterns
   if (!payload.sub.includes('test') && !payload.sub.startsWith('demo-')) {
-    console.warn('Warning: Test environment subject should contain "test" or start with "demo-"')
   }
 
   if (!payload.email.includes('test') && !payload.email.includes('demo')) {
-    console.warn('Warning: Test environment email should contain "test" or "demo"')
   }
 
   // Validate expiration times are reasonable for test environment
