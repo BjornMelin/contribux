@@ -1,10 +1,10 @@
 'use client'
 
-import { Github, Home, LogOut, Menu, Settings, Sparkles, X } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
+import { Github, Home, LogOut, Menu, Settings, Sparkles, X } from '@/components/icons'
 import { MotionDiv } from '@/components/motion'
 import { useSession } from '@/components/providers/app-providers'
 import { Button } from '@/components/ui/button'

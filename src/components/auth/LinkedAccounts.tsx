@@ -1,8 +1,17 @@
 'use client'
 
-import { AlertTriangle, Check, Github, Link2, Mail, Shield, Star, Unlink2 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useCallback, useEffect, useState } from 'react'
+import {
+  AlertTriangle,
+  Check,
+  Github,
+  Link2,
+  Mail,
+  Shield,
+  Star,
+  Unlink2,
+} from '@/components/icons'
 import { MotionDiv } from '@/components/motion'
 import { useSession } from '@/components/providers/app-providers'
 import { Badge } from '@/components/ui/badge'

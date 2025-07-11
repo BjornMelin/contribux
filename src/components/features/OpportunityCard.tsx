@@ -1,8 +1,8 @@
 'use client'
 
-import { AnimatePresence, motion } from 'framer-motion'
-import { Bookmark, ExternalLink, Star } from 'lucide-react'
 import * as React from 'react'
+import { Bookmark, ExternalLink, Star } from '@/components/icons'
+import { AnimatePresence, MotionDiv } from '@/components/motion'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -29,7 +29,7 @@ const AnimatedBookmarkButton: React.FC<{ isSaved: boolean; onToggle: () => void 
       className="h-8 w-8 hover:bg-primary/10 hover:text-primary"
       aria-label={isSaved ? 'Remove bookmark' : 'Save opportunity'}
     >
-      <motion.div
+      <MotionDiv
         initial={{ scale: 1 }}
         animate={{ scale: isSaved ? 1.1 : 1 }}
         whileTap={{ scale: 0.9 }}
@@ -45,7 +45,7 @@ const AnimatedBookmarkButton: React.FC<{ isSaved: boolean; onToggle: () => void 
         />
         <AnimatePresence>
           {isSaved && (
-            <motion.div
+            <MotionDiv
               className="absolute inset-0 rounded-full bg-primary/20"
               initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: 2, opacity: [0, 0.5, 0] }}
@@ -54,7 +54,7 @@ const AnimatedBookmarkButton: React.FC<{ isSaved: boolean; onToggle: () => void 
             />
           )}
         </AnimatePresence>
-      </motion.div>
+      </MotionDiv>
     </Button>
   )
 }

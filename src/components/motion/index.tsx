@@ -49,7 +49,7 @@ const LazyAnimatePresence = lazy(() =>
 
 // Optimized motion wrapper
 export interface OptimizedMotionProps extends MotionProps {
-  children: React.ReactNode
+  children?: React.ReactNode
   className?: string
   fallback?: React.ReactNode
   enableMotion?: boolean
@@ -67,7 +67,9 @@ export const MotionDiv: React.FC<OptimizedMotionProps> = ({
   }
 
   return (
-    <Suspense fallback={fallback || <MotionFallback>{children}</MotionFallback>}>
+    <Suspense
+      fallback={fallback || (children ? <MotionFallback>{children}</MotionFallback> : <div />)}
+    >
       <LazyMotionDiv {...props}>{children}</LazyMotionDiv>
     </Suspense>
   )
@@ -89,7 +91,12 @@ export const MotionButton: React.FC<OptimizedMotionProps> = ({
   }
 
   return (
-    <Suspense fallback={fallback || <MotionFallback>{children}</MotionFallback>}>
+    <Suspense
+      fallback={
+        fallback ||
+        (children ? <MotionFallback>{children}</MotionFallback> : <button type="button" />)
+      }
+    >
       <LazyMotionButton {...props}>{children}</LazyMotionButton>
     </Suspense>
   )
@@ -107,7 +114,9 @@ export const MotionSpan: React.FC<OptimizedMotionProps> = ({
   }
 
   return (
-    <Suspense fallback={fallback || <MotionFallback>{children}</MotionFallback>}>
+    <Suspense
+      fallback={fallback || (children ? <MotionFallback>{children}</MotionFallback> : <span />)}
+    >
       <LazyMotionSpan {...props}>{children}</LazyMotionSpan>
     </Suspense>
   )
@@ -124,6 +133,9 @@ export const OptimizedAnimatePresence: React.FC<{
     </Suspense>
   )
 }
+
+// Export alias for compatibility
+export const AnimatePresence = OptimizedAnimatePresence
 
 // Common animation presets
 export const animationPresets = {

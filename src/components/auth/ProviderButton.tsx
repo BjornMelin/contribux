@@ -1,9 +1,9 @@
 'use client'
 
-import { Github, Loader2, Mail } from 'lucide-react'
 import { signIn } from 'next-auth/react'
 import type { ComponentType } from 'react'
 import { useState } from 'react'
+import { Github, Loader2, Mail } from '@/components/icons'
 
 export interface ProviderConfig {
   id: string

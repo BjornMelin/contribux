@@ -1,7 +1,7 @@
 'use client'
 
-import { motion } from 'framer-motion'
-import { Bookmark, Circle, ExternalLink, GitFork, Star, TrendingUp } from 'lucide-react'
+import { Bookmark, Circle, ExternalLink, GitFork, Star, TrendingUp } from '@/components/icons'
+import { MotionDiv } from '@/components/motion'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -229,7 +229,7 @@ function RepositoryHealth({ health }: { health?: Repository['health'] }) {
         </span>
       </div>
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-        <motion.div
+        <MotionDiv
           initial={{ width: 0 }}
           animate={{ width: `${health.score * 100}%` }}
           transition={{ duration: 0.8, ease: 'easeOut' }}
@@ -284,7 +284,7 @@ export function RepositoryCard({
     : '#888888'
 
   return (
-    <motion.div
+    <MotionDiv
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
@@ -317,6 +317,6 @@ export function RepositoryCard({
 
         <RepositoryFooter repository={repository} languageColor={languageColor} />
       </Card>
-    </motion.div>
+    </MotionDiv>
   )
 }

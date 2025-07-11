@@ -219,9 +219,16 @@ const StatusIcon: React.FC<{ status: OptimizationStatus['status'] }> = ({ status
   }
 }
 
+// Props interface for the PerformanceDashboard component
+interface PerformanceDashboardProps {
+  initialData?: PerformanceMetrics | null
+}
+
 // Main performance dashboard component
-export const PerformanceDashboard: React.FC = () => {
-  const overallScore = calculateOverallScore(mockMetrics)
+export const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({ initialData }) => {
+  // Use initialData if provided, otherwise fall back to mockMetrics
+  const metrics = initialData || mockMetrics
+  const overallScore = calculateOverallScore(metrics)
   const performanceGrade = getPerformanceGrade(overallScore)
 
   const completedOptimizations = optimizationStatus.filter(opt => opt.status === 'completed')
@@ -254,9 +261,9 @@ export const PerformanceDashboard: React.FC = () => {
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="font-bold text-2xl">{formatBytes(mockMetrics.bundleSize.gzipped)}</div>
+            <div className="font-bold text-2xl">{formatBytes(metrics.bundleSize.gzipped)}</div>
             <p className="text-muted-foreground text-xs">
-              Gzipped • {formatBytes(mockMetrics.bundleSize.total)} total
+              Gzipped • {formatBytes(metrics.bundleSize.total)} total
             </p>
             <div className="mt-2">
               <div className="font-medium text-chart-2 text-sm">
@@ -276,20 +283,20 @@ export const PerformanceDashboard: React.FC = () => {
             <div className="space-y-1">
               <div className="flex justify-between text-sm">
                 <span>LCP:</span>
-                <span className={mockMetrics.runtime.lcp <= 2.5 ? 'text-chart-2' : 'text-chart-1'}>
-                  {mockMetrics.runtime.lcp}s
+                <span className={metrics.runtime.lcp <= 2.5 ? 'text-chart-2' : 'text-chart-1'}>
+                  {metrics.runtime.lcp}s
                 </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span>FID:</span>
-                <span className={mockMetrics.runtime.fid <= 100 ? 'text-chart-2' : 'text-chart-1'}>
-                  {mockMetrics.runtime.fid}ms
+                <span className={metrics.runtime.fid <= 100 ? 'text-chart-2' : 'text-chart-1'}>
+                  {metrics.runtime.fid}ms
                 </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span>CLS:</span>
-                <span className={mockMetrics.runtime.cls <= 0.1 ? 'text-chart-2' : 'text-chart-1'}>
-                  {mockMetrics.runtime.cls}
+                <span className={metrics.runtime.cls <= 0.1 ? 'text-chart-2' : 'text-chart-1'}>
+                  {metrics.runtime.cls}
                 </span>
               </div>
             </div>
@@ -303,16 +310,14 @@ export const PerformanceDashboard: React.FC = () => {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="font-bold text-2xl">
-              {formatMs(mockMetrics.api.averageResponseTime)}
-            </div>
+            <div className="font-bold text-2xl">{formatMs(metrics.api.averageResponseTime)}</div>
             <p className="text-muted-foreground text-xs">Average response time</p>
             <div className="mt-2 space-y-1">
               <div className="text-sm">
-                Cache hit: <span className="font-medium">{mockMetrics.api.cacheHitRate}%</span>
+                Cache hit: <span className="font-medium">{metrics.api.cacheHitRate}%</span>
               </div>
               <div className="text-sm">
-                Error rate: <span className="font-medium">{mockMetrics.api.errorRate}%</span>
+                Error rate: <span className="font-medium">{metrics.api.errorRate}%</span>
               </div>
             </div>
           </CardContent>
@@ -325,17 +330,15 @@ export const PerformanceDashboard: React.FC = () => {
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="font-bold text-2xl">
-              {formatMs(mockMetrics.database.averageQueryTime)}
-            </div>
+            <div className="font-bold text-2xl">{formatMs(metrics.database.averageQueryTime)}</div>
             <p className="text-muted-foreground text-xs">Average query time</p>
             <div className="mt-2 space-y-1">
               <div className="text-sm">
                 Slow queries:{' '}
-                <span className="font-medium">{mockMetrics.database.slowQueriesCount}</span>
+                <span className="font-medium">{metrics.database.slowQueriesCount}</span>
               </div>
               <div className="text-sm">
-                Index usage: <span className="font-medium">{mockMetrics.database.indexUsage}%</span>
+                Index usage: <span className="font-medium">{metrics.database.indexUsage}%</span>
               </div>
             </div>
           </CardContent>

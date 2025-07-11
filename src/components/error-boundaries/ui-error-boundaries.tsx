@@ -5,6 +5,7 @@
 
 'use client'
 
+import type React from 'react'
 import {
   AlertTriangle,
   Archive,
@@ -14,8 +15,7 @@ import {
   RefreshCw,
   Search,
   Sparkles,
-} from 'lucide-react'
-import type React from 'react'
+} from '@/components/icons'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'

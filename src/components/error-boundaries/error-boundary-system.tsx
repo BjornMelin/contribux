@@ -10,7 +10,6 @@ import React from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { isDevelopment } from '@/lib/validation/env'
 import {
   type ErrorInfo as CustomErrorInfo,
   type ErrorBoundaryState,
@@ -19,6 +18,7 @@ import {
   type Result,
   Success,
 } from '@/lib/types/advanced'
+import { isDevelopment } from '@/lib/validation/env'
 
 // Base error boundary component
 interface ErrorBoundaryProps extends PropsWithChildren {

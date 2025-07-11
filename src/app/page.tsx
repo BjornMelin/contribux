@@ -1,8 +1,8 @@
 'use client'
 
-import { ArrowRight, Github, Sparkles, Zap } from 'lucide-react'
 import Link from 'next/link'
 import { OptimizedSearchExample } from '@/components/examples/optimized-search'
+import { ArrowRight, Github, Sparkles, Zap } from '@/components/icons'
 import { MotionDiv } from '@/components/motion'
 import { useSession } from '@/components/providers/app-providers'
 import { Button } from '@/components/ui/button'

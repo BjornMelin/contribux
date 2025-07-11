@@ -5,8 +5,16 @@
 
 'use client'
 
-import { AlertCircle, Clock, HelpCircle, Home, RefreshCw, ShieldOff, WifiOff } from 'lucide-react'
 import React, { Component, type PropsWithChildren } from 'react'
+import {
+  AlertCircle,
+  Clock,
+  HelpCircle,
+  Home,
+  RefreshCw,
+  ShieldOff,
+  WifiOff,
+} from '@/components/icons'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'

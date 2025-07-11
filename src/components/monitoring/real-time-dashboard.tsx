@@ -10,18 +10,48 @@ import {
   Users,
   Zap,
 } from 'lucide-react'
+import dynamic from 'next/dynamic'
 import { type Dispatch, type SetStateAction, useCallback, useEffect, useState } from 'react'
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
+
+// Lazy load recharts components to reduce initial bundle size
+const AreaChart = dynamic(() => import('recharts').then(mod => ({ default: mod.AreaChart })), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-64 items-center justify-center text-muted-foreground">
+      Loading chart...
+    </div>
+  ),
+})
+
+const LineChart = dynamic(() => import('recharts').then(mod => ({ default: mod.LineChart })), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-64 items-center justify-center text-muted-foreground">
+      Loading chart...
+    </div>
+  ),
+})
+
+const ResponsiveContainer = dynamic(
+  () => import('recharts').then(mod => ({ default: mod.ResponsiveContainer })),
+  { ssr: false }
+)
+const Area = dynamic(() => import('recharts').then(mod => ({ default: mod.Area })), { ssr: false })
+const Line = dynamic(() => import('recharts').then(mod => ({ default: mod.Line })), { ssr: false })
+const CartesianGrid = dynamic(
+  () => import('recharts').then(mod => ({ default: mod.CartesianGrid })),
+  { ssr: false }
+)
+const Tooltip = dynamic(() => import('recharts').then(mod => ({ default: mod.Tooltip })), {
+  ssr: false,
+})
+const XAxis = dynamic(() => import('recharts').then(mod => ({ default: mod.XAxis })), {
+  ssr: false,
+})
+const YAxis = dynamic(() => import('recharts').then(mod => ({ default: mod.YAxis })), {
+  ssr: false,
+})
+
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -380,7 +410,9 @@ export function RealTimeMonitoringDashboard() {
                       <YAxis />
                       <Tooltip
                         labelFormatter={value => new Date(value).toLocaleTimeString()}
-                        formatter={(value: number) => `${value.toFixed(0)}ms`}
+                        formatter={value =>
+                          `${typeof value === 'number' ? value.toFixed(0) : value}ms`
+                        }
                       />
                       <Line
                         type="monotone"
@@ -413,7 +445,9 @@ export function RealTimeMonitoringDashboard() {
                       <YAxis />
                       <Tooltip
                         labelFormatter={value => new Date(value).toLocaleTimeString()}
-                        formatter={(value: number) => `${value.toLocaleString()} tokens`}
+                        formatter={value =>
+                          `${typeof value === 'number' ? value.toLocaleString() : value} tokens`
+                        }
                       />
                       <Area
                         type="monotone"
