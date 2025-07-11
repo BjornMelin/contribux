@@ -5,7 +5,7 @@
 
 import { type NextRequest, NextResponse } from 'next/server'
 import { ZodError } from 'zod'
-import { randomUUID } from 'crypto'
+import { generateUUID } from '@/lib/crypto-utils'
 
 // Error severity levels
 export type ErrorSeverity = 'low' | 'medium' | 'high' | 'critical'
@@ -82,7 +82,7 @@ export class ErrorHandler {
       productionMessage?: string
     } = {}
   ): EnhancedError {
-    const correlationId = randomUUID()
+    const correlationId = generateUUID()
     const timestamp = new Date().toISOString()
 
     // Determine appropriate message based on environment

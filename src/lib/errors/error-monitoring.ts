@@ -3,12 +3,11 @@
  * Tracks errors, provides analytics, and enables proactive monitoring
  */
 
+// Import crypto for generating IDs
+import crypto from 'node:crypto'
+import { createErrorLogger } from '@/lib/logging/pino-config'
 import { AuditEventType, AuditSeverity, auditLogger } from '@/lib/security/audit-logger'
 import { ErrorCategory, type ErrorClassification, ErrorSeverity } from './error-classification'
-import { createErrorLogger } from '@/lib/logging/pino-config'
-
-// Import crypto for generating IDs
-import crypto from 'crypto'
 
 // Context interface for error logging
 interface ErrorContext {
@@ -612,7 +611,7 @@ export class ProductionAlertingConfig {
    * Initialize production alerting system
    */
   static async initialize(): Promise<void> {
-    const alerting = alertingSystem
+    const alerting = getAlertingSystem()
 
     // Configure alert channels
     await ProductionAlertingConfig.configureAlertChannels(alerting)
@@ -818,8 +817,8 @@ export class ProductionAlertingConfig {
     }
   } {
     return {
-      channels: alertingSystem.getAlertChannelsCount(),
-      rules: alertingSystem.getAlertingRulesCount(),
+      channels: getAlertingSystem().getAlertChannelsCount(),
+      rules: getAlertingSystem().getAlertingRulesCount(),
       environment: process.env.NODE_ENV || 'unknown',
       integrations: {
         slack: !!process.env.SLACK_WEBHOOK_URL,
@@ -858,15 +857,16 @@ export class ProductionAlertingConfig {
     }
   }> {
     try {
-      const monitor = ErrorMonitor.getInstance()
-      const dashboard = ErrorDashboard.getInstance()
-      const alerting = alertingSystem
+      const monitor = getErrorMonitor()
+      const dashboard = getErrorDashboard()
+      const alerting = getAlertingSystem()
 
       // Test basic functionality
       const metrics = monitor.getMetrics()
       const alertStats = alerting.getAlertingStats()
 
-      const isHealthy = metrics !== null && alertStats !== null && alerting.getAlertChannelsCount() > 0
+      const isHealthy =
+        metrics !== null && alertStats !== null && alerting.getAlertChannelsCount() > 0
 
       return {
         status: isHealthy ? 'healthy' : 'degraded',
@@ -1008,11 +1008,6 @@ export interface IncidentTimelineEvent {
 }
 
 /**
- * Global error dashboard instance
- */
-export const errorDashboard = ErrorDashboard.getInstance()
-
-/**
  * Error monitoring service
  */
 export class ErrorMonitor {
@@ -1031,7 +1026,7 @@ export class ErrorMonitor {
   /**
    * Get all error entries (read-only)
    */
-  getErrors(): ReadonlyArray<ErrorEntry> {
+  getErrors(): readonly ErrorEntry[] {
     return this.errors
   }
 
@@ -1405,7 +1400,7 @@ export class AlertingSystem {
     classification: ErrorClassification,
     context?: ErrorContext
   ): Promise<void> {
-    const errorMonitor = ErrorMonitor.getInstance()
+    const errorMonitor = getErrorMonitor()
     const metrics = errorMonitor.getMetrics()
 
     // Check each alerting rule
@@ -1917,11 +1912,6 @@ export class AlertingSystem {
 }
 
 /**
- * Global alerting system instance
- */
-export const alertingSystem = AlertingSystem.getInstance()
-
-/**
  * Types for alerting system
  */
 export interface AlertChannel {
@@ -1968,5 +1958,83 @@ export interface AlertEvent {
 
 export type AlertSeverity = 'critical' | 'error' | 'warning' | 'info'
 
-// Export singleton instance
-export const errorMonitor = ErrorMonitor.getInstance()
+// Lazy-loaded singleton instances to avoid module initialization issues
+let _errorMonitor: ErrorMonitor | null = null
+let _errorDashboard: ErrorDashboard | null = null
+let _alertingSystem: AlertingSystem | null = null
+
+export function getErrorMonitor(): ErrorMonitor {
+  if (!_errorMonitor) {
+    _errorMonitor = ErrorMonitor.getInstance()
+  }
+  return _errorMonitor
+}
+
+export function getErrorDashboard(): ErrorDashboard {
+  if (!_errorDashboard) {
+    _errorDashboard = ErrorDashboard.getInstance()
+  }
+  return _errorDashboard
+}
+
+export function getAlertingSystem(): AlertingSystem {
+  if (!_alertingSystem) {
+    _alertingSystem = AlertingSystem.getInstance()
+  }
+  return _alertingSystem
+}
+
+// Maintain backward compatibility
+export const errorMonitor = {
+  get track() {
+    return getErrorMonitor().track.bind(getErrorMonitor())
+  },
+  get getMetrics() {
+    return getErrorMonitor().getMetrics.bind(getErrorMonitor())
+  },
+  get getTrends() {
+    return getErrorMonitor().getTrends.bind(getErrorMonitor())
+  },
+  get generateReport() {
+    return getErrorMonitor().generateReport.bind(getErrorMonitor())
+  },
+}
+
+export const errorDashboard = {
+  get getHealthReport() {
+    return getErrorDashboard().getHealthReport.bind(getErrorDashboard())
+  },
+  get getErrorAnalytics() {
+    return getErrorDashboard().getErrorAnalytics.bind(getErrorDashboard())
+  },
+  get generateIncidentReport() {
+    return getErrorDashboard().generateIncidentReport.bind(getErrorDashboard())
+  },
+  get exportErrorData() {
+    return getErrorDashboard().exportErrorData.bind(getErrorDashboard())
+  },
+}
+
+export const alertingSystem = {
+  get getAlertChannelsCount() {
+    return getAlertingSystem().getAlertChannelsCount.bind(getAlertingSystem())
+  },
+  get getAlertingRulesCount() {
+    return getAlertingSystem().getAlertingRulesCount.bind(getAlertingSystem())
+  },
+  get registerChannel() {
+    return getAlertingSystem().registerChannel.bind(getAlertingSystem())
+  },
+  get addRule() {
+    return getAlertingSystem().addRule.bind(getAlertingSystem())
+  },
+  get processError() {
+    return getAlertingSystem().processError.bind(getAlertingSystem())
+  },
+  get getAlertHistory() {
+    return getAlertingSystem().getAlertHistory.bind(getAlertingSystem())
+  },
+  get getAlertingStats() {
+    return getAlertingSystem().getAlertingStats.bind(getAlertingSystem())
+  },
+}

@@ -319,7 +319,7 @@ export function classifyError(error: unknown): ErrorClassification {
     // Handle objects that can't be converted to string
     technicalDetails = 'Error object cannot be stringified'
   }
-  
+
   return {
     category: ErrorCategory.INTERNAL_ERROR,
     severity: ErrorSeverity.HIGH,

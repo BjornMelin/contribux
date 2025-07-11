@@ -4,7 +4,7 @@
  */
 
 import type { NextRequest } from 'next/server'
-import { ErrorHandler, type EnhancedError } from './enhanced-error-handler'
+import { type EnhancedError, ErrorHandler } from './enhanced-error-handler'
 
 /**
  * Environment validation error with detailed context

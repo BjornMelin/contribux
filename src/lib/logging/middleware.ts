@@ -3,12 +3,12 @@
  * Provides automatic HTTP request logging with correlation IDs
  */
 
-import type { NextRequest, NextResponse } from 'next/server'
 import { randomUUID } from 'node:crypto'
-import { enhancedLogger } from './pino-logger'
-import { createErrorLogger } from './pino-config'
+import type { NextRequest, NextResponse } from 'next/server'
 import type { ErrorClassification } from '@/lib/errors/error-classification'
 import { RecoveryStrategy } from '@/lib/errors/error-classification'
+import { createErrorLogger } from './pino-config'
+import { enhancedLogger } from './pino-logger'
 
 export interface RequestContext {
   requestId: string

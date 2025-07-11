@@ -27,15 +27,15 @@ export async function getSystemMetrics(): Promise<SystemMetrics> {
   return {
     cpu: {
       usage: 45,
-      cores: 4
+      cores: 4,
     },
     memory: {
       used: 2048,
       total: 8192,
-      percentage: 25
+      percentage: 25,
     },
     uptime: 86400,
-    loadAverage: [1.5, 1.2, 1.0]
+    loadAverage: [1.5, 1.2, 1.0],
   }
 }
 
@@ -44,6 +44,6 @@ export async function getApplicationMetrics(): Promise<ApplicationMetrics> {
     requestCount: 1500,
     errorCount: 25,
     averageResponseTime: 120,
-    activeConnections: 45
+    activeConnections: 45,
   }
 }

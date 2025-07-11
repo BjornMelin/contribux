@@ -4,13 +4,13 @@
  */
 
 import type { Logger as PinoLogger } from 'pino'
-import {
-  pinoLogger,
-  type LogContext,
-  type SecurityEventContext,
-  type PerformanceContext,
-} from './pino-config'
 import { env } from '@/lib/validation/env'
+import {
+  type LogContext,
+  type PerformanceContext,
+  pinoLogger,
+  type SecurityEventContext,
+} from './pino-config'
 
 /**
  * Enhanced logger class that uses Pino for high-performance structured logging

@@ -4,8 +4,8 @@
  * while maintaining existing API contracts
  */
 
-import { enhancedLogger, pinoSecurityLogger } from './pino-logger'
 import type { LogContext, SecurityEventContext } from './pino-config'
+import { enhancedLogger, pinoSecurityLogger } from './pino-logger'
 
 /**
  * Enhanced logger that replaces the original logger while maintaining API compatibility

@@ -16,7 +16,14 @@ import { NeonBranchManager } from './neon-branch-manager'
 // Load test environment
 config({ path: '.env.test' })
 
-export type DatabaseStrategy = 'pglite' | 'neon-branch' | 'neon-transaction' | 'mock' | 'postgres' | 'neon' | 'local'
+export type DatabaseStrategy =
+  | 'pglite'
+  | 'neon-branch'
+  | 'neon-transaction'
+  | 'mock'
+  | 'postgres'
+  | 'neon'
+  | 'local'
 
 export interface TestDatabaseConfig {
   strategy: DatabaseStrategy
@@ -799,7 +806,12 @@ export class TestDatabaseManager {
         return handleInsertQuery(mockData, query, values)
       }
 
-      if (query.includes('update') || query.includes('truncate') || query.includes('create') || query.includes('alter')) {
+      if (
+        query.includes('update') ||
+        query.includes('truncate') ||
+        query.includes('create') ||
+        query.includes('alter')
+      ) {
         return []
       }
 

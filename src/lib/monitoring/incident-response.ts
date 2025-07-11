@@ -48,9 +48,7 @@ type ResponseAction = z.infer<typeof ResponseActionSchema>
 // Notification channel schema
 const NotificationChannelSchema = z.object({
   type: z.enum(['slack', 'discord', 'pagerduty', 'email', 'webhook']),
-  send: z.function()
-    .args(IncidentSchema, z.string())
-    .returns(z.promise(z.void())),
+  send: z.function().args(IncidentSchema, z.string()).returns(z.promise(z.void())),
 })
 
 type NotificationChannel = z.infer<typeof NotificationChannelSchema>

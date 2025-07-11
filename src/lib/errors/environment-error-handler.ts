@@ -3,8 +3,8 @@
  * Specialized error handling for configuration and environment issues
  */
 
-import { ErrorHandler } from './enhanced-error-handler'
 import { z } from 'zod'
+import { ErrorHandler } from './enhanced-error-handler'
 
 // Environment validation schema
 const environmentSchema = z.object({
@@ -327,19 +327,15 @@ export function validateProductionEnvironment() {
 
 // Comprehensive environment validation
 export function validateCompleteEnvironment() {
-  try {
-    const env = validateEnvironment()
-    validateDatabaseConnection()
-    validateApiKeys()
-    validateDevelopmentEnvironment()
-    validateProductionEnvironment()
+  const env = validateEnvironment()
+  validateDatabaseConnection()
+  validateApiKeys()
+  validateDevelopmentEnvironment()
+  validateProductionEnvironment()
 
-    return {
-      isValid: true,
-      environment: env.NODE_ENV,
-      validatedAt: new Date().toISOString(),
-    }
-  } catch (error) {
-    throw error
+  return {
+    isValid: true,
+    environment: env.NODE_ENV,
+    validatedAt: new Date().toISOString(),
   }
 }

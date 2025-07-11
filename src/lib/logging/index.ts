@@ -5,50 +5,49 @@
 
 // Core Pino configuration and logger
 export {
-  pinoLogger,
-  createPinoLogger,
   createChildLogger,
+  createPinoLogger,
   type LogContext,
-  type SecurityEventContext,
   type PerformanceContext,
+  pinoLogger,
+  type SecurityEventContext,
 } from './pino-config'
 
 // Enhanced Pino logger with extended functionality
 export {
-  PinoEnhancedLogger,
   enhancedLogger,
+  PinoEnhancedLogger,
   pinoSecurityLogger,
 } from './pino-logger'
 
 // Import for use within this file
 import { enhancedLogger, pinoSecurityLogger } from './pino-logger'
 
-// Middleware for Next.js integration
-export {
-  withRequestLogging,
-  withApiLogging,
-  withPerformanceLogging,
-  withDatabaseLogging,
-  getRequestContext,
-  getRequestLogger,
-  addRequestIdHeaders,
-  generateRequestId,
-  extractIpAddress,
-  createRequestContext,
-  type RequestContext,
-} from './middleware'
-
 // Compatibility layer for existing loggers
 export {
   compatibilityLogger,
   compatibilityMonitoringLogger,
-  compatibilityTelemetryLogger,
   compatibilitySecurityLogger,
+  compatibilityTelemetryLogger,
   compatibilityTelemetrySecurityLogger,
-  getPinoLogger,
   flushLogs,
+  getPinoLogger,
   isLogLevelEnabled,
 } from './compatibility'
+// Middleware for Next.js integration
+export {
+  addRequestIdHeaders,
+  createRequestContext,
+  extractIpAddress,
+  generateRequestId,
+  getRequestContext,
+  getRequestLogger,
+  type RequestContext,
+  withApiLogging,
+  withDatabaseLogging,
+  withPerformanceLogging,
+  withRequestLogging,
+} from './middleware'
 
 // Re-export enhanced logger as default
 export { enhancedLogger as default } from './pino-logger'

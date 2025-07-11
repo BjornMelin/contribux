@@ -3,8 +3,8 @@
  * Validates application configuration on startup with enhanced error reporting
  */
 
-import { validateCompleteEnvironment } from '@/lib/errors/environment-error-handler'
 import { ErrorHandler } from '@/lib/errors/enhanced-error-handler'
+import { validateCompleteEnvironment } from '@/lib/errors/environment-error-handler'
 
 /**
  * Validate application environment on startup

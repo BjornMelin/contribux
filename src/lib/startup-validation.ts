@@ -9,7 +9,7 @@
  * fail-fast behavior for misconfigured environments.
  */
 
-import { validateEnvironmentOnStartup, isTest, isProduction } from './validation/env'
+import { isProduction, isTest, validateEnvironmentOnStartup } from './validation/env'
 
 // Helper function to check if validation should be skipped
 function shouldSkipValidation(): boolean {

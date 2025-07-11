@@ -7,12 +7,12 @@ import { NextResponse } from 'next/server'
 import { AuditEventType, AuditSeverity, auditLogger } from '@/lib/security/audit-logger'
 import { CircuitBreaker } from '@/lib/security/error-boundaries'
 import {
-  ErrorClassifier,
-  ErrorSeverity,
   ErrorCategory,
   type ErrorClassification,
-  shouldRetryError,
+  ErrorClassifier,
+  ErrorSeverity,
   getErrorRetryDelay,
+  shouldRetryError,
 } from './error-classification'
 import { ErrorRecoveryManager } from './error-recovery'
 
@@ -576,8 +576,25 @@ export class WebhookRetryQueue {
   }
 }
 
-// Global retry queue instance
-export const webhookRetryQueue = new WebhookRetryQueue()
+// Lazy-loaded global retry queue instance to avoid module initialization issues
+let _webhookRetryQueue: WebhookRetryQueue | null = null
+
+export function getWebhookRetryQueue(): WebhookRetryQueue {
+  if (!_webhookRetryQueue) {
+    _webhookRetryQueue = new WebhookRetryQueue()
+  }
+  return _webhookRetryQueue
+}
+
+// Maintain backward compatibility
+export const webhookRetryQueue = {
+  get enqueue() {
+    return getWebhookRetryQueue().enqueue.bind(getWebhookRetryQueue())
+  },
+  get getStats() {
+    return getWebhookRetryQueue().getStats.bind(getWebhookRetryQueue())
+  },
+}
 
 /**
  * Safely extract circuit breaker state
