@@ -35,7 +35,7 @@ vi.mock('@/lib/db', () => {
     return Promise.resolve([])
   }
   Object.assign(sqlMock, mockSql)
-  
+
   return {
     sql: sqlMock,
     db: vi.fn(),
@@ -159,7 +159,7 @@ describe('WebAuthn Security', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks()
-    
+
     // Re-setup the security config mock after clearing
     const { getSecurityConfig } = await import('@/lib/security/feature-flags')
     vi.mocked(getSecurityConfig).mockReturnValue({

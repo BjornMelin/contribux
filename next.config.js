@@ -65,8 +65,8 @@ const nextConfig = {
   // Server external packages (moved from experimental in Next.js 15)
   // Include telemetry packages to prevent them from being bundled on client-side
   serverExternalPackages: [
-    '@neondatabase/serverless', 
-    'ioredis', 
+    '@neondatabase/serverless',
+    'ioredis',
     'pg',
     'pino',
     'pino-http',
@@ -176,7 +176,7 @@ const nextConfig = {
             // Keep Next.js default chunks but consolidate others
             default: false,
             vendors: false,
-            
+
             // React framework chunk (React + React-DOM only)
             react: {
               name: 'react-framework',
@@ -186,7 +186,7 @@ const nextConfig = {
               chunks: 'all',
               reuseExistingChunk: true,
             },
-            
+
             // Next.js framework chunk (Next.js internals only)
             nextjs: {
               name: 'nextjs-framework',
@@ -196,7 +196,7 @@ const nextConfig = {
               chunks: 'all',
               reuseExistingChunk: true,
             },
-            
+
             // All UI libraries consolidated into single chunk
             ui: {
               name: 'ui-libs',
@@ -206,7 +206,7 @@ const nextConfig = {
               chunks: 'all',
               reuseExistingChunk: true,
             },
-            
+
             // Auth and security libraries
             auth: {
               name: 'auth',
@@ -216,7 +216,7 @@ const nextConfig = {
               chunks: 'all',
               reuseExistingChunk: true,
             },
-            
+
             // Data and API libraries
             data: {
               name: 'data',
@@ -226,7 +226,7 @@ const nextConfig = {
               chunks: 'all',
               reuseExistingChunk: true,
             },
-            
+
             // All other vendor libraries
             vendor: {
               name: 'vendor',
@@ -237,7 +237,7 @@ const nextConfig = {
               reuseExistingChunk: true,
               minSize: 30000, // Larger minimum size for vendor chunks
             },
-          }
+          },
         }
       }
 
@@ -262,7 +262,7 @@ const nextConfig = {
       config.performance = {
         ...config.performance,
         maxAssetSize: 500000, // 500kb - relaxed during optimization
-        maxEntrypointSize: 1200000, // 1.2MB - relaxed during optimization  
+        maxEntrypointSize: 1200000, // 1.2MB - relaxed during optimization
         hints: process.env.NODE_ENV === 'production' ? 'warning' : false, // Use warnings instead of errors during optimization
       }
 

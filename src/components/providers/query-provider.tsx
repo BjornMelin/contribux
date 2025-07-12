@@ -23,6 +23,7 @@ const ReactQueryDevtools = dynamic(
     loading: () => null,
   }
 )
+
 import {
   type ErrorInfo,
   type PropsWithChildren,

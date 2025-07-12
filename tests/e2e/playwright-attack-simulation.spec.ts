@@ -1,4 +1,4 @@
-import { expect, type Page, test } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 
 /**
  * ATTACK SIMULATION AND SECURITY TESTING
@@ -143,7 +143,7 @@ test.describe('Attack Simulation Security Testing', () => {
         })
 
         expect(xssExecuted).toBeFalsy()
-      } catch (error) {
+      } catch (_error) {
         // Error in navigation might indicate blocking
         attackTestResults.push({
           attackType: 'XSS URL Parameter',
@@ -588,7 +588,7 @@ test.describe('Attack Simulation Security Testing', () => {
             severity: 'medium',
             details: `Path traversal response: HTTP ${traversalAttempt.status()}`,
           })
-        } catch (error) {
+        } catch (_error) {
           // Error indicates path was blocked
           attackTestResults.push({
             attackType: 'Path Traversal Bypass',

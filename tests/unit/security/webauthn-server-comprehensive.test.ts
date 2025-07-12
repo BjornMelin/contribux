@@ -49,7 +49,7 @@ vi.mock('@/lib/db', () => {
     return Promise.resolve([])
   }
   Object.assign(sqlMock, mockSql)
-  
+
   return {
     sql: sqlMock,
     db: vi.fn(),
@@ -1304,16 +1304,16 @@ describe('WebAuthn Server Error Recovery', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks()
-    
+
     // Import mocked modules
     const { sql } = await import('@/lib/db')
     const { generateRegistrationOptions } = await import('@simplewebauthn/server')
     const { getSecurityConfig } = await import('@/lib/security/feature-flags')
-    
+
     mockSql = sql
     mockGenerateRegistrationOptions = generateRegistrationOptions
     mockGetSecurityConfig = getSecurityConfig
-    
+
     // Setup default security config mock
     mockGetSecurityConfig.mockReturnValue({
       webauthn: {
@@ -1326,7 +1326,9 @@ describe('WebAuthn Server Error Recovery', () => {
   })
 
   it('should handle graceful degradation when WebAuthn is unavailable', async () => {
-    vi.mocked(mockGenerateRegistrationOptions).mockRejectedValue(new Error('WebAuthn not supported'))
+    vi.mocked(mockGenerateRegistrationOptions).mockRejectedValue(
+      new Error('WebAuthn not supported')
+    )
 
     mockSql.mockResolvedValueOnce([])
 
@@ -1337,8 +1339,10 @@ describe('WebAuthn Server Error Recovery', () => {
 
   it('should handle database recovery scenarios', async () => {
     // Import test utilities
-    const { createStoredWebAuthnCredential, WebAuthnTestHelpers } = await import('../../utils/webauthn-test-utilities')
-    
+    const { createStoredWebAuthnCredential, WebAuthnTestHelpers } = await import(
+      '../../utils/webauthn-test-utilities'
+    )
+
     const userId = WebAuthnTestHelpers.generateUserId()
 
     // Mock database failure using the underlying mock function

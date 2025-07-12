@@ -1,9 +1,9 @@
 'use client'
 
-import { ArrowRight, Github, Sparkles, Zap } from '@/components/icons'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { useEffect } from 'react'
+import { ArrowRight, Github, Sparkles, Zap } from '@/components/icons'
 import { useSession } from '@/components/providers/app-providers'
 import { preloadSearchComponents } from '@/lib/performance/preloader'
 

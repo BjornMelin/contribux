@@ -3,10 +3,10 @@
 // Force dynamic rendering for authentication-dependent page
 export const dynamic = 'force-dynamic'
 
-import { Check, X } from '@/components/icons'
 import dynamicImport from 'next/dynamic'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { Check, X } from '@/components/icons'
 
 // Lazy load heavy components to reduce initial bundle
 const LinkedAccounts = dynamicImport(

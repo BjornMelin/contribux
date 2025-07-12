@@ -8,16 +8,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // Mock database module at top level - handle template literals properly
 vi.mock('@/lib/db', () => {
   const mockSql = vi.fn()
-  
+
   // Setup template literal mock function
   const sqlMock = (template: TemplateStringsArray, ...substitutions: any[]) => {
     mockSql(template, ...substitutions)
     return Promise.resolve([]) // Always return empty array for WebAuthn queries
   }
-  
+
   // Add the mock function for tracking calls
   Object.assign(sqlMock, mockSql)
-  
+
   return {
     sql: sqlMock,
     db: {

@@ -50,10 +50,10 @@ export async function executeSql<T extends QueryRow = QueryRow>(
   }
 
   // Get connection from TestDatabaseManager with explicit mock strategy for tests
-  const connection = await dbManager.getConnection('db-client-test', { 
+  const connection = await dbManager.getConnection('db-client-test', {
     strategy: 'mock',
     cleanup: 'rollback',
-    verbose: false
+    verbose: false,
   })
 
   // Execute query using the managed connection's sql function
@@ -127,10 +127,10 @@ export const sql: SqlTemplateFunction = async function sql<T extends QueryRow = 
   ...values: unknown[]
 ): Promise<T[]> {
   // Get connection from TestDatabaseManager with explicit mock strategy for tests
-  const connection = await dbManager.getConnection('sql-template-test', { 
+  const connection = await dbManager.getConnection('sql-template-test', {
     strategy: 'mock',
     cleanup: 'rollback',
-    verbose: false
+    verbose: false,
   })
 
   // Process values for special types (vectors, arrays)
@@ -156,10 +156,10 @@ export const sql: SqlTemplateFunction = async function sql<T extends QueryRow = 
  */
 export async function createTestClient(): Promise<Client> {
   // Get a connection to check the strategy with explicit mock strategy for tests
-  const connection = await dbManager.getConnection('createTestClient-check', { 
+  const connection = await dbManager.getConnection('createTestClient-check', {
     strategy: 'mock',
     cleanup: 'rollback',
-    verbose: false
+    verbose: false,
   })
 
   if (connection.strategy === 'neon-transaction' || connection.strategy === 'neon-branch') {
@@ -182,10 +182,10 @@ export async function createTestClient(): Promise<Client> {
  */
 export async function withTransaction<T>(fn: (client: Client) => Promise<T>): Promise<T> {
   // Get a connection to check the strategy with explicit mock strategy for tests
-  const connection = await dbManager.getConnection('withTransaction-check', { 
+  const connection = await dbManager.getConnection('withTransaction-check', {
     strategy: 'mock',
     cleanup: 'rollback',
-    verbose: false
+    verbose: false,
   })
 
   if (connection.strategy === 'pglite') {
@@ -219,10 +219,10 @@ export async function withTransaction<T>(fn: (client: Client) => Promise<T>): Pr
  */
 export async function isLocalPostgres(): Promise<boolean> {
   // Get a connection to check the strategy with explicit mock strategy for tests
-  const connection = await dbManager.getConnection('isLocalPostgres-check', { 
+  const connection = await dbManager.getConnection('isLocalPostgres-check', {
     strategy: 'mock',
     cleanup: 'rollback',
-    verbose: false
+    verbose: false,
   })
   return connection.strategy !== 'pglite'
 }

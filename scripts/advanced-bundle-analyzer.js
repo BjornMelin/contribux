@@ -21,7 +21,7 @@ class AdvancedBundleAnalyzer {
       chunkAnalysis: {},
       optimizationStatus: {},
       performanceScore: 0,
-      recommendations: []
+      recommendations: [],
     }
   }
 
@@ -35,7 +35,7 @@ class AdvancedBundleAnalyzer {
     const lines = buildOutput.split('\n')
     const chunks = []
     const entrypoints = []
-    
+
     let inRouteSection = false
     let inEntrypointSection = false
 
@@ -47,14 +47,16 @@ class AdvancedBundleAnalyzer {
       }
 
       if (inRouteSection && line.trim()) {
-        const routeMatch = line.match(/([┌├└│])\s*([^\s]+)\s+(\d+(?:\.\d+)?)\s*([kMG]?B)\s+(\d+(?:\.\d+)?)\s*([kMG]?B)/)
+        const routeMatch = line.match(
+          /([┌├└│])\s*([^\s]+)\s+(\d+(?:\.\d+)?)\s*([kMG]?B)\s+(\d+(?:\.\d+)?)\s*([kMG]?B)/
+        )
         if (routeMatch) {
           const [, prefix, route, size, sizeUnit, firstLoad, firstLoadUnit] = routeMatch
           chunks.push({
             route: route.trim(),
             size: this.parseSize(size, sizeUnit),
             firstLoad: this.parseSize(firstLoad, firstLoadUnit),
-            isPage: !prefix.includes('├') && !prefix.includes('└')
+            isPage: !prefix.includes('├') && !prefix.includes('└'),
           })
         }
       }
@@ -75,7 +77,7 @@ class AdvancedBundleAnalyzer {
           const [, name, size] = entrypointMatch
           entrypoints.push({
             name: name.trim(),
-            size: size.trim()
+            size: size.trim(),
           })
         }
       }
@@ -84,17 +86,17 @@ class AdvancedBundleAnalyzer {
     return {
       routes: chunks,
       entrypoints: entrypoints,
-      totalRoutes: chunks.length
+      totalRoutes: chunks.length,
     }
   }
 
   parseSize(sizeStr, unit) {
-    const size = parseFloat(sizeStr)
+    const size = Number.parseFloat(sizeStr)
     const multipliers = {
-      'B': 1,
-      'kB': 1024,
-      'MB': 1024 * 1024,
-      'GB': 1024 * 1024 * 1024
+      B: 1,
+      kB: 1024,
+      MB: 1024 * 1024,
+      GB: 1024 * 1024 * 1024,
     }
     return size * (multipliers[unit] || 1)
   }
@@ -104,27 +106,27 @@ class AdvancedBundleAnalyzer {
       routes: [
         { route: '/', size: 426000, firstLoad: 426000, isPage: true },
         { route: '/settings/accounts', size: 425000, firstLoad: 425000, isPage: true },
-        { route: '/auth/signin', size: 431000, firstLoad: 431000, isPage: true }
+        { route: '/auth/signin', size: 431000, firstLoad: 431000, isPage: true },
       ],
       entrypoints: [
         { name: 'app/layout', size: '1.51 MiB' },
         { name: 'app/page', size: '1.12 MiB' },
-        { name: 'app/settings/accounts/page', size: '1.12 MiB' }
+        { name: 'app/settings/accounts/page', size: '1.12 MiB' },
       ],
       totalRoutes: 49,
       chunks: {
         'nextjs-framework': 140000, // 140KB Next.js framework only
-        'react-framework': 135000,  // React + React-DOM chunk (estimated)
-        'ui-libs': 539000,          // UI libraries chunk
-        'vendor': 135000            // Other vendor libraries
-      }
+        'react-framework': 135000, // React + React-DOM chunk (estimated)
+        'ui-libs': 539000, // UI libraries chunk
+        vendor: 135000, // Other vendor libraries
+      },
     }
   }
 
   // Analyze chunk optimization status
   analyzeChunkOptimization() {
     console.log('📦 Analyzing chunk optimization...')
-    
+
     const results = {
       iconChunksFixed: true, // No longer 47+ individual chunks
       uiLibsConsolidated: true, // Single ui-libs chunk
@@ -133,37 +135,38 @@ class AdvancedBundleAnalyzer {
       nextjsFrameworkChunkSize: 140000, // Next.js framework: 140KB
       uiLibsChunkSize: 539000, // 539KB
       vendorChunkSize: 135000, // 135KB
-      
+
       improvements: [
         {
           category: 'Icon Optimization',
           status: 'COMPLETED',
           impact: 'HIGH',
           description: 'Eliminated 47+ icon chunks, consolidated to single ui-libs chunk',
-          savingsEstimate: '~300KB in chunk overhead reduction'
+          savingsEstimate: '~300KB in chunk overhead reduction',
         },
         {
           category: 'Dynamic Imports',
-          status: 'COMPLETED', 
+          status: 'COMPLETED',
           impact: 'MEDIUM',
           description: 'React Query DevTools now dynamically loaded',
-          savingsEstimate: '~30KB from production bundle'
+          savingsEstimate: '~30KB from production bundle',
         },
         {
           category: 'Telemetry Externalization',
           status: 'COMPLETED',
-          impact: 'HIGH', 
+          impact: 'HIGH',
           description: 'OpenTelemetry packages externalized for server-only use',
-          savingsEstimate: '~200KB from client bundle'
+          savingsEstimate: '~200KB from client bundle',
         },
         {
           category: 'Framework Chunk Splitting',
           status: 'COMPLETED',
           impact: 'HIGH',
-          description: 'Split framework chunk into React (135KB) + Next.js (140KB) for better caching',
-          savingsEstimate: '~372KB reduction from 647KB to 275KB total framework'
-        }
-      ]
+          description:
+            'Split framework chunk into React (135KB) + Next.js (140KB) for better caching',
+          savingsEstimate: '~372KB reduction from 647KB to 275KB total framework',
+        },
+      ],
     }
 
     this.results.chunkAnalysis = results
@@ -173,7 +176,7 @@ class AdvancedBundleAnalyzer {
   // Calculate performance score
   calculatePerformanceScore() {
     console.log('📈 Calculating performance score...')
-    
+
     let score = 0
     const metrics = this.results.bundleMetrics
 
@@ -205,7 +208,7 @@ class AdvancedBundleAnalyzer {
   // Generate optimization recommendations
   generateRecommendations() {
     console.log('💡 Generating optimization recommendations...')
-    
+
     const recommendations = []
 
     // Framework optimization complete, check for further opportunities
@@ -214,10 +217,11 @@ class AdvancedBundleAnalyzer {
         priority: 'LOW',
         category: 'Framework Bundle',
         title: 'Framework Splitting Complete',
-        description: 'Successfully split framework into React (135KB) + Next.js (140KB) chunks. No further optimization needed.',
+        description:
+          'Successfully split framework into React (135KB) + Next.js (140KB) chunks. No further optimization needed.',
         implementation: 'Framework chunk splitting optimization completed successfully',
         estimatedSaving: 'Completed: ~372KB reduction achieved',
-        effort: 'Completed'
+        effort: 'Completed',
       })
     }
 
@@ -227,10 +231,11 @@ class AdvancedBundleAnalyzer {
         priority: 'MEDIUM',
         category: 'UI Libraries',
         title: 'Further Optimize UI Libraries Chunk',
-        description: 'UI libraries chunk (539KB) could be further optimized through more aggressive tree shaking.',
+        description:
+          'UI libraries chunk (539KB) could be further optimized through more aggressive tree shaking.',
         implementation: 'Implement more specific imports for framer-motion and radix-ui components',
         estimatedSaving: '~80KB',
-        effort: 'Low'
+        effort: 'Low',
       })
     }
 
@@ -242,17 +247,18 @@ class AdvancedBundleAnalyzer {
       description: 'Add service worker for static asset caching and offline support',
       implementation: 'Use next-pwa or custom service worker implementation',
       estimatedSaving: 'Improved perceived performance',
-      effort: 'High'
+      effort: 'High',
     })
 
     recommendations.push({
       priority: 'MEDIUM',
       category: 'Build Optimization',
       title: 'Enable Additional Next.js 15 Features',
-      description: 'Leverage Next.js 15 experimental features like optimizeServerReact and enhanced CSS optimization',
+      description:
+        'Leverage Next.js 15 experimental features like optimizeServerReact and enhanced CSS optimization',
       implementation: 'Update next.config.js experimental settings',
       estimatedSaving: '~20-40KB',
-      effort: 'Low'
+      effort: 'Low',
     })
 
     this.results.recommendations = recommendations
@@ -273,24 +279,34 @@ class AdvancedBundleAnalyzer {
     else if (this.results.performanceScore >= 60) grade = 'B'
     else if (this.results.performanceScore >= 50) grade = 'C+'
     else grade = 'C'
-    
+
     console.log(`🏆 Bundle Grade: ${grade}\n`)
 
     // Key Achievements
     console.log('✅ MAJOR OPTIMIZATIONS COMPLETED:')
     this.results.chunkAnalysis.improvements.forEach(improvement => {
-      console.log(`   ${improvement.status === 'COMPLETED' ? '✅' : '⏳'} ${improvement.description}`)
+      console.log(
+        `   ${improvement.status === 'COMPLETED' ? '✅' : '⏳'} ${improvement.description}`
+      )
       console.log(`      Impact: ${improvement.impact} | Savings: ${improvement.savingsEstimate}`)
     })
     console.log('')
 
     // Current Metrics
     console.log('📦 CURRENT BUNDLE METRICS:')
-    console.log(`   React Framework Chunk: ${(this.results.chunkAnalysis.reactFrameworkChunkSize / 1024).toFixed(0)}KB`)
-    console.log(`   Next.js Framework Chunk: ${(this.results.chunkAnalysis.nextjsFrameworkChunkSize / 1024).toFixed(0)}KB`)
-    console.log(`   UI Libraries Chunk: ${(this.results.chunkAnalysis.uiLibsChunkSize / 1024).toFixed(0)}KB`)
-    console.log(`   Vendor Chunk: ${(this.results.chunkAnalysis.vendorChunkSize / 1024).toFixed(0)}KB`)
-    console.log(`   Average Page Load: ~427KB First Load JS (down from 480KB)`)
+    console.log(
+      `   React Framework Chunk: ${(this.results.chunkAnalysis.reactFrameworkChunkSize / 1024).toFixed(0)}KB`
+    )
+    console.log(
+      `   Next.js Framework Chunk: ${(this.results.chunkAnalysis.nextjsFrameworkChunkSize / 1024).toFixed(0)}KB`
+    )
+    console.log(
+      `   UI Libraries Chunk: ${(this.results.chunkAnalysis.uiLibsChunkSize / 1024).toFixed(0)}KB`
+    )
+    console.log(
+      `   Vendor Chunk: ${(this.results.chunkAnalysis.vendorChunkSize / 1024).toFixed(0)}KB`
+    )
+    console.log('   Average Page Load: ~427KB First Load JS (down from 480KB)')
     console.log('')
 
     // Recommendations
@@ -313,13 +329,15 @@ class AdvancedBundleAnalyzer {
     console.log('   5. Explore additional Next.js 15 experimental features')
     console.log('')
 
-    console.log('📊 Analysis complete! Bundle optimization is 85%+ effective with major improvements achieved.')
+    console.log(
+      '📊 Analysis complete! Bundle optimization is 85%+ effective with major improvements achieved.'
+    )
   }
 
   async run() {
     try {
       console.log('🚀 Starting advanced bundle analysis...\n')
-      
+
       this.results.bundleMetrics = await this.parseNextBuildOutput()
       this.analyzeChunkOptimization()
       this.calculatePerformanceScore()
@@ -330,7 +348,6 @@ class AdvancedBundleAnalyzer {
       const reportPath = path.join(projectRoot, 'advanced-bundle-analysis.json')
       fs.writeFileSync(reportPath, JSON.stringify(this.results, null, 2))
       console.log(`📄 Detailed report saved to: ${reportPath}`)
-
     } catch (error) {
       console.error('❌ Analysis failed:', error.message)
       process.exit(1)

@@ -1,11 +1,11 @@
 'use client'
 
-import { Github, Home, LogOut, Menu, Settings, Sparkles, X } from '@/components/icons'
 import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
+import { Github, Home, LogOut, Menu, Settings, Sparkles, X } from '@/components/icons'
 import { useSession } from '@/components/providers/app-providers'
 import { cn } from '@/lib/utils'
 

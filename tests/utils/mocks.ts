@@ -12,16 +12,16 @@ export function setupDatabaseMock() {
   // Mock the main database module that WebAuthn server uses
   vi.mock('@/lib/db', () => {
     const mockSql = vi.fn()
-    
+
     // Setup template literal mock function
     const sqlMock = (template: TemplateStringsArray, ...substitutions: any[]) => {
       mockSql(template, ...substitutions)
       return Promise.resolve([]) // Always return empty array for WebAuthn queries
     }
-    
+
     // Add the mock function for tracking calls
     Object.assign(sqlMock, mockSql)
-    
+
     return {
       sql: sqlMock,
       db: {
@@ -50,8 +50,8 @@ export function setupDatabaseMock() {
         pooling: { provider: 'test', enabled: true, connectionType: 'pooled' },
       }),
       vectorUtils: {
-        parseEmbedding: vi.fn((text) => text ? JSON.parse(text) : null),
-        serializeEmbedding: vi.fn((embedding) => JSON.stringify(embedding)),
+        parseEmbedding: vi.fn(text => (text ? JSON.parse(text) : null)),
+        serializeEmbedding: vi.fn(embedding => JSON.stringify(embedding)),
         cosineSimilarity: vi.fn(() => 0.8),
       },
     }
@@ -127,7 +127,7 @@ export function setupWebAuthnServerMock() {
     })),
   }))
 
-  // Mock the security feature flags 
+  // Mock the security feature flags
   vi.mock('@/lib/security/feature-flags', () => ({
     getSecurityFeatures: vi.fn(() => ({
       basicSecurity: true,

@@ -247,13 +247,13 @@ function handleInsertQuery(
     }
 
     let recordValues = values
-    
+
     // Extract all values from VALUES clause (both literal and interpolated)
     const valuesMatch = query.match(/values\s*\(([^)]+)\)/i)
     if (valuesMatch) {
       const valuesStr = valuesMatch[1]
       const allValueTokens = valuesStr.split(',').map(val => val.trim())
-      
+
       // If we have interpolated values, merge them with literal values
       if (values.length > 0) {
         let interpolatedIndex = 0
@@ -261,15 +261,14 @@ function handleInsertQuery(
           if (token.match(/\$\d+/)) {
             // This is a placeholder for an interpolated value
             return values[interpolatedIndex++]
-          } else {
-            // This is a literal value, remove quotes
-            return token.replace(/^['"]|['"]$/g, '')
           }
+          // This is a literal value, remove quotes
+          return token.replace(/^['"]|['"]$/g, '')
         })
       } else {
         // No interpolated values, extract all from query string
-        recordValues = allValueTokens.map(val => 
-          val.trim().replace(/^['"]|['"]$/g, '') // Remove quotes
+        recordValues = allValueTokens.map(
+          val => val.trim().replace(/^['"]|['"]$/g, '') // Remove quotes
         )
       }
     }
@@ -286,7 +285,7 @@ function handleInsertQuery(
     }
 
     mockData.set(tableName, currentData)
-    
+
     // Return inserted records for RETURNING clauses
     return insertedRecords
   }
@@ -338,7 +337,7 @@ function handleOpportunitiesInsert(
 
   currentData.push(opportunity1, opportunity2)
   mockData.set(tableName, currentData)
-  
+
   // Return the created opportunities for RETURNING clauses
   return [opportunity1, opportunity2]
 }
@@ -407,7 +406,7 @@ function createUserMockRecord(
     ...baseRecord,
     id: `user-${Date.now()}-${index}`, // Generate unique ID
     github_id: recordValues[0] || '67890', // First parameter: github_id
-    github_username: recordValues[1] || 'testuser', // Second parameter: github_username  
+    github_username: recordValues[1] || 'testuser', // Second parameter: github_username
     email: recordValues[2] || 'test@example.com', // Third parameter: email
     name: recordValues[3] || 'Test User', // Fourth parameter: name
     skill_level: recordValues[4] || 'intermediate',
@@ -501,7 +500,11 @@ const MOCK_SCHEMA_DATA = {
     { table_name: 'user_preferences', table_schema: 'public', table_type: 'BASE TABLE' },
     { table_name: 'notifications', table_schema: 'public', table_type: 'BASE TABLE' },
     { table_name: 'contribution_outcomes', table_schema: 'public', table_type: 'BASE TABLE' },
-    { table_name: 'user_repository_interactions', table_schema: 'public', table_type: 'BASE TABLE' },
+    {
+      table_name: 'user_repository_interactions',
+      table_schema: 'public',
+      table_type: 'BASE TABLE',
+    },
     // Authentication tables
     { table_name: 'webauthn_credentials', table_schema: 'public', table_type: 'BASE TABLE' },
     { table_name: 'auth_challenges', table_schema: 'public', table_type: 'BASE TABLE' },
@@ -515,116 +518,545 @@ const MOCK_SCHEMA_DATA = {
   // Columns for all tables
   columns: [
     // Users table columns
-    { table_name: 'users', column_name: 'id', data_type: 'uuid', udt_name: 'uuid', is_nullable: 'NO', column_default: 'gen_random_uuid()' },
-    { table_name: 'users', column_name: 'github_id', data_type: 'text', udt_name: 'text', is_nullable: 'NO', column_default: null },
-    { table_name: 'users', column_name: 'github_username', data_type: 'text', udt_name: 'text', is_nullable: 'NO', column_default: null },
-    { table_name: 'users', column_name: 'email', data_type: 'text', udt_name: 'text', is_nullable: 'NO', column_default: null },
-    { table_name: 'users', column_name: 'name', data_type: 'text', udt_name: 'text', is_nullable: 'NO', column_default: null },
-    { table_name: 'users', column_name: 'avatar_url', data_type: 'text', udt_name: 'text', is_nullable: 'YES', column_default: null },
-    { table_name: 'users', column_name: 'preferences', data_type: 'jsonb', udt_name: 'jsonb', is_nullable: 'YES', column_default: "'{}'" },
-    { table_name: 'users', column_name: 'skill_level', data_type: 'text', udt_name: 'text', is_nullable: 'YES', column_default: "'beginner'" },
-    { table_name: 'users', column_name: 'profile_embedding', data_type: 'USER-DEFINED', udt_name: 'vector', is_nullable: 'YES', column_default: null },
-    { table_name: 'users', column_name: 'created_at', data_type: 'timestamp', udt_name: 'timestamp', is_nullable: 'YES', column_default: 'now()' },
-    { table_name: 'users', column_name: 'updated_at', data_type: 'timestamp', udt_name: 'timestamp', is_nullable: 'YES', column_default: 'now()' },
+    {
+      table_name: 'users',
+      column_name: 'id',
+      data_type: 'uuid',
+      udt_name: 'uuid',
+      is_nullable: 'NO',
+      column_default: 'gen_random_uuid()',
+    },
+    {
+      table_name: 'users',
+      column_name: 'github_id',
+      data_type: 'text',
+      udt_name: 'text',
+      is_nullable: 'NO',
+      column_default: null,
+    },
+    {
+      table_name: 'users',
+      column_name: 'github_username',
+      data_type: 'text',
+      udt_name: 'text',
+      is_nullable: 'NO',
+      column_default: null,
+    },
+    {
+      table_name: 'users',
+      column_name: 'email',
+      data_type: 'text',
+      udt_name: 'text',
+      is_nullable: 'NO',
+      column_default: null,
+    },
+    {
+      table_name: 'users',
+      column_name: 'name',
+      data_type: 'text',
+      udt_name: 'text',
+      is_nullable: 'NO',
+      column_default: null,
+    },
+    {
+      table_name: 'users',
+      column_name: 'avatar_url',
+      data_type: 'text',
+      udt_name: 'text',
+      is_nullable: 'YES',
+      column_default: null,
+    },
+    {
+      table_name: 'users',
+      column_name: 'preferences',
+      data_type: 'jsonb',
+      udt_name: 'jsonb',
+      is_nullable: 'YES',
+      column_default: "'{}'",
+    },
+    {
+      table_name: 'users',
+      column_name: 'skill_level',
+      data_type: 'text',
+      udt_name: 'text',
+      is_nullable: 'YES',
+      column_default: "'beginner'",
+    },
+    {
+      table_name: 'users',
+      column_name: 'profile_embedding',
+      data_type: 'USER-DEFINED',
+      udt_name: 'vector',
+      is_nullable: 'YES',
+      column_default: null,
+    },
+    {
+      table_name: 'users',
+      column_name: 'created_at',
+      data_type: 'timestamp',
+      udt_name: 'timestamp',
+      is_nullable: 'YES',
+      column_default: 'now()',
+    },
+    {
+      table_name: 'users',
+      column_name: 'updated_at',
+      data_type: 'timestamp',
+      udt_name: 'timestamp',
+      is_nullable: 'YES',
+      column_default: 'now()',
+    },
 
     // Repositories table columns
-    { table_name: 'repositories', column_name: 'id', data_type: 'uuid', udt_name: 'uuid', is_nullable: 'NO', column_default: 'gen_random_uuid()' },
-    { table_name: 'repositories', column_name: 'github_id', data_type: 'text', udt_name: 'text', is_nullable: 'NO', column_default: null },
-    { table_name: 'repositories', column_name: 'name', data_type: 'text', udt_name: 'text', is_nullable: 'NO', column_default: null },
-    { table_name: 'repositories', column_name: 'full_name', data_type: 'text', udt_name: 'text', is_nullable: 'NO', column_default: null },
-    { table_name: 'repositories', column_name: 'description', data_type: 'text', udt_name: 'text', is_nullable: 'YES', column_default: null },
-    { table_name: 'repositories', column_name: 'url', data_type: 'text', udt_name: 'text', is_nullable: 'NO', column_default: null },
-    { table_name: 'repositories', column_name: 'language', data_type: 'text', udt_name: 'text', is_nullable: 'YES', column_default: null },
-    { table_name: 'repositories', column_name: 'stars', data_type: 'integer', udt_name: 'int4', is_nullable: 'YES', column_default: '0' },
-    { table_name: 'repositories', column_name: 'forks', data_type: 'integer', udt_name: 'int4', is_nullable: 'YES', column_default: '0' },
-    { table_name: 'repositories', column_name: 'health_score', data_type: 'real', udt_name: 'float4', is_nullable: 'YES', column_default: '0.0' },
-    { table_name: 'repositories', column_name: 'last_analyzed', data_type: 'timestamp', udt_name: 'timestamp', is_nullable: 'YES', column_default: 'now()' },
-    { table_name: 'repositories', column_name: 'created_at', data_type: 'timestamp', udt_name: 'timestamp', is_nullable: 'YES', column_default: 'now()' },
-    { table_name: 'repositories', column_name: 'updated_at', data_type: 'timestamp', udt_name: 'timestamp', is_nullable: 'YES', column_default: 'now()' },
+    {
+      table_name: 'repositories',
+      column_name: 'id',
+      data_type: 'uuid',
+      udt_name: 'uuid',
+      is_nullable: 'NO',
+      column_default: 'gen_random_uuid()',
+    },
+    {
+      table_name: 'repositories',
+      column_name: 'github_id',
+      data_type: 'text',
+      udt_name: 'text',
+      is_nullable: 'NO',
+      column_default: null,
+    },
+    {
+      table_name: 'repositories',
+      column_name: 'name',
+      data_type: 'text',
+      udt_name: 'text',
+      is_nullable: 'NO',
+      column_default: null,
+    },
+    {
+      table_name: 'repositories',
+      column_name: 'full_name',
+      data_type: 'text',
+      udt_name: 'text',
+      is_nullable: 'NO',
+      column_default: null,
+    },
+    {
+      table_name: 'repositories',
+      column_name: 'description',
+      data_type: 'text',
+      udt_name: 'text',
+      is_nullable: 'YES',
+      column_default: null,
+    },
+    {
+      table_name: 'repositories',
+      column_name: 'url',
+      data_type: 'text',
+      udt_name: 'text',
+      is_nullable: 'NO',
+      column_default: null,
+    },
+    {
+      table_name: 'repositories',
+      column_name: 'language',
+      data_type: 'text',
+      udt_name: 'text',
+      is_nullable: 'YES',
+      column_default: null,
+    },
+    {
+      table_name: 'repositories',
+      column_name: 'stars',
+      data_type: 'integer',
+      udt_name: 'int4',
+      is_nullable: 'YES',
+      column_default: '0',
+    },
+    {
+      table_name: 'repositories',
+      column_name: 'forks',
+      data_type: 'integer',
+      udt_name: 'int4',
+      is_nullable: 'YES',
+      column_default: '0',
+    },
+    {
+      table_name: 'repositories',
+      column_name: 'health_score',
+      data_type: 'real',
+      udt_name: 'float4',
+      is_nullable: 'YES',
+      column_default: '0.0',
+    },
+    {
+      table_name: 'repositories',
+      column_name: 'last_analyzed',
+      data_type: 'timestamp',
+      udt_name: 'timestamp',
+      is_nullable: 'YES',
+      column_default: 'now()',
+    },
+    {
+      table_name: 'repositories',
+      column_name: 'created_at',
+      data_type: 'timestamp',
+      udt_name: 'timestamp',
+      is_nullable: 'YES',
+      column_default: 'now()',
+    },
+    {
+      table_name: 'repositories',
+      column_name: 'updated_at',
+      data_type: 'timestamp',
+      udt_name: 'timestamp',
+      is_nullable: 'YES',
+      column_default: 'now()',
+    },
 
     // Opportunities table columns
-    { table_name: 'opportunities', column_name: 'id', data_type: 'uuid', udt_name: 'uuid', is_nullable: 'NO', column_default: 'gen_random_uuid()' },
-    { table_name: 'opportunities', column_name: 'repository_id', data_type: 'uuid', udt_name: 'uuid', is_nullable: 'YES', column_default: null },
-    { table_name: 'opportunities', column_name: 'issue_number', data_type: 'integer', udt_name: 'int4', is_nullable: 'NO', column_default: null },
-    { table_name: 'opportunities', column_name: 'title', data_type: 'text', udt_name: 'text', is_nullable: 'NO', column_default: null },
-    { table_name: 'opportunities', column_name: 'description', data_type: 'text', udt_name: 'text', is_nullable: 'YES', column_default: null },
-    { table_name: 'opportunities', column_name: 'labels', data_type: 'jsonb', udt_name: 'jsonb', is_nullable: 'YES', column_default: "'[]'" },
-    { table_name: 'opportunities', column_name: 'difficulty', data_type: 'text', udt_name: 'text', is_nullable: 'YES', column_default: null },
-    { table_name: 'opportunities', column_name: 'estimated_hours', data_type: 'integer', udt_name: 'int4', is_nullable: 'YES', column_default: null },
-    { table_name: 'opportunities', column_name: 'skills_required', data_type: 'jsonb', udt_name: 'jsonb', is_nullable: 'YES', column_default: "'[]'" },
-    { table_name: 'opportunities', column_name: 'ai_analysis', data_type: 'jsonb', udt_name: 'jsonb', is_nullable: 'YES', column_default: "'{}'" },
-    { table_name: 'opportunities', column_name: 'score', data_type: 'real', udt_name: 'float4', is_nullable: 'YES', column_default: '0.0' },
-    { table_name: 'opportunities', column_name: 'embedding', data_type: 'USER-DEFINED', udt_name: 'vector', is_nullable: 'YES', column_default: null },
-    { table_name: 'opportunities', column_name: 'view_count', data_type: 'integer', udt_name: 'int4', is_nullable: 'YES', column_default: '0' },
-    { table_name: 'opportunities', column_name: 'application_count', data_type: 'integer', udt_name: 'int4', is_nullable: 'YES', column_default: '0' },
-    { table_name: 'opportunities', column_name: 'status', data_type: 'text', udt_name: 'text', is_nullable: 'YES', column_default: "'open'" },
-    { table_name: 'opportunities', column_name: 'created_at', data_type: 'timestamp', udt_name: 'timestamp', is_nullable: 'YES', column_default: 'now()' },
-    { table_name: 'opportunities', column_name: 'updated_at', data_type: 'timestamp', udt_name: 'timestamp', is_nullable: 'YES', column_default: 'now()' },
+    {
+      table_name: 'opportunities',
+      column_name: 'id',
+      data_type: 'uuid',
+      udt_name: 'uuid',
+      is_nullable: 'NO',
+      column_default: 'gen_random_uuid()',
+    },
+    {
+      table_name: 'opportunities',
+      column_name: 'repository_id',
+      data_type: 'uuid',
+      udt_name: 'uuid',
+      is_nullable: 'YES',
+      column_default: null,
+    },
+    {
+      table_name: 'opportunities',
+      column_name: 'issue_number',
+      data_type: 'integer',
+      udt_name: 'int4',
+      is_nullable: 'NO',
+      column_default: null,
+    },
+    {
+      table_name: 'opportunities',
+      column_name: 'title',
+      data_type: 'text',
+      udt_name: 'text',
+      is_nullable: 'NO',
+      column_default: null,
+    },
+    {
+      table_name: 'opportunities',
+      column_name: 'description',
+      data_type: 'text',
+      udt_name: 'text',
+      is_nullable: 'YES',
+      column_default: null,
+    },
+    {
+      table_name: 'opportunities',
+      column_name: 'labels',
+      data_type: 'jsonb',
+      udt_name: 'jsonb',
+      is_nullable: 'YES',
+      column_default: "'[]'",
+    },
+    {
+      table_name: 'opportunities',
+      column_name: 'difficulty',
+      data_type: 'text',
+      udt_name: 'text',
+      is_nullable: 'YES',
+      column_default: null,
+    },
+    {
+      table_name: 'opportunities',
+      column_name: 'estimated_hours',
+      data_type: 'integer',
+      udt_name: 'int4',
+      is_nullable: 'YES',
+      column_default: null,
+    },
+    {
+      table_name: 'opportunities',
+      column_name: 'skills_required',
+      data_type: 'jsonb',
+      udt_name: 'jsonb',
+      is_nullable: 'YES',
+      column_default: "'[]'",
+    },
+    {
+      table_name: 'opportunities',
+      column_name: 'ai_analysis',
+      data_type: 'jsonb',
+      udt_name: 'jsonb',
+      is_nullable: 'YES',
+      column_default: "'{}'",
+    },
+    {
+      table_name: 'opportunities',
+      column_name: 'score',
+      data_type: 'real',
+      udt_name: 'float4',
+      is_nullable: 'YES',
+      column_default: '0.0',
+    },
+    {
+      table_name: 'opportunities',
+      column_name: 'embedding',
+      data_type: 'USER-DEFINED',
+      udt_name: 'vector',
+      is_nullable: 'YES',
+      column_default: null,
+    },
+    {
+      table_name: 'opportunities',
+      column_name: 'view_count',
+      data_type: 'integer',
+      udt_name: 'int4',
+      is_nullable: 'YES',
+      column_default: '0',
+    },
+    {
+      table_name: 'opportunities',
+      column_name: 'application_count',
+      data_type: 'integer',
+      udt_name: 'int4',
+      is_nullable: 'YES',
+      column_default: '0',
+    },
+    {
+      table_name: 'opportunities',
+      column_name: 'status',
+      data_type: 'text',
+      udt_name: 'text',
+      is_nullable: 'YES',
+      column_default: "'open'",
+    },
+    {
+      table_name: 'opportunities',
+      column_name: 'created_at',
+      data_type: 'timestamp',
+      udt_name: 'timestamp',
+      is_nullable: 'YES',
+      column_default: 'now()',
+    },
+    {
+      table_name: 'opportunities',
+      column_name: 'updated_at',
+      data_type: 'timestamp',
+      udt_name: 'timestamp',
+      is_nullable: 'YES',
+      column_default: 'now()',
+    },
 
     // WebAuthn credentials table columns
-    { table_name: 'webauthn_credentials', column_name: 'id', data_type: 'uuid', udt_name: 'uuid', is_nullable: 'NO', column_default: 'gen_random_uuid()' },
-    { table_name: 'webauthn_credentials', column_name: 'user_id', data_type: 'uuid', udt_name: 'uuid', is_nullable: 'NO', column_default: null },
-    { table_name: 'webauthn_credentials', column_name: 'credential_id', data_type: 'text', udt_name: 'text', is_nullable: 'NO', column_default: null },
-    { table_name: 'webauthn_credentials', column_name: 'public_key', data_type: 'text', udt_name: 'text', is_nullable: 'NO', column_default: null },
-    { table_name: 'webauthn_credentials', column_name: 'counter', data_type: 'bigint', udt_name: 'int8', is_nullable: 'NO', column_default: '0' },
-    { table_name: 'webauthn_credentials', column_name: 'credential_device_type', data_type: 'text', udt_name: 'text', is_nullable: 'NO', column_default: null },
-    { table_name: 'webauthn_credentials', column_name: 'credential_backed_up', data_type: 'boolean', udt_name: 'bool', is_nullable: 'NO', column_default: 'false' },
-    { table_name: 'webauthn_credentials', column_name: 'transports', data_type: 'ARRAY', udt_name: '_text', is_nullable: 'YES', column_default: null },
-    { table_name: 'webauthn_credentials', column_name: 'created_at', data_type: 'timestamp with time zone', udt_name: 'timestamptz', is_nullable: 'YES', column_default: 'now()' },
-    { table_name: 'webauthn_credentials', column_name: 'last_used_at', data_type: 'timestamp with time zone', udt_name: 'timestamptz', is_nullable: 'YES', column_default: null },
-    { table_name: 'webauthn_credentials', column_name: 'name', data_type: 'text', udt_name: 'text', is_nullable: 'YES', column_default: null },
+    {
+      table_name: 'webauthn_credentials',
+      column_name: 'id',
+      data_type: 'uuid',
+      udt_name: 'uuid',
+      is_nullable: 'NO',
+      column_default: 'gen_random_uuid()',
+    },
+    {
+      table_name: 'webauthn_credentials',
+      column_name: 'user_id',
+      data_type: 'uuid',
+      udt_name: 'uuid',
+      is_nullable: 'NO',
+      column_default: null,
+    },
+    {
+      table_name: 'webauthn_credentials',
+      column_name: 'credential_id',
+      data_type: 'text',
+      udt_name: 'text',
+      is_nullable: 'NO',
+      column_default: null,
+    },
+    {
+      table_name: 'webauthn_credentials',
+      column_name: 'public_key',
+      data_type: 'text',
+      udt_name: 'text',
+      is_nullable: 'NO',
+      column_default: null,
+    },
+    {
+      table_name: 'webauthn_credentials',
+      column_name: 'counter',
+      data_type: 'bigint',
+      udt_name: 'int8',
+      is_nullable: 'NO',
+      column_default: '0',
+    },
+    {
+      table_name: 'webauthn_credentials',
+      column_name: 'credential_device_type',
+      data_type: 'text',
+      udt_name: 'text',
+      is_nullable: 'NO',
+      column_default: null,
+    },
+    {
+      table_name: 'webauthn_credentials',
+      column_name: 'credential_backed_up',
+      data_type: 'boolean',
+      udt_name: 'bool',
+      is_nullable: 'NO',
+      column_default: 'false',
+    },
+    {
+      table_name: 'webauthn_credentials',
+      column_name: 'transports',
+      data_type: 'ARRAY',
+      udt_name: '_text',
+      is_nullable: 'YES',
+      column_default: null,
+    },
+    {
+      table_name: 'webauthn_credentials',
+      column_name: 'created_at',
+      data_type: 'timestamp with time zone',
+      udt_name: 'timestamptz',
+      is_nullable: 'YES',
+      column_default: 'now()',
+    },
+    {
+      table_name: 'webauthn_credentials',
+      column_name: 'last_used_at',
+      data_type: 'timestamp with time zone',
+      udt_name: 'timestamptz',
+      is_nullable: 'YES',
+      column_default: null,
+    },
+    {
+      table_name: 'webauthn_credentials',
+      column_name: 'name',
+      data_type: 'text',
+      udt_name: 'text',
+      is_nullable: 'YES',
+      column_default: null,
+    },
   ],
 
   // Table constraints
   table_constraints: [
     { constraint_name: 'users_pkey', table_name: 'users', constraint_type: 'PRIMARY KEY' },
     { constraint_name: 'users_github_id_key', table_name: 'users', constraint_type: 'UNIQUE' },
-    { constraint_name: 'users_github_username_key', table_name: 'users', constraint_type: 'UNIQUE' },
+    {
+      constraint_name: 'users_github_username_key',
+      table_name: 'users',
+      constraint_type: 'UNIQUE',
+    },
     { constraint_name: 'users_email_key', table_name: 'users', constraint_type: 'UNIQUE' },
-    { constraint_name: 'repositories_pkey', table_name: 'repositories', constraint_type: 'PRIMARY KEY' },
-    { constraint_name: 'repositories_github_id_key', table_name: 'repositories', constraint_type: 'UNIQUE' },
-    { constraint_name: 'repositories_full_name_key', table_name: 'repositories', constraint_type: 'UNIQUE' },
-    { constraint_name: 'opportunities_pkey', table_name: 'opportunities', constraint_type: 'PRIMARY KEY' },
-    { constraint_name: 'opportunities_repository_id_fkey', table_name: 'opportunities', constraint_type: 'FOREIGN KEY' },
-    { constraint_name: 'opportunities_difficulty_check', table_name: 'opportunities', constraint_type: 'CHECK' },
-    { constraint_name: 'webauthn_credentials_pkey', table_name: 'webauthn_credentials', constraint_type: 'PRIMARY KEY' },
-    { constraint_name: 'webauthn_credentials_credential_id_key', table_name: 'webauthn_credentials', constraint_type: 'UNIQUE' },
-    { constraint_name: 'webauthn_credentials_user_id_fkey', table_name: 'webauthn_credentials', constraint_type: 'FOREIGN KEY' },
+    {
+      constraint_name: 'repositories_pkey',
+      table_name: 'repositories',
+      constraint_type: 'PRIMARY KEY',
+    },
+    {
+      constraint_name: 'repositories_github_id_key',
+      table_name: 'repositories',
+      constraint_type: 'UNIQUE',
+    },
+    {
+      constraint_name: 'repositories_full_name_key',
+      table_name: 'repositories',
+      constraint_type: 'UNIQUE',
+    },
+    {
+      constraint_name: 'opportunities_pkey',
+      table_name: 'opportunities',
+      constraint_type: 'PRIMARY KEY',
+    },
+    {
+      constraint_name: 'opportunities_repository_id_fkey',
+      table_name: 'opportunities',
+      constraint_type: 'FOREIGN KEY',
+    },
+    {
+      constraint_name: 'opportunities_difficulty_check',
+      table_name: 'opportunities',
+      constraint_type: 'CHECK',
+    },
+    {
+      constraint_name: 'webauthn_credentials_pkey',
+      table_name: 'webauthn_credentials',
+      constraint_type: 'PRIMARY KEY',
+    },
+    {
+      constraint_name: 'webauthn_credentials_credential_id_key',
+      table_name: 'webauthn_credentials',
+      constraint_type: 'UNIQUE',
+    },
+    {
+      constraint_name: 'webauthn_credentials_user_id_fkey',
+      table_name: 'webauthn_credentials',
+      constraint_type: 'FOREIGN KEY',
+    },
   ],
 
   // Key column usage for primary and foreign keys
   key_column_usage: [
     { constraint_name: 'users_pkey', table_name: 'users', column_name: 'id', ordinal_position: 1 },
-    { constraint_name: 'repositories_pkey', table_name: 'repositories', column_name: 'id', ordinal_position: 1 },
-    { constraint_name: 'opportunities_pkey', table_name: 'opportunities', column_name: 'id', ordinal_position: 1 },
-    { constraint_name: 'opportunities_repository_id_fkey', table_name: 'opportunities', column_name: 'repository_id', ordinal_position: 1 },
-    { constraint_name: 'webauthn_credentials_pkey', table_name: 'webauthn_credentials', column_name: 'id', ordinal_position: 1 },
-    { constraint_name: 'webauthn_credentials_user_id_fkey', table_name: 'webauthn_credentials', column_name: 'user_id', ordinal_position: 1 },
+    {
+      constraint_name: 'repositories_pkey',
+      table_name: 'repositories',
+      column_name: 'id',
+      ordinal_position: 1,
+    },
+    {
+      constraint_name: 'opportunities_pkey',
+      table_name: 'opportunities',
+      column_name: 'id',
+      ordinal_position: 1,
+    },
+    {
+      constraint_name: 'opportunities_repository_id_fkey',
+      table_name: 'opportunities',
+      column_name: 'repository_id',
+      ordinal_position: 1,
+    },
+    {
+      constraint_name: 'webauthn_credentials_pkey',
+      table_name: 'webauthn_credentials',
+      column_name: 'id',
+      ordinal_position: 1,
+    },
+    {
+      constraint_name: 'webauthn_credentials_user_id_fkey',
+      table_name: 'webauthn_credentials',
+      column_name: 'user_id',
+      ordinal_position: 1,
+    },
   ],
 
   // Referential constraints for foreign keys
   referential_constraints: [
-    { 
-      constraint_name: 'opportunities_repository_id_fkey', 
-      unique_constraint_name: 'repositories_pkey', 
-      match_option: 'NONE', 
-      update_rule: 'NO ACTION', 
-      delete_rule: 'CASCADE' 
+    {
+      constraint_name: 'opportunities_repository_id_fkey',
+      unique_constraint_name: 'repositories_pkey',
+      match_option: 'NONE',
+      update_rule: 'NO ACTION',
+      delete_rule: 'CASCADE',
     },
-    { 
-      constraint_name: 'webauthn_credentials_user_id_fkey', 
-      unique_constraint_name: 'users_pkey', 
-      match_option: 'NONE', 
-      update_rule: 'NO ACTION', 
-      delete_rule: 'CASCADE' 
+    {
+      constraint_name: 'webauthn_credentials_user_id_fkey',
+      unique_constraint_name: 'users_pkey',
+      match_option: 'NONE',
+      update_rule: 'NO ACTION',
+      delete_rule: 'CASCADE',
     },
   ],
 
   // Check constraints
   check_constraints: [
-    { 
-      constraint_name: 'opportunities_difficulty_check', 
-      check_clause: "difficulty IN ('beginner', 'intermediate', 'advanced')" 
+    {
+      constraint_name: 'opportunities_difficulty_check',
+      check_clause: "difficulty IN ('beginner', 'intermediate', 'advanced')",
     },
   ],
 
@@ -644,31 +1076,125 @@ const MOCK_SCHEMA_DATA = {
     { trigger_name: 'update_opportunities_updated_at', event_object_table: 'opportunities' },
     { trigger_name: 'update_user_preferences_updated_at', event_object_table: 'user_preferences' },
     { trigger_name: 'update_oauth_accounts_updated_at', event_object_table: 'oauth_accounts' },
-    { trigger_name: 'update_contribution_outcomes_updated_at', event_object_table: 'contribution_outcomes' },
+    {
+      trigger_name: 'update_contribution_outcomes_updated_at',
+      event_object_table: 'contribution_outcomes',
+    },
   ],
 
   // Mock indexes
   indexes: [
-    { indexname: 'users_pkey', tablename: 'users', indexdef: 'CREATE UNIQUE INDEX users_pkey ON users USING btree (id)' },
-    { indexname: 'users_github_id_key', tablename: 'users', indexdef: 'CREATE UNIQUE INDEX users_github_id_key ON users USING btree (github_id)' },
-    { indexname: 'users_github_username_key', tablename: 'users', indexdef: 'CREATE UNIQUE INDEX users_github_username_key ON users USING btree (github_username)' },
-    { indexname: 'users_email_key', tablename: 'users', indexdef: 'CREATE UNIQUE INDEX users_email_key ON users USING btree (email)' },
-    { indexname: 'idx_users_profile_embedding_hnsw', tablename: 'users', indexdef: 'CREATE INDEX idx_users_profile_embedding_hnsw ON users USING hnsw (profile_embedding vector_cosine_ops)' },
-    { indexname: 'repositories_pkey', tablename: 'repositories', indexdef: 'CREATE UNIQUE INDEX repositories_pkey ON repositories USING btree (id)' },
-    { indexname: 'repositories_github_id_key', tablename: 'repositories', indexdef: 'CREATE UNIQUE INDEX repositories_github_id_key ON repositories USING btree (github_id)' },
-    { indexname: 'repositories_full_name_key', tablename: 'repositories', indexdef: 'CREATE UNIQUE INDEX repositories_full_name_key ON repositories USING btree (full_name)' },
-    { indexname: 'idx_repositories_language', tablename: 'repositories', indexdef: 'CREATE INDEX idx_repositories_language ON repositories USING btree (language)' },
-    { indexname: 'idx_repositories_stars', tablename: 'repositories', indexdef: 'CREATE INDEX idx_repositories_stars ON repositories USING btree (stars DESC)' },
-    { indexname: 'opportunities_pkey', tablename: 'opportunities', indexdef: 'CREATE UNIQUE INDEX opportunities_pkey ON opportunities USING btree (id)' },
-    { indexname: 'idx_opportunities_difficulty', tablename: 'opportunities', indexdef: 'CREATE INDEX idx_opportunities_difficulty ON opportunities USING btree (difficulty)' },
-    { indexname: 'idx_opportunities_score', tablename: 'opportunities', indexdef: 'CREATE INDEX idx_opportunities_score ON opportunities USING btree (score DESC)' },
-    { indexname: 'idx_opportunities_embedding', tablename: 'opportunities', indexdef: 'CREATE INDEX idx_opportunities_embedding ON opportunities USING hnsw (embedding vector_cosine_ops)' },
-    { indexname: 'idx_opportunities_description_embedding_hnsw', tablename: 'opportunities', indexdef: 'CREATE INDEX idx_opportunities_description_embedding_hnsw ON opportunities USING hnsw (description_embedding vector_cosine_ops)' },
-    { indexname: 'idx_opportunities_title_embedding_hnsw', tablename: 'opportunities', indexdef: 'CREATE INDEX idx_opportunities_title_embedding_hnsw ON opportunities USING hnsw (title_embedding vector_cosine_ops)' },
-    { indexname: 'idx_repositories_embedding_hnsw', tablename: 'repositories', indexdef: 'CREATE INDEX idx_repositories_embedding_hnsw ON repositories USING hnsw (embedding vector_cosine_ops)' },
-    { indexname: 'webauthn_credentials_pkey', tablename: 'webauthn_credentials', indexdef: 'CREATE UNIQUE INDEX webauthn_credentials_pkey ON webauthn_credentials USING btree (id)' },
-    { indexname: 'webauthn_credentials_credential_id_key', tablename: 'webauthn_credentials', indexdef: 'CREATE UNIQUE INDEX webauthn_credentials_credential_id_key ON webauthn_credentials USING btree (credential_id)' },
-    { indexname: 'idx_webauthn_user_id', tablename: 'webauthn_credentials', indexdef: 'CREATE INDEX idx_webauthn_user_id ON webauthn_credentials USING btree (user_id)' },
+    {
+      indexname: 'users_pkey',
+      tablename: 'users',
+      indexdef: 'CREATE UNIQUE INDEX users_pkey ON users USING btree (id)',
+    },
+    {
+      indexname: 'users_github_id_key',
+      tablename: 'users',
+      indexdef: 'CREATE UNIQUE INDEX users_github_id_key ON users USING btree (github_id)',
+    },
+    {
+      indexname: 'users_github_username_key',
+      tablename: 'users',
+      indexdef:
+        'CREATE UNIQUE INDEX users_github_username_key ON users USING btree (github_username)',
+    },
+    {
+      indexname: 'users_email_key',
+      tablename: 'users',
+      indexdef: 'CREATE UNIQUE INDEX users_email_key ON users USING btree (email)',
+    },
+    {
+      indexname: 'idx_users_profile_embedding_hnsw',
+      tablename: 'users',
+      indexdef:
+        'CREATE INDEX idx_users_profile_embedding_hnsw ON users USING hnsw (profile_embedding vector_cosine_ops)',
+    },
+    {
+      indexname: 'repositories_pkey',
+      tablename: 'repositories',
+      indexdef: 'CREATE UNIQUE INDEX repositories_pkey ON repositories USING btree (id)',
+    },
+    {
+      indexname: 'repositories_github_id_key',
+      tablename: 'repositories',
+      indexdef:
+        'CREATE UNIQUE INDEX repositories_github_id_key ON repositories USING btree (github_id)',
+    },
+    {
+      indexname: 'repositories_full_name_key',
+      tablename: 'repositories',
+      indexdef:
+        'CREATE UNIQUE INDEX repositories_full_name_key ON repositories USING btree (full_name)',
+    },
+    {
+      indexname: 'idx_repositories_language',
+      tablename: 'repositories',
+      indexdef: 'CREATE INDEX idx_repositories_language ON repositories USING btree (language)',
+    },
+    {
+      indexname: 'idx_repositories_stars',
+      tablename: 'repositories',
+      indexdef: 'CREATE INDEX idx_repositories_stars ON repositories USING btree (stars DESC)',
+    },
+    {
+      indexname: 'opportunities_pkey',
+      tablename: 'opportunities',
+      indexdef: 'CREATE UNIQUE INDEX opportunities_pkey ON opportunities USING btree (id)',
+    },
+    {
+      indexname: 'idx_opportunities_difficulty',
+      tablename: 'opportunities',
+      indexdef:
+        'CREATE INDEX idx_opportunities_difficulty ON opportunities USING btree (difficulty)',
+    },
+    {
+      indexname: 'idx_opportunities_score',
+      tablename: 'opportunities',
+      indexdef: 'CREATE INDEX idx_opportunities_score ON opportunities USING btree (score DESC)',
+    },
+    {
+      indexname: 'idx_opportunities_embedding',
+      tablename: 'opportunities',
+      indexdef:
+        'CREATE INDEX idx_opportunities_embedding ON opportunities USING hnsw (embedding vector_cosine_ops)',
+    },
+    {
+      indexname: 'idx_opportunities_description_embedding_hnsw',
+      tablename: 'opportunities',
+      indexdef:
+        'CREATE INDEX idx_opportunities_description_embedding_hnsw ON opportunities USING hnsw (description_embedding vector_cosine_ops)',
+    },
+    {
+      indexname: 'idx_opportunities_title_embedding_hnsw',
+      tablename: 'opportunities',
+      indexdef:
+        'CREATE INDEX idx_opportunities_title_embedding_hnsw ON opportunities USING hnsw (title_embedding vector_cosine_ops)',
+    },
+    {
+      indexname: 'idx_repositories_embedding_hnsw',
+      tablename: 'repositories',
+      indexdef:
+        'CREATE INDEX idx_repositories_embedding_hnsw ON repositories USING hnsw (embedding vector_cosine_ops)',
+    },
+    {
+      indexname: 'webauthn_credentials_pkey',
+      tablename: 'webauthn_credentials',
+      indexdef:
+        'CREATE UNIQUE INDEX webauthn_credentials_pkey ON webauthn_credentials USING btree (id)',
+    },
+    {
+      indexname: 'webauthn_credentials_credential_id_key',
+      tablename: 'webauthn_credentials',
+      indexdef:
+        'CREATE UNIQUE INDEX webauthn_credentials_credential_id_key ON webauthn_credentials USING btree (credential_id)',
+    },
+    {
+      indexname: 'idx_webauthn_user_id',
+      tablename: 'webauthn_credentials',
+      indexdef: 'CREATE INDEX idx_webauthn_user_id ON webauthn_credentials USING btree (user_id)',
+    },
   ],
 
   // PostgreSQL extensions
@@ -721,7 +1247,10 @@ const MOCK_SCHEMA_DATA = {
 /**
  * Handle information_schema.tables queries
  */
-function handleInformationSchemaTables(query: string, values: unknown[]): Record<string, unknown>[] {
+function handleInformationSchemaTables(
+  query: string,
+  values: unknown[]
+): Record<string, unknown>[] {
   const queryLower = query.toLowerCase()
   let filteredTables = MOCK_SCHEMA_DATA.tables
 
@@ -748,7 +1277,10 @@ function handleInformationSchemaTables(query: string, values: unknown[]): Record
 /**
  * Handle information_schema.columns queries
  */
-function handleInformationSchemaColumns(query: string, values: unknown[]): Record<string, unknown>[] {
+function handleInformationSchemaColumns(
+  query: string,
+  values: unknown[]
+): Record<string, unknown>[] {
   const queryLower = query.toLowerCase()
   let filteredColumns = MOCK_SCHEMA_DATA.columns
 
@@ -784,7 +1316,10 @@ function handleInformationSchemaColumns(query: string, values: unknown[]): Recor
 /**
  * Handle information_schema.table_constraints queries
  */
-function handleInformationSchemaTableConstraints(query: string, values: unknown[]): Record<string, unknown>[] {
+function handleInformationSchemaTableConstraints(
+  query: string,
+  values: unknown[]
+): Record<string, unknown>[] {
   const queryLower = query.toLowerCase()
   let filteredConstraints = MOCK_SCHEMA_DATA.table_constraints
 
@@ -815,7 +1350,10 @@ function handleInformationSchemaTableConstraints(query: string, values: unknown[
 /**
  * Handle information_schema.key_column_usage queries
  */
-function handleInformationSchemaKeyColumnUsage(query: string, values: unknown[]): Record<string, unknown>[] {
+function handleInformationSchemaKeyColumnUsage(
+  query: string,
+  values: unknown[]
+): Record<string, unknown>[] {
   const queryLower = query.toLowerCase()
   let filteredKeys = MOCK_SCHEMA_DATA.key_column_usage
 
@@ -837,7 +1375,10 @@ function handleInformationSchemaKeyColumnUsage(query: string, values: unknown[])
 /**
  * Handle information_schema.referential_constraints queries
  */
-function handleInformationSchemaReferentialConstraints(query: string, values: unknown[]): Record<string, unknown>[] {
+function handleInformationSchemaReferentialConstraints(
+  query: string,
+  values: unknown[]
+): Record<string, unknown>[] {
   const queryLower = query.toLowerCase()
   let filteredConstraints = MOCK_SCHEMA_DATA.referential_constraints
 
@@ -853,7 +1394,10 @@ function handleInformationSchemaReferentialConstraints(query: string, values: un
 /**
  * Handle information_schema.check_constraints queries
  */
-function handleInformationSchemaCheckConstraints(query: string, values: unknown[]): Record<string, unknown>[] {
+function handleInformationSchemaCheckConstraints(
+  query: string,
+  values: unknown[]
+): Record<string, unknown>[] {
   const queryLower = query.toLowerCase()
   let filteredConstraints = MOCK_SCHEMA_DATA.check_constraints
 
@@ -869,7 +1413,10 @@ function handleInformationSchemaCheckConstraints(query: string, values: unknown[
 /**
  * Handle information_schema.routines queries
  */
-function handleInformationSchemaRoutines(query: string, values: unknown[]): Record<string, unknown>[] {
+function handleInformationSchemaRoutines(
+  query: string,
+  values: unknown[]
+): Record<string, unknown>[] {
   const queryLower = query.toLowerCase()
   let filteredRoutines = MOCK_SCHEMA_DATA.routines
 
@@ -897,7 +1444,10 @@ function handleInformationSchemaRoutines(query: string, values: unknown[]): Reco
 /**
  * Handle information_schema.triggers queries
  */
-function handleInformationSchemaTriggers(query: string, values: unknown[]): Record<string, unknown>[] {
+function handleInformationSchemaTriggers(
+  query: string,
+  values: unknown[]
+): Record<string, unknown>[] {
   const queryLower = query.toLowerCase()
   let filteredTriggers = MOCK_SCHEMA_DATA.triggers
 
@@ -1416,7 +1966,7 @@ export class TestDatabaseManager {
         query += `$${i + 1}${strings[i + 1]}`
       }
       const queryLower = query.toLowerCase()
-      
+
       // Query processing complete
 
       // Handle basic test queries
@@ -2358,10 +2908,13 @@ export class TestDatabaseManager {
     const tableData = mockData.get(tableName) || []
 
     // Debug output
-    console.error(`DEBUG SELECT: table=${tableName}, data length=${tableData.length}`)
-    if (tableName === 'opportunities' && tableData.length > 0) {
-      console.error('DEBUG SELECT: opportunities data:', tableData.map(o => ({ id: o.id, title: o.title })))
-    }
+    // console.error(`DEBUG SELECT: table=${tableName}, data length=${tableData.length}`)
+    // if (tableName === 'opportunities' && tableData.length > 0) {
+    //   console.error(
+    //     'DEBUG SELECT: opportunities data:',
+    //     tableData.map(o => ({ id: o.id, title: o.title }))
+    //   )
+    // }
 
     if (query.includes('count(*)')) {
       return [{ count: tableData.length }]
@@ -2448,11 +3001,10 @@ export class TestDatabaseManager {
       this.handleOpportunityInsert(values, currentData, mockData)
       // For the multi-insert case, return the last 2 opportunities created
       return currentData.slice(-2)
-    } else {
-      const insertedRecord = this.handleGenericInsert(tableName, values, currentData, mockData)
-      // Return the created record for RETURNING clauses
-      return insertedRecord ? [insertedRecord] : []
     }
+    const insertedRecord = this.handleGenericInsert(tableName, values, currentData, mockData)
+    // Return the created record for RETURNING clauses
+    return insertedRecord ? [insertedRecord] : []
   }
 
   /**

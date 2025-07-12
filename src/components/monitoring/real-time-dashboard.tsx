@@ -1,5 +1,7 @@
 'use client'
 
+import dynamic from 'next/dynamic'
+import { type Dispatch, type SetStateAction, useCallback, useEffect, useState } from 'react'
 import {
   Activity,
   AlertCircle,
@@ -10,8 +12,6 @@ import {
   Users,
   Zap,
 } from '@/components/icons'
-import dynamic from 'next/dynamic'
-import { type Dispatch, type SetStateAction, useCallback, useEffect, useState } from 'react'
 
 // Lazy load recharts components to reduce initial bundle size
 const AreaChart = dynamic(() => import('recharts').then(mod => ({ default: mod.AreaChart })), {
