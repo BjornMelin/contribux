@@ -10,7 +10,7 @@ import { z } from 'zod'
 import {
   createEnterpriseValidationMiddleware,
   formatValidationErrorsForAPI,
-  ValidationPerformanceMonitor,
+  trackValidationPerformance,
 } from '@/lib/validation/enterprise-schemas'
 
 // Modern Zod 3.x Health Status Schema with Enterprise Patterns
@@ -165,7 +165,7 @@ export async function GET(_request: NextRequest): Promise<NextResponse> {
 
   try {
     // Track health check performance
-    const healthCheckResult = await ValidationPerformanceMonitor.track('health-check', async () => {
+    const healthCheckResult = await trackValidationPerformance('health-check', async () => {
       // Initialize basic health status
       const healthStatus: HealthStatus = {
         status: 'healthy',
@@ -273,7 +273,7 @@ export async function HEAD(_request: NextRequest): Promise<NextResponse> {
 
   try {
     // Quick database connectivity check with performance tracking
-    const healthResult = await ValidationPerformanceMonitor.track('health-check-head', async () => {
+    const healthResult = await trackValidationPerformance('health-check-head', async () => {
       const databaseUrl = process.env.DATABASE_URL
       if (databaseUrl) {
         const sql = neon(databaseUrl)

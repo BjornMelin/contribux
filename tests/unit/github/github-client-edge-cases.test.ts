@@ -293,7 +293,7 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
       const promises = [
         client.getRepository('octocat', 'Hello-World'),
         client.getUser('octocat'),
-        client.searchRepositories({ q: 'javascript' }),
+        client.searchRepositories({ query: '$1' }),
         client.getRateLimit(),
       ]
 
@@ -439,7 +439,7 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
         auth: { type: 'token', token: 'test_token' },
         retry: { retries: 0 },
       })
-      const result = await client.searchRepositories({ q: 'nonexistentquery12345unique' })
+      const result = await client.searchRepositories({ query: '$1' })
 
       expect(result.total_count).toBe(0)
       expect(result.items).toHaveLength(0)
@@ -469,7 +469,7 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
         auth: { type: 'token', token: 'test_token' },
         retry: { retries: 0 },
       })
-      const result = await client.searchRepositories({ q: 'javascriptlargepage', per_page: 100 })
+      const result = await client.searchRepositories({ query: '$1', perPage: $1 })
 
       expect(result.items).toHaveLength(100)
       expect(result.total_count).toBe(1000)
@@ -699,7 +699,7 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
       // Perform multiple operations
       await client.getRepository('octocat', 'Hello-World')
       await client.getUser('octocat')
-      await client.searchRepositories({ q: 'test' })
+      await client.searchRepositories({ query: '$1' })
 
       // Cache configuration should still be effective
       const stats = client.getCacheStats()

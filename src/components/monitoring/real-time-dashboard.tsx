@@ -9,7 +9,7 @@ import {
   TrendingUp,
   Users,
   Zap,
-} from 'lucide-react'
+} from '@/components/icons'
 import dynamic from 'next/dynamic'
 import { type Dispatch, type SetStateAction, useCallback, useEffect, useState } from 'react'
 

@@ -12,12 +12,19 @@ import { z } from 'zod'
 vi.mock('@/lib/security/feature-flags', () => ({
   securityFeatures: {
     webauthn: true,
-    rateLimiting: true,
-    advancedMonitoring: true,
-    securityDashboard: true,
+    basicSecurity: true,
     securityHeaders: true,
+    rateLimiting: true,
   },
-  getSecurityConfig: () => ({
+  getSecurityFeatures: vi.fn().mockReturnValue({
+    webauthn: true,
+    basicSecurity: true,
+    securityHeaders: true,
+    rateLimiting: true,
+    isDevelopment: true,
+    isProduction: false,
+  }),
+  getSecurityConfig: vi.fn().mockReturnValue({
     webauthn: {
       rpName: 'Contribux',
       rpId: 'localhost',
@@ -26,7 +33,7 @@ vi.mock('@/lib/security/feature-flags', () => ({
     },
     rateLimit: {
       windowMs: 15 * 60 * 1000,
-      maxRequests: 100,
+      maxRequests: 1000,
     },
     monitoring: {
       enableHealthChecks: true,

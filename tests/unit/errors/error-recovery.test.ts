@@ -230,7 +230,12 @@ describe('Error Recovery System', () => {
       })
 
       it('should handle circular reference errors', () => {
-        const error: any = { message: 'Circular error' }
+        interface CircularErrorObject {
+          message: string
+          cause?: CircularErrorObject
+        }
+
+        const error: CircularErrorObject = { message: 'Circular error' }
         error.cause = error // Create circular reference
 
         const workflow = getRecoveryWorkflow(error)

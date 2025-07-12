@@ -149,7 +149,7 @@ export const AdvancedPaginationSchema = z
   )
 
 // Conditional validation based on other fields
-export const createConditionalSchema = <T extends Record<string, any>>(
+export const createConditionalSchema = <T extends Record<string, unknown>>(
   baseSchema: z.ZodSchema<T>,
   conditions: Array<{
     when: (data: T) => boolean
@@ -305,75 +305,78 @@ export const createApiResponseSchema = <T>(dataSchema: z.ZodSchema<T>) =>
  */
 
 // Schema registry for reusable validation patterns
-export class ValidationSchemaRegistry {
-  private static schemas = new Map<string, z.ZodSchema<any>>()
+const validationSchemas = new Map<string, z.ZodTypeAny>()
 
-  static register<T>(name: string, schema: z.ZodSchema<T>): void {
-    ValidationSchemaRegistry.schemas.set(name, schema)
+export function registerValidationSchema<T>(name: string, schema: z.ZodSchema<T>): void {
+  validationSchemas.set(name, schema)
+}
+
+export function getValidationSchema<T>(name: string): z.ZodSchema<T> | undefined {
+  return validationSchemas.get(name)
+}
+
+export function composeValidationSchemas<T>(...schemaNames: string[]): z.ZodSchema<T> {
+  const schemas = schemaNames.map(name => getValidationSchema(name)).filter(Boolean)
+  if (schemas.length === 0) {
+    throw new Error('No valid schemas found for composition')
   }
 
-  static get<T>(name: string): z.ZodSchema<T> | undefined {
-    return ValidationSchemaRegistry.schemas.get(name)
+  const initialSchema = schemas[0]
+  if (!initialSchema) {
+    throw new Error('No initial schema available for composition')
   }
-
-  static compose<T>(...schemaNames: string[]): z.ZodSchema<T> {
-    const schemas = schemaNames.map(name => ValidationSchemaRegistry.get(name)).filter(Boolean)
-    if (schemas.length === 0) {
-      throw new Error('No valid schemas found for composition')
-    }
-
-    const initialSchema = schemas[0]
-    if (!initialSchema) {
-      throw new Error('No initial schema available for composition')
-    }
-    return schemas.slice(1).reduce((acc: z.ZodSchema<any>, schema) => {
-      if (!acc) throw new Error('Accumulator is undefined in schema composition')
-      return acc.and(schema!)
-    }, initialSchema) as z.ZodSchema<T>
-  }
+  return schemas.slice(1).reduce((acc: z.ZodTypeAny, schema) => {
+    if (!acc) throw new Error('Accumulator is undefined in schema composition')
+    if (!schema)
+      throw new Error('Schema is undefined in composition - this should not happen after filtering')
+    return acc.and(schema)
+  }, initialSchema) as z.ZodSchema<T>
 }
 
 // Performance monitoring for validation
-export class ValidationPerformanceMonitor {
-  private static metrics = new Map<string, { count: number; totalTime: number; avgTime: number }>()
+const validationMetrics = new Map<string, { count: number; totalTime: number; avgTime: number }>()
 
-  static track<T>(schemaName: string, validationFn: () => T): T {
-    const startTime = performance.now()
-    try {
-      const result = validationFn()
-      const endTime = performance.now()
-      ValidationPerformanceMonitor.updateMetrics(schemaName, endTime - startTime)
-      return result
-    } catch (error) {
-      const endTime = performance.now()
-      ValidationPerformanceMonitor.updateMetrics(schemaName, endTime - startTime, true)
-      throw error
-    }
+export function trackValidationPerformance<T>(schemaName: string, validationFn: () => T): T {
+  const startTime = performance.now()
+  try {
+    const result = validationFn()
+    const endTime = performance.now()
+    updateValidationMetrics(schemaName, endTime - startTime)
+    return result
+  } catch (error) {
+    const endTime = performance.now()
+    updateValidationMetrics(schemaName, endTime - startTime, true)
+    throw error
   }
+}
 
-  private static updateMetrics(schemaName: string, duration: number, _isError = false): void {
-    const current = ValidationPerformanceMonitor.metrics.get(schemaName) || {
-      count: 0,
-      totalTime: 0,
-      avgTime: 0,
-    }
-    current.count++
-    current.totalTime += duration
-    current.avgTime = current.totalTime / current.count
-    ValidationPerformanceMonitor.metrics.set(schemaName, current)
-
-    // Log slow validations in development
-    if (process.env.NODE_ENV === 'development' && duration > 10) {
-    }
+function updateValidationMetrics(schemaName: string, duration: number, _isError = false): void {
+  const current = validationMetrics.get(schemaName) || {
+    count: 0,
+    totalTime: 0,
+    avgTime: 0,
   }
+  current.count++
+  current.totalTime += duration
+  current.avgTime = current.totalTime / current.count
+  validationMetrics.set(schemaName, current)
 
-  static getMetrics(): Record<string, { count: number; totalTime: number; avgTime: number }> {
-    return Object.fromEntries(ValidationPerformanceMonitor.metrics.entries())
+  // Log slow validations in development
+  if (process.env.NODE_ENV === 'development' && duration > 10) {
+    // Would log slow validation performance in development - console removed by linter
+    void { duration, schemaName }
   }
+}
 
-  static resetMetrics(): void {
-    ValidationPerformanceMonitor.metrics.clear()
-  }
+export function getValidationMetrics(): Record<
+  string,
+  { count: number; totalTime: number; avgTime: number }
+> {
+  return Object.fromEntries(validationMetrics.entries())
+}
+
+export function resetValidationMetrics(): void {
+  validationMetrics.clear()
 }
 
 // Advanced error aggregation and reporting
@@ -537,7 +540,7 @@ export function validateBatch<T>(
 
 // Schema version management for API evolution
 export class SchemaVersionManager {
-  private versions = new Map<string, Map<string, z.ZodSchema<any>>>()
+  private versions = new Map<string, Map<string, z.ZodTypeAny>>()
 
   registerVersion<T>(schemaName: string, version: string, schema: z.ZodSchema<T>): void {
     if (!this.versions.has(schemaName)) {
@@ -604,14 +607,16 @@ export class SchemaVersionManager {
       for (const [version, schema] of allSchemas) {
         try {
           return { data: schema.parse(input), version }
-        } catch {}
+        } catch {
+          // Ignore validation errors, continue to next version
+        }
       }
     }
 
     throw new Error(`No compatible schema version found for ${schemaName}`)
   }
 
-  getVersions(): Map<string, Map<string, z.ZodSchema<any>>> {
+  getVersions(): Map<string, Map<string, z.ZodTypeAny>> {
     return this.versions
   }
 }
@@ -732,8 +737,9 @@ export function createAdvancedValidationMiddleware<T>(
 
   return (data: unknown, cacheKey?: string): T => {
     // Use cached schema for performance if enabled
-    const validationSchema =
-      options.cache && cacheKey && schemaCache.has(cacheKey) ? schemaCache.get(cacheKey)! : schema
+    const cachedSchema =
+      options.cache && cacheKey && schemaCache.has(cacheKey) ? schemaCache.get(cacheKey) : null
+    const validationSchema = cachedSchema || schema
 
     if (options.cache && cacheKey && !schemaCache.has(cacheKey)) {
       schemaCache.set(cacheKey, schema)

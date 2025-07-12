@@ -354,18 +354,18 @@ describe('GitHubClient - Repository Operations', () => {
 
       // Test with search parameters - different ordering
       const searchParams1 = {
-        q: 'test',
+        query: 'test',
         sort: 'stars' as const,
         order: 'desc' as const,
-        per_page: 10,
+        perPage: $1,
         page: 1,
       }
       const searchParams2 = {
         page: 1,
-        per_page: 10,
+        perPage: $1,
         order: 'desc' as const,
         sort: 'stars' as const,
-        q: 'test',
+        query: 'test',
       }
 
       const search1 = await client.searchRepositories(searchParams1)

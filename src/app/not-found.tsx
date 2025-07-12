@@ -4,9 +4,14 @@
  */
 
 import type { Metadata } from 'next'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { ArrowLeft, Github, Home, Search } from '@/components/icons'
-import { Button } from '@/components/ui/button'
+
+// Lazy load heavy components to reduce bundle size
+const Button = dynamic(() => import('@/components/ui/button').then(m => ({ default: m.Button })), {
+  loading: () => <div className="h-10 w-24 animate-pulse rounded bg-muted" />,
+})
 
 export const metadata: Metadata = {
   title: 'Page Not Found | Contribux',

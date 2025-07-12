@@ -397,6 +397,8 @@ function ensureCleanupTimer(): void {
         },
         10 * 60 * 1000 // Cleanup every 10 minutes
       )
-    } catch (_error) {}
+    } catch (_error) {
+      // Ignore cleanup errors - not critical for operation
+    }
   }
 }

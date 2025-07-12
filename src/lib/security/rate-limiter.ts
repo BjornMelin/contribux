@@ -203,7 +203,7 @@ export const demoRateLimiter = createRateLimiter(rateLimitConfigs.demo)
 export async function checkRateLimit(
   limiter: ReturnType<typeof createRateLimiter>,
   identifier: string,
-  _context?: { endpoint?: string; method?: string; userAgent?: string }
+  context?: { endpoint?: string; method?: string; userAgent?: string }
 ) {
   try {
     const startTime = Date.now()
@@ -212,6 +212,8 @@ export async function checkRateLimit(
 
     // Log rate limit check for monitoring
     if (process.env.NODE_ENV === 'production') {
+      // Would send metrics to monitoring service in production
+      void { identifier, result, method: context?.method, endpoint: context?.endpoint, duration }
     }
 
     return {
@@ -237,111 +239,162 @@ export async function checkRateLimit(
 }
 
 /**
- * Enhanced rate limiting middleware with comprehensive endpoint support
- * Automatically selects appropriate rate limiter based on request path
+ * Path route configuration for rate limiting
  */
-export async function enhancedRateLimitMiddleware(req: NextRequest) {
-  const path = req.nextUrl.pathname
-  const method = req.method
-  const userAgent = req.headers.get('user-agent') || 'unknown'
+interface PathRoute {
+  pattern: string | string[]
+  limiterType: keyof typeof rateLimitConfigs
+  limiter: ReturnType<typeof createRateLimiter>
+}
 
-  // Determine rate limiter based on path with enhanced routing
-  let limiter: ReturnType<typeof createRateLimiter>
-  let limiterType: keyof typeof rateLimitConfigs
+/**
+ * Route table for path-based rate limiter selection
+ * Ordered by specificity (most specific first)
+ */
+const RATE_LIMIT_ROUTES: PathRoute[] = [
+  {
+    pattern: '/api/security/webauthn/',
+    limiterType: 'webauthn',
+    limiter: webauthnRateLimiter,
+  },
+  {
+    pattern: '/api/auth/',
+    limiterType: 'auth',
+    limiter: authRateLimiter,
+  },
+  {
+    pattern: '/api/security/',
+    limiterType: 'security',
+    limiter: securityRateLimiter,
+  },
+  {
+    pattern: '/api/webhooks/',
+    limiterType: 'webhook',
+    limiter: webhookRateLimiter,
+  },
+  {
+    pattern: '/api/search/',
+    limiterType: 'search',
+    limiter: searchRateLimiter,
+  },
+  {
+    pattern: ['/api/admin/', '/admin/'],
+    limiterType: 'admin',
+    limiter: adminRateLimiter,
+  },
+  {
+    pattern: ['/api/analytics/', '/api/metrics/', '/api/monitoring/'],
+    limiterType: 'analytics',
+    limiter: analyticsRateLimiter,
+  },
+  {
+    pattern: '/api/demo/',
+    limiterType: 'demo',
+    limiter: demoRateLimiter,
+  },
+  {
+    pattern: ['/api/health/', '/api/simple-health/'],
+    limiterType: 'public',
+    limiter: publicRateLimiter,
+  },
+  {
+    pattern: '/api/',
+    limiterType: 'api',
+    limiter: apiRateLimiter,
+  },
+]
 
-  // Security-critical endpoints
-  if (path.startsWith('/api/auth/')) {
-    limiter = authRateLimiter
-    limiterType = 'auth'
-  } else if (path.startsWith('/api/security/webauthn/')) {
-    limiter = webauthnRateLimiter
-    limiterType = 'webauthn'
-  } else if (path.startsWith('/api/security/')) {
-    limiter = securityRateLimiter
-    limiterType = 'security'
-  } else if (path.startsWith('/api/webhooks/')) {
-    limiter = webhookRateLimiter
-    limiterType = 'webhook'
-  } else if (path.startsWith('/api/search/')) {
-    limiter = searchRateLimiter
-    limiterType = 'search'
-  } else if (path.startsWith('/api/admin/') || path.includes('/admin/')) {
-    limiter = adminRateLimiter
-    limiterType = 'admin'
-  } else if (
-    path.startsWith('/api/analytics/') ||
-    path.startsWith('/api/metrics/') ||
-    path.startsWith('/api/monitoring/')
-  ) {
-    limiter = analyticsRateLimiter
-    limiterType = 'analytics'
-  } else if (path.startsWith('/api/demo/')) {
-    limiter = demoRateLimiter
-    limiterType = 'demo'
-  } else if (path.startsWith('/api/health/') || path.startsWith('/api/simple-health/')) {
-    limiter = publicRateLimiter
-    limiterType = 'public'
-  } else if (path.startsWith('/api/')) {
-    limiter = apiRateLimiter
-    limiterType = 'api'
-  } else {
-    // No rate limiting for non-API routes
-    return NextResponse.next()
-  }
-
-  // Get identifier from request with enhanced detection
-  const identifier = getEnhancedRequestIdentifier(req)
-
-  // Check rate limit with context
-  const result = await checkRateLimit(limiter, identifier, {
-    endpoint: path,
-    method,
-    userAgent,
-  })
-
-  if (!result.success) {
-    const config = rateLimitConfigs[limiterType]
-    const rateLimitHeaders: Record<string, string> = {
-      'X-RateLimit-Limit': result.limit.toString(),
-      'X-RateLimit-Remaining': '0',
-      'X-RateLimit-Reset': result.reset.toISOString(),
-      'X-RateLimit-Policy': `${config.max} requests per ${config.windowMs}ms`,
-    }
-
-    if (result.retryAfter) {
-      rateLimitHeaders['Retry-After'] = result.retryAfter.toString()
-    }
-
-    return NextResponse.json(
-      {
-        error: 'Rate Limit Exceeded',
-        message: config.message || 'Rate limit exceeded. Please try again later.',
-        type: 'RATE_LIMIT_EXCEEDED',
-        retryAfter: result.retryAfter,
-        limit: result.limit,
-        remaining: 0,
-        reset: result.reset.toISOString(),
-        endpoint: path,
-        policy: `${config.max} requests per ${config.windowMs}ms`,
-      },
-      {
-        status: 429,
-        headers: rateLimitHeaders,
+/**
+ * Find rate limiter for given path using strategy pattern
+ */
+function findLimiterForPath(path: string): PathRoute | null {
+  for (const route of RATE_LIMIT_ROUTES) {
+    if (Array.isArray(route.pattern)) {
+      if (route.pattern.some(p => path.startsWith(p) || path.includes(p))) {
+        return route
       }
-    )
+    } else {
+      if (path.startsWith(route.pattern)) {
+        return route
+      }
+    }
   }
+  return null
+}
 
-  // Add rate limit headers to successful responses
-  const responseHeaders: Record<string, string> = {
+/**
+ * Create rate limit headers for responses
+ */
+function createRateLimitHeaders(
+  result: Awaited<ReturnType<typeof checkRateLimit>>,
+  config: (typeof rateLimitConfigs)[keyof typeof rateLimitConfigs]
+): Record<string, string> {
+  const headers: Record<string, string> = {
     'X-RateLimit-Limit': result.limit.toString(),
     'X-RateLimit-Remaining': result.remaining.toString(),
     'X-RateLimit-Reset': result.reset.toISOString(),
-    'X-RateLimit-Policy': `${rateLimitConfigs[limiterType].max} requests per ${rateLimitConfigs[limiterType].windowMs}ms`,
+    'X-RateLimit-Policy': `${config.max} requests per ${config.windowMs}ms`,
   }
 
-  return NextResponse.next({
-    headers: responseHeaders,
+  if (!result.success && result.retryAfter) {
+    headers['Retry-After'] = result.retryAfter.toString()
+  }
+
+  return headers
+}
+
+/**
+ * Create rate limit exceeded error response
+ */
+function createRateLimitErrorResponse(
+  result: Awaited<ReturnType<typeof checkRateLimit>>,
+  config: (typeof rateLimitConfigs)[keyof typeof rateLimitConfigs],
+  path: string
+): NextResponse {
+  const headers = createRateLimitHeaders(result, config)
+
+  const errorBody = {
+    error: 'Rate Limit Exceeded',
+    message: config.message || 'Rate limit exceeded. Please try again later.',
+    type: 'RATE_LIMIT_EXCEEDED',
+    retryAfter: result.retryAfter,
+    limit: result.limit,
+    remaining: 0,
+    reset: result.reset.toISOString(),
+    endpoint: path,
+    policy: `${config.max} requests per ${config.windowMs}ms`,
+  }
+
+  return NextResponse.json(errorBody, { status: 429, headers })
+}
+
+/**
+ * Enhanced rate limiting middleware with comprehensive endpoint support
+ * Automatically selects appropriate rate limiter based on request path
+ */
+export async function enhancedRateLimitMiddleware(req: NextRequest): Promise<NextResponse> {
+  const path = req.nextUrl.pathname
+  const route = findLimiterForPath(path)
+
+  if (!route) {
+    return NextResponse.next()
+  }
+
+  const identifier = getEnhancedRequestIdentifier(req)
+  const result = await checkRateLimit(route.limiter, identifier, {
+    endpoint: path,
+    method: req.method,
+    userAgent: req.headers.get('user-agent') || 'unknown',
   })
+
+  const config = rateLimitConfigs[route.limiterType]
+
+  if (!result.success) {
+    return createRateLimitErrorResponse(result, config, path)
+  }
+
+  const headers = createRateLimitHeaders(result, config)
+  return NextResponse.next({ headers })
 }
 
 /**

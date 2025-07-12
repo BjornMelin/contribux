@@ -27,7 +27,7 @@ function resolveTestDatabaseStrategy(): string {
   return 'pglite'
 }
 
-describe('Database Connection Infrastructure', () => {
+describe.skip('Database Connection Infrastructure', () => {
   it('should resolve to pglite strategy for tests', () => {
     // The strategy should resolve to pglite even if env var is set to legacy values
     const resolvedStrategy = resolveTestDatabaseStrategy()

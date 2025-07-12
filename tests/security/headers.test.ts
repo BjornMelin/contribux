@@ -52,17 +52,25 @@ vi.mock('next/server', () => {
     }
   }
 
+  interface MockResponseWithHeaders {
+    _internalHeaders?: Map<string, string>
+  }
+
   MockNextResponse.prototype.headers = {
-    get: vi.fn().mockImplementation(function (this: any, key: string) {
+    get: vi.fn().mockImplementation(function (this: MockResponseWithHeaders, key: string) {
       return this._internalHeaders?.get(key) || null
     }),
-    set: vi.fn().mockImplementation(function (this: any, key: string, value: string) {
+    set: vi.fn().mockImplementation(function (
+      this: MockResponseWithHeaders,
+      key: string,
+      value: string
+    ) {
       if (!this._internalHeaders) {
         this._internalHeaders = new Map()
       }
       this._internalHeaders.set(key, value)
     }),
-    has: vi.fn().mockImplementation(function (this: any, key: string) {
+    has: vi.fn().mockImplementation(function (this: MockResponseWithHeaders, key: string) {
       return this._internalHeaders?.has(key) || false
     }),
   }

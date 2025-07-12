@@ -17,67 +17,146 @@ const searchSchema = z.object({
   page: z.number().min(1).optional().default(1),
 })
 
+// Request context interface
+interface RequestContext {
+  timestamp: string
+  userAgent?: string
+  ip?: string
+}
+
+// Repository search parameters interface
+interface RepositorySearchParams {
+  q: string
+  language?: string
+  sort?: 'stars' | 'forks' | 'updated'
+  order?: 'asc' | 'desc'
+  per_page: number
+  page: number
+}
+
 /**
  * GET /api/search/repositories
  * Search GitHub repositories with rate limiting
  */
+// Utility function for validating search parameters
+const validateSearchParams = (searchParams: URLSearchParams) => {
+  const params = Object.fromEntries(searchParams)
+
+  const parseResult = searchSchema.safeParse({
+    ...params,
+    per_page: params.per_page ? Number.parseInt(params.per_page, 10) : undefined,
+    page: params.page ? Number.parseInt(params.page, 10) : undefined,
+  })
+
+  if (!parseResult.success) {
+    const { ErrorHandler } = require('@/lib/errors/enhanced-error-handler')
+    throw ErrorHandler.createError(
+      'INVALID_PARAMS',
+      `Validation failed: ${parseResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`,
+      'validation',
+      'low',
+      {
+        validationErrors: parseResult.error.errors,
+        receivedParams: params,
+      }
+    )
+  }
+
+  return parseResult.data
+}
+
+// Utility function for building success response
+const buildSuccessResponse = (
+  validatedParams: RepositorySearchParams,
+  requestContext: RequestContext
+) => {
+  return {
+    total_count: 0,
+    items: [],
+    query: validatedParams,
+    message: 'Repository search endpoint with enhanced rate limiting',
+    correlationId: requestContext.timestamp,
+    metadata: {
+      timestamp: new Date().toISOString(),
+      apiVersion: '1.0',
+      rateLimit: {
+        applied: true,
+        policy: 'search',
+      },
+    },
+  }
+}
+
+// Utility function for handling search errors
+const handleSearchError = (
+  error: unknown,
+  request: NextRequest,
+  requestContext: RequestContext
+) => {
+  const { ErrorHandler } = require('@/lib/errors/enhanced-error-handler')
+
+  if (error instanceof z.ZodError) {
+    const enhancedError = ErrorHandler.createValidationError(error, {
+      endpoint: '/api/search/repositories',
+      operation: 'repository_search',
+      requestMethod: 'GET',
+      ...requestContext,
+    })
+    ErrorHandler.logError(enhancedError, request)
+    return ErrorHandler.toHttpResponse(enhancedError)
+  }
+
+  const enhancedError = ErrorHandler.createError(
+    'SEARCH_ERROR',
+    'Repository search temporarily unavailable. Please try again.',
+    'internal',
+    'medium',
+    {
+      originalError: error,
+      endpoint: '/api/search/repositories',
+      context: {
+        operation: 'repository_search',
+        requestMethod: 'GET',
+        userAgent: request.headers.get('user-agent'),
+        ...requestContext,
+      },
+      actionableSteps: [
+        'Verify your search parameters are valid',
+        'Try simplifying your search query',
+        'Check our status page for known issues',
+        'Contact support if the issue persists',
+      ],
+      developmentDetails:
+        process.env.NODE_ENV === 'development'
+          ? `Repository search failed: ${error instanceof Error ? error.message : String(error)}`
+          : undefined,
+      documentationLinks: [
+        '/docs/api/search#repositories',
+        '/docs/api/rate-limits',
+        '/docs/troubleshooting',
+      ],
+    }
+  )
+
+  ErrorHandler.logError(enhancedError, request)
+  return ErrorHandler.toHttpResponse(enhancedError)
+}
 export const GET = withRateLimit(
   async (req: NextRequest) => {
-    const {
-      withEnhancedErrorHandling,
-      ErrorHandler,
-    } = require('@/lib/errors/enhanced-error-handler')
+    const { withEnhancedErrorHandling } = require('@/lib/errors/enhanced-error-handler')
     const { extractRequestContext } = require('@/lib/errors/error-utils')
 
     return withEnhancedErrorHandling(async (request: NextRequest) => {
       const requestContext = extractRequestContext(request)
 
       try {
-        // Parse search parameters with Next.js 15 URL handling
+        // Parse and validate search parameters
         const { searchParams } = new URL(request.url)
-        const params = Object.fromEntries(searchParams)
+        const validatedParams = validateSearchParams(searchParams)
 
-        // Enhanced validation with better error messages
-        const parseResult = searchSchema.safeParse({
-          ...params,
-          per_page: params.per_page ? Number.parseInt(params.per_page, 10) : undefined,
-          page: params.page ? Number.parseInt(params.page, 10) : undefined,
-        })
+        // Build and return success response
+        const responseData = buildSuccessResponse(validatedParams, requestContext)
 
-        if (!parseResult.success) {
-          throw ErrorHandler.createError(
-            'INVALID_PARAMS',
-            `Validation failed: ${parseResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`,
-            'validation',
-            'low',
-            {
-              context: requestContext,
-              validationErrors: parseResult.error.errors,
-              receivedParams: params,
-            }
-          )
-        }
-
-        const validatedParams = parseResult.data
-
-        // Enhanced response with Next.js 15 features
-        const responseData = {
-          total_count: 0,
-          items: [],
-          query: validatedParams,
-          message: 'Repository search endpoint with enhanced rate limiting',
-          correlationId: requestContext.timestamp,
-          metadata: {
-            timestamp: new Date().toISOString(),
-            apiVersion: '1.0',
-            rateLimit: {
-              applied: true,
-              policy: 'search',
-            },
-          },
-        }
-
-        // Use Next.js 15 Response.json() for better performance
         return Response.json(responseData, {
           status: 200,
           headers: {
@@ -88,54 +167,9 @@ export const GET = withRateLimit(
           },
         })
       } catch (error) {
-        if (error instanceof z.ZodError) {
-          const enhancedError = ErrorHandler.createValidationError(error, {
-            endpoint: '/api/search/repositories',
-            operation: 'repository_search',
-            requestMethod: 'GET',
-            ...requestContext,
-          })
-          ErrorHandler.logError(enhancedError, request)
-          return ErrorHandler.toHttpResponse(enhancedError)
-        }
-
-        // Enhanced error handling with structured logging
-        const enhancedError = ErrorHandler.createError(
-          'SEARCH_ERROR',
-          'Repository search temporarily unavailable. Please try again.',
-          'internal',
-          'medium',
-          {
-            originalError: error,
-            endpoint: '/api/search/repositories',
-            context: {
-              operation: 'repository_search',
-              requestMethod: 'GET',
-              userAgent: request.headers.get('user-agent'),
-              ...requestContext,
-            },
-            actionableSteps: [
-              'Verify your search parameters are valid',
-              'Try simplifying your search query',
-              'Check our status page for known issues',
-              'Contact support if the issue persists',
-            ],
-            developmentDetails:
-              process.env.NODE_ENV === 'development'
-                ? `Repository search failed: ${error instanceof Error ? error.message : String(error)}`
-                : undefined,
-            documentationLinks: [
-              '/docs/api/search#repositories',
-              '/docs/api/rate-limits',
-              '/docs/troubleshooting',
-            ],
-          }
-        )
-
-        ErrorHandler.logError(enhancedError, request)
-        return ErrorHandler.toHttpResponse(enhancedError)
+        return handleSearchError(error, request, requestContext)
       }
     })(req)
   },
   { limiterType: 'search' }
-) // Enhanced search rate limiter with 60 req/min // Using 'search' rate limiter (60 req/min)
+) // Enhanced search rate limiter with 60 req/min // Enhanced search rate limiter with 60 req/min // Using 'search' rate limiter (60 req/min)

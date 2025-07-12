@@ -5,6 +5,9 @@
 
 import jwt from 'jsonwebtoken'
 import { getServerSession } from 'next-auth'
+import { decryptToken, encryptToken, getCurrentEncryptionKey } from '@/lib/auth/crypto'
+import { generateSecureRandomString } from '@/lib/security/crypto-secure'
+import { getGitHubConfig, getJwtSecret } from '@/lib/validation/env'
 
 export interface SessionData {
   user: {
@@ -106,7 +109,8 @@ export async function validateSession(): Promise<SessionValidationResult> {
  */
 export async function validateJWT(token: string): Promise<TokenValidationResult> {
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET!) as TokenPayload
+    const jwtSecret = getJwtSecret()
+    const payload = jwt.verify(token, jwtSecret) as TokenPayload
 
     // Check if token is expired
     const now = Math.floor(Date.now() / 1000)
@@ -133,13 +137,14 @@ export async function validateJWT(token: string): Promise<TokenValidationResult>
  * Generate new JWT token
  */
 export async function generateJWT(payload: Partial<TokenPayload>): Promise<string> {
+  const jwtSecret = getJwtSecret()
   const tokenPayload = {
     ...payload,
     iat: Math.floor(Date.now() / 1000),
     exp: Math.floor(Date.now() / 1000) + 3600, // 1 hour
   }
 
-  return jwt.sign(tokenPayload, process.env.JWT_SECRET!, { expiresIn: '1h' })
+  return jwt.sign(tokenPayload, jwtSecret, { expiresIn: '1h' })
 }
 
 /**
@@ -234,12 +239,18 @@ export async function handleOAuthCallback(
         Accept: 'application/json',
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: new URLSearchParams({
-        client_id: process.env.GITHUB_CLIENT_ID!,
-        client_secret: process.env.GITHUB_CLIENT_SECRET!,
-        code,
-        state: state || '',
-      }),
+      body: (() => {
+        const githubConfig = getGitHubConfig()
+        if (!githubConfig.clientId || !githubConfig.clientSecret) {
+          throw new Error('GitHub OAuth credentials not configured')
+        }
+        return new URLSearchParams({
+          client_id: githubConfig.clientId,
+          client_secret: githubConfig.clientSecret,
+          code,
+          state: state || '',
+        })
+      })(),
     })
 
     if (!tokenResponse.ok) {
@@ -294,16 +305,32 @@ export async function createSessionCookie(sessionData: {
  * Encrypt session data
  */
 export async function encryptSession(data: unknown): Promise<string> {
-  // Simple base64 encoding for demo - use proper encryption in production
-  return Buffer.from(JSON.stringify(data)).toString('base64')
+  try {
+    const { key } = await getCurrentEncryptionKey()
+    const dataString = JSON.stringify(data)
+    const encrypted = await encryptToken(dataString, key)
+    return JSON.stringify(encrypted)
+  } catch (error) {
+    throw new Error(
+      `Session encryption failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+    )
+  }
 }
 
 /**
  * Decrypt session data
  */
 export async function decryptSession(encrypted: string): Promise<unknown> {
-  // Simple base64 decoding for demo - use proper decryption in production
-  return JSON.parse(Buffer.from(encrypted, 'base64').toString())
+  try {
+    const encryptedData = JSON.parse(encrypted)
+    const { key } = await getCurrentEncryptionKey()
+    const decryptedString = await decryptToken(encryptedData, key)
+    return JSON.parse(decryptedString)
+  } catch (error) {
+    throw new Error(
+      `Session decryption failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+    )
+  }
 }
 
 /**
@@ -335,14 +362,12 @@ export async function generateTOTPSecret(_userId: string): Promise<{
   qrCode: string
   backupCodes: string[]
 }> {
-  // Mock implementation
-  const secret = Array.from(
-    { length: 32 },
-    () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'[Math.floor(Math.random() * 32)]
-  ).join('')
+  // Generate cryptographically secure TOTP secret
+  const secret = generateSecureRandomString(32, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567')
 
+  // Generate cryptographically secure backup codes
   const backupCodes = Array.from({ length: 10 }, () =>
-    Math.random().toString(36).substring(2, 8).toUpperCase()
+    generateSecureRandomString(6, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789')
   )
 
   return {
@@ -357,10 +382,9 @@ export async function generateTOTPSecret(_userId: string): Promise<{
  * Generate TOTP code (for testing)
  */
 export function generateTOTPCode(_secret: string): string {
-  // Mock implementation - return a 6-digit code
-  return Math.floor(Math.random() * 1000000)
-    .toString()
-    .padStart(6, '0')
+  // Generate cryptographically secure 6-digit code
+  const secureCode = generateSecureRandomString(6, '0123456789')
+  return secureCode.padStart(6, '0')
 }
 
 /**

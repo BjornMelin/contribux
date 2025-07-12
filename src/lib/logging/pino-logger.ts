@@ -112,7 +112,10 @@ export class PinoEnhancedLogger {
 
     if (this.logger.isLevelEnabled('security')) {
       // Use custom security level
-      ;(this.logger as any).security(securityContext, message)
+      ;(this.logger as PinoLogger & { security: (obj: unknown, msg: string) => void }).security(
+        securityContext,
+        message
+      )
     } else {
       // Fallback to standard levels
       this.logger[logLevel](securityContext, message)

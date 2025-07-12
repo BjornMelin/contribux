@@ -237,11 +237,14 @@ describe('Authentication API Integration Tests', () => {
         email: 'test@example.com',
       }
 
-      const validRefreshToken = jwt.sign(
-        { sub: mockUser.id, type: 'refresh' },
-        process.env.NEXTAUTH_SECRET!,
-        { expiresIn: '7d' }
-      )
+      const secret = process.env.NEXTAUTH_SECRET
+      if (!secret) {
+        throw new Error('NEXTAUTH_SECRET environment variable is required for testing')
+      }
+
+      const validRefreshToken = jwt.sign({ sub: mockUser.id, type: 'refresh' }, secret, {
+        expiresIn: '7d',
+      })
 
       vi.mocked(prisma.user.findUnique).mockResolvedValueOnce(mockUser)
 
@@ -289,11 +292,14 @@ describe('Authentication API Integration Tests', () => {
     })
 
     it('should reject expired refresh token', async () => {
-      const expiredToken = jwt.sign(
-        { sub: 'user-123', type: 'refresh' },
-        process.env.NEXTAUTH_SECRET!,
-        { expiresIn: '-1s' }
-      )
+      const secret = process.env.NEXTAUTH_SECRET
+      if (!secret) {
+        throw new Error('NEXTAUTH_SECRET environment variable is required for testing')
+      }
+
+      const expiredToken = jwt.sign({ sub: 'user-123', type: 'refresh' }, secret, {
+        expiresIn: '-1s',
+      })
 
       await testApiHandler({
         handler: refreshHandler.POST,

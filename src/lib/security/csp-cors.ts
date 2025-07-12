@@ -342,5 +342,8 @@ export function validateOrigin(origin: string | null): boolean {
  * Generate Content Security Policy violation report handler
  */
 export function createCSPViolationHandler() {
-  return (_request: NextRequest) => {}
+  return (_request: NextRequest) => {
+    // TODO: Implement CSP violation logging and reporting
+    // Example: send to security monitoring service
+  }
 }

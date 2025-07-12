@@ -4,6 +4,7 @@
  */
 
 import { z } from 'zod'
+import logger from '@/lib/logging/pino-logger'
 import { ErrorHandler } from './enhanced-error-handler'
 
 // Environment validation schema
@@ -268,6 +269,9 @@ export function validateDevelopmentEnvironment() {
   }
 
   if (warnings.length > 0) {
+    // Log development environment warnings (non-blocking)
+    logger.warn('Development Environment Configuration Warnings:', { warnings })
+    // Note: Using structured logging for development warnings to help developers fix local setup
   }
 
   return true

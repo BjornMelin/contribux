@@ -76,8 +76,18 @@ export class MemoryStore implements RateLimitStore {
   }
 }
 
+interface RedisClient {
+  get(key: string): Promise<string | null>
+  pipeline(): {
+    incr(key: string): unknown
+    expire(key: string, seconds: number): unknown
+    exec(): Promise<[Error | null, unknown][]>
+  }
+  del(key: string): Promise<number>
+}
+
 export class RedisStore implements RateLimitStore {
-  constructor(private options: { client: any; prefix?: string }) {}
+  constructor(private options: { client: RedisClient; prefix?: string }) {}
 
   async increment(key: string, windowMs: number): Promise<{ count: number; resetAt: Date }> {
     const fullKey = this.options.prefix ? `${this.options.prefix}${key}` : key
@@ -117,7 +127,11 @@ export class RateLimiter {
       store: config.store || new MemoryStore(),
       keyGenerator: config.keyGenerator || ((identifier: string) => identifier),
       skip: config.skip || (() => false),
-      onLimitReached: config.onLimitReached || (() => {}),
+      onLimitReached:
+        config.onLimitReached ||
+        (() => {
+          /* No action by default */
+        }),
       message: config.message || 'Rate limit exceeded',
       standardHeaders: config.standardHeaders ?? true,
       legacyHeaders: config.legacyHeaders ?? false,

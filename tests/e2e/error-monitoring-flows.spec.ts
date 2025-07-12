@@ -287,7 +287,9 @@ test.describe('Error Monitoring E2E Tests', () => {
               // Trigger client-side error
               throw new Error(`Test error ${Date.now()}`)
             })
-            .catch(() => {}) // Catch to prevent test failure
+            .catch(() => {
+              // Intentionally empty - preventing test failure
+            }) // Catch to prevent test failure
         )
       }
 

@@ -1,15 +1,58 @@
 'use client'
 
-import Link from 'next/link'
-import { OptimizedSearchExample } from '@/components/examples/optimized-search'
 import { ArrowRight, Github, Sparkles, Zap } from '@/components/icons'
-import { MotionDiv } from '@/components/motion'
+import dynamic from 'next/dynamic'
+import Link from 'next/link'
+import { useEffect } from 'react'
 import { useSession } from '@/components/providers/app-providers'
-import { Button } from '@/components/ui/button'
+import { preloadSearchComponents } from '@/lib/performance/preloader'
+
+// Lazy load heavy components
+const OptimizedSearchExample = dynamic(
+  () =>
+    import('@/components/examples/optimized-search').then(mod => ({
+      default: mod.OptimizedSearchExample,
+    })),
+  {
+    loading: () => (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="h-8 w-8 animate-spin rounded-full border-primary border-b-2" />
+          <p className="text-muted-foreground text-sm">Loading search interface...</p>
+        </div>
+      </div>
+    ),
+  }
+)
+
+const MotionDiv = dynamic(
+  () => import('@/components/motion').then(mod => ({ default: mod.MotionDiv })),
+  {
+    loading: () => <div className="contents" />,
+    ssr: false,
+  }
+)
+
+const Button = dynamic(
+  () => import('@/components/ui/button').then(mod => ({ default: mod.Button })),
+  {
+    loading: () => <div className="h-10 w-24 animate-pulse rounded bg-muted" />,
+  }
+)
 
 export default function Home() {
   const { status } = useSession()
   const isAuthenticated = status === 'authenticated'
+
+  // Preload search components when user is likely to use them
+  useEffect(() => {
+    // Preload after initial render to not block critical resources
+    const timer = setTimeout(() => {
+      preloadSearchComponents()
+    }, 2000) // Wait 2 seconds after initial load
+
+    return () => clearTimeout(timer)
+  }, [])
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-background via-muted/10 to-background">

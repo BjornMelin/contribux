@@ -3,11 +3,39 @@
 // Force dynamic rendering for authentication-dependent page
 export const dynamic = 'force-dynamic'
 
+import { Check, X } from '@/components/icons'
+import dynamicImport from 'next/dynamic'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { LinkedAccounts } from '@/components/auth/LinkedAccounts'
-import { Check, X } from '@/components/icons'
-import { MotionDiv, OptimizedAnimatePresence } from '@/components/motion'
+
+// Lazy load heavy components to reduce initial bundle
+const LinkedAccounts = dynamicImport(
+  () => import('@/components/auth/LinkedAccounts').then(m => ({ default: m.LinkedAccounts })),
+  {
+    loading: () => (
+      <div className="space-y-4">
+        <div className="h-32 animate-pulse rounded-lg bg-muted" />
+        <div className="h-24 animate-pulse rounded-lg bg-muted" />
+      </div>
+    ),
+  }
+)
+const MotionDiv = dynamicImport(
+  () => import('@/components/motion').then(m => ({ default: m.MotionDiv })),
+  {
+    loading: () => <div className="contents" />,
+    ssr: false,
+  }
+)
+
+const OptimizedAnimatePresence = dynamicImport(
+  () => import('@/components/motion').then(m => ({ default: m.OptimizedAnimatePresence })),
+  {
+    loading: () => <div className="contents" />,
+    ssr: false,
+  }
+)
+
 import { useSession } from '@/components/providers/app-providers'
 
 export default function AccountSettingsPage() {

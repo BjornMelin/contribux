@@ -171,7 +171,9 @@ describe('Enhanced JWT Validation Security Tests', () => {
       const originalJwtSecret = process.env.JWT_SECRET
       process.env.JWT_SECRET = 'some-secret-32-characters-long-for-secure-testing'
 
-      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {
+        // Intentionally empty - suppressing console output during tests
+      })
 
       const testUser = {
         id: '12345678-1234-1234-1234-123456789012',
@@ -433,7 +435,9 @@ describe('Enhanced JWT Validation Security Tests', () => {
     })
 
     it('should warn about test environment subject patterns', async () => {
-      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {
+        // Intentionally empty - suppressing console output during tests
+      })
 
       const testUser = {
         id: '12345678-1234-1234-1234-123456789012', // Valid UUID without test identifier
@@ -761,11 +765,13 @@ describe('Enhanced JWT Validation Security Tests', () => {
     })
 
     it('should validate null token input', async () => {
-      await expect(verifyAccessToken(null as any)).rejects.toThrow('Invalid token')
+      await expect(verifyAccessToken(null as unknown as string)).rejects.toThrow('Invalid token')
     })
 
     it('should validate undefined token input', async () => {
-      await expect(verifyAccessToken(undefined as any)).rejects.toThrow('Invalid token')
+      await expect(verifyAccessToken(undefined as unknown as string)).rejects.toThrow(
+        'Invalid token'
+      )
     })
   })
 

@@ -3,6 +3,7 @@
  * High-performance structured logging with environment-specific settings
  */
 
+import type { Bindings, LoggerOptions } from 'pino'
 import pino from 'pino'
 import { env } from '@/lib/validation/env'
 
@@ -123,7 +124,7 @@ function createPinoConfig() {
 
   if (isProduction) {
     // Remove custom formatters when using transport.targets
-    const { formatters, ...productionConfig } = baseConfig
+    const { formatters: _formatters, ...productionConfig } = baseConfig
     return {
       ...productionConfig,
       // Production uses JSON output for log aggregation
@@ -182,7 +183,7 @@ export const createPinoLoggerWithOtel = () => {
   const config = createPinoConfig()
 
   // Enhanced configuration for OpenTelemetry correlation
-  const otelConfig: pino.LoggerOptions = {
+  const otelConfig: LoggerOptions = {
     ...config,
 
     // Add OpenTelemetry correlation
@@ -203,18 +204,19 @@ export const createPinoLoggerWithOtel = () => {
     },
 
     // Enhanced formatters with correlation IDs (only if formatters exist)
-    ...((config as any).formatters && {
-      formatters: {
-        ...(config as any).formatters,
+    ...('formatters' in config &&
+      config.formatters && {
+        formatters: {
+          ...config.formatters,
 
-        // Add correlation metadata to all logs
-        bindings: (bindings: any) => ({
-          ...(config as any).formatters?.bindings?.(bindings),
-          correlationId: crypto.randomUUID(),
-          timestamp: Date.now(),
-        }),
-      },
-    }),
+          // Add correlation metadata to all logs
+          bindings: (bindings: Bindings) => ({
+            ...(config.formatters?.bindings?.(bindings) ?? {}),
+            correlationId: crypto.randomUUID(),
+            timestamp: Date.now(),
+          }),
+        },
+      }),
   }
 
   return pino(otelConfig)

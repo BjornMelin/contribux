@@ -17,27 +17,46 @@ export function isError(error: unknown): error is Error {
   )
 }
 
+// Define proper interfaces for API errors
+interface GitHubApiResponse {
+  status: number
+  headers: Record<string, string>
+  data: unknown
+}
+
+interface GitHubApiRequest {
+  method: string
+  url: string
+  headers: Record<string, string>
+  body?: unknown
+}
+
 export function isErrorWithStatus(error: unknown): error is Error & { status: number } {
-  return isError(error) && 'status' in error && typeof (error as any).status === 'number'
+  return (
+    isError(error) &&
+    'status' in error &&
+    typeof (error as Record<string, unknown>).status === 'number'
+  )
 }
 
 export function isErrorWithMessage(error: unknown): error is Error & { message: string } {
-  return isError(error) && typeof (error as any).message === 'string'
+  return isError(error) && typeof (error as unknown as Record<string, unknown>).message === 'string'
 }
 
 export function isGitHubApiError(error: unknown): error is {
   status: number
   message: string
-  response?: any
-  request?: any
+  response?: GitHubApiResponse
+  request?: GitHubApiRequest
 } {
+  const errorObj = error as Record<string, unknown>
   return (
     typeof error === 'object' &&
     error !== null &&
     'status' in error &&
-    typeof (error as any).status === 'number' &&
+    typeof errorObj.status === 'number' &&
     'message' in error &&
-    typeof (error as any).message === 'string'
+    typeof errorObj.message === 'string'
   )
 }
 
@@ -88,17 +107,18 @@ export function isValidGitHubRepository(data: unknown): data is {
   forks_count: number
   default_branch: string
 } {
+  const obj = data as Record<string, unknown>
   return (
     typeof data === 'object' &&
     data !== null &&
     'id' in data &&
-    typeof (data as any).id === 'number' &&
+    typeof obj.id === 'number' &&
     'name' in data &&
-    typeof (data as any).name === 'string' &&
+    typeof obj.name === 'string' &&
     'full_name' in data &&
-    typeof (data as any).full_name === 'string' &&
+    typeof obj.full_name === 'string' &&
     'owner' in data &&
-    isValidGitHubOwner((data as any).owner)
+    isValidGitHubOwner(obj.owner)
   )
 }
 
@@ -110,21 +130,22 @@ export function isValidGitHubOwner(data: unknown): data is {
   type: string
   site_admin: boolean
 } {
+  const obj = data as Record<string, unknown>
   return (
     typeof data === 'object' &&
     data !== null &&
     'login' in data &&
-    typeof (data as any).login === 'string' &&
+    typeof obj.login === 'string' &&
     'id' in data &&
-    typeof (data as any).id === 'number' &&
+    typeof obj.id === 'number' &&
     'avatar_url' in data &&
-    typeof (data as any).avatar_url === 'string' &&
+    typeof obj.avatar_url === 'string' &&
     'html_url' in data &&
-    typeof (data as any).html_url === 'string' &&
+    typeof obj.html_url === 'string' &&
     'type' in data &&
-    typeof (data as any).type === 'string' &&
+    typeof obj.type === 'string' &&
     'site_admin' in data &&
-    typeof (data as any).site_admin === 'boolean'
+    typeof obj.site_admin === 'boolean'
   )
 }
 
@@ -146,29 +167,30 @@ export function isValidGitHubUser(data: unknown): data is {
   following: number
   created_at: string
 } {
+  const obj = data as Record<string, unknown>
   return (
     typeof data === 'object' &&
     data !== null &&
     'login' in data &&
-    typeof (data as any).login === 'string' &&
+    typeof obj.login === 'string' &&
     'id' in data &&
-    typeof (data as any).id === 'number' &&
+    typeof obj.id === 'number' &&
     'avatar_url' in data &&
-    typeof (data as any).avatar_url === 'string' &&
+    typeof obj.avatar_url === 'string' &&
     'html_url' in data &&
-    typeof (data as any).html_url === 'string' &&
+    typeof obj.html_url === 'string' &&
     'type' in data &&
-    typeof (data as any).type === 'string' &&
+    typeof obj.type === 'string' &&
     'site_admin' in data &&
-    typeof (data as any).site_admin === 'boolean' &&
+    typeof obj.site_admin === 'boolean' &&
     'public_repos' in data &&
-    typeof (data as any).public_repos === 'number' &&
+    typeof obj.public_repos === 'number' &&
     'followers' in data &&
-    typeof (data as any).followers === 'number' &&
+    typeof obj.followers === 'number' &&
     'following' in data &&
-    typeof (data as any).following === 'number' &&
+    typeof obj.following === 'number' &&
     'created_at' in data &&
-    typeof (data as any).created_at === 'string'
+    typeof obj.created_at === 'string'
   )
 }
 
@@ -177,15 +199,16 @@ export function isValidGitHubContributor(data: unknown): data is {
   avatar_url: string
   contributions: number
 } {
+  const obj = data as Record<string, unknown>
   return (
     typeof data === 'object' &&
     data !== null &&
     'login' in data &&
-    typeof (data as any).login === 'string' &&
+    typeof obj.login === 'string' &&
     'avatar_url' in data &&
-    typeof (data as any).avatar_url === 'string' &&
+    typeof obj.avatar_url === 'string' &&
     'contributions' in data &&
-    typeof (data as any).contributions === 'number'
+    typeof obj.contributions === 'number'
   )
 }
 
@@ -194,15 +217,16 @@ export function isValidGitHubSearchResponse(data: unknown): data is {
   total_count: number
   incomplete_results: boolean
 } {
+  const obj = data as Record<string, unknown>
   return (
     typeof data === 'object' &&
     data !== null &&
     'items' in data &&
-    Array.isArray((data as any).items) &&
+    Array.isArray(obj.items) &&
     'total_count' in data &&
-    typeof (data as any).total_count === 'number' &&
+    typeof obj.total_count === 'number' &&
     'incomplete_results' in data &&
-    typeof (data as any).incomplete_results === 'boolean'
+    typeof obj.incomplete_results === 'boolean'
   )
 }
 
@@ -229,13 +253,14 @@ export function isTimeoutError(error: unknown): boolean {
 
 // Validation error type guards
 export function isZodError(error: unknown): error is import('zod').ZodError {
+  const obj = error as Record<string, unknown>
   return (
     typeof error === 'object' &&
     error !== null &&
     'issues' in error &&
-    Array.isArray((error as any).issues) &&
+    Array.isArray(obj.issues) &&
     'name' in error &&
-    (error as any).name === 'ZodError'
+    obj.name === 'ZodError'
   )
 }
 
@@ -277,7 +302,7 @@ export function assertIsError(error: unknown): asserts error is Error {
 export function assertIsGitHubApiError(error: unknown): asserts error is {
   status: number
   message: string
-  response?: any
+  response?: GitHubApiResponse
 } {
   if (!isGitHubApiError(error)) {
     throw new Error('Expected error to be a GitHub API error')
@@ -497,6 +522,138 @@ export function getNumberEnvVar(name: string, defaultValue?: number): number {
  * Comprehensive error handling for API routes with type safety
  */
 
+/**
+ * Error handler configuration for different error types
+ */
+interface ErrorHandlerConfig {
+  check: (error: unknown) => boolean
+  createResponse: (error: unknown) => Response
+}
+
+/**
+ * Create error handler configuration for Zod validation errors
+ */
+function createZodErrorHandler(): ErrorHandlerConfig {
+  return {
+    check: isZodError,
+    createResponse: (error: unknown) => {
+      const formatted = formatZodError(error as import('zod').ZodError)
+      return Response.json(
+        createErrorResponse('Validation failed', 'VALIDATION_ERROR', 400, formatted),
+        { status: 400 }
+      )
+    },
+  }
+}
+
+/**
+ * Create error handler configuration for GitHub API errors
+ */
+function createGitHubErrorHandler(): ErrorHandlerConfig {
+  return {
+    check: isGitHubApiError,
+    createResponse: (error: unknown) => {
+      const gitHubError = error as { status?: number; message: string }
+      const status = gitHubError.status || 500
+      return Response.json(createErrorResponse(gitHubError.message, 'GITHUB_API_ERROR', status), {
+        status,
+      })
+    },
+  }
+}
+
+/**
+ * Create error handler configuration for network errors
+ */
+function createNetworkErrorHandler(): ErrorHandlerConfig {
+  return {
+    check: isNetworkError,
+    createResponse: () => {
+      return Response.json(createErrorResponse('Network error occurred', 'NETWORK_ERROR', 503), {
+        status: 503,
+      })
+    },
+  }
+}
+
+/**
+ * Create error handler configuration for timeout errors
+ */
+function createTimeoutErrorHandler(): ErrorHandlerConfig {
+  return {
+    check: isTimeoutError,
+    createResponse: () => {
+      return Response.json(createErrorResponse('Request timed out', 'TIMEOUT_ERROR', 504), {
+        status: 504,
+      })
+    },
+  }
+}
+
+/**
+ * Error handler registry using strategy pattern
+ */
+const ERROR_HANDLERS: ErrorHandlerConfig[] = [
+  createZodErrorHandler(),
+  createGitHubErrorHandler(),
+  createNetworkErrorHandler(),
+  createTimeoutErrorHandler(),
+]
+
+/**
+ * Find appropriate error handler for the given error
+ */
+function findErrorHandler(error: unknown): ErrorHandlerConfig | null {
+  return ERROR_HANDLERS.find(handler => handler.check(error)) || null
+}
+
+/**
+ * Create internal server error response
+ */
+function createInternalErrorResponse(
+  error: unknown,
+  transformError?: (error: unknown) => Error,
+  includeStackTrace = false
+): Response {
+  const finalError = transformError ? transformError(error) : error
+  const errorMessage = extractErrorMessage(finalError)
+
+  const errorDetails =
+    includeStackTrace && isError(finalError)
+      ? { message: errorMessage, stack: finalError.stack }
+      : { message: errorMessage }
+
+  const errorResponse = createErrorResponse(
+    'Internal server error',
+    'INTERNAL_ERROR',
+    500,
+    errorDetails
+  )
+  return Response.json(errorResponse, { status: 500 })
+}
+
+/**
+ * Process successful handler result
+ */
+function processSuccessResult<T>(result: T): Response {
+  if (result instanceof Response) {
+    return result
+  }
+  return Response.json(createSuccessResponse(result))
+}
+
+/**
+ * Validate request if validator is provided
+ */
+async function performRequestValidation(
+  request: Request,
+  validateRequest?: (request: Request) => Promise<unknown>
+): Promise<void> {
+  if (validateRequest) {
+    await validateRequest(request)
+  }
+}
+
 // API error handling wrapper with type guards
 export function withTypeGuardedErrorHandling<T>(
   handler: (request: Request) => Promise<T>,
@@ -510,69 +667,17 @@ export function withTypeGuardedErrorHandling<T>(
     const { validateRequest, transformError, includeStackTrace = false } = options
 
     try {
-      // Validate request if validator provided
-      if (validateRequest) {
-        await validateRequest(request)
-      }
-
-      // Execute handler
+      await performRequestValidation(request, validateRequest)
       const result = await handler(request)
-
-      // Ensure result is properly typed
-      if (result instanceof Response) {
-        return result
-      }
-
-      // Return successful response
-      return Response.json(createSuccessResponse(result))
+      return processSuccessResult(result)
     } catch (error: unknown) {
-      // Use type guards for error handling
-      if (isZodError(error)) {
-        const formatted = formatZodError(error)
-        return Response.json(
-          createErrorResponse('Validation failed', 'VALIDATION_ERROR', 400, formatted),
-          { status: 400 }
-        )
+      const errorHandler = findErrorHandler(error)
+
+      if (errorHandler) {
+        return errorHandler.createResponse(error)
       }
 
-      if (isGitHubApiError(error)) {
-        const status = error.status || 500
-        return Response.json(createErrorResponse(error.message, 'GITHUB_API_ERROR', status), {
-          status,
-        })
-      }
-
-      if (isNetworkError(error)) {
-        return Response.json(createErrorResponse('Network error occurred', 'NETWORK_ERROR', 503), {
-          status: 503,
-        })
-      }
-
-      if (isTimeoutError(error)) {
-        return Response.json(createErrorResponse('Request timed out', 'TIMEOUT_ERROR', 504), {
-          status: 504,
-        })
-      }
-
-      // Handle other errors with transformation if provided
-      const finalError = transformError ? transformError(error) : error
-      const errorMessage = extractErrorMessage(finalError)
-
-      const errorResponse = createErrorResponse(
-        'Internal server error',
-        'INTERNAL_ERROR',
-        500,
-        includeStackTrace && isError(finalError)
-          ? {
-              message: errorMessage,
-              stack: finalError.stack,
-            }
-          : {
-              message: errorMessage,
-            }
-      )
-
-      return Response.json(errorResponse, { status: 500 })
+      return createInternalErrorResponse(error, transformError, includeStackTrace)
     }
   }
 }

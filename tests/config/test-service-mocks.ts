@@ -6,6 +6,39 @@
 import { afterAll, beforeAll, vi } from 'vitest'
 import type { TestEnvironmentConfig } from './test-environment.config'
 
+// MSW handler type for better type safety
+interface MSWHandler {
+  info: {
+    header: string
+    method: string
+    path: string
+  }
+  // Additional properties as needed by MSW
+  [key: string]: unknown
+}
+
+// GitHub API parameter types
+interface GitHubSearchParams {
+  query?: string
+  sort?: string
+  order?: string
+  per_page?: number
+  page?: number
+}
+
+// GraphQL variables type
+interface GraphQLVariables {
+  [key: string]: unknown
+}
+
+// GitHub client configuration type
+interface GitHubClientConfig {
+  auth?: string
+  baseUrl?: string
+  userAgent?: string
+  [key: string]: unknown
+}
+
 // Mock server instance type
 // MSW handlers are dynamically imported and don't have a stable type
 // Using unknown[] is appropriate here as the handlers are validated at runtime by MSW
@@ -17,7 +50,7 @@ interface MockServer {
 }
 
 // Service mock registry
-const serviceMocks = new Map<string, any>()
+const serviceMocks = new Map<string, boolean | object>()
 let mockServer: MockServer | null = null
 
 /**
@@ -116,7 +149,7 @@ export class TestServiceMockManager {
   /**
    * Create GitHub API handlers
    */
-  private createGitHubHandlers(): any[] {
+  private createGitHubHandlers(): MSWHandler[] {
     const { http, HttpResponse } = require('msw')
     const config = this.config.services.github
 
@@ -216,7 +249,7 @@ export class TestServiceMockManager {
   /**
    * Create authentication handlers
    */
-  private createAuthHandlers(): any[] {
+  private createAuthHandlers(): MSWHandler[] {
     const { http, HttpResponse } = require('msw')
     const config = this.config.services.auth
 
@@ -259,7 +292,7 @@ export class TestServiceMockManager {
   /**
    * Create external service handlers
    */
-  private createExternalServiceHandlers(): any[] {
+  private createExternalServiceHandlers(): MSWHandler[] {
     const { http, HttpResponse } = require('msw')
     const external = this.config.services.external
     const handlers = []
@@ -312,7 +345,7 @@ export class TestServiceMockManager {
     vi.mock('@/lib/github/client', () => ({
       GitHubClient: vi.fn().mockImplementation(() => ({
         // Core API methods
-        searchRepositories: vi.fn().mockImplementation(async (params: any) => {
+        searchRepositories: vi.fn().mockImplementation(async (params: GitHubSearchParams) => {
           if (config.errorSimulation && params.query?.includes('error')) {
             throw new Error('GitHub API error simulation')
           }
@@ -358,7 +391,7 @@ export class TestServiceMockManager {
           }
         }),
 
-        searchIssues: vi.fn().mockImplementation(async (params: any) => {
+        searchIssues: vi.fn().mockImplementation(async (params: GitHubSearchParams) => {
           if (config.errorSimulation && params.query?.includes('error')) {
             throw new Error('GitHub API error simulation')
           }
@@ -503,7 +536,7 @@ export class TestServiceMockManager {
           reset: Date.now() / 1000 + 3600,
         }),
 
-        graphql: vi.fn().mockImplementation(async (query: string, variables?: any) => {
+        graphql: vi.fn().mockImplementation(async (query: string, variables?: GraphQLVariables) => {
           return { data: { mocked: true, query, variables } }
         }),
 
@@ -539,7 +572,7 @@ export class TestServiceMockManager {
         return new (vi.mocked(require('@/lib/github/client').GitHubClient))()
       }),
 
-      createGitHubClient: vi.fn().mockImplementation((_config: any) => {
+      createGitHubClient: vi.fn().mockImplementation((_config: GitHubClientConfig) => {
         return new (vi.mocked(require('@/lib/github/client').GitHubClient))()
       }),
     }))

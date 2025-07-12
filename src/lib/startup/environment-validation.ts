@@ -7,6 +7,99 @@ import { ErrorHandler } from '@/lib/errors/enhanced-error-handler'
 import { validateCompleteEnvironment } from '@/lib/errors/environment-error-handler'
 
 /**
+ * Enhanced error interface for startup validation
+ */
+interface EnhancedStartupError extends Error {
+  name: string
+  correlationId?: string
+  actionableSteps?: string[]
+  documentationLinks?: string[]
+  context?: unknown
+  [key: string]: unknown
+}
+
+/**
+ * Check if error is an enhanced error with correlation ID
+ */
+function isEnhancedError(error: unknown): error is EnhancedStartupError {
+  return error != null && typeof error === 'object' && 'correlationId' in error
+}
+
+/**
+ * Process enhanced error details for logging
+ */
+function processEnhancedError(enhancedError: EnhancedStartupError): void {
+  if (enhancedError.actionableSteps?.length) {
+    enhancedError.actionableSteps.forEach((step: string, index: number) => {
+      void step
+      void index
+    })
+  }
+
+  if (enhancedError.documentationLinks?.length) {
+    enhancedError.documentationLinks.forEach((link: string) => {
+      void link
+    })
+  }
+
+  if (process.env.NODE_ENV === 'development' && enhancedError.context) {
+    void enhancedError.context
+  }
+}
+
+/**
+ * Create startup validation error
+ */
+function createStartupValidationError(
+  originalError: unknown
+): import('@/lib/errors/enhanced-error-handler').EnhancedError {
+  return ErrorHandler.createError(
+    'STARTUP_VALIDATION_ERROR',
+    'Application startup validation failed.',
+    'configuration',
+    'critical',
+    {
+      originalError,
+      context: {
+        phase: 'startup',
+        environment: process.env.NODE_ENV || 'unknown',
+      },
+      actionableSteps: [
+        'Check all environment variables are properly set',
+        'Verify .env file exists and contains required configuration',
+        'Ensure all external services are accessible',
+        'Review the error details above for specific issues',
+      ],
+      developmentDetails: `Startup validation failed: ${originalError instanceof Error ? originalError.message : String(originalError)}`,
+      documentationLinks: [
+        '/docs/deployment#environment-setup',
+        '/docs/troubleshooting#startup-errors',
+      ],
+      productionMessage:
+        'Application configuration error prevented startup. Please contact support.',
+    }
+  )
+}
+
+/**
+ * Handle startup error processing and exit logic
+ */
+function handleStartupError(error: unknown): never {
+  if (isEnhancedError(error)) {
+    processEnhancedError(error)
+  } else {
+    const startupError = createStartupValidationError(error)
+    ErrorHandler.logError(startupError)
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    process.exit(1)
+  }
+
+  throw error
+}
+
+/**
  * Validate application environment on startup
  * This should be called during application initialization
  */
@@ -16,64 +109,9 @@ export async function validateStartupEnvironment(): Promise<{
   validatedAt: string
 }> {
   try {
-    const validation = validateCompleteEnvironment()
-
-    return validation
+    return validateCompleteEnvironment()
   } catch (error) {
-    if (error && typeof error === 'object' && 'correlationId' in error) {
-      // This is already an enhanced error, log it properly
-      const enhancedError = error as any
-
-      if (enhancedError.actionableSteps?.length > 0) {
-        enhancedError.actionableSteps.forEach((_step: string, _index: number) => {})
-      }
-
-      if (enhancedError.documentationLinks?.length > 0) {
-        enhancedError.documentationLinks.forEach((_link: string) => {})
-      }
-
-      // In development, show detailed context
-      if (process.env.NODE_ENV === 'development' && enhancedError.context) {
-      }
-    } else {
-      // Create enhanced error for unexpected startup failures
-      const startupError = ErrorHandler.createError(
-        'STARTUP_VALIDATION_ERROR',
-        'Application startup validation failed.',
-        'configuration',
-        'critical',
-        {
-          originalError: error,
-          context: {
-            phase: 'startup',
-            environment: process.env.NODE_ENV || 'unknown',
-          },
-          actionableSteps: [
-            'Check all environment variables are properly set',
-            'Verify .env file exists and contains required configuration',
-            'Ensure all external services are accessible',
-            'Review the error details above for specific issues',
-          ],
-          developmentDetails: `Startup validation failed: ${error instanceof Error ? error.message : String(error)}`,
-          documentationLinks: [
-            '/docs/deployment#environment-setup',
-            '/docs/troubleshooting#startup-errors',
-          ],
-          productionMessage:
-            'Application configuration error prevented startup. Please contact support.',
-        }
-      )
-
-      ErrorHandler.logError(startupError)
-    }
-
-    // Exit the process for critical configuration errors
-    if (process.env.NODE_ENV === 'production') {
-      process.exit(1)
-    } else {
-    }
-
-    throw error
+    handleStartupError(error)
   }
 }
 
@@ -101,7 +139,11 @@ export async function validateEnvironmentWithGracefulDegradation(): Promise<{
     }
   } catch (error) {
     if (error && typeof error === 'object' && 'severity' in error) {
-      const enhancedError = error as any
+      const enhancedError = error as Error & {
+        severity?: string
+        message: string
+        [key: string]: unknown
+      }
 
       if (enhancedError.severity === 'critical' || enhancedError.severity === 'high') {
         errors.push(enhancedError.message)
@@ -190,7 +232,8 @@ export async function validateSpecificEnvironmentAspects(
       let severity: 'low' | 'medium' | 'high' | 'critical' = 'medium'
 
       if (error && typeof error === 'object' && 'severity' in error) {
-        severity = (error as any).severity
+        const errorWithSeverity = error as { severity?: 'low' | 'medium' | 'high' | 'critical' }
+        severity = errorWithSeverity.severity || 'medium'
       }
 
       results.push({
@@ -206,39 +249,79 @@ export async function validateSpecificEnvironmentAspects(
 }
 
 /**
- * Format environment validation results for logging
+ * Severity icon mapping for validation results
  */
-export function formatValidationResults(results: EnvironmentCheckResult[]): string {
-  const lines: string[] = []
+const SEVERITY_ICONS = {
+  critical: '🚨',
+  high: '⚠️',
+  medium: '⚡',
+  low: 'ℹ️',
+} as const
 
-  lines.push('Environment Validation Results:')
-  lines.push('=====================================')
+/**
+ * Get status icon for validation result
+ */
+function getStatusIcon(isValid: boolean): string {
+  return isValid ? '✅' : '❌'
+}
 
-  for (const result of results) {
-    const status = result.isValid ? '✅' : '❌'
-    const severity =
-      result.severity === 'critical'
-        ? '🚨'
-        : result.severity === 'high'
-          ? '⚠️'
-          : result.severity === 'medium'
-            ? '⚡'
-            : 'ℹ️'
+/**
+ * Get severity icon for validation result
+ */
+function getSeverityIcon(severity: EnvironmentCheckResult['severity']): string {
+  return SEVERITY_ICONS[severity]
+}
 
-    lines.push(
-      `${status} ${severity} ${result.component}: ${result.message || (result.isValid ? 'OK' : 'Failed')}`
+/**
+ * Get result message for validation result
+ */
+function getResultMessage(result: EnvironmentCheckResult): string {
+  if (result.message) {
+    return result.message
+  }
+  return result.isValid ? 'OK' : 'Failed'
+}
+
+/**
+ * Format single validation result line
+ */
+function formatResultLine(result: EnvironmentCheckResult): string {
+  const status = getStatusIcon(result.isValid)
+  const severity = getSeverityIcon(result.severity)
+  const message = getResultMessage(result)
+
+  return `${status} ${severity} ${result.component}: ${message}`
+}
+
+/**
+ * Create validation summary statistics
+ */
+function createValidationSummary(results: EnvironmentCheckResult[]): string[] {
+  const failedCount = results.filter(r => !r.isValid).length
+  const criticalCount = results.filter(r => !r.isValid && r.severity === 'critical').length
+  const passedCount = results.length - failedCount
+
+  const summaryLines = ['', `Summary: ${passedCount}/${results.length} checks passed`]
+
+  if (criticalCount > 0) {
+    summaryLines.push(
+      `🚨 ${criticalCount} critical issues must be resolved before production deployment`
     )
   }
 
-  const failedCount = results.filter(r => !r.isValid).length
-  const criticalCount = results.filter(r => !r.isValid && r.severity === 'critical').length
+  return summaryLines
+}
 
-  lines.push('')
-  lines.push(`Summary: ${results.length - failedCount}/${results.length} checks passed`)
-
-  if (criticalCount > 0) {
-    lines.push(`🚨 ${criticalCount} critical issues must be resolved before production deployment`)
-  }
+/**
+ * Format environment validation results for logging
+ */
+export function formatValidationResults(results: EnvironmentCheckResult[]): string {
+  const lines = [
+    'Environment Validation Results:',
+    '=====================================',
+    ...results.map(formatResultLine),
+    ...createValidationSummary(results),
+  ]
 
   return lines.join('\n')
 }

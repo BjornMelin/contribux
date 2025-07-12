@@ -10,10 +10,13 @@ import {
   formatValidationErrorsForAPI,
   GitHubIssueSchema,
   GitHubRepositorySchema,
+  getValidationMetrics,
+  getValidationSchema,
   PathTraversalProtectedSchema,
+  registerValidationSchema,
+  resetValidationMetrics,
   SQLInjectionProtectedSchema,
-  ValidationPerformanceMonitor,
-  ValidationSchemaRegistry,
+  trackValidationPerformance,
   versionManager,
   XSSProtectedStringSchema,
 } from '../../../src/lib/validation/enterprise-schemas'
@@ -28,11 +31,11 @@ import {
 
 describe('Enterprise Zod Validation Schemas', () => {
   beforeEach(() => {
-    ValidationPerformanceMonitor.resetMetrics()
+    resetValidationMetrics()
   })
 
   afterEach(() => {
-    ValidationPerformanceMonitor.resetMetrics()
+    resetValidationMetrics()
   })
 
   describe('Security Validation Schemas', () => {
@@ -454,11 +457,11 @@ describe('Enterprise Zod Validation Schemas', () => {
     it('should track validation performance', () => {
       const testSchema = z.string().min(1).max(100)
 
-      ValidationPerformanceMonitor.track('test-schema', () => {
+      trackValidationPerformance('test-schema', () => {
         return testSchema.parse('test string')
       })
 
-      const metrics = ValidationPerformanceMonitor.getMetrics()
+      const metrics = getValidationMetrics()
       expect(metrics['test-schema']).toBeDefined()
       expect(metrics['test-schema'].count).toBe(1)
       expect(metrics['test-schema'].avgTime).toBeGreaterThan(0)
@@ -468,12 +471,12 @@ describe('Enterprise Zod Validation Schemas', () => {
       const testSchema = z.string().min(10)
 
       expect(() => {
-        ValidationPerformanceMonitor.track('error-schema', () => {
+        trackValidationPerformance('error-schema', () => {
           return testSchema.parse('short')
         })
       }).toThrow()
 
-      const metrics = ValidationPerformanceMonitor.getMetrics()
+      const metrics = getValidationMetrics()
       expect(metrics['error-schema']).toBeDefined()
       expect(metrics['error-schema'].count).toBe(1)
     })
@@ -482,9 +485,9 @@ describe('Enterprise Zod Validation Schemas', () => {
   describe('Schema Registry and Versioning', () => {
     it('should register and retrieve schemas', () => {
       const testSchema = z.object({ test: z.string() })
-      ValidationSchemaRegistry.register('test-schema', testSchema)
+      registerValidationSchema('test-schema', testSchema)
 
-      const retrieved = ValidationSchemaRegistry.get('test-schema')
+      const retrieved = getValidationSchema('test-schema')
       expect(retrieved).toBe(testSchema)
     })
 

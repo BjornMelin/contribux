@@ -10,7 +10,7 @@ interface DatabaseQueryColumn {
 }
 
 describe('Authentication Database Schema', () => {
-  const dbSetup = setupTestDatabase({ strategy: 'pglite' })
+  const dbSetup = setupTestDatabase()
 
   beforeEach(async () => {
     // Database setup is handled by setupTestDatabase

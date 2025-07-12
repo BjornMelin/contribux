@@ -52,28 +52,31 @@ export class SearchValidator {
       excludedTerms: [],
     }
 
+    // Create local variable to avoid modifying parameter
+    let processedQuery = query
+
     // Extract language operator
-    const languageMatch = query.match(/language:(\w+)/)
+    const languageMatch = processedQuery.match(/language:(\w+)/)
     if (languageMatch) {
       result.language = languageMatch[1]
-      query = query.replace(/language:\w+/g, '').trim()
+      processedQuery = processedQuery.replace(/language:\w+/g, '').trim()
     }
 
     // Extract stars operator
-    const starsMatch = query.match(/stars:>(\d+)/)
+    const starsMatch = processedQuery.match(/stars:>(\d+)/)
     if (starsMatch) {
       result.minStars = Number.parseInt(starsMatch[1], 10)
-      query = query.replace(/stars:>\d+/g, '').trim()
+      processedQuery = processedQuery.replace(/stars:>\d+/g, '').trim()
     }
 
     // Extract user operator
-    const userMatch = query.match(/user:(\w+)/)
+    const userMatch = processedQuery.match(/user:(\w+)/)
     if (userMatch) {
       result.user = userMatch[1]
-      query = query.replace(/user:\w+/g, '').trim()
+      processedQuery = processedQuery.replace(/user:\w+/g, '').trim()
     }
 
-    result.baseQuery = query
+    result.baseQuery = processedQuery
     return result
   }
 
@@ -85,23 +88,26 @@ export class SearchValidator {
       excludedTerms: [],
     }
 
+    // Create local variable to avoid modifying parameter
+    let processedQuery = query
+
     // Extract quoted phrases (required terms)
-    const quotedMatches = query.match(/"([^"]+)"/g)
+    const quotedMatches = processedQuery.match(/"([^"]+)"/g)
     if (quotedMatches) {
       result.requiredTerms = quotedMatches.map(match => match.slice(1, -1))
-      query = query.replace(/"[^"]+"/g, '').trim()
+      processedQuery = processedQuery.replace(/"[^"]+"/g, '').trim()
     }
 
     // Extract excluded terms (starting with -)
-    const excludedMatches = query.match(/-(\w+)/g)
+    const excludedMatches = processedQuery.match(/-(\w+)/g)
     if (excludedMatches) {
       result.excludedTerms = excludedMatches.map(match => match.slice(1))
-      query = query.replace(/-\w+/g, '').trim()
+      processedQuery = processedQuery.replace(/-\w+/g, '').trim()
     }
 
     // Remaining terms
-    result.terms = query.split(/\s+/).filter(term => term.length > 0)
-    result.baseQuery = query
+    result.terms = processedQuery.split(/\s+/).filter(term => term.length > 0)
+    result.baseQuery = processedQuery
 
     return result
   }

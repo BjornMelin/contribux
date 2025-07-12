@@ -33,6 +33,72 @@ export const defaultMiddlewareConfig: MiddlewareConfig = {
   apiPaths: ['/api/'],
 }
 
+// Helper functions to reduce security middleware complexity
+function createEnhancedResponse(request: NextRequest, nonce: string): NextResponse {
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-nonce', nonce)
+
+  return NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  })
+}
+
+async function applyRateLimiting(
+  request: NextRequest,
+  response: NextResponse,
+  config: MiddlewareConfig
+): Promise<NextResponse | null> {
+  if (!config.enableRateLimit) {
+    return null
+  }
+
+  const rateLimitResponse = await enhancedRateLimitMiddleware(request)
+  if (rateLimitResponse.status === 429) {
+    return rateLimitResponse
+  }
+
+  // Merge rate limit headers
+  mergeHeaders(response, rateLimitResponse)
+  return null
+}
+
+async function applyAuthentication(
+  request: NextRequest,
+  config: MiddlewareConfig
+): Promise<NextResponse | null> {
+  if (!config.enableAuth) {
+    return null
+  }
+
+  return handleAuthentication(request, config)
+}
+
+function applySecurityFeatures(
+  response: NextResponse,
+  request: NextRequest,
+  pathname: string,
+  nonce: string,
+  config: MiddlewareConfig
+): void {
+  // Apply security headers if enabled
+  if (config.enableCSP) {
+    applySecurityHeaders(response, nonce)
+  }
+
+  // Apply CORS headers for API routes if enabled
+  if (config.enableCORS && isApiRoute(pathname, config)) {
+    applyCORSHeaders(response, request)
+  }
+
+  // Add request ID for tracing
+  response.headers.set('X-Request-ID', generateRequestId())
+
+  // Add response time header
+  response.headers.set('X-Response-Time', Date.now().toString())
+}
+
 /**
  * Enhanced security middleware factory
  */
@@ -41,61 +107,30 @@ export function createSecurityMiddleware(config: Partial<MiddlewareConfig> = {})
 
   return async function securityMiddleware(request: NextRequest) {
     const { pathname } = request.nextUrl
-    const response = NextResponse.next()
 
     // Early return for static assets
     if (shouldSkipMiddleware(pathname, finalConfig)) {
-      return response
+      return NextResponse.next()
     }
 
-    // Generate nonce for CSP
+    // Generate nonce and create enhanced response
     const nonce = generateNonce()
+    const enhancedResponse = createEnhancedResponse(request, nonce)
 
-    // Clone request headers and add nonce
-    const requestHeaders = new Headers(request.headers)
-    requestHeaders.set('x-nonce', nonce)
-
-    // Create enhanced response with updated headers
-    const enhancedResponse = NextResponse.next({
-      request: {
-        headers: requestHeaders,
-      },
-    })
-
-    // Apply rate limiting if enabled
-    if (finalConfig.enableRateLimit) {
-      const rateLimitResponse = await enhancedRateLimitMiddleware(request)
-      if (rateLimitResponse.status === 429) {
-        return rateLimitResponse
-      }
-
-      // Merge rate limit headers
-      mergeHeaders(enhancedResponse, rateLimitResponse)
+    // Apply rate limiting
+    const rateLimitResult = await applyRateLimiting(request, enhancedResponse, finalConfig)
+    if (rateLimitResult) {
+      return rateLimitResult
     }
 
-    // Apply authentication if enabled
-    if (finalConfig.enableAuth) {
-      const authResponse = await handleAuthentication(request, finalConfig)
-      if (authResponse) {
-        return authResponse
-      }
+    // Apply authentication
+    const authResult = await applyAuthentication(request, finalConfig)
+    if (authResult) {
+      return authResult
     }
 
-    // Apply security headers if enabled
-    if (finalConfig.enableCSP) {
-      applySecurityHeaders(enhancedResponse, nonce)
-    }
-
-    // Apply CORS headers for API routes if enabled
-    if (finalConfig.enableCORS && isApiRoute(pathname, finalConfig)) {
-      applyCORSHeaders(enhancedResponse, request)
-    }
-
-    // Add request ID for tracing
-    enhancedResponse.headers.set('X-Request-ID', generateRequestId())
-
-    // Add response time header
-    enhancedResponse.headers.set('X-Response-Time', Date.now().toString())
+    // Apply security features
+    applySecurityFeatures(enhancedResponse, request, pathname, nonce, finalConfig)
 
     return enhancedResponse
   }
@@ -159,8 +194,10 @@ async function handleAuthentication(
 
     // Token is valid, continue
     return null
-  } catch (_error) {
+  } catch (error) {
     if (isDevelopment()) {
+      // Would log authentication error in development - console removed by linter
+      void error
     }
     return createUnauthorizedResponse('Authentication failed')
   }
@@ -249,7 +286,7 @@ export interface SecurityEvent {
   type: 'auth_failure' | 'rate_limit' | 'csp_violation' | 'cors_violation' | 'suspicious_request'
   severity: 'low' | 'medium' | 'high' | 'critical'
   message: string
-  metadata: Record<string, any>
+  metadata: Record<string, unknown>
   timestamp: string
   requestId: string
   userAgent?: string
@@ -260,8 +297,10 @@ export interface SecurityEvent {
 /**
  * Log security events (placeholder for external service integration)
  */
-export function logSecurityEvent(_event: SecurityEvent): void {
+export function logSecurityEvent(event: SecurityEvent): void {
   if (isDevelopment()) {
+    // Would log security event in development - console removed by linter
+    void event
   }
 
   // In production, this would send to your security monitoring service
@@ -284,7 +323,7 @@ export function createSecurityEvent(
   severity: SecurityEvent['severity'],
   message: string,
   request: NextRequest,
-  metadata: Record<string, any> = {}
+  metadata: Record<string, unknown> = {}
 ): SecurityEvent {
   return {
     type,
@@ -468,8 +507,10 @@ export async function enhancedEdgeMiddleware(
 
     // Return response for blocked/rate-limited requests
     return response || undefined
-  } catch (_error) {
+  } catch (error) {
     if (isDevelopment()) {
+      // Would log security middleware error in development - console removed by linter
+      void error
     }
     return undefined
   }

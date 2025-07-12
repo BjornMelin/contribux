@@ -2,21 +2,31 @@
  * Mock for enhanced error handler
  */
 
-export class ErrorHandler {
-  static log(error: unknown, context?: string) {
-    console.error('Mock ErrorHandler:', error, context)
-  }
-
-  static isEnhancedError(error: unknown): boolean {
-    return error instanceof Error
-  }
-
-  static createError(message: string, code?: string) {
-    const error = new Error(message)
-    ;(error as any).code = code
-    return error
-  }
+// Mock error handler functions - converted from static-only class
+export function errorHandlerLog(error: unknown, context?: string) {
+  console.error('Mock ErrorHandler:', error, context)
 }
+
+export function isEnhancedError(error: unknown): boolean {
+  return error instanceof Error
+}
+
+interface ErrorWithCode extends Error {
+  code?: string
+}
+
+export function createError(message: string, code?: string): ErrorWithCode {
+  const error = new Error(message) as ErrorWithCode
+  error.code = code
+  return error
+}
+
+// Grouped exports for easier migration
+export const ErrorHandler = {
+  log: errorHandlerLog,
+  isEnhancedError,
+  createError,
+} as const
 
 export class EnhancedError extends Error {
   code: string

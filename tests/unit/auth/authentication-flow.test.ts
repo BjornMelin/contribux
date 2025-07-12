@@ -119,7 +119,7 @@ describe('Authentication Flow Tests', () => {
 
     it('should validate valid JWT token', async () => {
       const token = 'valid.jwt.token'
-      vi.mocked(jwt.verify).mockReturnValueOnce(mockPayload as any)
+      vi.mocked(jwt.verify).mockReturnValueOnce(mockPayload as jwt.JwtPayload)
 
       const result = await validateJWT(token)
 
@@ -133,7 +133,7 @@ describe('Authentication Flow Tests', () => {
         ...mockPayload,
         exp: Math.floor(Date.now() / 1000) - 1000,
       }
-      vi.mocked(jwt.verify).mockReturnValueOnce(expiredPayload as any)
+      vi.mocked(jwt.verify).mockReturnValueOnce(expiredPayload as jwt.JwtPayload)
 
       const result = await validateJWT('expired.jwt.token')
 
@@ -185,7 +185,7 @@ describe('Authentication Flow Tests', () => {
       vi.mocked(jwt.verify).mockReturnValueOnce({
         sub: 'user-123',
         type: 'refresh',
-      } as any)
+      } as jwt.JwtPayload)
 
       // Mock API call for token refresh
       global.fetch = vi.fn().mockResolvedValueOnce({
@@ -211,7 +211,7 @@ describe('Authentication Flow Tests', () => {
     })
 
     it('should handle refresh API errors', async () => {
-      vi.mocked(jwt.verify).mockReturnValueOnce({ sub: 'user-123' } as any)
+      vi.mocked(jwt.verify).mockReturnValueOnce({ sub: 'user-123' } as jwt.JwtPayload)
 
       global.fetch = vi.fn().mockResolvedValueOnce({
         ok: false,
@@ -256,7 +256,7 @@ describe('Authentication Flow Tests', () => {
         cookies: {
           get: vi.fn().mockReturnValue({ value: 'expected-state' }),
         },
-      } as any
+      } as { url: string; cookies: { get: vi.Mock } }
 
       const result = await handleOAuthCallback(mockRequest, 'github')
 

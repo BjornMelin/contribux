@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { oauthConfig } from '@/lib/config/oauth'
 import { sql } from '@/lib/db/config'
+import { getSecureRandomFloat } from '@/lib/security/crypto-secure'
 import { env } from '@/lib/validation/env'
 import type { OAuthCallbackParams, OAuthTokens, User } from '@/types/auth'
 import { brandAsEmail, brandAsGitHubUsername, brandAsUUID } from '@/types/base'
@@ -612,7 +613,7 @@ function validateFingerprint(stateData: OAuthStateData, clientFingerprint: strin
 async function applyTimingProtection(startTime: number): Promise<void> {
   const elapsedTime = Date.now() - startTime
   const minResponseTime = oauthConfig.security.timingAttackProtection.minResponseTime
-  const jitter = Math.random() * oauthConfig.security.timingAttackProtection.maxJitter
+  const jitter = getSecureRandomFloat() * oauthConfig.security.timingAttackProtection.maxJitter
 
   if (elapsedTime < minResponseTime) {
     await new Promise(resolve => setTimeout(resolve, minResponseTime - elapsedTime + jitter))

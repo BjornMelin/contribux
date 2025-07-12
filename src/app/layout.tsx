@@ -3,7 +3,30 @@ import { Inter } from 'next/font/google'
 import { headers } from 'next/headers'
 import type { ReactNode } from 'react'
 import './globals.css'
-import { Navigation } from '@/components/layout/navigation'
+// Lazy load navigation for better initial bundle size
+import dynamic from 'next/dynamic'
+
+const Navigation = dynamic(
+  () => import('@/components/layout/navigation').then(mod => ({ default: mod.Navigation })),
+  {
+    loading: () => (
+      <nav className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-lg">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex h-16 items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <div className="h-9 w-9 animate-pulse rounded-full bg-muted" />
+              <div className="h-6 w-20 animate-pulse rounded bg-muted" />
+            </div>
+            <div className="flex items-center space-x-3">
+              <div className="h-8 w-20 animate-pulse rounded bg-muted" />
+            </div>
+          </div>
+        </div>
+      </nav>
+    ),
+  }
+)
+
 import { AppProviders } from '@/components/providers/app-providers'
 
 const inter = Inter({

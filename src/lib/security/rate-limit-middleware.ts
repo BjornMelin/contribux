@@ -88,7 +88,7 @@ export async function rateLimitMiddleware(req: NextRequest) {
   const path = req.nextUrl.pathname
 
   // Use the enhanced rate limiting system
-  const { limiter, config, type } = getRateLimiterForEndpoint(path)
+  const { limiter, config } = getRateLimiterForEndpoint(path)
 
   // Get identifier from request
   const identifier = getEnhancedRequestIdentifier(req)
@@ -191,7 +191,7 @@ export async function checkApiRateLimit(
  * Comprehensive rate limiting wrapper for API routes
  * Automatically handles rate limiting and returns appropriate responses
  */
-export function withRateLimit<T extends any[]>(
+export function withRateLimit<T extends unknown[]>(
   handler: (req: NextRequest, ...args: T) => Promise<Response>,
   options: {
     limiterType?:
@@ -219,7 +219,7 @@ export function withRateLimit<T extends any[]>(
     const endpoint = options.limiterType
       ? getLimiterEndpoint(options.limiterType)
       : req.nextUrl.pathname
-    const { limiter, config, type } = getRateLimiterForEndpoint(endpoint)
+    const { limiter, config } = getRateLimiterForEndpoint(endpoint)
 
     // Get identifier (custom or default)
     const identifier = options.customIdentifier?.(req) || getEnhancedRequestIdentifier(req)

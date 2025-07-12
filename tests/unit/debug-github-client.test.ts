@@ -7,8 +7,8 @@ import { GitHubClient } from '@/lib/github/client'
 
 describe('GitHubClient Debug', () => {
   it('should create a GitHubClient instance', () => {
-    let client: any
-    let error: any
+    let client: GitHubClient | undefined
+    let error: Error | unknown
 
     try {
       client = new GitHubClient({ accessToken: 'test-token' })

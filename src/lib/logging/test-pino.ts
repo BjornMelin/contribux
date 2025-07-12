@@ -69,4 +69,10 @@ async function testPinoLogging() {
 }
 
 // Run the test
-testPinoLogging().catch(console.error)
+testPinoLogging().catch(error => {
+  logger.error('Test execution failed', error, {
+    component: 'test-runner',
+    operation: 'test-execution',
+  })
+  process.exit(1)
+})

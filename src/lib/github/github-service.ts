@@ -3,11 +3,273 @@
  * Provides higher-level functions for common GitHub operations
  */
 
+import type { RestEndpointMethodTypes } from '@octokit/rest'
 import { Octokit } from '@octokit/rest'
-
+import {
+  extractErrorMessage,
+  isForbiddenError,
+  isNetworkError,
+  isNotFoundError,
+  isRateLimitError,
+  isServerError,
+  isUnauthorizedError,
+  isValidGitHubRepository,
+  isValidGitHubSearchResponse,
+  isValidGitHubUser,
+} from '../utils'
 import type { GitHubUser as BaseGitHubUser, GitHubRepository } from './client'
 
+// Correct Octokit types from response types
+type Contributor = RestEndpointMethodTypes['repos']['listContributors']['response']['data'][0]
+type RepositorySearchItem =
+  RestEndpointMethodTypes['search']['repos']['response']['data']['items'][0]
+type RepositoryItem = RestEndpointMethodTypes['repos']['get']['response']['data']
+type UserFollower = RestEndpointMethodTypes['users']['listFollowersForUser']['response']['data'][0]
+type UserProfile = RestEndpointMethodTypes['users']['getByUsername']['response']['data']
+type ReposListLanguagesResponseData =
+  RestEndpointMethodTypes['repos']['listLanguages']['response']['data']
+
 // Extended GitHubUser with additional properties needed for the service
+// GitHub API Types - Using proper Octokit types instead of 'any'
+// Using Octokit's response types
+
+// Query Building Utilities
+interface SearchQueryOptions {
+  query: string
+  language?: string
+  minStars?: number
+  maxStars?: number
+  hasIssues?: boolean
+  isTemplate?: boolean
+  license?: string
+}
+
+/**
+ * Builds a GitHub search query string from options
+ * Extracted from searchRepositories to reduce complexity
+ */
+function _buildSearchQuery(options: SearchQueryOptions): string {
+  let searchQuery = options.query
+
+  if (options.language) {
+    searchQuery += ` language:${options.language}`
+  }
+
+  if (options.minStars !== undefined) {
+    searchQuery += ` stars:>=${options.minStars}`
+  }
+
+  if (options.maxStars !== undefined) {
+    searchQuery += ` stars:<=${options.maxStars}`
+  }
+
+  if (options.hasIssues) {
+    searchQuery += ' has:issues'
+  }
+
+  if (options.isTemplate === false) {
+    searchQuery += ' is:public'
+  }
+
+  if (options.license) {
+    searchQuery += ` license:${options.license}`
+  }
+
+  return searchQuery
+}
+
+// Data Transformation Utilities
+/**
+ * Repository field mapping configuration
+ * Eliminates repetitive manual mapping and type assertions
+ */
+const REPOSITORY_FIELD_MAPPINGS = {
+  extractOptionalString: (item: Record<string, unknown>, field: string): string | null =>
+    (item[field] as string) || null,
+  extractOptionalNumber: (item: Record<string, unknown>, field: string): number =>
+    (item[field] as number) || 0,
+  extractOptionalArray: (item: Record<string, unknown>, field: string): string[] =>
+    (item[field] as string[]) || [],
+  extractLicenseKey: (item: Record<string, unknown>): string | null => {
+    const license = item.license as { key?: string } | null | undefined
+    return license?.key || null
+  },
+} as const
+
+/**
+ * Transforms GitHub API repository response to our ExtendedGitHubRepository format
+ * Extracted from searchRepositories to reduce complexity and eliminate 'any' assertions
+ */
+function _transformRepositoryItem(item: RepositorySearchItem): ExtendedGitHubRepository {
+  return {
+    id: item.id,
+    name: item.name,
+    full_name: item.full_name,
+    description: item.description,
+    homepage: REPOSITORY_FIELD_MAPPINGS.extractOptionalString(item, 'homepage'),
+    stars: item.stargazers_count,
+    watchers: REPOSITORY_FIELD_MAPPINGS.extractOptionalNumber(item, 'watchers_count'),
+    openIssues: REPOSITORY_FIELD_MAPPINGS.extractOptionalNumber(item, 'open_issues_count'),
+    language: REPOSITORY_FIELD_MAPPINGS.extractOptionalString(item, 'language'),
+    pushedAt: REPOSITORY_FIELD_MAPPINGS.extractOptionalString(item, 'pushed_at'),
+    size: REPOSITORY_FIELD_MAPPINGS.extractOptionalNumber(item, 'size'),
+    topics: REPOSITORY_FIELD_MAPPINGS.extractOptionalArray(item, 'topics'),
+    license: REPOSITORY_FIELD_MAPPINGS.extractLicenseKey(item),
+    owner: {
+      login: item.owner?.login || '',
+      id: item.owner?.id || 0,
+      avatar_url: item.owner?.avatar_url || '',
+      html_url: item.owner?.html_url || '',
+      type: item.owner?.type || '',
+      site_admin: item.owner?.site_admin || false,
+    },
+    private: item.private,
+    fork: item.fork,
+    html_url: item.html_url,
+    created_at: item.created_at,
+    updated_at: item.updated_at,
+    stargazers_count: item.stargazers_count,
+    forks_count: item.forks_count,
+    default_branch: item.default_branch,
+  }
+}
+
+/**
+ * Transforms GitHub API get repository response to our ExtendedGitHubRepository format
+ * Separate from search transformation since get API has different structure
+ */
+function _transformRepositoryDetails(item: RepositoryItem): ExtendedGitHubRepository {
+  return {
+    id: item.id,
+    name: item.name,
+    full_name: item.full_name,
+    description: item.description,
+    homepage: item.homepage,
+    stars: item.stargazers_count,
+    watchers: item.watchers_count,
+    openIssues: item.open_issues_count,
+    language: item.language,
+    pushedAt: item.pushed_at,
+    size: item.size,
+    topics: item.topics || [],
+    license: item.license?.key || null,
+    owner: {
+      login: item.owner?.login || '',
+      id: item.owner?.id || 0,
+      avatar_url: item.owner?.avatar_url || '',
+      html_url: item.owner?.html_url || '',
+      type: item.owner?.type || '',
+      site_admin: item.owner?.site_admin || false,
+    },
+    private: item.private,
+    fork: item.fork,
+    html_url: item.html_url,
+    created_at: item.created_at,
+    updated_at: item.updated_at,
+    stargazers_count: item.stargazers_count,
+    forks_count: item.forks_count,
+    default_branch: item.default_branch,
+  }
+}
+
+/**
+ * Transforms GitHub API user response to our GitHubUser format
+ * Extracted from getUserFollowers to reduce complexity
+ */
+function _transformUserItem(follower: UserFollower | UserProfile): GitHubUser {
+  return {
+    login: follower.login,
+    id: follower.id,
+    avatar_url: follower.avatar_url,
+    html_url: follower.html_url,
+    type: follower.type,
+    site_admin: follower.site_admin,
+    name: 'name' in follower ? follower.name : null,
+    company: 'company' in follower ? follower.company : null,
+    blog: 'blog' in follower ? follower.blog : null,
+    location: 'location' in follower ? follower.location : null,
+    email: 'email' in follower ? follower.email : null,
+    bio: 'bio' in follower ? follower.bio : null,
+    publicRepos: 'public_repos' in follower ? follower.public_repos : undefined,
+    followers: 'followers' in follower ? follower.followers : undefined,
+    following: 'following' in follower ? follower.following : undefined,
+    createdAt: 'created_at' in follower ? follower.created_at : undefined,
+  }
+}
+
+/**
+ * Calculates language percentages from GitHub API response
+ * Extracted from getRepositoryLanguages to reduce complexity
+ */
+function _calculateLanguagePercentages(
+  languages: ReposListLanguagesResponseData
+): Array<{ name: string; percentage: number }> {
+  const total = Object.values(languages).reduce((sum: number, bytes) => {
+    const bytesNumber = typeof bytes === 'number' ? bytes : 0
+    return sum + bytesNumber
+  }, 0)
+
+  if (total === 0) {
+    return []
+  }
+
+  return Object.entries(languages)
+    .map(([name, bytes]) => {
+      const bytesNumber = typeof bytes === 'number' ? bytes : 0
+      return {
+        name,
+        percentage: Math.round((bytesNumber / total) * 100),
+      }
+    })
+    .sort((a, b) => b.percentage - a.percentage)
+}
+
+// Error Handling Utilities
+/**
+ * Standardized GitHub API error handler
+ * Eliminates repetitive error handling code across all functions
+ */
+/**
+ * Transforms GitHub API contributor response to our format
+ * Extracted from getRepositoryContributors to reduce complexity
+ */
+function _transformContributorItem(contributor: Contributor): {
+  login: string
+  avatar_url: string
+  contributions: number
+} {
+  return {
+    login: contributor?.login || 'anonymous',
+    avatar_url: contributor?.avatar_url || '',
+    contributions: contributor?.contributions || 0,
+  }
+}
+
+function _handleGitHubError(error: unknown, operation: string): never {
+  if (isRateLimitError(error)) {
+    throw new Error('GitHub API rate limit exceeded')
+  }
+  if (isUnauthorizedError(error)) {
+    throw new Error('GitHub API authentication failed')
+  }
+  if (isForbiddenError(error)) {
+    throw new Error('GitHub API access forbidden')
+  }
+  if (isNotFoundError?.(error)) {
+    throw new Error('Resource not found')
+  }
+  if (isServerError(error)) {
+    throw new Error('GitHub API server error')
+  }
+  if (isNetworkError(error)) {
+    throw new Error('Network error connecting to GitHub API')
+  }
+
+  // For other errors, extract the message safely
+  const errorMessage = extractErrorMessage(error)
+  throw new Error(`${operation} failed: ${errorMessage}`)
+}
+
 export interface GitHubUser extends BaseGitHubUser {
   name?: string | null
   company?: string | null
@@ -31,20 +293,6 @@ export interface ExtendedGitHubRepository extends GitHubRepository {
   stars?: number
   license?: string | null
 }
-
-import {
-  extractErrorMessage,
-  isForbiddenError,
-  isNetworkError,
-  isNotFoundError,
-  isRateLimitError,
-  isServerError,
-  isUnauthorizedError,
-  isValidGitHubContributor,
-  isValidGitHubRepository,
-  isValidGitHubSearchResponse,
-  isValidGitHubUser,
-} from '../utils'
 
 export interface SearchRepositoriesOptions {
   query: string
@@ -97,49 +345,10 @@ export class GitHubService {
         throw new Error('Invalid response from GitHub API')
       }
 
-      const languages = response.data
-      const total = Object.values(languages).reduce((sum, bytes) => {
-        const bytesNumber = typeof bytes === 'number' ? bytes : 0
-        return sum + bytesNumber
-      }, 0)
-
-      if (total === 0) {
-        return []
-      }
-
-      return Object.entries(languages)
-        .map(([name, bytes]) => {
-          const bytesNumber = typeof bytes === 'number' ? bytes : 0
-          return {
-            name,
-            percentage: Math.round((bytesNumber / total) * 100),
-          }
-        })
-        .sort((a, b) => b.percentage - a.percentage)
+      // Calculate percentages using extracted helper
+      return _calculateLanguagePercentages(response.data)
     } catch (error: unknown) {
-      // Use proper type guards for error handling
-      if (isNotFoundError(error)) {
-        throw new Error('Repository not found')
-      }
-      if (isUnauthorizedError(error)) {
-        throw new Error('GitHub API authentication failed')
-      }
-      if (isForbiddenError(error)) {
-        throw new Error('GitHub API access forbidden')
-      }
-      if (isRateLimitError(error)) {
-        throw new Error('GitHub API rate limit exceeded')
-      }
-      if (isServerError(error)) {
-        throw new Error('GitHub API server error')
-      }
-      if (isNetworkError(error)) {
-        throw new Error('Network error connecting to GitHub API')
-      }
-
-      // For other errors, extract the message safely
-      const errorMessage = extractErrorMessage(error)
-      throw new Error(`Failed to get repository languages: ${errorMessage}`)
+      _handleGitHubError(error, 'Failed to get repository languages')
     }
   }
 
@@ -157,59 +366,10 @@ export class GitHubService {
         throw new Error('Invalid response from GitHub API')
       }
 
-      // Validate and transform followers with proper type checking
-      const validatedFollowers: GitHubUser[] = []
-
-      for (const follower of response.data) {
-        if (isValidGitHubUser(follower)) {
-          const transformedUser: GitHubUser = {
-            login: follower.login,
-            id: follower.id,
-            avatar_url: follower.avatar_url,
-            html_url: follower.html_url,
-            type: follower.type,
-            site_admin: follower.site_admin,
-            name: follower.name,
-            company: follower.company,
-            blog: follower.blog,
-            location: follower.location,
-            email: follower.email,
-            bio: follower.bio,
-            publicRepos: follower.public_repos,
-            followers: follower.followers,
-            following: follower.following,
-            createdAt: follower.created_at,
-          }
-          validatedFollowers.push(transformedUser)
-        } else {
-        }
-      }
-
-      return validatedFollowers
+      // Transform followers using extracted helper
+      return response.data.filter(isValidGitHubUser).map(_transformUserItem)
     } catch (error: unknown) {
-      // Use proper type guards for error handling
-      if (isNotFoundError(error)) {
-        throw new Error('User not found')
-      }
-      if (isUnauthorizedError(error)) {
-        throw new Error('GitHub API authentication failed')
-      }
-      if (isForbiddenError(error)) {
-        throw new Error('GitHub API access forbidden')
-      }
-      if (isRateLimitError(error)) {
-        throw new Error('GitHub API rate limit exceeded')
-      }
-      if (isServerError(error)) {
-        throw new Error('GitHub API server error')
-      }
-      if (isNetworkError(error)) {
-        throw new Error('Network error connecting to GitHub API')
-      }
-
-      // For other errors, extract the message safely
-      const errorMessage = extractErrorMessage(error)
-      throw new Error(`Failed to get user followers: ${errorMessage}`)
+      _handleGitHubError(error, 'Failed to get user followers')
     }
   }
 }
@@ -288,32 +448,8 @@ export async function searchRepositories(
 ): Promise<SearchRepositoriesResult> {
   const octokit = octokitInstance || createOctokit()
 
-  // Build search query
-  let searchQuery = options.query
-
-  if (options.language) {
-    searchQuery += ` language:${options.language}`
-  }
-
-  if (options.minStars !== undefined) {
-    searchQuery += ` stars:>=${options.minStars}`
-  }
-
-  if (options.maxStars !== undefined) {
-    searchQuery += ` stars:<=${options.maxStars}`
-  }
-
-  if (options.hasIssues) {
-    searchQuery += ' has:issues'
-  }
-
-  if (options.isTemplate === false) {
-    searchQuery += ' is:public'
-  }
-
-  if (options.license) {
-    searchQuery += ` license:${options.license}`
-  }
+  // Build search query using extracted helper
+  const searchQuery = _buildSearchQuery(options)
 
   try {
     const response = await octokit.search.repos({
@@ -329,6 +465,7 @@ export async function searchRepositories(
       response.headers &&
       (response.headers.sunset || response.headers['x-github-api-version-selected'])
     ) {
+      // Log warning but continue processing
     }
 
     // Validate response structure with type guard
@@ -336,46 +473,10 @@ export async function searchRepositories(
       throw new Error('Invalid response structure from GitHub search API')
     }
 
-    // Validate and transform repository items with proper type checking
-    const validatedItems: ExtendedGitHubRepository[] = []
-    for (const item of response.data.items) {
-      if (isValidGitHubRepository(item)) {
-        // Transform GitHub API response to our format with proper typing
-        const transformedRepo: ExtendedGitHubRepository = {
-          id: item.id,
-          name: item.name,
-          full_name: item.full_name,
-          description: item.description,
-          homepage: (item as any).homepage || null,
-          stars: item.stargazers_count,
-          watchers: (item as any).watchers_count || 0,
-          openIssues: (item as any).open_issues_count || 0,
-          language: (item as any).language || null,
-          pushedAt: (item as any).pushed_at || null,
-          size: (item as any).size || 0,
-          topics: (item as any).topics || [],
-          license: (item as any).license?.key || null,
-          owner: {
-            login: item.owner.login,
-            id: item.owner.id,
-            avatar_url: item.owner.avatar_url,
-            html_url: item.owner.html_url,
-            type: item.owner.type,
-            site_admin: item.owner.site_admin,
-          },
-          private: item.private,
-          fork: item.fork,
-          html_url: item.html_url,
-          created_at: item.created_at,
-          updated_at: item.updated_at,
-          stargazers_count: item.stargazers_count,
-          forks_count: item.forks_count,
-          default_branch: item.default_branch,
-        }
-        validatedItems.push(transformedRepo)
-      } else {
-      }
-    }
+    // Transform repository items using extracted helper
+    const validatedItems: ExtendedGitHubRepository[] = response.data.items
+      .filter(isValidGitHubRepository)
+      .map(_transformRepositoryItem)
 
     return {
       items: validatedItems,
@@ -383,26 +484,7 @@ export async function searchRepositories(
       incompleteResults: response.data.incomplete_results,
     }
   } catch (error: unknown) {
-    // Use proper type guards for error handling
-    if (isRateLimitError(error)) {
-      throw new Error('GitHub API rate limit exceeded')
-    }
-    if (isUnauthorizedError(error)) {
-      throw new Error('GitHub API authentication failed')
-    }
-    if (isForbiddenError(error)) {
-      throw new Error('GitHub API access forbidden')
-    }
-    if (isServerError(error)) {
-      throw new Error('GitHub API server error')
-    }
-    if (isNetworkError(error)) {
-      throw new Error('Network error connecting to GitHub API')
-    }
-
-    // For other errors, extract the message safely
-    const errorMessage = extractErrorMessage(error)
-    throw new Error(`GitHub repository search failed: ${errorMessage}`)
+    return _handleGitHubError(error, 'GitHub repository search')
   }
 }
 
@@ -428,65 +510,10 @@ export async function getRepositoryDetails(
       throw new Error('Invalid repository data structure from GitHub API')
     }
 
-    // Transform GitHub API response to our format with validated data
-    const repoData = response.data
-    const transformedRepo: ExtendedGitHubRepository = {
-      id: repoData.id,
-      name: repoData.name,
-      full_name: repoData.full_name,
-      description: repoData.description,
-      homepage: (repoData as any).homepage || null,
-      stars: repoData.stargazers_count,
-      watchers: (repoData as any).watchers_count || 0,
-      openIssues: (repoData as any).open_issues_count || 0,
-      language: (repoData as any).language || null,
-      pushedAt: (repoData as any).pushed_at || null,
-      size: (repoData as any).size || 0,
-      topics: (repoData as any).topics || [],
-      license: (repoData as any).license?.key || null,
-      owner: {
-        login: repoData.owner.login,
-        id: repoData.owner.id,
-        avatar_url: repoData.owner.avatar_url,
-        html_url: repoData.owner.html_url,
-        type: repoData.owner.type,
-        site_admin: repoData.owner.site_admin,
-      },
-      private: repoData.private,
-      fork: repoData.fork,
-      html_url: repoData.html_url,
-      created_at: repoData.created_at,
-      updated_at: repoData.updated_at,
-      stargazers_count: repoData.stargazers_count,
-      forks_count: repoData.forks_count,
-      default_branch: repoData.default_branch,
-    }
-
-    return transformedRepo
+    // Transform GitHub API response to our format using helper
+    return _transformRepositoryDetails(response.data)
   } catch (error: unknown) {
-    // Use proper type guards for error handling
-    if (isNotFoundError(error)) {
-      throw new Error('Repository not found')
-    }
-    if (isUnauthorizedError(error)) {
-      throw new Error('GitHub API authentication failed')
-    }
-    if (isForbiddenError(error)) {
-      throw new Error('GitHub API access forbidden')
-    }
-    if (isRateLimitError(error)) {
-      throw new Error('GitHub API rate limit exceeded')
-    }
-    if (isServerError(error)) {
-      throw new Error('GitHub API server error')
-    }
-    if (isNetworkError(error)) {
-      throw new Error('Network error connecting to GitHub API')
-    }
-
-    // For other errors, extract the message safely
-    const errorMessage = extractErrorMessage(error)
-    throw new Error(`Failed to get repository details: ${errorMessage}`)
+    _handleGitHubError(error, 'Failed to get repository details')
   }
 }
 
@@ -510,50 +537,10 @@ export async function getUserProfile(
       throw new Error('Invalid user data structure from GitHub API')
     }
 
-    const userData = response.data
-    const extendedUser: GitHubUser = {
-      login: userData.login,
-      id: userData.id,
-      avatar_url: userData.avatar_url,
-      html_url: userData.html_url,
-      type: userData.type,
-      site_admin: userData.site_admin,
-      name: userData.name,
-      company: userData.company,
-      blog: userData.blog,
-      location: userData.location,
-      email: userData.email,
-      bio: userData.bio,
-      publicRepos: userData.public_repos,
-      followers: userData.followers,
-      following: userData.following,
-      createdAt: userData.created_at,
-    }
-    return extendedUser
+    // Transform user data using extracted helper
+    return _transformUserItem(response.data)
   } catch (error: unknown) {
-    // Use proper type guards for error handling
-    if (isNotFoundError(error)) {
-      throw new Error('User not found')
-    }
-    if (isUnauthorizedError(error)) {
-      throw new Error('GitHub API authentication failed')
-    }
-    if (isForbiddenError(error)) {
-      throw new Error('GitHub API access forbidden')
-    }
-    if (isRateLimitError(error)) {
-      throw new Error('GitHub API rate limit exceeded')
-    }
-    if (isServerError(error)) {
-      throw new Error('GitHub API server error')
-    }
-    if (isNetworkError(error)) {
-      throw new Error('Network error connecting to GitHub API')
-    }
-
-    // For other errors, extract the message safely
-    const errorMessage = extractErrorMessage(error)
-    throw new Error(`Failed to get user profile: ${errorMessage}`)
+    _handleGitHubError(error, 'Failed to get user profile')
   }
 }
 
@@ -575,55 +562,10 @@ export async function getRepositoryContributors(
       throw new Error('Invalid response from GitHub API')
     }
 
-    // Validate and transform contributors with proper type checking
-    const validatedContributors: Array<{
-      login: string
-      avatar_url: string
-      contributions: number
-    }> = []
-
-    for (const contributor of response.data) {
-      if (isValidGitHubContributor(contributor)) {
-        validatedContributors.push({
-          login: contributor.login,
-          avatar_url: contributor.avatar_url,
-          contributions: contributor.contributions,
-        })
-      } else {
-        // For invalid contributors, provide safe defaults
-        validatedContributors.push({
-          login: (contributor as any)?.login || 'anonymous',
-          avatar_url: (contributor as any)?.avatar_url || '',
-          contributions: (contributor as any)?.contributions || 0,
-        })
-      }
-    }
-
-    return validatedContributors
+    // Transform contributors using extracted helper
+    return response.data.map(_transformContributorItem)
   } catch (error: unknown) {
-    // Use proper type guards for error handling
-    if (isNotFoundError(error)) {
-      throw new Error('Repository not found')
-    }
-    if (isUnauthorizedError(error)) {
-      throw new Error('GitHub API authentication failed')
-    }
-    if (isForbiddenError(error)) {
-      throw new Error('GitHub API access forbidden')
-    }
-    if (isRateLimitError(error)) {
-      throw new Error('GitHub API rate limit exceeded')
-    }
-    if (isServerError(error)) {
-      throw new Error('GitHub API server error')
-    }
-    if (isNetworkError(error)) {
-      throw new Error('Network error connecting to GitHub API')
-    }
-
-    // For other errors, extract the message safely
-    const errorMessage = extractErrorMessage(error)
-    throw new Error(`Failed to get repository contributors: ${errorMessage}`)
+    _handleGitHubError(error, 'Failed to get repository contributors')
   }
 }
 

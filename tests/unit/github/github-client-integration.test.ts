@@ -132,10 +132,10 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('GitHub Client - Real API Integration', 
 
     it('should search repositories with realistic patterns', async () => {
       const results = await client.searchRepositories({
-        q: 'language:typescript stars:>1000',
+        query: '$1',
         sort: 'stars',
         order: 'desc',
-        per_page: 5,
+        perPage: $1,
       })
 
       expect(results).toBeDefined()
@@ -147,14 +147,14 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('GitHub Client - Real API Integration', 
     it('should handle pagination in real usage', async () => {
       // Test pagination by requesting multiple pages
       const page1 = await client.searchRepositories({
-        q: 'language:javascript',
-        per_page: 10,
+        query: '$1',
+        perPage: $1,
         page: 1,
       })
 
       const page2 = await client.searchRepositories({
-        q: 'language:javascript',
-        per_page: 10,
+        query: '$1',
+        perPage: $1,
         page: 2,
       })
 
@@ -307,7 +307,7 @@ describe.sequential('Authentication Integration Flows', () => {
       expect(user.login).toBe('testuser')
 
       // Repository access should fail due to limited scope
-      await expect(client.listIssues('test', 'test', { per_page: 5 })).rejects.toThrow(GitHubError)
+      await expect(client.listIssues('test', 'test', { perPage: $1 })).rejects.toThrow(GitHubError)
     })
 
     // Property-based testing for token validation
@@ -373,7 +373,7 @@ describe.sequential('Authentication Integration Flows', () => {
       expect(user1.login).toBe('testuser')
 
       // Second request to different endpoint
-      const repos = await client.listIssues('testuser', 'test-repo', { per_page: 5 })
+      const repos = await client.listIssues('testuser', 'test-repo', { perPage: $1 })
       expect(repos).toHaveLength(2)
 
       // Third request (same as first)
@@ -444,7 +444,7 @@ describe.sequential('Authentication Integration Flows', () => {
       expect(user1.login).toBe('testuser')
 
       // Second request (different endpoint)
-      const repos = await client.listIssues('testuser', 'test-repo', { per_page: 5 })
+      const repos = await client.listIssues('testuser', 'test-repo', { perPage: $1 })
       expect(repos).toHaveLength(2)
 
       // Third request (same as first)
@@ -746,11 +746,11 @@ describe('Modern API Integration Patterns', () => {
       })
 
       const searchOptions = {
-        q: 'test',
+        query: '$1',
         sort: 'stars',
         order: 'desc' as const,
         page: 1,
-        per_page: 10,
+        perPage: $1,
       }
 
       const result = await client.searchRepositories(searchOptions)
@@ -769,15 +769,15 @@ describe('Modern API Integration Patterns', () => {
 
       // Page 1
       const page1 = await client.searchRepositories({
-        q: 'javascript',
-        per_page: 5,
+        query: '$1',
+        perPage: $1,
         page: 1,
       })
 
       // Page 2
       const page2 = await client.searchRepositories({
-        q: 'javascript',
-        per_page: 5,
+        query: '$1',
+        perPage: $1,
         page: 2,
       })
 

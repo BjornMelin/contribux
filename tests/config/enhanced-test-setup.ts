@@ -119,12 +119,13 @@ export class TestEnvironmentManager {
   private setupBrowserAPIs(): void {
     // Mock fetch if not available
     if (typeof globalThis.fetch === 'undefined') {
-      globalThis.fetch = vi.fn().mockResolvedValue({
+      const mockResponse: Partial<Response> = {
         ok: true,
         status: 200,
         json: vi.fn().mockResolvedValue({}),
         text: vi.fn().mockResolvedValue(''),
-      }) as any
+      }
+      globalThis.fetch = vi.fn().mockResolvedValue(mockResponse)
     }
 
     // Mock TransformStream for MSW compatibility
@@ -132,7 +133,7 @@ export class TestEnvironmentManager {
       globalThis.TransformStream = class MockTransformStream {
         readable = new ReadableStream()
         writable = new WritableStream()
-      } as any
+      } as unknown as typeof TransformStream
     }
 
     // Mock navigator

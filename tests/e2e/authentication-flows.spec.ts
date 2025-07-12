@@ -475,9 +475,12 @@ test.describe('Authentication E2E Flows', () => {
     test('should handle biometric prompt', async ({ page }) => {
       // Mock biometric availability
       await page.addInitScript(() => {
-        window.PublicKeyCredential = {
+        const mockCredential: Partial<PublicKeyCredential> & {
+          isUserVerifyingPlatformAuthenticatorAvailable: () => Promise<boolean>
+        } = {
           isUserVerifyingPlatformAuthenticatorAvailable: async () => true,
-        } as any
+        }
+        window.PublicKeyCredential = mockCredential as typeof PublicKeyCredential
       })
 
       await page.goto('/auth/signin')

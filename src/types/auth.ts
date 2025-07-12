@@ -659,6 +659,8 @@ export interface AccessTokenPayload {
   readonly iss: string
   readonly aud: readonly string[]
   readonly jti: UUID // JWT ID for replay protection
+  // Index signature to make compatible with Record<string, unknown>
+  readonly [key: string]: unknown
 }
 
 /**

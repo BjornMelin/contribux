@@ -122,4 +122,7 @@ export async function getPopularSearches(): Promise<PopularSearchResult> {
   }
 }
 
-export async function indexRepository(_repository: Repository): Promise<void> {}
+export async function indexRepository(_repository: Repository): Promise<void> {
+  // TODO: Implement repository indexing functionality
+  // This will integrate with vector database for enhanced search capabilities
+}

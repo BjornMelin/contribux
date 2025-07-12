@@ -446,7 +446,10 @@ export class ErrorDashboard {
         })
       }
 
-      const pattern = patterns.get(key)!
+      const pattern = patterns.get(key)
+      if (!pattern) {
+        throw new Error(`Pattern not found for key: ${key}`)
+      }
       pattern.frequency++
       pattern.lastSeen = error.timestamp > pattern.lastSeen ? error.timestamp : pattern.lastSeen
       if (error.userId) {
@@ -606,291 +609,292 @@ export class ErrorDashboard {
  * Production Alerting Configuration
  * Sets up alerting channels and rules for production deployment
  */
-export class ProductionAlertingConfig {
-  /**
-   * Initialize production alerting system
-   */
-  static async initialize(): Promise<void> {
+// Production alerting functions - converted from static-only class
+/**
+ * Initialize production alerting system
+ */
+export async function initializeProductionAlerting(): Promise<void> {
+  const alerting = getAlertingSystem()
+
+  // Configure alert channels
+  await configureAlertChannels(alerting)
+
+  // Set up custom alerting rules
+  await configureAlertingRules(alerting)
+
+  // Test alert channels (in development only)
+  if (process.env.NODE_ENV === 'development') {
+    await testAlertChannels(alerting)
+  }
+}
+
+/**
+ * Configure alert channels based on environment variables
+ */
+async function configureAlertChannels(alerting: AlertingSystem): Promise<void> {
+  // Slack integration
+  if (process.env.SLACK_WEBHOOK_URL) {
+    alerting.registerChannel({
+      type: 'slack',
+      name: 'Slack Alerts',
+      webhookUrl: process.env.SLACK_WEBHOOK_URL,
+      severityFilter: ['critical', 'error', 'warning'],
+    })
+  }
+
+  // Discord integration
+  if (process.env.DISCORD_WEBHOOK_URL) {
+    alerting.registerChannel({
+      type: 'discord',
+      name: 'Discord Alerts',
+      webhookUrl: process.env.DISCORD_WEBHOOK_URL,
+      severityFilter: ['critical', 'error'],
+    })
+  }
+
+  // PagerDuty integration for critical alerts
+  if (process.env.PAGERDUTY_INTEGRATION_KEY) {
+    alerting.registerChannel({
+      type: 'pagerduty',
+      name: 'PagerDuty Critical',
+      pagerDutyKey: process.env.PAGERDUTY_INTEGRATION_KEY,
+      severityFilter: ['critical'],
+    })
+  }
+
+  // Email alerts for high-severity issues
+  if (process.env.ALERT_EMAIL_RECIPIENTS) {
+    alerting.registerChannel({
+      type: 'email',
+      name: 'Email Alerts',
+      emailTo: process.env.ALERT_EMAIL_RECIPIENTS.split(','),
+      severityFilter: ['critical', 'error'],
+    })
+  }
+
+  // Generic webhook for custom integrations
+  if (process.env.CUSTOM_WEBHOOK_URL) {
+    alerting.registerChannel({
+      type: 'webhook',
+      name: 'Custom Webhook',
+      webhookUrl: process.env.CUSTOM_WEBHOOK_URL,
+      headers: {
+        Authorization: `Bearer ${process.env.WEBHOOK_AUTH_TOKEN}`,
+        'X-Source': 'contribux-error-monitoring',
+      },
+      severityFilter: ['critical', 'error', 'warning', 'info'],
+    })
+  }
+}
+
+/**
+ * Configure production-specific alerting rules
+ */
+async function configureAlertingRules(alerting: AlertingSystem): Promise<void> {
+  // High-priority rules for production
+  alerting.addRule({
+    name: 'Database Outage Detection',
+    type: 'repeated_errors',
+    categoryFilter: [ErrorCategory.DATABASE_CONNECTION],
+    threshold: 3,
+    severityThreshold: ErrorSeverity.HIGH,
+    suppressionMinutes: 2, // Quick re-alerting for DB issues
+    description: 'Immediate alert for potential database outages',
+    condition: (_classification, metrics) => {
+      // Custom condition for database alerts
+      const dbErrors =
+        (metrics.errorsByCategory[ErrorCategory.DATABASE_CONNECTION] || 0) +
+        (metrics.errorsByCategory[ErrorCategory.DATABASE_TRANSACTION] || 0)
+      return dbErrors >= 3 && metrics.errorRate > 5
+    },
+  })
+
+  alerting.addRule({
+    name: 'Security Incident Detection',
+    type: 'repeated_errors',
+    categoryFilter: [
+      ErrorCategory.AUTH_INVALID,
+      ErrorCategory.PERMISSION_DENIED,
+      ErrorCategory.VALIDATION_FAILED,
+    ],
+    threshold: 10,
+    severityThreshold: ErrorSeverity.MEDIUM,
+    suppressionMinutes: 5,
+    description: 'Alert for potential security attacks',
+    condition: (_classification, metrics, context) => {
+      // Detect potential brute force attacks
+      const authErrors =
+        (metrics.errorsByCategory[ErrorCategory.AUTH_INVALID] || 0) +
+        (metrics.errorsByCategory[ErrorCategory.PERMISSION_DENIED] || 0)
+
+      // Check for rapid succession of auth failures from same IP
+      const contextWithIp = context as typeof context & { metadata?: { ip?: string } }
+      if (contextWithIp?.metadata?.ip && authErrors >= 10) {
+        return true
+      }
+
+      return false
+    },
+  })
+
+  alerting.addRule({
+    name: 'API Performance Degradation',
+    type: 'error_spike',
+    threshold: 15, // 15 errors per minute
+    severityThreshold: ErrorSeverity.MEDIUM,
+    suppressionMinutes: 10,
+    description: 'Alert when API performance degrades significantly',
+    condition: (_classification, metrics) => {
+      // Alert if error rate is high AND health score is dropping
+      return metrics.errorRate > 15 && metrics.healthScore < 80
+    },
+  })
+
+  alerting.addRule({
+    name: 'External Service Degradation',
+    type: 'repeated_errors',
+    categoryFilter: [
+      ErrorCategory.THIRD_PARTY_SERVICE,
+      ErrorCategory.RATE_LIMIT_EXCEEDED,
+      ErrorCategory.NETWORK_TIMEOUT,
+    ],
+    threshold: 5,
+    severityThreshold: ErrorSeverity.MEDIUM,
+    suppressionMinutes: 15,
+    description: 'Alert for external service issues that may affect users',
+  })
+
+  alerting.addRule({
+    name: 'Memory/Performance Issues',
+    type: 'critical_error',
+    severityThreshold: ErrorSeverity.CRITICAL,
+    suppressionMinutes: 5,
+    description: 'Immediate alert for critical system errors',
+    condition: (classification, metrics) => {
+      // Additional checks for system-level issues
+      return (
+        classification.severity === ErrorSeverity.CRITICAL ||
+        (metrics.healthScore < 50 && metrics.errorRate > 20)
+      )
+    },
+  })
+}
+
+/**
+ * Test alert channels in development
+ */
+async function testAlertChannels(alerting: AlertingSystem): Promise<void> {
+  const testClassification: ErrorClassification = {
+    category: ErrorCategory.INTERNAL_ERROR,
+    severity: ErrorSeverity.LOW,
+    isTransient: false,
+    recoveryStrategies: [],
+    userMessage: 'Test alert - please ignore',
+    technicalDetails: 'This is a test alert to verify channel configuration',
+  }
+
+  try {
+    await alerting.processError(new Error('Test alert'), testClassification, {
+      url: 'http://localhost:3000/test',
+      metadata: {
+        test: true,
+        timestamp: new Date().toISOString(),
+      },
+    })
+  } catch (_error) {
+    // Ignore test webhook failures - not critical
+  }
+}
+
+/**
+ * Get alerting configuration status
+ */
+export function getAlertingConfigurationStatus(): {
+  channels: number
+  rules: number
+  environment: string
+  integrations: {
+    slack: boolean
+    discord: boolean
+    pagerduty: boolean
+    email: boolean
+    webhook: boolean
+  }
+} {
+  return {
+    channels: getAlertingSystem().getAlertChannelsCount(),
+    rules: getAlertingSystem().getAlertingRulesCount(),
+    environment: process.env.NODE_ENV || 'unknown',
+    integrations: {
+      slack: !!process.env.SLACK_WEBHOOK_URL,
+      discord: !!process.env.DISCORD_WEBHOOK_URL,
+      pagerduty: !!process.env.PAGERDUTY_INTEGRATION_KEY,
+      email: !!process.env.ALERT_EMAIL_RECIPIENTS,
+      webhook: !!process.env.CUSTOM_WEBHOOK_URL,
+    },
+  }
+}
+
+/**
+ * Create environment-specific error monitoring logger
+ */
+export function createMonitoringLogger(component: string): ReturnType<typeof createErrorLogger> {
+  return createErrorLogger({
+    component,
+    operation: 'error_monitoring',
+    ...(process.env.VERCEL_GIT_COMMIT_SHA && {
+      requestId: `deploy-${process.env.VERCEL_GIT_COMMIT_SHA.slice(0, 8)}`,
+    }),
+  })
+}
+
+/**
+ * Health check for error monitoring system
+ */
+export async function performErrorMonitoringHealthCheck(): Promise<{
+  status: 'healthy' | 'degraded' | 'unhealthy'
+  details: {
+    errorMonitor: boolean
+    alertingSystem: boolean
+    dashboard: boolean
+    channels: number
+    lastAlert?: string
+  }
+}> {
+  try {
+    const monitor = getErrorMonitor()
+    const dashboard = getErrorDashboard()
     const alerting = getAlertingSystem()
 
-    // Configure alert channels
-    await ProductionAlertingConfig.configureAlertChannels(alerting)
+    // Test basic functionality
+    const metrics = monitor.getMetrics()
+    const alertStats = alerting.getAlertingStats()
 
-    // Set up custom alerting rules
-    await ProductionAlertingConfig.configureAlertingRules(alerting)
+    const isHealthy =
+      metrics !== null && alertStats !== null && alerting.getAlertChannelsCount() > 0
 
-    // Test alert channels (in development only)
-    if (process.env.NODE_ENV === 'development') {
-      await ProductionAlertingConfig.testAlertChannels(alerting)
-    }
-  }
-
-  /**
-   * Configure alert channels based on environment variables
-   */
-  private static async configureAlertChannels(alerting: AlertingSystem): Promise<void> {
-    // Slack integration
-    if (process.env.SLACK_WEBHOOK_URL) {
-      alerting.registerChannel({
-        type: 'slack',
-        name: 'Slack Alerts',
-        webhookUrl: process.env.SLACK_WEBHOOK_URL,
-        severityFilter: ['critical', 'error', 'warning'],
-      })
-    }
-
-    // Discord integration
-    if (process.env.DISCORD_WEBHOOK_URL) {
-      alerting.registerChannel({
-        type: 'discord',
-        name: 'Discord Alerts',
-        webhookUrl: process.env.DISCORD_WEBHOOK_URL,
-        severityFilter: ['critical', 'error'],
-      })
-    }
-
-    // PagerDuty integration for critical alerts
-    if (process.env.PAGERDUTY_INTEGRATION_KEY) {
-      alerting.registerChannel({
-        type: 'pagerduty',
-        name: 'PagerDuty Critical',
-        pagerDutyKey: process.env.PAGERDUTY_INTEGRATION_KEY,
-        severityFilter: ['critical'],
-      })
-    }
-
-    // Email alerts for high-severity issues
-    if (process.env.ALERT_EMAIL_RECIPIENTS) {
-      alerting.registerChannel({
-        type: 'email',
-        name: 'Email Alerts',
-        emailTo: process.env.ALERT_EMAIL_RECIPIENTS.split(','),
-        severityFilter: ['critical', 'error'],
-      })
-    }
-
-    // Generic webhook for custom integrations
-    if (process.env.CUSTOM_WEBHOOK_URL) {
-      alerting.registerChannel({
-        type: 'webhook',
-        name: 'Custom Webhook',
-        webhookUrl: process.env.CUSTOM_WEBHOOK_URL,
-        headers: {
-          Authorization: `Bearer ${process.env.WEBHOOK_AUTH_TOKEN}`,
-          'X-Source': 'contribux-error-monitoring',
-        },
-        severityFilter: ['critical', 'error', 'warning', 'info'],
-      })
-    }
-  }
-
-  /**
-   * Configure production-specific alerting rules
-   */
-  private static async configureAlertingRules(alerting: AlertingSystem): Promise<void> {
-    // High-priority rules for production
-    alerting.addRule({
-      name: 'Database Outage Detection',
-      type: 'repeated_errors',
-      categoryFilter: [ErrorCategory.DATABASE_CONNECTION],
-      threshold: 3,
-      severityThreshold: ErrorSeverity.HIGH,
-      suppressionMinutes: 2, // Quick re-alerting for DB issues
-      description: 'Immediate alert for potential database outages',
-      condition: (_classification, metrics) => {
-        // Custom condition for database alerts
-        const dbErrors =
-          (metrics.errorsByCategory[ErrorCategory.DATABASE_CONNECTION] || 0) +
-          (metrics.errorsByCategory[ErrorCategory.DATABASE_TRANSACTION] || 0)
-        return dbErrors >= 3 && metrics.errorRate > 5
-      },
-    })
-
-    alerting.addRule({
-      name: 'Security Incident Detection',
-      type: 'repeated_errors',
-      categoryFilter: [
-        ErrorCategory.AUTH_INVALID,
-        ErrorCategory.PERMISSION_DENIED,
-        ErrorCategory.VALIDATION_FAILED,
-      ],
-      threshold: 10,
-      severityThreshold: ErrorSeverity.MEDIUM,
-      suppressionMinutes: 5,
-      description: 'Alert for potential security attacks',
-      condition: (_classification, metrics, context) => {
-        // Detect potential brute force attacks
-        const authErrors =
-          (metrics.errorsByCategory[ErrorCategory.AUTH_INVALID] || 0) +
-          (metrics.errorsByCategory[ErrorCategory.PERMISSION_DENIED] || 0)
-
-        // Check for rapid succession of auth failures from same IP
-        const contextWithIp = context as typeof context & { metadata?: { ip?: string } }
-        if (contextWithIp?.metadata?.ip && authErrors >= 10) {
-          return true
-        }
-
-        return false
-      },
-    })
-
-    alerting.addRule({
-      name: 'API Performance Degradation',
-      type: 'error_spike',
-      threshold: 15, // 15 errors per minute
-      severityThreshold: ErrorSeverity.MEDIUM,
-      suppressionMinutes: 10,
-      description: 'Alert when API performance degrades significantly',
-      condition: (_classification, metrics) => {
-        // Alert if error rate is high AND health score is dropping
-        return metrics.errorRate > 15 && metrics.healthScore < 80
-      },
-    })
-
-    alerting.addRule({
-      name: 'External Service Degradation',
-      type: 'repeated_errors',
-      categoryFilter: [
-        ErrorCategory.THIRD_PARTY_SERVICE,
-        ErrorCategory.RATE_LIMIT_EXCEEDED,
-        ErrorCategory.NETWORK_TIMEOUT,
-      ],
-      threshold: 5,
-      severityThreshold: ErrorSeverity.MEDIUM,
-      suppressionMinutes: 15,
-      description: 'Alert for external service issues that may affect users',
-    })
-
-    alerting.addRule({
-      name: 'Memory/Performance Issues',
-      type: 'critical_error',
-      severityThreshold: ErrorSeverity.CRITICAL,
-      suppressionMinutes: 5,
-      description: 'Immediate alert for critical system errors',
-      condition: (classification, metrics) => {
-        // Additional checks for system-level issues
-        return (
-          classification.severity === ErrorSeverity.CRITICAL ||
-          (metrics.healthScore < 50 && metrics.errorRate > 20)
-        )
-      },
-    })
-  }
-
-  /**
-   * Test alert channels in development
-   */
-  private static async testAlertChannels(alerting: AlertingSystem): Promise<void> {
-    const testClassification: ErrorClassification = {
-      category: ErrorCategory.INTERNAL_ERROR,
-      severity: ErrorSeverity.LOW,
-      isTransient: false,
-      recoveryStrategies: [],
-      userMessage: 'Test alert - please ignore',
-      technicalDetails: 'This is a test alert to verify channel configuration',
-    }
-
-    try {
-      await alerting.processError(new Error('Test alert'), testClassification, {
-        url: 'http://localhost:3000/test',
-        metadata: {
-          test: true,
-          timestamp: new Date().toISOString(),
-        },
-      })
-    } catch (_error) {}
-  }
-
-  /**
-   * Get alerting configuration status
-   */
-  static getConfigurationStatus(): {
-    channels: number
-    rules: number
-    environment: string
-    integrations: {
-      slack: boolean
-      discord: boolean
-      pagerduty: boolean
-      email: boolean
-      webhook: boolean
-    }
-  } {
     return {
-      channels: getAlertingSystem().getAlertChannelsCount(),
-      rules: getAlertingSystem().getAlertingRulesCount(),
-      environment: process.env.NODE_ENV || 'unknown',
-      integrations: {
-        slack: !!process.env.SLACK_WEBHOOK_URL,
-        discord: !!process.env.DISCORD_WEBHOOK_URL,
-        pagerduty: !!process.env.PAGERDUTY_INTEGRATION_KEY,
-        email: !!process.env.ALERT_EMAIL_RECIPIENTS,
-        webhook: !!process.env.CUSTOM_WEBHOOK_URL,
+      status: isHealthy ? 'healthy' : 'degraded',
+      details: {
+        errorMonitor: !!metrics,
+        alertingSystem: !!alertStats,
+        dashboard: !!dashboard,
+        channels: alerting.getAlertChannelsCount(),
+        lastAlert:
+          alertStats.totalAlerts > 0
+            ? alerting.getAlertHistory(1)[0]?.timestamp.toISOString()
+            : undefined,
       },
     }
-  }
-
-  /**
-   * Create environment-specific error monitoring logger
-   */
-  static createMonitoringLogger(component: string): ReturnType<typeof createErrorLogger> {
-    return createErrorLogger({
-      component,
-      operation: 'error_monitoring',
-      ...(process.env.VERCEL_GIT_COMMIT_SHA && {
-        requestId: `deploy-${process.env.VERCEL_GIT_COMMIT_SHA.slice(0, 8)}`,
-      }),
-    })
-  }
-
-  /**
-   * Health check for error monitoring system
-   */
-  static async performHealthCheck(): Promise<{
-    status: 'healthy' | 'degraded' | 'unhealthy'
-    details: {
-      errorMonitor: boolean
-      alertingSystem: boolean
-      dashboard: boolean
-      channels: number
-      lastAlert?: string
-    }
-  }> {
-    try {
-      const monitor = getErrorMonitor()
-      const dashboard = getErrorDashboard()
-      const alerting = getAlertingSystem()
-
-      // Test basic functionality
-      const metrics = monitor.getMetrics()
-      const alertStats = alerting.getAlertingStats()
-
-      const isHealthy =
-        metrics !== null && alertStats !== null && alerting.getAlertChannelsCount() > 0
-
-      return {
-        status: isHealthy ? 'healthy' : 'degraded',
-        details: {
-          errorMonitor: !!metrics,
-          alertingSystem: !!alertStats,
-          dashboard: !!dashboard,
-          channels: alerting.getAlertChannelsCount(),
-          lastAlert:
-            alertStats.totalAlerts > 0
-              ? alerting.getAlertHistory(1)[0]?.timestamp.toISOString()
-              : undefined,
-        },
-      }
-    } catch (_error) {
-      return {
-        status: 'unhealthy',
-        details: {
-          errorMonitor: false,
-          alertingSystem: false,
-          dashboard: false,
-          channels: 0,
-        },
-      }
+  } catch (_error) {
+    return {
+      status: 'unhealthy',
+      details: {
+        errorMonitor: false,
+        alertingSystem: false,
+        dashboard: false,
+        channels: 0,
+      },
     }
   }
 }
@@ -1565,7 +1569,9 @@ export class AlertingSystem {
 
         default:
       }
-    } catch (_error) {}
+    } catch (_error) {
+      // Ignore alert send failures - not critical for core functionality
+    }
   }
 
   /**
@@ -1687,7 +1693,10 @@ export class AlertingSystem {
   /**
    * Send email alert (basic implementation)
    */
-  private async sendEmailAlert(_channel: AlertChannel, _alert: AlertEvent): Promise<void> {}
+  private async sendEmailAlert(_channel: AlertChannel, _alert: AlertEvent): Promise<void> {
+    // TODO: Implement email alerting via your preferred email service
+    // Example: SendGrid, Nodemailer, AWS SES, etc.
+  }
 
   /**
    * Send PagerDuty alert

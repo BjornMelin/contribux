@@ -8,8 +8,11 @@ import { afterEach, beforeAll, vi } from 'vitest'
 import '@testing-library/jest-dom'
 import { setupEnhancedTestEnvironment } from './config/enhanced-test-setup'
 
+// Test environment types
+type TestEnvironmentType = 'database' | 'integration' | 'performance' | 'unit'
+
 // Detect test environment type from environment variables or file patterns
-function detectTestEnvironmentType() {
+function detectTestEnvironmentType(): TestEnvironmentType {
   // Check for specific test environment indicators
   if (process.env.VITEST_CONFIG?.includes('database')) return 'database'
   if (process.env.VITEST_CONFIG?.includes('integration')) return 'integration'
@@ -21,7 +24,7 @@ function detectTestEnvironmentType() {
 
 // Auto-detect and setup enhanced test environment
 const testType = detectTestEnvironmentType()
-const { config: testConfig, addCleanupTask } = setupEnhancedTestEnvironment(testType as any)
+const { config: testConfig, addCleanupTask } = setupEnhancedTestEnvironment(testType)
 
 // Backward compatibility - legacy environment loading
 beforeAll(async () => {
@@ -65,9 +68,12 @@ function setupLegacyBrowserAPIs() {
       })
     } catch {
       // Fallback for environments without stream/web
-      globalThis.TransformStream = class TransformStream {
+      const MockTransformStream = class TransformStream {
         // Minimal implementation for MSW compatibility
-      } as any
+        readable: ReadableStream = {} as ReadableStream
+        writable: WritableStream = {} as WritableStream
+      }
+      globalThis.TransformStream = MockTransformStream as typeof TransformStream
     }
   }
 

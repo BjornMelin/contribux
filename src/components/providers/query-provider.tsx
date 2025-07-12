@@ -13,7 +13,16 @@
 'use client'
 
 import { QueryClientProvider } from '@tanstack/react-query'
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
+import dynamic from 'next/dynamic'
+
+// Completely exclude DevTools from production bundle
+const ReactQueryDevtools = dynamic(
+  () => import('@tanstack/react-query-devtools').then(mod => ({ default: mod.ReactQueryDevtools })),
+  {
+    ssr: false,
+    loading: () => null,
+  }
+)
 import {
   type ErrorInfo,
   type PropsWithChildren,

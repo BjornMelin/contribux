@@ -50,7 +50,7 @@ describe('Load Testing Suite - Enterprise Performance Validation', () => {
     })
 
     // Mock performance APIs for Node.js environment
-    global.performance = {
+    const mockPerformance: Partial<Performance> = {
       now: () => Date.now(),
       mark: vi.fn(),
       measure: vi.fn(),
@@ -58,12 +58,14 @@ describe('Load Testing Suite - Enterprise Performance Validation', () => {
       getEntriesByName: vi.fn().mockReturnValue([]),
       clearMarks: vi.fn(),
       clearMeasures: vi.fn(),
-    } as any
+    }
+    global.performance = mockPerformance as Performance
 
-    global.navigator = {
+    const mockNavigator: Partial<Navigator> = {
       sendBeacon: vi.fn().mockReturnValue(true),
       userAgent: 'Mozilla/5.0 (compatible; LoadTest/1.0)',
-    } as any
+    }
+    global.navigator = mockNavigator as Navigator
   })
 
   afterAll(() => {
@@ -263,8 +265,9 @@ describe('Load Testing Suite - Enterprise Performance Validation', () => {
       })
 
       // System should recover after stress
-      const coolDownPhase = phases.find(p => p.phase === 'cool-down')!
-      expect(coolDownPhase.metrics.errorRate).toBeLessThan(0.05) // Should recover to normal error rates
+      const coolDownPhase = phases.find(p => p.phase === 'cool-down')
+      expect(coolDownPhase).toBeDefined()
+      expect(coolDownPhase?.metrics.errorRate).toBeLessThan(0.05) // Should recover to normal error rates
     }, 90000)
 
     it('should maintain data integrity under extreme load', async () => {
@@ -503,7 +506,7 @@ async function runStressPhase(
 ): Promise<StressTestResult> {
   const startTime = Date.now()
   const interval = 1000 / requestsPerSecond
-  const requests: Promise<any>[] = []
+  const requests: Promise<void>[] = []
   let successCount = 0
   let failureCount = 0
 

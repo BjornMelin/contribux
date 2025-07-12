@@ -159,6 +159,34 @@ describe('Search API Tests', () => {
   })
 
   describe('Search Performance', () => {
+    const mockSearchResults = {
+      repositories: [
+        {
+          id: '1',
+          name: 'test-repo',
+          fullName: 'user/test-repo',
+          description: 'A test repository',
+          stars: 100,
+          language: 'TypeScript',
+          topics: ['testing', 'typescript'],
+          score: 0.95,
+        },
+      ],
+      totalCount: 1,
+      page: 1,
+      perPage: 20,
+      facets: {
+        languages: [
+          { value: 'TypeScript', count: 50 },
+          { value: 'JavaScript', count: 30 },
+        ],
+        topics: [
+          { value: 'testing', count: 40 },
+          { value: 'web', count: 35 },
+        ],
+      },
+    }
+
     it('should handle multiple searches', async () => {
       vi.mocked(searchRepositories).mockResolvedValue(mockSearchResults)
 

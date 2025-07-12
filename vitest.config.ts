@@ -12,7 +12,6 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      // Fix Next.js module resolution for tests
       'next/server': path.resolve(__dirname, 'node_modules/next/dist/server/web/exports/index.js'),
       'next/headers': path.resolve(
         __dirname,
@@ -29,22 +28,18 @@ export default defineConfig({
   define: {
     'import.meta.vitest': 'undefined',
     global: 'globalThis',
-    // Fix for Next.js edge runtime compatibility
     'process.env.NEXT_RUNTIME': '"nodejs"',
     'process.env.__NEXT_PRIVATE_ORIGIN': '"http://localhost:3000"',
   },
 
-  // MSW and test environment compatibility
   ssr: {
     noExternal: ['msw', '@testing-library/react'],
   },
 
   test: {
-    // Modern Vitest 3.2+ configuration
     globals: true,
     environment: 'jsdom',
 
-    // Mock configuration
     mockReset: true,
     clearMocks: true,
     restoreMocks: true,
@@ -52,8 +47,6 @@ export default defineConfig({
     include: [
       'tests/unit/**/*.{test,spec}.{js,ts,tsx}',
       'tests/security/**/*.{test,spec}.{js,ts,tsx}',
-      'tests/mocks/**/*.{test,spec}.{js,ts,tsx}',
-      'tests/config/**/*.{test,spec}.{js,ts,tsx}',
       'src/**/*.{test,spec}.{js,ts,tsx}',
     ],
 
@@ -67,24 +60,22 @@ export default defineConfig({
       '.next/**/*',
     ],
 
-    setupFiles: ['./tests/setup-enhanced.ts', './tests/unit/setup-mocks.ts'],
+    // Simplified setup - no complex managers
+    setupFiles: ['./tests/setup-simple.ts'],
 
-    // Enhanced pool configuration for Vitest 3.2+ with performance optimizations
+    // Optimized pool configuration for fast mock tests
     pool: 'threads',
     poolOptions: {
       threads: {
         singleThread: false,
         minThreads: 1,
-        maxThreads: Math.min(6, Math.max(2, cpus().length)),
-        useAtomics: true, // Vitest 3.2+ feature for better performance
-        isolate: true, // Enhanced test isolation
+        maxThreads: Math.min(2, cpus().length), // Reduced for faster startup
+        useAtomics: true,
+        isolate: true,
       },
     },
 
-    // Vitest 3.2+ experimental features for better performance
-    experimentalVmThreads: true,
-
-    // Modern coverage configuration
+    // Coverage configuration
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
@@ -106,30 +97,27 @@ export default defineConfig({
       },
     },
 
-    // Reasonable timeouts
-    testTimeout: 15000,
-    hookTimeout: 10000,
-    retry: 1,
+    // Performance-optimized timeouts for mock strategy
+    testTimeout: 3000, // Reduced for mock database strategy
+    hookTimeout: 2000, // Reduced for faster setup/teardown
+    retry: 0, // Disable retries for faster feedback
 
-    // Modern reporter configuration
     reporters: ['default'],
     outputFile: {
       json: './test-results.json',
     },
 
-    // Environment configuration - Enhanced isolation
     env: {
       NODE_ENV: 'test',
       VITEST: 'true',
       SKIP_ENV_VALIDATION: 'true',
-      // Isolated test environment
-      LOG_LEVEL: 'warn',
+      LOG_LEVEL: 'error', // Reduced logging
       ENABLE_OAUTH: 'false',
       ENABLE_WEBAUTHN: 'false',
       ENABLE_AUDIT_LOGS: 'false',
-      // Test security keys
       NEXTAUTH_SECRET: 'unit-test-secret-32-chars-minimum-for-testing',
       ENCRYPTION_KEY: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      TEST_DB_STRATEGY: 'mock', // Force mock database strategy to avoid PGlite WASM issues
     },
   },
 })

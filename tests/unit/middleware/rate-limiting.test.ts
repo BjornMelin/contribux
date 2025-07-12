@@ -132,7 +132,15 @@ describe('Rate Limiting Tests', () => {
 
   describe('RedisStore', () => {
     let redisStore: RedisStore
-    let mockRedis: any
+    let mockRedis: {
+      pipeline: vi.Mock
+      get: vi.Mock
+      del: vi.Mock
+      setex: vi.Mock
+      incr: vi.Mock
+      expire: vi.Mock
+      exec: vi.Mock
+    }
 
     beforeEach(() => {
       // Create a proper mock Redis client

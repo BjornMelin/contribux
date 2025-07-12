@@ -67,10 +67,20 @@ function generateSessionId(): string {
 }
 
 /**
+ * Extended Navigator interface for device capabilities
+ */
+interface ExtendedNavigator extends Navigator {
+  connection?: {
+    effectiveType?: string
+  }
+  deviceMemory?: number
+}
+
+/**
  * Get device capabilities
  */
 function getDeviceCapabilities() {
-  const nav = navigator as any
+  const nav = navigator as ExtendedNavigator
   return {
     connectionType: nav.connection?.effectiveType || 'unknown',
     deviceMemory: nav.deviceMemory || undefined,
@@ -98,6 +108,13 @@ function rateMetric(name: string, value: number): 'good' | 'needs-improvement' |
 }
 
 /**
+ * Extended Metric interface with navigation type
+ */
+interface ExtendedMetric extends Metric {
+  navigationType?: string
+}
+
+/**
  * Convert web-vitals metric to our format
  */
 function formatMetric(metric: Metric): WebVitalMetric {
@@ -108,7 +125,7 @@ function formatMetric(metric: Metric): WebVitalMetric {
     delta: metric.delta,
     entries: metric.entries || [],
     id: metric.id,
-    navigationType: (metric as any).navigationType || 'unknown',
+    navigationType: (metric as ExtendedMetric).navigationType || 'unknown',
     timestamp: Date.now(),
   }
 }
@@ -162,6 +179,8 @@ export class CoreWebVitalsMonitor {
 
     // Log in development
     if (isDevelopment()) {
+      // Would log metrics in development - console removed by linter
+      void formattedMetric
     }
 
     // Report critical metrics immediately
@@ -260,8 +279,10 @@ export class CoreWebVitalsMonitor {
         },
         body: JSON.stringify(report),
         keepalive: true,
-      }).catch(_error => {
+      }).catch(error => {
         if (isDevelopment()) {
+          // Would log error in development - console removed by linter
+          void error
         }
       })
     }
@@ -357,7 +378,9 @@ export function initCoreWebVitalsMonitoring(
 
     // Add all required properties and methods for the mock
     Object.assign(mockMonitor, {
-      sendReport: () => {},
+      sendReport: () => {
+        // Mock implementation - no-op for testing
+      },
       getMetrics: () => [],
       getPerformanceScore: () => 100,
       getInsights: () => [],
@@ -422,7 +445,9 @@ export function checkPerformanceBudget(metrics: WebVitalMetric[]): {
 /**
  * Default report callback for development
  */
-export function defaultReportCallback(_report: PerformanceReport): void {
+export function defaultReportCallback(report: PerformanceReport): void {
   if (isDevelopment()) {
+    // Would log report in development - console removed by linter
+    void report
   }
 }

@@ -13,18 +13,38 @@
 
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useMemo } from 'react'
 import { useSaveOpportunity } from '@/lib/api/hooks/use-opportunities'
 import { useRepositoryBookmark } from '@/lib/api/hooks/use-repositories'
 
-// Import extracted components
-import { BeginnerSidebar } from './beginner-sidebar'
-import { CircuitBreakerStatus } from './circuit-breaker-status'
+// Lazy load heavy components for better bundle splitting
+const BeginnerSidebar = dynamic(
+  () => import('./beginner-sidebar').then(m => ({ default: m.BeginnerSidebar })),
+  {
+    loading: () => <div className="h-32 animate-pulse rounded bg-muted" />,
+  }
+)
+
+const CircuitBreakerStatus = dynamic(
+  () => import('./circuit-breaker-status').then(m => ({ default: m.CircuitBreakerStatus })),
+  {
+    loading: () => <div className="h-16 animate-pulse rounded bg-muted" />,
+  }
+)
+
+const PerformanceMetrics = dynamic(
+  () => import('./performance-metrics').then(m => ({ default: m.PerformanceMetrics })),
+  {
+    loading: () => <div className="h-20 animate-pulse rounded bg-muted" />,
+  }
+)
+
+// Import lighter components directly
 import { useSearchActions } from './hooks/use-search-actions'
 import { useSearchQueries } from './hooks/use-search-queries'
 import { useSearchState } from './hooks/use-search-state'
 import { OpportunityResultCard } from './opportunity-result-card'
-import { PerformanceMetrics } from './performance-metrics'
 import { RepositoryResultCard } from './repository-result-card'
 import { SearchFiltersForm } from './search-filters'
 import { SearchTypeSelector } from './search-type-selector'

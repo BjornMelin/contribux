@@ -135,28 +135,68 @@ export interface AuthConfig {
   optional?: boolean
 }
 
+// Define proper user type
+interface AuthenticatedUser {
+  userId?: string
+  id?: string
+  sub?: string
+  [key: string]: unknown
+}
+
+// Helper functions to reduce auth middleware complexity
+async function authenticateWithSession(sessionCookie: string): Promise<AuthenticatedUser | null> {
+  const sessionResult = await validateSession(sessionCookie)
+  return sessionResult.valid && sessionResult.user ? sessionResult.user : null
+}
+
+async function authenticateWithJWT(authHeader: string): Promise<AuthenticatedUser | null> {
+  if (!authHeader.startsWith('Bearer ')) {
+    return null
+  }
+  const token = authHeader.slice(7)
+  return verifyAccessToken(token)
+}
+
+async function getUserFromRequest(
+  request: NextRequest,
+  mode?: 'jwt' | 'session'
+): Promise<AuthenticatedUser | null> {
+  if (mode === 'session') {
+    const sessionCookie = request.cookies.get('session')?.value
+    return sessionCookie ? authenticateWithSession(sessionCookie) : null
+  }
+
+  // JWT-based authentication (default)
+  const authHeader = request.headers.get('authorization')
+  return authHeader ? authenticateWithJWT(authHeader) : null
+}
+
+function getUserId(user: AuthenticatedUser): string | undefined {
+  return user.userId || user.id || user.sub
+}
+
+async function checkUserPermissions(
+  user: AuthenticatedUser,
+  requiredPermissions: string[]
+): Promise<boolean> {
+  const userId = getUserId(user)
+  if (!userId) {
+    return false
+  }
+
+  for (const permission of requiredPermissions) {
+    const hasPermission = await checkPermission(userId, permission)
+    if (!hasPermission) {
+      return false
+    }
+  }
+  return true
+}
+
 export function authMiddleware(config: AuthConfig = {}) {
   return async (request: NextRequest, handler: MiddlewareHandler): Promise<NextResponse> => {
     try {
-      let user: any = null
-
-      if (config.mode === 'session') {
-        // Session-based authentication
-        const sessionCookie = request.cookies.get('session')?.value
-        if (sessionCookie) {
-          const sessionResult = await validateSession(sessionCookie)
-          if (sessionResult.valid) {
-            user = sessionResult.user
-          }
-        }
-      } else {
-        // JWT-based authentication (default)
-        const authHeader = request.headers.get('authorization')
-        if (authHeader?.startsWith('Bearer ')) {
-          const token = authHeader.slice(7)
-          user = await verifyAccessToken(token)
-        }
-      }
+      const user = await getUserFromRequest(request, config.mode)
 
       if (!user && !config.optional) {
         return NextResponse.json({ error: 'Authorization required' }, { status: 401 })
@@ -164,12 +204,9 @@ export function authMiddleware(config: AuthConfig = {}) {
 
       // Check permissions if required
       if (user && config.requiredPermissions) {
-        for (const permission of config.requiredPermissions) {
-          const userId = user.userId || user.id || user.sub
-          const hasPermission = await checkPermission(userId, permission)
-          if (!hasPermission) {
-            return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-          }
+        const hasPermissions = await checkUserPermissions(user, config.requiredPermissions)
+        if (!hasPermissions) {
+          return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
         }
       }
 
@@ -239,10 +276,17 @@ export interface ValidationConfig {
   sanitize?: boolean
 }
 
+// Define proper type for validated data
+interface ValidatedRequestData {
+  validatedBody?: unknown
+  validatedQuery?: unknown
+  validatedParams?: unknown
+}
+
 export function requestValidationMiddleware(config: ValidationConfig) {
   return async (request: NextRequest, handler: MiddlewareHandler): Promise<NextResponse> => {
     try {
-      const validatedData: any = {}
+      const validatedData: ValidatedRequestData = {}
 
       // Validate body
       if (config.body) {
@@ -397,8 +441,11 @@ async function generateCSRFToken(_secret: string): Promise<string> {
   return crypto.randomBytes(32).toString('hex')
 }
 
+// Define proper middleware type
+type Middleware = (request: NextRequest, handler: MiddlewareHandler) => Promise<NextResponse>
+
 // Middleware composition utility
-export function compose(...middlewares: any[]) {
+export function compose(...middlewares: Middleware[]) {
   return async (request: NextRequest, handler: MiddlewareHandler): Promise<NextResponse> => {
     let index = 0
 

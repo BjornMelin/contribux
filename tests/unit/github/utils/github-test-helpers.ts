@@ -164,22 +164,18 @@ export const testGraphQLQueries = {
  */
 export const testSearchParams = {
   basic: {
-    q: 'test',
-    sort: 'stars' as const,
-    order: 'desc' as const,
+    query: 'test',
   },
   withPagination: {
-    q: 'test',
-    sort: 'stars' as const,
-    order: 'desc' as const,
-    per_page: 5,
+    query: 'test',
+    perPage: 5,
   },
   large: {
-    q: 'javascriptlargepage',
-    per_page: 100,
+    query: 'javascriptlargepage',
+    perPage: 100,
   },
   empty: {
-    q: 'nonexistentquery12345unique',
+    query: 'nonexistentquery12345unique',
   },
 } as const
 
@@ -213,9 +209,9 @@ export const testPRParams = {
  */
 export const cacheKeyTestCases = {
   differentOrder: [
-    { owner: 'test', repo: 'repo', page: 1, per_page: 10 },
-    { per_page: 10, page: 1, repo: 'repo', owner: 'test' },
-    { repo: 'repo', owner: 'test', per_page: 10, page: 1 },
+    { owner: 'test', repo: 'repo', page: 1, perPage: $1 },
+    { perPage: $1, page: 1, repo: 'repo', owner: 'test' },
+    { repo: 'repo', owner: 'test', perPage: $1, page: 1 },
   ],
   differentValues: [
     { owner: 'test1', repo: 'repo' },
@@ -253,7 +249,7 @@ export const cacheKeyTestCases = {
     },
     sort: 'updated',
     order: 'desc',
-    per_page: 100,
+    perPage: $1,
     page: 1,
   },
 } as const

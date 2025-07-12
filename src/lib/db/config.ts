@@ -75,7 +75,6 @@ const createNeonConnection = (databaseUrl: string): NeonQueryFunction<false, fal
 }
 
 // Create Neon connection lazily to avoid build-time issues
-// biome-ignore lint/style/noNonNullAssertion: DATABASE_URL is validated at startup
 const createSql = () => {
   const databaseUrl = getDatabaseUrl('main', true) // Use pooled connection by default
   return createNeonConnection(databaseUrl)

@@ -18,7 +18,6 @@ describe('Drizzle Migration Testing Suite', () => {
     // Use a unique test ID for each test to ensure proper isolation
     const testId = `migration-test-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     testDb = await getTestDatabase(testId, {
-      strategy: 'pglite',
       cleanup: 'truncate',
       verbose: false, // Reduce verbosity for cleaner test output
     })

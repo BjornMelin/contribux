@@ -3,6 +3,8 @@
  * TODO: Implement real WebAuthn functionality
  */
 
+import { generateSecureRandomString } from '@/lib/security/crypto-secure'
+
 export interface RegistrationOptions {
   challenge: string
   rp: {
@@ -90,7 +92,7 @@ export async function generateRegistrationOptions(
     }
   } catch (_error) {
     return {
-      challenge: `fallback-challenge-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      challenge: `fallback-challenge-${Date.now()}-${generateSecureRandomString(8)}`,
       rp: {
         id: 'localhost',
         name: 'Contribux',

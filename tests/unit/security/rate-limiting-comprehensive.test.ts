@@ -163,7 +163,7 @@ describe('Rate Limiting System - Comprehensive Tests', () => {
 
   describe('Rate Limiter Selection', () => {
     it('should select auth limiter for auth endpoints', () => {
-      const { limiter, config, type } = getRateLimiterForEndpoint('/api/auth/signin')
+      const { limiter: _limiter, config, type } = getRateLimiterForEndpoint('/api/auth/signin')
 
       expect(type).toBe('auth')
       expect(config.max).toBe(50)
@@ -171,7 +171,11 @@ describe('Rate Limiting System - Comprehensive Tests', () => {
     })
 
     it('should select search limiter for search endpoints', () => {
-      const { limiter, config, type } = getRateLimiterForEndpoint('/api/search/repositories')
+      const {
+        limiter: _limiter,
+        config,
+        type,
+      } = getRateLimiterForEndpoint('/api/search/repositories')
 
       expect(type).toBe('search')
       expect(config.max).toBe(30)
@@ -179,7 +183,11 @@ describe('Rate Limiting System - Comprehensive Tests', () => {
     })
 
     it('should select webauthn limiter for webauthn endpoints', () => {
-      const { limiter, config, type } = getRateLimiterForEndpoint('/api/security/webauthn/register')
+      const {
+        limiter: _limiter,
+        config,
+        type,
+      } = getRateLimiterForEndpoint('/api/security/webauthn/register')
 
       expect(type).toBe('webauthn')
       expect(config.max).toBe(10)
@@ -187,7 +195,7 @@ describe('Rate Limiting System - Comprehensive Tests', () => {
     })
 
     it('should select webhook limiter for webhook endpoints', () => {
-      const { limiter, config, type } = getRateLimiterForEndpoint('/api/webhooks/github')
+      const { limiter: _limiter, config, type } = getRateLimiterForEndpoint('/api/webhooks/github')
 
       expect(type).toBe('webhook')
       expect(config.max).toBe(100)
@@ -195,7 +203,7 @@ describe('Rate Limiting System - Comprehensive Tests', () => {
     })
 
     it('should select admin limiter for admin endpoints', () => {
-      const { limiter, config, type } = getRateLimiterForEndpoint('/api/admin/users')
+      const { limiter: _limiter, config, type } = getRateLimiterForEndpoint('/api/admin/users')
 
       expect(type).toBe('admin')
       expect(config.max).toBe(100)
@@ -203,7 +211,7 @@ describe('Rate Limiting System - Comprehensive Tests', () => {
     })
 
     it('should select demo limiter for demo endpoints', () => {
-      const { limiter, config, type } = getRateLimiterForEndpoint('/api/demo/rate-limit')
+      const { limiter: _limiter, config, type } = getRateLimiterForEndpoint('/api/demo/rate-limit')
 
       expect(type).toBe('demo')
       expect(config.max).toBe(5)
@@ -211,7 +219,7 @@ describe('Rate Limiting System - Comprehensive Tests', () => {
     })
 
     it('should select api limiter for generic endpoints', () => {
-      const { limiter, config, type } = getRateLimiterForEndpoint('/api/generic/endpoint')
+      const { limiter: _limiter, config, type } = getRateLimiterForEndpoint('/api/generic/endpoint')
 
       expect(type).toBe('api')
       expect(config.max).toBe(1000)

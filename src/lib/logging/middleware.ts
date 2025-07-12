@@ -6,7 +6,7 @@
 import { randomUUID } from 'node:crypto'
 import type { NextRequest, NextResponse } from 'next/server'
 import type { ErrorClassification } from '@/lib/errors/error-classification'
-import { RecoveryStrategy } from '@/lib/errors/error-classification'
+import { ErrorCategory, ErrorSeverity, RecoveryStrategy } from '@/lib/errors/error-classification'
 import { createErrorLogger } from './pino-config'
 import { enhancedLogger } from './pino-logger'
 
@@ -31,9 +31,11 @@ export function generateRequestId(): string {
 /**
  * Extract IP address from request
  */
-export function extractIpAddress(request: NextRequest): string | undefined {
+export function extractIpAddress(request: NextRequest | RequestLike): string | undefined {
   // Check various headers for IP address
   const headers = request.headers
+  if (!headers) return undefined
+
   const forwarded = headers.get('x-forwarded-for')
   const realIp = headers.get('x-real-ip')
   const clientIp = headers.get('x-client-ip')
@@ -127,7 +129,169 @@ export function withRequestLogging(
  * Enhanced API error monitoring middleware for Next.js 15 App Router
  * Integrates with ErrorMonitor and AlertingSystem for comprehensive error tracking
  */
-export function withApiErrorMonitoring<T extends any[]>(
+
+// Define proper interfaces for various error types
+interface RequestLike {
+  url?: string
+  method?: string
+  headers?: {
+    get(name: string): string | null
+  }
+  [key: string]: unknown
+}
+
+interface PostgreSQLError extends Error {
+  code?: string
+  constraint?: string
+  detail?: string
+  hint?: string
+  position?: string
+  internalPosition?: string
+  internalQuery?: string
+  where?: string
+  schema?: string
+  table?: string
+  column?: string
+  dataType?: string
+  severity?: string
+}
+
+interface HTTPError extends Error {
+  status?: number
+  statusText?: string
+  response?: {
+    status: number
+    statusText: string
+    data?: unknown
+  }
+}
+
+// Helper functions to reduce API error monitoring complexity
+function extractRequestContext(
+  args: unknown[],
+  customContext?: Record<string, unknown>
+): Record<string, unknown> {
+  if (args[0] && typeof args[0] === 'object' && 'url' in args[0]) {
+    const request = args[0] as RequestLike
+    return {
+      url: request.url,
+      method: request.method,
+      userAgent: request.headers?.get('user-agent'),
+      ip: extractIpAddress(request),
+      ...customContext,
+    }
+  }
+  return {}
+}
+
+function logApiRequestStart(
+  logger: ReturnType<typeof createErrorLogger>,
+  endpoint: string,
+  requestContext: Record<string, unknown>
+): void {
+  logger.info(
+    {
+      event: 'api_request_start',
+      endpoint,
+      requestContext,
+      timestamp: new Date().toISOString(),
+    },
+    `API request started: ${endpoint}`
+  )
+}
+
+function logApiRequestSuccess(
+  logger: ReturnType<typeof createErrorLogger>,
+  endpoint: string,
+  duration: number,
+  response: Response,
+  requestId: string
+): void {
+  logger.info(
+    {
+      event: 'api_request_success',
+      endpoint,
+      duration,
+      status: response.status,
+      requestId,
+    },
+    `API request completed: ${endpoint} (${duration}ms)`
+  )
+}
+
+async function handleApiRequestError(
+  error: unknown,
+  logger: ReturnType<typeof createErrorLogger>,
+  endpoint: string,
+  duration: number,
+  requestId: string,
+  requestContext: Record<string, unknown>
+): Promise<Response> {
+  // Classify and monitor the error
+  const { classifyError } = await import('@/lib/errors/error-classification')
+  const { ErrorMonitor } = await import('@/lib/errors/error-monitoring')
+  const { alertingSystem } = await import('@/lib/errors/error-monitoring')
+
+  const classification = classifyError(error)
+  const errorMonitor = ErrorMonitor.getInstance()
+
+  // Track error with context
+  await errorMonitor.track(error, classification, {
+    url: requestContext.url as string,
+    userAgent: requestContext.userAgent as string,
+    metadata: {
+      endpoint,
+      duration,
+      requestId,
+      ...requestContext,
+    },
+  })
+
+  // Trigger alerts if needed
+  await alertingSystem.processError(error, classification, {
+    url: requestContext.url as string,
+    userAgent: requestContext.userAgent as string,
+    metadata: {
+      endpoint,
+      duration,
+      requestId,
+      ...requestContext,
+    },
+  })
+
+  // Log error with enhanced context
+  logger.error(
+    {
+      event: 'api_request_error',
+      endpoint,
+      duration,
+      requestId,
+      error: {
+        name: error instanceof Error ? error.name : 'UnknownError',
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      },
+      classification: {
+        category: classification.category,
+        severity: classification.severity,
+        isTransient: classification.isTransient,
+        userMessage: classification.userMessage,
+      },
+      requestContext,
+    },
+    `API request failed: ${endpoint} (${duration}ms)`
+  )
+
+  // Create appropriate error response
+  const { createApiErrorResponse } = await import('@/lib/errors/webhook-error-boundary')
+  return createApiErrorResponse(error, classification, {
+    requestId,
+    endpoint,
+    duration,
+  })
+}
+
+export function withApiErrorMonitoring<T extends unknown[]>(
   handler: (...args: T) => Promise<Response>,
   options: {
     endpoint?: string
@@ -149,46 +313,17 @@ export function withApiErrorMonitoring<T extends any[]>(
     })
 
     // Extract request context for better error tracking
-    let requestContext: Record<string, unknown> = {}
-
-    // Attempt to extract request context from first argument (usually NextRequest)
-    if (args[0] && typeof args[0] === 'object' && 'url' in args[0]) {
-      const request = args[0] as any
-      requestContext = {
-        url: request.url,
-        method: request.method,
-        userAgent: request.headers?.get('user-agent'),
-        ip: extractIpAddress(request),
-        ...options.customContext,
-      }
-    }
+    const requestContext = extractRequestContext(args, options.customContext)
 
     // Log request start
-    errorLogger.info(
-      {
-        event: 'api_request_start',
-        endpoint,
-        requestContext,
-        timestamp: new Date().toISOString(),
-      },
-      `API request started: ${endpoint}`
-    )
+    logApiRequestStart(errorLogger, endpoint, requestContext)
 
     try {
       const response = await handler(...args)
       const duration = Date.now() - startTime
 
       // Log successful response
-      errorLogger.info(
-        {
-          event: 'api_request_success',
-          endpoint,
-          duration,
-          status: response.status,
-          requestId,
-        },
-        `API request completed: ${endpoint} (${duration}ms)`
-      )
+      logApiRequestSuccess(errorLogger, endpoint, duration, response, requestId)
 
       // Track performance if enabled
       if (options.trackPerformance) {
@@ -198,69 +333,14 @@ export function withApiErrorMonitoring<T extends any[]>(
       return response
     } catch (error) {
       const duration = Date.now() - startTime
-
-      // Classify and monitor the error
-      const { classifyError } = await import('@/lib/errors/error-classification')
-      const { ErrorMonitor } = await import('@/lib/errors/error-monitoring')
-      const { alertingSystem } = await import('@/lib/errors/error-monitoring')
-
-      const classification = classifyError(error)
-      const errorMonitor = ErrorMonitor.getInstance()
-
-      // Track error with context
-      await errorMonitor.track(error, classification, {
-        url: requestContext.url as string,
-        userAgent: requestContext.userAgent as string,
-        metadata: {
-          endpoint,
-          duration,
-          requestId,
-          ...requestContext,
-        },
-      })
-
-      // Trigger alerts if needed
-      await alertingSystem.processError(error, classification, {
-        url: requestContext.url as string,
-        userAgent: requestContext.userAgent as string,
-        metadata: {
-          endpoint,
-          duration,
-          requestId,
-          ...requestContext,
-        },
-      })
-
-      // Log error with enhanced context
-      errorLogger.error(
-        {
-          event: 'api_request_error',
-          endpoint,
-          duration,
-          requestId,
-          error: {
-            name: error instanceof Error ? error.name : 'UnknownError',
-            message: error instanceof Error ? error.message : String(error),
-            stack: error instanceof Error ? error.stack : undefined,
-          },
-          classification: {
-            category: classification.category,
-            severity: classification.severity,
-            isTransient: classification.isTransient,
-            userMessage: classification.userMessage,
-          },
-          requestContext,
-        },
-        `API request failed: ${endpoint} (${duration}ms)`
-      )
-
-      // Create appropriate error response
-      const { createApiErrorResponse } = await import('@/lib/errors/webhook-error-boundary')
-      return createApiErrorResponse(error, classification, {
-        requestId,
+      return handleApiRequestError(
+        error,
+        errorLogger,
         endpoint,
         duration,
-      })
+        requestId,
+        requestContext
+      )
     }
   }
 }
@@ -268,7 +348,7 @@ export function withApiErrorMonitoring<T extends any[]>(
 /**
  * Database operation error monitoring wrapper
  */
-export function withDatabaseErrorMonitoring<T extends any[], R>(
+export function withDatabaseErrorMonitoring<T extends unknown[], R>(
   operation: (...args: T) => Promise<R>,
   operationName: string,
   options: {
@@ -377,8 +457,8 @@ export function withDatabaseErrorMonitoring<T extends any[], R>(
           error: {
             name: error instanceof Error ? error.name : 'UnknownError',
             message: error instanceof Error ? error.message : String(error),
-            code: (error as any)?.code,
-            constraint: (error as any)?.constraint,
+            code: (error as PostgreSQLError)?.code,
+            constraint: (error as PostgreSQLError)?.constraint,
           },
           classification: {
             category: classification.category,
@@ -397,7 +477,7 @@ export function withDatabaseErrorMonitoring<T extends any[], R>(
 /**
  * External API call error monitoring wrapper
  */
-export function withExternalApiErrorMonitoring<T extends any[], R>(
+export function withExternalApiErrorMonitoring<T extends unknown[], R>(
   apiCall: (...args: T) => Promise<R>,
   serviceName: string,
   options: {
@@ -492,8 +572,8 @@ export function withExternalApiErrorMonitoring<T extends any[], R>(
           error: {
             name: error instanceof Error ? error.name : 'UnknownError',
             message: error instanceof Error ? error.message : String(error),
-            status: (error as any)?.status,
-            statusText: (error as any)?.statusText,
+            status: (error as HTTPError)?.status,
+            statusText: (error as HTTPError)?.statusText,
           },
           classification: {
             category: classification.category,
@@ -555,73 +635,62 @@ async function trackApiPerformance(
 }
 
 /**
- * Enhanced database error classification
+ * Helper functions for database error classification - reduces complexity
  */
-async function classifyDatabaseError(
-  error: unknown,
-  context: {
-    operation: string
-    table?: string
-    duration: number
-    critical?: boolean
+function createUniqueViolationError(
+  context: { table?: string },
+  error: Error
+): ErrorClassification {
+  return {
+    category: ErrorCategory.VALIDATION_FAILED,
+    severity: ErrorSeverity.LOW,
+    isTransient: false,
+    recoveryStrategies: [RecoveryStrategy.USER_INTERVENTION],
+    userMessage: 'Data already exists',
+    technicalDetails: `Unique constraint violation in ${context.table}: ${error.message}`,
   }
-): Promise<ErrorClassification> {
-  const { ErrorCategory, ErrorSeverity } = await import('@/lib/errors/error-classification')
+}
 
-  if (error instanceof Error) {
-    // PostgreSQL/Neon specific error codes
-    const pgError = error as any
-
-    if (pgError.code === '23505') {
-      // Unique violation
-      return {
-        category: ErrorCategory.VALIDATION_FAILED,
-        severity: ErrorSeverity.LOW,
-        isTransient: false,
-        recoveryStrategies: [RecoveryStrategy.USER_INTERVENTION],
-        userMessage: 'Data already exists',
-        technicalDetails: `Unique constraint violation in ${context.table}: ${error.message}`,
-      }
-    }
-
-    if (pgError.code === '23503') {
-      // Foreign key violation
-      return {
-        category: ErrorCategory.VALIDATION_FAILED,
-        severity: ErrorSeverity.MEDIUM,
-        isTransient: false,
-        recoveryStrategies: [RecoveryStrategy.USER_INTERVENTION],
-        userMessage: 'Invalid reference to related data',
-        technicalDetails: `Foreign key constraint violation in ${context.table}: ${error.message}`,
-      }
-    }
-
-    if (pgError.code === '08006' || pgError.code === '08003') {
-      // Connection issues
-      return {
-        category: ErrorCategory.DATABASE_CONNECTION,
-        severity: context.critical ? ErrorSeverity.CRITICAL : ErrorSeverity.HIGH,
-        isTransient: true,
-        recoveryStrategies: [RecoveryStrategy.RETRY_BACKOFF, RecoveryStrategy.CIRCUIT_BREAK],
-        userMessage: 'Database connectivity issue',
-        technicalDetails: `Database connection error: ${error.message}`,
-      }
-    }
-
-    if (pgError.code === '40001' || pgError.code === '40P01') {
-      // Serialization/deadlock
-      return {
-        category: ErrorCategory.DATABASE_TRANSACTION,
-        severity: ErrorSeverity.MEDIUM,
-        isTransient: true,
-        recoveryStrategies: [RecoveryStrategy.RETRY_IMMEDIATE, RecoveryStrategy.RETRY_BACKOFF],
-        userMessage: 'Database operation conflict',
-        technicalDetails: `Transaction conflict in ${context.operation}: ${error.message}`,
-      }
-    }
+function createForeignKeyViolationError(
+  context: { table?: string },
+  error: Error
+): ErrorClassification {
+  return {
+    category: ErrorCategory.VALIDATION_FAILED,
+    severity: ErrorSeverity.MEDIUM,
+    isTransient: false,
+    recoveryStrategies: [RecoveryStrategy.USER_INTERVENTION],
+    userMessage: 'Invalid reference to related data',
+    technicalDetails: `Foreign key constraint violation in ${context.table}: ${error.message}`,
   }
+}
 
-  // Default database error classification
+function createConnectionError(context: { critical?: boolean }, error: Error): ErrorClassification {
+  return {
+    category: ErrorCategory.DATABASE_CONNECTION,
+    severity: context.critical ? ErrorSeverity.CRITICAL : ErrorSeverity.HIGH,
+    isTransient: true,
+    recoveryStrategies: [RecoveryStrategy.RETRY_BACKOFF, RecoveryStrategy.CIRCUIT_BREAK],
+    userMessage: 'Database connectivity issue',
+    technicalDetails: `Database connection error: ${error.message}`,
+  }
+}
+
+function createTransactionError(context: { operation: string }, error: Error): ErrorClassification {
+  return {
+    category: ErrorCategory.DATABASE_TRANSACTION,
+    severity: ErrorSeverity.MEDIUM,
+    isTransient: true,
+    recoveryStrategies: [RecoveryStrategy.RETRY_IMMEDIATE, RecoveryStrategy.RETRY_BACKOFF],
+    userMessage: 'Database operation conflict',
+    technicalDetails: `Transaction conflict in ${context.operation}: ${error.message}`,
+  }
+}
+
+function createDefaultDatabaseError(
+  context: { duration: number; critical?: boolean },
+  error: unknown
+): ErrorClassification {
   return {
     category: ErrorCategory.DATABASE_QUERY,
     severity: context.critical ? ErrorSeverity.HIGH : ErrorSeverity.MEDIUM,
@@ -633,6 +702,51 @@ async function classifyDatabaseError(
     userMessage: 'Database operation failed',
     technicalDetails: error instanceof Error ? error.message : String(error),
   }
+}
+
+function classifyPostgreSQLError(
+  pgError: PostgreSQLError,
+  context: { operation: string; table?: string; critical?: boolean },
+  error: Error
+): ErrorClassification | null {
+  switch (pgError.code) {
+    case '23505':
+      return createUniqueViolationError(context, error)
+    case '23503':
+      return createForeignKeyViolationError(context, error)
+    case '08006':
+    case '08003':
+      return createConnectionError(context, error)
+    case '40001':
+    case '40P01':
+      return createTransactionError(context, error)
+    default:
+      return null
+  }
+}
+
+/**
+ * Enhanced database error classification
+ */
+async function classifyDatabaseError(
+  error: unknown,
+  context: {
+    operation: string
+    table?: string
+    duration: number
+    critical?: boolean
+  }
+): Promise<ErrorClassification> {
+  if (error instanceof Error) {
+    const pgError = error as PostgreSQLError
+    const pgClassification = classifyPostgreSQLError(pgError, context, error)
+    if (pgClassification) {
+      return pgClassification
+    }
+  }
+
+  // Default database error classification
+  return createDefaultDatabaseError(context, error)
 }
 
 /**
@@ -647,10 +761,8 @@ async function classifyExternalApiError(
     retryable?: boolean
   }
 ): Promise<ErrorClassification> {
-  const { ErrorCategory, ErrorSeverity } = await import('@/lib/errors/error-classification')
-
   if (error instanceof Error) {
-    const httpError = error as any
+    const httpError = error as HTTPError
 
     // Rate limiting
     if (httpError.status === 429) {
@@ -677,7 +789,7 @@ async function classifyExternalApiError(
     }
 
     // Service unavailable
-    if (httpError.status >= 500) {
+    if (httpError.status && httpError.status >= 500) {
       return {
         category: ErrorCategory.THIRD_PARTY_SERVICE,
         severity: ErrorSeverity.HIGH,
@@ -755,13 +867,13 @@ function logError(
 /**
  * Higher-order function to wrap API route handlers with logging
  */
-export function withApiLogging<T extends any[]>(
+export function withApiLogging<T extends unknown[]>(
   handler: (request: NextRequest, ...args: T) => Promise<NextResponse> | NextResponse
 ) {
   return async (request: NextRequest, ...args: T): Promise<NextResponse> => {
     return withRequestLogging(request, async (req, context) => {
       // Add request context to the request object for access in handlers
-      ;(req as any).context = context
+      ;(req as NextRequest & { context: RequestContext }).context = context
       return handler(req, ...args)
     })
   }
@@ -771,7 +883,7 @@ export function withApiLogging<T extends any[]>(
  * Utility to get request context from a request object
  */
 export function getRequestContext(request: NextRequest): RequestContext | undefined {
-  return (request as any).context
+  return (request as NextRequest & { context?: RequestContext }).context
 }
 
 /**
@@ -803,10 +915,10 @@ export function addRequestIdHeaders(response: NextResponse, requestId: string): 
 /**
  * Middleware for performance monitoring
  */
-export function withPerformanceLogging(
+export function withPerformanceLogging<T>(
   operation: string,
-  handler: () => Promise<any> | any
-): Promise<any> | any {
+  handler: () => Promise<T> | T
+): Promise<T> | T {
   const startTime = Date.now()
   const startMemory = process.memoryUsage()
 

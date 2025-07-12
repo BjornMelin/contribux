@@ -1,15 +1,45 @@
 'use client'
 
+import { Github, Home, LogOut, Menu, Settings, Sparkles, X } from '@/components/icons'
+import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
-import { Github, Home, LogOut, Menu, Settings, Sparkles, X } from '@/components/icons'
-import { MotionDiv } from '@/components/motion'
 import { useSession } from '@/components/providers/app-providers'
-import { Button } from '@/components/ui/button'
-import { ThemeToggle, ThemeToggleCompact } from '@/components/ui/theme-toggle'
 import { cn } from '@/lib/utils'
+
+// Lazy load heavy components to reduce initial bundle size
+const MotionDiv = dynamic(
+  () => import('@/components/motion').then(mod => ({ default: mod.MotionDiv })),
+  {
+    loading: () => <div className="rounded-full bg-gradient-to-r from-primary to-purple-600 p-2" />,
+    ssr: false,
+  }
+)
+
+const Button = dynamic(
+  () => import('@/components/ui/button').then(mod => ({ default: mod.Button })),
+  {
+    loading: () => <div className="h-8 w-16 animate-pulse rounded bg-muted" />,
+  }
+)
+
+const ThemeToggle = dynamic(
+  () => import('@/components/ui/theme-toggle').then(mod => ({ default: mod.ThemeToggle })),
+  {
+    loading: () => <div className="h-8 w-8 animate-pulse rounded bg-muted" />,
+    ssr: false,
+  }
+)
+
+const ThemeToggleCompact = dynamic(
+  () => import('@/components/ui/theme-toggle').then(mod => ({ default: mod.ThemeToggleCompact })),
+  {
+    loading: () => <div className="h-6 w-6 animate-pulse rounded bg-muted" />,
+    ssr: false,
+  }
+)
 
 const navItems = [
   { href: '/', label: 'Home', icon: Home },

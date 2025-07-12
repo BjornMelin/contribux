@@ -236,7 +236,9 @@ describe('Enhanced Error Handler', () => {
 
   describe('logError', () => {
     it('should log errors with context', () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {
+        // Intentionally empty - suppressing console output during tests
+      })
       const error = new Error('Test error')
       const context = { userId: 'user-123' }
 
@@ -256,7 +258,9 @@ describe('Enhanced Error Handler', () => {
     })
 
     it('should handle non-Error objects', () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {
+        // Intentionally empty - suppressing console output during tests
+      })
       const errorObj = { custom: 'error', code: 'CUSTOM' }
 
       ErrorHandler.logError(errorObj)
@@ -307,7 +311,12 @@ describe('Enhanced Error Handler', () => {
     })
 
     it('should handle errors with additional properties', () => {
-      const error: any = new Error('Custom error')
+      interface ErrorWithProps extends Error {
+        code: string
+        syscall: string
+      }
+
+      const error = new Error('Custom error') as ErrorWithProps
       error.code = 'ECONNREFUSED'
       error.syscall = 'connect'
 
@@ -381,7 +390,11 @@ describe('Enhanced Error Handler', () => {
 
   describe('Edge Cases', () => {
     it('should handle circular references', () => {
-      const error: any = new Error('Circular')
+      interface CircularError extends Error {
+        self?: CircularError
+      }
+
+      const error = new Error('Circular') as CircularError
       error.self = error
 
       const enhanced = ErrorHandler.fromError(

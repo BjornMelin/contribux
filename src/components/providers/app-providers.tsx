@@ -10,10 +10,33 @@
 
 'use client'
 
-import { ThemeProvider } from 'next-themes'
+// Lazy load heavy providers for better initial load
+import dynamic from 'next/dynamic'
 import type { ReactNode } from 'react'
 import { createContext, useContext, useEffect, useState } from 'react'
-import { QueryProvider } from './query-provider'
+
+const QueryProvider = dynamic(
+  () => import('./query-provider').then(mod => ({ default: mod.QueryProvider })),
+  {
+    loading: () => (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="h-6 w-6 animate-spin rounded-full border-primary border-b-2" />
+          <p className="text-muted-foreground text-sm">Initializing application...</p>
+        </div>
+      </div>
+    ),
+  }
+)
+
+// Lazy load ThemeProvider to reduce initial bundle size
+const ThemeProvider = dynamic(
+  () => import('next-themes').then(mod => ({ default: mod.ThemeProvider })),
+  {
+    loading: () => <div className="contents">{/* Invisible wrapper */}</div>,
+    ssr: false, // Theme provider handles SSR internally
+  }
+)
 
 interface AppProvidersProps {
   children: ReactNode

@@ -44,7 +44,11 @@ export class EnhancedTestDatabaseManager {
     if (!EnhancedTestDatabaseManager.instances.has(key)) {
       EnhancedTestDatabaseManager.instances.set(key, new EnhancedTestDatabaseManager(envConfig))
     }
-    return EnhancedTestDatabaseManager.instances.get(key)!
+    const instance = EnhancedTestDatabaseManager.instances.get(key)
+    if (!instance) {
+      throw new Error(`TestDatabaseManager instance not found for key: ${key}`)
+    }
+    return instance
   }
 
   /**

@@ -17,9 +17,9 @@ describe('GitHubCacheManager', () => {
 
   describe('generateCacheKey', () => {
     it('should generate consistent keys regardless of object key order', () => {
-      const params1 = { sort: 'stars', order: 'desc', per_page: 10, page: 1 }
-      const params2 = { page: 1, per_page: 10, order: 'desc', sort: 'stars' }
-      const params3 = { order: 'desc', page: 1, sort: 'stars', per_page: 10 }
+      const params1 = { sort: 'stars', order: 'desc', perPage: $1, page: 1 }
+      const params2 = { page: 1, perPage: $1, order: 'desc', sort: 'stars' }
+      const params3 = { order: 'desc', page: 1, sort: 'stars', perPage: $1 }
 
       const key1 = cacheManager.generateCacheKey('GET', '/repos', params1)
       const key2 = cacheManager.generateCacheKey('GET', '/repos', params2)

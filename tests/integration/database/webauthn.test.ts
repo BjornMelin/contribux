@@ -16,12 +16,34 @@ import {
 
 // Mock the security feature flags
 vi.mock('@/lib/security/feature-flags', () => ({
-  getSecurityConfig: () => ({
+  securityFeatures: {
+    webauthn: true,
+    basicSecurity: true,
+    securityHeaders: true,
+    rateLimiting: true,
+  },
+  getSecurityFeatures: vi.fn().mockReturnValue({
+    webauthn: true,
+    basicSecurity: true,
+    securityHeaders: true,
+    rateLimiting: true,
+    isDevelopment: true,
+    isProduction: false,
+  }),
+  getSecurityConfig: vi.fn().mockReturnValue({
     webauthn: {
-      rpName: 'Contribux Test',
+      rpName: 'Contribux',
       rpId: 'localhost',
       origin: 'http://localhost:3000',
       timeout: 60000,
+    },
+    rateLimit: {
+      windowMs: 15 * 60 * 1000,
+      maxRequests: 1000,
+    },
+    monitoring: {
+      enableHealthChecks: true,
+      enableMetrics: true,
     },
   }),
 }))

@@ -13,7 +13,7 @@ declare global {
         page_location?: string
         custom_map?: Record<string, string>
         send_page_view?: boolean
-        [key: string]: any
+        [key: string]: string | number | boolean | Record<string, string> | undefined
       }
     ) => void
   }

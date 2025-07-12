@@ -50,7 +50,24 @@ vi.mock('@octokit/rest', () => ({
 
 describe('GitHub Integration Tests', () => {
   let githubService: GitHubService
-  let mockOctokit: any
+  let mockOctokit: {
+    rest: {
+      search: {
+        repos: vi.Mock
+        issues: vi.Mock
+      }
+      repos: {
+        get: vi.Mock
+        listContributors: vi.Mock
+      }
+      issues: {
+        listForRepo: vi.Mock
+      }
+    }
+    rateLimit: {
+      get: vi.Mock
+    }
+  }
   let rateLimiter: GitHubRateLimiter
 
   beforeEach(() => {
@@ -484,7 +501,9 @@ describe('GitHub Integration Tests', () => {
     })
 
     it('should handle API deprecation warnings', async () => {
-      const warningSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const warningSpy = vi.spyOn(console, 'warn').mockImplementation(() => {
+        // Intentionally empty - suppressing console output during tests
+      })
 
       mockOctokit.search.repos.mockResolvedValueOnce({
         data: {

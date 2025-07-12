@@ -248,6 +248,6 @@ export type SecureIdGenerator = (prefix?: string) => string
 
 // Convenience exports for common use cases
 export const secureRequestId = () => generateSecureId('req')
-export const secureWorkerId = () => generateSecureId('worker')
+
 export const secureSessionId = () => generateSecureId('session')
 export const secureTokenId = () => generateSecureId('token')

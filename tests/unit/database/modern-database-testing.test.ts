@@ -15,9 +15,8 @@ describe('Modern Database Testing Infrastructure', () => {
   let factories: ReturnType<typeof createTestFactories>
 
   beforeEach(async () => {
-    // Automatically chooses PGlite for speed in CI, Neon branching locally
+    // Strategy automatically determined by TEST_DB_STRATEGY environment variable
     db = await getTestDatabase('modern-db-test', {
-      ...(process.env.CI ? { strategy: 'pglite' as const } : {}), // Force PGlite in CI
       cleanup: 'truncate',
       verbose: true,
     })
@@ -248,12 +247,14 @@ describe('Modern Database Testing Infrastructure', () => {
 
   describe('Database Strategy Information', () => {
     it('should provide information about the database strategy used', () => {
-      expect(db.strategy).toBeOneOf(['pglite', 'neon-branch', 'neon-transaction'])
+      expect(db.strategy).toBeOneOf(['mock', 'pglite', 'neon-branch', 'neon-transaction']) // Mock strategy from TEST_DB_STRATEGY
       expect(db.info.performance).toBeOneOf(['ultra-fast', 'fast', 'production-like'])
 
       console.log(`🔗 Using ${db.strategy} strategy (${db.info.performance})`)
 
-      if (db.strategy === 'pglite') {
+      if (db.strategy === 'mock') {
+        expect(db.info.performance).toBe('ultra-fast')
+      } else if (db.strategy === 'pglite') {
         expect(db.info.performance).toBe('ultra-fast')
       } else if (db.strategy === 'neon-branch') {
         expect(db.info.performance).toBe('production-like')

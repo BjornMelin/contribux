@@ -12,11 +12,40 @@ setupDatabaseMock()
 setupWebAuthnServerMock()
 
 // Mock feature flags
-vi.mock('@/lib/security/feature-flags', () => ({
-  securityFeatures: {
+vi.mock('@/lib/security/feature-flags', () => {
+  const mockSecurityFeatures = {
     webauthn: true,
-  },
-}))
+    basicSecurity: true,
+    securityHeaders: true,
+    rateLimiting: true,
+    advancedMonitoring: false,
+    securityDashboard: false,
+    deviceFingerprinting: false,
+    detailedAudit: false,
+    isDevelopment: true,
+    isProduction: false,
+  }
+  return {
+    securityFeatures: mockSecurityFeatures,
+    getSecurityFeatures: vi.fn().mockReturnValue(mockSecurityFeatures),
+    getSecurityConfig: vi.fn().mockReturnValue({
+      webauthn: {
+        rpName: 'Contribux',
+        rpId: 'localhost',
+        origin: 'http://localhost:3000',
+        timeout: 60000,
+      },
+      rateLimit: {
+        windowMs: 15 * 60 * 1000,
+        maxRequests: 1000,
+      },
+      monitoring: {
+        enableHealthChecks: false,
+        enableMetrics: false,
+      },
+    }),
+  }
+})
 
 // Mock WebAuthn server functions
 vi.mock('@/lib/security/webauthn/server', () => ({

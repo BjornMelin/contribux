@@ -130,7 +130,11 @@ describe('CSP (Content Security Policy) Validation Tests', () => {
         useNonce: true,
       })
 
-      const handler = vi.fn().mockImplementation(async (req: any) => {
+      interface RequestWithNonce {
+        nonce?: string
+      }
+
+      const handler = vi.fn().mockImplementation(async (req: RequestWithNonce) => {
         return NextResponse.json({ nonce: req.nonce })
       })
 

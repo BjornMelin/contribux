@@ -569,7 +569,11 @@ describe('Security Middleware Tests', () => {
     it('should generate CSRF tokens for forms', async () => {
       const request = new NextRequest('http://localhost/api/csrf-token')
 
-      const handler = vi.fn(async (req: any) => {
+      interface RequestWithCsrf {
+        generateCsrfToken?: () => Promise<string>
+      }
+
+      const handler = vi.fn(async (req: RequestWithCsrf) => {
         // Check if generateCsrfToken function exists and is callable
         if (req.generateCsrfToken && typeof req.generateCsrfToken === 'function') {
           const token = await req.generateCsrfToken()

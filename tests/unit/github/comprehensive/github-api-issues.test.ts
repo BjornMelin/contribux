@@ -141,7 +141,7 @@ describe('GitHubClient - Issues & Pull Requests', () => {
         testIssueParams.repository.repo,
         {
           state: 'open',
-          per_page: 5,
+          perPage: $1,
         }
       )
 
@@ -151,7 +151,7 @@ describe('GitHubClient - Issues & Pull Requests', () => {
         testIssueParams.repository.repo,
         {
           state: 'closed',
-          per_page: 5,
+          perPage: $1,
         }
       )
 
@@ -161,7 +161,7 @@ describe('GitHubClient - Issues & Pull Requests', () => {
         testIssueParams.repository.repo,
         {
           state: 'all',
-          per_page: 5,
+          perPage: $1,
         }
       )
 
@@ -197,7 +197,7 @@ describe('GitHubClient - Issues & Pull Requests', () => {
         testPRParams.repository.repo,
         {
           state: 'open',
-          per_page: 10,
+          perPage: $1,
         }
       )
 
@@ -267,7 +267,7 @@ describe('GitHubClient - Issues & Pull Requests', () => {
         testPRParams.repository.repo,
         {
           state: 'open',
-          per_page: 5,
+          perPage: $1,
         }
       )
 
@@ -277,7 +277,7 @@ describe('GitHubClient - Issues & Pull Requests', () => {
         testPRParams.repository.repo,
         {
           state: 'closed',
-          per_page: 5,
+          perPage: $1,
         }
       )
 
@@ -313,7 +313,7 @@ describe('GitHubClient - Issues & Pull Requests', () => {
         testIssueParams.withComments.repo,
         testIssueParams.withComments.issueNumber,
         {
-          per_page: 10,
+          perPage: $1,
         }
       )
 
@@ -388,7 +388,7 @@ describe('GitHubClient - Issues & Pull Requests', () => {
       const client = new GitHubClient(testClientConfigs.basicToken)
 
       await expect(
-        client.listIssues('test', 'rate-limited-issues', { per_page: 100 })
+        client.listIssues('test', 'rate-limited-issues', { perPage: $1 })
       ).rejects.toThrow(GitHubError)
     })
 
@@ -465,7 +465,7 @@ describe('GitHubClient - Issues & Pull Requests', () => {
         testPRParams.repository.repo,
         {
           state: 'all',
-          per_page: 5,
+          perPage: $1,
         }
       )
 
@@ -510,10 +510,10 @@ describe('GitHubClient - Issues & Pull Requests', () => {
           testPRParams.singlePR.pullNumber
         ),
         client.listIssues(testIssueParams.repository.owner, testIssueParams.repository.repo, {
-          per_page: 5,
+          perPage: $1,
         }),
         client.listPullRequests(testPRParams.repository.owner, testPRParams.repository.repo, {
-          per_page: 5,
+          perPage: $1,
         }),
       ]
 
@@ -533,7 +533,7 @@ describe('GitHubClient - Issues & Pull Requests', () => {
         {
           labels: 'bug,help-wanted',
           state: 'open',
-          per_page: 10,
+          perPage: $1,
         }
       )
 
@@ -544,7 +544,7 @@ describe('GitHubClient - Issues & Pull Requests', () => {
         {
           assignee: 'testuser',
           state: 'open',
-          per_page: 10,
+          perPage: $1,
         }
       )
 
@@ -584,8 +584,8 @@ describe('GitHubClient - Issues & Pull Requests', () => {
       const client = new GitHubClient(testClientConfigs.tokenWithCache)
 
       // Test with PR list parameters - different ordering
-      const listParams1 = { state: 'open' as const, per_page: 10, page: 1 }
-      const listParams2 = { page: 1, per_page: 10, state: 'open' as const }
+      const listParams1 = { state: 'open' as const, perPage: $1, page: 1 }
+      const listParams2 = { page: 1, perPage: $1, state: 'open' as const }
 
       const prs1 = await client.listPullRequests(
         testPRParams.repository.owner,

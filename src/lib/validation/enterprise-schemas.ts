@@ -12,11 +12,15 @@
 
 import { z } from 'zod'
 import {
+  composeValidationSchemas,
   createMemoizedValidator,
+  getValidationMetrics,
+  getValidationSchema,
+  registerValidationSchema,
+  resetValidationMetrics,
   SchemaVersionManager,
+  trackValidationPerformance,
   ValidationErrorAggregator,
-  ValidationPerformanceMonitor,
-  ValidationSchemaRegistry,
 } from './shared'
 
 // Initialize enterprise validation components
@@ -330,7 +334,10 @@ export const EnhancedErrorResponseSchema = z.object({
 // Repository validation with caching
 export const validateRepositoryWithCache = createMemoizedValidator(
   GitHubRepositorySchema,
-  (input: any) => `repo_${input?.id}_${input?.updated_at}`,
+  (input: unknown) => {
+    const inputObj = input as Record<string, unknown>
+    return `repo_${inputObj?.id}_${inputObj?.updated_at}`
+  },
   500 // Cache up to 500 repositories
 )
 /**
@@ -422,7 +429,10 @@ export function createEnvironmentAwareValidator<T>(
 // Issue validation with caching
 export const validateIssueWithCache = createMemoizedValidator(
   GitHubIssueSchema,
-  (input: any) => `issue_${input?.id}_${input?.updated_at}`,
+  (input: unknown) => {
+    const inputObj = input as Record<string, unknown>
+    return `issue_${inputObj?.id}_${inputObj?.updated_at}`
+  },
   1000 // Cache up to 1000 issues
 )
 
@@ -432,9 +442,9 @@ export const validateIssueWithCache = createMemoizedValidator(
  */
 
 // Register schemas with the registry
-ValidationSchemaRegistry.register('github-repository', GitHubRepositorySchema)
-ValidationSchemaRegistry.register('github-issue', GitHubIssueSchema)
-ValidationSchemaRegistry.register('enhanced-error', EnhancedErrorResponseSchema)
+registerValidationSchema('github-repository', GitHubRepositorySchema)
+registerValidationSchema('github-issue', GitHubIssueSchema)
+registerValidationSchema('enhanced-error', EnhancedErrorResponseSchema)
 
 // Register schema versions for API evolution
 versionManager.registerVersion('repository', 'v1.0.0', GitHubRepositorySchema)
@@ -556,8 +566,12 @@ export function createEnterpriseValidationMiddleware<TInput, TOutput = TInput>(
       if (enableCaching) {
         // Use memoized validation for performance
         const cacheKey = JSON.stringify(input)
-        // Type-cast schema for memoization since createMemoizedValidator has stricter type constraints
-        const memoizedValidator = (createMemoizedValidator as any)(schema, () => cacheKey)
+        // Create memoized validator with proper typing
+        const memoizedValidator = createMemoizedValidator(
+          schema as unknown as z.ZodSchema<TOutput>,
+          (_: unknown) => cacheKey,
+          100 // Default cache size
+        )
         return memoizedValidator(input)
       }
       return schema.parse(input)
@@ -565,7 +579,7 @@ export function createEnterpriseValidationMiddleware<TInput, TOutput = TInput>(
 
     try {
       const result = enablePerformanceMonitoring
-        ? ValidationPerformanceMonitor.track(schema.constructor.name, validationFn)
+        ? trackValidationPerformance(schema.constructor.name, validationFn)
         : validationFn()
 
       onValidationSuccess?.(result)
@@ -617,7 +631,7 @@ export function formatValidationErrorsForAPI(error: z.ZodError): {
 // Create validation summary for monitoring
 export function createValidationSummary() {
   return {
-    performance_metrics: ValidationPerformanceMonitor.getMetrics(),
+    performance_metrics: getValidationMetrics(),
     registered_schemas: ['github-repository', 'github-issue', 'enhanced-error'], // Static list for now
     schema_versions: Object.fromEntries(
       Array.from(versionManager.getVersions().entries()).map(([name, versions]) => [
@@ -630,8 +644,12 @@ export function createValidationSummary() {
 
 // Export for external usage
 export {
-  ValidationSchemaRegistry,
+  registerValidationSchema,
+  getValidationSchema,
+  composeValidationSchemas,
   versionManager,
-  ValidationPerformanceMonitor,
+  trackValidationPerformance,
+  getValidationMetrics,
+  resetValidationMetrics,
   ValidationErrorAggregator,
 }

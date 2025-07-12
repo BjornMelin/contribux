@@ -20,57 +20,74 @@ export interface CSPMiddlewareConfig {
   useNonce?: boolean
 }
 
+// Helper functions to reduce middleware complexity
+function getDirectives(config: CSPMiddlewareConfig, request: NextRequest): CSPDirectives {
+  return typeof config.directives === 'function'
+    ? config.directives(request)
+    : config.directives || getCSPDirectives()
+}
+
+function applyDevelopmentDirectives(directives: CSPDirectives): CSPDirectives {
+  return {
+    ...directives,
+    'connect-src': [
+      ...(directives['connect-src'] || []),
+      'ws://localhost:3000',
+      'wss://localhost:3000',
+    ],
+    'script-src': [...(directives['script-src'] || []), "'unsafe-eval'"],
+  }
+}
+
+function applyProductionDirectives(directives: CSPDirectives): CSPDirectives {
+  return {
+    ...directives,
+    'upgrade-insecure-requests': directives['upgrade-insecure-requests'] || [],
+    'block-all-mixed-content': directives['block-all-mixed-content'] || [],
+  }
+}
+
+function applyEnvironmentSpecificDirectives(directives: CSPDirectives): CSPDirectives {
+  if (process.env.NODE_ENV === 'development') {
+    return applyDevelopmentDirectives(directives)
+  }
+  if (process.env.NODE_ENV === 'production') {
+    return applyProductionDirectives(directives)
+  }
+  return directives
+}
+
+function getCSPHeaderName(reportOnly: boolean): string {
+  return reportOnly ? 'Content-Security-Policy-Report-Only' : 'Content-Security-Policy'
+}
+
+// Define proper request type that includes nonce
+interface EnhancedNextRequest extends NextRequest {
+  nonce?: string
+}
+
 export function cspMiddleware(config: CSPMiddlewareConfig) {
   return async (
     request: NextRequest,
-    handler: (req: any) => Promise<NextResponse>
+    handler: (req: EnhancedNextRequest) => Promise<NextResponse>
   ): Promise<NextResponse> => {
     // Generate nonce if required
     const nonce = config.useNonce ? generateNonce() : undefined
 
-    // Get directives (static or dynamic)
-    let directives =
-      typeof config.directives === 'function'
-        ? config.directives(request)
-        : config.directives || getCSPDirectives()
+    // Get base directives and apply environment-specific modifications
+    const baseDirectives = getDirectives(config, request)
+    const environmentDirectives = applyEnvironmentSpecificDirectives(baseDirectives)
 
-    // Environment-specific modifications
-    if (process.env.NODE_ENV === 'development') {
-      // Add development-specific sources
-      directives = {
-        ...directives,
-        'connect-src': [
-          ...(directives['connect-src'] || []),
-          'ws://localhost:3000',
-          'wss://localhost:3000',
-        ],
-        'script-src': [...(directives['script-src'] || []), "'unsafe-eval'"],
-      }
-    } else if (process.env.NODE_ENV === 'production') {
-      // Add production-specific strict security directives
-      directives = {
-        ...directives,
-        'upgrade-insecure-requests': directives['upgrade-insecure-requests'] || [],
-        'block-all-mixed-content': directives['block-all-mixed-content'] || [],
-      }
-    }
-
-    // Replace nonce placeholder if present
-    const processedDirectives = processNoncePlaceholders(directives, nonce)
-
-    // Build CSP header
+    // Replace nonce placeholders and build CSP header
+    const processedDirectives = processNoncePlaceholders(environmentDirectives, nonce)
     const cspHeader = buildCSP(processedDirectives, nonce)
 
-    // Add nonce to request if generated
+    // Enhance request with nonce and call handler
     const enhancedRequest = nonce ? Object.assign(request, { nonce }) : request
-
-    // Call handler
     const response = await handler(enhancedRequest)
 
-    // Add CSP header
-    const headerName = config.reportOnly
-      ? 'Content-Security-Policy-Report-Only'
-      : 'Content-Security-Policy'
+    // Add CSP header to response
+    const headerName = getCSPHeaderName(config.reportOnly ?? false)
     response.headers.set(headerName, cspHeader)
 
     return response
@@ -106,8 +123,16 @@ export function generateCSPHeader(
   return buildCSP(directives)
 }
 
-export function validateCSPDirective(directive: string, source: string): boolean {
-  // Basic validation rules
+// Helper functions for CSP directive validation - reduces complexity
+function isDangerousScheme(source: string): boolean {
+  return source.startsWith('javascript:') || source.startsWith('vbscript:')
+}
+
+function isUnquotedKeyword(source: string): boolean {
+  return ['unsafe-inline', 'unsafe-eval', 'none', 'self', 'strict-dynamic'].includes(source)
+}
+
+function isValidKeyword(directive: string, source: string): boolean {
   const validKeywords = [
     "'self'",
     "'unsafe-inline'",
@@ -119,15 +144,63 @@ export function validateCSPDirective(directive: string, source: string): boolean
     "'wasm-unsafe-eval'",
   ]
 
-  const validSchemes = ['data:', 'blob:', 'filesystem:', 'https:', 'http:', 'ws:', 'wss:']
-
-  // Reject dangerous or invalid schemes
-  if (source.startsWith('javascript:') || source.startsWith('vbscript:')) {
+  if (!validKeywords.includes(source)) {
     return false
   }
 
-  // Reject unquoted keywords (missing quotes)
-  if (['unsafe-inline', 'unsafe-eval', 'none', 'self', 'strict-dynamic'].includes(source)) {
+  // Special case: frame-ancestors doesn't support unsafe-inline
+  return !(directive === 'frame-ancestors' && source === "'unsafe-inline'")
+}
+
+function isValidNonceOrHash(source: string): boolean {
+  return (
+    (source.startsWith("'nonce-") && source.endsWith("'")) ||
+    (source.startsWith("'sha256-") && source.endsWith("'")) ||
+    (source.startsWith("'sha384-") && source.endsWith("'")) ||
+    (source.startsWith("'sha512-") && source.endsWith("'"))
+  )
+}
+
+function isValidSchemeSource(directive: string, source: string): boolean {
+  const validSchemes = ['data:', 'blob:', 'filesystem:', 'https:', 'http:', 'ws:', 'wss:']
+
+  if (!validSchemes.some(scheme => source.startsWith(scheme))) {
+    return false
+  }
+
+  // HTTP not allowed for most directives by default (security best practice)
+  // Only allow in development or when explicitly configured
+  return !(source.startsWith('http:') && directive !== 'connect-src')
+}
+
+function isValidHostname(source: string): boolean {
+  return source.includes('.') && !source.includes(' ')
+}
+
+function isValidSandboxValue(source: string): boolean {
+  const validSandboxValues = [
+    'allow-forms',
+    'allow-same-origin',
+    'allow-scripts',
+    'allow-popups',
+    'allow-modals',
+    'allow-orientation-lock',
+    'allow-pointer-lock',
+    'allow-presentation',
+    'allow-popups-to-escape-sandbox',
+    'allow-top-navigation',
+  ]
+  return validSandboxValues.includes(source)
+}
+
+export function validateCSPDirective(directive: string, source: string): boolean {
+  // Early rejection for dangerous schemes
+  if (isDangerousScheme(source)) {
+    return false
+  }
+
+  // Reject unquoted keywords
+  if (isUnquotedKeyword(source)) {
     return false
   }
 
@@ -136,55 +209,29 @@ export function validateCSPDirective(directive: string, source: string): boolean
     return false
   }
 
-  // Check for valid keywords FIRST
-  if (validKeywords.includes(source)) {
-    // Special case: frame-ancestors doesn't support unsafe-inline
-    if (directive === 'frame-ancestors' && source === "'unsafe-inline'") {
-      return false
-    }
+  // Check valid keywords first
+  if (isValidKeyword(directive, source)) {
     return true
   }
 
-  // Check for nonce/hash (must be quoted and properly formatted)
-  if (
-    (source.startsWith("'nonce-") && source.endsWith("'")) ||
-    (source.startsWith("'sha256-") && source.endsWith("'")) ||
-    (source.startsWith("'sha384-") && source.endsWith("'")) ||
-    (source.startsWith("'sha512-") && source.endsWith("'"))
-  ) {
+  // Check nonce/hash sources
+  if (isValidNonceOrHash(source)) {
     return true
   }
 
-  // Check for valid schemes
-  if (validSchemes.some(scheme => source.startsWith(scheme))) {
-    // HTTP not allowed for most directives by default (security best practice)
-    // Only allow in development or when explicitly configured
-    if (source.startsWith('http:') && directive !== 'connect-src') {
-      return false
-    }
+  // Check valid schemes
+  if (isValidSchemeSource(directive, source)) {
     return true
   }
 
-  // Check for valid hostnames
-  if (source.includes('.') && !source.includes(' ')) {
+  // Check hostnames
+  if (isValidHostname(source)) {
     return true
   }
 
-  // Check for sandbox values
+  // Check sandbox directive values
   if (directive === 'sandbox') {
-    const validSandboxValues = [
-      'allow-forms',
-      'allow-same-origin',
-      'allow-scripts',
-      'allow-popups',
-      'allow-modals',
-      'allow-orientation-lock',
-      'allow-pointer-lock',
-      'allow-presentation',
-      'allow-popups-to-escape-sandbox',
-      'allow-top-navigation',
-    ]
-    return validSandboxValues.includes(source)
+    return isValidSandboxValue(source)
   }
 
   // Reject unknown quoted keywords
@@ -209,10 +256,24 @@ export async function reportCSPViolation(
     if (options?.filterNoise && isNoiseViolation(report)) {
       return
     }
-  } catch (_error) {}
+  } catch (_error) {
+    // Silently ignore logging errors to prevent infinite loops
+  }
 }
 
-function isNoiseViolation(report: any): boolean {
+// Define proper CSP report interface
+interface CSPViolationReport {
+  'blocked-uri'?: string
+  'document-uri'?: string
+  'effective-directive'?: string
+  'original-policy'?: string
+  referrer?: string
+  'status-code'?: number
+  'violated-directive'?: string
+  [key: string]: unknown
+}
+
+function isNoiseViolation(report: CSPViolationReport): boolean {
   const blockedUri = report['blocked-uri'] || ''
 
   // Filter out browser extension violations
@@ -280,8 +341,8 @@ function validateCSPSecurity(directives: CSPDirectives): void {
     }
   }
 
-  // Log warnings
-  warnings.forEach(_warning => {})
+  // TODO: Implement warning logging if needed
+  // warnings.forEach(warning => logger.warn('CSP Validation Warning:', warning))
 }
 
 export function analyzeCSPSecurity(directives: CSPDirectives): Array<{

@@ -21,20 +21,69 @@ const mockSession = {
   expires: '2024-12-31T23:59:59.999Z',
 }
 
-vi.mock('next-auth', () => ({
-  getServerSession: vi.fn(),
-}))
+vi.mock('next-auth', () => {
+  const mockNextAuth = vi.fn(() => ({
+    handlers: {
+      GET: vi.fn(),
+      POST: vi.fn(),
+    },
+    auth: vi.fn().mockResolvedValue({
+      user: {
+        id: 'test-user-id',
+        email: 'test@example.com',
+        name: 'Test User',
+      },
+      expires: '2024-12-31T23:59:59.999Z',
+    }),
+    signIn: vi.fn(),
+    signOut: vi.fn(),
+  }))
+
+  return {
+    default: mockNextAuth,
+    getServerSession: vi.fn(),
+  }
+})
 
 vi.mock('@/lib/config/auth', () => ({
   authConfig: {},
 }))
 
 // Mock feature flags
-vi.mock('@/lib/security/feature-flags', () => ({
-  securityFeatures: {
+vi.mock('@/lib/security/feature-flags', () => {
+  const mockSecurityFeatures = {
     webauthn: true,
-  },
-}))
+    basicSecurity: true,
+    securityHeaders: true,
+    rateLimiting: true,
+    advancedMonitoring: false,
+    securityDashboard: false,
+    deviceFingerprinting: false,
+    detailedAudit: false,
+    isDevelopment: true,
+    isProduction: false,
+  }
+  return {
+    securityFeatures: mockSecurityFeatures,
+    getSecurityFeatures: vi.fn().mockReturnValue(mockSecurityFeatures),
+    getSecurityConfig: vi.fn().mockReturnValue({
+      webauthn: {
+        rpName: 'Contribux',
+        rpId: 'localhost',
+        origin: 'http://localhost:3000',
+        timeout: 60000,
+      },
+      rateLimit: {
+        windowMs: 15 * 60 * 1000,
+        maxRequests: 1000,
+      },
+      monitoring: {
+        enableHealthChecks: false,
+        enableMetrics: false,
+      },
+    }),
+  }
+})
 
 // Mock WebAuthn server functions
 vi.mock('@/lib/security/webauthn/server', () => ({

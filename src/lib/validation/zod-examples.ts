@@ -22,6 +22,104 @@ import {
 } from './enterprise-schemas'
 
 /**
+ * Validation helper functions for UserRegistrationSchema
+ */
+function validatePasswordConfirmation(
+  data: { password: string; confirmPassword: string },
+  ctx: z.RefinementCtx
+): void {
+  if (data.password !== data.confirmPassword) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Passwords do not match',
+      path: ['confirmPassword'],
+    })
+  }
+}
+
+function validateAge(data: { dateOfBirth: string }, ctx: z.RefinementCtx): void {
+  const birthDate = new Date(data.dateOfBirth)
+  const today = new Date()
+  const age = today.getFullYear() - birthDate.getFullYear()
+  const monthDiff = today.getMonth() - birthDate.getMonth()
+
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    // age -= 1 // Not needed since we're just checking
+  }
+
+  if (age < 13) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'You must be at least 13 years old to register',
+      path: ['dateOfBirth'],
+    })
+  }
+}
+
+function validateAccountTypeRequirements(
+  data: {
+    accountType: string
+    organizationName?: string
+    organizationTaxId?: string
+    firstName?: string
+    lastName?: string
+  },
+  ctx: z.RefinementCtx
+): void {
+  if (data.accountType === 'organization') {
+    if (!data.organizationName) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Organization name is required for organization accounts',
+        path: ['organizationName'],
+      })
+    }
+    if (!data.organizationTaxId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Tax ID is required for organization accounts',
+        path: ['organizationTaxId'],
+      })
+    }
+  } else if (data.accountType === 'individual') {
+    if (!data.firstName) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'First name is required for individual accounts',
+        path: ['firstName'],
+      })
+    }
+    if (!data.lastName) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Last name is required for individual accounts',
+        path: ['lastName'],
+      })
+    }
+  }
+}
+
+function validateTermsAcceptance(
+  data: { acceptTerms: boolean; acceptPrivacy: boolean },
+  ctx: z.RefinementCtx
+): void {
+  if (!data.acceptTerms) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'You must accept the terms of service',
+      path: ['acceptTerms'],
+    })
+  }
+  if (!data.acceptPrivacy) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'You must accept the privacy policy',
+      path: ['acceptPrivacy'],
+    })
+  }
+}
+
+/**
  * EXAMPLE 1: ADVANCED USER REGISTRATION WITH CONDITIONAL VALIDATION
  * Demonstrates complex business logic validation with context-aware rules
  */
@@ -62,79 +160,93 @@ export const UserRegistrationSchema = z
     marketingConsent: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
-    // Password confirmation validation
-    if (data.password !== data.confirmPassword) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Passwords do not match',
-        path: ['confirmPassword'],
-      })
-    }
-
-    // Age verification (must be 13+ for COPPA compliance)
-    const birthDate = new Date(data.dateOfBirth)
-    const today = new Date()
-    let age = today.getFullYear() - birthDate.getFullYear()
-    const monthDiff = today.getMonth() - birthDate.getMonth()
-
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--
-    }
-
-    if (age < 13) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'You must be at least 13 years old to register',
-        path: ['dateOfBirth'],
-      })
-    }
-
-    // Organization-specific validation
-    if (data.accountType === 'organization') {
-      if (!data.organizationName) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Organization name is required for organization accounts',
-          path: ['organizationName'],
-        })
-      }
-      if (!data.organizationTaxId) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Tax ID is required for organization accounts',
-          path: ['organizationTaxId'],
-        })
-      }
-    }
-
-    // Individual-specific validation
-    if (data.accountType === 'individual') {
-      if (!data.firstName || !data.lastName) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'First and last name are required for individual accounts',
-          path: data.firstName ? ['lastName'] : ['firstName'],
-        })
-      }
-    }
-
-    // Terms acceptance validation
-    if (!data.acceptTerms) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'You must accept the terms of service to register',
-        path: ['acceptTerms'],
-      })
-    }
-
-    if (!data.acceptPrivacy) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'You must accept the privacy policy to register',
-        path: ['acceptPrivacy'],
-      })
-    }
+    validatePasswordConfirmation(data, ctx)
+    validateAge(data, ctx)
+    validateAccountTypeRequirements(data, ctx)
+    validateTermsAcceptance(data, ctx)
   })
+
+/**
+ * Validation helper functions for AdvancedSearchRequestSchema
+ */
+function validateDateRange(
+  data: { dateFrom?: string; dateTo?: string },
+  ctx: z.RefinementCtx
+): void {
+  if (data.dateFrom && data.dateTo) {
+    const fromDate = new Date(data.dateFrom)
+    const toDate = new Date(data.dateTo)
+
+    if (fromDate >= toDate) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'From date must be before to date',
+        path: ['dateFrom'],
+      })
+    }
+
+    // Limit date range to prevent performance issues
+    const maxRangeDays = 365
+    const rangeDays = (toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24)
+
+    if (rangeDays > maxRangeDays) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Date range cannot exceed ${maxRangeDays} days`,
+        path: ['dateTo'],
+      })
+    }
+  }
+}
+
+function validateStarRange(
+  data: { minStars?: number; maxStars?: number },
+  ctx: z.RefinementCtx
+): void {
+  if (data.minStars !== undefined && data.maxStars !== undefined) {
+    if (data.minStars > data.maxStars) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Minimum stars cannot be greater than maximum stars',
+        path: ['minStars'],
+      })
+    }
+  }
+}
+
+function validateFilterCount(
+  data: {
+    categories: unknown[]
+    tags: unknown[]
+    difficulty?: string
+    minStars?: number
+    maxStars?: number
+    languages: unknown[]
+    goodFirstIssue: boolean
+    hasMentorship: boolean
+  },
+  ctx: z.RefinementCtx
+): void {
+  const activeFilters = [
+    data.categories.length > 0,
+    data.tags.length > 0,
+    data.difficulty !== undefined,
+    data.minStars !== undefined,
+    data.maxStars !== undefined,
+    data.languages.length > 0,
+    data.goodFirstIssue,
+    data.hasMentorship,
+  ].filter(Boolean).length
+
+  if (activeFilters > 5) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message:
+        'Too many filters applied. Please limit to 5 active filters for optimal performance.',
+      path: [],
+    })
+  }
+}
 
 /**
  * EXAMPLE 2: API SEARCH REQUEST WITH ADVANCED FILTERING
@@ -212,63 +324,9 @@ export const AdvancedSearchRequestSchema = z
       .transform(val => val === 'true'),
   })
   .superRefine((data, ctx) => {
-    // Date range validation
-    if (data.dateFrom && data.dateTo) {
-      const fromDate = new Date(data.dateFrom)
-      const toDate = new Date(data.dateTo)
-
-      if (fromDate >= toDate) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'From date must be before to date',
-          path: ['dateFrom'],
-        })
-      }
-
-      // Limit date range to prevent performance issues
-      const maxRangeDays = 365
-      const rangeDays = (toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24)
-
-      if (rangeDays > maxRangeDays) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `Date range cannot exceed ${maxRangeDays} days`,
-          path: ['dateTo'],
-        })
-      }
-    }
-
-    // Star count range validation
-    if (data.minStars !== undefined && data.maxStars !== undefined) {
-      if (data.minStars > data.maxStars) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Minimum stars cannot be greater than maximum stars',
-          path: ['minStars'],
-        })
-      }
-    }
-
-    // Limit number of filter combinations to prevent performance issues
-    const activeFilters = [
-      data.categories.length > 0,
-      data.tags.length > 0,
-      data.difficulty !== undefined,
-      data.minStars !== undefined,
-      data.maxStars !== undefined,
-      data.languages.length > 0,
-      data.goodFirstIssue,
-      data.hasMentorship,
-    ].filter(Boolean).length
-
-    if (activeFilters > 5) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message:
-          'Too many filters applied. Please limit to 5 active filters for optimal performance.',
-        path: [],
-      })
-    }
+    validateDateRange(data, ctx)
+    validateStarRange(data, ctx)
+    validateFilterCount(data, ctx)
   })
   .transform(data => ({
     ...data,
@@ -285,6 +343,84 @@ export const AdvancedSearchRequestSchema = z
       data.hasMentorship,
     ].filter(Boolean).length,
   }))
+
+/**
+ * Validation helper functions for DynamicFormSchema
+ */
+function validateFormTypeRequirements(
+  data: {
+    formType: string
+    company?: string
+    industry?: string
+    website?: string
+    phone?: string
+    employeeCount?: string
+    annualRevenue?: string
+    [key: string]: unknown
+  },
+  ctx: z.RefinementCtx
+): void {
+  switch (data.formType) {
+    case 'advanced':
+      if (!data.company) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Company name is required for advanced forms',
+          path: ['company'],
+        })
+      }
+      if (!data.industry) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Industry selection is required for advanced forms',
+          path: ['industry'],
+        })
+      }
+      break
+
+    case 'enterprise': {
+      const requiredEnterpriseFields = [
+        { field: 'company', message: 'Company name is required for enterprise forms' },
+        { field: 'website', message: 'Company website is required for enterprise forms' },
+        { field: 'phone', message: 'Phone number is required for enterprise forms' },
+        { field: 'industry', message: 'Industry selection is required for enterprise forms' },
+        { field: 'employeeCount', message: 'Employee count is required for enterprise forms' },
+        {
+          field: 'annualRevenue',
+          message: 'Annual revenue range is required for enterprise forms',
+        },
+      ]
+
+      for (const { field, message } of requiredEnterpriseFields) {
+        if (!data[field as keyof typeof data]) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message,
+            path: [field],
+          })
+        }
+      }
+      break
+    }
+  }
+}
+
+function validateCustomFields(
+  data: { customFields?: Record<string, unknown> },
+  ctx: z.RefinementCtx
+): void {
+  if (data.customFields) {
+    for (const [key, value] of Object.entries(data.customFields)) {
+      if (typeof value === 'string' && value.length > 1000) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Custom field '${key}' exceeds maximum length of 1000 characters`,
+          path: ['customFields', key],
+        })
+      }
+    }
+  }
+}
 
 /**
  * EXAMPLE 3: FORM VALIDATION WITH DYNAMIC FIELD REQUIREMENTS
@@ -319,63 +455,8 @@ export const DynamicFormSchema = z
     customFields: z.record(z.string(), z.unknown()).optional(),
   })
   .superRefine((data, ctx) => {
-    // Dynamic validation based on form type
-    switch (data.formType) {
-      case 'advanced':
-        if (!data.company) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: 'Company name is required for advanced forms',
-            path: ['company'],
-          })
-        }
-        if (!data.industry) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: 'Industry selection is required for advanced forms',
-            path: ['industry'],
-          })
-        }
-        break
-
-      case 'enterprise': {
-        const requiredEnterpriseFields = [
-          { field: 'company', message: 'Company name is required for enterprise forms' },
-          { field: 'website', message: 'Company website is required for enterprise forms' },
-          { field: 'phone', message: 'Phone number is required for enterprise forms' },
-          { field: 'industry', message: 'Industry selection is required for enterprise forms' },
-          { field: 'employeeCount', message: 'Employee count is required for enterprise forms' },
-          {
-            field: 'annualRevenue',
-            message: 'Annual revenue range is required for enterprise forms',
-          },
-        ]
-
-        for (const { field, message } of requiredEnterpriseFields) {
-          if (!data[field as keyof typeof data]) {
-            ctx.addIssue({
-              code: z.ZodIssueCode.custom,
-              message,
-              path: [field],
-            })
-          }
-        }
-        break
-      }
-    }
-
-    // Custom fields validation
-    if (data.customFields) {
-      for (const [key, value] of Object.entries(data.customFields)) {
-        if (typeof value === 'string' && value.length > 1000) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: `Custom field '${key}' exceeds maximum length of 1000 characters`,
-            path: ['customFields', key],
-          })
-        }
-      }
-    }
+    validateFormTypeRequirements(data, ctx)
+    validateCustomFields(data, ctx)
   })
 
 /**
@@ -464,8 +545,12 @@ export const validateUserRegistration = createEnterpriseValidationMiddleware(
       const formatted = formatValidationErrorsForAPI(error)
       return formatted.field_errors
     },
-    onValidationSuccess: _data => {},
-    onValidationError: _error => {},
+    onValidationSuccess: _data => {
+      // Handle successful validation - example implementation
+    },
+    onValidationError: _error => {
+      // Handle validation errors - example implementation
+    },
   }
 )
 
