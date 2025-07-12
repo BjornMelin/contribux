@@ -50,6 +50,9 @@ public/precache.*.js
 secrets.json
 .secrets/
 
+# Environment setup files with potential credentials
+ENVIRONMENT_SETUP.md
+
 # ================================
 # Database & PostgreSQL
 # ================================
@@ -278,6 +281,10 @@ tracking/
 # Performance monitoring
 .lighthouse/
 lighthouse-reports/
+performance-analysis-report.json
+performance-report*.json
+*-performance-report.json
+bundle-analysis*.json
 
 # ================================
 # Documentation
@@ -302,7 +309,7 @@ temp/
 *-tmp.*
 *-temp.*
 
-# Working files and notes
+# Working files and notes (temporary files only)
 MIGRATION_NOTE*.md
 TODO_*.md
 NOTES_*.md
@@ -310,17 +317,7 @@ WORKING_*.md
 *-working.*
 *-draft.*
 
-# Generated reports and documentation (working files only)
-*-REPORT.md
-*-SUMMARY.md
-*-report.md
-*-summary.md
-*_REPORT.md
-*_SUMMARY.md
-environment-validation-report.md
-oauth-completion-report.md
-oauth-setup-guide.md
-performance_*.md
+# Temporary generated reports (not permanent documentation)
 ULTRATHINK_*.md
 DECOMPOSITION_*.md
 DEPRECATED_*.md
@@ -328,12 +325,13 @@ FINAL_*.md
 OAUTH_*.md
 TEST_*.md
 
-# Documentation working files and drafts
-*-working.*
-*-draft.*
+# Specific temporary files that should be ignored
+environment-validation-report.md
+oauth-completion-report.md
+oauth-setup-guide.md
+
+# Additional temporary file patterns
 *-temp.*
-*.tmp
-WORKING_*.md
 DRAFT_*.md
 TEMP_*.md
 
@@ -448,6 +446,8 @@ test-entropy.js
 .taskmaster/cache/
 .taskmaster/.env
 .taskmaster/*.log
+# .taskmaster/config.json
+# .taskmaster/state.json
 
 # ================================
 # AI Development Tools
@@ -460,6 +460,7 @@ test-entropy.js
 .gpt/
 .anthropic/
 .openai/
+.vscode/extensions.json
 
 # Roo integration files
 .roo/
@@ -470,3 +471,8 @@ test-entropy.js
 .cursor/mcp.json
 .cursor/*.log
 .cursor/cache/
+
+# Screenshots
+screenshots/
+
+planning/archive

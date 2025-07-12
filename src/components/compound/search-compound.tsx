@@ -6,11 +6,11 @@
 
 'use client'
 
+import type React from 'react'
 import { Card } from '@/components/ui/card'
 import type { CompoundComponent, SearchCriteria, SearchQuery } from '@/lib/types/advanced'
 import type { UUID } from '@/types/base'
 import type { Opportunity, Repository } from '@/types/search'
-import type React from 'react'
 import {
   SearchActiveFilters,
   SearchButton,
@@ -26,6 +26,7 @@ import {
 
 // Re-export types for backward compatibility
 export type { SearchResult } from './search-context'
+
 import type { SearchResult } from './search-context'
 
 // Compose the compound component with optimized sub-components

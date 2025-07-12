@@ -5,12 +5,12 @@
 
 'use client'
 
-import { Button } from '@/components/ui/button'
-import type { PropsWithClassName } from '@/lib/types/advanced'
 import type React from 'react'
 import { memo, useCallback, useMemo } from 'react'
-import { useSearch } from './search-context'
+import { Button } from '@/components/ui/button'
+import type { PropsWithClassName } from '@/lib/types/advanced'
 import type { SearchResult } from './search-context'
+import { useSearch } from './search-context'
 
 // Results component
 interface SearchResultsProps extends PropsWithClassName {

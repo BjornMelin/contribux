@@ -5,10 +5,10 @@
  * and data integrity during database evolution.
  */
 
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createTestFactories } from '@/lib/test-utils/database-factories'
 import type { DatabaseConnection } from '@/lib/test-utils/test-database-manager'
 import { getTestDatabase } from '@/lib/test-utils/test-database-manager'
-import { beforeEach, describe, expect, it } from 'vitest'
 
 describe('Drizzle Migration Testing Suite', () => {
   let testDb: DatabaseConnection
@@ -18,7 +18,6 @@ describe('Drizzle Migration Testing Suite', () => {
     // Use a unique test ID for each test to ensure proper isolation
     const testId = `migration-test-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     testDb = await getTestDatabase(testId, {
-      strategy: 'pglite',
       cleanup: 'truncate',
       verbose: false, // Reduce verbosity for cleaner test output
     })
@@ -308,7 +307,7 @@ describe('Drizzle Migration Testing Suite', () => {
         preferences: {
           theme: 'dark',
           notifications: true, // Old structure
-        } as any,
+        } as Record<string, unknown>,
       })
 
       // Simulate data migration - restructure preferences
@@ -333,7 +332,7 @@ describe('Drizzle Migration Testing Suite', () => {
         SELECT preferences FROM users WHERE id = ${user.id}
       `
 
-      const prefs = migratedUser[0]?.preferences as any
+      const prefs = migratedUser[0]?.preferences as Record<string, unknown>
       expect(prefs.emailNotifications).toBe(true)
       expect(prefs.notifications).toBeUndefined()
       expect(prefs.theme).toBe('dark')
@@ -403,7 +402,7 @@ describe('Drizzle Migration Testing Suite', () => {
             preferences: {
               theme: 'light',
               oldSetting: `value-${i}`, // Old setting to migrate
-            } as any,
+            } as Record<string, unknown>,
           })
         )
       )

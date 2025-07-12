@@ -1,5 +1,5 @@
-import { setupTestDatabase } from '@/lib/test-utils/test-database-manager'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { setupTestDatabase } from '@/lib/test-utils/test-database-manager'
 
 // Database query result interface (snake_case from PostgreSQL)
 interface DatabaseQueryColumn {
@@ -10,7 +10,7 @@ interface DatabaseQueryColumn {
 }
 
 describe('Authentication Database Schema', () => {
-  const dbSetup = setupTestDatabase({ strategy: 'pglite' })
+  const dbSetup = setupTestDatabase()
 
   beforeEach(async () => {
     // Database setup is handled by setupTestDatabase

@@ -4,9 +4,9 @@
  * Follows Singleton pattern for consistent configuration access
  */
 
+import { z } from 'zod'
 import type { Result, ServiceFactory } from '@/lib/types/advanced'
 import { Failure, Success } from '@/lib/types/advanced'
-import { z } from 'zod'
 
 // Environment schema validation
 const environmentSchema = z.object({
@@ -467,7 +467,7 @@ export const configValidators = {
 // Export singleton instance for easy access - lazy loaded to avoid build-time issues
 let configInstance: ConfigProvider | null = null
 export const config = new Proxy({} as ConfigProvider, {
-  get(target, prop) {
+  get(_target, prop) {
     if (!configInstance) {
       configInstance = ConfigProvider.getInstance()
     }

@@ -4,8 +4,8 @@
 
 'use client'
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
-import { MemoryProfiler, MemoryMetrics } from '@/lib/monitoring/memory-profiler'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { type MemoryMetrics, MemoryProfiler } from '@/lib/monitoring/memory-profiler'
 
 interface PerformanceMetrics {
   // Test execution metrics
@@ -17,7 +17,7 @@ interface PerformanceMetrics {
     parallelization: number
     memoryUsage: number
   }
-  
+
   // Cache performance
   cache: {
     hitRate: number
@@ -26,7 +26,7 @@ interface PerformanceMetrics {
     evictions: number
     memoryUsageMB: number
   }
-  
+
   // API performance
   api: {
     avgResponseTime: number
@@ -34,7 +34,7 @@ interface PerformanceMetrics {
     errorRate: number
     concurrentRequests: number
   }
-  
+
   // Database performance
   database: {
     avgQueryTime: number
@@ -42,7 +42,7 @@ interface PerformanceMetrics {
     connectionCount: number
     slowQueries: number
   }
-  
+
   // Worker thread performance
   workers: {
     activeWorkers: number
@@ -50,7 +50,7 @@ interface PerformanceMetrics {
     queuedTasks: number
     avgTaskDuration: number
   }
-  
+
   // Memory metrics
   memory: MemoryMetrics
 }
@@ -72,14 +72,17 @@ export function PerformanceDashboardOptimized() {
   const [profiler] = useState(() => new MemoryProfiler())
 
   // Performance thresholds
-  const thresholds = useMemo(() => ({
-    testExecutionTime: 10000, // 10 seconds
-    cacheHitRate: 0.7, // 70%
-    apiResponseTime: 1000, // 1 second
-    memoryUsage: 500 * 1024 * 1024, // 500MB
-    errorRate: 0.05, // 5%
-    poolUtilization: 0.8, // 80%
-  }), [])
+  const thresholds = useMemo(
+    () => ({
+      testExecutionTime: 10000, // 10 seconds
+      cacheHitRate: 0.7, // 70%
+      apiResponseTime: 1000, // 1 second
+      memoryUsage: 500 * 1024 * 1024, // 500MB
+      errorRate: 0.05, // 5%
+      poolUtilization: 0.8, // 80%
+    }),
+    []
+  )
 
   // Mock data for demonstration - in real implementation, this would fetch from monitoring services
   const generateMockMetrics = useCallback((): PerformanceMetrics => {
@@ -137,76 +140,79 @@ export function PerformanceDashboardOptimized() {
   }, [])
 
   // Check for performance alerts
-  const checkAlerts = useCallback((metrics: PerformanceMetrics) => {
-    const newAlerts: PerformanceAlert[] = []
+  const checkAlerts = useCallback(
+    (metrics: PerformanceMetrics) => {
+      const newAlerts: PerformanceAlert[] = []
 
-    // Test execution time alert
-    if (metrics.testExecution.avgExecutionTime > thresholds.testExecutionTime) {
-      newAlerts.push({
-        id: `test-time-${Date.now()}`,
-        severity: 'warning',
-        message: 'Test execution time is above threshold',
-        metric: 'Test Execution Time',
-        value: metrics.testExecution.avgExecutionTime,
-        threshold: thresholds.testExecutionTime,
-        timestamp: Date.now(),
-      })
-    }
+      // Test execution time alert
+      if (metrics.testExecution.avgExecutionTime > thresholds.testExecutionTime) {
+        newAlerts.push({
+          id: `test-time-${Date.now()}`,
+          severity: 'warning',
+          message: 'Test execution time is above threshold',
+          metric: 'Test Execution Time',
+          value: metrics.testExecution.avgExecutionTime,
+          threshold: thresholds.testExecutionTime,
+          timestamp: Date.now(),
+        })
+      }
 
-    // Cache hit rate alert
-    if (metrics.cache.hitRate < thresholds.cacheHitRate) {
-      newAlerts.push({
-        id: `cache-hit-${Date.now()}`,
-        severity: 'warning',
-        message: 'Cache hit rate is below optimal',
-        metric: 'Cache Hit Rate',
-        value: metrics.cache.hitRate,
-        threshold: thresholds.cacheHitRate,
-        timestamp: Date.now(),
-      })
-    }
+      // Cache hit rate alert
+      if (metrics.cache.hitRate < thresholds.cacheHitRate) {
+        newAlerts.push({
+          id: `cache-hit-${Date.now()}`,
+          severity: 'warning',
+          message: 'Cache hit rate is below optimal',
+          metric: 'Cache Hit Rate',
+          value: metrics.cache.hitRate,
+          threshold: thresholds.cacheHitRate,
+          timestamp: Date.now(),
+        })
+      }
 
-    // API response time alert
-    if (metrics.api.avgResponseTime > thresholds.apiResponseTime) {
-      newAlerts.push({
-        id: `api-time-${Date.now()}`,
-        severity: 'error',
-        message: 'API response time is too high',
-        metric: 'API Response Time',
-        value: metrics.api.avgResponseTime,
-        threshold: thresholds.apiResponseTime,
-        timestamp: Date.now(),
-      })
-    }
+      // API response time alert
+      if (metrics.api.avgResponseTime > thresholds.apiResponseTime) {
+        newAlerts.push({
+          id: `api-time-${Date.now()}`,
+          severity: 'error',
+          message: 'API response time is too high',
+          metric: 'API Response Time',
+          value: metrics.api.avgResponseTime,
+          threshold: thresholds.apiResponseTime,
+          timestamp: Date.now(),
+        })
+      }
 
-    // Memory usage alert
-    if (metrics.memory.heapUsed > thresholds.memoryUsage) {
-      newAlerts.push({
-        id: `memory-${Date.now()}`,
-        severity: 'error',
-        message: 'Memory usage is critically high',
-        metric: 'Memory Usage',
-        value: metrics.memory.heapUsed,
-        threshold: thresholds.memoryUsage,
-        timestamp: Date.now(),
-      })
-    }
+      // Memory usage alert
+      if (metrics.memory.heapUsed > thresholds.memoryUsage) {
+        newAlerts.push({
+          id: `memory-${Date.now()}`,
+          severity: 'error',
+          message: 'Memory usage is critically high',
+          metric: 'Memory Usage',
+          value: metrics.memory.heapUsed,
+          threshold: thresholds.memoryUsage,
+          timestamp: Date.now(),
+        })
+      }
 
-    // Error rate alert
-    if (metrics.api.errorRate > thresholds.errorRate) {
-      newAlerts.push({
-        id: `error-rate-${Date.now()}`,
-        severity: 'error',
-        message: 'API error rate is too high',
-        metric: 'Error Rate',
-        value: metrics.api.errorRate,
-        threshold: thresholds.errorRate,
-        timestamp: Date.now(),
-      })
-    }
+      // Error rate alert
+      if (metrics.api.errorRate > thresholds.errorRate) {
+        newAlerts.push({
+          id: `error-rate-${Date.now()}`,
+          severity: 'error',
+          message: 'API error rate is too high',
+          metric: 'Error Rate',
+          value: metrics.api.errorRate,
+          threshold: thresholds.errorRate,
+          timestamp: Date.now(),
+        })
+      }
 
-    setAlerts(prev => [...prev.slice(-10), ...newAlerts]) // Keep last 10 alerts
-  }, [thresholds])
+      setAlerts(prev => [...prev.slice(-10), ...newAlerts]) // Keep last 10 alerts
+    },
+    [thresholds]
+  )
 
   // Start/stop monitoring
   const toggleMonitoring = useCallback(() => {
@@ -236,37 +242,79 @@ export function PerformanceDashboardOptimized() {
   const formatPercent = (value: number) => `${Math.round(value * 100)}%`
   const formatMB = (bytes: number) => `${Math.round(bytes / 1024 / 1024)}MB`
 
+  // Helper function to get alert styling classes
+  const getAlertStyles = (severity: 'info' | 'warning' | 'error') => {
+    const styleMap = {
+      error: 'border-red-500 bg-red-50',
+      warning: 'border-yellow-500 bg-yellow-50',
+      info: 'border-blue-500 bg-blue-50',
+    }
+    return `rounded border-l-4 p-3 ${styleMap[severity]}`
+  }
+
+  // Helper function to format metric values
+  const formatMetricValue = (metric: string, value: number) => {
+    if (metric.includes('Time')) return formatTime(value)
+    if (metric.includes('Rate')) return formatPercent(value)
+    if (metric.includes('Memory')) return formatMB(value)
+    return value.toFixed(2)
+  }
+
+  // Alert item component to reduce complexity
+  const AlertItem = ({ alert }: { alert: PerformanceAlert }) => (
+    <div className={getAlertStyles(alert.severity)}>
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="font-medium">{alert.message}</p>
+          <p className="text-gray-600 text-sm">
+            {alert.metric}: {formatMetricValue(alert.metric, alert.value)} (threshold:{' '}
+            {formatMetricValue(alert.metric, alert.threshold)})
+          </p>
+        </div>
+        <span className="text-gray-500 text-xs">
+          {new Date(alert.timestamp).toLocaleTimeString()}
+        </span>
+      </div>
+    </div>
+  )
+
   if (!metrics) {
     return (
-      <div className="p-6 bg-white rounded-lg shadow">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold">Performance Dashboard</h2>
+      <div className="rounded-lg bg-white p-6 shadow">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="font-bold text-2xl">Performance Dashboard</h2>
           <button
+            type="button"
             onClick={toggleMonitoring}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
           >
             Start Monitoring
           </button>
         </div>
-        <p className="text-gray-600">Click &quot;Start Monitoring&quot; to begin performance tracking</p>
+        <p className="text-gray-600">
+          Click &quot;Start Monitoring&quot; to begin performance tracking
+        </p>
       </div>
     )
   }
 
   return (
-    <div className="p-6 bg-white rounded-lg shadow space-y-6">
+    <div className="space-y-6 rounded-lg bg-white p-6 shadow">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Performance Dashboard</h2>
+        <h2 className="font-bold text-2xl">Performance Dashboard</h2>
         <div className="flex items-center space-x-4">
-          <div className={`w-3 h-3 rounded-full ${isMonitoring ? 'bg-green-500' : 'bg-gray-400'}`} />
+          <div
+            className={`h-3 w-3 rounded-full ${isMonitoring ? 'bg-green-500' : 'bg-gray-400'}`}
+          />
           <span className="text-sm">{isMonitoring ? 'Monitoring' : 'Stopped'}</span>
           <button
+            type="button"
             onClick={toggleMonitoring}
-            className={`px-4 py-2 rounded ${
-              isMonitoring 
-                ? 'bg-red-600 hover:bg-red-700 text-white' 
-                : 'bg-blue-600 hover:bg-blue-700 text-white'
+            className={`rounded px-4 py-2 ${
+              isMonitoring
+                ? 'bg-red-600 text-white hover:bg-red-700'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
             }`}
           >
             {isMonitoring ? 'Stop' : 'Start'} Monitoring
@@ -277,51 +325,20 @@ export function PerformanceDashboardOptimized() {
       {/* Alerts */}
       {alerts.length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-lg font-semibold">Recent Alerts</h3>
-          <div className="space-y-2 max-h-32 overflow-y-auto">
+          <h3 className="font-semibold text-lg">Recent Alerts</h3>
+          <div className="max-h-32 space-y-2 overflow-y-auto">
             {alerts.slice(-5).map(alert => (
-              <div
-                key={alert.id}
-                className={`p-3 rounded border-l-4 ${
-                  alert.severity === 'error' 
-                    ? 'bg-red-50 border-red-500' 
-                    : alert.severity === 'warning'
-                    ? 'bg-yellow-50 border-yellow-500'
-                    : 'bg-blue-50 border-blue-500'
-                }`}
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-medium">{alert.message}</p>
-                    <p className="text-sm text-gray-600">
-                      {alert.metric}: {
-                        alert.metric.includes('Time') ? formatTime(alert.value) :
-                        alert.metric.includes('Rate') ? formatPercent(alert.value) :
-                        alert.metric.includes('Memory') ? formatMB(alert.value) :
-                        alert.value.toFixed(2)
-                      } (threshold: {
-                        alert.metric.includes('Time') ? formatTime(alert.threshold) :
-                        alert.metric.includes('Rate') ? formatPercent(alert.threshold) :
-                        alert.metric.includes('Memory') ? formatMB(alert.threshold) :
-                        alert.threshold.toFixed(2)
-                      })
-                    </p>
-                  </div>
-                  <span className="text-xs text-gray-500">
-                    {new Date(alert.timestamp).toLocaleTimeString()}
-                  </span>
-                </div>
-              </div>
+              <AlertItem key={alert.id} alert={alert} />
             ))}
           </div>
         </div>
       )}
 
       {/* Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         {/* Test Execution */}
-        <div className="p-4 border rounded-lg">
-          <h3 className="text-lg font-semibold mb-3">Test Execution</h3>
+        <div className="rounded-lg border p-4">
+          <h3 className="mb-3 font-semibold text-lg">Test Execution</h3>
           <div className="space-y-2">
             <div className="flex justify-between">
               <span>Total Tests:</span>
@@ -329,7 +346,9 @@ export function PerformanceDashboardOptimized() {
             </div>
             <div className="flex justify-between">
               <span>Passed:</span>
-              <span className="font-medium text-green-600">{metrics.testExecution.passedTests}</span>
+              <span className="font-medium text-green-600">
+                {metrics.testExecution.passedTests}
+              </span>
             </div>
             <div className="flex justify-between">
               <span>Failed:</span>
@@ -337,15 +356,21 @@ export function PerformanceDashboardOptimized() {
             </div>
             <div className="flex justify-between">
               <span>Avg Time:</span>
-              <span className={`font-medium ${
-                metrics.testExecution.avgExecutionTime > thresholds.testExecutionTime ? 'text-red-600' : 'text-green-600'
-              }`}>
+              <span
+                className={`font-medium ${
+                  metrics.testExecution.avgExecutionTime > thresholds.testExecutionTime
+                    ? 'text-red-600'
+                    : 'text-green-600'
+                }`}
+              >
                 {formatTime(metrics.testExecution.avgExecutionTime)}
               </span>
             </div>
             <div className="flex justify-between">
               <span>Parallelization:</span>
-              <span className="font-medium">{formatPercent(metrics.testExecution.parallelization)}</span>
+              <span className="font-medium">
+                {formatPercent(metrics.testExecution.parallelization)}
+              </span>
             </div>
             <div className="flex justify-between">
               <span>Memory:</span>
@@ -355,20 +380,26 @@ export function PerformanceDashboardOptimized() {
         </div>
 
         {/* Cache Performance */}
-        <div className="p-4 border rounded-lg">
-          <h3 className="text-lg font-semibold mb-3">Cache Performance</h3>
+        <div className="rounded-lg border p-4">
+          <h3 className="mb-3 font-semibold text-lg">Cache Performance</h3>
           <div className="space-y-2">
             <div className="flex justify-between">
               <span>Hit Rate:</span>
-              <span className={`font-medium ${
-                metrics.cache.hitRate < thresholds.cacheHitRate ? 'text-red-600' : 'text-green-600'
-              }`}>
+              <span
+                className={`font-medium ${
+                  metrics.cache.hitRate < thresholds.cacheHitRate
+                    ? 'text-red-600'
+                    : 'text-green-600'
+                }`}
+              >
                 {formatPercent(metrics.cache.hitRate)}
               </span>
             </div>
             <div className="flex justify-between">
               <span>Size:</span>
-              <span className="font-medium">{metrics.cache.size}/{metrics.cache.maxSize}</span>
+              <span className="font-medium">
+                {metrics.cache.size}/{metrics.cache.maxSize}
+              </span>
             </div>
             <div className="flex justify-between">
               <span>Evictions:</span>
@@ -382,14 +413,18 @@ export function PerformanceDashboardOptimized() {
         </div>
 
         {/* API Performance */}
-        <div className="p-4 border rounded-lg">
-          <h3 className="text-lg font-semibold mb-3">API Performance</h3>
+        <div className="rounded-lg border p-4">
+          <h3 className="mb-3 font-semibold text-lg">API Performance</h3>
           <div className="space-y-2">
             <div className="flex justify-between">
               <span>Avg Response:</span>
-              <span className={`font-medium ${
-                metrics.api.avgResponseTime > thresholds.apiResponseTime ? 'text-red-600' : 'text-green-600'
-              }`}>
+              <span
+                className={`font-medium ${
+                  metrics.api.avgResponseTime > thresholds.apiResponseTime
+                    ? 'text-red-600'
+                    : 'text-green-600'
+                }`}
+              >
                 {formatTime(metrics.api.avgResponseTime)}
               </span>
             </div>
@@ -399,9 +434,11 @@ export function PerformanceDashboardOptimized() {
             </div>
             <div className="flex justify-between">
               <span>Error Rate:</span>
-              <span className={`font-medium ${
-                metrics.api.errorRate > thresholds.errorRate ? 'text-red-600' : 'text-green-600'
-              }`}>
+              <span
+                className={`font-medium ${
+                  metrics.api.errorRate > thresholds.errorRate ? 'text-red-600' : 'text-green-600'
+                }`}
+              >
                 {formatPercent(metrics.api.errorRate)}
               </span>
             </div>
@@ -413,8 +450,8 @@ export function PerformanceDashboardOptimized() {
         </div>
 
         {/* Database Performance */}
-        <div className="p-4 border rounded-lg">
-          <h3 className="text-lg font-semibold mb-3">Database</h3>
+        <div className="rounded-lg border p-4">
+          <h3 className="mb-3 font-semibold text-lg">Database</h3>
           <div className="space-y-2">
             <div className="flex justify-between">
               <span>Avg Query:</span>
@@ -422,9 +459,13 @@ export function PerformanceDashboardOptimized() {
             </div>
             <div className="flex justify-between">
               <span>Pool Usage:</span>
-              <span className={`font-medium ${
-                metrics.database.poolUtilization > thresholds.poolUtilization ? 'text-yellow-600' : 'text-green-600'
-              }`}>
+              <span
+                className={`font-medium ${
+                  metrics.database.poolUtilization > thresholds.poolUtilization
+                    ? 'text-yellow-600'
+                    : 'text-green-600'
+                }`}
+              >
                 {formatPercent(metrics.database.poolUtilization)}
               </span>
             </div>
@@ -434,7 +475,9 @@ export function PerformanceDashboardOptimized() {
             </div>
             <div className="flex justify-between">
               <span>Slow Queries:</span>
-              <span className={`font-medium ${metrics.database.slowQueries > 0 ? 'text-red-600' : 'text-green-600'}`}>
+              <span
+                className={`font-medium ${metrics.database.slowQueries > 0 ? 'text-red-600' : 'text-green-600'}`}
+              >
                 {metrics.database.slowQueries}
               </span>
             </div>
@@ -442,12 +485,14 @@ export function PerformanceDashboardOptimized() {
         </div>
 
         {/* Worker Performance */}
-        <div className="p-4 border rounded-lg">
-          <h3 className="text-lg font-semibold mb-3">Worker Threads</h3>
+        <div className="rounded-lg border p-4">
+          <h3 className="mb-3 font-semibold text-lg">Worker Threads</h3>
           <div className="space-y-2">
             <div className="flex justify-between">
               <span>Active:</span>
-              <span className="font-medium">{metrics.workers.activeWorkers}/{metrics.workers.totalWorkers}</span>
+              <span className="font-medium">
+                {metrics.workers.activeWorkers}/{metrics.workers.totalWorkers}
+              </span>
             </div>
             <div className="flex justify-between">
               <span>Queued:</span>
@@ -461,14 +506,18 @@ export function PerformanceDashboardOptimized() {
         </div>
 
         {/* Memory Usage */}
-        <div className="p-4 border rounded-lg">
-          <h3 className="text-lg font-semibold mb-3">Memory Usage</h3>
+        <div className="rounded-lg border p-4">
+          <h3 className="mb-3 font-semibold text-lg">Memory Usage</h3>
           <div className="space-y-2">
             <div className="flex justify-between">
               <span>Heap Used:</span>
-              <span className={`font-medium ${
-                metrics.memory.heapUsed > thresholds.memoryUsage ? 'text-red-600' : 'text-green-600'
-              }`}>
+              <span
+                className={`font-medium ${
+                  metrics.memory.heapUsed > thresholds.memoryUsage
+                    ? 'text-red-600'
+                    : 'text-green-600'
+                }`}
+              >
                 {formatMB(metrics.memory.heapUsed)}
               </span>
             </div>

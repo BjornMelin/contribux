@@ -3,18 +3,17 @@
  * Tests Cross-Origin Resource Sharing configuration and middleware
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { NextRequest, NextResponse } from 'next/server'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { AuditEventType, AuditSeverity, auditLogger } from '@/lib/security/audit-logger'
 import {
-  CorsConfig,
-  CorsPresets,
+  type CorsConfig,
   CorsManager,
-  DynamicCorsConfig,
+  CorsPresets,
   CorsSecurityMonitor,
-  corsConfig,
   createRouteCorsMiddleware,
+  DynamicCorsConfig,
 } from '@/lib/security/cors-config'
-import { auditLogger, AuditEventType, AuditSeverity } from '@/lib/security/audit-logger'
 
 // Mock audit logger
 vi.mock('@/lib/security/audit-logger', () => ({
@@ -52,7 +51,7 @@ describe('CorsManager', () => {
       const request = new NextRequest('https://api.example.com/resource', {
         method: 'OPTIONS',
         headers: {
-          'Origin': 'https://client.com',
+          Origin: 'https://client.com',
           'Access-Control-Request-Method': 'POST',
           'Access-Control-Request-Headers': 'Content-Type',
         },
@@ -90,7 +89,7 @@ describe('CorsManager', () => {
       const request = new NextRequest('https://api.example.com/resource', {
         method: 'OPTIONS',
         headers: {
-          'Origin': 'https://untrusted.com',
+          Origin: 'https://untrusted.com',
           'Access-Control-Request-Method': 'POST',
         },
       })
@@ -105,7 +104,7 @@ describe('CorsManager', () => {
       const request = new NextRequest('https://api.example.com/resource', {
         method: 'OPTIONS',
         headers: {
-          'Origin': 'https://trusted.com',
+          Origin: 'https://trusted.com',
           'Access-Control-Request-Method': 'PATCH',
         },
       })
@@ -119,7 +118,7 @@ describe('CorsManager', () => {
       const request = new NextRequest('https://api.example.com/resource', {
         method: 'OPTIONS',
         headers: {
-          'Origin': 'https://trusted.com',
+          Origin: 'https://trusted.com',
           'Access-Control-Request-Method': 'POST',
         },
       })
@@ -133,7 +132,7 @@ describe('CorsManager', () => {
       const request = new NextRequest('https://api.example.com/resource', {
         method: 'OPTIONS',
         headers: {
-          'Origin': 'https://trusted.com',
+          Origin: 'https://trusted.com',
           'Access-Control-Request-Method': 'POST',
         },
       })
@@ -147,7 +146,7 @@ describe('CorsManager', () => {
   describe('with function-based origin validation', () => {
     beforeEach(() => {
       corsManager = new CorsManager({
-        origins: (origin) => origin.endsWith('.trusted.com'),
+        origins: origin => origin.endsWith('.trusted.com'),
         methods: ['GET', 'POST'],
         allowedHeaders: '*',
         credentials: false,
@@ -164,7 +163,7 @@ describe('CorsManager', () => {
       const request = new NextRequest('https://api.example.com/resource', {
         method: 'OPTIONS',
         headers: {
-          'Origin': 'https://api.trusted.com',
+          Origin: 'https://api.trusted.com',
           'Access-Control-Request-Method': 'POST',
           'Access-Control-Request-Headers': 'X-Custom-Header, Authorization',
         },
@@ -192,7 +191,7 @@ describe('CorsManager', () => {
     it('should apply CORS headers to response', () => {
       const request = new NextRequest('https://api.example.com/resource', {
         headers: {
-          'Origin': 'https://trusted.com',
+          Origin: 'https://trusted.com',
         },
       })
 
@@ -200,7 +199,9 @@ describe('CorsManager', () => {
       const updatedResponse = corsManager.applyCorsHeaders(request, response)
 
       expect(updatedResponse.headers.get('Access-Control-Allow-Origin')).toBe('https://trusted.com')
-      expect(updatedResponse.headers.get('Access-Control-Expose-Headers')).toBe('X-Request-ID, X-Rate-Limit')
+      expect(updatedResponse.headers.get('Access-Control-Expose-Headers')).toBe(
+        'X-Request-ID, X-Rate-Limit'
+      )
       expect(updatedResponse.headers.get('Access-Control-Allow-Credentials')).toBe('true')
       expect(updatedResponse.headers.get('Vary')).toContain('Origin')
     })
@@ -208,7 +209,7 @@ describe('CorsManager', () => {
     it('should not apply headers for disallowed origin', () => {
       const request = new NextRequest('https://api.example.com/resource', {
         headers: {
-          'Origin': 'https://untrusted.com',
+          Origin: 'https://untrusted.com',
         },
       })
 
@@ -246,7 +247,9 @@ describe('CorsManager', () => {
 
       expect(result.valid).toBe(true)
       expect(result.warnings).toContain('Using wildcard origin is not recommended for production')
-      expect(result.warnings).toContain('Using wildcard for allowed headers may expose sensitive headers')
+      expect(result.warnings).toContain(
+        'Using wildcard for allowed headers may expose sensitive headers'
+      )
     })
 
     it('should recommend maxAge setting', () => {
@@ -295,7 +298,7 @@ describe('DynamicCorsConfig', () => {
 
   describe('createDynamicMiddleware', () => {
     it('should handle route-based configuration', async () => {
-      const middleware = dynamicConfig.createDynamicMiddleware((request) => {
+      const middleware = dynamicConfig.createDynamicMiddleware(request => {
         const path = new URL(request.url).pathname
         if (path.startsWith('/api/public/')) return 'public'
         if (path.startsWith('/api/private/')) return 'private'
@@ -306,7 +309,7 @@ describe('DynamicCorsConfig', () => {
       const publicRequest = new NextRequest('https://api.example.com/api/public/data', {
         method: 'OPTIONS',
         headers: {
-          'Origin': 'https://anywhere.com',
+          Origin: 'https://anywhere.com',
           'Access-Control-Request-Method': 'GET',
         },
       })
@@ -314,13 +317,15 @@ describe('DynamicCorsConfig', () => {
       const publicResponse = await middleware(publicRequest)
       expect(publicResponse).not.toBeNull()
       expect(publicResponse?.status).toBe(204)
-      expect(publicResponse?.headers.get('Access-Control-Allow-Origin')).toBe('https://anywhere.com')
+      expect(publicResponse?.headers.get('Access-Control-Allow-Origin')).toBe(
+        'https://anywhere.com'
+      )
 
       // Test private route
       const privateRequest = new NextRequest('https://api.example.com/api/private/data', {
         method: 'OPTIONS',
         headers: {
-          'Origin': 'https://anywhere.com',
+          Origin: 'https://anywhere.com',
           'Access-Control-Request-Method': 'GET',
         },
       })
@@ -349,7 +354,7 @@ describe('DynamicCorsConfig', () => {
       const request = new NextRequest('https://api.example.com/resource', {
         method: 'OPTIONS',
         headers: {
-          'Origin': 'https://direct.com',
+          Origin: 'https://direct.com',
           'Access-Control-Request-Method': 'GET',
         },
       })
@@ -381,8 +386,8 @@ describe('CorsSecurityMonitor', () => {
     it('should log CORS violations', async () => {
       const request = new NextRequest('https://api.example.com/resource', {
         headers: {
-          'Origin': 'https://malicious.com',
-          'Referer': 'https://malicious.com/attack',
+          Origin: 'https://malicious.com',
+          Referer: 'https://malicious.com/attack',
           'User-Agent': 'Mozilla/5.0',
           'X-Forwarded-For': '10.0.0.1',
         },
@@ -415,8 +420,8 @@ describe('CorsSecurityMonitor', () => {
     it('should detect origin/referer mismatch', () => {
       const request = new NextRequest('https://api.example.com/resource', {
         headers: {
-          'Origin': 'https://attacker.com',
-          'Referer': 'https://legitimate.com/page',
+          Origin: 'https://attacker.com',
+          Referer: 'https://legitimate.com/page',
         },
       })
 
@@ -429,7 +434,7 @@ describe('CorsSecurityMonitor', () => {
     it('should detect null origin', () => {
       const request = new NextRequest('https://api.example.com/resource', {
         headers: {
-          'Origin': 'null',
+          Origin: 'null',
         },
       })
 
@@ -442,7 +447,7 @@ describe('CorsSecurityMonitor', () => {
     it('should detect file protocol origin', () => {
       const request = new NextRequest('https://api.example.com/resource', {
         headers: {
-          'Origin': 'file:///C:/Users/test.html',
+          Origin: 'file:///C:/Users/test.html',
         },
       })
 
@@ -467,8 +472,8 @@ describe('CorsSecurityMonitor', () => {
       const request = new NextRequest('https://api.example.com/resource', {
         method: 'GET',
         headers: {
-          'Origin': 'https://legitimate.com',
-          'Referer': 'https://legitimate.com/page',
+          Origin: 'https://legitimate.com',
+          Referer: 'https://legitimate.com/page',
         },
       })
 
@@ -488,7 +493,7 @@ describe('createRouteCorsMiddleware', () => {
     const publicRequest = new NextRequest('https://api.example.com/api/public/users', {
       method: 'OPTIONS',
       headers: {
-        'Origin': 'https://anywhere.com',
+        Origin: 'https://anywhere.com',
         'Access-Control-Request-Method': 'GET',
       },
     })
@@ -501,7 +506,7 @@ describe('createRouteCorsMiddleware', () => {
     const partnerRequest = new NextRequest('https://api.example.com/api/partner/data', {
       method: 'OPTIONS',
       headers: {
-        'Origin': process.env.CORS_ALLOWED_ORIGINS?.split(',')[0] || 'https://partner.com',
+        Origin: process.env.CORS_ALLOWED_ORIGINS?.split(',')[0] || 'https://partner.com',
         'Access-Control-Request-Method': 'POST',
       },
     })

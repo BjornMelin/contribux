@@ -13,7 +13,7 @@
  * - OAuth Flow Edge Cases
  */
 
-import { http, HttpResponse } from 'msw'
+import { HttpResponse, http } from 'msw'
 import { describe, expect, it } from 'vitest'
 import { mswServer } from '../msw-setup'
 import { INVALID_TOKENS } from './fixtures/error-scenarios'
@@ -39,9 +39,7 @@ describe('GitHub Authentication Edge Cases', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'auth-test', repo: 'invalid-token' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('auth-test', 'invalid-token')).rejects.toThrow()
     })
 
     it('should handle expired authentication tokens', async () => {
@@ -59,9 +57,7 @@ describe('GitHub Authentication Edge Cases', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'auth-test', repo: 'expired-token' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('auth-test', 'expired-token')).rejects.toThrow()
     })
 
     it('should handle revoked authentication tokens', async () => {
@@ -79,9 +75,7 @@ describe('GitHub Authentication Edge Cases', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'auth-test', repo: 'revoked-token' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('auth-test', 'revoked-token')).rejects.toThrow()
     })
 
     it('should handle malformed token format', async () => {
@@ -99,9 +93,7 @@ describe('GitHub Authentication Edge Cases', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'auth-test', repo: 'malformed-format' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('auth-test', 'malformed-format')).rejects.toThrow()
     })
 
     it('should handle empty or null tokens', async () => {
@@ -119,9 +111,7 @@ describe('GitHub Authentication Edge Cases', () => {
         })
       )
 
-      await expect(
-        emptyTokenClient.getRepository({ owner: 'auth-test', repo: 'empty-token' })
-      ).rejects.toThrow()
+      await expect(emptyTokenClient.getRepository('auth-test', 'empty-token')).rejects.toThrow()
     })
   })
 
@@ -141,9 +131,7 @@ describe('GitHub Authentication Edge Cases', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'private-org', repo: 'secret-repo' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('private-org', 'secret-repo')).rejects.toThrow()
     })
 
     it('should handle permission denied for organization resources', async () => {
@@ -179,9 +167,7 @@ describe('GitHub Authentication Edge Cases', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'scope-test', repo: 'repository' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('scope-test', 'repository')).rejects.toThrow()
     })
 
     it('should handle rate limit exceptions for authenticated users', async () => {
@@ -207,9 +193,7 @@ describe('GitHub Authentication Edge Cases', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'rate-limit', repo: 'authenticated' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('rate-limit', 'authenticated')).rejects.toThrow()
     })
 
     it.skip('should handle permission changes during operation', async () => {
@@ -258,13 +242,11 @@ describe('GitHub Authentication Edge Cases', () => {
       )
 
       // First request should succeed
-      const repo1 = await client.getRepository({ owner: 'permission-change', repo: 'repository' })
+      const repo1 = await client.getRepository('permission-change', 'repository')
       expect(repo1).toBeDefined()
 
       // Second request should fail
-      await expect(
-        client.getRepository({ owner: 'permission-change', repo: 'repository' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('permission-change', 'repository')).rejects.toThrow()
     })
   })
 
@@ -314,13 +296,11 @@ describe('GitHub Authentication Edge Cases', () => {
       )
 
       // First two calls succeed
-      await client.getRepository({ owner: 'token-expiry', repo: 'long-operation' })
-      await client.getRepository({ owner: 'token-expiry', repo: 'long-operation' })
+      await client.getRepository('token-expiry', 'long-operation')
+      await client.getRepository('token-expiry', 'long-operation')
 
       // Third call fails due to expired token
-      await expect(
-        client.getRepository({ owner: 'token-expiry', repo: 'long-operation' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('token-expiry', 'long-operation')).rejects.toThrow()
     })
 
     it('should handle token refresh failure scenarios', async () => {
@@ -338,9 +318,7 @@ describe('GitHub Authentication Edge Cases', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'refresh-fail', repo: 'repository' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('refresh-fail', 'repository')).rejects.toThrow()
     })
 
     it('should handle concurrent token expiration', async () => {
@@ -359,9 +337,9 @@ describe('GitHub Authentication Edge Cases', () => {
       )
 
       const promises = [
-        client.getRepository({ owner: 'concurrent-expiry', repo: 'repo1' }),
-        client.getRepository({ owner: 'concurrent-expiry', repo: 'repo2' }),
-        client.getRepository({ owner: 'concurrent-expiry', repo: 'repo3' }),
+        client.getRepository('concurrent-expiry', 'repo1'),
+        client.getRepository('concurrent-expiry', 'repo2'),
+        client.getRepository('concurrent-expiry', 'repo3'),
       ]
 
       const results = await Promise.allSettled(promises)
@@ -390,9 +368,7 @@ describe('GitHub Authentication Edge Cases', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'security-test', repo: 'injection' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('security-test', 'injection')).rejects.toThrow()
     })
 
     it('should handle cross-site request forgery attempts', async () => {
@@ -410,9 +386,7 @@ describe('GitHub Authentication Edge Cases', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'csrf-test', repo: 'repository' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('csrf-test', 'repository')).rejects.toThrow()
     })
 
     it('should handle suspicious authentication patterns', async () => {
@@ -430,9 +404,7 @@ describe('GitHub Authentication Edge Cases', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'suspicious', repo: 'activity' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('suspicious', 'activity')).rejects.toThrow()
     })
 
     it('should handle session hijacking scenarios', async () => {
@@ -450,9 +422,7 @@ describe('GitHub Authentication Edge Cases', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'hijack-test', repo: 'session' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('hijack-test', 'session')).rejects.toThrow()
     })
   })
 
@@ -514,8 +484,8 @@ describe('GitHub Authentication Edge Cases', () => {
         })
       )
 
-      const user1Repo = await user1Client.getRepository({ owner: 'multi-user', repo: 'user1-repo' })
-      const user2Repo = await user2Client.getRepository({ owner: 'multi-user', repo: 'user2-repo' })
+      const user1Repo = await user1Client.getRepository('multi-user', 'user1-repo')
+      const user2Repo = await user2Client.getRepository('multi-user', 'user2-repo')
 
       expect(user1Repo.owner.login).toBe('user1')
       expect(user2Repo.owner.login).toBe('user2')
@@ -536,9 +506,7 @@ describe('GitHub Authentication Edge Cases', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'cross-user', repo: 'conflict' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('cross-user', 'conflict')).rejects.toThrow()
     })
 
     it('should handle organization membership validation', async () => {
@@ -576,9 +544,7 @@ describe('GitHub Authentication Edge Cases', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'oauth-test', repo: 'code-exchange' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('oauth-test', 'code-exchange')).rejects.toThrow()
     })
 
     it('should handle OAuth scope escalation attempts', async () => {
@@ -596,9 +562,7 @@ describe('GitHub Authentication Edge Cases', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'oauth-scope', repo: 'escalation' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('oauth-scope', 'escalation')).rejects.toThrow()
     })
 
     it('should handle OAuth state parameter mismatch', async () => {
@@ -616,9 +580,7 @@ describe('GitHub Authentication Edge Cases', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'oauth-state', repo: 'mismatch' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('oauth-state', 'mismatch')).rejects.toThrow()
     })
 
     it('should handle OAuth callback URL validation', async () => {
@@ -636,9 +598,7 @@ describe('GitHub Authentication Edge Cases', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'oauth-callback', repo: 'validation' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('oauth-callback', 'validation')).rejects.toThrow()
     })
   })
 
@@ -653,9 +613,7 @@ describe('GitHub Authentication Edge Cases', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'auth-recovery', repo: 'failure' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('auth-recovery', 'failure')).rejects.toThrow()
 
       // Client should still work for other requests
       const user = await client.getUser('octocat')
@@ -677,8 +635,8 @@ describe('GitHub Authentication Edge Cases', () => {
       )
 
       const promises = [
-        client.getRepository({ owner: 'concurrent-auth', repo: 'repo1' }),
-        client.getRepository({ owner: 'concurrent-auth', repo: 'repo2' }),
+        client.getRepository('concurrent-auth', 'repo1'),
+        client.getRepository('concurrent-auth', 'repo2'),
         client.getUser('octocat'), // Should succeed
       ]
 
@@ -708,7 +666,7 @@ describe('GitHub Authentication Edge Cases', () => {
         )
 
         try {
-          await client.getRepository({ owner: 'auth-errors', repo: scenario.name })
+          await client.getRepository('auth-errors', scenario.name)
           expect.fail(`Should have thrown an error for ${scenario.name}`)
         } catch (error) {
           expect(error).toBeInstanceOf(Error)
@@ -753,14 +711,12 @@ describe('GitHub Authentication Edge Cases', () => {
       )
 
       // Public repo should work
-      const publicRepo = await client.getRepository({ owner: 'partial-auth', repo: 'public-repo' })
+      const publicRepo = await client.getRepository('partial-auth', 'public-repo')
       expect(publicRepo).toBeDefined()
       expect(publicRepo.private).toBe(false)
 
       // Private repo should fail
-      await expect(
-        client.getRepository({ owner: 'partial-auth', repo: 'private-repo' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('partial-auth', 'private-repo')).rejects.toThrow()
     })
   })
 })

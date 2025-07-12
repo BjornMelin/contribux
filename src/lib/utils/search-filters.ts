@@ -98,6 +98,18 @@ export function formatFilterValue(value: FilterValue): string {
 }
 
 /**
+ * Type guard to check if value is a valid multiselect array
+ */
+function isMultiselectArray(value: unknown): value is Array<string | number | boolean> {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      item => typeof item === 'string' || typeof item === 'number' || typeof item === 'boolean'
+    )
+  )
+}
+
+/**
  * Handle multiselect filter value changes
  */
 export function updateMultiselectValue(
@@ -105,10 +117,12 @@ export function updateMultiselectValue(
   optionValue: string | number | boolean,
   checked: boolean
 ): Array<string | number | boolean> {
-  const values = Array.isArray(currentValue) ? currentValue : []
+  const values = isMultiselectArray(currentValue)
+    ? currentValue
+    : ([] as Array<string | number | boolean>)
 
   if (checked) {
-    return (values as any[]).includes(optionValue) ? values : [...values, optionValue]
+    return values.includes(optionValue) ? values : [...values, optionValue]
   }
   return values.filter(v => v !== optionValue)
 }

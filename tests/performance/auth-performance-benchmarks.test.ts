@@ -4,32 +4,45 @@
  */
 
 import { performance } from 'node:perf_hooks'
-import { authConfig } from '@/lib/auth/config'
 import type { MockedFunction } from 'vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { authConfig } from '@/lib/auth/config'
 import {
   type AuthenticationStateManager,
+  createMockJWT,
+  createMockSession,
   type DatabaseMockHelper,
   OAuthFlowSimulator,
   PerformanceTestHelper,
-  createMockJWT,
-  createMockSession,
   setupAuthTestEnvironment,
 } from '../utils/auth-test-utilities'
 
 // Advanced TypeScript 5.8+ Type Definitions for Test Environment
+interface MockUser {
+  id: string
+  email: string
+  display_name?: string
+  username?: string
+  github_username?: string
+  email_verified?: boolean
+  connected_providers: string[]
+  primary_provider: string
+}
+
+interface PerformanceBenchmarkResult {
+  duration: number
+  passed: boolean
+  testName: string
+  threshold: number
+  error?: string
+}
+
 interface AuthTestEnvironment {
   mockSql: MockedFunction<(...args: unknown[]) => Promise<unknown>>
   mockAuth: MockedFunction<(...args: unknown[]) => Promise<unknown>>
   authStateManager: AuthenticationStateManager
   dbMockHelper: DatabaseMockHelper
 }
-
-type PerformanceTestPromise = Promise<{
-  timing: number
-  success: boolean
-  error?: string
-}>
 
 // Performance thresholds (in milliseconds)
 const PERFORMANCE_THRESHOLDS = {
@@ -114,7 +127,7 @@ describe('NextAuth Performance Benchmarks', () => {
     it('should handle rapid session creation bursts', async () => {
       // Setup for burst testing
       const burstSize = 20
-      const burstPromises: PerformanceTestPromise[] = []
+      const burstPromises: Promise<{ timing: number; success: boolean }>[] = []
 
       for (let i = 0; i < burstSize; i++) {
         dbMockHelper.mockUserRetrieval({
@@ -338,7 +351,7 @@ describe('NextAuth Performance Benchmarks', () => {
 
   describe('Database Operation Performance', () => {
     it('should perform user queries within performance threshold', async () => {
-      const mockUser = {
+      const mockUser: MockUser = {
         id: 'db-perf-user',
         email: 'dbperf@example.com',
         connected_providers: ['github'],
@@ -373,7 +386,7 @@ describe('NextAuth Performance Benchmarks', () => {
 
       mockSql.mockImplementationOnce(() => timeoutPromise)
 
-      const { duration, result } = await PerformanceTestHelper.measureAuthOperation(async () => {
+      const { duration, _result } = await PerformanceTestHelper.measureAuthOperation(async () => {
         try {
           const sessionCallback = authConfig.callbacks?.session
           return await sessionCallback?.({
@@ -381,7 +394,7 @@ describe('NextAuth Performance Benchmarks', () => {
             token: createMockJWT(),
           })
         } catch (error) {
-          return { error: error.message }
+          return { error: (error as Error).message }
         }
       }, 'database_timeout_handling')
 
@@ -399,7 +412,7 @@ describe('NextAuth Performance Benchmarks', () => {
           email: `concurrent${i}@example.com`,
           connected_providers: ['github'],
           primary_provider: 'github',
-        } as any)
+        } as MockUser)
       }
 
       const concurrentPromises = Array.from({ length: concurrentOperations }, (_, i) => {
@@ -440,13 +453,13 @@ describe('NextAuth Performance Benchmarks', () => {
           email: 'oauth@example.com',
           connected_providers: ['github'],
           primary_provider: 'github',
-        } as any,
+        } as MockUser,
         {
           provider: 'github',
           providerAccountId: 'github-123',
           type: 'oauth',
           access_token: 'gho_oauth_token',
-        } as any
+        }
       )
 
       const { duration, result } = await PerformanceTestHelper.measureAuthOperation(async () => {
@@ -501,7 +514,7 @@ describe('NextAuth Performance Benchmarks', () => {
           email: 'load@example.com',
           connected_providers: ['github'],
           primary_provider: 'github',
-        } as any)
+        } as MockUser)
 
         const sessionCallback = authConfig.callbacks?.session
         return sessionCallback?.({
@@ -526,7 +539,7 @@ describe('NextAuth Performance Benchmarks', () => {
           email: 'medium@example.com',
           connected_providers: ['github'],
           primary_provider: 'github',
-        } as any)
+        } as MockUser)
 
         const sessionCallback = authConfig.callbacks?.session
         return sessionCallback?.({
@@ -549,7 +562,7 @@ describe('NextAuth Performance Benchmarks', () => {
           email: 'heavy@example.com',
           connected_providers: ['github'],
           primary_provider: 'github',
-        } as any)
+        } as MockUser)
 
         const sessionCallback = authConfig.callbacks?.session
         return sessionCallback?.({
@@ -571,7 +584,7 @@ describe('NextAuth Performance Benchmarks', () => {
           email: 'stress@example.com',
           connected_providers: ['github'],
           primary_provider: 'github',
-        } as any)
+        } as MockUser)
 
         const sessionCallback = authConfig.callbacks?.session
         return sessionCallback?.({
@@ -607,7 +620,7 @@ describe('NextAuth Performance Benchmarks', () => {
             email: `memory${i}@example.com`,
             connected_providers: ['github'],
             primary_provider: 'github',
-          } as any)
+          } as MockUser)
 
           const sessionCallback = authConfig.callbacks?.session
           await sessionCallback?.({
@@ -642,7 +655,7 @@ describe('NextAuth Performance Benchmarks', () => {
             email: `gc${i}@example.com`,
             connected_providers: ['github'],
             primary_provider: 'github',
-          } as any)
+          } as MockUser)
 
           const sessionCallback = authConfig.callbacks?.session
           const result = await sessionCallback?.({
@@ -685,7 +698,7 @@ describe('NextAuth Performance Benchmarks', () => {
           email: `regression${run}@example.com`,
           connected_providers: ['github'],
           primary_provider: 'github',
-        } as any)
+        } as MockUser)
 
         const { duration } = await PerformanceTestHelper.measureAuthOperation(async () => {
           const sessionCallback = authConfig.callbacks?.session
@@ -719,7 +732,7 @@ describe('NextAuth Performance Benchmarks', () => {
 // Performance Benchmark Reporting
 // =============================================================================
 
-export const generatePerformanceReport = (benchmarkResults: any[]) => {
+const _generatePerformanceReport = (benchmarkResults: PerformanceBenchmarkResult[]) => {
   const report = {
     timestamp: new Date().toISOString(),
     summary: {

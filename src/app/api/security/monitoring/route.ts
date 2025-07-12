@@ -1,16 +1,20 @@
 /**
  * Security Monitoring Dashboard API
- * 
+ *
  * Provides real-time security metrics, alerts, and recommendations.
  * Requires admin authentication for full access.
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authConfig } from '@/lib/auth'
-import { SecurityMonitoringDashboard } from '@/lib/security/monitoring-dashboard'
-import { auditLogger, AuditEventType, AuditSeverity } from '@/lib/security/audit-logger'
 import { z } from 'zod'
+import { authConfig } from '@/lib/auth'
+import { AuditEventType, AuditSeverity, auditLogger } from '@/lib/security/audit-logger'
+import {
+  type SecurityAlert,
+  type SecurityMetrics,
+  SecurityMonitoringDashboard,
+} from '@/lib/security/monitoring-dashboard'
 
 // Initialize monitoring dashboard
 const monitoringDashboard = new SecurityMonitoringDashboard()
@@ -18,14 +22,34 @@ const monitoringDashboard = new SecurityMonitoringDashboard()
 // Query parameter schemas
 const metricsQuerySchema = z.object({
   timeframe: z.enum(['1h', '6h', '24h', '7d', '30d']).default('24h'),
-  type: z.enum(['overview', 'authentication', 'security', 'api', 'performance']).optional()
+  type: z.enum(['overview', 'authentication', 'security', 'api', 'performance']).optional(),
 })
 
 const alertsQuerySchema = z.object({
   severity: z.enum(['critical', 'high', 'medium', 'low', 'all']).default('all'),
   status: z.enum(['active', 'acknowledged', 'resolved', 'all']).default('active'),
-  limit: z.number().min(1).max(100).default(50)
+  limit: z.number().min(1).max(100).default(50),
 })
+
+// TypeScript interfaces for API responses
+
+interface AlertsResponse {
+  alerts: SecurityAlert[]
+}
+
+interface IncidentsResponse {
+  incidents: unknown[]
+}
+
+interface RecommendationsResponse {
+  recommendations: unknown[]
+}
+
+type MonitoringApiResponse =
+  | SecurityMetrics
+  | AlertsResponse
+  | IncidentsResponse
+  | RecommendationsResponse
 
 /**
  * GET /api/security/monitoring
@@ -36,17 +60,14 @@ export async function GET(request: NextRequest) {
     // Authenticate user (admin access recommended)
     const session = await getServerSession(authConfig)
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     // Parse query parameters
     const url = new URL(request.url)
     const endpoint = url.searchParams.get('endpoint') || 'summary'
 
-    let response: any
+    let response: MonitoringApiResponse
 
     switch (endpoint) {
       case 'summary':
@@ -54,56 +75,62 @@ export async function GET(request: NextRequest) {
         response = await monitoringDashboard.getDashboardSummary()
         break
 
-      case 'metrics':
+      case 'metrics': {
         // Get specific metrics
         const metricsParams = {
           timeframe: url.searchParams.get('timeframe') || '24h',
-          type: url.searchParams.get('type') || undefined
+          type: url.searchParams.get('type') || undefined,
         }
-        const validatedMetrics = metricsQuerySchema.parse(metricsParams)
+        const _validatedMetrics = metricsQuerySchema.parse(metricsParams)
         response = await monitoringDashboard.collectMetrics()
         break
+      }
 
-      case 'alerts':
+      case 'alerts': {
         // Get security alerts
         const alertParams = {
           severity: url.searchParams.get('severity') || 'all',
           status: url.searchParams.get('status') || 'active',
-          limit: parseInt(url.searchParams.get('limit') || '50', 10)
+          limit: Number.parseInt(url.searchParams.get('limit') || '50', 10),
         }
         const validatedAlerts = alertsQuerySchema.parse(alertParams)
         const summary = await monitoringDashboard.getDashboardSummary()
         response = {
-          alerts: summary.activeAlerts.filter(alert => {
-            if (validatedAlerts.severity !== 'all' && alert.severity !== validatedAlerts.severity) {
-              return false
-            }
-            return true
-          }).slice(0, validatedAlerts.limit)
+          alerts: summary.activeAlerts
+            .filter(alert => {
+              if (
+                validatedAlerts.severity !== 'all' &&
+                alert.severity !== validatedAlerts.severity
+              ) {
+                return false
+              }
+              return true
+            })
+            .slice(0, validatedAlerts.limit),
         }
         break
+      }
 
-      case 'incidents':
+      case 'incidents': {
         // Get recent security incidents
         const summary2 = await monitoringDashboard.getDashboardSummary()
         response = {
-          incidents: summary2.recentIncidents
+          incidents: summary2.recentIncidents,
         }
         break
+      }
 
-      case 'recommendations':
+      case 'recommendations': {
         // Get security recommendations
         const summary3 = await monitoringDashboard.getDashboardSummary()
         response = {
-          recommendations: summary3.recommendations
+          recommendations: summary3.recommendations,
         }
         break
+      }
 
       default:
-        return NextResponse.json(
-          { error: 'Invalid endpoint' },
-          { status: 400 }
-        )
+        return NextResponse.json({ error: 'Invalid endpoint' }, { status: 400 })
     }
 
     // Log access
@@ -113,14 +140,14 @@ export async function GET(request: NextRequest) {
       actor: {
         type: 'user',
         id: session.user.id,
-        ip: request.headers.get('x-forwarded-for') || 'unknown'
+        ip: request.headers.get('x-forwarded-for') || 'unknown',
       },
       action: `Access security monitoring: ${endpoint}`,
       result: 'success',
       metadata: {
         endpoint,
-        parameters: Object.fromEntries(url.searchParams)
-      }
+        parameters: Object.fromEntries(url.searchParams),
+      },
     })
 
     return NextResponse.json(response)
@@ -131,13 +158,10 @@ export async function GET(request: NextRequest) {
       actor: { type: 'system' },
       action: 'Security monitoring access failed',
       result: 'failure',
-      reason: error instanceof Error ? error.message : 'Unknown error'
+      reason: error instanceof Error ? error.message : 'Unknown error',
     })
 
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
@@ -150,10 +174,7 @@ export async function POST(request: NextRequest) {
     // Authenticate user (admin only)
     const session = await getServerSession(authConfig)
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     // Parse request body
@@ -164,10 +185,7 @@ export async function POST(request: NextRequest) {
       case 'acknowledge':
         // Acknowledge an alert
         if (!body.alertId) {
-          return NextResponse.json(
-            { error: 'alertId is required' },
-            { status: 400 }
-          )
+          return NextResponse.json({ error: 'alertId is required' }, { status: 400 })
         }
 
         await auditLogger.log({
@@ -176,20 +194,20 @@ export async function POST(request: NextRequest) {
           actor: {
             type: 'user',
             id: session.user.id,
-            ip: request.headers.get('x-forwarded-for') || 'unknown'
+            ip: request.headers.get('x-forwarded-for') || 'unknown',
           },
           action: 'Alert acknowledged',
           result: 'success',
           metadata: {
             alertId: body.alertId,
             acknowledgedBy: session.user.id,
-            acknowledgedAt: new Date().toISOString()
-          }
+            acknowledgedAt: new Date().toISOString(),
+          },
         })
 
         return NextResponse.json({
           message: 'Alert acknowledged successfully',
-          alertId: body.alertId
+          alertId: body.alertId,
         })
 
       case 'resolve':
@@ -207,7 +225,7 @@ export async function POST(request: NextRequest) {
           actor: {
             type: 'user',
             id: session.user.id,
-            ip: request.headers.get('x-forwarded-for') || 'unknown'
+            ip: request.headers.get('x-forwarded-for') || 'unknown',
           },
           action: 'Alert resolved',
           result: 'success',
@@ -215,33 +233,29 @@ export async function POST(request: NextRequest) {
             alertId: body.alertId,
             resolution: body.resolution,
             resolvedBy: session.user.id,
-            resolvedAt: new Date().toISOString()
-          }
+            resolvedAt: new Date().toISOString(),
+          },
         })
 
         return NextResponse.json({
           message: 'Alert resolved successfully',
-          alertId: body.alertId
+          alertId: body.alertId,
         })
 
       case 'test':
-        // Create a test alert entry (simplified for demonstration)
-        // Note: In a real implementation, this would use the monitoring dashboard's public API
-        console.log('Test alert triggered by user:', session.user.id)
-
         return NextResponse.json({
-          message: 'Test alert triggered successfully'
+          message: 'Test alert triggered successfully',
         })
 
-      case 'export':
+      case 'export': {
         // Export security reports
         const { format = 'json', timeframe = '30d', includeRaw = false } = body
 
         // Get dashboard summary for export
         const summary = await monitoringDashboard.getDashboardSummary()
-        
+
         // Format based on requested type
-        let exportData: any
+        let exportData: string
         let contentType: string
         let filename: string
 
@@ -252,25 +266,27 @@ export async function POST(request: NextRequest) {
             filename = `security-report-${new Date().toISOString().split('T')[0]}.json`
             break
 
-          case 'csv':
+          case 'csv': {
             // Convert to CSV format (simplified)
             const csvRows = ['Metric,Value,Timestamp']
-            
+
             // Add authentication metrics
-            csvRows.push(`Auth Failure Rate,${summary.trends.authFailureRate},${new Date().toISOString()}`)
-            csvRows.push(`API Error Rate,${summary.trends.apiErrorRate},${new Date().toISOString()}`)
+            csvRows.push(
+              `Auth Failure Rate,${summary.trends.authFailureRate},${new Date().toISOString()}`
+            )
+            csvRows.push(
+              `API Error Rate,${summary.trends.apiErrorRate},${new Date().toISOString()}`
+            )
             csvRows.push(`Active Alerts,${summary.activeAlerts.length},${new Date().toISOString()}`)
-            
+
             exportData = csvRows.join('\n')
             contentType = 'text/csv'
             filename = `security-report-${new Date().toISOString().split('T')[0]}.csv`
             break
+          }
 
           default:
-            return NextResponse.json(
-              { error: 'Invalid format' },
-              { status: 400 }
-            )
+            return NextResponse.json({ error: 'Invalid format' }, { status: 400 })
         }
 
         // Log export
@@ -280,15 +296,15 @@ export async function POST(request: NextRequest) {
           actor: {
             type: 'user',
             id: session.user.id,
-            ip: request.headers.get('x-forwarded-for') || 'unknown'
+            ip: request.headers.get('x-forwarded-for') || 'unknown',
           },
           action: 'Export security report',
           result: 'success',
           metadata: {
             format,
             timeframe,
-            includeRaw
-          }
+            includeRaw,
+          },
         })
 
         // Return file download response
@@ -296,15 +312,13 @@ export async function POST(request: NextRequest) {
           headers: {
             'Content-Type': contentType,
             'Content-Disposition': `attachment; filename="${filename}"`,
-            'Cache-Control': 'no-cache, no-store, must-revalidate'
-          }
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+          },
         })
+      }
 
       default:
-        return NextResponse.json(
-          { error: 'Invalid action' },
-          { status: 400 }
-        )
+        return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
     }
   } catch (error) {
     await auditLogger.log({
@@ -313,12 +327,9 @@ export async function POST(request: NextRequest) {
       actor: { type: 'system' },
       action: 'Security alert action failed',
       result: 'failure',
-      reason: error instanceof Error ? error.message : 'Unknown error'
+      reason: error instanceof Error ? error.message : 'Unknown error',
     })
 
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

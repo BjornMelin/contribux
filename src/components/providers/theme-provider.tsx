@@ -39,7 +39,7 @@ interface ThemeProviderProps {
 export function ThemeProvider({ children }: ThemeProviderProps) {
   const [theme, setThemeState] = useState<Theme>('system')
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light')
-  const [mounted, setMounted] = useState(false)
+  const [_mounted, setMounted] = useState(false)
 
   // Get system theme preference
   const getSystemTheme = useCallback((): 'light' | 'dark' => {

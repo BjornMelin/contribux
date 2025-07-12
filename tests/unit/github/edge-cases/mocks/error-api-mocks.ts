@@ -5,7 +5,7 @@
  * network failures, and edge case responses.
  */
 
-import { http, HttpResponse } from 'msw'
+import { HttpResponse, http } from 'msw'
 import {
   EDGE_CASE_RATE_LIMITS,
   GRAPHQL_ERRORS,

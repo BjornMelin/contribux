@@ -25,7 +25,7 @@ vi.mock('next/server', () => {
   return {
     NextRequest: MockNextRequest,
     NextResponse: {
-      json: vi.fn((body: any, init?: any) => ({
+      json: vi.fn((body: unknown, init?: { status?: number }) => ({
         status: init?.status || 200,
         json: vi.fn(async () => body),
       })),
@@ -51,7 +51,7 @@ vi.mock('@/lib/auth/audit', () => ({
 }))
 
 vi.mock('@/lib/crypto-utils', () => ({
-  timingSafeEqual: vi.fn(),
+  timingSafeEqual: vi.fn(async (a, b) => a.toString() === b.toString()),
 }))
 
 // Mock environment
@@ -63,13 +63,15 @@ vi.mock('@/lib/validation/env', () => ({
     NEXTAUTH_SECRET: 'secure-test-token-32chars-minimum',
     NODE_ENV: 'test',
     JWT_SECRET: 'test-jwt-secret-for-unit-tests-only-32-chars-minimum',
+    REDIS_URL: undefined, // No Redis in tests
+    NEXTAUTH_URL: 'http://localhost:3000',
   },
 }))
 
+import { NextRequest } from 'next/server'
 import { verifyAccessToken } from '@/lib/auth/jwt'
 import { authMiddleware } from '@/lib/auth/middleware'
 import { sql } from '@/lib/db/config'
-import { NextRequest } from 'next/server'
 
 describe('Auth Middleware', () => {
   beforeEach(() => {

@@ -4,11 +4,14 @@
  */
 
 import { asc, desc, eq, gte, inArray, like, lte, sql } from 'drizzle-orm'
-import type { PgColumn, PgTable, PgTransaction } from 'drizzle-orm/pg-core'
+import type { PgColumn, PgTable } from 'drizzle-orm/pg-core'
 
 import { db } from '@/lib/db'
 import type { Optional, Repository, Result } from '@/lib/types/advanced'
 import { Failure, Success } from '@/lib/types/advanced'
+
+// Type for database transaction
+type DatabaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0]
 
 // Type definitions for repository operations
 interface FilterValue {
@@ -116,11 +119,25 @@ export abstract class BaseRepository<T, ID = string> implements Repository<T, ID
     try {
       const result = await this.db.delete(this.table).where(eq(this.idColumn, id))
 
-      return result.rowCount > 0
+      return Array.isArray(result)
+        ? result.length > 0
+        : this.hasRowCount(result) && result.rowCount > 0
     } catch (error) {
       this.handleError('delete', error)
       return false
     }
+  }
+
+  /**
+   * Type guard to check if result has rowCount property
+   */
+  private hasRowCount(result: unknown): result is { rowCount: number } {
+    return (
+      typeof result === 'object' &&
+      result !== null &&
+      'rowCount' in result &&
+      typeof (result as { rowCount: unknown }).rowCount === 'number'
+    )
   }
 
   /**
@@ -279,7 +296,7 @@ export abstract class BaseRepository<T, ID = string> implements Repository<T, ID
    * Execute transaction
    */
   protected async executeInTransaction<R>(
-    fn: (trx: PgTransaction<any, any, any>) => Promise<R>
+    fn: (trx: DatabaseTransaction) => Promise<R>
   ): Promise<Result<R, Error>> {
     try {
       const result = await this.db.transaction(async trx => {
@@ -460,6 +477,22 @@ export abstract class BaseRepository<T, ID = string> implements Repository<T, ID
    */
   protected generateId(): string {
     return crypto.randomUUID()
+  }
+
+  /**
+   * Sanitize search query to prevent injection attacks
+   */
+  protected sanitizeSearchQuery(query: string): string {
+    if (!query || typeof query !== 'string') {
+      return ''
+    }
+
+    // Remove potentially dangerous characters and normalize whitespace
+    return query
+      .replace(/[<>'";&]/g, '') // Remove dangerous characters
+      .replace(/\s+/g, ' ') // Normalize whitespace
+      .trim()
+      .slice(0, 1000) // Limit length to prevent abuse
   }
 
   /**

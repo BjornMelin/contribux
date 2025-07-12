@@ -3,7 +3,7 @@
  * Mock Service Worker handlers for comprehensive WebAuthn testing
  */
 
-import { http, HttpResponse } from 'msw'
+import { HttpResponse, http } from 'msw'
 import { z } from 'zod'
 
 // Type definitions for WebAuthn requests/responses
@@ -166,7 +166,7 @@ export const webauthnRegisterVerifyHandler = http.post(
 
       // Verify challenge exists and is valid
       const challengeData = mockChallengeStore.get(validatedData.expectedChallenge)
-      if (!challengeData || challengeData.type !== 'registration') {
+      if (!challengeData || challengeData.type !== 'registration' || !challengeData.userId) {
         return HttpResponse.json({ success: false, error: 'Invalid challenge' }, { status: 400 })
       }
 
@@ -199,7 +199,7 @@ export const webauthnRegisterVerifyHandler = http.post(
       // Store mock credential
       const credentialId = validatedData.response.id
       mockCredentialStore.set(credentialId, {
-        userId: challengeData.userId!,
+        userId: challengeData.userId,
         credentialId,
         publicKey: `mock-public-key-${credentialId}`,
         counter: 0,

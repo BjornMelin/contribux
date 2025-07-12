@@ -3,17 +3,17 @@
  * Portfolio showcase feature demonstrating modern passwordless authentication
  */
 
-import { sql } from '@/lib/db'
 import {
   type GenerateAuthenticationOptionsOpts,
   type GenerateRegistrationOptionsOpts,
-  type VerifyAuthenticationResponseOpts,
-  type VerifyRegistrationResponseOpts,
   generateAuthenticationOptions,
   generateRegistrationOptions,
+  type VerifyAuthenticationResponseOpts,
+  type VerifyRegistrationResponseOpts,
   verifyAuthenticationResponse,
   verifyRegistrationResponse,
 } from '@simplewebauthn/server'
+import { sql } from '@/lib/db'
 import { getSecurityConfig } from '../feature-flags'
 
 // Types for WebAuthn credentials

@@ -3,8 +3,8 @@
  * Tracks API requests and integrates with monitoring system
  */
 
-import { apiMonitoring } from '@/lib/api/monitoring'
 import { type NextRequest, NextResponse } from 'next/server'
+import { apiMonitoring } from '@/lib/api/monitoring'
 
 // Request tracking interface
 interface RequestInfo {

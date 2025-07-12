@@ -12,16 +12,16 @@
  * - Quota Management and Recovery
  */
 
+import { HttpResponse, http } from 'msw'
+import { describe, expect, it } from 'vitest'
 import { GitHubRateLimitError } from '@/lib/github/errors'
 import { parseRateLimitHeader } from '@/lib/github/utils'
-import { http, HttpResponse } from 'msw'
-import { describe, expect, it } from 'vitest'
 import { mswServer } from '../msw-setup'
 import { rateLimitingHandlers, secondaryRateLimitHandlers } from './mocks/error-api-mocks'
 import {
+  createEdgeCaseClient,
   EDGE_CASE_PARAMS,
   RATE_LIMIT_EDGE_CASE_CONFIG,
-  createEdgeCaseClient,
   setupEdgeCaseTestIsolation,
 } from './setup/edge-case-setup'
 import {
@@ -51,7 +51,7 @@ describe('GitHub Rate Limiting', () => {
       mswServer.use(...rateLimitingHandlers)
 
       try {
-        await client.getRepository({ owner: 'rate-limit-test', repo: 'primary-limit' })
+        await client.getRepository('rate-limit-test', 'primary-limit')
         expect.fail('Should have thrown a rate limit error')
       } catch (error) {
         validateErrorResponse(error)
@@ -93,7 +93,7 @@ describe('GitHub Rate Limiting', () => {
       )
 
       try {
-        await client.getRepository({ owner: 'test', repo: 'retry-after' })
+        await client.getRepository('test', 'retry-after')
         expect.fail('Should have thrown a rate limit error')
       } catch (error) {
         validateErrorResponse(error)
@@ -118,7 +118,7 @@ describe('GitHub Rate Limiting', () => {
 
       for (const limitType of rateLimitTypes) {
         try {
-          await client.getRepository({ owner: 'rate-limit-test', repo: limitType.endpoint })
+          await client.getRepository('rate-limit-test', limitType.endpoint)
           expect.fail(`Should have thrown a rate limit error for ${limitType.name}`)
         } catch (error) {
           validateErrorResponse(error)
@@ -136,7 +136,7 @@ describe('GitHub Rate Limiting', () => {
       mswServer.use(...secondaryRateLimitHandlers)
 
       try {
-        await client.getRepository({ owner: 'secondary-limit-test', repo: 'abuse-detection' })
+        await client.getRepository('secondary-limit-test', 'abuse-detection')
         expect.fail('Should have thrown a secondary rate limit error')
       } catch (error) {
         validateErrorResponse(error)
@@ -192,7 +192,7 @@ describe('GitHub Rate Limiting', () => {
       )
 
       try {
-        await client.getRepository({ owner: 'abuse-test', repo: 'detected' })
+        await client.getRepository('abuse-test', 'detected')
         expect.fail('Should have thrown an abuse detection error')
       } catch (error) {
         validateErrorResponse(error)
@@ -244,7 +244,7 @@ describe('GitHub Rate Limiting', () => {
       )
 
       const startTime = Date.now()
-      const repo = await client.getRepository({ owner: 'retry-test', repo: 'exponential-backoff' })
+      const repo = await client.getRepository('retry-test', 'exponential-backoff')
       const duration = Date.now() - startTime
 
       expect(repo).toBeDefined()
@@ -273,9 +273,9 @@ describe('GitHub Rate Limiting', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'retry-test', repo: 'max-retries' })
-      ).rejects.toThrow(GitHubRateLimitError)
+      await expect(client.getRepository('retry-test', 'max-retries')).rejects.toThrow(
+        GitHubRateLimitError
+      )
     })
 
     it('should handle rate limit recovery correctly', async () => {
@@ -307,18 +307,15 @@ describe('GitHub Rate Limiting', () => {
       )
 
       // First request should fail due to rate limit
-      await expect(
-        client.getRepository({ owner: 'recovery-test', repo: 'rate-limit-recovery' })
-      ).rejects.toThrow(GitHubRateLimitError)
+      await expect(client.getRepository('recovery-test', 'rate-limit-recovery')).rejects.toThrow(
+        GitHubRateLimitError
+      )
 
       // Wait for recovery simulation
       await new Promise(resolve => setTimeout(resolve, 100))
 
       // Second request should succeed
-      const repo = await client.getRepository({
-        owner: 'recovery-test',
-        repo: 'rate-limit-recovery',
-      })
+      const repo = await client.getRepository('recovery-test', 'rate-limit-recovery')
       expect(repo).toBeDefined()
       expect(repo.name).toBe('rate-limit-recovery')
     })
@@ -347,7 +344,7 @@ describe('GitHub Rate Limiting', () => {
       )
 
       try {
-        await client.getRepository({ owner: 'headers-test', repo: 'rate-limit-info' })
+        await client.getRepository('headers-test', 'rate-limit-info')
         expect.fail('Should have thrown a rate limit error')
       } catch (error) {
         validateErrorResponse(error)
@@ -379,7 +376,7 @@ describe('GitHub Rate Limiting', () => {
       )
 
       try {
-        await client.getRepository({ owner: 'missing-headers', repo: 'rate-limit' })
+        await client.getRepository('missing-headers', 'rate-limit')
         expect.fail('Should have thrown a rate limit error')
       } catch (error) {
         validateErrorResponse(error)
@@ -408,7 +405,7 @@ describe('GitHub Rate Limiting', () => {
       )
 
       try {
-        await client.getRepository({ owner: 'malformed-headers', repo: 'rate-limit' })
+        await client.getRepository('malformed-headers', 'rate-limit')
         expect.fail('Should have thrown a rate limit error')
       } catch (error) {
         validateErrorResponse(error)
@@ -519,15 +516,15 @@ describe('GitHub Rate Limiting', () => {
       )
 
       // First request should fail
-      await expect(
-        client.getRepository({ owner: 'reset-test', repo: 'quota-reset' })
-      ).rejects.toThrow(GitHubRateLimitError)
+      await expect(client.getRepository('reset-test', 'quota-reset')).rejects.toThrow(
+        GitHubRateLimitError
+      )
 
       // Wait for reset time
       await new Promise(resolve => setTimeout(resolve, 1100))
 
       // Second request should succeed after reset
-      const repo = await client.getRepository({ owner: 'reset-test', repo: 'quota-reset' })
+      const repo = await client.getRepository('reset-test', 'quota-reset')
       expect(repo).toBeDefined()
       expect(repo.name).toBe('quota-reset')
     })

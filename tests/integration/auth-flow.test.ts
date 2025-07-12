@@ -13,7 +13,7 @@
  * - Error recovery and security incident handling
  */
 
-import { http, HttpResponse } from 'msw'
+import { HttpResponse, http } from 'msw'
 import { setupServer } from 'msw/node'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
@@ -349,7 +349,7 @@ describe('Complete Authentication Flow Integration', () => {
         }),
 
         // Stage 3: WebAuthn Registration Options
-        http.post('http://localhost:3000/api/security/webauthn/register/options', ({ request }) => {
+        http.post('http://localhost:3000/api/security/webauthn/register/options', () => {
           const challenge = crypto.randomUUID()
 
           return HttpResponse.json({
@@ -422,7 +422,7 @@ describe('Complete Authentication Flow Integration', () => {
         ),
 
         // Stage 5: Session Creation
-        http.post('http://localhost:3000/api/auth/session/create', async ({ request }) => {
+        http.post('http://localhost:3000/api/auth/session/create', async () => {
           const sessionId = crypto.randomUUID()
           const sessionToken = crypto.randomUUID()
           const csrfToken = crypto.randomUUID()
@@ -561,7 +561,8 @@ describe('Complete Authentication Flow Integration', () => {
       expect(sessionData.data.journeyId).toBe(oauthData.data.journeyId)
       expect(authFlowState.auditEvents).toHaveLength(5) // oauth_start, oauth_complete, webauthn_register, session_create
       expect(authFlowState.userSessions.size).toBe(1)
-      expect(authFlowState.webauthnCredentials.get(currentUserId!)).toHaveLength(1)
+      expect(currentUserId).toBeDefined()
+      expect(authFlowState.webauthnCredentials.get(currentUserId)).toHaveLength(1)
 
       // Validate security audit trail
       const auditEvents = authFlowState.auditEvents
@@ -582,58 +583,55 @@ describe('Complete Authentication Flow Integration', () => {
       let failureCount = 0
 
       server.use(
-        http.post(
-          'http://localhost:3000/api/security/webauthn/register/verify',
-          async ({ request }) => {
-            failureCount++
+        http.post('http://localhost:3000/api/security/webauthn/register/verify', async () => {
+          failureCount++
 
-            if (failureCount <= 2) {
-              authFlowState.auditEvents.push({
-                eventId: crypto.randomUUID(),
-                eventType: 'security_violation',
-                userId: 'test-user-id',
-                timestamp: new Date(),
-                ipAddress: '192.168.1.100',
-                userAgent: 'test-agent',
-                details: {
-                  error: 'webauthn_registration_failed',
-                  attempt: failureCount,
-                  journeyId,
-                },
-                riskScore: 25,
-                actionTaken: 'retry_available',
-              })
-
-              return HttpResponse.json(
-                {
-                  success: false,
-                  error: {
-                    code: 'WEBAUTHN_VERIFICATION_FAILED',
-                    message: 'WebAuthn credential verification failed',
-                    retryable: true,
-                    attemptsRemaining: 3 - failureCount,
-                  },
-                  journeyId,
-                },
-                { status: 400 }
-              )
-            }
-
-            // Success on third attempt
-            return HttpResponse.json({
-              success: true,
-              data: {
-                credentialId: crypto.randomUUID(),
-                verified: true,
+          if (failureCount <= 2) {
+            authFlowState.auditEvents.push({
+              eventId: crypto.randomUUID(),
+              eventType: 'security_violation',
+              userId: 'test-user-id',
+              timestamp: new Date(),
+              ipAddress: '192.168.1.100',
+              userAgent: 'test-agent',
+              details: {
+                error: 'webauthn_registration_failed',
+                attempt: failureCount,
                 journeyId,
-                recoveryInfo: {
-                  previousFailures: failureCount - 1,
-                  securityReviewRequired: true,
-                },
               },
+              riskScore: 25,
+              actionTaken: 'retry_available',
             })
+
+            return HttpResponse.json(
+              {
+                success: false,
+                error: {
+                  code: 'WEBAUTHN_VERIFICATION_FAILED',
+                  message: 'WebAuthn credential verification failed',
+                  retryable: true,
+                  attemptsRemaining: 3 - failureCount,
+                },
+                journeyId,
+              },
+              { status: 400 }
+            )
           }
-        )
+
+          // Success on third attempt
+          return HttpResponse.json({
+            success: true,
+            data: {
+              credentialId: crypto.randomUUID(),
+              verified: true,
+              journeyId,
+              recoveryInfo: {
+                previousFailures: failureCount - 1,
+                securityReviewRequired: true,
+              },
+            },
+          })
+        })
       )
 
       // Attempt 1: Fail
@@ -702,29 +700,26 @@ describe('Complete Authentication Flow Integration', () => {
 
       server.use(
         // WebAuthn Authentication Options
-        http.post(
-          'http://localhost:3000/api/security/webauthn/authenticate/options',
-          ({ request }) => {
-            const challenge = crypto.randomUUID()
+        http.post('http://localhost:3000/api/security/webauthn/authenticate/options', () => {
+          const challenge = crypto.randomUUID()
 
-            return HttpResponse.json({
-              success: true,
-              data: {
-                challenge,
-                rpId: 'localhost',
-                allowCredentials: [
-                  {
-                    id: existingCredentialId,
-                    type: 'public-key',
-                    transports: ['internal'],
-                  },
-                ],
-                userVerification: 'required',
-                timeout: 60000,
-              },
-            })
-          }
-        ),
+          return HttpResponse.json({
+            success: true,
+            data: {
+              challenge,
+              rpId: 'localhost',
+              allowCredentials: [
+                {
+                  id: existingCredentialId,
+                  type: 'public-key',
+                  transports: ['internal'],
+                },
+              ],
+              userVerification: 'required',
+              timeout: 60000,
+            },
+          })
+        }),
 
         // WebAuthn Authentication Verification
         http.post(
@@ -743,9 +738,14 @@ describe('Complete Authentication Flow Integration', () => {
             }
 
             // Update credential counter and last used
-            const credentials = authFlowState.webauthnCredentials.get(userId)!
-            credentials[0].counter++
-            credentials[0].lastUsed = new Date()
+            const credentials = authFlowState.webauthnCredentials.get(userId)
+            expect(credentials).toBeDefined()
+            expect(credentials).not.toBeNull()
+            expect(credentials).toHaveLength(1)
+            if (credentials && credentials.length > 0) {
+              credentials[0].counter++
+              credentials[0].lastUsed = new Date()
+            }
 
             authFlowState.auditEvents.push({
               eventId: crypto.randomUUID(),
@@ -757,7 +757,7 @@ describe('Complete Authentication Flow Integration', () => {
               details: {
                 credentialId: existingCredentialId,
                 deviceName: 'Trusted Device',
-                newCounter: credentials[0].counter,
+                newCounter: credentials?.[0]?.counter || 0,
               },
               riskScore: 5,
             })
@@ -901,9 +901,14 @@ describe('Complete Authentication Flow Integration', () => {
       expect(authFlowState.userSessions.size).toBe(1)
 
       // Validate WebAuthn credential was updated
-      const updatedCredentials = authFlowState.webauthnCredentials.get(userId)!
-      expect(updatedCredentials[0].counter).toBe(6) // Incremented from 5
-      expect(updatedCredentials[0].lastUsed).toBeDefined()
+      const updatedCredentials = authFlowState.webauthnCredentials.get(userId)
+      expect(updatedCredentials).toBeDefined()
+      expect(updatedCredentials).not.toBeNull()
+      expect(updatedCredentials).toHaveLength(1)
+      if (updatedCredentials && updatedCredentials.length > 0) {
+        expect(updatedCredentials[0].counter).toBe(6) // Incremented from 5
+        expect(updatedCredentials[0].lastUsed).toBeDefined()
+      }
 
       // Validate low risk score for trusted user
       const totalRiskScore = authFlowState.auditEvents.reduce(
@@ -958,9 +963,13 @@ describe('Complete Authentication Flow Integration', () => {
 
           if (body.provider === 'google') {
             // Update user session to include new provider
-            const userSession = authFlowState.userSessions.get(sessionId)!
-            userSession.providers.push('google')
-            userSession.lastActivity = new Date()
+            const userSession = authFlowState.userSessions.get(sessionId)
+            expect(userSession).toBeDefined()
+            expect(userSession).not.toBeNull()
+            if (userSession) {
+              userSession.providers.push('google')
+              userSession.lastActivity = new Date()
+            }
 
             authFlowState.auditEvents.push({
               eventId: crypto.randomUUID(),
@@ -1016,8 +1025,10 @@ describe('Complete Authentication Flow Integration', () => {
             )
           }
 
-          const userSession = authFlowState.userSessions.get(sessionId)!
-          if (!userSession.providers.includes(body.provider)) {
+          const userSession = authFlowState.userSessions.get(sessionId)
+          expect(userSession).toBeDefined()
+          expect(userSession).not.toBeNull()
+          if (!userSession || !userSession.providers.includes(body.provider)) {
             return HttpResponse.json(
               {
                 success: false,
@@ -1033,7 +1044,7 @@ describe('Complete Authentication Flow Integration', () => {
               primaryProvider: body.provider,
               user: {
                 id: userId,
-                providers: userSession.providers,
+                providers: userSession?.providers || [],
                 primaryProvider: body.provider,
               },
             },
@@ -1054,7 +1065,9 @@ describe('Complete Authentication Flow Integration', () => {
             )
           }
 
-          const userSession = authFlowState.userSessions.get(sessionId)!
+          const userSession = authFlowState.userSessions.get(sessionId)
+          expect(userSession).toBeDefined()
+          expect(userSession).not.toBeNull()
 
           return HttpResponse.json({
             success: true,
@@ -1062,12 +1075,12 @@ describe('Complete Authentication Flow Integration', () => {
               user: {
                 id: userId,
                 email: 'multiuser@example.com',
-                providers: userSession.providers.map(provider => ({
+                providers: (userSession?.providers || []).map(provider => ({
                   provider,
                   connectedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
                   isPrimary: provider === 'google', // Updated in previous step
                 })),
-                securityLevel: userSession.securityLevel,
+                securityLevel: userSession?.securityLevel || 'basic',
                 sessionStatus: 'active',
               },
             },
@@ -1125,8 +1138,12 @@ describe('Complete Authentication Flow Integration', () => {
       console.log('✅ Account status verified - Multi-provider journey complete!')
 
       // Validate consistency across components
-      const updatedSession = authFlowState.userSessions.get(sessionId)!
-      expect(updatedSession.providers).toEqual(['github', 'google'])
+      const updatedSession = authFlowState.userSessions.get(sessionId)
+      expect(updatedSession).toBeDefined()
+      expect(updatedSession).not.toBeNull()
+      if (updatedSession) {
+        expect(updatedSession.providers).toEqual(['github', 'google'])
+      }
 
       // Validate audit trail shows account linking
       const linkingEvents = authFlowState.auditEvents.filter(
@@ -1322,10 +1339,14 @@ describe('Complete Authentication Flow Integration', () => {
       expect(authFlowState.userSessions.has(originalSessionId)).toBe(false)
       expect(authFlowState.userSessions.has(rotateData.data.newSessionId)).toBe(true)
 
-      const newSession = authFlowState.userSessions.get(rotateData.data.newSessionId)!
-      expect(newSession.securityLevel).toBe('enhanced')
-      expect(newSession.securityFlags.deviceChange).toBe(true)
-      expect(newSession.securityFlags.locationChange).toBe(true)
+      const newSession = authFlowState.userSessions.get(rotateData.data.newSessionId)
+      expect(newSession).toBeDefined()
+      expect(newSession).not.toBeNull()
+      if (newSession) {
+        expect(newSession.securityLevel).toBe('enhanced')
+        expect(newSession.securityFlags.deviceChange).toBe(true)
+        expect(newSession.securityFlags.locationChange).toBe(true)
+      }
 
       // Validate audit trail shows security progression
       const securityEvents = authFlowState.auditEvents.filter(
@@ -1392,8 +1413,12 @@ describe('Complete Authentication Flow Integration', () => {
             )
           }
 
-          const userSession = authFlowState.userSessions.get(sessionId)!
-          const userCredentials = authFlowState.webauthnCredentials.get(userId)!
+          const userSession = authFlowState.userSessions.get(sessionId)
+          expect(userSession).toBeDefined()
+          expect(userSession).not.toBeNull()
+          const userCredentials = authFlowState.webauthnCredentials.get(userId)
+          expect(userCredentials).toBeDefined()
+          expect(userCredentials).not.toBeNull()
 
           return HttpResponse.json({
             success: true,
@@ -1403,14 +1428,14 @@ describe('Complete Authentication Flow Integration', () => {
               displayName: 'Consistent User',
               username: 'consistentuser',
               emailVerified: true,
-              providers: userSession.providers.map(provider => ({
+              providers: (userSession?.providers || []).map(provider => ({
                 provider,
                 accountId: `${provider}-account-id`,
                 connectedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
                 isPrimary: provider === 'github',
                 metadata: { verified: true },
               })),
-              webauthnCredentials: userCredentials.map(cred => ({
+              webauthnCredentials: (userCredentials || []).map(cred => ({
                 credentialId: cred.credentialId,
                 deviceName: cred.deviceName,
                 createdAt: cred.createdAt.toISOString(),
@@ -1418,7 +1443,7 @@ describe('Complete Authentication Flow Integration', () => {
               })),
               securitySettings: {
                 mfaEnabled: true,
-                securityLevel: userSession.securityLevel,
+                securityLevel: userSession?.securityLevel || 'basic',
                 lastSecurityReview: new Date().toISOString(),
                 suspiciousActivityCount: 0,
               },
@@ -1442,7 +1467,9 @@ describe('Complete Authentication Flow Integration', () => {
             )
           }
 
-          const userSession = authFlowState.userSessions.get(sessionId)!
+          const userSession = authFlowState.userSessions.get(sessionId)
+          expect(userSession).toBeDefined()
+          expect(userSession).not.toBeNull()
 
           return HttpResponse.json({
             success: true,
@@ -1463,8 +1490,8 @@ describe('Complete Authentication Flow Integration', () => {
             metadata: {
               authenticated_user: {
                 id: userId,
-                securityLevel: userSession.securityLevel,
-                providers: userSession.providers,
+                securityLevel: userSession?.securityLevel || 'basic',
+                providers: userSession?.providers || [],
               },
               execution_time_ms: 25,
             },
@@ -1505,25 +1532,35 @@ describe('Complete Authentication Flow Integration', () => {
       console.log('✅ Protected API access with authentication context')
 
       // Validate state consistency across components
-      const userSession = authFlowState.userSessions.get(sessionId)!
-      const userCredentials = authFlowState.webauthnCredentials.get(userId)!
+      const userSession = authFlowState.userSessions.get(sessionId)
+      expect(userSession).toBeDefined()
+      expect(userSession).not.toBeNull()
+      const userCredentials = authFlowState.webauthnCredentials.get(userId)
+      expect(userCredentials).toBeDefined()
+      expect(userCredentials).not.toBeNull()
 
       // Session state matches profile
-      expect(userSession.securityLevel).toBe(validatedProfile.securitySettings.securityLevel)
-      expect(userSession.providers.sort()).toEqual(
-        validatedProfile.providers.map(p => p.provider).sort()
-      )
+      if (userSession) {
+        expect(userSession.securityLevel).toBe(validatedProfile.securitySettings.securityLevel)
+        expect(userSession.providers.sort()).toEqual(
+          validatedProfile.providers.map(p => p.provider).sort()
+        )
+      }
 
       // WebAuthn credentials match profile
-      expect(userCredentials[0].credentialId).toBe(
-        validatedProfile.webauthnCredentials[0].credentialId
-      )
+      if (userCredentials && userCredentials.length > 0) {
+        expect(userCredentials[0].credentialId).toBe(
+          validatedProfile.webauthnCredentials[0].credentialId
+        )
+      }
 
       // API response matches session state
-      expect(apiData.metadata.authenticated_user.securityLevel).toBe(userSession.securityLevel)
-      expect(apiData.metadata.authenticated_user.providers.sort()).toEqual(
-        userSession.providers.sort()
-      )
+      if (userSession) {
+        expect(apiData.metadata.authenticated_user.securityLevel).toBe(userSession.securityLevel)
+        expect(apiData.metadata.authenticated_user.providers.sort()).toEqual(
+          userSession.providers.sort()
+        )
+      }
 
       console.log('🎉 Cross-component authentication state consistency validated!')
     })

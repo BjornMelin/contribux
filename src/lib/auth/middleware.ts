@@ -3,20 +3,52 @@
  * Provides authentication, authorization, and security middleware for Next.js routes
  */
 
+import type { Redis as RedisType } from 'ioredis'
 import { NextResponse } from 'next/server'
 
+// Types for dynamically imported modules
+interface RedisConstructor {
+  new (url: string, options?: unknown): RedisType
+}
+
+interface RateLimiterRedisConfig {
+  storeClient: RedisType
+  keyPrefix: string
+  points: number
+  duration: number
+  blockDuration: number
+  execEvenly: boolean
+}
+
+interface RateLimiterMemoryConfig {
+  keyPrefix: string
+  points: number
+  duration: number
+  blockDuration: number
+  execEvenly: boolean
+}
+
+interface RateLimiterRedisConstructor {
+  new (config: RateLimiterRedisConfig): RateLimiterInstance
+}
+
+interface RateLimiterMemoryConstructor {
+  new (config: RateLimiterMemoryConfig): RateLimiterInstance
+}
+
 // Edge Runtime compatible imports - defer Redis and rate limiting to Node.js runtime when needed
-// biome-ignore lint/suspicious/noExplicitAny: Edge Runtime requires dynamic imports, types resolved at runtime
-let Redis: any = null
-// biome-ignore lint/suspicious/noExplicitAny: Edge Runtime requires dynamic imports, types resolved at runtime
-let RateLimiterMemory: any = null
-// biome-ignore lint/suspicious/noExplicitAny: Edge Runtime requires dynamic imports, types resolved at runtime
-let RateLimiterRedis: any = null
+let Redis: RedisConstructor | null = null
+let RateLimiterMemory: RateLimiterMemoryConstructor | null = null
+let RateLimiterRedis: RateLimiterRedisConstructor | null = null
+
+// Edge Runtime detection interface
+interface GlobalWithEdgeRuntime {
+  EdgeRuntime?: unknown
+}
 
 // Dynamic imports for Node.js runtime only
 const loadNodeModules = async () => {
-  // biome-ignore lint/suspicious/noExplicitAny: Runtime environment detection requires global type check
-  if (typeof (globalThis as any).EdgeRuntime === 'undefined') {
+  if (typeof (globalThis as GlobalWithEdgeRuntime).EdgeRuntime === 'undefined') {
     const [redisModule, rateLimiterModule] = await Promise.all([
       import('ioredis'),
       import('rate-limiter-flexible'),
@@ -27,11 +59,11 @@ const loadNodeModules = async () => {
   }
 }
 
+import type { NextRequest } from 'next/server'
 import { timingSafeEqual } from '@/lib/crypto-utils'
 import { sql } from '@/lib/db/config'
 import { env } from '@/lib/validation/env'
 import type { AccessTokenPayload, User } from '@/types/auth'
-import type { NextRequest } from 'next/server'
 import { createLogParams, logSecurityEvent } from './audit'
 import { verifyAccessToken } from './jwt'
 
@@ -41,9 +73,9 @@ interface RateLimiterInstance {
 }
 
 interface RateLimiterResult {
-  totalHits: number
   remainingPoints: number
   msBeforeNext?: number
+  totalHits?: number
   isFirstInDuration?: boolean
 }
 
@@ -57,12 +89,9 @@ const CSRF_PROTECTED_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE']
 const rateLimitStore = new Map<string, { count: number; reset: number }>()
 
 // Redis client and rate limiter instances
-// biome-ignore lint/suspicious/noExplicitAny: Redis client type resolved at runtime after dynamic import
-let redisClient: any = null
-// biome-ignore lint/suspicious/noExplicitAny: Rate limiter type resolved at runtime after dynamic import
-let redisRateLimiter: any = null
-// biome-ignore lint/suspicious/noExplicitAny: Memory rate limiter type resolved at runtime after dynamic import
-let memoryRateLimiter: any = null
+let redisClient: RedisType | null = null
+let redisRateLimiter: RateLimiterInstance | null = null
+let memoryRateLimiter: RateLimiterInstance | null = null
 let redisAvailable = false
 
 // Circuit breaker state for Redis failures
@@ -106,8 +135,7 @@ async function initializeRedis(): Promise<void> {
       resetCircuitBreaker()
     })
 
-    // biome-ignore lint/suspicious/noExplicitAny: Redis error types are complex union, handled generically for logging
-    redisClient.on('error', (_error: any) => {
+    redisClient.on('error', (_error: unknown) => {
       handleRedisFailure()
     })
 
@@ -193,8 +221,7 @@ function isCircuitBreakerOpen(): boolean {
 /**
  * Get appropriate rate limiter based on availability
  */
-// biome-ignore lint/suspicious/noExplicitAny: Rate limiter interface varies by implementation, unified at runtime
-function getRateLimiter(): any {
+function getRateLimiter(): RateLimiterInstance | null {
   if (redisRateLimiter && redisAvailable && !isCircuitBreakerOpen()) {
     return redisRateLimiter
   }
@@ -423,25 +450,99 @@ async function validateCSRFAndRespond(
 }
 
 function handleAuthError(error: unknown): NextResponse {
+  // Import enhanced error handler
+  const { ErrorHandler, isEnhancedError } = require('@/lib/errors/enhanced-error-handler')
+
+  // Handle enhanced errors that are already properly formatted
+  if (isEnhancedError(error)) {
+    return ErrorHandler.toHttpResponse(error)
+  }
+
   if (error instanceof Error) {
+    // Map existing error messages to enhanced error types
     if (error.message === 'Token expired') {
-      return NextResponse.json({ error: 'Token expired' }, { status: 401 })
+      const enhancedError = ErrorHandler.createAuthError('token_expired', error, {
+        middleware: 'auth_middleware',
+        timestamp: new Date().toISOString(),
+      })
+      return ErrorHandler.toHttpResponse(enhancedError)
     }
+
     if (error.message === 'Authentication required') {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+      const enhancedError = ErrorHandler.createAuthError('no_token', error, {
+        middleware: 'auth_middleware',
+        timestamp: new Date().toISOString(),
+      })
+      return ErrorHandler.toHttpResponse(enhancedError)
     }
+
     if (error.message === 'Invalid token') {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+      const enhancedError = ErrorHandler.createAuthError('invalid_token', error, {
+        middleware: 'auth_middleware',
+        timestamp: new Date().toISOString(),
+      })
+      return ErrorHandler.toHttpResponse(enhancedError)
     }
+
     if (error.message === 'User not found') {
-      return NextResponse.json({ error: 'User not found' }, { status: 401 })
+      const enhancedError = ErrorHandler.createError(
+        'AUTH_USER_NOT_FOUND',
+        'User account not found or has been disabled.',
+        'authentication',
+        'medium',
+        {
+          originalError: error,
+          context: {
+            middleware: 'auth_middleware',
+            timestamp: new Date().toISOString(),
+          },
+          actionableSteps: [
+            'Verify your account exists and is active',
+            'Try signing out and signing in again',
+            'Contact support if you believe this is an error',
+          ],
+          developmentDetails:
+            'User lookup failed in authentication middleware. Check user existence in database.',
+          documentationLinks: ['/docs/authentication#user-accounts'],
+          productionMessage: 'User account not found or has been disabled.',
+        }
+      )
+      return ErrorHandler.toHttpResponse(enhancedError)
     }
+
     if (error.message === 'Account locked') {
-      return NextResponse.json({ error: 'Account locked' }, { status: 403 })
+      const enhancedError = ErrorHandler.createAuthError('account_locked', error, {
+        middleware: 'auth_middleware',
+        timestamp: new Date().toISOString(),
+      })
+      return ErrorHandler.toHttpResponse(enhancedError)
     }
   }
 
-  return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  // Handle any other authentication errors as generic internal server errors
+  const enhancedError = ErrorHandler.createError(
+    'AUTH_MIDDLEWARE_ERROR',
+    'An authentication error occurred while processing your request.',
+    'authentication',
+    'high',
+    {
+      originalError: error,
+      context: {
+        middleware: 'auth_middleware',
+        timestamp: new Date().toISOString(),
+      },
+      actionableSteps: [
+        'Try refreshing the page and attempting to sign in again',
+        'Clear your browser cookies and try again',
+        'Contact support if the issue persists',
+      ],
+      developmentDetails: `Unhandled authentication error in middleware: ${error instanceof Error ? error.message : String(error)}`,
+      documentationLinks: ['/docs/authentication#troubleshooting'],
+      productionMessage: 'An authentication error occurred. Please try again.',
+    }
+  )
+
+  return ErrorHandler.toHttpResponse(enhancedError)
 }
 
 /**
@@ -650,7 +751,13 @@ async function createCustomRateLimiter(config: {
 }): Promise<RateLimiterInstance> {
   const duration = Math.floor(config.window / 1000) // Convert to seconds
 
-  if (redisRateLimiter && redisAvailable && !isCircuitBreakerOpen() && redisClient) {
+  if (
+    RateLimiterRedis &&
+    redisRateLimiter &&
+    redisAvailable &&
+    !isCircuitBreakerOpen() &&
+    redisClient
+  ) {
     return new RateLimiterRedis({
       storeClient: redisClient,
       keyPrefix: 'rl_custom',
@@ -661,13 +768,17 @@ async function createCustomRateLimiter(config: {
     })
   }
 
-  return new RateLimiterMemory({
-    keyPrefix: 'rl_custom_memory',
-    points: config.limit,
-    duration,
-    blockDuration: duration,
-    execEvenly: true,
-  })
+  if (RateLimiterMemory) {
+    return new RateLimiterMemory({
+      keyPrefix: 'rl_custom_memory',
+      points: config.limit,
+      duration,
+      blockDuration: duration,
+      execEvenly: true,
+    })
+  }
+
+  throw new Error('No rate limiter available')
 }
 
 function logCustomRateLimiterError(): void {

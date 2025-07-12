@@ -32,9 +32,9 @@ vi.mock('next/server', () => {
   const MockNextResponse = class {
     public status: number
     public headers: Map<string, string>
-    private body: any
+    private body: unknown
 
-    constructor(body?: any, init?: ResponseInit) {
+    constructor(body?: unknown, init?: ResponseInit) {
       this.status = init?.status || 200
       this.headers = new Map()
       this.body = body
@@ -60,7 +60,7 @@ vi.mock('next/server', () => {
   }
 })
 
-import { type NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { config, middleware } from '../../src/middleware'
 
 // Mock the security modules
@@ -114,7 +114,7 @@ describe('Main Middleware', () => {
       // Mock enhanced middleware to return a response
       const mockResponse = new NextResponse('Enhanced response', { status: 200 })
       mockResponse.headers.set('X-Enhanced', 'true')
-      ;(enhancedSecurityMiddleware as any).mockResolvedValue(mockResponse)
+      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse)
 
       const request = createMockRequest('https://example.com/api/test')
       const response = await middleware(request)
@@ -133,8 +133,8 @@ describe('Main Middleware', () => {
       )
 
       // Mock enhanced middleware to return null (pass-through)
-      ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
-      ;(handleCorsOptions as any).mockReturnValue(null)
+      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+      ;(handleCorsOptions as ReturnType<typeof vi.fn>).mockReturnValue(null)
 
       const request = createMockRequest('https://example.com/api/test')
       const response = await middleware(request)
@@ -152,12 +152,12 @@ describe('Main Middleware', () => {
       const { handleCorsOptions } = await import('../../src/lib/security/headers')
 
       // Mock enhanced middleware to return null
-      ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
+      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
 
       // Mock CORS handler to return a response
       const corsResponse = new NextResponse(null, { status: 200 })
       corsResponse.headers.set('Access-Control-Allow-Origin', 'https://contribux.vercel.app')
-      ;(handleCorsOptions as any).mockReturnValue(corsResponse)
+      ;(handleCorsOptions as ReturnType<typeof vi.fn>).mockReturnValue(corsResponse)
 
       const request = createMockRequest('https://example.com/api/test', {
         method: 'OPTIONS',
@@ -178,8 +178,8 @@ describe('Main Middleware', () => {
       )
 
       // Mock enhanced middleware to return null
-      ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
-      ;(handleCorsOptions as any).mockReturnValue(null)
+      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+      ;(handleCorsOptions as ReturnType<typeof vi.fn>).mockReturnValue(null)
 
       const request = createMockRequest('https://example.com/api/test')
       const response = await middleware(request)
@@ -205,7 +205,9 @@ describe('Main Middleware', () => {
       const { addSecurityHeaders } = await import('../../src/lib/security/headers')
 
       // Mock enhanced middleware to throw an error
-      ;(enhancedSecurityMiddleware as any).mockRejectedValue(new Error('Enhanced middleware error'))
+      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockRejectedValue(
+        new Error('Enhanced middleware error')
+      )
 
       const request = createMockRequest('https://example.com/api/test')
       const response = await middleware(request)
@@ -227,11 +229,11 @@ describe('Main Middleware', () => {
       )
 
       // Mock enhanced middleware to return null
-      ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
-      ;(handleCorsOptions as any).mockReturnValue(null)
+      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+      ;(handleCorsOptions as ReturnType<typeof vi.fn>).mockReturnValue(null)
 
       // Mock addSecurityHeaders to throw an error
-      ;(addSecurityHeaders as any).mockImplementation(() => {
+      ;(addSecurityHeaders as ReturnType<typeof vi.fn>).mockImplementation(() => {
         throw new Error('Headers error')
       })
 
@@ -255,11 +257,13 @@ describe('Main Middleware', () => {
       )
 
       // Mock all security functions to throw errors
-      ;(enhancedSecurityMiddleware as any).mockRejectedValue(new Error('Enhanced error'))
-      ;(handleCorsOptions as any).mockImplementation(() => {
+      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockRejectedValue(
+        new Error('Enhanced error')
+      )
+      ;(handleCorsOptions as ReturnType<typeof vi.fn>).mockImplementation(() => {
         throw new Error('CORS error')
       })
-      ;(addSecurityHeaders as any).mockImplementation(() => {
+      ;(addSecurityHeaders as ReturnType<typeof vi.fn>).mockImplementation(() => {
         throw new Error('Headers error')
       })
 
@@ -276,7 +280,7 @@ describe('Main Middleware', () => {
       )
 
       // Mock network timeout
-      ;(enhancedSecurityMiddleware as any).mockImplementation(() => {
+      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockImplementation(() => {
         return new Promise((_, reject) => {
           setTimeout(() => reject(new Error('Timeout')), 100)
         })
@@ -294,11 +298,11 @@ describe('Main Middleware', () => {
       )
 
       // Mock enhanced middleware for malformed request
-      ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
+      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
 
       // Create request with malformed URL
       const request = createMockRequest('https://example.com/api/test', {
-        method: 'INVALID_METHOD' as any,
+        method: 'INVALID_METHOD' as string,
       })
 
       const response = await middleware(request)
@@ -311,7 +315,7 @@ describe('Main Middleware', () => {
       const { enhancedSecurityMiddleware } = await import(
         '../../src/lib/security/enhanced-middleware'
       )
-      ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
+      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
 
       const request = createMockRequest('https://example.com/api/search', {
         method: 'GET',
@@ -326,7 +330,7 @@ describe('Main Middleware', () => {
       const { enhancedSecurityMiddleware } = await import(
         '../../src/lib/security/enhanced-middleware'
       )
-      ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
+      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
 
       const request = createMockRequest('https://example.com/api/repositories', {
         method: 'POST',
@@ -345,7 +349,7 @@ describe('Main Middleware', () => {
       const { enhancedSecurityMiddleware } = await import(
         '../../src/lib/security/enhanced-middleware'
       )
-      ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
+      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
 
       const request = createMockRequest('https://example.com/api/bookmarks/123', {
         method: 'PUT',
@@ -360,7 +364,7 @@ describe('Main Middleware', () => {
       const { enhancedSecurityMiddleware } = await import(
         '../../src/lib/security/enhanced-middleware'
       )
-      ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
+      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
 
       const request = createMockRequest('https://example.com/api/bookmarks/123', {
         method: 'DELETE',
@@ -378,11 +382,11 @@ describe('Main Middleware', () => {
       const { handleCorsOptions } = await import('../../src/lib/security/headers')
 
       // Enhanced middleware returns null
-      ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
+      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
 
       // CORS handler should be called
       const corsResponse = new NextResponse(null, { status: 200 })
-      ;(handleCorsOptions as any).mockReturnValue(corsResponse)
+      ;(handleCorsOptions as ReturnType<typeof vi.fn>).mockReturnValue(corsResponse)
 
       const request = createMockRequest('https://example.com/api/test', {
         method: 'OPTIONS',
@@ -399,7 +403,7 @@ describe('Main Middleware', () => {
       const { enhancedSecurityMiddleware } = await import(
         '../../src/lib/security/enhanced-middleware'
       )
-      ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
+      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
 
       const apiRoutes = ['/api/search', '/api/repositories', '/api/bookmarks', '/api/auth/callback']
 
@@ -416,7 +420,7 @@ describe('Main Middleware', () => {
       const { enhancedSecurityMiddleware } = await import(
         '../../src/lib/security/enhanced-middleware'
       )
-      ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
+      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
 
       const pageRoutes = ['/', '/search', '/repository/123', '/profile']
 
@@ -433,7 +437,7 @@ describe('Main Middleware', () => {
       const { enhancedSecurityMiddleware } = await import(
         '../../src/lib/security/enhanced-middleware'
       )
-      ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
+      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
 
       const request = createMockRequest(
         'https://example.com/profile',
@@ -457,7 +461,7 @@ describe('Main Middleware', () => {
       const { enhancedSecurityMiddleware } = await import(
         '../../src/lib/security/enhanced-middleware'
       )
-      ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
+      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
 
       const request = createMockRequest('https://example.com/api/test')
       const response = await middleware(request)
@@ -476,7 +480,7 @@ describe('Main Middleware', () => {
       // Mock rate limiting response
       const rateLimitResponse = new NextResponse('Rate limit exceeded', { status: 429 })
       rateLimitResponse.headers.set('Retry-After', '60')
-      ;(enhancedSecurityMiddleware as any).mockResolvedValue(rateLimitResponse)
+      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(rateLimitResponse)
 
       const request = createMockRequest('https://example.com/api/test')
       const response = await middleware(request)
@@ -493,7 +497,7 @@ describe('Main Middleware', () => {
       // Mock blocked request response
       const blockedResponse = new NextResponse('Blocked', { status: 403 })
       blockedResponse.headers.set('X-Blocked-Reason', 'suspicious-activity')
-      ;(enhancedSecurityMiddleware as any).mockResolvedValue(blockedResponse)
+      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(blockedResponse)
 
       const request = createMockRequest('https://example.com/api/test')
       const response = await middleware(request)
@@ -508,7 +512,7 @@ describe('Main Middleware', () => {
       const { enhancedSecurityMiddleware } = await import(
         '../../src/lib/security/enhanced-middleware'
       )
-      ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
+      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
 
       const requests = Array.from({ length: 10 }, (_, i) =>
         createMockRequest(`https://example.com/api/test${i}`)
@@ -527,7 +531,7 @@ describe('Main Middleware', () => {
       const { enhancedSecurityMiddleware } = await import(
         '../../src/lib/security/enhanced-middleware'
       )
-      ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
+      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
 
       const request = createMockRequest('https://example.com/api/test')
 
@@ -543,7 +547,7 @@ describe('Main Middleware', () => {
       const { enhancedSecurityMiddleware } = await import(
         '../../src/lib/security/enhanced-middleware'
       )
-      ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
+      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
 
       // Simulate many rapid requests
       const promises = []
@@ -595,7 +599,7 @@ describe('Main Middleware', () => {
       const { enhancedSecurityMiddleware } = await import(
         '../../src/lib/security/enhanced-middleware'
       )
-      ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
+      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
 
       const authRequest = createMockRequest(
         'https://example.com/api/auth/signin',
@@ -617,7 +621,7 @@ describe('Main Middleware', () => {
       const { enhancedSecurityMiddleware } = await import(
         '../../src/lib/security/enhanced-middleware'
       )
-      ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
+      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
 
       const searchRequest = createMockRequest(
         'https://example.com/api/search?q=react',
@@ -639,7 +643,7 @@ describe('Main Middleware', () => {
       const { enhancedSecurityMiddleware } = await import(
         '../../src/lib/security/enhanced-middleware'
       )
-      ;(enhancedSecurityMiddleware as any).mockResolvedValue(null)
+      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
 
       const bookmarkRequest = createMockRequest(
         'https://example.com/api/bookmarks',

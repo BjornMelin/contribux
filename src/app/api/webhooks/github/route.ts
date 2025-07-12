@@ -1,6 +1,6 @@
 /**
  * GitHub Webhook API Endpoint
- * 
+ *
  * Secure webhook handler implementing comprehensive security measures:
  * - HMAC signature verification with timing-safe comparison
  * - Rate limiting and abuse protection
@@ -9,24 +9,31 @@
  * - Proper error handling and responses
  */
 
-import { NextRequest } from 'next/server'
-import { 
-  createWebhookValidator, 
-  createWebhookSecurityResponse,
-  type WebhookSecurityResult 
-} from '@/lib/security/webhook-security'
-import { GitHubWebhookPayload } from '@/types/github-integration'
-import { 
-  withWebhookErrorBoundary, 
-  createWebhookErrorResponse,
-  webhookRetryQueue,
-  WebhookError
-} from '@/lib/errors/webhook-error-boundary'
-import { errorMonitor } from '@/lib/errors/error-monitoring'
+import type { NextRequest } from 'next/server'
 import { ErrorClassifier } from '@/lib/errors/error-classification'
+import { errorMonitor } from '@/lib/errors/error-monitoring'
+import {
+  createWebhookErrorResponse,
+  type WebhookError,
+  webhookRetryQueue,
+  withWebhookErrorBoundary,
+} from '@/lib/errors/webhook-error-boundary'
+import {
+  createWebhookSecurityResponse,
+  createWebhookValidator,
+  type WebhookSecurityResult,
+} from '@/lib/security/webhook-security'
+import type { GitHubWebhookPayload } from '@/types/github-integration'
 
-// Initialize webhook security validator
-const webhookValidator = createWebhookValidator()
+// Lazy-load webhook security validator to avoid module initialization issues
+let webhookValidator: ReturnType<typeof createWebhookValidator> | null = null
+
+function getWebhookValidator() {
+  if (!webhookValidator) {
+    webhookValidator = createWebhookValidator()
+  }
+  return webhookValidator
+}
 
 /**
  * Handle GitHub webhook POST requests with comprehensive security and error handling
@@ -37,9 +44,10 @@ export async function POST(request: NextRequest) {
   let event: string | undefined
 
   try {
-    // Comprehensive security validation
-    securityResult = await webhookValidator.validateWebhook(request)
-    
+    // Comprehensive security validation (lazy-loaded)
+    const validator = getWebhookValidator()
+    securityResult = await validator.validateWebhook(request)
+
     if (!securityResult.success) {
       // Return appropriate security response
       return createWebhookSecurityResponse(securityResult)
@@ -49,7 +57,7 @@ export async function POST(request: NextRequest) {
     deliveryId = securityResult.deliveryId
     event = securityResult.event
     const payload = securityResult.payload
-    
+
     if (!event || !deliveryId || !payload) {
       return createWebhookSecurityResponse({
         success: false,
@@ -61,12 +69,16 @@ export async function POST(request: NextRequest) {
     const result = await withWebhookErrorBoundary(
       async () => {
         // Process webhook based on event type
-        const processResult = await processWebhookEvent(event!, payload as GitHubWebhookPayload, deliveryId!)
-        
+        const processResult = await processWebhookEvent(
+          event as string,
+          payload as GitHubWebhookPayload,
+          deliveryId || 'unknown'
+        )
+
         if (!processResult.success) {
           throw new Error(processResult.error || 'Webhook processing failed')
         }
-        
+
         return processResult
       },
       {
@@ -86,20 +98,25 @@ export async function POST(request: NextRequest) {
       webhookError.repository = (payload as GitHubWebhookPayload)?.repository?.full_name
       webhookError.attemptNumber = 1
       webhookError.isRetryable = true
-      
+
       await webhookRetryQueue.enqueue(
         webhookError,
-        { event, deliveryId, payload },
+        {
+          event,
+          deliveryId,
+          repository: (payload as GitHubWebhookPayload)?.repository?.full_name,
+          source: 'github',
+          attemptNumber: 1,
+        },
         result.nextRetryDelay
       )
     }
 
     return createWebhookErrorResponse(result)
-
   } catch (error) {
     // Track unexpected errors
     const classification = ErrorClassifier.classify(error)
-    
+
     await errorMonitor.track(error, classification, {
       url: request.url,
       userAgent: request.headers.get('user-agent') || undefined,
@@ -109,10 +126,7 @@ export async function POST(request: NextRequest) {
         source: 'github-webhook',
       },
     })
-    
-    // Handle unexpected errors securely
-    console.error('[WEBHOOK] Unexpected error:', error)
-    
+
     return createWebhookSecurityResponse({
       success: false,
       error: 'Internal webhook processing error',
@@ -139,37 +153,35 @@ async function processWebhookEvent(
     switch (event) {
       case 'ping':
         return await handlePingEvent(payload, deliveryId)
-      
+
       case 'push':
         return await handlePushEvent(payload, deliveryId)
-      
+
       case 'pull_request':
         return await handlePullRequestEvent(payload, deliveryId)
-      
+
       case 'issues':
         return await handleIssuesEvent(payload, deliveryId)
-      
+
       case 'issue_comment':
         return await handleIssueCommentEvent(payload, deliveryId)
-      
+
       case 'repository':
         return await handleRepositoryEvent(payload, deliveryId)
-      
+
       case 'star':
       case 'watch':
       case 'fork':
         return await handleRepositoryActivityEvent(event, payload, deliveryId)
-      
+
       case 'release':
         return await handleReleaseEvent(payload, deliveryId)
-      
+
       default:
-        console.warn(`[WEBHOOK] Unhandled event type: ${event}`)
         return { success: true } // Don't fail for unknown events
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Event processing failed'
-    console.error(`[WEBHOOK] Error processing ${event} event:`, error)
     return { success: false, error: errorMessage }
   }
 }
@@ -179,15 +191,13 @@ async function processWebhookEvent(
  */
 async function handlePingEvent(
   payload: GitHubWebhookPayload,
-  deliveryId: string
+  _deliveryId: string
 ): Promise<{ success: boolean; error?: string }> {
-  console.log(`[WEBHOOK] Ping received from ${payload.repository.full_name} - ${deliveryId}`)
-  
   // Validate that we can process the repository
   if (!payload.repository?.full_name) {
     return { success: false, error: 'Invalid repository data in ping event' }
   }
-  
+
   // Ping events don't require database operations, just acknowledge
   return { success: true }
 }
@@ -196,16 +206,14 @@ async function handlePingEvent(
  * Handle push events (new commits)
  */
 async function handlePushEvent(
-  payload: GitHubWebhookPayload,
-  deliveryId: string
+  _payload: GitHubWebhookPayload,
+  _deliveryId: string
 ): Promise<{ success: boolean; error?: string }> {
-  console.log(`[WEBHOOK] Push event from ${payload.repository.full_name} - ${deliveryId}`)
-  
   // In a real implementation, you might:
   // - Update repository metadata
   // - Trigger re-analysis of opportunities
   // - Update health scores based on activity
-  
+
   // For now, just log and acknowledge
   return { success: true }
 }
@@ -214,16 +222,14 @@ async function handlePushEvent(
  * Handle pull request events
  */
 async function handlePullRequestEvent(
-  payload: GitHubWebhookPayload,
-  deliveryId: string
+  _payload: GitHubWebhookPayload,
+  _deliveryId: string
 ): Promise<{ success: boolean; error?: string }> {
-  console.log(`[WEBHOOK] Pull request ${payload.action} from ${payload.repository.full_name} - ${deliveryId}`)
-  
   // In a real implementation, you might:
   // - Update opportunity counts when PRs are opened/closed
   // - Track contributor activity
   // - Update repository health metrics
-  
+
   return { success: true }
 }
 
@@ -231,17 +237,15 @@ async function handlePullRequestEvent(
  * Handle issues events (created, updated, closed, etc.)
  */
 async function handleIssuesEvent(
-  payload: GitHubWebhookPayload,
-  deliveryId: string
+  _payload: GitHubWebhookPayload,
+  _deliveryId: string
 ): Promise<{ success: boolean; error?: string }> {
-  console.log(`[WEBHOOK] Issue ${payload.action} from ${payload.repository.full_name} - ${deliveryId}`)
-  
   // In a real implementation, you might:
   // - Add new opportunities when issues are created
   // - Update opportunities when issues are modified
   // - Remove opportunities when issues are closed
   // - Update difficulty/labels based on changes
-  
+
   return { success: true }
 }
 
@@ -249,16 +253,14 @@ async function handleIssuesEvent(
  * Handle issue comment events
  */
 async function handleIssueCommentEvent(
-  payload: GitHubWebhookPayload,
-  deliveryId: string
+  _payload: GitHubWebhookPayload,
+  _deliveryId: string
 ): Promise<{ success: boolean; error?: string }> {
-  console.log(`[WEBHOOK] Issue comment ${payload.action} from ${payload.repository.full_name} - ${deliveryId}`)
-  
   // In a real implementation, you might:
   // - Update issue activity timestamps
   // - Track community engagement
   // - Update maintainer response metrics
-  
+
   return { success: true }
 }
 
@@ -266,16 +268,14 @@ async function handleIssueCommentEvent(
  * Handle repository events (created, updated, etc.)
  */
 async function handleRepositoryEvent(
-  payload: GitHubWebhookPayload,
-  deliveryId: string
+  _payload: GitHubWebhookPayload,
+  _deliveryId: string
 ): Promise<{ success: boolean; error?: string }> {
-  console.log(`[WEBHOOK] Repository ${payload.action} - ${payload.repository.full_name} - ${deliveryId}`)
-  
   // In a real implementation, you might:
   // - Add new repositories to the database
   // - Update repository metadata
   // - Trigger initial health analysis
-  
+
   return { success: true }
 }
 
@@ -283,17 +283,15 @@ async function handleRepositoryEvent(
  * Handle repository activity events (stars, watches, forks)
  */
 async function handleRepositoryActivityEvent(
-  event: string,
-  payload: GitHubWebhookPayload,
-  deliveryId: string
+  _event: string,
+  _payload: GitHubWebhookPayload,
+  _deliveryId: string
 ): Promise<{ success: boolean; error?: string }> {
-  console.log(`[WEBHOOK] Repository ${event} event from ${payload.repository.full_name} - ${deliveryId}`)
-  
   // In a real implementation, you might:
   // - Update star/fork/watch counts
   // - Update repository popularity metrics
   // - Trigger health score recalculation
-  
+
   return { success: true }
 }
 
@@ -301,16 +299,14 @@ async function handleRepositoryActivityEvent(
  * Handle release events
  */
 async function handleReleaseEvent(
-  payload: GitHubWebhookPayload,
-  deliveryId: string
+  _payload: GitHubWebhookPayload,
+  _deliveryId: string
 ): Promise<{ success: boolean; error?: string }> {
-  console.log(`[WEBHOOK] Release ${payload.action} from ${payload.repository.full_name} - ${deliveryId}`)
-  
   // In a real implementation, you might:
   // - Update repository activity metrics
   // - Track release frequency for health scores
   // - Update "latest release" information
-  
+
   return { success: true }
 }
 

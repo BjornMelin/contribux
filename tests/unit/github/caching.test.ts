@@ -1,5 +1,10 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { GitHubCacheManager, MemoryCacheAdapter } from '@/lib/github/caching'
+
+// Type for accessing private methods in tests (unused but kept for future test expansion)
+interface _GitHubCacheManagerWithPrivates extends GitHubCacheManager {
+  hashString(str: string): string
+}
 
 describe('GitHubCacheManager', () => {
   let cacheManager: GitHubCacheManager
@@ -12,9 +17,9 @@ describe('GitHubCacheManager', () => {
 
   describe('generateCacheKey', () => {
     it('should generate consistent keys regardless of object key order', () => {
-      const params1 = { sort: 'stars', order: 'desc', per_page: 10, page: 1 }
-      const params2 = { page: 1, per_page: 10, order: 'desc', sort: 'stars' }
-      const params3 = { order: 'desc', page: 1, sort: 'stars', per_page: 10 }
+      const params1 = { sort: 'stars', order: 'desc', perPage: 30, page: 1 }
+      const params2 = { page: 1, perPage: 30, order: 'desc', sort: 'stars' }
+      const params3 = { order: 'desc', page: 1, sort: 'stars', perPage: 30 }
 
       const key1 = cacheManager.generateCacheKey('GET', '/repos', params1)
       const key2 = cacheManager.generateCacheKey('GET', '/repos', params2)
@@ -118,9 +123,9 @@ describe('GitHubCacheManager', () => {
 
       for (const str of testStrings) {
         // @ts-ignore - accessing private method for testing
-        const key1 = (cacheManager as any).hashString(str)
+        const key1 = (cacheManager as { hashString: (str: string) => string }).hashString(str)
         // @ts-ignore - accessing private method for testing
-        const key2 = (cacheManager as any).hashString(str)
+        const key2 = (cacheManager as { hashString: (str: string) => string }).hashString(str)
 
         expect(key1).toBe(key2) // Consistent hashing
         expect(key1).toMatch(/^[0-9a-z]+$/) // Valid base36
@@ -130,11 +135,11 @@ describe('GitHubCacheManager', () => {
 
     it('should generate different hashes for different inputs', () => {
       // @ts-ignore - accessing private method for testing
-      const hash1 = (cacheManager as any).hashString('test1')
+      const hash1 = (cacheManager as { hashString: (str: string) => string }).hashString('test1')
       // @ts-ignore - accessing private method for testing
-      const hash2 = (cacheManager as any).hashString('test2')
+      const hash2 = (cacheManager as { hashString: (str: string) => string }).hashString('test2')
       // @ts-ignore - accessing private method for testing
-      const hash3 = (cacheManager as any).hashString('test1') // Same as hash1
+      const hash3 = (cacheManager as { hashString: (str: string) => string }).hashString('test1') // Same as hash1
 
       expect(hash1).not.toBe(hash2)
       expect(hash1).toBe(hash3)

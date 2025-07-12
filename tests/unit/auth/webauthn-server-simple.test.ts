@@ -4,11 +4,91 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { setupDatabaseMock, setupWebAuthnServerMock } from '../../utils/mocks'
 
-// Set up mocks before importing the module under test
-setupDatabaseMock()
-setupWebAuthnServerMock()
+// Mock database module at top level - handle template literals properly
+vi.mock('@/lib/db', () => {
+  const mockSql = vi.fn()
+
+  // Setup template literal mock function
+  // biome-ignore lint/suspicious/noExplicitAny: Test mock functions require flexible parameter types
+  const sqlMock = (template: TemplateStringsArray, ...substitutions: any[]) => {
+    mockSql(template, ...substitutions)
+    return Promise.resolve([]) // Always return empty array for WebAuthn queries
+  }
+
+  // Add the mock function for tracking calls
+  Object.assign(sqlMock, mockSql)
+
+  return {
+    sql: sqlMock,
+    db: {
+      select: vi.fn().mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue([]),
+        }),
+      }),
+    },
+  }
+})
+
+// Mock security config at top level
+vi.mock('@/lib/security/feature-flags', () => ({
+  getSecurityConfig: vi.fn(() => ({
+    webauthn: {
+      rpName: 'Contribux',
+      rpId: 'localhost',
+      origin: 'http://localhost:3000',
+      timeout: 60000,
+    },
+  })),
+}))
+
+// Mock SimpleWebAuthn server at top level
+vi.mock('@simplewebauthn/server', () => ({
+  generateRegistrationOptions: vi.fn(() => ({
+    challenge: 'test-challenge',
+    rp: { name: 'Contribux', id: 'localhost' },
+    user: { id: 'test-user-id', name: 'testuser', displayName: 'testuser' },
+    pubKeyCredParams: [{ alg: -7, type: 'public-key' }],
+    timeout: 60000,
+    attestation: 'none',
+    authenticatorSelection: {
+      authenticatorAttachment: 'platform',
+      requireResidentKey: true,
+      residentKey: 'required',
+      userVerification: 'required',
+    },
+  })),
+  verifyRegistrationResponse: vi.fn(() => ({
+    verified: true,
+    registrationInfo: {
+      credential: {
+        id: new Uint8Array([1, 2, 3, 4, 5]),
+        publicKey: new Uint8Array([6, 7, 8, 9, 10]),
+        counter: 0,
+      },
+      credentialID: new Uint8Array([1, 2, 3, 4, 5]),
+      credentialPublicKey: new Uint8Array([6, 7, 8, 9, 10]),
+      counter: 0,
+      credentialDeviceType: 'singleDevice',
+      credentialBackedUp: false,
+    },
+  })),
+  generateAuthenticationOptions: vi.fn(() => ({
+    challenge: 'test-challenge',
+    timeout: 60000,
+    userVerification: 'required',
+    rpId: 'localhost',
+    allowCredentials: [],
+  })),
+  verifyAuthenticationResponse: vi.fn(() => ({
+    verified: true,
+    authenticationInfo: {
+      newCounter: 1,
+      credentialID: new Uint8Array([1, 2, 3, 4, 5]),
+    },
+  })),
+}))
 
 // Import after mocks are set up
 import {

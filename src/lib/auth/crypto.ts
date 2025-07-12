@@ -3,9 +3,9 @@
  * Uses AES-GCM for authenticated encryption with 256-bit keys
  */
 
+import { z } from 'zod'
 import { cryptoConfig } from '@/lib/config/crypto'
 import { sql } from '@/lib/db/config'
-import { z } from 'zod'
 
 // Encryption configuration using centralized config
 const ALGORITHM = cryptoConfig.algorithm
@@ -255,13 +255,10 @@ export async function rotateEncryptionKey(): Promise<EncryptionKeyMetadata> {
   let currentVersion = 0
   let currentKeyData = null
 
-  if (
-    (currentKeyResult as any[]).length > 0 &&
-    (currentKeyResult as any[])[0] &&
-    (currentKeyResult as any[])[0].key_data
-  ) {
-    currentVersion = (currentKeyResult as any[])[0].version
-    currentKeyData = JSON.parse((currentKeyResult as any[])[0].key_data)
+  const currentKeyArray = currentKeyResult as EncryptionKeyResult[]
+  if (currentKeyArray.length > 0 && currentKeyArray[0] && currentKeyArray[0].key_data) {
+    currentVersion = currentKeyArray[0].version
+    currentKeyData = JSON.parse(currentKeyArray[0].key_data)
   }
 
   // Generate new key
@@ -283,19 +280,20 @@ export async function rotateEncryptionKey(): Promise<EncryptionKeyMetadata> {
     RETURNING id, version
   `
 
-  const newKeyId = (newKeyResult as any[])[0]?.id
+  const newKeyArray = newKeyResult as NewKeyResult[]
+  const newKeyId = newKeyArray[0]?.id
   if (!newKeyId) {
     throw new Error('Failed to create new encryption key')
   }
 
   // Mark old key as rotated
-  if ((currentKeyResult as any[]).length > 0 && (currentKeyResult as any[])[0]) {
+  if (currentKeyArray.length > 0 && currentKeyArray[0]) {
     await sql`
       UPDATE encryption_keys
       SET 
         is_active = false,
         rotated_at = CURRENT_TIMESTAMP
-      WHERE id = ${(currentKeyResult as any[])[0].id}
+      WHERE id = ${currentKeyArray[0].id}
     `
 
     // Re-encrypt existing tokens with new key
@@ -321,6 +319,21 @@ interface OAuthTokenRecord {
   id: string
   access_token?: string
   refresh_token?: string
+}
+
+// Database result interfaces for type safety
+interface EncryptionKeyResult {
+  id: string
+  key_data: string
+  version: number
+  is_active: boolean
+  created_at: Date
+  rotated_at: Date | null
+}
+
+interface NewKeyResult {
+  id: string
+  version: number
 }
 
 // Helper function to safely re-encrypt a single token field
@@ -441,7 +454,8 @@ export async function getCurrentEncryptionKey(): Promise<{
     LIMIT 1
   `
 
-  if ((result as any[]).length === 0) {
+  const resultArray = result as EncryptionKeyResult[]
+  if (resultArray.length === 0) {
     // Create initial key if none exists
     const newKey = await generateEncryptionKey()
     const exported = await exportKey(newKey)
@@ -459,18 +473,19 @@ export async function getCurrentEncryptionKey(): Promise<{
       RETURNING id
     `
 
+    const insertArray = insertResult as NewKeyResult[]
     return {
       key: newKey,
-      keyId: (insertResult as any[])[0]?.id,
+      keyId: insertArray[0]?.id,
     }
   }
 
-  const keyData = JSON.parse((result as any[])[0]?.key_data || '{}')
+  const keyData = JSON.parse(resultArray[0]?.key_data || '{}')
   const key = await importKey(keyData)
 
   return {
     key,
-    keyId: (result as any[])[0]?.id,
+    keyId: resultArray[0]?.id,
   }
 }
 
@@ -486,11 +501,12 @@ export async function getEncryptionKeyById(keyId: string): Promise<CryptoKey> {
     LIMIT 1
   `
 
-  if ((result as any[]).length === 0) {
+  const resultArray = result as EncryptionKeyResult[]
+  if (resultArray.length === 0) {
     throw new Error('Encryption key not found')
   }
 
-  const keyData = JSON.parse((result as any[])[0]?.key_data || '{}')
+  const keyData = JSON.parse(resultArray[0]?.key_data || '{}')
   return await importKey(keyData)
 }
 

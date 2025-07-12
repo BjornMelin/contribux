@@ -3,8 +3,8 @@
  * Tests for /api/security/webauthn/authenticate/options endpoint
  */
 
-import { POST } from '@/app/api/security/webauthn/authenticate/options/route'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { POST } from '@/app/api/security/webauthn/authenticate/options/route'
 import { setupDatabaseMock, setupWebAuthnServerMock } from '../../../utils/mocks'
 
 // Mock dependencies
@@ -16,6 +16,30 @@ vi.mock('@/lib/security/feature-flags', () => ({
   securityFeatures: {
     webauthn: true,
   },
+  getSecurityFeatures: vi.fn().mockReturnValue({
+    webauthn: true,
+    basicSecurity: true,
+    securityHeaders: true,
+    rateLimiting: true,
+    isDevelopment: true,
+    isProduction: false,
+  }),
+  getSecurityConfig: vi.fn().mockReturnValue({
+    webauthn: {
+      rpName: 'Contribux',
+      rpId: 'localhost',
+      origin: 'http://localhost:3000',
+      timeout: 60000,
+    },
+    rateLimit: {
+      windowMs: 15 * 60 * 1000,
+      maxRequests: 1000,
+    },
+    monitoring: {
+      enableHealthChecks: false,
+      enableMetrics: false,
+    },
+  }),
 }))
 
 // Mock WebAuthn server functions
@@ -150,6 +174,30 @@ describe('/api/security/webauthn/authenticate/options', () => {
         securityFeatures: {
           webauthn: false,
         },
+        getSecurityFeatures: vi.fn().mockReturnValue({
+          webauthn: false,
+          basicSecurity: true,
+          securityHeaders: true,
+          rateLimiting: true,
+          isDevelopment: true,
+          isProduction: false,
+        }),
+        getSecurityConfig: vi.fn().mockReturnValue({
+          webauthn: {
+            rpName: 'Contribux',
+            rpId: 'localhost',
+            origin: 'http://localhost:3000',
+            timeout: 60000,
+          },
+          rateLimit: {
+            windowMs: 15 * 60 * 1000,
+            maxRequests: 1000,
+          },
+          monitoring: {
+            enableHealthChecks: false,
+            enableMetrics: false,
+          },
+        }),
       }))
 
       const { POST: DisabledPOST } = await import(

@@ -208,7 +208,7 @@ export const renderWithAuth = (
   const authMocks = setupAuthMocks(sessionState)
 
   // Setup API mocks if requested
-  let apiMockUtils
+  let apiMockUtils: ReturnType<typeof createAuthApiMocks> | undefined
   if (apiMocks) {
     apiMockUtils = createAuthApiMocks()
   }
@@ -457,7 +457,7 @@ export const authA11yHelpers = {
 // Performance testing helpers
 export const authPerformanceHelpers = {
   // Measure component render time
-  measureRenderTime: async (renderFn: () => any) => {
+  measureRenderTime: async (renderFn: () => { unmount: () => void }) => {
     const start = performance.now()
     const result = renderFn()
     const end = performance.now()
@@ -469,7 +469,7 @@ export const authPerformanceHelpers = {
   },
 
   // Check for memory leaks in auth components
-  checkMemoryLeaks: (renderFn: () => any, iterations = 10) => {
+  checkMemoryLeaks: (renderFn: () => { result: { unmount: () => void } }, iterations = 10) => {
     const initialMemory = performance.memory?.usedJSHeapSize || 0
 
     for (let i = 0; i < iterations; i++) {

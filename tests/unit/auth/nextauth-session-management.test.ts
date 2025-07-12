@@ -24,9 +24,9 @@ vi.mock('@/lib/db/config', () => ({
   sql: vi.fn(),
 }))
 
+import type { JWT, Session } from 'next-auth'
 import { authConfig } from '@/lib/auth/config'
 import type { Email, UUID } from '@/types/base'
-import type { JWT, Session } from 'next-auth'
 
 describe('NextAuth Session Management Testing', () => {
   beforeEach(() => {

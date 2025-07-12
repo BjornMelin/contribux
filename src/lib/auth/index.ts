@@ -3,57 +3,25 @@
  * This version works without database connectivity or OAuth credentials
  */
 
-import NextAuth, { type AuthOptions } from 'next-auth'
+import NextAuth, { type AuthOptions, type Session, type User } from 'next-auth'
+import { getProviders } from './providers/index'
 
-// Create demo GitHub provider for development testing
-const GitHubDemoProvider = {
-  id: 'github',
-  name: 'GitHub',
-  type: 'oauth' as const,
-  // Mock OAuth endpoints that will work for development
-  authorization: { url: 'javascript:void(0)', params: { scope: 'read:user user:email' } },
-  token: 'javascript:void(0)',
-  userinfo: 'javascript:void(0)',
-  clientId: 'demo-github-client-id',
-  clientSecret: 'demo-github-client-secret',
-  profile(profile: any) {
-    return {
-      id: 'demo-github-123',
-      name: 'Demo GitHub User',
-      email: 'demo@github.com',
-      image: 'https://github.com/github.png',
-      emailVerified: new Date(),
-    }
-  },
+// NextAuth.js TypeScript declarations
+// Session interface is already defined in src/types/next-auth.d.ts
+
+declare module 'next-auth/jwt' {
+  interface JWT {
+    accessToken?: string
+    provider?: string
+  }
 }
 
-// Create demo Google provider for development testing
-const GoogleDemoProvider = {
-  id: 'google',
-  name: 'Google',
-  type: 'oauth' as const,
-  // Mock OAuth endpoints that will work for development
-  authorization: { url: 'javascript:void(0)', params: { scope: 'openid email profile' } },
-  token: 'javascript:void(0)',
-  userinfo: 'javascript:void(0)',
-  clientId: 'demo-google-client-id',
-  clientSecret: 'demo-google-client-secret',
-  profile(profile: any) {
-    return {
-      id: 'demo-google-456',
-      name: 'Demo Google User',
-      email: 'demo@google.com',
-      image: 'https://lh3.googleusercontent.com/a/default-user=s96-c',
-      emailVerified: new Date(),
-    }
-  },
-}
+// Demo GitHub provider has been moved to ./providers/demo.ts
+
+// Demo Google provider has been moved to ./providers/demo.ts
 
 const authConfig: AuthOptions = {
-  providers: [
-    // In development, use demo providers that simulate GitHub and Google
-    ...(process.env.NODE_ENV === 'development' ? [GitHubDemoProvider, GoogleDemoProvider] : []),
-  ],
+  providers: getProviders(),
 
   session: {
     strategy: 'jwt',
@@ -66,7 +34,7 @@ const authConfig: AuthOptions = {
   },
 
   callbacks: {
-    async jwt({ token, account, profile, user }) {
+    async jwt({ token, account, profile: _profile, user: _user }) {
       // In development, simulate successful OAuth flow
       if (process.env.NODE_ENV === 'development' && account) {
         // Create demo user data based on provider
@@ -99,25 +67,34 @@ const authConfig: AuthOptions = {
       // Create session from token
       if (token.sub) {
         session.user = {
+          ...session.user,
           id: token.sub,
           name: token.name || 'Demo User',
           email: token.email || 'demo@example.com',
+          emailVerified: token.email_verified ? new Date(token.email_verified as string) : null,
           image: token.picture || null,
-        }
-        ;(session as any).accessToken = token.accessToken
-        ;(session as any).provider = token.provider
+          login: undefined,
+          githubId: undefined,
+          githubUsername: undefined,
+          connectedProviders: [token.provider || 'demo'],
+          primaryProvider: token.provider || 'demo',
+        } as User
+        // Store additional session data
+        ;(session as Session).accessToken = token.accessToken
       }
       return session
     },
 
-    async signIn({ account, profile, user }) {
+    async signIn({ account: _account, profile: _profile, user: _user }) {
       // Allow all sign-ins in development
       if (process.env.NODE_ENV === 'development') {
         return true
       }
 
       // In production, implement proper validation
-      return false
+      // For now, allow all sign-ins but this should be customized
+      // based on your specific requirements
+      return true
     },
   },
 

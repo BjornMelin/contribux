@@ -9,6 +9,17 @@
  * - REST and GraphQL support
  */
 
+import { retry } from '@octokit/plugin-retry'
+import { throttling } from '@octokit/plugin-throttling'
+import { Octokit } from '@octokit/rest'
+import { z } from 'zod'
+import { auth } from '@/lib/auth'
+import { config } from '@/lib/config/provider'
+import { createRequestContext, GitHubError, isRequestError } from './errors'
+
+// Enhanced Octokit with plugins
+const EnhancedOctokit = Octokit.plugin(retry, throttling)
+
 // Zod schemas for validation
 const GitHubUserSchema = z.object({
   login: z.string(),
@@ -97,7 +108,15 @@ export type GitHubLabel = z.infer<typeof GitHubLabelSchema>
 export type GitHubComment = z.infer<typeof GitHubCommentSchema>
 export type GitHubOrganization = z.infer<typeof GitHubOrganizationSchema>
 
-export interface SearchResult<T> {
+// Search result schema - generic version
+export const SearchResultSchema = <T extends z.ZodTypeAny>(itemSchema: T) =>
+  z.object({
+    total_count: z.number(),
+    incomplete_results: z.boolean(),
+    items: z.array(itemSchema),
+  })
+
+export type SearchResult<T> = {
   total_count: number
   incomplete_results: boolean
   items: T[]
@@ -129,16 +148,6 @@ export interface GitHubClientTest {
  * - Prevents retry on non-retryable errors (abuse, 4xx errors)
  * - Integrates with GitHub's retry-after headers
  */
-
-import { auth } from '@/lib/auth'
-import { config } from '@/lib/config/provider'
-import { retry } from '@octokit/plugin-retry'
-import { throttling } from '@octokit/plugin-throttling'
-import { Octokit } from '@octokit/rest'
-import { z } from 'zod'
-
-// Enhanced Octokit with plugins
-const EnhancedOctokit = Octokit.plugin(retry, throttling)
 
 // Simplified configuration schema
 const GitHubClientConfigSchema = z.object({
@@ -251,7 +260,13 @@ export class GitHubClient {
 
   constructor(config: GitHubClientConfig = {}) {
     // Validate configuration
-    const validatedConfig = GitHubClientConfigSchema.parse(config)
+    const parseResult = GitHubClientConfigSchema.safeParse(config)
+    if (!parseResult.success) {
+      throw new Error(
+        `Invalid GitHub client configuration: ${parseResult.error.errors.map(e => e.message).join(', ')}`
+      )
+    }
+    const validatedConfig = parseResult.data
 
     // Create Octokit instance with built-in plugins
     this.octokit = new EnhancedOctokit({
@@ -268,7 +283,35 @@ export class GitHubClient {
 
       // Built-in retry configuration
       retry: {
-        doNotRetry: ['abuse'],
+        doNotRetry: ['abuse', 'user-agent', 'invalid-request'],
+        retryFilter: (error: unknown) => {
+          // Extract status code from various possible error structures
+          const errorObj = error as {
+            status?: number
+            response?: { status?: number }
+            code?: number
+          }
+          const status = errorObj.status || errorObj.response?.status || errorObj.code
+
+          // Don't retry on 401 Unauthorized (authentication errors)
+          if (status === 401) {
+            return false
+          }
+          // Don't retry on 403 Forbidden (authorization errors)
+          if (status === 403) {
+            return false
+          }
+          // Don't retry on 422 Unprocessable Entity (validation errors)
+          if (status === 422) {
+            return false
+          }
+          // Don't retry on other 4xx client errors
+          if (status && status >= 400 && status < 500) {
+            return false
+          }
+          // Allow retries for 5xx server errors and network issues
+          return true
+        },
       },
 
       // Built-in throttling configuration
@@ -293,11 +336,17 @@ export class GitHubClient {
       throw new Error('No valid session or access token found')
     }
 
-    const githubConfig = config.getSection('github')
+    let timeout = 30000 // Default timeout
+    try {
+      const githubConfig = config.getSection('github')
+      timeout = githubConfig.timeout
+    } catch {
+      // Config not available, use defaults
+    }
 
     return new GitHubClient({
       accessToken: session.accessToken,
-      timeout: githubConfig.timeout,
+      timeout,
     })
   }
 
@@ -468,20 +517,73 @@ export class GitHubClient {
   }
 
   /**
+   * Helper method to handle Octokit errors and convert them to GitHubErrors
+   */
+  private handleOctokitError(
+    error: unknown,
+    operation: string,
+    params: Record<string, unknown> = {}
+  ): never {
+    if (isRequestError(error)) {
+      const context = createRequestContext('GET', operation, params)
+
+      if (error.status === 401) {
+        throw new GitHubError(
+          'Bad credentials',
+          'AUTHENTICATION_ERROR',
+          error.status,
+          error.response,
+          context
+        )
+      }
+
+      if (error.status === 403) {
+        throw new GitHubError('Forbidden', 'FORBIDDEN_ERROR', error.status, error.response, context)
+      }
+
+      if (error.status === 404) {
+        throw new GitHubError('Not Found', 'NOT_FOUND_ERROR', error.status, error.response, context)
+      }
+
+      if (error.status >= 500) {
+        throw new GitHubError('Server Error', 'SERVER_ERROR', error.status, error.response, context)
+      }
+
+      throw new GitHubError(
+        error.message || 'Unknown GitHub API error',
+        'API_ERROR',
+        error.status,
+        error.response,
+        context
+      )
+    }
+
+    if (error instanceof Error) {
+      throw new GitHubError(error.message, 'NETWORK_ERROR')
+    }
+
+    throw new GitHubError('Unknown error occurred', 'UNKNOWN_ERROR')
+  }
+
+  /**
    * Get authenticated user information
    */
   async getCurrentUser() {
-    const response = await this.octokit.rest.users.getAuthenticated()
-    return {
-      login: response.data.login,
-      id: response.data.id,
-      avatar_url: response.data.avatar_url,
-      name: response.data.name,
-      email: response.data.email,
-      bio: response.data.bio,
-      public_repos: response.data.public_repos,
-      followers: response.data.followers,
-      following: response.data.following,
+    try {
+      const response = await this.octokit.rest.users.getAuthenticated()
+      return {
+        login: response.data.login,
+        id: response.data.id,
+        avatar_url: response.data.avatar_url,
+        name: response.data.name,
+        email: response.data.email,
+        bio: response.data.bio,
+        public_repos: response.data.public_repos,
+        followers: response.data.followers,
+        following: response.data.following,
+      }
+    } catch (error) {
+      this.handleOctokitError(error, 'getAuthenticatedUser')
     }
   }
 
@@ -755,7 +857,7 @@ export class GitHubClient {
       const entries = Array.from(this.cache.entries())
       const sortedByExpiry = entries.sort((a, b) => a[1].expires - b[1].expires)
       const toDelete = Math.max(0, this.cache.size - this.maxCacheSize)
-      
+
       for (let i = 0; i < toDelete; i++) {
         this.cache.delete(sortedByExpiry[i][0])
       }
@@ -769,7 +871,7 @@ export class GitHubClient {
     const memorySizeBytes = JSON.stringify(Array.from(this.cache.entries())).length * 2 // Rough estimate
     return {
       cacheSize: this.cache.size,
-      memorySizeMB: Math.round(memorySizeBytes / (1024 * 1024) * 100) / 100,
+      memorySizeMB: Math.round((memorySizeBytes / (1024 * 1024)) * 100) / 100,
       maxCacheSize: this.maxCacheSize,
     }
   }
@@ -780,13 +882,13 @@ export class GitHubClient {
   private forceMemoryCleanup(): void {
     if (this.cache.size > this.maxCacheSize * 0.8) {
       this.cleanExpiredCache()
-      
+
       // If still over 80% capacity, remove oldest 25% of entries
       if (this.cache.size > this.maxCacheSize * 0.8) {
         const entries = Array.from(this.cache.entries())
         const sortedByExpiry = entries.sort((a, b) => a[1].expires - b[1].expires)
         const toDelete = Math.floor(this.cache.size * 0.25)
-        
+
         for (let i = 0; i < toDelete; i++) {
           this.cache.delete(sortedByExpiry[i][0])
         }

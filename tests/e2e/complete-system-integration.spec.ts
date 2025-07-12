@@ -3,7 +3,7 @@
  * Validates end-to-end user journeys with security and monitoring integration
  */
 
-import { type Page, expect, test } from '@playwright/test'
+import { expect, type Page, test } from '@playwright/test'
 
 // Test utilities for system integration
 class SystemIntegrationHelper {

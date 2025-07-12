@@ -9,8 +9,58 @@ import { vi } from 'vitest'
  * Database configuration mock for testing
  */
 export function setupDatabaseMock() {
+  // Mock the main database module that WebAuthn server uses
+  vi.mock('@/lib/db', () => {
+    const mockSql = vi.fn()
+
+    // Setup template literal mock function
+    // biome-ignore lint/suspicious/noExplicitAny: Test mock functions require flexible parameter types
+    const sqlMock = (template: TemplateStringsArray, ...substitutions: any[]) => {
+      mockSql(template, ...substitutions)
+      return Promise.resolve([]) // Always return empty array for WebAuthn queries
+    }
+
+    // Add the mock function for tracking calls
+    Object.assign(sqlMock, mockSql)
+
+    return {
+      sql: sqlMock,
+      db: {
+        select: vi.fn().mockReturnValue({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([]),
+          }),
+        }),
+        insert: vi.fn().mockReturnValue({
+          values: vi.fn().mockReturnValue({
+            returning: vi.fn().mockResolvedValue([{ id: 'test-id' }]),
+          }),
+        }),
+        update: vi.fn().mockReturnValue({
+          set: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([]),
+          }),
+        }),
+        delete: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue([]),
+        }),
+      },
+      checkDatabaseHealth: vi.fn().mockResolvedValue({
+        healthy: true,
+        latency: 10,
+        pooling: { provider: 'test', enabled: true, connectionType: 'pooled' },
+      }),
+      vectorUtils: {
+        parseEmbedding: vi.fn(text => (text ? JSON.parse(text) : null)),
+        serializeEmbedding: vi.fn(embedding => JSON.stringify(embedding)),
+        cosineSimilarity: vi.fn(() => 0.8),
+      },
+    }
+  })
+
+  // Also mock the config module for compatibility
   vi.mock('@/lib/db/config', () => ({
-    sql: vi.fn().mockResolvedValue([]),
+    sql: vi.fn().mockImplementation(() => Promise.resolve([])),
     getDatabaseUrl: vi.fn(() => 'postgresql://test:test@localhost:5432/test'),
     vectorConfig: {
       efSearch: 200,
@@ -50,6 +100,11 @@ export function setupWebAuthnServerMock() {
     verifyRegistrationResponse: vi.fn(() => ({
       verified: true,
       registrationInfo: {
+        credential: {
+          id: new Uint8Array([1, 2, 3, 4, 5]),
+          publicKey: new Uint8Array([6, 7, 8, 9, 10]),
+          counter: 0,
+        },
         credentialID: new Uint8Array([1, 2, 3, 4, 5]),
         credentialPublicKey: new Uint8Array([6, 7, 8, 9, 10]),
         counter: 0,
@@ -71,6 +126,44 @@ export function setupWebAuthnServerMock() {
         credentialID: new Uint8Array([1, 2, 3, 4, 5]),
       },
     })),
+  }))
+
+  // Mock the security feature flags
+  vi.mock('@/lib/security/feature-flags', () => ({
+    getSecurityFeatures: vi.fn(() => ({
+      basicSecurity: true,
+      securityHeaders: true,
+      webauthn: true,
+      advancedMonitoring: false,
+      securityDashboard: false,
+      deviceFingerprinting: false,
+      detailedAudit: false,
+      rateLimiting: true,
+      isDevelopment: true,
+      isProduction: false,
+    })),
+    getSecurityConfig: vi.fn(() => ({
+      webauthn: {
+        rpName: 'Contribux',
+        rpId: 'localhost',
+        origin: 'http://localhost:3000',
+        timeout: 60000,
+      },
+      rateLimit: {
+        windowMs: 15 * 60 * 1000,
+        maxRequests: 1000,
+      },
+      monitoring: {
+        enabled: false,
+      },
+    })),
+    securityFeatures: {
+      basicSecurity: true,
+      securityHeaders: true,
+      webauthn: true,
+      rateLimiting: true,
+      isDevelopment: true,
+    },
   }))
 }
 

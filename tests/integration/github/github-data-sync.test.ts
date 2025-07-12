@@ -10,8 +10,8 @@
  * - Cache statistics and monitoring
  */
 
-import { GitHubClient, createGitHubClient } from '@/lib/github/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createGitHubClient, GitHubClient } from '@/lib/github/client'
 import { mockGitHubAPI } from '../msw-setup'
 import { setupGitHubTestIsolation } from '../test-helpers'
 
@@ -66,7 +66,7 @@ describe('GitHub Data Synchronization & Caching Integration', () => {
 
       // Make some requests to populate cache
       await client.getAuthenticatedUser()
-      await client.getRepository({ owner: 'testowner', repo: 'testrepo' })
+      await client.getRepository('testowner', 'testrepo')
       await client.getRateLimit()
 
       // Cache should now have entries
@@ -86,9 +86,9 @@ describe('GitHub Data Synchronization & Caching Integration', () => {
 
       // Make multiple requests to exceed cache size
       await client.getAuthenticatedUser()
-      await client.getRepository({ owner: 'owner1', repo: 'repo1' })
-      await client.getRepository({ owner: 'owner2', repo: 'repo2' })
-      await client.getRepository({ owner: 'owner3', repo: 'repo3' })
+      await client.getRepository('owner1', 'repo1')
+      await client.getRepository('owner2', 'repo2')
+      await client.getRepository('owner3', 'repo3')
 
       const stats = client.getCacheStats()
       expect(stats.size).toBeLessThanOrEqual(2) // Should not exceed maxSize
@@ -101,7 +101,7 @@ describe('GitHub Data Synchronization & Caching Integration', () => {
 
       // Populate cache
       await client.getAuthenticatedUser()
-      await client.getRepository({ owner: 'testowner', repo: 'testrepo' })
+      await client.getRepository('testowner', 'testrepo')
 
       let stats = client.getCacheStats()
       expect(stats.size).toBeGreaterThan(0)
@@ -186,12 +186,12 @@ describe('GitHub Data Synchronization & Caching Integration', () => {
 
       // First request (cache miss)
       const start1 = Date.now()
-      const repo1 = await client.getRepository({ owner: 'testowner', repo: 'testrepo' })
+      const repo1 = await client.getRepository('testowner', 'testrepo')
       const _time1 = Date.now() - start1
 
       // Second request (cache hit)
       const start2 = Date.now()
-      const repo2 = await client.getRepository({ owner: 'testowner', repo: 'testrepo' })
+      const repo2 = await client.getRepository('testowner', 'testrepo')
       const _time2 = Date.now() - start2
 
       expect(repo1.id).toBe(repo2.id)
@@ -209,7 +209,7 @@ describe('GitHub Data Synchronization & Caching Integration', () => {
 
       // Make multiple concurrent requests for the same resource
       const promises = Array.from({ length: 5 }, () =>
-        client.getRepository({ owner: 'testowner', repo: 'testrepo' })
+        client.getRepository('testowner', 'testrepo')
       )
 
       const results = await Promise.all(promises)
@@ -231,9 +231,9 @@ describe('GitHub Data Synchronization & Caching Integration', () => {
 
       // Make requests in quick succession
       const [repo1, repo2, repo3] = await Promise.all([
-        client.getRepository(repoParams),
-        client.getRepository(repoParams),
-        client.getRepository(repoParams),
+        client.getRepository(repoParams.owner, repoParams.repo),
+        client.getRepository(repoParams.owner, repoParams.repo),
+        client.getRepository(repoParams.owner, repoParams.repo),
       ])
 
       // All should return the same data
@@ -255,7 +255,7 @@ describe('GitHub Data Synchronization & Caching Integration', () => {
       // Make various requests
       await client.getAuthenticatedUser()
       await client.getRateLimit()
-      await client.getRepository({ owner: 'testowner', repo: 'testrepo' })
+      await client.getRepository('testowner', 'testrepo')
 
       const stats = client.getCacheStats()
 
@@ -283,7 +283,7 @@ describe('GitHub Data Synchronization & Caching Integration', () => {
       expect(afterFirstRequest.size).toBeGreaterThan(initialStats.size)
 
       // Add more cached data
-      await client.getRepository({ owner: 'testowner', repo: 'testrepo' })
+      await client.getRepository('testowner', 'testrepo')
       const afterSecondRequest = client.getCacheStats()
       expect(afterSecondRequest.size).toBeGreaterThanOrEqual(afterFirstRequest.size)
 
@@ -354,18 +354,12 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('Real API Data Sync Integration', () => 
     it('should cache responses and improve performance', async () => {
       // First call
       const start1 = Date.now()
-      const repo1 = await client.getRepository({
-        owner: 'microsoft',
-        repo: 'vscode',
-      })
+      const repo1 = await client.getRepository('microsoft', 'vscode')
       const time1 = Date.now() - start1
 
       // Second call (should be faster due to caching)
       const start2 = Date.now()
-      const repo2 = await client.getRepository({
-        owner: 'microsoft',
-        repo: 'vscode',
-      })
+      const repo2 = await client.getRepository('microsoft', 'vscode')
       const time2 = Date.now() - start2
 
       expect(repo1.id).toBe(repo2.id)
@@ -377,10 +371,7 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('Real API Data Sync Integration', () => 
 
     it('should clear cache successfully', async () => {
       // Make a request to populate cache
-      await client.getRepository({
-        owner: 'microsoft',
-        repo: 'vscode',
-      })
+      await client.getRepository('microsoft', 'vscode')
 
       let cacheStats = client.getCacheStats()
       expect(cacheStats.size).toBeGreaterThan(0)

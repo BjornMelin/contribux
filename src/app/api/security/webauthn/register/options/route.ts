@@ -3,10 +3,10 @@
  * Generate registration options for new WebAuthn credentials
  */
 
+import { type NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth/index'
 import { securityFeatures } from '@/lib/security/feature-flags'
 import { generateWebAuthnRegistration } from '@/lib/security/webauthn/server'
-import { type NextRequest, NextResponse } from 'next/server'
 
 export async function POST(_request: NextRequest): Promise<NextResponse> {
   // Check if WebAuthn is enabled

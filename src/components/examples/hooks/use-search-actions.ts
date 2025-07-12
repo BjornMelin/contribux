@@ -3,9 +3,9 @@
  * Handles optimistic mutations and search actions
  */
 
+import { useCallback } from 'react'
 import { useSaveOpportunity } from '@/lib/api/hooks/use-opportunities'
 import { usePrefetchRepositories, useRepositoryBookmark } from '@/lib/api/hooks/use-repositories'
-import { useCallback } from 'react'
 
 export function useOptimisticMutations() {
   const bookmarkMutation = useRepositoryBookmark()

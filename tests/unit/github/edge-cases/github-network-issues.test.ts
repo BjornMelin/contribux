@@ -13,12 +13,12 @@
  * - Proxy and Firewall Issues
  */
 
-import { http, HttpResponse } from 'msw'
+import { HttpResponse, http } from 'msw'
 import { describe, expect, it } from 'vitest'
 import { mswServer } from '../msw-setup'
 import {
-  EDGE_CASE_CONFIG,
   createEdgeCaseClient,
+  EDGE_CASE_CONFIG,
   setupEdgeCaseTestIsolation,
 } from './setup/edge-case-setup'
 import { RetryFailureSimulator } from './utils/error-test-helpers'
@@ -37,9 +37,7 @@ describe('GitHub Network Issues', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'network-test', repo: 'connection-error' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('network-test', 'connection-error')).rejects.toThrow()
     })
 
     it('should handle DNS resolution failures', async () => {
@@ -53,9 +51,7 @@ describe('GitHub Network Issues', () => {
       )
 
       // Note: This would need actual DNS failure simulation in real scenario
-      await expect(
-        client.getRepository({ owner: 'dns-test', repo: 'resolution-failure' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('dns-test', 'resolution-failure')).rejects.toThrow()
     })
 
     it('should handle intermittent connection drops', async () => {
@@ -80,10 +76,7 @@ describe('GitHub Network Issues', () => {
       )
 
       // With retry logic, this should eventually succeed
-      const repo = await client.getRepository({
-        owner: 'intermittent-test',
-        repo: 'connection-drops',
-      })
+      const repo = await client.getRepository('intermittent-test', 'connection-drops')
       expect(repo).toBeDefined()
       expect(repo.name).toBe('connection-drops')
       expect(attemptCount).toBe(3)
@@ -101,9 +94,7 @@ describe('GitHub Network Issues', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'reset-test', repo: 'connection-reset' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('reset-test', 'connection-reset')).rejects.toThrow()
     })
   })
 
@@ -122,9 +113,7 @@ describe('GitHub Network Issues', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'timeout-test', repo: 'request-timeout' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('timeout-test', 'request-timeout')).rejects.toThrow()
     })
 
     it('should handle response timeouts', async () => {
@@ -141,9 +130,7 @@ describe('GitHub Network Issues', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'timeout-test', repo: 'response-timeout' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('timeout-test', 'response-timeout')).rejects.toThrow()
     })
 
     it('should handle different timeout scenarios', async () => {
@@ -167,14 +154,9 @@ describe('GitHub Network Issues', () => {
         )
 
         if (scenario.shouldTimeout) {
-          await expect(
-            client.getRepository({ owner: 'timeout-scenarios', repo: scenario.name })
-          ).rejects.toThrow()
+          await expect(client.getRepository('timeout-scenarios', scenario.name)).rejects.toThrow()
         } else {
-          const repo = await client.getRepository({
-            owner: 'timeout-scenarios',
-            repo: scenario.name,
-          })
+          const repo = await client.getRepository('timeout-scenarios', scenario.name)
           expect(repo.name).toBe(scenario.name)
         }
       }
@@ -190,9 +172,7 @@ describe('GitHub Network Issues', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'timeout-test', repo: 'connection-timeout' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('timeout-test', 'connection-timeout')).rejects.toThrow()
 
       // Response timeout - connection established but response slow
       mswServer.use(
@@ -206,9 +186,7 @@ describe('GitHub Network Issues', () => {
       )
 
       // Should handle slow response appropriately
-      await expect(
-        client.getRepository({ owner: 'timeout-test', repo: 'response-slow' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('timeout-test', 'response-slow')).rejects.toThrow()
     })
   })
 
@@ -235,7 +213,7 @@ describe('GitHub Network Issues', () => {
       )
 
       const startTime = Date.now()
-      const repo = await client.getRepository({ owner: 'retry-test', repo: 'network-backoff' })
+      const repo = await client.getRepository('retry-test', 'network-backoff')
       const duration = Date.now() - startTime
 
       expect(repo).toBeDefined()
@@ -252,9 +230,7 @@ describe('GitHub Network Issues', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'retry-test', repo: 'max-network-retries' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('retry-test', 'max-network-retries')).rejects.toThrow()
     })
 
     it('should handle network recovery correctly', async () => {
@@ -277,12 +253,10 @@ describe('GitHub Network Issues', () => {
       )
 
       // First request fails
-      await expect(
-        client.getRepository({ owner: 'recovery-test', repo: 'network-recovery' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('recovery-test', 'network-recovery')).rejects.toThrow()
 
       // Second request succeeds after recovery
-      const repo = await client.getRepository({ owner: 'recovery-test', repo: 'network-recovery' })
+      const repo = await client.getRepository('recovery-test', 'network-recovery')
       expect(repo).toBeDefined()
       expect(repo.name).toBe('network-recovery')
     })
@@ -300,9 +274,7 @@ describe('GitHub Network Issues', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'partial-test', repo: 'data-transmission' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('partial-test', 'data-transmission')).rejects.toThrow()
     })
   })
 
@@ -317,9 +289,7 @@ describe('GitHub Network Issues', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'ssl-test', repo: 'certificate-error' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('ssl-test', 'certificate-error')).rejects.toThrow()
     })
 
     it('should handle TLS handshake failures', async () => {
@@ -331,9 +301,7 @@ describe('GitHub Network Issues', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'tls-test', repo: 'handshake-failure' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('tls-test', 'handshake-failure')).rejects.toThrow()
     })
 
     it('should handle protocol version mismatches', async () => {
@@ -348,9 +316,7 @@ describe('GitHub Network Issues', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'protocol-test', repo: 'version-mismatch' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('protocol-test', 'version-mismatch')).rejects.toThrow()
     })
   })
 
@@ -367,9 +333,7 @@ describe('GitHub Network Issues', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'proxy-test', repo: 'connection-failure' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('proxy-test', 'connection-failure')).rejects.toThrow()
     })
 
     it('should handle firewall blocking', async () => {
@@ -381,9 +345,7 @@ describe('GitHub Network Issues', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'firewall-test', repo: 'blocked' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('firewall-test', 'blocked')).rejects.toThrow()
     })
 
     it('should handle proxy timeout issues', async () => {
@@ -399,7 +361,7 @@ describe('GitHub Network Issues', () => {
         })
       )
 
-      await expect(client.getRepository({ owner: 'proxy-test', repo: 'timeout' })).rejects.toThrow()
+      await expect(client.getRepository('proxy-test', 'timeout')).rejects.toThrow()
     })
   })
 
@@ -414,9 +376,7 @@ describe('GitHub Network Issues', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'resilience-test', repo: 'network-failure' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('resilience-test', 'network-failure')).rejects.toThrow()
 
       // Client should still be functional for other requests
       const user = await client.getUser('octocat')
@@ -441,8 +401,8 @@ describe('GitHub Network Issues', () => {
       )
 
       const promises = [
-        client.getRepository({ owner: 'concurrent-test', repo: 'failure-1' }),
-        client.getRepository({ owner: 'concurrent-test', repo: 'failure-2' }),
+        client.getRepository('concurrent-test', 'failure-1'),
+        client.getRepository('concurrent-test', 'failure-2'),
         client.getUser('octocat'), // Should succeed
       ]
 
@@ -474,13 +434,13 @@ describe('GitHub Network Issues', () => {
       )
 
       // Should work but be slower
-      const repo1 = await client.getRepository({ owner: 'degradation-test', repo: 'slow-network' })
+      const repo1 = await client.getRepository('degradation-test', 'slow-network')
       expect(repo1).toBeDefined()
 
       networkQuality = 'good'
 
       // Should work faster now
-      const repo2 = await client.getRepository({ owner: 'degradation-test', repo: 'fast-network' })
+      const repo2 = await client.getRepository('degradation-test', 'fast-network')
       expect(repo2).toBeDefined()
     })
 
@@ -501,7 +461,7 @@ describe('GitHub Network Issues', () => {
         )
 
         try {
-          await client.getRepository({ owner: 'error-info-test', repo: scenario.endpoint })
+          await client.getRepository('error-info-test', scenario.endpoint)
           expect.fail(`Should have thrown an error for ${scenario.name}`)
         } catch (error) {
           expect(error).toBeInstanceOf(Error)
@@ -530,7 +490,7 @@ describe('GitHub Network Issues', () => {
         })
       )
 
-      const repo = await client.getRepository({ owner: 'large-test', repo: 'large-response' })
+      const repo = await client.getRepository('large-test', 'large-response')
       expect(repo).toBeDefined()
       expect(repo.name).toBe('large-response')
       expect(repo.description?.length).toBe(100000)
@@ -549,9 +509,7 @@ describe('GitHub Network Issues', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'stream-test', repo: 'interrupted' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('stream-test', 'interrupted')).rejects.toThrow()
     })
 
     it('should handle chunked transfer encoding issues', async () => {
@@ -569,7 +527,7 @@ describe('GitHub Network Issues', () => {
         })
       )
 
-      const repo = await client.getRepository({ owner: 'chunked-test', repo: 'encoding-issue' })
+      const repo = await client.getRepository('chunked-test', 'encoding-issue')
       expect(repo).toBeDefined()
       expect(repo.name).toBe('encoding-issue')
     })

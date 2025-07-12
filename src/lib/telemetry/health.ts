@@ -1,13 +1,13 @@
 /**
  * Health Check System with OpenTelemetry Integration
- * 
+ *
  * Monitors the health of various system components and exposes metrics
  */
 
-import { createSpan, createDatabaseSpan, createGitHubSpan } from './utils'
-import { telemetryLogger } from './logger'
+import { metrics, type Span } from '@opentelemetry/api'
 import { InstrumentedGitHubClient } from '@/lib/github/instrumented-client'
-import { metrics } from '@opentelemetry/api'
+import { telemetryLogger } from './logger'
+import { createDatabaseSpan, createGitHubSpan, createSpan } from './utils'
 
 // Health check metrics
 const meter = metrics.getMeter('contribux-health', '1.0.0')
@@ -35,169 +35,243 @@ export interface SystemHealthResult {
   timestamp: string
 }
 
+interface GitHubRateLimit {
+  remaining: number
+  limit: number
+  reset?: number
+  [key: string]: unknown
+}
+
+interface GitHubHealthResult {
+  healthy: boolean
+  rateLimit?: GitHubRateLimit
+}
+
 /**
  * Health check for GitHub API connectivity
  */
 export async function checkGitHubHealth(): Promise<HealthCheckResult> {
-  return createGitHubSpan(
-    'health_check',
-    async (span) => {
-      const startTime = Date.now()
-      const component = 'github_api'
-      
-      try {
-        // Try to create a client and perform a health check
-        const client = await InstrumentedGitHubClient.fromSession()
-        const healthResult = await client.healthCheck()
-        
-        const duration = Date.now() - startTime
-        
-        let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy'
-        let message = 'GitHub API is accessible'
-        
-        if (healthResult.rateLimit) {
-          const rateLimitPercentage = (healthResult.rateLimit.remaining / healthResult.rateLimit.limit) * 100
-          span.setAttributes({
-            'github.rate_limit.percentage': rateLimitPercentage,
-            'github.rate_limit.remaining': healthResult.rateLimit.remaining,
-          })
-          
-          if (rateLimitPercentage < 10) {
-            status = 'degraded'
-            message = 'GitHub API rate limit is low'
-          } else if (rateLimitPercentage < 5) {
-            status = 'unhealthy'
-            message = 'GitHub API rate limit critically low'
-          }
-        }
+  return createGitHubSpan('health_check', async span => {
+    const startTime = Date.now()
+    const component = 'github_api'
 
-        const result: HealthCheckResult = {
-          component,
-          healthy: healthResult.healthy && status !== 'unhealthy',
-          status,
-          message,
-          details: healthResult.rateLimit,
-          duration,
-          timestamp: new Date().toISOString(),
-        }
+    try {
+      const client = await InstrumentedGitHubClient.fromSession()
+      const healthResult = await client.healthCheck()
+      const duration = Date.now() - startTime
 
-        // Record metrics
-        healthCheckGauge.add(result.healthy ? 1 : 0, { component })
-        healthCheckDurationHistogram.record(duration, { component })
-
-        telemetryLogger.githubApi('GitHub health check completed', {
-          operation: 'health_check',
-          duration,
-          status: result.status,
-          rateLimitRemaining: healthResult.rateLimit?.remaining,
-        })
-
-        return result
-      } catch (error) {
-        const duration = Date.now() - startTime
-        const result: HealthCheckResult = {
-          component,
-          healthy: false,
-          status: 'unhealthy',
-          message: error instanceof Error ? error.message : 'Unknown error',
-          duration,
-          timestamp: new Date().toISOString(),
-        }
-
-        // Record metrics
-        healthCheckGauge.add(0, { component })
-        healthCheckDurationHistogram.record(duration, { component })
-
-        telemetryLogger.githubApi('GitHub health check failed', {
-          operation: 'health_check',
-          duration,
-          status: 'unhealthy',
-          statusCode: 500,
-        })
-
-        return result
-      }
+      return processGitHubHealthResult(healthResult, component, duration, span)
+    } catch (error) {
+      const duration = Date.now() - startTime
+      return handleHealthCheckError(error, component, duration)
     }
-  )
+  })
+}
+
+/**
+ * Process successful GitHub health check result
+ */
+function processGitHubHealthResult(
+  healthResult: GitHubHealthResult,
+  component: string,
+  duration: number,
+  span: Span
+): HealthCheckResult {
+  const { status, message } = evaluateRateLimitStatus(healthResult.rateLimit, span)
+  const result = buildHealthResult(component, healthResult, status, message, duration)
+
+  recordHealthMetrics(result, component)
+  logHealthCheck(duration, result.status, healthResult.rateLimit?.remaining)
+
+  return result
+}
+
+/**
+ * Evaluate rate limit status and set span attributes
+ */
+function evaluateRateLimitStatus(
+  rateLimit: GitHubRateLimit | undefined,
+  span: Span
+): { status: 'healthy' | 'degraded' | 'unhealthy'; message: string } {
+  let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy'
+  let message = 'GitHub API is accessible'
+
+  if (rateLimit) {
+    const rateLimitPercentage = (rateLimit.remaining / rateLimit.limit) * 100
+    span.setAttributes({
+      'github.rate_limit.percentage': rateLimitPercentage,
+      'github.rate_limit.remaining': rateLimit.remaining,
+    })
+
+    if (rateLimitPercentage < 10) {
+      status = 'degraded'
+      message = 'GitHub API rate limit is low'
+    } else if (rateLimitPercentage < 5) {
+      status = 'unhealthy'
+      message = 'GitHub API rate limit critically low'
+    }
+  }
+
+  return { status, message }
+}
+
+/**
+ * Build health check result object
+ */
+function buildHealthResult(
+  component: string,
+  healthResult: GitHubHealthResult,
+  status: 'healthy' | 'degraded' | 'unhealthy',
+  message: string,
+  duration: number
+): HealthCheckResult {
+  return {
+    component,
+    healthy: healthResult.healthy && status !== 'unhealthy',
+    status,
+    message,
+    details: healthResult.rateLimit,
+    duration,
+    timestamp: new Date().toISOString(),
+  }
+}
+
+/**
+ * Record health check metrics
+ */
+function recordHealthMetrics(result: HealthCheckResult, component: string): void {
+  healthCheckGauge.add(result.healthy ? 1 : 0, { component })
+  healthCheckDurationHistogram.record(result.duration, { component })
+}
+
+/**
+ * Log health check completion
+ */
+function logHealthCheck(duration: number, status: string, rateLimitRemaining?: number): void {
+  telemetryLogger.githubApi('GitHub health check completed', {
+    operation: 'health_check',
+    duration,
+    status,
+    rateLimitRemaining,
+  })
+}
+
+/**
+ * Handle health check errors
+ */
+function handleHealthCheckError(
+  error: unknown,
+  component: string,
+  duration: number
+): HealthCheckResult {
+  const result: HealthCheckResult = {
+    component,
+    healthy: false,
+    status: 'unhealthy',
+    message: error instanceof Error ? error.message : 'Unknown error',
+    duration,
+    timestamp: new Date().toISOString(),
+  }
+
+  // Record metrics
+  healthCheckGauge.add(0, { component })
+  healthCheckDurationHistogram.record(duration, { component })
+
+  telemetryLogger.githubApi('GitHub health check failed', {
+    operation: 'health_check',
+    duration,
+    status: 'unhealthy',
+    statusCode: 500,
+  })
+
+  return result
 }
 
 /**
  * Health check for database connectivity
  */
 export async function checkDatabaseHealth(): Promise<HealthCheckResult> {
-  return createDatabaseSpan(
-    'health_check',
-    async (span) => {
-      const startTime = Date.now()
-      const component = 'database'
-      
-      try {
-        // Import database client dynamically to avoid circular dependencies
-        const { sql } = await import('@/lib/db')
-        
-        // Simple connectivity test
-        await sql`SELECT 1 as health_check`
-        
-        const duration = Date.now() - startTime
-        
-        let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy'
-        let message = 'Database is accessible'
-        
-        // Check if query took too long
-        if (duration > 1000) {
-          status = 'degraded'
-          message = 'Database is slow to respond'
-        } else if (duration > 5000) {
-          status = 'unhealthy'
-          message = 'Database response time is critical'
-        }
+  return createDatabaseSpan('health_check', async _span => {
+    const startTime = Date.now()
+    const component = 'database'
 
-        const result: HealthCheckResult = {
-          component,
-          healthy: status !== 'unhealthy',
-          status,
-          message,
-          details: { query_duration_ms: duration },
-          duration,
-          timestamp: new Date().toISOString(),
-        }
+    try {
+      // Import database client dynamically to avoid circular dependencies
+      const { neon } = await import('@neondatabase/serverless')
 
-        // Record metrics
-        healthCheckGauge.add(result.healthy ? 1 : 0, { component })
-        healthCheckDurationHistogram.record(duration, { component })
-
-        telemetryLogger.database('Database health check completed', {
-          operation: 'health_check',
-          duration,
-          success: true,
-        })
-
-        return result
-      } catch (error) {
-        const duration = Date.now() - startTime
-        const result: HealthCheckResult = {
-          component,
-          healthy: false,
-          status: 'unhealthy',
-          message: error instanceof Error ? error.message : 'Unknown error',
-          duration,
-          timestamp: new Date().toISOString(),
-        }
-
-        // Record metrics
-        healthCheckGauge.add(0, { component })
-        healthCheckDurationHistogram.record(duration, { component })
-
-        telemetryLogger.database('Database health check failed', {
-          operation: 'health_check',
-          duration,
-          success: false,
-        })
-
-        return result
+      // Create direct connection with explicit options for health check
+      const databaseUrl = process.env.DATABASE_URL
+      if (!databaseUrl) {
+        throw new Error('DATABASE_URL environment variable is required')
       }
+      const sql = neon(databaseUrl, {
+        fetchOptions: {
+          cache: 'no-cache',
+        },
+      })
+
+      // Simple connectivity test
+      await sql`SELECT 1 as health_check`
+
+      const duration = Date.now() - startTime
+
+      let status: 'healthy' | 'degraded' | 'unhealthy' = 'healthy'
+      let message = 'Database is accessible'
+
+      // Check if query took too long
+      if (duration > 1000) {
+        status = 'degraded'
+        message = 'Database is slow to respond'
+      } else if (duration > 5000) {
+        status = 'unhealthy'
+        message = 'Database response time is critical'
+      }
+
+      const result: HealthCheckResult = {
+        component,
+        healthy: status !== 'unhealthy',
+        status,
+        message,
+        details: { query_duration_ms: duration },
+        duration,
+        timestamp: new Date().toISOString(),
+      }
+
+      // Record metrics
+      healthCheckGauge.add(result.healthy ? 1 : 0, { component })
+      healthCheckDurationHistogram.record(duration, { component })
+
+      telemetryLogger.database('Database health check completed', {
+        operation: 'health_check',
+        duration,
+        success: true,
+      })
+
+      return result
+    } catch (error) {
+      const duration = Date.now() - startTime
+      const result: HealthCheckResult = {
+        component,
+        healthy: false,
+        status: 'unhealthy',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        duration,
+        timestamp: new Date().toISOString(),
+      }
+
+      // Record metrics
+      healthCheckGauge.add(0, { component })
+      healthCheckDurationHistogram.record(duration, { component })
+
+      telemetryLogger.database('Database health check failed', {
+        operation: 'health_check',
+        duration,
+        success: false,
+      })
+
+      return result
     }
-  )
+  })
 }
 
 /**
@@ -206,21 +280,21 @@ export async function checkDatabaseHealth(): Promise<HealthCheckResult> {
 export async function checkCacheHealth(): Promise<HealthCheckResult> {
   return createSpan(
     'cache.health_check',
-    async (span) => {
+    async _span => {
       const startTime = Date.now()
       const component = 'cache'
-      
+
       try {
         // Import Redis client dynamically
         const { redis } = await import('@/lib/cache/redis')
-        
+
         // Simple ping test
         const pong = await redis.ping()
-        
+
         const duration = Date.now() - startTime
-        
+
         const isHealthy = pong === 'PONG'
-        
+
         const result: HealthCheckResult = {
           component,
           healthy: isHealthy,
@@ -236,7 +310,7 @@ export async function checkCacheHealth(): Promise<HealthCheckResult> {
         healthCheckDurationHistogram.record(duration, { component })
 
         telemetryLogger.cache('Cache health check completed', {
-          operation: 'ping',
+          operation: 'hit',
           key: 'health_check',
         })
 
@@ -257,7 +331,7 @@ export async function checkCacheHealth(): Promise<HealthCheckResult> {
         healthCheckDurationHistogram.record(duration, { component })
 
         telemetryLogger.cache('Cache health check failed', {
-          operation: 'ping',
+          operation: 'miss',
           key: 'health_check',
         })
 
@@ -277,11 +351,11 @@ export async function checkCacheHealth(): Promise<HealthCheckResult> {
 export async function checkSystemHealth(): Promise<SystemHealthResult> {
   return createSpan(
     'system.health_check',
-    async (span) => {
+    async span => {
       telemetryLogger.info('Starting system health check')
-      
+
       const startTime = Date.now()
-      
+
       // Run all health checks in parallel
       const [githubHealth, databaseHealth, cacheHealth] = await Promise.allSettled([
         checkGitHubHealth(),
@@ -290,7 +364,7 @@ export async function checkSystemHealth(): Promise<SystemHealthResult> {
       ])
 
       const components: HealthCheckResult[] = []
-      
+
       // Process GitHub health check result
       if (githubHealth.status === 'fulfilled') {
         components.push(githubHealth.value)
@@ -336,7 +410,7 @@ export async function checkSystemHealth(): Promise<SystemHealthResult> {
       // Determine overall system health
       const unhealthyComponents = components.filter(c => c.status === 'unhealthy')
       const degradedComponents = components.filter(c => c.status === 'degraded')
-      
+
       let overall: 'healthy' | 'degraded' | 'unhealthy'
       if (unhealthyComponents.length > 0) {
         overall = 'unhealthy'
@@ -347,7 +421,7 @@ export async function checkSystemHealth(): Promise<SystemHealthResult> {
       }
 
       const duration = Date.now() - startTime
-      
+
       const result: SystemHealthResult = {
         overall,
         components,

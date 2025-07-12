@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.0.6/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.1.1/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -7,7 +7,7 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "include": ["src/**/*", "tests/**/*", "*.ts", "*.tsx", "*.js", "*.jsx"]
+    "includes": ["**/src/**/*", "**/tests/**/*", "**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"]
   },
   "formatter": {
     "enabled": true,
@@ -179,11 +179,27 @@
       "bracketSameLine": false,
       "quoteStyle": "single",
       "attributePosition": "auto"
-    }
+    },
+    "globals": [
+      "describe",
+      "it",
+      "test",
+      "expect",
+      "beforeEach",
+      "afterEach",
+      "beforeAll",
+      "afterAll",
+      "vi",
+      "jest",
+      "suite",
+      "mock",
+      "unmock",
+      "vitest"
+    ]
   },
   "overrides": [
     {
-      "include": ["*.ts", "*.tsx"],
+      "includes": ["**/*.ts", "**/*.tsx"],
       "linter": {
         "rules": {
           "style": {
@@ -201,7 +217,16 @@
       }
     },
     {
-      "include": ["*.test.ts", "*.test.tsx", "*.spec.ts", "*.spec.tsx", "tests/**/*"],
+      "includes": [
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/*.spec.ts",
+        "**/*.spec.tsx",
+        "**/tests/**/*"
+      ],
+      "javascript": {
+        "globals": ["$1", "vi"]
+      },
       "linter": {
         "rules": {
           "suspicious": {
@@ -215,12 +240,13 @@
       }
     },
     {
-      "include": [
-        "*.config.js",
-        "*.config.ts",
-        "*.config.mjs",
-        "next.config.js",
-        "vitest.config.ts"
+      "includes": [
+        "**/*.config.js",
+        "**/*.config.ts",
+        "**/*.config.mjs",
+        "**/next.config.js",
+        "**/vitest.config.ts",
+        "**/scripts/**/*.js"
       ],
       "linter": {
         "rules": {

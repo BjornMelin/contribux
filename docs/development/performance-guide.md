@@ -1,12 +1,16 @@
 # Comprehensive Performance Guide for Contribux
 
-> **Consolidated Performance Documentation** - This guide combines all performance optimization strategies, Next.js 15 specific techniques, memory management, and monitoring tools into a single comprehensive resource.
+> **Consolidated Performance Documentation** - This guide combines all performance optimization strategies,
+> Next.js 15 specific techniques, memory management, and monitoring tools into a single comprehensive resource.
 
 ## Overview
 
-This comprehensive guide provides performance optimization strategies and best practices for the Contribux AI-powered GitHub contribution discovery platform. The platform is built with Next.js 15, TypeScript, Neon PostgreSQL, and follows a serverless-first architecture.
+This comprehensive guide provides performance optimization strategies and best practices for the
+Contribux AI-powered GitHub contribution discovery platform. The platform is built with Next.js 15,
+TypeScript, Neon PostgreSQL, and follows a serverless-first architecture.
 
 ### **What's Included in This Guide:**
+
 - **Core Performance Optimization** - General strategies and monitoring
 - **Next.js 15 Specific Optimizations** - App Router, rendering, and serverless optimization
 - **Memory Management** - Optimization results, monitoring tools, and best practices
@@ -66,6 +70,7 @@ if (process.env.ANALYZE === 'true') {
 ```
 
 **Action Items:**
+
 - Run `ANALYZE=true pnpm build` regularly to monitor bundle size
 - Target bundle sizes: Main bundle < 244kB, total JS < 512kB
 - Use the analyzer to identify large dependencies and potential optimizations
@@ -105,6 +110,7 @@ serverExternalPackages: ['@neondatabase/serverless', 'ioredis', 'pg'],
 ```
 
 **Additional Recommendations:**
+
 - Replace heavy libraries with lighter alternatives where possible
 - Use barrel exports carefully to avoid importing unused code
 - Consider using `import()` for optional features
@@ -234,6 +240,7 @@ images: {
 ```
 
 **Additional Optimizations:**
+
 - Use SVG for icons and simple graphics
 - Implement responsive images with multiple sizes
 - Consider using a CDN for static assets
@@ -250,7 +257,7 @@ The comprehensive performance monitoring system (`tests/performance/performance-
 - **Automated Alerting**: Severity-based alerts (LOW, MEDIUM, HIGH, CRITICAL) with cooldown periods
 - **Trend Analysis**: Tracks performance trends (IMPROVING, DEGRADING, STABLE) over time
 
-#### Key Performance Categories & Thresholds:
+#### Key Performance Categories & Thresholds
 
 | Category | Weight | Threshold (ms) | Description |
 |----------|--------|----------------|-------------|
@@ -291,7 +298,8 @@ Search functionality testing (`tests/e2e/search-functionality.spec.ts`):
 
 #### Core Web Vitals Optimization
 
-**Largest Contentful Paint (LCP) - Target: < 2.5s**
+##### **Largest Contentful Paint (LCP) - Target: < 2.5s**
+
 ```typescript
 // Optimization strategies implemented in tests/performance/core-web-vitals.test.ts
 
@@ -317,7 +325,8 @@ const dynamicImports = {
 }
 ```
 
-**First Input Delay (FID) - Target: < 100ms**
+##### **First Input Delay (FID) - Target: < 100ms**
+
 ```typescript
 // Strategies for reducing JavaScript execution time
 const fidOptimizations = {
@@ -340,7 +349,8 @@ const fidOptimizations = {
 }
 ```
 
-**Cumulative Layout Shift (CLS) - Target: < 0.1**
+##### **Cumulative Layout Shift (CLS) - Target: < 0.1**
+
 ```typescript
 // Layout stability improvements
 const clsOptimizations = {
@@ -616,7 +626,8 @@ const githubApiOptimizations = {
 
 ## Memory Optimization Results & Strategies
 
-> **Consolidated from Memory Optimization Guide** - See full memory optimization details in the original [memory-optimization.md](./memory-optimization.md) for complete implementation details and monitoring scripts.
+> **Consolidated from Memory Optimization Guide** - See full memory optimization details in the original
+> [memory-optimization.md](./memory-optimization.md) for complete implementation details and monitoring scripts.
 
 ### Memory Optimization Achievement Summary
 
@@ -632,18 +643,22 @@ The memory optimization initiative successfully reduced heap usage from a 50MB+ 
 ### Key Optimization Strategies Implemented
 
 #### 1. Next.js Configuration Optimization
+
 - ✅ Enabled `webpackMemoryOptimizations` for reduced memory in development
 - ✅ Configured `serverComponentsExternalPackages` for heavy server-only dependencies
 - ✅ Enabled tree shaking with `usedExports` and `sideEffects: false`
 - ✅ Added `modularizeImports` for icon libraries to prevent importing entire packages
 
 #### 2. Dynamic Import Utilities
+
 Created centralized dynamic import utilities (`src/lib/dynamic-imports.ts`):
+
 - ✅ Implemented module caching to prevent duplicate imports
 - ✅ Lazy loading for GitHub client, GDPR utilities, security scanner
 - ✅ Reduced cleanup interval from 1 minute to 5 minutes
 
 #### 3. Memory-Optimized Database Pool
+
 - ✅ Intelligent connection pooling with aggressive memory optimization
 - ✅ Automatic connection eviction based on idle time and lifetime
 - ✅ Health monitoring and cleanup intervals
@@ -975,9 +990,12 @@ const debuggingTools = {
 
 ## Conclusion
 
-This performance optimization guide provides a comprehensive framework for maintaining and improving the performance of the Contribux platform. The combination of proactive performance testing, continuous monitoring, and optimization strategies ensures that the platform can scale effectively while maintaining excellent user experience.
+This performance optimization guide provides a comprehensive framework for maintaining and improving
+the performance of the Contribux platform. The combination of proactive performance testing, continuous
+monitoring, and optimization strategies ensures that the platform can scale effectively while maintaining
+excellent user experience.
 
-### Key Takeaways:
+### Key Takeaways
 
 1. **Performance-First Development**: Integrate performance considerations into every development decision
 2. **Comprehensive Testing**: Use the established testing infrastructure for continuous validation
@@ -985,7 +1003,7 @@ This performance optimization guide provides a comprehensive framework for maint
 4. **Data-Driven Optimization**: Use performance metrics to guide optimization decisions
 5. **Continuous Improvement**: Regularly review and update performance strategies as the platform evolves
 
-### Next Steps:
+### Next Steps
 
 1. **Implement Performance Budgets**: Set and enforce performance budgets in CI/CD pipeline
 2. **Enhance Monitoring**: Expand real-time monitoring with business impact metrics
@@ -993,4 +1011,5 @@ This performance optimization guide provides a comprehensive framework for maint
 4. **Automation Enhancement**: Increase automation in performance testing and optimization
 5. **Team Training**: Ensure team members are equipped with performance optimization knowledge
 
-For detailed implementation guidance on any of these topics, refer to the comprehensive test suites in the `tests/performance/` directory and the monitoring infrastructure established in this project.
+For detailed implementation guidance on any of these topics, refer to the comprehensive test suites
+in the `tests/performance/` directory and the monitoring infrastructure established in this project.

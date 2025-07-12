@@ -12,6 +12,60 @@ const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
 const MAX_RATE_LIMIT_ENTRIES = 10000 // Prevent memory exhaustion
 
 /**
+ * Remove oldest entries from rate limit map when size limit is reached
+ */
+function enforceSizeLimit(): void {
+  if (rateLimitMap.size < MAX_RATE_LIMIT_ENTRIES) return
+
+  const entries = Array.from(rateLimitMap.entries())
+  if (entries && entries.length > 0) {
+    entries.sort((a, b) => a[1].resetTime - b[1].resetTime)
+    // Remove oldest 20% of entries
+    const toRemove = Math.floor(entries.length * 0.2)
+    for (let i = 0; i < toRemove && i < entries.length; i++) {
+      const entry = entries[i]
+      if (entry) {
+        rateLimitMap.delete(entry[0])
+      }
+    }
+  }
+}
+
+/**
+ * Initialize or reset rate limit entry for a key
+ */
+function initializeRateLimitEntry(
+  key: string,
+  config: ReturnType<typeof getSecurityConfig>,
+  now: number
+): void {
+  rateLimitMap.set(key, {
+    count: 1,
+    resetTime: now + config.rateLimit.windowMs,
+  })
+}
+
+/**
+ * Check if rate limit entry needs reset
+ */
+function isRateLimitEntryExpired(
+  current: { count: number; resetTime: number } | undefined,
+  now: number
+): boolean {
+  return !current || now > current.resetTime
+}
+
+/**
+ * Check if current request exceeds rate limit
+ */
+function isRateLimitExceeded(
+  current: { count: number; resetTime: number },
+  config: ReturnType<typeof getSecurityConfig>
+): boolean {
+  return current.count >= config.rateLimit.maxRequests
+}
+
+/**
  * Secure rate limiting implementation with memory protection
  */
 function checkRateLimit(ip: string): boolean {
@@ -26,33 +80,18 @@ function checkRateLimit(ip: string): boolean {
 
   const current = rateLimitMap.get(key)
 
-  if (!current || now > current.resetTime) {
-    // Check if we've hit the size limit
-    if (rateLimitMap.size >= MAX_RATE_LIMIT_ENTRIES) {
-      // Remove oldest entries (simple LRU-like cleanup)
-      const entries = Array.from(rateLimitMap.entries())
-      if (entries && entries.length > 0) {
-        entries.sort((a, b) => a[1].resetTime - b[1].resetTime)
-        // Remove oldest 20% of entries
-        const toRemove = Math.floor(entries.length * 0.2)
-        for (let i = 0; i < toRemove && i < entries.length; i++) {
-          const entry = entries[i]
-          if (entry) {
-            rateLimitMap.delete(entry[0])
-          }
-        }
-      }
-    }
-
-    // Reset or first request
-    rateLimitMap.set(key, {
-      count: 1,
-      resetTime: now + config.rateLimit.windowMs,
-    })
+  if (isRateLimitEntryExpired(current, now)) {
+    enforceSizeLimit()
+    initializeRateLimitEntry(key, config, now)
     return true
   }
 
-  if (current.count >= config.rateLimit.maxRequests) {
+  if (!current) {
+    initializeRateLimitEntry(key, config, now)
+    return true
+  }
+
+  if (isRateLimitExceeded(current, config)) {
     return false
   }
 
@@ -350,3 +389,9 @@ setInterval(
   },
   5 * 60 * 1000
 ) // Cleanup every 5 minutes
+
+/**
+ * Export aliases for test compatibility
+ */
+export const edgeSecurityMiddleware = enhancedSecurityMiddleware
+export const enhancedEdgeMiddleware = enhancedSecurityMiddleware

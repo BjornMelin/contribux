@@ -24,11 +24,15 @@
  * - Performance & Resource Management
  */
 
+import { HttpResponse, http } from 'msw'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+// Use real GitHubClient for these tests - override global mocks
+vi.mock('@/lib/github/client', () => vi.importActual('@/lib/github/client'))
+
 import { GitHubClient } from '@/lib/github'
 import type { GitHubClientConfig } from '@/lib/github/client'
 import { GitHubError } from '@/lib/github/errors'
-import { http, HttpResponse } from 'msw'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mswServer, setupMSW } from './msw-setup'
 import { createTrackedClient, setupGitHubTestIsolation } from './test-helpers'
 
@@ -75,7 +79,7 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
       })
 
       await expect(
-        client.getRepository({ owner: 'malformed-test', repo: 'malformed-repo-unique' })
+        client.getRepository('malformed-test', 'malformed-repo-unique')
       ).rejects.toThrow()
     })
 
@@ -86,7 +90,7 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
       })
 
       await expect(
-        client.getRepository({ owner: 'server-error-test', repo: 'server-error-repo-unique' })
+        client.getRepository('server-error-test', 'server-error-repo-unique')
       ).rejects.toThrow(GitHubError)
     })
 
@@ -97,7 +101,7 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
       })
 
       await expect(
-        client.getRepository({ owner: 'validation-test', repo: 'validation-error-repo-unique' })
+        client.getRepository('validation-test', 'validation-error-repo-unique')
       ).rejects.toThrow(GitHubError)
     })
 
@@ -130,9 +134,7 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
         },
       })
 
-      await expect(
-        client.getRepository({ owner: 'test', repo: 'rate-limited-unique' })
-      ).rejects.toThrow(GitHubError)
+      await expect(client.getRepository('test', 'rate-limited-unique')).rejects.toThrow(GitHubError)
     })
 
     it('should handle rate limit information with edge case values', async () => {
@@ -157,9 +159,9 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
         },
       })
 
-      await expect(
-        client.getRepository({ owner: 'test', repo: 'secondary-limit-unique' })
-      ).rejects.toThrow(GitHubError)
+      await expect(client.getRepository('test', 'secondary-limit-unique')).rejects.toThrow(
+        GitHubError
+      )
     })
   })
 
@@ -168,7 +170,7 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
       const client = createClient() // No auth config
 
       // Public repository should work without auth
-      const repo = await client.getRepository({ owner: 'octocat', repo: 'Hello-World' })
+      const repo = await client.getRepository('octocat', 'Hello-World')
       expect(repo).toBeDefined()
       expect(repo.name).toBe('Hello-World')
     })
@@ -179,9 +181,9 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
         retry: { retries: 0 },
       })
 
-      await expect(
-        client.getRepository({ owner: 'test', repo: 'bad-credentials-unique' })
-      ).rejects.toThrow(GitHubError)
+      await expect(client.getRepository('test', 'bad-credentials-unique')).rejects.toThrow(
+        GitHubError
+      )
     })
 
     it('should handle invalid app private key format', () => {
@@ -225,9 +227,9 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
 
     it('should handle cache key collisions correctly', async () => {
       // Make requests that could potentially have similar cache keys
-      const repo1 = await client.getRepository({ owner: 'owner', repo: 'repo' })
-      const repo2 = await client.getRepository({ owner: 'owner2', repo: 'repo' })
-      const repo3 = await client.getRepository({ owner: 'owner', repo: 'repo2' })
+      const repo1 = await client.getRepository('owner', 'repo')
+      const repo2 = await client.getRepository('owner2', 'repo')
+      const repo3 = await client.getRepository('owner', 'repo2')
 
       expect(repo1.full_name).toBe('owner/repo')
       expect(repo2.full_name).toBe('owner2/repo')
@@ -247,7 +249,7 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
     it('should handle concurrent requests with cache behavior', async () => {
       // Make 3 concurrent identical requests
       const promises = Array.from({ length: 3 }, () =>
-        client.getRepository({ owner: 'octocat', repo: 'Hello-World' })
+        client.getRepository('octocat', 'Hello-World')
       )
 
       const results = await Promise.all(promises)
@@ -264,7 +266,7 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
 
     it('should handle cache expiration reasonably', async () => {
       // Make first request to cache it
-      await client.getRepository({ owner: 'octocat', repo: 'Hello-World' })
+      await client.getRepository('octocat', 'Hello-World')
 
       const stats1 = client.getCacheStats()
       expect(stats1.misses).toBeGreaterThanOrEqual(1)
@@ -273,7 +275,7 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
       await new Promise(resolve => setTimeout(resolve, 150))
 
       // Make same request again
-      await client.getRepository({ owner: 'octocat', repo: 'Hello-World' })
+      await client.getRepository('octocat', 'Hello-World')
 
       const stats2 = client.getCacheStats()
       expect(stats2.hits + stats2.misses).toBeGreaterThanOrEqual(stats1.hits + stats1.misses)
@@ -289,9 +291,9 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
 
       // Make concurrent requests to different endpoints
       const promises = [
-        client.getRepository({ owner: 'octocat', repo: 'Hello-World' }),
+        client.getRepository('octocat', 'Hello-World'),
         client.getUser('octocat'),
-        client.searchRepositories({ q: 'javascript' }),
+        client.searchRepositories({ query: '$1' }),
         client.getRateLimit(),
       ]
 
@@ -320,7 +322,7 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
       })
 
       const promises = [
-        client.getRepository({ owner: 'octocat', repo: 'Hello-World' }),
+        client.getRepository('octocat', 'Hello-World'),
         client.getUser('octocat'),
         client.getUser('nonexistent'), // This will fail
         client.getRateLimit(),
@@ -385,7 +387,7 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
       )
 
       try {
-        await client.getRepository({ owner: 'test', repo: 'test' })
+        await client.getRepository('test', 'test')
         expect.fail('Should have thrown an error')
       } catch (error) {
         expect(error).toBeInstanceOf(GitHubError)
@@ -398,7 +400,7 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
   describe('Data Validation Edge Cases', () => {
     it('should handle null values in repository data', async () => {
       const client = createClient({ auth: { type: 'token', token: 'test_token' } })
-      const repo = await client.getRepository({ owner: 'null-test', repo: 'null-values-repo' })
+      const repo = await client.getRepository('null-test', 'null-values-repo')
 
       expect(repo.description).toBeNull()
       expect(repo.language).toBeNull()
@@ -407,11 +409,7 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
 
     it('should handle null user in issues', async () => {
       const client = createClient({ auth: { type: 'token', token: 'test_token' } })
-      const issue = await client.getIssue({
-        owner: 'null-user-test',
-        repo: 'null-user-repo',
-        issueNumber: 1,
-      })
+      const issue = await client.getIssue('null-user-test', 'null-user-repo', 1)
 
       expect(issue.user).toBeNull()
       expect(issue.body).toBeNull()
@@ -421,7 +419,7 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
 
     it('should handle missing optional fields gracefully', async () => {
       const client = createClient({ auth: { type: 'token', token: 'test_token' } })
-      const repo = await client.getRepository({ owner: 'owner', repo: 'test-repo' })
+      const repo = await client.getRepository('owner', 'test-repo')
 
       expect(repo.name).toBe('test-repo')
       expect(repo.topics).toBeUndefined()
@@ -431,9 +429,7 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
     it('should handle wrong data types in responses', async () => {
       const client = createClient({ auth: { type: 'token', token: 'test_token' } })
 
-      await expect(client.getRepository({ owner: 'owner', repo: 'bad-types' })).rejects.toThrow(
-        GitHubError
-      )
+      await expect(client.getRepository('owner', 'bad-types')).rejects.toThrow(GitHubError)
     })
   })
 
@@ -443,7 +439,7 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
         auth: { type: 'token', token: 'test_token' },
         retry: { retries: 0 },
       })
-      const result = await client.searchRepositories({ q: 'nonexistentquery12345unique' })
+      const result = await client.searchRepositories({ query: '$1' })
 
       expect(result.total_count).toBe(0)
       expect(result.items).toHaveLength(0)
@@ -452,7 +448,7 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
 
     it('should handle single character repository names', async () => {
       const client = createClient({ auth: { type: 'token', token: 'test_token' } })
-      const repo = await client.getRepository({ owner: 'a', repo: 'b' })
+      const repo = await client.getRepository('a', 'b')
 
       expect(repo.name).toBe('b')
       expect(repo.full_name).toBe('a/b')
@@ -462,7 +458,7 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
       const longDescription = 'A'.repeat(5000)
 
       const client = createClient({ auth: { type: 'token', token: 'test_token' } })
-      const repo = await client.getRepository({ owner: 'owner', repo: 'long-desc-repo' })
+      const repo = await client.getRepository('owner', 'long-desc-repo')
 
       expect(repo.description).toBe(longDescription)
       expect(repo.description?.length).toBe(5000)
@@ -473,7 +469,7 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
         auth: { type: 'token', token: 'test_token' },
         retry: { retries: 0 },
       })
-      const result = await client.searchRepositories({ q: 'javascriptlargepage', per_page: 100 })
+      const result = await client.searchRepositories({ query: '$1', perPage: $1 })
 
       expect(result.items).toHaveLength(100)
       expect(result.total_count).toBe(1000)
@@ -513,7 +509,7 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
       )
 
       const client = createClient({ auth: { type: 'token', token: 'test_token' } })
-      const repo = await client.getRepository({ owner: 'owner', repo: specialRepo })
+      const repo = await client.getRepository('owner', specialRepo)
 
       expect(repo.name).toBe(specialRepo)
       expect(repo.full_name).toBe(`owner/${specialRepo}`)
@@ -687,7 +683,7 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
       )
 
       const client = createClient({ auth: { type: 'token', token: 'test_token' } })
-      const issue = await client.getIssue({ owner: 'owner', repo: 'repo', issueNumber: 1 })
+      const issue = await client.getIssue('owner', 'repo', 1)
 
       expect(issue.labels).toHaveLength(100)
       expect(issue.body).toHaveLength(10000)
@@ -701,9 +697,9 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
       })
 
       // Perform multiple operations
-      await client.getRepository({ owner: 'octocat', repo: 'Hello-World' })
+      await client.getRepository('octocat', 'Hello-World')
       await client.getUser('octocat')
-      await client.searchRepositories({ q: 'test' })
+      await client.searchRepositories({ query: '$1' })
 
       // Cache configuration should still be effective
       const stats = client.getCacheStats()

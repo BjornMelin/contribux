@@ -3,16 +3,19 @@
  * Tests API key management, rotation, and validation functionality
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { Redis } from '@redis/client'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   ApiKeyManager,
-  ApiKeyConfig,
-  ApiKeyMetadata,
+  type ApiKeyMetadata,
   apiKeyAuthMiddleware,
 } from '@/lib/security/api-key-rotation'
-import { SecurityError, SecurityErrorType } from '@/lib/security/error-boundaries'
 import { auditLogger } from '@/lib/security/audit-logger'
+
+// Type for accessing private methods in tests
+interface ApiKeyManagerWithPrivates extends ApiKeyManager {
+  hashKey: (key: string) => string
+  findKeyByHash: (hash: string) => Promise<ApiKeyMetadata | null>
+}
 
 // Mock Redis
 vi.mock('@redis/client', () => ({
@@ -33,10 +36,19 @@ vi.mock('@/lib/security/audit-logger', () => ({
   },
 }))
 
-describe('ApiKeyManager', () => {
-  let apiKeyManager: ApiKeyManager
-  let mockRedis: any
+interface MockRedisClient {
+  keys: ReturnType<typeof vi.fn>
+  get: ReturnType<typeof vi.fn>
+  set: ReturnType<typeof vi.fn>
+  del: ReturnType<typeof vi.fn>
+  multi: ReturnType<typeof vi.fn>
+}
 
+// Shared test setup for both describe blocks
+let apiKeyManager: ApiKeyManager
+let mockRedis: MockRedisClient
+
+describe('ApiKeyManager', () => {
   beforeEach(() => {
     mockRedis = {
       keys: vi.fn(),
@@ -45,14 +57,14 @@ describe('ApiKeyManager', () => {
       del: vi.fn(),
       multi: vi.fn(),
     }
-    
+
     const multi = {
       set: vi.fn().mockReturnThis(),
       exec: vi.fn().mockResolvedValue([]),
     }
-    
+
     mockRedis.multi.mockReturnValue(multi)
-    
+
     apiKeyManager = new ApiKeyManager({}, mockRedis)
   })
 
@@ -63,13 +75,10 @@ describe('ApiKeyManager', () => {
   describe('generateKey', () => {
     it('should generate a new API key', async () => {
       mockRedis.keys.mockResolvedValue([])
-      
-      const result = await apiKeyManager.generateKey(
-        'user123',
-        'Test Key',
-        ['read', 'write'],
-        { app: 'test' }
-      )
+
+      const result = await apiKeyManager.generateKey('user123', 'Test Key', ['read', 'write'], {
+        app: 'test',
+      })
 
       expect(result).toHaveProperty('key')
       expect(result).toHaveProperty('keyId')
@@ -85,36 +94,29 @@ describe('ApiKeyManager', () => {
     })
 
     it('should reject multiple keys when not allowed', async () => {
-      const singleKeyManager = new ApiKeyManager(
-        { allowMultipleKeys: false },
-        mockRedis
-      )
-      
+      const singleKeyManager = new ApiKeyManager({ allowMultipleKeys: false }, mockRedis)
+
       // Mock existing key
       mockRedis.keys.mockResolvedValue(['apikey:user:user123:existing'])
-      mockRedis.get.mockResolvedValue(JSON.stringify({
-        id: 'existing',
-        userId: 'user123',
-        status: 'active',
-      }))
+      mockRedis.get.mockResolvedValue(
+        JSON.stringify({
+          id: 'existing',
+          userId: 'user123',
+          status: 'active',
+        })
+      )
 
-      await expect(
-        singleKeyManager.generateKey('user123', 'New Key', ['read'])
-      ).rejects.toThrow('Multiple API keys not allowed')
+      await expect(singleKeyManager.generateKey('user123', 'New Key', ['read'])).rejects.toThrow(
+        'Multiple API keys not allowed'
+      )
     })
 
     it('should enforce maximum key limit', async () => {
-      const limitedManager = new ApiKeyManager(
-        { maxActiveKeys: 2 },
-        mockRedis
-      )
-      
+      const limitedManager = new ApiKeyManager({ maxActiveKeys: 2 }, mockRedis)
+
       // Mock 2 existing keys
-      mockRedis.keys.mockResolvedValue([
-        'apikey:user:user123:key1',
-        'apikey:user:user123:key2',
-      ])
-      mockRedis.get.mockImplementation((key) => {
+      mockRedis.keys.mockResolvedValue(['apikey:user:user123:key1', 'apikey:user:user123:key2'])
+      mockRedis.get.mockImplementation(key => {
         if (key.includes('key1')) {
           return JSON.stringify({ id: 'key1', userId: 'user123', status: 'active' })
         }
@@ -124,9 +126,9 @@ describe('ApiKeyManager', () => {
         return null
       })
 
-      await expect(
-        limitedManager.generateKey('user123', 'New Key', ['read'])
-      ).rejects.toThrow('Maximum API keys reached')
+      await expect(limitedManager.generateKey('user123', 'New Key', ['read'])).rejects.toThrow(
+        'Maximum API keys reached'
+      )
     })
   })
 
@@ -145,11 +147,11 @@ describe('ApiKeyManager', () => {
       }
 
       mockRedis.get.mockResolvedValue(JSON.stringify(keyData))
-      
+
       // Create a mock key and override hashKey method
       const manager = new ApiKeyManager({}, mockRedis)
-      ;(manager as any).hashKey = vi.fn().mockReturnValue('mockhash')
-      ;(manager as any).findKeyByHash = vi.fn().mockResolvedValue(keyData)
+      ;(manager as ApiKeyManagerWithPrivates).hashKey = vi.fn().mockReturnValue('mockhash')
+      ;(manager as ApiKeyManagerWithPrivates).findKeyByHash = vi.fn().mockResolvedValue(keyData)
 
       const result = await manager.validateKey('sk_testkey')
 
@@ -160,7 +162,7 @@ describe('ApiKeyManager', () => {
 
     it('should reject invalid key format', async () => {
       const result = await apiKeyManager.validateKey('invalid_key')
-      
+
       expect(result.valid).toBe(false)
       expect(result.reason).toBe('Invalid key format')
     })
@@ -179,8 +181,8 @@ describe('ApiKeyManager', () => {
       }
 
       const manager = new ApiKeyManager({}, mockRedis)
-      ;(manager as any).hashKey = vi.fn().mockReturnValue('mockhash')
-      ;(manager as any).findKeyByHash = vi.fn().mockResolvedValue(keyData)
+      ;(manager as ApiKeyManagerWithPrivates).hashKey = vi.fn().mockReturnValue('mockhash')
+      ;(manager as ApiKeyManagerWithPrivates).findKeyByHash = vi.fn().mockResolvedValue(keyData)
 
       const result = await manager.validateKey('sk_testkey')
 
@@ -206,8 +208,8 @@ describe('ApiKeyManager', () => {
       }
 
       const manager = new ApiKeyManager({}, mockRedis)
-      ;(manager as any).hashKey = vi.fn().mockReturnValue('mockhash')
-      ;(manager as any).findKeyByHash = vi.fn().mockResolvedValue(keyData)
+      ;(manager as ApiKeyManagerWithPrivates).hashKey = vi.fn().mockReturnValue('mockhash')
+      ;(manager as ApiKeyManagerWithPrivates).findKeyByHash = vi.fn().mockResolvedValue(keyData)
 
       const result = await manager.validateKey('sk_testkey')
 
@@ -235,8 +237,8 @@ describe('ApiKeyManager', () => {
         { rotationIntervalDays: 90, requireRotation: true },
         mockRedis
       )
-      ;(manager as any).hashKey = vi.fn().mockReturnValue('mockhash')
-      ;(manager as any).findKeyByHash = vi.fn().mockResolvedValue(keyData)
+      ;(manager as ApiKeyManagerWithPrivates).hashKey = vi.fn().mockReturnValue('mockhash')
+      ;(manager as ApiKeyManagerWithPrivates).findKeyByHash = vi.fn().mockResolvedValue(keyData)
 
       const result = await manager.validateKey('sk_testkey')
 
@@ -262,11 +264,7 @@ describe('ApiKeyManager', () => {
       mockRedis.get.mockResolvedValue(JSON.stringify(oldKey))
       mockRedis.keys.mockResolvedValue([])
 
-      const result = await apiKeyManager.rotateKey(
-        'old123',
-        'user123',
-        'Security update'
-      )
+      const result = await apiKeyManager.rotateKey('old123', 'user123', 'Security update')
 
       expect(result).toHaveProperty('oldKeyId', 'old123')
       expect(result).toHaveProperty('newKey')
@@ -291,12 +289,7 @@ describe('ApiKeyManager', () => {
       mockRedis.get.mockResolvedValue(JSON.stringify(oldKey))
       mockRedis.keys.mockResolvedValue([])
 
-      const result = await apiKeyManager.rotateKey(
-        'old123',
-        'user123',
-        'Immediate rotation',
-        true
-      )
+      const result = await apiKeyManager.rotateKey('old123', 'user123', 'Immediate rotation', true)
 
       expect(result).not.toHaveProperty('gracePeriodEnd')
       expect(auditLogger.log).toHaveBeenCalledWith(
@@ -309,9 +302,9 @@ describe('ApiKeyManager', () => {
     it('should reject rotation of non-existent key', async () => {
       mockRedis.get.mockResolvedValue(null)
 
-      await expect(
-        apiKeyManager.rotateKey('nonexistent', 'user123', 'Test')
-      ).rejects.toThrow('API key not found')
+      await expect(apiKeyManager.rotateKey('nonexistent', 'user123', 'Test')).rejects.toThrow(
+        'API key not found'
+      )
     })
 
     it('should reject rotation of inactive key', async () => {
@@ -329,9 +322,9 @@ describe('ApiKeyManager', () => {
 
       mockRedis.get.mockResolvedValue(JSON.stringify(inactiveKey))
 
-      await expect(
-        apiKeyManager.rotateKey('inactive123', 'user123', 'Test')
-      ).rejects.toThrow('Cannot rotate inactive key')
+      await expect(apiKeyManager.rotateKey('inactive123', 'user123', 'Test')).rejects.toThrow(
+        'Cannot rotate inactive key'
+      )
     })
   })
 
@@ -379,9 +372,9 @@ describe('ApiKeyManager', () => {
 
       mockRedis.get.mockResolvedValue(JSON.stringify(key))
 
-      await expect(
-        apiKeyManager.revokeKey('key123', 'wronguser', 'Test')
-      ).rejects.toThrow('API key not found')
+      await expect(apiKeyManager.revokeKey('key123', 'wronguser', 'Test')).rejects.toThrow(
+        'API key not found'
+      )
     })
   })
 
@@ -400,7 +393,7 @@ describe('ApiKeyManager', () => {
       ]
 
       mockRedis.keys.mockResolvedValue(keys)
-      mockRedis.get.mockImplementation((key) => {
+      mockRedis.get.mockImplementation(key => {
         const index = keys.indexOf(key)
         return index >= 0 ? JSON.stringify(keyData[index]) : null
       })
@@ -417,11 +410,7 @@ describe('ApiKeyManager', () => {
       const oldDate = new Date()
       oldDate.setDate(oldDate.getDate() - 100)
 
-      const keys = [
-        'apikey:key1',
-        'apikey:key2',
-        'apikey:key3',
-      ]
+      const keys = ['apikey:key1', 'apikey:key2', 'apikey:key3']
 
       const keyData = [
         { id: 'key1', status: 'active', createdAt: oldDate },
@@ -430,7 +419,7 @@ describe('ApiKeyManager', () => {
       ]
 
       mockRedis.keys.mockResolvedValue(keys)
-      mockRedis.get.mockImplementation((key) => {
+      mockRedis.get.mockImplementation(key => {
         const index = keys.indexOf(key)
         return index >= 0 ? JSON.stringify(keyData[index]) : null
       })
@@ -452,11 +441,7 @@ describe('ApiKeyManager', () => {
       const expiredDate = new Date()
       expiredDate.setDate(expiredDate.getDate() - 1)
 
-      const keys = [
-        'apikey:key1',
-        'apikey:key2',
-        'apikey:key3',
-      ]
+      const keys = ['apikey:key1', 'apikey:key2', 'apikey:key3']
 
       const keyData = [
         { id: 'key1', status: 'rotating', expiresAt: expiredDate },
@@ -465,7 +450,7 @@ describe('ApiKeyManager', () => {
       ]
 
       mockRedis.keys.mockResolvedValue(keys)
-      mockRedis.get.mockImplementation((key) => {
+      mockRedis.get.mockImplementation(key => {
         const index = keys.indexOf(key)
         return index >= 0 ? JSON.stringify(keyData[index]) : null
       })
@@ -490,13 +475,12 @@ describe('apiKeyAuthMiddleware', () => {
       },
     })
 
-    const validateSpy = vi.spyOn(apiKeyManager, 'validateKey')
-      .mockResolvedValue({
-        valid: true,
-        keyId: 'test123',
-        userId: 'user123',
-        permissions: ['read'],
-      })
+    const validateSpy = vi.spyOn(apiKeyManager, 'validateKey').mockResolvedValue({
+      valid: true,
+      keyId: 'test123',
+      userId: 'user123',
+      permissions: ['read'],
+    })
 
     const result = await apiKeyAuthMiddleware(request)
 
@@ -507,13 +491,12 @@ describe('apiKeyAuthMiddleware', () => {
   it('should extract API key from query parameter', async () => {
     const request = new Request('http://example.com?api_key=sk_testkey')
 
-    const validateSpy = vi.spyOn(apiKeyManager, 'validateKey')
-      .mockResolvedValue({
-        valid: true,
-        keyId: 'test123',
-        userId: 'user123',
-        permissions: ['read'],
-      })
+    const validateSpy = vi.spyOn(apiKeyManager, 'validateKey').mockResolvedValue({
+      valid: true,
+      keyId: 'test123',
+      userId: 'user123',
+      permissions: ['read'],
+    })
 
     const result = await apiKeyAuthMiddleware(request)
 
@@ -528,13 +511,12 @@ describe('apiKeyAuthMiddleware', () => {
       },
     })
 
-    const validateSpy = vi.spyOn(apiKeyManager, 'validateKey')
-      .mockResolvedValue({
-        valid: true,
-        keyId: 'test123',
-        userId: 'user123',
-        permissions: ['read'],
-      })
+    const validateSpy = vi.spyOn(apiKeyManager, 'validateKey').mockResolvedValue({
+      valid: true,
+      keyId: 'test123',
+      userId: 'user123',
+      permissions: ['read'],
+    })
 
     const result = await apiKeyAuthMiddleware(request, {
       headerName: undefined,
@@ -549,9 +531,9 @@ describe('apiKeyAuthMiddleware', () => {
   it('should throw error when key is required but missing', async () => {
     const request = new Request('http://example.com')
 
-    await expect(
-      apiKeyAuthMiddleware(request, { required: true })
-    ).rejects.toThrow('API key required')
+    await expect(apiKeyAuthMiddleware(request, { required: true })).rejects.toThrow(
+      'API key required'
+    )
   })
 
   it('should return null when key is optional and missing', async () => {
@@ -574,8 +556,8 @@ describe('apiKeyAuthMiddleware', () => {
       reason: 'Invalid API key',
     })
 
-    await expect(
-      apiKeyAuthMiddleware(request, { required: true })
-    ).rejects.toThrow('Invalid API key')
+    await expect(apiKeyAuthMiddleware(request, { required: true })).rejects.toThrow(
+      'Invalid API key'
+    )
   })
 })

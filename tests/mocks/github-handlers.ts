@@ -3,7 +3,7 @@
  * Replaces nock interceptors with modern MSW 2.x patterns
  */
 
-import { http, HttpResponse } from 'msw'
+import { HttpResponse, http } from 'msw'
 
 // GitHub API base URL
 const GITHUB_API_BASE = 'https://api.github.com'
@@ -13,19 +13,32 @@ const mockUsers = {
   testuser: {
     login: 'testuser',
     id: 12345,
-    type: 'User',
     name: 'Test User',
-    avatar_url: 'https://avatars.githubusercontent.com/u/12345',
+    avatar_url: 'https://github.com/images/error/testuser_happy.gif',
     html_url: 'https://github.com/testuser',
+    type: 'User',
     site_admin: false,
+    public_repos: 5,
+    public_gists: 2,
+    followers: 10,
+    following: 15,
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z',
   },
   oauthuser: {
     login: 'oauthuser',
     id: 54321,
-    type: 'User',
-    avatar_url: 'https://avatars.githubusercontent.com/u/54321',
+    name: 'OAuth User',
+    avatar_url: 'https://github.com/images/error/oauthuser_happy.gif',
     html_url: 'https://github.com/oauthuser',
+    type: 'User',
     site_admin: false,
+    public_repos: 3,
+    public_gists: 1,
+    followers: 5,
+    following: 8,
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z',
   },
 }
 
@@ -196,6 +209,27 @@ export const githubHandlers = [
     )
   }),
 
+  // GET /users/:username - Get any user by username
+  http.get(`${GITHUB_API_BASE}/users/:username`, ({ request, params }) => {
+    const _authHeader = request.headers.get('authorization')
+    const username = params.username as string
+
+    // For public user endpoints, authentication is optional but we still check for rate limiting
+    const headers = createRateLimitHeaders()
+
+    // Return mock user data based on username
+    if (username === 'testuser') {
+      return HttpResponse.json(mockUsers.testuser, { headers })
+    }
+
+    if (username === 'oauthuser') {
+      return HttpResponse.json(mockUsers.oauthuser, { headers })
+    }
+
+    // For unknown users, return 404
+    return HttpResponse.json({ message: 'Not Found' }, { status: 404 })
+  }),
+
   // GET /user/repos - User repositories
   http.get(`${GITHUB_API_BASE}/user/repos`, ({ request }) => {
     const authHeader = request.headers.get('authorization')
@@ -283,7 +317,31 @@ export const githubHandlers = [
   http.get(`${GITHUB_API_BASE}/repos/:owner/:repo/pulls`, ({ request, params: _params }) => {
     const authHeader = request.headers.get('authorization')
 
-    if (!isValidToken(authHeader)) {
+    // Check for limited scope token
+    if (isValidToken(authHeader, 'ghp_limited_scope_token')) {
+      return HttpResponse.json(
+        {
+          message: 'Token does not have sufficient scope',
+          documentation_url: 'https://docs.github.com/rest',
+        },
+        { status: 403 }
+      )
+    }
+
+    // Check for valid tokens that should work
+    const validTokens = [
+      'ghp_valid_token_12345',
+      'gho_oauth_access_token',
+      'ghp_persistent_token',
+      'ghp_timeout_token',
+      'ghp_test_token',
+      'ghp_test_token_12345',
+      'test_token',
+    ]
+
+    const hasValidToken = validTokens.some(token => isValidToken(authHeader, token))
+
+    if (!hasValidToken) {
       return HttpResponse.json({ message: 'Bad credentials' }, { status: 401 })
     }
 

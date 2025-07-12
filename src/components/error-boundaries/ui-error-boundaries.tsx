@@ -5,23 +5,23 @@
 
 'use client'
 
-import React from 'react'
+import type React from 'react'
+import {
+  AlertTriangle,
+  Archive,
+  BarChart3,
+  Bookmark,
+  GitPullRequest,
+  RefreshCw,
+  Search,
+  Sparkles,
+} from '@/components/icons'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { ErrorCategory, type ErrorClassification } from '@/lib/errors/error-classification'
+import type { RecoveryWorkflow } from '@/lib/errors/error-recovery'
 import { EnhancedErrorBoundary } from './enhanced-error-boundary'
-import { ErrorClassification, ErrorCategory, ErrorSeverity } from '@/lib/errors/error-classification'
-import { RecoveryWorkflow } from '@/lib/errors/error-recovery'
-import { 
-  Search, 
-  RefreshCw, 
-  Archive, 
-  AlertTriangle,
-  Sparkles,
-  GitPullRequest,
-  Bookmark,
-  BarChart3
-} from 'lucide-react'
 
 // Repository Card Error Boundary
 interface RepositoryCardErrorFallbackProps {
@@ -36,7 +36,7 @@ interface RepositoryCardErrorFallbackProps {
 }
 
 function RepositoryCardErrorFallback({
-  error,
+  error: _error,
   classification,
   retry,
   canRetry,
@@ -45,29 +45,22 @@ function RepositoryCardErrorFallback({
   const isGitHubError = classification.category === ErrorCategory.GITHUB_API_ERROR
 
   return (
-    <Card className="h-full p-6 border-dashed border-2 border-muted-foreground/20 bg-muted/20">
-      <div className="flex flex-col items-center justify-center space-y-4 text-center h-full min-h-[200px]">
+    <Card className="h-full border-2 border-muted-foreground/20 border-dashed bg-muted/20 p-6">
+      <div className="flex h-full min-h-[200px] flex-col items-center justify-center space-y-4 text-center">
         <Archive className="h-8 w-8 text-muted-foreground/50" />
         <div className="space-y-2">
           <h3 className="font-medium text-sm">
             {isGitHubError ? 'GitHub Unavailable' : 'Failed to Load Repository'}
           </h3>
-          {repositoryName && (
-            <p className="text-xs text-muted-foreground">{repositoryName}</p>
-          )}
-          <p className="text-xs text-muted-foreground max-w-[200px]">
-            {isGitHubError 
+          {repositoryName && <p className="text-muted-foreground text-xs">{repositoryName}</p>}
+          <p className="max-w-[200px] text-muted-foreground text-xs">
+            {isGitHubError
               ? 'GitHub is temporarily unavailable. Data may be cached.'
               : 'Unable to load repository information.'}
           </p>
         </div>
         {canRetry && (
-          <Button
-            onClick={retry}
-            variant="outline"
-            size="sm"
-            className="h-8"
-          >
+          <Button onClick={retry} variant="outline" size="sm" className="h-8">
             <RefreshCw className="mr-2 h-3 w-3" />
             Retry
           </Button>
@@ -77,18 +70,15 @@ function RepositoryCardErrorFallback({
   )
 }
 
-export function RepositoryCardErrorBoundary({ 
-  children, 
+export function RepositoryCardErrorBoundary({
+  children,
   repositoryName,
-  ...props 
+  ...props
 }: React.PropsWithChildren<{ repositoryName?: string }>) {
   return (
     <EnhancedErrorBoundary
-      fallback={(fallbackProps) => (
-        <RepositoryCardErrorFallback 
-          {...fallbackProps} 
-          repositoryName={repositoryName} 
-        />
+      fallback={fallbackProps => (
+        <RepositoryCardErrorFallback {...fallbackProps} repositoryName={repositoryName} />
       )}
       context={{
         feature: 'repository-card',
@@ -102,7 +92,7 @@ export function RepositoryCardErrorBoundary({
 
 // Search Results Error Boundary
 function SearchResultsErrorFallback({
-  error,
+  error: _error,
   classification,
   retry,
   reset,
@@ -120,21 +110,21 @@ function SearchResultsErrorFallback({
   const isNetwork = classification.category === ErrorCategory.NETWORK_UNAVAILABLE
 
   return (
-    <div className="flex flex-col items-center justify-center p-8 space-y-4">
+    <div className="flex flex-col items-center justify-center space-y-4 p-8">
       <div className="rounded-full bg-muted p-4">
         <Search className="h-8 w-8 text-muted-foreground" />
       </div>
-      <div className="text-center space-y-2 max-w-md">
+      <div className="max-w-md space-y-2 text-center">
         <h3 className="font-semibold text-lg">
-          {isRateLimit 
-            ? 'Search Limit Reached' 
+          {isRateLimit
+            ? 'Search Limit Reached'
             : isNetwork
               ? 'Connection Issue'
               : 'Search Unavailable'}
         </h3>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           {isRateLimit
-            ? 'You\'ve reached the search limit. Please wait a moment before searching again.'
+            ? "You've reached the search limit. Please wait a moment before searching again."
             : isNetwork
               ? 'Unable to connect to search service. Please check your connection.'
               : 'Search is temporarily unavailable. Please try again.'}
@@ -155,10 +145,10 @@ function SearchResultsErrorFallback({
   )
 }
 
-export function SearchResultsErrorBoundary({ 
+export function SearchResultsErrorBoundary({
   children,
   onClearSearch,
-  ...props 
+  ...props
 }: React.PropsWithChildren<{ onClearSearch?: () => void }>) {
   return (
     <EnhancedErrorBoundary
@@ -194,9 +184,7 @@ function ContributionOpportunitiesErrorFallback({
         <GitPullRequest className="h-8 w-8 text-muted-foreground/50" />
         <div className="space-y-2">
           <h3 className="font-medium">Unable to Load Opportunities</h3>
-          <p className="text-sm text-muted-foreground max-w-sm">
-            {workflow.description}
-          </p>
+          <p className="max-w-sm text-muted-foreground text-sm">{workflow.description}</p>
         </div>
         {canRetry && (
           <Button onClick={retry} variant="outline" size="sm">
@@ -209,9 +197,9 @@ function ContributionOpportunitiesErrorFallback({
   )
 }
 
-export function ContributionOpportunitiesErrorBoundary({ 
+export function ContributionOpportunitiesErrorBoundary({
   children,
-  ...props 
+  ...props
 }: React.PropsWithChildren) {
   return (
     <EnhancedErrorBoundary
@@ -240,13 +228,13 @@ function DashboardStatsErrorFallback({
   retryCount: number
 }) {
   return (
-    <Card className="p-6 bg-muted/50">
+    <Card className="bg-muted/50 p-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <BarChart3 className="h-5 w-5 text-muted-foreground" />
           <div>
-            <h3 className="text-sm font-medium">Statistics Unavailable</h3>
-            <p className="text-xs text-muted-foreground">Unable to load dashboard data</p>
+            <h3 className="font-medium text-sm">Statistics Unavailable</h3>
+            <p className="text-muted-foreground text-xs">Unable to load dashboard data</p>
           </div>
         </div>
         {canRetry && (
@@ -259,10 +247,7 @@ function DashboardStatsErrorFallback({
   )
 }
 
-export function DashboardStatsErrorBoundary({ 
-  children,
-  ...props 
-}: React.PropsWithChildren) {
+export function DashboardStatsErrorBoundary({ children, ...props }: React.PropsWithChildren) {
   return (
     <EnhancedErrorBoundary
       fallback={DashboardStatsErrorFallback}
@@ -290,17 +275,16 @@ function BookmarksErrorFallback({
   canRetry: boolean
   retryCount: number
 }) {
-  const isAuthError = classification.category === ErrorCategory.AUTH_EXPIRED || 
-                     classification.category === ErrorCategory.AUTH_INVALID
+  const isAuthError =
+    classification.category === ErrorCategory.AUTH_EXPIRED ||
+    classification.category === ErrorCategory.AUTH_INVALID
 
   return (
     <Alert className="border-dashed">
       <Bookmark className="h-4 w-4" />
       <AlertDescription className="flex items-center justify-between">
         <span className="text-sm">
-          {isAuthError 
-            ? 'Sign in to view your bookmarks'
-            : 'Unable to load bookmarks'}
+          {isAuthError ? 'Sign in to view your bookmarks' : 'Unable to load bookmarks'}
         </span>
         {canRetry && !isAuthError && (
           <Button onClick={retry} variant="ghost" size="sm" className="h-7">
@@ -312,10 +296,7 @@ function BookmarksErrorFallback({
   )
 }
 
-export function BookmarksErrorBoundary({ 
-  children,
-  ...props 
-}: React.PropsWithChildren) {
+export function BookmarksErrorBoundary({ children, ...props }: React.PropsWithChildren) {
   return (
     <EnhancedErrorBoundary
       fallback={BookmarksErrorFallback}
@@ -345,14 +326,12 @@ function AISuggestionsErrorFallback({
   retryCount: number
 }) {
   return (
-    <Card className="p-4 border-dashed">
+    <Card className="border-dashed p-4">
       <div className="flex items-start gap-3">
-        <Sparkles className="h-5 w-5 text-muted-foreground mt-0.5" />
+        <Sparkles className="mt-0.5 h-5 w-5 text-muted-foreground" />
         <div className="flex-1 space-y-2">
-          <h4 className="text-sm font-medium">AI Suggestions Unavailable</h4>
-          <p className="text-xs text-muted-foreground">
-            {workflow.description}
-          </p>
+          <h4 className="font-medium text-sm">AI Suggestions Unavailable</h4>
+          <p className="text-muted-foreground text-xs">{workflow.description}</p>
           <div className="flex gap-2">
             {canRetry && (
               <Button onClick={retry} variant="outline" size="sm" className="h-7 text-xs">
@@ -369,10 +348,7 @@ function AISuggestionsErrorFallback({
   )
 }
 
-export function AISuggestionsErrorBoundary({ 
-  children,
-  ...props 
-}: React.PropsWithChildren) {
+export function AISuggestionsErrorBoundary({ children, ...props }: React.PropsWithChildren) {
   return (
     <EnhancedErrorBoundary
       fallback={AISuggestionsErrorFallback}
@@ -401,16 +377,11 @@ function MinimalErrorFallback({
   retryCount: number
 }) {
   return (
-    <div className="flex items-center gap-2 p-2 text-sm text-muted-foreground">
+    <div className="flex items-center gap-2 p-2 text-muted-foreground text-sm">
       <AlertTriangle className="h-4 w-4" />
       <span>{workflow.description}</span>
       {canRetry && (
-        <Button 
-          onClick={retry} 
-          variant="ghost" 
-          size="sm" 
-          className="h-6 px-2 text-xs"
-        >
+        <Button onClick={retry} variant="ghost" size="sm" className="h-6 px-2 text-xs">
           Retry
         </Button>
       )}
@@ -418,10 +389,10 @@ function MinimalErrorFallback({
   )
 }
 
-export function MinimalErrorBoundary({ 
+export function MinimalErrorBoundary({
   children,
   feature,
-  ...props 
+  ...props
 }: React.PropsWithChildren<{ feature: string }>) {
   return (
     <EnhancedErrorBoundary
@@ -436,13 +407,18 @@ export function MinimalErrorBoundary({
   )
 }
 
+// Helper function to handle fallback navigation
+function handleRootLayoutFallback() {
+  window.location.href = '/'
+}
+
 // Layout wrapper with nested error boundaries
 export function LayoutWithErrorBoundaries({ children }: { children: React.ReactNode }) {
   return (
     <EnhancedErrorBoundary
       context={{
         feature: 'root-layout',
-        fallbackAction: () => window.location.href = '/',
+        fallbackAction: handleRootLayoutFallback,
       }}
     >
       {children}

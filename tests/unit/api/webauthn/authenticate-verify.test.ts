@@ -3,8 +3,8 @@
  * Tests for /api/security/webauthn/authenticate/verify endpoint
  */
 
-import { POST } from '@/app/api/security/webauthn/authenticate/verify/route'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { POST } from '@/app/api/security/webauthn/authenticate/verify/route'
 import { setupDatabaseMock, setupWebAuthnServerMock } from '../../../utils/mocks'
 
 // Mock dependencies
@@ -12,11 +12,40 @@ setupDatabaseMock()
 setupWebAuthnServerMock()
 
 // Mock feature flags
-vi.mock('@/lib/security/feature-flags', () => ({
-  securityFeatures: {
+vi.mock('@/lib/security/feature-flags', () => {
+  const mockSecurityFeatures = {
     webauthn: true,
-  },
-}))
+    basicSecurity: true,
+    securityHeaders: true,
+    rateLimiting: true,
+    advancedMonitoring: false,
+    securityDashboard: false,
+    deviceFingerprinting: false,
+    detailedAudit: false,
+    isDevelopment: true,
+    isProduction: false,
+  }
+  return {
+    securityFeatures: mockSecurityFeatures,
+    getSecurityFeatures: vi.fn().mockReturnValue(mockSecurityFeatures),
+    getSecurityConfig: vi.fn().mockReturnValue({
+      webauthn: {
+        rpName: 'Contribux',
+        rpId: 'localhost',
+        origin: 'http://localhost:3000',
+        timeout: 60000,
+      },
+      rateLimit: {
+        windowMs: 15 * 60 * 1000,
+        maxRequests: 1000,
+      },
+      monitoring: {
+        enableHealthChecks: false,
+        enableMetrics: false,
+      },
+    }),
+  }
+})
 
 // Mock WebAuthn server functions
 vi.mock('@/lib/security/webauthn/server', () => ({
@@ -24,6 +53,21 @@ vi.mock('@/lib/security/webauthn/server', () => ({
 }))
 
 describe('/api/security/webauthn/authenticate/verify', () => {
+  const validRequestBody = {
+    response: {
+      id: 'test-credential-id',
+      rawId: 'test-raw-id',
+      response: {
+        clientDataJSON: 'test-client-data-json',
+        authenticatorData: 'test-authenticator-data',
+        signature: 'test-signature',
+        userHandle: 'test-user-handle',
+      },
+      type: 'public-key' as const,
+    },
+    expectedChallenge: 'test-challenge',
+  }
+
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -33,21 +77,6 @@ describe('/api/security/webauthn/authenticate/verify', () => {
   })
 
   describe('POST', () => {
-    const validRequestBody = {
-      response: {
-        id: 'test-credential-id',
-        rawId: 'test-raw-id',
-        response: {
-          clientDataJSON: 'test-client-data-json',
-          authenticatorData: 'test-authenticator-data',
-          signature: 'test-signature',
-          userHandle: 'test-user-handle',
-        },
-        type: 'public-key' as const,
-      },
-      expectedChallenge: 'test-challenge',
-    }
-
     it('should verify authentication response successfully', async () => {
       const { verifyWebAuthnAuthentication } = await import('@/lib/security/webauthn/server')
 

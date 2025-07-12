@@ -249,6 +249,7 @@ if (require.main === module) {
     analyzer.runCompleteAnalysis().catch(console.error)
   } else {
     // Default to size analysis for backward compatibility
+
     analyzer.analyzeSizes().catch(console.error)
   }
 }

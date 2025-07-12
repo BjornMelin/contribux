@@ -442,179 +442,182 @@ export class SecurityPayloadGenerator {
 }
 
 /**
- * Security Assertions Helper
+ * Security Assertions Helper Functions
  */
-export class SecurityAssertions {
-  /**
-   * Assert that response doesn't contain sensitive information
-   */
-  static assertNoSensitiveData(response: string): { passed: boolean; findings: string[] } {
-    const sensitivePatterns = [
-      // Credentials
-      /password\s*[:=]\s*["']?[^"\s]+/gi,
-      /api[_-]?key\s*[:=]\s*["']?[^"\s]+/gi,
-      /secret\s*[:=]\s*["']?[^"\s]+/gi,
-      /token\s*[:=]\s*["']?[^"\s]+/gi,
 
-      // Database info
-      /connection\s*string/gi,
-      /database\s*[:=]\s*["']?[^"\s]+/gi,
+/**
+ * Assert that response doesn't contain sensitive information
+ */
+export function assertNoSensitiveData(response: string): { passed: boolean; findings: string[] } {
+  const sensitivePatterns = [
+    // Credentials
+    /password\s*[:=]\s*["']?[^"\s]+/gi,
+    /api[_-]?key\s*[:=]\s*["']?[^"\s]+/gi,
+    /secret\s*[:=]\s*["']?[^"\s]+/gi,
+    /token\s*[:=]\s*["']?[^"\s]+/gi,
 
-      // System info
-      /\/etc\/passwd/gi,
-      /\/proc\/version/gi,
-      /C:\\windows\\system32/gi,
+    // Database info
+    /connection\s*string/gi,
+    /database\s*[:=]\s*["']?[^"\s]+/gi,
 
-      // Stack traces
-      /at\s+[\w.]+\([^)]+:\d+:\d+\)/gi,
-      /Exception\s+in\s+thread/gi,
-    ]
+    // System info
+    /\/etc\/passwd/gi,
+    /\/proc\/version/gi,
+    /C:\\windows\\system32/gi,
 
-    const findings: string[] = []
+    // Stack traces
+    /at\s+[\w.]+\([^)]+:\d+:\d+\)/gi,
+    /Exception\s+in\s+thread/gi,
+  ]
 
-    for (const pattern of sensitivePatterns) {
-      const matches = response.match(pattern)
-      if (matches) {
-        findings.push(...matches)
-      }
-    }
+  const findings: string[] = []
 
-    return {
-      passed: findings.length === 0,
-      findings,
+  for (const pattern of sensitivePatterns) {
+    const matches = response.match(pattern)
+    if (matches) {
+      findings.push(...matches)
     }
   }
 
-  /**
-   * Assert that response has proper security headers
-   */
-  static assertSecurityHeaders(headers: Headers): { passed: boolean; missing: string[] } {
-    const requiredHeaders = [
-      'Content-Security-Policy',
-      'X-Content-Type-Options',
-      'X-Frame-Options',
-      'X-XSS-Protection',
-      'Strict-Transport-Security',
-    ]
-
-    const missing: string[] = []
-
-    for (const header of requiredHeaders) {
-      if (!headers.has(header)) {
-        missing.push(header)
-      }
-    }
-
-    return {
-      passed: missing.length === 0,
-      missing,
-    }
-  }
-
-  /**
-   * Assert that input validation is working
-   */
-  static assertInputValidation(
-    _input: string,
-    response: Response,
-    expectedStatus = 400
-  ): { passed: boolean; details: string } {
-    if (response.status !== expectedStatus) {
-      return {
-        passed: false,
-        details: `Expected status ${expectedStatus} for malicious input, got ${response.status}`,
-      }
-    }
-
-    return {
-      passed: true,
-      details: 'Input validation working correctly',
-    }
+  return {
+    passed: findings.length === 0,
+    findings,
   }
 }
 
 /**
- * Security Test Data Factory
+ * Assert that response has proper security headers
  */
-export class SecurityTestDataFactory {
-  /**
-   * Create test user data with various edge cases
-   */
-  static createTestUsers(): Array<{
-    username: string
-    email: string
-    password: string
-    expectValid: boolean
-  }> {
-    return [
-      // Valid users
-      {
-        username: 'testuser',
-        email: 'test@example.com',
-        password: 'SecurePass123!',
-        expectValid: true,
-      },
-      {
-        username: 'admin',
-        email: 'admin@company.com',
-        password: 'AdminPass456!',
-        expectValid: true,
-      },
+export function assertSecurityHeaders(headers: Headers): { passed: boolean; missing: string[] } {
+  const requiredHeaders = [
+    'Content-Security-Policy',
+    'X-Content-Type-Options',
+    'X-Frame-Options',
+    'X-XSS-Protection',
+    'Strict-Transport-Security',
+  ]
 
-      // Invalid/malicious users
-      {
-        username: "admin'; DROP TABLE users; --",
-        email: 'hacker@evil.com',
-        password: 'password',
-        expectValid: false,
-      },
-      {
-        username: '<script>alert("xss")</script>',
-        email: 'xss@test.com',
-        password: 'password',
-        expectValid: false,
-      },
-      { username: 'user', email: 'not-an-email', password: 'weak', expectValid: false },
-      { username: '', email: 'empty@test.com', password: 'password', expectValid: false },
-      {
-        username: 'A'.repeat(1000),
-        email: 'long@test.com',
-        password: 'password',
-        expectValid: false,
-      },
-    ]
+  const missing: string[] = []
+
+  for (const header of requiredHeaders) {
+    if (!headers.has(header)) {
+      missing.push(header)
+    }
   }
 
-  /**
-   * Create test repository data with security edge cases
-   */
-  static createTestRepositories(): Array<{
-    name: string
-    description: string
-    expectValid: boolean
-  }> {
-    return [
-      // Valid repositories
-      { name: 'test-repo', description: 'A test repository', expectValid: true },
-      { name: 'my-awesome-project', description: 'An awesome project', expectValid: true },
-
-      // Invalid/malicious repositories
-      {
-        name: "repo'; DROP TABLE repositories; --",
-        description: 'SQL injection attempt',
-        expectValid: false,
-      },
-      { name: '<script>alert("xss")</script>', description: 'XSS attempt', expectValid: false },
-      { name: '', description: 'Empty name', expectValid: false },
-      { name: 'A'.repeat(1000), description: 'Too long name', expectValid: false },
-    ]
+  return {
+    passed: missing.length === 0,
+    missing,
   }
+}
+
+/**
+ * Assert that input validation is working
+ */
+export function assertInputValidation(
+  _input: string,
+  response: Response,
+  expectedStatus = 400
+): { passed: boolean; details: string } {
+  if (response.status !== expectedStatus) {
+    return {
+      passed: false,
+      details: `Expected status ${expectedStatus} for malicious input, got ${response.status}`,
+    }
+  }
+
+  return {
+    passed: true,
+    details: 'Input validation working correctly',
+  }
+}
+
+/**
+ * Security Test Data Factory Functions
+ */
+
+/**
+ * Create test user data with various edge cases
+ */
+export function createTestUsers(): Array<{
+  username: string
+  email: string
+  password: string
+  expectValid: boolean
+}> {
+  return [
+    // Valid users
+    {
+      username: 'testuser',
+      email: 'test@example.com',
+      password: 'SecurePass123!',
+      expectValid: true,
+    },
+    {
+      username: 'admin',
+      email: 'admin@company.com',
+      password: 'AdminPass456!',
+      expectValid: true,
+    },
+
+    // Invalid/malicious users
+    {
+      username: "admin'; DROP TABLE users; --",
+      email: 'hacker@evil.com',
+      password: 'password',
+      expectValid: false,
+    },
+    {
+      username: '<script>alert("xss")</script>',
+      email: 'xss@test.com',
+      password: 'password',
+      expectValid: false,
+    },
+    { username: 'user', email: 'not-an-email', password: 'weak', expectValid: false },
+    { username: '', email: 'empty@test.com', password: 'password', expectValid: false },
+    {
+      username: 'A'.repeat(1000),
+      email: 'long@test.com',
+      password: 'password',
+      expectValid: false,
+    },
+  ]
+}
+
+/**
+ * Create test repository data with security edge cases
+ */
+export function createTestRepositories(): Array<{
+  name: string
+  description: string
+  expectValid: boolean
+}> {
+  return [
+    // Valid repositories
+    { name: 'test-repo', description: 'A test repository', expectValid: true },
+    { name: 'my-awesome-project', description: 'An awesome project', expectValid: true },
+
+    // Invalid/malicious repositories
+    {
+      name: "repo'; DROP TABLE repositories; --",
+      description: 'SQL injection attempt',
+      expectValid: false,
+    },
+    { name: '<script>alert("xss")</script>', description: 'XSS attempt', expectValid: false },
+    { name: '', description: 'Empty name', expectValid: false },
+    { name: 'A'.repeat(1000), description: 'Too long name', expectValid: false },
+  ]
 }
 
 // Export all utilities
 export const securityUtils = {
   AttackSimulator,
   SecurityPayloadGenerator,
-  SecurityAssertions,
-  SecurityTestDataFactory,
+  // Security assertion functions
+  assertNoSensitiveData,
+  assertSecurityHeaders,
+  assertInputValidation,
+  // Test data factory functions
+  createTestUsers,
+  createTestRepositories,
 }

@@ -6,11 +6,11 @@
 import { SignJWT } from 'jose'
 import { cookies } from 'next/headers'
 import { type NextRequest, NextResponse } from 'next/server'
-import { 
-  checkAuthRateLimit, 
-  recordAuthResult, 
+import {
+  applyProgressiveDelay,
+  checkAuthRateLimit,
   createRateLimitResponse,
-  applyProgressiveDelay 
+  recordAuthResult,
 } from '@/lib/security/auth-rate-limiting'
 
 // Demo user data for testing
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
         provider: user.provider,
       },
     })
-  } catch (error) {
+  } catch (_error) {
     // Demo sign-in error handled
     recordAuthResult(request, false)
     return NextResponse.json({ error: 'Demo sign-in failed' }, { status: 500 })

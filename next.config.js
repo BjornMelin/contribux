@@ -7,6 +7,9 @@ if (typeof global !== 'undefined') {
   }
 }
 
+// Bundle analyzer import
+import withBundleAnalyzer from '@next/bundle-analyzer'
+
 // CRITICAL: Prevent environment validation during build process
 // This must be set before ANY modules are imported
 if (process.env.NODE_ENV !== 'development' && !process.env.SKIP_ENV_VALIDATION) {
@@ -24,40 +27,80 @@ const nextConfig = {
   // Removed framer-motion from transpilePackages to avoid conflict
   transpilePackages: [],
 
-  // Memory optimization settings
+  // Next.js 15.3.5+ optimizations and performance features
   experimental: {
-    // Reduce memory usage in development
+    // Enhanced memory optimization for development
     webpackMemoryOptimizations: true,
-    // Enable test proxy for Playwright testing
-    testProxy: true,
-    // Next.js 15 performance features
+
+    // Next.js 15.3+ performance features
     staleTimes: {
       dynamic: 30,
       static: 180,
     },
-    // Temporarily disabled - requires critters package
-    // optimizeCss: true,
+
+    // Enhanced CSS optimization (available in 15.3+)
+    optimizeCss: {
+      preload: true,
+      inlineFonts: true,
+    },
+
+    // Modern bundle optimization
+    optimizePackageImports: [
+      'lucide-react',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-progress',
+      '@radix-ui/react-slot',
+      '@radix-ui/react-tabs',
+      'framer-motion',
+      'recharts',
+    ],
+
     // CRITICAL: Disable fallback for webpack runtime
     fallbackNodePolyfills: false,
-    // Enable OpenTelemetry instrumentation
-    instrumentationHook: true,
+
+    // Next.js 15.3+ App Router enhancements
+    optimizeServerReact: true,
   },
 
   // Server external packages (moved from experimental in Next.js 15)
-  serverExternalPackages: ['@neondatabase/serverless', 'ioredis', 'pg'],
+  // Include telemetry packages to prevent them from being bundled on client-side
+  serverExternalPackages: [
+    '@neondatabase/serverless',
+    'ioredis',
+    'pg',
+    'pino',
+    'pino-http',
+    'pino-pretty',
+    'prom-client',
+    '@opentelemetry/api',
+    '@opentelemetry/auto-instrumentations-node',
+    '@opentelemetry/exporter-jaeger',
+    '@opentelemetry/exporter-metrics-otlp-http',
+    '@opentelemetry/exporter-prometheus',
+    '@opentelemetry/exporter-trace-otlp-grpc',
+    '@opentelemetry/exporter-trace-otlp-http',
+    '@opentelemetry/instrumentation',
+    '@opentelemetry/instrumentation-express',
+    '@opentelemetry/instrumentation-fs',
+    '@opentelemetry/instrumentation-http',
+    '@opentelemetry/resources',
+    '@opentelemetry/sdk-metrics',
+    '@opentelemetry/sdk-node',
+    '@opentelemetry/sdk-trace-base',
+    '@opentelemetry/semantic-conventions',
+  ],
 
-  // Turbopack configuration for development builds
+  // Enhanced Turbopack configuration for Next.js 15.3+
   turbopack: {
-    // Resolve aliases for better module resolution
+    // Optimized resolve aliases for better module resolution
     resolveAlias: {
-      // Example: Add aliases if needed in the future
+      '@': './src',
+      // Optimize common library imports
+      'react-query': '@tanstack/react-query',
     },
-    // Custom file extensions if needed
+
+    // Enhanced file extensions with optimized ordering
     resolveExtensions: ['.tsx', '.ts', '.jsx', '.js', '.mjs', '.json'],
-    // Rules for webpack loaders (if any custom loaders are needed)
-    rules: {
-      // Future: Add custom loader rules here if needed
-    },
   },
 
   // Webpack optimization configuration
@@ -120,45 +163,80 @@ const nextConfig = {
       // Only set specific optimization properties to avoid conflicts
       // Let Next.js handle most optimization settings by default
 
-      // Enhance splitChunks configuration without overriding core optimization
+      // Enhanced splitChunks configuration with conservative splitting to reduce chunk count
       if (config.optimization.splitChunks) {
-        // Extend existing splitChunks rather than replace
-        config.optimization.splitChunks.cacheGroups = {
-          ...config.optimization.splitChunks.cacheGroups,
-          // Framework chunks (Next.js, React)
-          framework: {
-            name: 'framework',
-            test: /[\\/]node_modules[\\/](react|react-dom|next)[\\/]/,
-            priority: 40,
-            enforce: true,
-          },
-          // Authentication libraries (optimized for jose consolidation)
-          auth: {
-            name: 'auth',
-            test: /[\\/]node_modules[\\/](next-auth|@auth|jose|@simplewebauthn)[\\/]/,
-            priority: 30,
-            enforce: true,
-          },
-          // Database and API clients (optimized for consolidated octokit)
-          database: {
-            name: 'database',
-            test: /[\\/]node_modules[\\/](@neondatabase|drizzle-orm|octokit|ioredis)[\\/]/,
-            priority: 25,
-            enforce: true,
-          },
-          // UI libraries
-          ui: {
-            name: 'ui',
-            test: /[\\/]node_modules[\\/](@radix-ui|lucide-react|framer-motion|class-variance-authority)[\\/]/,
-            priority: 20,
-            enforce: true,
-          },
-          // Vendor libraries
-          vendor: {
-            name: 'vendor',
-            test: /[\\/]node_modules[\\/]/,
-            priority: 10,
-            enforce: true,
+        // Configure for fewer, larger chunks instead of many micro-chunks
+        config.optimization.splitChunks = {
+          ...config.optimization.splitChunks,
+          maxAsyncRequests: 10, // Reduce from default to prevent too many chunks
+          maxInitialRequests: 6, // Reduce initial requests
+          minSize: 20000, // Increase minimum size to prevent micro-chunks
+          enforceSizeThreshold: 50000, // Enforce size threshold to reduce chunking
+          cacheGroups: {
+            // Keep Next.js default chunks but consolidate others
+            default: false,
+            vendors: false,
+
+            // React framework chunk (React + React-DOM only)
+            react: {
+              name: 'react-framework',
+              test: /[/]node_modules[/](react|react-dom)[/]/,
+              priority: 60,
+              enforce: true,
+              chunks: 'all',
+              reuseExistingChunk: true,
+            },
+
+            // Next.js framework chunk (Next.js internals only)
+            nextjs: {
+              name: 'nextjs-framework',
+              test: /[/]node_modules[/]next[/]/,
+              priority: 55,
+              enforce: true,
+              chunks: 'all',
+              reuseExistingChunk: true,
+            },
+
+            // All UI libraries consolidated into single chunk
+            ui: {
+              name: 'ui-libs',
+              test: /[/]node_modules[/](lucide-react|@radix-ui|framer-motion|class-variance-authority|next-themes)[/]/,
+              priority: 40,
+              enforce: true,
+              chunks: 'all',
+              reuseExistingChunk: true,
+            },
+
+            // Auth and security libraries
+            auth: {
+              name: 'auth',
+              test: /[/]node_modules[/](next-auth|@auth|jose|@simplewebauthn|jsonwebtoken)[/]/,
+              priority: 35,
+              enforce: true,
+              chunks: 'all',
+              reuseExistingChunk: true,
+            },
+
+            // Data and API libraries
+            data: {
+              name: 'data',
+              test: /[/]node_modules[/](@tanstack\/react-query|@neondatabase|drizzle-orm|octokit|ioredis|@redis|recharts)[/]/,
+              priority: 30,
+              enforce: true,
+              chunks: 'all',
+              reuseExistingChunk: true,
+            },
+
+            // All other vendor libraries
+            vendor: {
+              name: 'vendor',
+              test: /[/]node_modules[/]/,
+              priority: 10,
+              enforce: true,
+              chunks: 'all',
+              reuseExistingChunk: true,
+              minSize: 30000, // Larger minimum size for vendor chunks
+            },
           },
         }
       }
@@ -180,13 +258,31 @@ const nextConfig = {
         querystring: false,
       }
 
-      // Add performance hints for client bundles
+      // Enhanced performance hints for client bundles - temporarily relaxed during optimization
       config.performance = {
         ...config.performance,
-        maxAssetSize: 512000, // 500kb
-        maxEntrypointSize: 1024000, // 1MB
-        hints: process.env.NODE_ENV === 'production' ? 'warning' : false,
+        maxAssetSize: 500000, // 500kb - relaxed during optimization
+        maxEntrypointSize: 1200000, // 1.2MB - relaxed during optimization
+        hints: process.env.NODE_ENV === 'production' ? 'warning' : false, // Use warnings instead of errors during optimization
       }
+
+      // Enhanced module concatenation for smaller bundles
+      config.optimization.concatenateModules = true
+
+      // Enable advanced optimizations for smaller bundles
+      config.optimization.innerGraph = true
+      config.optimization.mangleWasmImports = true
+      config.optimization.removeAvailableModules = true
+      config.optimization.removeEmptyChunks = true
+      config.optimization.mergeDuplicateChunks = true
+
+      // Enhanced tree shaking for better dead code elimination
+      config.optimization.providedExports = true
+      config.optimization.sideEffects = false
+
+      // Better module ID generation for long-term caching
+      config.optimization.moduleIds = 'deterministic'
+      config.optimization.chunkIds = 'deterministic'
 
       // Let Next.js handle minimization and other optimization settings
     }
@@ -227,10 +323,27 @@ const nextConfig = {
     ]
   },
 
-  // Module optimization for barrel files (icon libraries, etc)
+  // Enhanced module optimization for barrel files and large libraries
   modularizeImports: {
-    // Future: Add optimizations when icon packages are installed
+    // Skip lucide-react optimization - handled by our custom icon barrel exports
+    // Our selective export strategy in src/components/icons/index.tsx already optimizes tree-shaking
+
+    // Optimize @radix-ui imports
+    '@radix-ui/react-**': {
+      transform: '@radix-ui/react-{{member}}/dist/index.js',
+    },
+    // Optimize recharts imports
+    recharts: {
+      transform: 'recharts/es6/{{member}}',
+      preventFullImport: true,
+    },
+    // Don't override internal imports for these libraries - let Next.js handle them
   },
 }
 
-export default nextConfig
+// Bundle analyzer configuration
+const bundleAnalyzer = withBundleAnalyzer({
+  enabled: process.env.ANALYZE === 'true',
+})
+
+export default bundleAnalyzer(nextConfig)

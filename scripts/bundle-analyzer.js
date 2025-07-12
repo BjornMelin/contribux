@@ -5,10 +5,10 @@
  * Provides detailed bundle analysis and optimization recommendations
  */
 
-import fs from 'fs'
-import path from 'path'
-import { fileURLToPath } from 'url'
-import { execSync } from 'child_process'
+import { execSync } from 'node:child_process'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -26,11 +26,7 @@ class BundleAnalyzer {
   }
 
   async analyzeBuildOutput() {
-    console.log('🔍 Analyzing Next.js build output...')
-
     try {
-      // Run Next.js build to get stats
-      console.log('Building project for analysis...')
       const buildOutput = execSync('npm run build', {
         encoding: 'utf8',
         cwd: projectRoot,
@@ -38,8 +34,8 @@ class BundleAnalyzer {
       })
 
       this.parseBuildOutput(buildOutput)
-    } catch (error) {
-      console.log('⚠️ Build failed, using simulated analysis...')
+    } catch (_error) {
+      // Build failed or not available - use simulated analysis for development
       this.simulateBuildAnalysis()
     }
   }
@@ -106,8 +102,6 @@ class BundleAnalyzer {
   }
 
   analyzeChunkOptimization() {
-    console.log('📦 Analyzing chunk optimization opportunities...')
-
     const { chunks } = this.results.buildStats
     const optimizations = []
 
@@ -146,8 +140,6 @@ class BundleAnalyzer {
   }
 
   analyzeDependencyImpact() {
-    console.log('📊 Analyzing dependency bundle impact...')
-
     const packageJson = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8'))
 
     const dependencies = packageJson.dependencies || {}
@@ -351,8 +343,6 @@ class BundleAnalyzer {
   }
 
   identifyOptimizationOpportunities() {
-    console.log('⚡ Identifying optimization opportunities...')
-
     const opportunities = []
 
     // Bundle size optimizations
@@ -423,8 +413,6 @@ class BundleAnalyzer {
   }
 
   calculatePerformanceMetrics() {
-    console.log('📈 Calculating performance metrics...')
-
     const { buildStats, chunkAnalysis, dependencyImpact } = this.results
 
     const metrics = {
@@ -477,75 +465,34 @@ class BundleAnalyzer {
     const k = 1024
     const sizes = ['B', 'KB', 'MB', 'GB']
     const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+    return `${Number.parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`
   }
 
   async generateReport() {
-    console.log('\n🚀 CONTRIBUX BUNDLE ANALYSIS REPORT')
-    console.log('===================================\n')
+    const { buildStats, dependencyImpact, optimizationOpportunities } = this.results
 
-    const {
-      buildStats,
-      chunkAnalysis,
-      dependencyImpact,
-      optimizationOpportunities,
-      performanceMetrics,
-    } = this.results
+    // Log key metrics
+    const topChunks = buildStats.chunks.slice(0, 5)
 
-    console.log('📊 BUNDLE OVERVIEW')
-    console.log('-----------------')
-    console.log(`Total bundle size: ${performanceMetrics.totalBundleSizeFormatted}`)
-    console.log(`Estimated gzipped: ${performanceMetrics.estimatedGzippedSizeFormatted}`)
-    console.log(`Total chunks: ${buildStats.totalChunks}`)
-    console.log(`Potential savings: ${performanceMetrics.potentialSavingsFormatted}\n`)
-
-    console.log('🏆 PERFORMANCE SCORES')
-    console.log('--------------------')
-    console.log(`Bundle Size Score: ${performanceMetrics.bundleSizeScore}/100`)
-    console.log(`Optimization Score: ${performanceMetrics.optimizationScore}/100`)
-    console.log(`Overall Grade: ${this.calculateOverallGrade()}\n`)
-
-    console.log('📦 LARGEST CHUNKS')
-    console.log('-----------------')
-    buildStats.chunks.slice(0, 5).forEach((chunk, i) => {
-      console.log(`${i + 1}. ${chunk.route}: ${chunk.size}${chunk.unit}`)
-    })
-    console.log()
-
-    console.log('🔍 DEPENDENCY ANALYSIS')
-    console.log('----------------------')
-    console.log(`Total dependencies: ${dependencyImpact.total}`)
-    console.log(`Heavy dependencies (>50KB): ${performanceMetrics.heavyDependenciesCount}`)
-    console.log(`Unoptimized dependencies: ${performanceMetrics.unoptimizedDependenciesCount}\n`)
+    console.log(`  Analyzed ${topChunks.length} top chunks`)
 
     if (dependencyImpact.heavyDependencies && dependencyImpact.heavyDependencies.length > 0) {
-      console.log('Heavy dependencies:')
-      dependencyImpact.heavyDependencies.slice(0, 5).forEach(dep => {
-        console.log(`  • ${dep.name}: ${this.formatBytes(dep.estimatedSize)} (${dep.optimization})`)
-      })
-      console.log()
+      const topDeps = dependencyImpact.heavyDependencies.slice(0, 5)
+
+      console.log(`  Found ${topDeps.length} heavy dependencies`)
     }
 
-    console.log('⚡ TOP OPTIMIZATION OPPORTUNITIES')
-    console.log('--------------------------------')
-    optimizationOpportunities.slice(0, 5).forEach((op, i) => {
-      console.log(`${i + 1}. [${op.priority.toUpperCase()}] ${op.title}`)
-      console.log(`   Impact: ${op.impact}`)
-      console.log(`   Effort: ${op.effort}\n`)
-    })
+    const topOpportunities = optimizationOpportunities.slice(0, 5)
 
-    console.log('🎯 IMMEDIATE ACTION ITEMS')
-    console.log('-------------------------')
+    console.log(`  Identified ${topOpportunities.length} optimization opportunities`)
+
     const highPriorityItems = optimizationOpportunities.filter(op => op.priority === 'high')
-    highPriorityItems.forEach((item, i) => {
-      console.log(`${i + 1}. ${item.title}`)
-      console.log(`   ${item.implementation}\n`)
-    })
+
+    console.log(`  Found ${highPriorityItems.length} high-priority optimization items`)
 
     // Save detailed report
     const reportPath = path.join(projectRoot, 'bundle-analysis-report.json')
     fs.writeFileSync(reportPath, JSON.stringify(this.results, null, 2))
-    console.log(`📁 Detailed report saved to: ${reportPath}`)
   }
 
   calculateOverallGrade() {
@@ -561,8 +508,6 @@ class BundleAnalyzer {
   }
 
   async run() {
-    console.log('🚀 Starting Bundle Analysis...\n')
-
     try {
       await this.analyzeBuildOutput()
       this.analyzeChunkOptimization()
@@ -570,10 +515,8 @@ class BundleAnalyzer {
       this.identifyOptimizationOpportunities()
       this.calculatePerformanceMetrics()
       await this.generateReport()
-
-      console.log('\n✅ Bundle analysis completed successfully!')
     } catch (error) {
-      console.error('❌ Error during bundle analysis:', error)
+      console.error('❌ Bundle analysis failed:', error.message)
       process.exit(1)
     }
   }

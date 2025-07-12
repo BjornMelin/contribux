@@ -3,8 +3,8 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { MemoryProfiler, profileOperation } from '@/lib/monitoring/memory-profiler'
 import { GitHubClient } from '@/lib/github/client'
+import { MemoryProfiler, profileOperation } from '@/lib/monitoring/memory-profiler'
 
 interface BenchmarkResult {
   operation: string
@@ -52,10 +52,10 @@ describe('API Performance Benchmarks', () => {
         try {
           // Mock search operation - in real implementation this would call the API
           await new Promise(resolve => setTimeout(resolve, Math.random() * 100 + 50))
-          
+
           const duration = Date.now() - startTime
           const memoryUsage = process.memoryUsage().heapUsed - startMemory
-          
+
           benchmarks.push({
             operation: 'repository_search',
             duration,
@@ -63,7 +63,7 @@ describe('API Performance Benchmarks', () => {
             throughput: 1000 / duration, // operations per second
             success: true,
           })
-        } catch (error) {
+        } catch (_error) {
           benchmarks.push({
             operation: 'repository_search',
             duration: Date.now() - startTime,
@@ -75,12 +75,12 @@ describe('API Performance Benchmarks', () => {
       }
 
       const suite = analyzeBenchmarks(benchmarks)
-      
+
       // Performance assertions
       expect(suite.summary.avgDuration).toBeLessThan(200) // 200ms average
       expect(suite.summary.successRate).toBeGreaterThan(0.95) // 95% success rate
       expect(suite.summary.avgMemoryUsage).toBeLessThan(10 * 1024 * 1024) // 10MB average
-      
+
       console.log('Repository Search Benchmarks:', suite.summary)
     }, 30000)
 
@@ -95,7 +95,7 @@ describe('API Performance Benchmarks', () => {
             (async () => {
               const key = `test-key-${i % 10}` // 10 unique keys, causing cache hits
               const value = { data: `test-data-${i}`, timestamp: Date.now() }
-              
+
               // Simulate cache set/get operations
               await new Promise(resolve => setTimeout(resolve, Math.random() * 10))
               return { key, value, cached: i % 10 > 5 } // Simulate cache hits
@@ -109,7 +109,7 @@ describe('API Performance Benchmarks', () => {
       // Memory analysis
       expect(memoryProfile.summary.memoryLeakDetected).toBe(false)
       expect(memoryProfile.summary.peakHeapUsage).toBeLessThan(100 * 1024 * 1024) // 100MB peak
-      
+
       // Cache hit rate analysis
       const cacheHitRate = cacheResults.filter(r => r.cached).length / cacheResults.length
       expect(cacheHitRate).toBeGreaterThan(0.3) // At least 30% cache hit rate
@@ -139,10 +139,8 @@ describe('API Performance Benchmarks', () => {
 
               try {
                 // Simulate API operation with variable latency
-                await new Promise(resolve => 
-                  setTimeout(resolve, Math.random() * 200 + 100)
-                )
-                
+                await new Promise(resolve => setTimeout(resolve, Math.random() * 200 + 100))
+
                 return {
                   operation: `concurrent_api_${i}`,
                   duration: Date.now() - startTime,
@@ -150,7 +148,7 @@ describe('API Performance Benchmarks', () => {
                   throughput: 1000 / (Date.now() - startTime),
                   success: true,
                 }
-              } catch (error) {
+              } catch (_error) {
                 return {
                   operation: `concurrent_api_${i}`,
                   duration: Date.now() - startTime,
@@ -165,7 +163,7 @@ describe('API Performance Benchmarks', () => {
 
         const operationResults = await Promise.all(operations)
         benchmarks.push(...operationResults)
-        
+
         const suite = analyzeBenchmarks(benchmarks)
         results.push({ concurrency, benchmark: suite })
       }
@@ -174,7 +172,7 @@ describe('API Performance Benchmarks', () => {
       results.forEach(({ concurrency, benchmark }) => {
         expect(benchmark.summary.successRate).toBeGreaterThan(0.9) // 90% success under load
         expect(benchmark.summary.avgDuration).toBeLessThan(500) // Max 500ms average
-        
+
         console.log(`Concurrency ${concurrency}:`, benchmark.summary)
       })
 
@@ -202,10 +200,10 @@ describe('API Performance Benchmarks', () => {
                 value: Math.random(),
                 timestamp: Date.now(),
               }))
-              
+
               // Process data (simulate CPU work)
               await new Promise(resolve => setTimeout(resolve, 10))
-              
+
               // Clean up references
               data.length = 0
               return data.length
@@ -215,7 +213,7 @@ describe('API Performance Benchmarks', () => {
 
         await Promise.all(operations)
         operations.length = 0 // Clear array for next iteration
-        
+
         // Periodic cleanup
         if (Math.random() > 0.8) {
           if (global.gc) global.gc()
@@ -255,10 +253,10 @@ describe('API Performance Benchmarks', () => {
               // Simulate connection acquisition and query
               const acquireTime = Math.random() * (poolSize > 10 ? 50 : 20)
               await new Promise(resolve => setTimeout(resolve, acquireTime))
-              
+
               // Simulate query execution
               await new Promise(resolve => setTimeout(resolve, Math.random() * 100 + 50))
-              
+
               return acquireTime
             })()
           )
@@ -266,7 +264,8 @@ describe('API Performance Benchmarks', () => {
 
         const connectionTimes = await Promise.all(operations)
         const totalTime = Date.now() - startTime
-        const avgConnectionTime = connectionTimes.reduce((a, b) => a + b, 0) / connectionTimes.length
+        const avgConnectionTime =
+          connectionTimes.reduce((a, b) => a + b, 0) / connectionTimes.length
         const efficiency = 1000 / (totalTime / operations.length) // ops per second
 
         results.push({ poolSize, efficiency })
@@ -278,7 +277,7 @@ describe('API Performance Benchmarks', () => {
 
       // Log pool efficiency comparison
       console.log('Connection Pool Efficiency:', results)
-      
+
       // Optimal pool size should be around 5-10 for typical workloads
       const optimalResult = results.find(r => r.poolSize >= 5 && r.poolSize <= 10)
       expect(optimalResult?.efficiency).toBeGreaterThan(8) // Should be efficient
@@ -293,9 +292,14 @@ function analyzeBenchmarks(benchmarks: BenchmarkResult[]): BenchmarkSuite {
   const successfulBenchmarks = benchmarks.filter(b => b.success)
   const successRate = successfulBenchmarks.length / benchmarks.length
 
-  const avgDuration = successfulBenchmarks.reduce((sum, b) => sum + b.duration, 0) / successfulBenchmarks.length || 0
-  const avgMemoryUsage = successfulBenchmarks.reduce((sum, b) => sum + b.memoryUsage, 0) / successfulBenchmarks.length || 0
-  const avgThroughput = successfulBenchmarks.reduce((sum, b) => sum + b.throughput, 0) / successfulBenchmarks.length || 0
+  const avgDuration =
+    successfulBenchmarks.reduce((sum, b) => sum + b.duration, 0) / successfulBenchmarks.length || 0
+  const avgMemoryUsage =
+    successfulBenchmarks.reduce((sum, b) => sum + b.memoryUsage, 0) / successfulBenchmarks.length ||
+    0
+  const avgThroughput =
+    successfulBenchmarks.reduce((sum, b) => sum + b.throughput, 0) / successfulBenchmarks.length ||
+    0
 
   return {
     results: benchmarks,

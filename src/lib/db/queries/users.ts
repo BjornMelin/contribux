@@ -1,9 +1,10 @@
 // User Queries - Drizzle ORM
 // Phase 3: Type-safe queries replacing raw SQL patterns
 
+import { and, count, desc, eq, sql } from 'drizzle-orm'
 import { db, schema, timedDb } from '@/lib/db'
 import type { NewUserActivity } from '@/lib/db/schema'
-import { and, count, desc, eq, sql } from 'drizzle-orm'
+import { ErrorHandler } from '@/lib/errors/enhanced-error-handler'
 
 export interface UserPreferences {
   emailNotifications?: boolean
@@ -41,7 +42,12 @@ export namespace UserQueries {
   export async function getByGithubId(githubId: number) {
     // Security: Validate GitHub ID parameter
     if (typeof githubId !== 'number' || !Number.isInteger(githubId) || githubId <= 0) {
-      throw new Error('Invalid GitHub ID: must be a positive integer')
+      throw require('@/lib/errors/error-utils').createDatabaseError('validation_error', null, {
+        field: 'githubId',
+        value: githubId,
+        expectedType: 'positive integer',
+        operation: 'user_lookup',
+      })
     }
 
     return timedDb.select(async () => {
@@ -69,7 +75,12 @@ export namespace UserQueries {
   ) {
     // Security: Validate user ID parameter
     if (typeof userId !== 'string' || !userId.trim()) {
-      throw new Error('Invalid user ID: must be a non-empty string')
+      throw ErrorHandler.createDatabaseError('validation_error', null, {
+        field: 'userId',
+        value: userId,
+        expectedType: 'non-empty string',
+        operation: 'user_operation',
+      })
     }
 
     const sanitizedUserId = userId.trim()
@@ -130,7 +141,12 @@ export namespace UserQueries {
       !Number.isInteger(data.githubId) ||
       data.githubId <= 0
     ) {
-      throw new Error('Invalid GitHub ID: must be a positive integer')
+      throw require('@/lib/errors/error-utils').createDatabaseError('validation_error', null, {
+        field: 'githubId',
+        value: data.githubId,
+        expectedType: 'positive integer',
+        operation: 'user_lookup',
+      })
     }
 
     if (typeof data.username !== 'string' || !data.username.trim()) {
@@ -187,7 +203,12 @@ export namespace UserQueries {
   export async function updatePreferences(userId: string, preferences: UserPreferences) {
     // Security: Validate user ID parameter
     if (typeof userId !== 'string' || !userId.trim()) {
-      throw new Error('Invalid user ID: must be a non-empty string')
+      throw ErrorHandler.createDatabaseError('validation_error', null, {
+        field: 'userId',
+        value: userId,
+        expectedType: 'non-empty string',
+        operation: 'user_operation',
+      })
     }
 
     const sanitizedUserId = userId.trim()
@@ -217,7 +238,12 @@ export namespace UserQueries {
   export async function updateProfile(userId: string, profile: UserProfile) {
     // Security: Validate user ID parameter
     if (typeof userId !== 'string' || !userId.trim()) {
-      throw new Error('Invalid user ID: must be a non-empty string')
+      throw ErrorHandler.createDatabaseError('validation_error', null, {
+        field: 'userId',
+        value: userId,
+        expectedType: 'non-empty string',
+        operation: 'user_operation',
+      })
     }
 
     const sanitizedUserId = userId.trim()
@@ -244,7 +270,12 @@ export namespace UserQueries {
   // Helper function to validate bookmark parameters
   function validateBookmarkParameters(userId: string, repositoryId: string) {
     if (typeof userId !== 'string' || !userId.trim()) {
-      throw new Error('Invalid user ID: must be a non-empty string')
+      throw ErrorHandler.createDatabaseError('validation_error', null, {
+        field: 'userId',
+        value: userId,
+        expectedType: 'non-empty string',
+        operation: 'user_operation',
+      })
     }
 
     if (typeof repositoryId !== 'string' || !repositoryId.trim()) {
@@ -369,7 +400,12 @@ export namespace UserQueries {
   export async function removeBookmark(userId: string, repositoryId: string) {
     // Security: Validate required parameters
     if (typeof userId !== 'string' || !userId.trim()) {
-      throw new Error('Invalid user ID: must be a non-empty string')
+      throw ErrorHandler.createDatabaseError('validation_error', null, {
+        field: 'userId',
+        value: userId,
+        expectedType: 'non-empty string',
+        operation: 'user_operation',
+      })
     }
 
     if (typeof repositoryId !== 'string' || !repositoryId.trim()) {
@@ -408,7 +444,12 @@ export namespace UserQueries {
   ) {
     // Security: Validate user ID parameter
     if (typeof userId !== 'string' || !userId.trim()) {
-      throw new Error('Invalid user ID: must be a non-empty string')
+      throw ErrorHandler.createDatabaseError('validation_error', null, {
+        field: 'userId',
+        value: userId,
+        expectedType: 'non-empty string',
+        operation: 'user_operation',
+      })
     }
 
     const sanitizedUserId = userId.trim()
@@ -452,7 +493,12 @@ export namespace UserQueries {
   export async function logActivity(userId: string, activity: UserActivityInput) {
     // Security: Validate user ID parameter
     if (typeof userId !== 'string' || !userId.trim()) {
-      throw new Error('Invalid user ID: must be a non-empty string')
+      throw ErrorHandler.createDatabaseError('validation_error', null, {
+        field: 'userId',
+        value: userId,
+        expectedType: 'non-empty string',
+        operation: 'user_operation',
+      })
     }
 
     // Security: Validate activity object
@@ -493,7 +539,12 @@ export namespace UserQueries {
   ) {
     // Security: Validate user ID parameter
     if (typeof userId !== 'string' || !userId.trim()) {
-      throw new Error('Invalid user ID: must be a non-empty string')
+      throw ErrorHandler.createDatabaseError('validation_error', null, {
+        field: 'userId',
+        value: userId,
+        expectedType: 'non-empty string',
+        operation: 'user_operation',
+      })
     }
 
     const sanitizedUserId = userId.trim()
@@ -607,7 +658,7 @@ export namespace UserQueries {
       const results = await db
         .delete(schema.userActivity)
         .where(sql`${schema.userActivity.createdAt} < ${cutoffDate}`)
-        .returning({ id: schema.userActivity.id })
+        .returning()
 
       return results.length
     })

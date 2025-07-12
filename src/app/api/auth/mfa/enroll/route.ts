@@ -3,10 +3,10 @@
  * Handles enrollment for TOTP and WebAuthn methods
  */
 
-import { enrollMFA } from '@/lib/auth/mfa-service'
-import { MFAEnrollmentRequestSchema, type User } from '@/types/auth'
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { enrollMFA } from '@/lib/auth/mfa-service'
+import { MFAEnrollmentRequestSchema, type User } from '@/types/auth'
 
 const EnrollmentRequestSchema = MFAEnrollmentRequestSchema.extend({
   deviceName: z.string().min(1).max(100).optional().default('Security Key'),

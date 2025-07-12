@@ -1,9 +1,9 @@
+import type { Session } from 'next-auth'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { auth } from '@/lib/auth'
 import { authConfig } from '@/lib/auth/config'
 import { sql } from '@/lib/db/config'
 import type { Email, UUID } from '@/types/base'
-import type { Session } from 'next-auth'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock database module
 vi.mock('@/lib/db/config', () => ({

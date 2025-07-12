@@ -7,6 +7,7 @@ import { BaseEntitySchema, EmailSchema, GitHubUsernameSchema, UUIDSchema } from 
 declare module 'next-auth' {
   interface Session extends DefaultSession {
     accessToken?: string
+    provider?: string // Added provider property at root level
     user: {
       id: string
       name?: string | null
@@ -17,6 +18,7 @@ declare module 'next-auth' {
       githubUsername?: string | undefined
       connectedProviders?: string[]
       primaryProvider?: string
+      provider?: string // Keep provider property on user as well for compatibility
     } & DefaultSession['user']
   }
 
@@ -657,6 +659,8 @@ export interface AccessTokenPayload {
   readonly iss: string
   readonly aud: readonly string[]
   readonly jti: UUID // JWT ID for replay protection
+  // Index signature to make compatible with Record<string, unknown>
+  readonly [key: string]: unknown
 }
 
 /**

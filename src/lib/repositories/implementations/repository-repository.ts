@@ -3,8 +3,8 @@
  * Handles repository data operations
  */
 
-import { type Repository, repositories } from '@/lib/db/schema'
 import type { PgColumn } from 'drizzle-orm/pg-core'
+import { type Repository, repositories } from '@/lib/db/schema'
 import { BaseRepository } from './base-repository'
 
 export class RepositoryRepository extends BaseRepository<Repository, string> {
@@ -39,7 +39,7 @@ export class RepositoryRepository extends BaseRepository<Repository, string> {
    * Get table column by name safely
    */
   protected getTableColumn(columnName: string): PgColumn | null {
-    const table = this.table as any
+    const table = this.table as unknown as Record<string, PgColumn>
     return table[columnName] || null
   }
 }

@@ -4,8 +4,8 @@
  * Optimized with proper cleanup and memoization
  */
 
-import { useOpportunityUpdates, useRepositoryUpdates } from '@/lib/api/hooks/use-websocket'
 import { useCallback, useEffect, useRef } from 'react'
+import { useOpportunityUpdates, useRepositoryUpdates } from '@/lib/api/hooks/use-websocket'
 
 export function useRealtimeUpdates() {
   const { repositoryUpdate } = useRepositoryUpdates()

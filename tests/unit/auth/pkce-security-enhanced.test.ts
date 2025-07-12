@@ -1,3 +1,4 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   calculateEntropy,
   generateCodeChallenge,
@@ -9,7 +10,6 @@ import {
   verifyPKCEChallenge,
   verifyPKCEChallengeSecure,
 } from '@/lib/auth/pkce'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Enhanced global crypto mock for comprehensive testing
 const mockCrypto = {
@@ -189,8 +189,8 @@ describe('PKCE Security Implementation - Enhanced Testing', () => {
         'contains+plus',
         'contains/slash',
         'contains=equals',
-        null as any,
-        undefined as any,
+        null as unknown as string,
+        undefined as unknown as string,
       ]
 
       for (const input of malformedInputs) {
@@ -291,8 +291,8 @@ describe('PKCE Security Implementation - Enhanced Testing', () => {
       for (const testCase of errorCases) {
         try {
           const result = await validatePKCESecure(
-            testCase.verifier as any,
-            testCase.challenge as any
+            testCase.verifier as unknown as string,
+            testCase.challenge as unknown as string
           )
 
           // If it doesn't throw, it should return invalid

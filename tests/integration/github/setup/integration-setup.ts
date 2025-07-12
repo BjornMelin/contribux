@@ -5,10 +5,10 @@
  * Provides consistent test environment and utilities.
  */
 
-import { GitHubClient } from '@/lib/github/client'
-import { http, HttpResponse } from 'msw'
+import { HttpResponse, http } from 'msw'
 import { setupServer } from 'msw/node'
 import { afterAll, afterEach, beforeAll, beforeEach, vi } from 'vitest'
+import { GitHubClient } from '@/lib/github/client'
 
 /**
  * Integration test configuration

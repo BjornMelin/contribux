@@ -1,0 +1,134 @@
+[
+  {
+    "category": "DB_SIMPLE_QUERY",
+    "value": 31.144276320465444,
+    "threshold": 50,
+    "timestamp": "2025-07-11T16:21:51.020Z"
+  },
+  {
+    "category": "DB_COMPLEX_QUERY",
+    "value": 195.56081933376265,
+    "threshold": 200,
+    "timestamp": "2025-07-11T16:21:51.020Z"
+  },
+  {
+    "category": "API_HEALTH_CHECK",
+    "value": 59.22242961923077,
+    "threshold": 100,
+    "timestamp": "2025-07-11T16:21:51.026Z"
+  },
+  {
+    "category": "DB_SIMPLE_QUERY",
+    "value": 28.735686895997418,
+    "threshold": 50,
+    "timestamp": "2025-07-11T16:21:51.026Z"
+  },
+  {
+    "category": "API_HEALTH_CHECK",
+    "value": 58.00935015064045,
+    "threshold": 100,
+    "timestamp": "2025-07-11T16:21:51.036Z"
+  },
+  {
+    "category": "DB_SIMPLE_QUERY",
+    "value": 22.930272021092453,
+    "threshold": 50,
+    "timestamp": "2025-07-11T16:21:51.036Z"
+  },
+  {
+    "category": "API_HEALTH_CHECK",
+    "value": 54.158948657387946,
+    "threshold": 100,
+    "timestamp": "2025-07-11T16:21:51.047Z"
+  },
+  {
+    "category": "DB_SIMPLE_QUERY",
+    "value": 33.51485008266403,
+    "threshold": 50,
+    "timestamp": "2025-07-11T16:21:51.047Z"
+  },
+  {
+    "category": "API_HEALTH_CHECK",
+    "value": 62.41313934534865,
+    "threshold": 100,
+    "timestamp": "2025-07-11T16:21:51.057Z"
+  },
+  {
+    "category": "DB_SIMPLE_QUERY",
+    "value": 29.17688484714376,
+    "threshold": 50,
+    "timestamp": "2025-07-11T16:21:51.057Z"
+  },
+  {
+    "category": "API_HEALTH_CHECK",
+    "value": 53.917902094919384,
+    "threshold": 100,
+    "timestamp": "2025-07-11T16:21:51.067Z"
+  },
+  {
+    "category": "DB_SIMPLE_QUERY",
+    "value": 28.174429320125334,
+    "threshold": 50,
+    "timestamp": "2025-07-11T16:21:51.067Z"
+  },
+  {
+    "category": "API_HEALTH_CHECK",
+    "value": 71.12436695047307,
+    "threshold": 100,
+    "timestamp": "2025-07-11T16:21:51.078Z"
+  },
+  {
+    "category": "DB_SIMPLE_QUERY",
+    "value": 27.00581958737683,
+    "threshold": 50,
+    "timestamp": "2025-07-11T16:21:51.078Z"
+  },
+  {
+    "category": "API_HEALTH_CHECK",
+    "value": 74.7898664373594,
+    "threshold": 100,
+    "timestamp": "2025-07-11T16:21:51.088Z"
+  },
+  {
+    "category": "DB_SIMPLE_QUERY",
+    "value": 24.319060912878214,
+    "threshold": 50,
+    "timestamp": "2025-07-11T16:21:51.088Z"
+  },
+  {
+    "category": "API_HEALTH_CHECK",
+    "value": 57.16520900508323,
+    "threshold": 100,
+    "timestamp": "2025-07-11T16:21:51.098Z"
+  },
+  {
+    "category": "DB_SIMPLE_QUERY",
+    "value": 23.15865741213347,
+    "threshold": 50,
+    "timestamp": "2025-07-11T16:21:51.098Z"
+  },
+  {
+    "category": "API_HEALTH_CHECK",
+    "value": 79.59922774247721,
+    "threshold": 100,
+    "timestamp": "2025-07-11T16:21:51.109Z"
+  },
+  {
+    "category": "DB_SIMPLE_QUERY",
+    "value": 29.759077019620207,
+    "threshold": 50,
+    "timestamp": "2025-07-11T16:21:51.109Z"
+  },
+  {
+    "category": "API_HEALTH_CHECK",
+    "value": 73.82884427862452,
+    "threshold": 100,
+    "timestamp": "2025-07-11T16:21:51.119Z"
+  },
+  {
+    "category": "DB_SIMPLE_QUERY",
+    "value": 30.1939770398385,
+    "threshold": 50,
+    "timestamp": "2025-07-11T16:21:51.119Z"
+  }
+]

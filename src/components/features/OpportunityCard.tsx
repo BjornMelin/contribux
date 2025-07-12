@@ -1,5 +1,8 @@
 'use client'
 
+import * as React from 'react'
+import { Bookmark, ExternalLink, Star } from '@/components/icons'
+import { AnimatePresence, MotionDiv } from '@/components/motion'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -12,9 +15,6 @@ import {
 } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import type { Opportunity } from '@/types/search'
-import { AnimatePresence, motion } from 'framer-motion'
-import { Bookmark, ExternalLink, Star } from 'lucide-react'
-import * as React from 'react'
 
 // Animated Bookmark Button
 const AnimatedBookmarkButton: React.FC<{ isSaved: boolean; onToggle: () => void }> = ({
@@ -29,7 +29,7 @@ const AnimatedBookmarkButton: React.FC<{ isSaved: boolean; onToggle: () => void 
       className="h-8 w-8 hover:bg-primary/10 hover:text-primary"
       aria-label={isSaved ? 'Remove bookmark' : 'Save opportunity'}
     >
-      <motion.div
+      <MotionDiv
         initial={{ scale: 1 }}
         animate={{ scale: isSaved ? 1.1 : 1 }}
         whileTap={{ scale: 0.9 }}
@@ -45,7 +45,7 @@ const AnimatedBookmarkButton: React.FC<{ isSaved: boolean; onToggle: () => void 
         />
         <AnimatePresence>
           {isSaved && (
-            <motion.div
+            <MotionDiv
               className="absolute inset-0 rounded-full bg-primary/20"
               initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: 2, opacity: [0, 0.5, 0] }}
@@ -54,7 +54,7 @@ const AnimatedBookmarkButton: React.FC<{ isSaved: boolean; onToggle: () => void 
             />
           )}
         </AnimatePresence>
-      </motion.div>
+      </MotionDiv>
     </Button>
   )
 }
@@ -72,6 +72,28 @@ const DifficultyBadge: React.FC<{ difficulty: string }> = ({ difficulty }) => {
   }
 
   const config = difficultyConfig[difficulty] || difficultyConfig.intermediate
+
+  return <Badge className={cn('border font-medium text-xs', config.color)}>{config.label}</Badge>
+}
+
+// Opportunity Type Badge Component
+const OpportunityTypeBadge: React.FC<{ type: string }> = ({ type }) => {
+  const typeConfig: Record<string, { label: string; color: string }> = {
+    bug_fix: { label: 'Bug Fix', color: 'bg-red-50 text-red-700 border-red-200' },
+    feature: { label: 'Feature', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+    documentation: { label: 'Documentation', color: 'bg-gray-50 text-gray-700 border-gray-200' },
+    testing: { label: 'Testing', color: 'bg-green-50 text-green-700 border-green-200' },
+    refactoring: { label: 'Refactoring', color: 'bg-purple-50 text-purple-700 border-purple-200' },
+    performance: { label: 'Performance', color: 'bg-orange-50 text-orange-700 border-orange-200' },
+    security: { label: 'Security', color: 'bg-red-50 text-red-700 border-red-200' },
+    accessibility: {
+      label: 'Accessibility',
+      color: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    },
+    other: { label: 'Other', color: 'bg-gray-50 text-gray-700 border-gray-200' },
+  }
+
+  const config = typeConfig[type] || typeConfig.other
 
   return <Badge className={cn('border font-medium text-xs', config.color)}>{config.label}</Badge>
 }
@@ -145,7 +167,10 @@ export const OpportunityCard: React.FC<OpportunityCardProps> = ({
         </div>
 
         <div className="flex items-center justify-between pt-2">
-          <DifficultyBadge difficulty={opportunity.difficulty} />
+          <div className="flex items-center gap-2">
+            <OpportunityTypeBadge type={opportunity.type} />
+            <DifficultyBadge difficulty={opportunity.difficulty} />
+          </div>
           <div className="flex items-center gap-3 text-muted-foreground text-xs">
             <div className="flex items-center gap-1">
               <Star size={12} />

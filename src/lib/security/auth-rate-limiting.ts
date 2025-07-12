@@ -41,13 +41,13 @@ interface AuthRateLimitConfig {
  */
 function getAuthRateLimitConfig(): AuthRateLimitConfig {
   const features = getSecurityFeatures()
-  
+
   return {
     // Base authentication rate limits
     maxAttempts: features.isDevelopment ? 10 : 5, // Very strict in production
     windowMs: 15 * 60 * 1000, // 15 minutes window
     lockoutDuration: features.isDevelopment ? 5 * 60 * 1000 : 30 * 60 * 1000, // 5m dev, 30m prod
-    
+
     // Progressive security features
     progressiveDelay: true,
     suspiciousThreshold: features.isDevelopment ? 20 : 10, // Pattern detection
@@ -63,14 +63,14 @@ function getClientIP(request: NextRequest): string {
   const forwarded = request.headers.get('x-forwarded-for')
   const realIP = request.headers.get('x-real-ip')
   const cfIP = request.headers.get('cf-connecting-ip') // Cloudflare
-  
+
   // In production, prioritize trusted proxy headers
   if (process.env.NODE_ENV === 'production') {
     if (cfIP) return cfIP
     if (realIP) return realIP
     if (forwarded) return forwarded.split(',')[0]?.trim() || 'unknown'
   }
-  
+
   // Development fallback
   return forwarded?.split(',')[0]?.trim() || realIP || 'development-ip'
 }
@@ -96,16 +96,19 @@ function updateSuspiciousActivity(ip: string, failed: boolean): void {
     lastFailedAttempt: now,
     escalationLevel: 0,
   }
-  
+
   if (failed) {
     current.failedAttempts++
     current.lastFailedAttempt = now
-    
+
     // Escalate threat level based on patterns
     const config = getAuthRateLimitConfig()
     if (current.failedAttempts >= config.suspiciousThreshold) {
-      current.escalationLevel = Math.min(3, Math.floor(current.failedAttempts / config.suspiciousThreshold))
-      
+      current.escalationLevel = Math.min(
+        3,
+        Math.floor(current.failedAttempts / config.suspiciousThreshold)
+      )
+
       // Block highly suspicious IPs
       if (current.escalationLevel >= 3) {
         current.blockedUntil = now + config.blockDuration
@@ -116,10 +119,10 @@ function updateSuspiciousActivity(ip: string, failed: boolean): void {
     current.failedAttempts = Math.max(0, current.failedAttempts - 2)
     if (current.failedAttempts === 0) {
       current.escalationLevel = 0
-      delete current.blockedUntil
+      current.blockedUntil = undefined
     }
   }
-  
+
   suspiciousIPMap.set(ip, current)
 }
 
@@ -129,15 +132,15 @@ function updateSuspiciousActivity(ip: string, failed: boolean): void {
 function isBlockedIP(ip: string): boolean {
   const suspicious = suspiciousIPMap.get(ip)
   if (!suspicious?.blockedUntil) return false
-  
+
   const now = Date.now()
   if (now > suspicious.blockedUntil) {
     // Unblock expired blocks
-    delete suspicious.blockedUntil
+    suspicious.blockedUntil = undefined
     suspicious.escalationLevel = Math.max(0, suspicious.escalationLevel - 1)
     return false
   }
-  
+
   return true
 }
 
@@ -154,14 +157,17 @@ export function checkAuthRateLimit(request: NextRequest): {
   if (!features.rateLimiting) {
     return { allowed: true }
   }
-  
+
+  // Ensure cleanup timer is running
+  ensureCleanupTimer()
+
   const config = getAuthRateLimitConfig()
   const ip = getClientIP(request)
   const now = Date.now()
-  
+
   // Cleanup expired entries
   cleanupAuthRateLimit(now)
-  
+
   // Check if IP is blocked due to suspicious activity
   if (isBlockedIP(ip)) {
     const suspicious = suspiciousIPMap.get(ip)
@@ -171,13 +177,13 @@ export function checkAuthRateLimit(request: NextRequest): {
       escalationLevel: suspicious?.escalationLevel || 0,
     }
   }
-  
+
   const current = authRateLimitMap.get(ip) || {
     attempts: 0,
     firstAttempt: now,
     lastAttempt: now,
   }
-  
+
   // Check if we're in a lockout period
   if (current.lockoutUntil && now < current.lockoutUntil) {
     return {
@@ -186,35 +192,35 @@ export function checkAuthRateLimit(request: NextRequest): {
       escalationLevel: suspiciousIPMap.get(ip)?.escalationLevel || 0,
     }
   }
-  
+
   // Reset window if enough time has passed
   if (now - current.firstAttempt > config.windowMs) {
     current.attempts = 0
     current.firstAttempt = now
-    delete current.lockoutUntil
+    current.lockoutUntil = undefined
   }
-  
+
   // Check attempt limits
   if (current.attempts >= config.maxAttempts) {
     // Trigger lockout
     current.lockoutUntil = now + config.lockoutDuration
     authRateLimitMap.set(ip, current)
-    
+
     // Update suspicious activity
     updateSuspiciousActivity(ip, true)
-    
+
     return {
       allowed: false,
       retryAfter: config.lockoutDuration,
       escalationLevel: suspiciousIPMap.get(ip)?.escalationLevel || 0,
     }
   }
-  
+
   // Allow request but increment counter
   current.attempts++
   current.lastAttempt = now
   authRateLimitMap.set(ip, current)
-  
+
   return {
     allowed: true,
     remainingAttempts: config.maxAttempts - current.attempts,
@@ -228,7 +234,7 @@ export function checkAuthRateLimit(request: NextRequest): {
 export function recordAuthResult(request: NextRequest, success: boolean): void {
   const ip = getClientIP(request)
   const now = Date.now()
-  
+
   // Update rate limit tracking
   const current = authRateLimitMap.get(ip)
   if (current) {
@@ -240,7 +246,7 @@ export function recordAuthResult(request: NextRequest, success: boolean): void {
     }
     authRateLimitMap.set(ip, current)
   }
-  
+
   // Update suspicious activity tracking
   updateSuspiciousActivity(ip, !success)
 }
@@ -249,7 +255,7 @@ export function recordAuthResult(request: NextRequest, success: boolean): void {
  * Create rate limit response with security headers
  */
 export function createRateLimitResponse(
-  message: string, 
+  message: string,
   retryAfter?: number,
   escalationLevel?: number
 ): NextResponse {
@@ -257,23 +263,23 @@ export function createRateLimitResponse(
     'Content-Type': 'application/json',
     'X-Rate-Limit-Type': 'authentication',
   }
-  
+
   if (retryAfter) {
     headers['Retry-After'] = Math.ceil(retryAfter / 1000).toString()
     headers['X-Rate-Limit-Reset'] = new Date(Date.now() + retryAfter).toISOString()
   }
-  
+
   if (escalationLevel !== undefined) {
     headers['X-Security-Level'] = escalationLevel.toString()
   }
-  
+
   return NextResponse.json(
-    { 
+    {
       error: message,
       type: 'rate_limit_exceeded',
       retryAfter: retryAfter ? Math.ceil(retryAfter / 1000) : undefined,
     },
-    { 
+    {
       status: 429,
       headers,
     }
@@ -286,10 +292,10 @@ export function createRateLimitResponse(
 export async function applyProgressiveDelay(request: NextRequest): Promise<void> {
   const config = getAuthRateLimitConfig()
   if (!config.progressiveDelay) return
-  
+
   const ip = getClientIP(request)
   const current = authRateLimitMap.get(ip)
-  
+
   if (current && current.attempts > 3) {
     const delay = calculateProgressiveDelay(current.attempts)
     if (delay > 0) {
@@ -303,7 +309,7 @@ export async function applyProgressiveDelay(request: NextRequest): Promise<void>
  */
 function cleanupAuthRateLimit(now: number): void {
   const config = getAuthRateLimitConfig()
-  
+
   // Clean up rate limit entries
   for (const [ip, data] of authRateLimitMap.entries()) {
     if (
@@ -313,7 +319,7 @@ function cleanupAuthRateLimit(now: number): void {
       authRateLimitMap.delete(ip)
     }
   }
-  
+
   // Clean up suspicious activity entries
   for (const [ip, data] of suspiciousIPMap.entries()) {
     if (
@@ -324,7 +330,7 @@ function cleanupAuthRateLimit(now: number): void {
       suspiciousIPMap.delete(ip)
     }
   }
-  
+
   // Emergency cleanup if maps get too large
   if (authRateLimitMap.size > MAX_AUTH_ENTRIES) {
     const entries = Array.from(authRateLimitMap.entries())
@@ -332,7 +338,7 @@ function cleanupAuthRateLimit(now: number): void {
     // Remove oldest 30%
     const toRemove = Math.floor(entries.length * 0.3)
     for (let i = 0; i < toRemove; i++) {
-      authRateLimitMap.delete(entries[i]![0])
+      authRateLimitMap.delete(entries[i]?.[0])
     }
   }
 }
@@ -350,7 +356,7 @@ export function getAuthRateLimitStats(): {
   let suspiciousCount = 0
   let blockedCount = 0
   let highRiskCount = 0
-  
+
   for (const [, data] of suspiciousIPMap.entries()) {
     if (data.blockedUntil && now < data.blockedUntil) {
       blockedCount++
@@ -362,7 +368,7 @@ export function getAuthRateLimitStats(): {
       highRiskCount++
     }
   }
-  
+
   return {
     totalTrackedIPs: authRateLimitMap.size,
     suspiciousIPs: suspiciousCount,
@@ -371,10 +377,28 @@ export function getAuthRateLimitStats(): {
   }
 }
 
-// Periodic cleanup
-setInterval(
-  () => {
-    cleanupAuthRateLimit(Date.now())
-  },
-  10 * 60 * 1000 // Cleanup every 10 minutes
-)
+// Periodic cleanup (only in runtime environment)
+let cleanupTimer: NodeJS.Timeout | null = null
+
+function ensureCleanupTimer(): void {
+  // Only start cleanup timer in actual runtime environment (not during build or static analysis)
+  if (
+    typeof window === 'undefined' &&
+    process.env.NODE_ENV !== 'test' &&
+    process.env.NODE_ENV === 'production' &&
+    typeof process !== 'undefined' &&
+    !process.env.NEXT_PHASE && // Next.js build phases
+    !cleanupTimer
+  ) {
+    try {
+      cleanupTimer = setInterval(
+        () => {
+          cleanupAuthRateLimit(Date.now())
+        },
+        10 * 60 * 1000 // Cleanup every 10 minutes
+      )
+    } catch (_error) {
+      // Ignore cleanup errors - not critical for operation
+    }
+  }
+}

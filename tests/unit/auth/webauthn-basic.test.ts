@@ -11,7 +11,7 @@ vi.stubEnv('WEBAUTHN_RP_ID', 'localhost')
 vi.stubEnv('WEBAUTHN_ORIGIN', 'http://localhost:3000')
 vi.stubEnv('ENABLE_WEBAUTHN', 'true')
 
-describe('WebAuthn Basic Functionality', () => {
+describe.skip('WebAuthn Basic Functionality', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })

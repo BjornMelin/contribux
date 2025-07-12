@@ -1,9 +1,9 @@
-import { beforeAll, afterAll, beforeEach, afterEach } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest'
 
 // Global test setup for database tests
 beforeAll(async () => {
   console.log('🗄️ Setting up database test environment...')
-  
+
   // Validate database connection
   const dbUrl = process.env.DATABASE_URL || process.env.DATABASE_URL_TEST
   if (!dbUrl) {
@@ -11,14 +11,14 @@ beforeAll(async () => {
   }
 
   console.log('✅ Database URL configured')
-  
+
   // Set test environment
   process.env.NODE_ENV = 'test'
 })
 
 afterAll(async () => {
   console.log('🧹 Cleaning up database test environment...')
-  
+
   // Force garbage collection
   if (global.gc) {
     global.gc()
@@ -37,12 +37,10 @@ afterEach(async () => {
 
 // Database connection timeout handler
 const originalTimeout = setTimeout
-global.setTimeout = ((fn: any, delay: number, ...args: any[]) => {
+global.setTimeout = ((fn: TimerHandler, delay: number, ...args: unknown[]) => {
   // Reduce database operation timeouts in test environment
-  if (delay > 10000) {
-    delay = 10000 // Max 10s timeout for database operations
-  }
-  return originalTimeout(fn, delay, ...args)
+  const adjustedDelay = delay > 10000 ? 10000 : delay // Max 10s timeout for database operations
+  return originalTimeout(fn, adjustedDelay, ...args)
 }) as typeof setTimeout
 
 // Handle database connection errors

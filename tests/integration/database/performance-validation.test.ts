@@ -16,13 +16,13 @@
  * - Database connection efficiency: <10ms pool checkout
  */
 
+import { sql } from 'drizzle-orm'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { cacheLayer } from '@/lib/api/cache-layer'
 import { db } from '@/lib/db/connection'
 import { OptimizedQueryBuilder } from '@/lib/db/optimized-query-builder'
 import { repositories } from '@/lib/db/schema'
 import { AdvancedDatabaseMonitor } from '@/lib/monitoring/advanced-database-monitor'
-import { sql } from 'drizzle-orm'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 // Type definitions for database objects
 interface DatabaseConstraint {

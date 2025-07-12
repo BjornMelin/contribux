@@ -3,11 +3,10 @@
  * Real-time performance metrics and optimization tracking
  */
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import type React from 'react'
-
 // Core icons - using our optimized icon system
 import { Activity, AlertTriangle, BarChart3, Check, Clock, Zap } from '@/components/icons'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 // Performance metrics interface
 interface PerformanceMetrics {
@@ -187,7 +186,7 @@ const formatBytes = (bytes: number): string => {
   const k = 1024
   const sizes = ['B', 'KB', 'MB', 'GB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  return `${Number.parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`
 }
 
 // Format milliseconds for display
@@ -210,19 +209,26 @@ const getPerformanceGrade = (score: number): { grade: string; color: string } =>
 const StatusIcon: React.FC<{ status: OptimizationStatus['status'] }> = ({ status }) => {
   switch (status) {
     case 'completed':
-      return <Check className="w-4 h-4 text-chart-2" />
+      return <Check className="h-4 w-4 text-chart-2" />
     case 'in-progress':
-      return <Clock className="w-4 h-4 text-chart-4" />
+      return <Clock className="h-4 w-4 text-chart-4" />
     case 'failed':
-      return <AlertTriangle className="w-4 h-4 text-destructive" />
+      return <AlertTriangle className="h-4 w-4 text-destructive" />
     default:
-      return <Clock className="w-4 h-4 text-muted-foreground" />
+      return <Clock className="h-4 w-4 text-muted-foreground" />
   }
 }
 
+// Props interface for the PerformanceDashboard component
+interface PerformanceDashboardProps {
+  initialData?: PerformanceMetrics | null
+}
+
 // Main performance dashboard component
-export const PerformanceDashboard: React.FC = () => {
-  const overallScore = calculateOverallScore(mockMetrics)
+export const PerformanceDashboard: React.FC<PerformanceDashboardProps> = ({ initialData }) => {
+  // Use initialData if provided, otherwise fall back to mockMetrics
+  const metrics = initialData || mockMetrics
+  const overallScore = calculateOverallScore(metrics)
   const performanceGrade = getPerformanceGrade(overallScore)
 
   const completedOptimizations = optimizationStatus.filter(opt => opt.status === 'completed')
@@ -233,34 +239,34 @@ export const PerformanceDashboard: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Performance Dashboard</h2>
+          <h2 className="font-bold text-2xl">Performance Dashboard</h2>
           <p className="text-muted-foreground">
             Real-time performance metrics and optimization tracking
           </p>
         </div>
         <div className="text-right">
-          <div className={`text-3xl font-bold ${performanceGrade.color}`}>
+          <div className={`font-bold text-3xl ${performanceGrade.color}`}>
             {performanceGrade.grade}
           </div>
-          <div className="text-sm text-muted-foreground">Overall Score: {overallScore}/100</div>
+          <div className="text-muted-foreground text-sm">Overall Score: {overallScore}/100</div>
         </div>
       </div>
 
       {/* Key Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         {/* Bundle Size */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Bundle Size</CardTitle>
-            <BarChart3 className="w-4 h-4 text-muted-foreground" />
+            <CardTitle className="font-medium text-sm">Bundle Size</CardTitle>
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatBytes(mockMetrics.bundleSize.gzipped)}</div>
-            <p className="text-xs text-muted-foreground">
-              Gzipped • {formatBytes(mockMetrics.bundleSize.total)} total
+            <div className="font-bold text-2xl">{formatBytes(metrics.bundleSize.gzipped)}</div>
+            <p className="text-muted-foreground text-xs">
+              Gzipped • {formatBytes(metrics.bundleSize.total)} total
             </p>
             <div className="mt-2">
-              <div className="text-sm font-medium text-chart-2">
+              <div className="font-medium text-chart-2 text-sm">
                 -{formatBytes(totalSavings)} optimized
               </div>
             </div>
@@ -270,27 +276,27 @@ export const PerformanceDashboard: React.FC = () => {
         {/* Core Web Vitals */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Core Web Vitals</CardTitle>
-            <Zap className="w-4 h-4 text-muted-foreground" />
+            <CardTitle className="font-medium text-sm">Core Web Vitals</CardTitle>
+            <Zap className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="space-y-1">
               <div className="flex justify-between text-sm">
                 <span>LCP:</span>
-                <span className={mockMetrics.runtime.lcp <= 2.5 ? 'text-chart-2' : 'text-chart-1'}>
-                  {mockMetrics.runtime.lcp}s
+                <span className={metrics.runtime.lcp <= 2.5 ? 'text-chart-2' : 'text-chart-1'}>
+                  {metrics.runtime.lcp}s
                 </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span>FID:</span>
-                <span className={mockMetrics.runtime.fid <= 100 ? 'text-chart-2' : 'text-chart-1'}>
-                  {mockMetrics.runtime.fid}ms
+                <span className={metrics.runtime.fid <= 100 ? 'text-chart-2' : 'text-chart-1'}>
+                  {metrics.runtime.fid}ms
                 </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span>CLS:</span>
-                <span className={mockMetrics.runtime.cls <= 0.1 ? 'text-chart-2' : 'text-chart-1'}>
-                  {mockMetrics.runtime.cls}
+                <span className={metrics.runtime.cls <= 0.1 ? 'text-chart-2' : 'text-chart-1'}>
+                  {metrics.runtime.cls}
                 </span>
               </div>
             </div>
@@ -300,20 +306,18 @@ export const PerformanceDashboard: React.FC = () => {
         {/* API Performance */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">API Performance</CardTitle>
-            <Activity className="w-4 h-4 text-muted-foreground" />
+            <CardTitle className="font-medium text-sm">API Performance</CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {formatMs(mockMetrics.api.averageResponseTime)}
-            </div>
-            <p className="text-xs text-muted-foreground">Average response time</p>
+            <div className="font-bold text-2xl">{formatMs(metrics.api.averageResponseTime)}</div>
+            <p className="text-muted-foreground text-xs">Average response time</p>
             <div className="mt-2 space-y-1">
               <div className="text-sm">
-                Cache hit: <span className="font-medium">{mockMetrics.api.cacheHitRate}%</span>
+                Cache hit: <span className="font-medium">{metrics.api.cacheHitRate}%</span>
               </div>
               <div className="text-sm">
-                Error rate: <span className="font-medium">{mockMetrics.api.errorRate}%</span>
+                Error rate: <span className="font-medium">{metrics.api.errorRate}%</span>
               </div>
             </div>
           </CardContent>
@@ -322,21 +326,19 @@ export const PerformanceDashboard: React.FC = () => {
         {/* Database Performance */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Database</CardTitle>
-            <BarChart3 className="w-4 h-4 text-muted-foreground" />
+            <CardTitle className="font-medium text-sm">Database</CardTitle>
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {formatMs(mockMetrics.database.averageQueryTime)}
-            </div>
-            <p className="text-xs text-muted-foreground">Average query time</p>
+            <div className="font-bold text-2xl">{formatMs(metrics.database.averageQueryTime)}</div>
+            <p className="text-muted-foreground text-xs">Average query time</p>
             <div className="mt-2 space-y-1">
               <div className="text-sm">
                 Slow queries:{' '}
-                <span className="font-medium">{mockMetrics.database.slowQueriesCount}</span>
+                <span className="font-medium">{metrics.database.slowQueriesCount}</span>
               </div>
               <div className="text-sm">
-                Index usage: <span className="font-medium">{mockMetrics.database.indexUsage}%</span>
+                Index usage: <span className="font-medium">{metrics.database.indexUsage}%</span>
               </div>
             </div>
           </CardContent>
@@ -356,23 +358,23 @@ export const PerformanceDashboard: React.FC = () => {
             {optimizationStatus.map(optimization => (
               <div
                 key={optimization.id}
-                className="flex items-center justify-between p-3 border rounded-lg"
+                className="flex items-center justify-between rounded-lg border p-3"
               >
                 <div className="flex items-center space-x-3">
                   <StatusIcon status={optimization.status} />
                   <div>
                     <div className="font-medium">{optimization.title}</div>
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-muted-foreground text-sm">
                       {optimization.impact} • Priority: {optimization.priority}
                     </div>
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm font-medium capitalize">
+                  <div className="font-medium text-sm capitalize">
                     {optimization.status.replace('-', ' ')}
                   </div>
                   {optimization.estimatedSaving > 0 && (
-                    <div className="text-xs text-chart-2">
+                    <div className="text-chart-2 text-xs">
                       -{formatBytes(optimization.estimatedSaving)}
                     </div>
                   )}
@@ -392,30 +394,30 @@ export const PerformanceDashboard: React.FC = () => {
         <CardContent>
           <div className="space-y-3">
             <div className="flex items-start space-x-3">
-              <AlertTriangle className="w-5 h-5 text-chart-1 mt-0.5" />
+              <AlertTriangle className="mt-0.5 h-5 w-5 text-chart-1" />
               <div>
                 <div className="font-medium">Complete Database Query Optimization</div>
-                <div className="text-sm text-muted-foreground">
+                <div className="text-muted-foreground text-sm">
                   Implement remaining database optimizations for better query performance
                 </div>
               </div>
             </div>
 
             <div className="flex items-start space-x-3">
-              <Clock className="w-5 h-5 text-chart-2 mt-0.5" />
+              <Clock className="mt-0.5 h-5 w-5 text-chart-2" />
               <div>
                 <div className="font-medium">Implement Service Worker Caching</div>
-                <div className="text-sm text-muted-foreground">
+                <div className="text-muted-foreground text-sm">
                   Add offline support and improve subsequent page load performance
                 </div>
               </div>
             </div>
 
             <div className="flex items-start space-x-3">
-              <Zap className="w-5 h-5 text-chart-3 mt-0.5" />
+              <Zap className="mt-0.5 h-5 w-5 text-chart-3" />
               <div>
                 <div className="font-medium">Monitor Core Web Vitals</div>
-                <div className="text-sm text-muted-foreground">
+                <div className="text-muted-foreground text-sm">
                   Set up continuous monitoring for LCP, FID, and CLS metrics
                 </div>
               </div>

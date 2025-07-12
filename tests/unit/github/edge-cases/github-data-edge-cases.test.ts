@@ -13,7 +13,7 @@
  * - Data Consistency and Integrity
  */
 
-import { http, HttpResponse } from 'msw'
+import { HttpResponse, http } from 'msw'
 import { describe, expect, it } from 'vitest'
 import { mswServer } from '../msw-setup'
 import {
@@ -23,8 +23,8 @@ import {
 } from './fixtures/error-scenarios'
 import { malformedResponseHandlers } from './mocks/error-api-mocks'
 import {
-  EDGE_CASE_PARAMS,
   createEdgeCaseClient,
+  EDGE_CASE_PARAMS,
   setupEdgeCaseTestIsolation,
 } from './setup/edge-case-setup'
 
@@ -42,7 +42,7 @@ describe('GitHub Data Edge Cases', () => {
         })
       )
 
-      const repo = await client.getRepository({ owner: 'null-test', repo: 'repository' })
+      const repo = await client.getRepository('null-test', 'repository')
       expect(repo).toBeDefined()
       expect(repo.id).toBe(123456)
       expect(repo.name).toBe('repository')
@@ -62,7 +62,7 @@ describe('GitHub Data Edge Cases', () => {
         })
       )
 
-      const repo = await client.getRepository({ owner: 'wrong-types', repo: 'repository' })
+      const repo = await client.getRepository('wrong-types', 'repository')
       expect(repo).toBeDefined()
 
       // Should handle type coercion appropriately
@@ -83,9 +83,7 @@ describe('GitHub Data Edge Cases', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'missing-fields', repo: 'repository' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('missing-fields', 'repository')).rejects.toThrow()
     })
 
     it('should handle unexpected additional fields', async () => {
@@ -108,7 +106,7 @@ describe('GitHub Data Edge Cases', () => {
         })
       )
 
-      const repo = await client.getRepository({ owner: 'extra-fields', repo: 'repository' })
+      const repo = await client.getRepository('extra-fields', 'repository')
       expect(repo).toBeDefined()
       expect(repo.id).toBe(123456)
       expect(repo.name).toBe('repository')
@@ -135,7 +133,7 @@ describe('GitHub Data Edge Cases', () => {
         })
       )
 
-      const repo = await client.getRepository({ owner: 'long-strings', repo: 'repository' })
+      const repo = await client.getRepository('long-strings', 'repository')
       expect(repo).toBeDefined()
       expect(repo.description?.length).toBe(100000)
     })
@@ -158,7 +156,7 @@ describe('GitHub Data Edge Cases', () => {
         })
       )
 
-      const repo = await client.getRepository({ owner: 'max-values', repo: 'repository' })
+      const repo = await client.getRepository('max-values', 'repository')
       expect(repo).toBeDefined()
       expect(repo.id).toBe(Number.MAX_SAFE_INTEGER)
       expect(repo.size).toBe(Number.MAX_SAFE_INTEGER)
@@ -183,7 +181,7 @@ describe('GitHub Data Edge Cases', () => {
         })
       )
 
-      const repo = await client.getRepository({ owner: 'zero-negative', repo: 'repository' })
+      const repo = await client.getRepository('zero-negative', 'repository')
       expect(repo).toBeDefined()
       expect(repo.size).toBe(0)
       expect(repo.stargazers_count).toBe(0)
@@ -207,7 +205,7 @@ describe('GitHub Data Edge Cases', () => {
         })
       )
 
-      const repo = await client.getRepository({ owner: 'empty-collections', repo: 'repository' })
+      const repo = await client.getRepository('empty-collections', 'repository')
       expect(repo).toBeDefined()
       expect(Array.isArray(repo.topics)).toBe(true)
       expect(repo.topics.length).toBe(0)
@@ -236,9 +234,7 @@ describe('GitHub Data Edge Cases', () => {
         })
       )
 
-      await expect(
-        client.getRepository({ owner: 'invalid-json', repo: 'syntax' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('invalid-json', 'syntax')).rejects.toThrow()
     })
 
     it('should handle circular references in objects', async () => {
@@ -264,7 +260,7 @@ describe('GitHub Data Edge Cases', () => {
         })
       )
 
-      const repo = await client.getRepository({ owner: 'circular', repo: 'reference' })
+      const repo = await client.getRepository('circular', 'reference')
       expect(repo).toBeDefined()
     })
 
@@ -289,7 +285,7 @@ describe('GitHub Data Edge Cases', () => {
         })
       )
 
-      const repo = await client.getRepository({ owner: 'deep-nested', repo: 'object' })
+      const repo = await client.getRepository('deep-nested', 'object')
       expect(repo).toBeDefined()
       expect(repo.id).toBe(123456)
     })
@@ -311,7 +307,7 @@ describe('GitHub Data Edge Cases', () => {
         })
       )
 
-      const repo = await client.getRepository({ owner: 'unicode-test', repo: '测试-repo-🚀' })
+      const repo = await client.getRepository('unicode-test', '测试-repo-🚀')
       expect(repo).toBeDefined()
       expect(repo.name).toBe('测试-repo-🚀')
       expect(repo.description).toContain('🎉🔧⭐')
@@ -335,7 +331,7 @@ describe('GitHub Data Edge Cases', () => {
         })
       )
 
-      const repo = await client.getRepository({ owner: 'special-chars', repo: 'repository' })
+      const repo = await client.getRepository('special-chars', 'repository')
       expect(repo).toBeDefined()
       expect(repo.description).toBe(specialChars.description)
       expect(repo.topics).toEqual(specialChars.topics)
@@ -365,7 +361,7 @@ describe('GitHub Data Edge Cases', () => {
           })
         )
 
-        const repo = await client.getRepository({ owner: 'encoding-test', repo: test.name })
+        const repo = await client.getRepository('encoding-test', test.name)
         expect(repo).toBeDefined()
         expect(repo.description).toBe(test.text)
       }
@@ -389,7 +385,7 @@ describe('GitHub Data Edge Cases', () => {
         })
       )
 
-      const repo = await client.getRepository({ owner: 'control-chars', repo: 'repository' })
+      const repo = await client.getRepository('control-chars', 'repository')
       expect(repo).toBeDefined()
       expect(repo.description).toContain('Control chars:')
       expect(repo.description).toContain('Escapes:')
@@ -414,7 +410,7 @@ describe('GitHub Data Edge Cases', () => {
         })
       )
 
-      const repo = await client.getRepository({ owner: 'many-topics', repo: 'repository' })
+      const repo = await client.getRepository('many-topics', 'repository')
       expect(repo).toBeDefined()
       expect(repo.topics.length).toBe(1000)
       expect(repo.topics[0]).toBe('topic-0')
@@ -445,7 +441,7 @@ describe('GitHub Data Edge Cases', () => {
         })
       )
 
-      const repo = await client.getRepository({ owner: 'large-license', repo: 'repository' })
+      const repo = await client.getRepository('large-license', 'repository')
       expect(repo).toBeDefined()
       expect(repo.license?.body?.length).toBe(50000)
     })
@@ -465,7 +461,7 @@ describe('GitHub Data Edge Cases', () => {
         })
       )
 
-      const repo = await client.getRepository({ owner: 'mixed-types', repo: 'repository' })
+      const repo = await client.getRepository('mixed-types', 'repository')
       expect(repo).toBeDefined()
       expect(Array.isArray(repo.topics)).toBe(true)
       // Should handle mixed types appropriately
@@ -490,7 +486,7 @@ describe('GitHub Data Edge Cases', () => {
         })
       )
 
-      const repo = await client.getRepository({ owner: 'date-formats', repo: 'repository' })
+      const repo = await client.getRepository('date-formats', 'repository')
       expect(repo).toBeDefined()
       expect(repo.created_at).toBeTruthy()
       expect(repo.updated_at).toBeTruthy()
@@ -516,7 +512,7 @@ describe('GitHub Data Edge Cases', () => {
         })
       )
 
-      const repo = await client.getRepository({ owner: 'owner-mismatch', repo: 'repository' })
+      const repo = await client.getRepository('owner-mismatch', 'repository')
       expect(repo).toBeDefined()
       expect(repo.owner.login).toBe('different-owner')
       expect(repo.full_name).toBe('different-owner/repository')
@@ -540,7 +536,7 @@ describe('GitHub Data Edge Cases', () => {
         })
       )
 
-      const repo = await client.getRepository({ owner: 'duplicates', repo: 'repository' })
+      const repo = await client.getRepository('duplicates', 'repository')
       expect(repo).toBeDefined()
       expect(repo.watchers_count).toBe(100)
       expect(repo.stargazers_count).toBe(50)
@@ -564,7 +560,7 @@ describe('GitHub Data Edge Cases', () => {
         })
       )
 
-      const repo = await client.getRepository({ owner: 'constraints', repo: 'repository' })
+      const repo = await client.getRepository('constraints', 'repository')
       expect(repo).toBeDefined()
       // Should handle constraint violations gracefully
       expect(repo.fork).toBe(true)
@@ -587,7 +583,7 @@ describe('GitHub Data Edge Cases', () => {
       )
 
       try {
-        await client.getRepository({ owner: 'invalid-data', repo: 'first' })
+        await client.getRepository('invalid-data', 'first')
         // May succeed or fail depending on validation
       } catch {
         // Expected for invalid data
@@ -619,7 +615,7 @@ describe('GitHub Data Edge Cases', () => {
       )
 
       try {
-        const repo = await client.getRepository({ owner: 'partial-corruption', repo: 'repository' })
+        const repo = await client.getRepository('partial-corruption', 'repository')
         // Should get what data is recoverable
         expect(repo.id).toBe(123456)
         expect(repo.description).toBe('Valid description')

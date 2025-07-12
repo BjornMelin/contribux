@@ -3,15 +3,14 @@
  * Tests security monitoring, alerting, and analytics functionality
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { Redis } from '@redis/client'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { AuditEventType, AuditSeverity, auditLogger } from '@/lib/security/audit-logger'
 import {
+  type AlertConfig,
+  type SecurityAlert,
+  type SecurityMetrics,
   SecurityMonitoringDashboard,
-  SecurityMetrics,
-  AlertConfig,
-  SecurityAlert,
 } from '@/lib/security/monitoring-dashboard'
-import { auditLogger, AuditEventType, AuditSeverity } from '@/lib/security/audit-logger'
 
 // Mock Redis
 vi.mock('@redis/client', () => ({
@@ -42,9 +41,23 @@ vi.mock('@/lib/security/audit-logger', () => ({
   },
 }))
 
+// Type for mock Redis client
+interface MockRedisClient {
+  keys: ReturnType<typeof vi.fn>
+  get: ReturnType<typeof vi.fn>
+  set: ReturnType<typeof vi.fn>
+  del: ReturnType<typeof vi.fn>
+}
+
+// Type for accessing private dashboard methods in tests
+interface SecurityMonitoringDashboardWithPrivates extends SecurityMonitoringDashboard {
+  activeAlerts: Map<string, SecurityAlert>
+  checkAlerts(metrics: SecurityMetrics): Promise<void>
+}
+
 describe('SecurityMonitoringDashboard', () => {
   let dashboard: SecurityMonitoringDashboard
-  let mockRedis: any
+  let mockRedis: MockRedisClient
 
   beforeEach(() => {
     mockRedis = {
@@ -53,9 +66,9 @@ describe('SecurityMonitoringDashboard', () => {
       set: vi.fn(),
       del: vi.fn(),
     }
-    
+
     dashboard = new SecurityMonitoringDashboard(mockRedis)
-    
+
     // Mock timer functions
     vi.useFakeTimers()
   })
@@ -73,7 +86,7 @@ describe('SecurityMonitoringDashboard', () => {
         { type: AuditEventType.AUTH_FAILURE, timestamp: new Date() },
         { type: AuditEventType.API_ACCESS, timestamp: new Date() },
         { type: AuditEventType.API_RATE_LIMIT, timestamp: new Date() },
-        { 
+        {
           type: AuditEventType.SECURITY_VIOLATION,
           timestamp: new Date(),
           metadata: { violationType: 'xss' },
@@ -123,12 +136,12 @@ describe('SecurityMonitoringDashboard', () => {
 
     it('should detect suspicious authentication patterns', async () => {
       const mockEvents = [
-        { 
+        {
           type: AuditEventType.AUTH_FAILURE,
           timestamp: new Date(),
           metadata: { suspicious: true },
         },
-        { 
+        {
           type: AuditEventType.AUTH_FAILURE,
           timestamp: new Date(),
           metadata: { suspicious: false },
@@ -158,11 +171,13 @@ describe('SecurityMonitoringDashboard', () => {
     })
 
     it('should detect brute force attempts', async () => {
-      const mockEvents = Array(6).fill(null).map(() => ({
-        type: AuditEventType.AUTH_FAILURE,
-        timestamp: new Date(),
-        actor: { ip: '192.168.1.1' },
-      }))
+      const mockEvents = Array(6)
+        .fill(null)
+        .map(() => ({
+          type: AuditEventType.AUTH_FAILURE,
+          timestamp: new Date(),
+          actor: { ip: '192.168.1.1' },
+        }))
 
       vi.mocked(auditLogger.query).mockResolvedValue(mockEvents)
 
@@ -173,11 +188,11 @@ describe('SecurityMonitoringDashboard', () => {
 
     it('should detect SQL injection attempts', async () => {
       const mockEvents = [
-        { 
+        {
           type: AuditEventType.SECURITY_VIOLATION,
           metadata: { threat: 'sql_injection' },
         },
-        { 
+        {
           type: AuditEventType.SECURITY_VIOLATION,
           reason: 'SQL injection detected',
         },
@@ -214,10 +229,12 @@ describe('SecurityMonitoringDashboard', () => {
 
   describe('alert management', () => {
     it('should trigger alerts when thresholds are exceeded', async () => {
-      const mockEvents = Array(15).fill(null).map(() => ({
-        type: AuditEventType.AUTH_FAILURE,
-        timestamp: new Date(),
-      }))
+      const mockEvents = Array(15)
+        .fill(null)
+        .map(() => ({
+          type: AuditEventType.AUTH_FAILURE,
+          timestamp: new Date(),
+        }))
 
       vi.mocked(auditLogger.query).mockResolvedValue(mockEvents)
 
@@ -232,10 +249,12 @@ describe('SecurityMonitoringDashboard', () => {
     })
 
     it('should respect alert cooldown periods', async () => {
-      const mockEvents = Array(15).fill(null).map(() => ({
-        type: AuditEventType.AUTH_FAILURE,
-        timestamp: new Date(),
-      }))
+      const mockEvents = Array(15)
+        .fill(null)
+        .map(() => ({
+          type: AuditEventType.AUTH_FAILURE,
+          timestamp: new Date(),
+        }))
 
       vi.mocked(auditLogger.query).mockResolvedValue(mockEvents)
 
@@ -281,7 +300,7 @@ describe('SecurityMonitoringDashboard', () => {
       }
 
       // Use the dashboard's internal method to add the alert
-      ;(dashboard as any).activeAlerts.set(alert.id, alert)
+      ;(dashboard as SecurityMonitoringDashboardWithPrivates).activeAlerts.set(alert.id, alert)
 
       await dashboard.acknowledgeAlert('alert123', 'user123')
 
@@ -307,8 +326,7 @@ describe('SecurityMonitoringDashboard', () => {
         metrics: {},
         status: 'active',
       }
-
-      ;(dashboard as any).activeAlerts.set(alert.id, alert)
+      ;(dashboard as SecurityMonitoringDashboardWithPrivates).activeAlerts.set(alert.id, alert)
 
       await dashboard.resolveAlert('alert456', 'user123', 'Fixed the issue')
 
@@ -327,19 +345,25 @@ describe('SecurityMonitoringDashboard', () => {
   describe('getDashboardSummary', () => {
     it('should generate dashboard summary with recommendations', async () => {
       const mockEvents = [
-        ...Array(20).fill(null).map(() => ({
-          type: AuditEventType.AUTH_FAILURE,
-          timestamp: new Date(),
-        })),
-        ...Array(10).fill(null).map(() => ({
-          type: AuditEventType.AUTH_SUCCESS,
-          timestamp: new Date(),
-        })),
-        ...Array(5).fill(null).map(() => ({
-          type: AuditEventType.API_ACCESS,
-          metadata: { statusCode: 500 },
-          timestamp: new Date(),
-        })),
+        ...Array(20)
+          .fill(null)
+          .map(() => ({
+            type: AuditEventType.AUTH_FAILURE,
+            timestamp: new Date(),
+          })),
+        ...Array(10)
+          .fill(null)
+          .map(() => ({
+            type: AuditEventType.AUTH_SUCCESS,
+            timestamp: new Date(),
+          })),
+        ...Array(5)
+          .fill(null)
+          .map(() => ({
+            type: AuditEventType.API_ACCESS,
+            metadata: { statusCode: 500 },
+            timestamp: new Date(),
+          })),
       ]
 
       vi.mocked(auditLogger.query).mockResolvedValue(mockEvents)
@@ -370,8 +394,10 @@ describe('SecurityMonitoringDashboard', () => {
         metrics: {},
         status: 'active',
       }
-
-      ;(dashboard as any).activeAlerts.set(criticalAlert.id, criticalAlert)
+      ;(dashboard as SecurityMonitoringDashboardWithPrivates).activeAlerts.set(
+        criticalAlert.id,
+        criticalAlert
+      )
 
       vi.mocked(auditLogger.query).mockResolvedValue([])
 
@@ -459,14 +485,14 @@ describe('SecurityMonitoringDashboard', () => {
         cooldownMinutes: 5,
         actions: [{ type: 'log', config: {} }],
       }
-      
+
       dashboard.addAlert(gtAlert)
-      
+
       vi.mocked(auditLogger.query).mockResolvedValue([])
-      
+
       // Manually trigger alert checking
-      await (dashboard as any).checkAlerts(metrics)
-      
+      await (dashboard as SecurityMonitoringDashboardWithPrivates).checkAlerts(metrics)
+
       expect(auditLogger.log).toHaveBeenCalledWith(
         expect.objectContaining({
           action: expect.stringContaining('Security alert triggered'),
@@ -478,12 +504,12 @@ describe('SecurityMonitoringDashboard', () => {
   describe('automatic metrics collection', () => {
     it('should start collecting metrics periodically', async () => {
       vi.mocked(auditLogger.query).mockResolvedValue([])
-      
+
       const collectSpy = vi.spyOn(dashboard, 'collectMetrics')
-      
+
       // Fast-forward time by 1 minute
       await vi.advanceTimersByTimeAsync(60000)
-      
+
       expect(collectSpy).toHaveBeenCalled()
     })
   })

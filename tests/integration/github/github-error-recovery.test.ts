@@ -10,9 +10,9 @@
  * - Circuit breaker patterns and health checks
  */
 
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GitHubClient } from '@/lib/github/client'
 import { GitHubError } from '@/lib/github/errors'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockGitHubAPI } from '../msw-setup'
 import { setupGitHubTestIsolation } from '../test-helpers'
 
@@ -43,9 +43,7 @@ describe('GitHub Error Recovery & Resilience Integration', () => {
       })
 
       // Test with a repository that triggers timeout
-      await expect(
-        client.getRepository({ owner: 'timeout-test', repo: 'timeout-repo-unique' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('timeout-test', 'timeout-repo-unique')).rejects.toThrow()
     })
 
     it('should implement proper retry mechanisms', async () => {
@@ -62,7 +60,7 @@ describe('GitHub Error Recovery & Resilience Integration', () => {
       const start = Date.now()
 
       try {
-        await client.getRepository({ owner: 'retry-test', repo: 'retry-repo-unique' })
+        await client.getRepository('retry-test', 'retry-repo-unique')
       } catch (error) {
         const duration = Date.now() - start
         // Should have attempted retries (taking some time)
@@ -78,7 +76,7 @@ describe('GitHub Error Recovery & Resilience Integration', () => {
       })
 
       await expect(
-        client.getRepository({ owner: 'connection-test', repo: 'connection-refused-unique' })
+        client.getRepository('connection-test', 'connection-refused-unique')
       ).rejects.toThrow(GitHubError)
     })
 
@@ -122,9 +120,7 @@ describe('GitHub Error Recovery & Resilience Integration', () => {
 
       const start = Date.now()
 
-      await expect(
-        client.getRepository({ owner: 'test', repo: 'rate-limited-unique' })
-      ).rejects.toThrow(GitHubError)
+      await expect(client.getRepository('test', 'rate-limited-unique')).rejects.toThrow(GitHubError)
 
       const duration = Date.now() - start
       // Should have waited due to rate limit headers
@@ -137,9 +133,9 @@ describe('GitHub Error Recovery & Resilience Integration', () => {
         retry: { retries: 1 },
       })
 
-      await expect(
-        client.getRepository({ owner: 'test', repo: 'secondary-limit-unique' })
-      ).rejects.toThrow(GitHubError)
+      await expect(client.getRepository('test', 'secondary-limit-unique')).rejects.toThrow(
+        GitHubError
+      )
     })
 
     it('should gracefully handle 5xx server errors', async () => {
@@ -149,7 +145,7 @@ describe('GitHub Error Recovery & Resilience Integration', () => {
       })
 
       await expect(
-        client.getRepository({ owner: 'server-error-test', repo: 'server-error-repo-unique' })
+        client.getRepository('server-error-test', 'server-error-repo-unique')
       ).rejects.toThrow(GitHubError)
     })
 
@@ -159,7 +155,7 @@ describe('GitHub Error Recovery & Resilience Integration', () => {
       })
 
       await expect(
-        client.getRepository({ owner: 'validation-test', repo: 'validation-error-repo-unique' })
+        client.getRepository('validation-test', 'validation-error-repo-unique')
       ).rejects.toThrow(GitHubError)
     })
 
@@ -169,7 +165,7 @@ describe('GitHub Error Recovery & Resilience Integration', () => {
       })
 
       await expect(
-        client.getRepository({ owner: 'malformed-test', repo: 'malformed-repo-unique' })
+        client.getRepository('malformed-test', 'malformed-repo-unique')
       ).rejects.toThrow()
     })
   })
@@ -180,9 +176,9 @@ describe('GitHub Error Recovery & Resilience Integration', () => {
         auth: { type: 'token', token: 'test_token' },
       })
 
-      await expect(
-        client.getRepository({ owner: 'test', repo: 'bad-credentials-unique' })
-      ).rejects.toThrow(GitHubError)
+      await expect(client.getRepository('test', 'bad-credentials-unique')).rejects.toThrow(
+        GitHubError
+      )
     })
 
     it('should handle token expiration scenarios', async () => {
@@ -198,9 +194,7 @@ describe('GitHub Error Recovery & Resilience Integration', () => {
         auth: { type: 'token', token: 'limited_token' },
       })
 
-      await expect(
-        client.getRepository({ owner: 'private-org', repo: 'private-repo' })
-      ).rejects.toThrow(GitHubError)
+      await expect(client.getRepository('private-org', 'private-repo')).rejects.toThrow(GitHubError)
     })
   })
 
@@ -216,9 +210,7 @@ describe('GitHub Error Recovery & Resilience Integration', () => {
       expect(user.login).toBe('testuser')
 
       // But repository access might fail
-      await expect(
-        client.getRepository({ owner: 'outage-test', repo: 'outage-repo-unique' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('outage-test', 'outage-repo-unique')).rejects.toThrow()
     })
 
     it('should implement graceful fallback strategies', async () => {
@@ -228,7 +220,7 @@ describe('GitHub Error Recovery & Resilience Integration', () => {
 
       try {
         // Primary endpoint might fail
-        await client.getRepository({ owner: 'fallback-test', repo: 'fallback-repo-unique' })
+        await client.getRepository('fallback-test', 'fallback-repo-unique')
       } catch (primaryError) {
         expect(primaryError).toBeInstanceOf(GitHubError)
 
@@ -286,7 +278,7 @@ describe('GitHub Error Recovery & Resilience Integration', () => {
       let _firstAttemptFailed = false
 
       try {
-        await client.getRepository({ owner: 'recovery-test', repo: 'recovery-repo-unique' })
+        await client.getRepository('recovery-test', 'recovery-repo-unique')
       } catch (_error) {
         _firstAttemptFailed = true
       }
@@ -305,13 +297,13 @@ describe('GitHub Error Recovery & Resilience Integration', () => {
 
       // Collect errors from multiple failed requests
       try {
-        await client.getRepository({ owner: 'error-tracking-test', repo: 'error-repo-1' })
+        await client.getRepository('error-tracking-test', 'error-repo-1')
       } catch (error) {
         errors.push({ type: 'repository', error })
       }
 
       try {
-        await client.getRepository({ owner: 'error-tracking-test', repo: 'error-repo-2' })
+        await client.getRepository('error-tracking-test', 'error-repo-2')
       } catch (error) {
         errors.push({ type: 'repository', error })
       }
@@ -330,7 +322,7 @@ describe('GitHub Error Recovery & Resilience Integration', () => {
       })
 
       // Repository with large data should be handled
-      const repo = await client.getRepository({ owner: 'testowner', repo: 'testrepo' })
+      const repo = await client.getRepository('testowner', 'testrepo')
       expect(repo.name).toBe('testrepo')
     })
 
@@ -339,9 +331,7 @@ describe('GitHub Error Recovery & Resilience Integration', () => {
         auth: { type: 'token', token: 'test_token' },
       })
 
-      await expect(
-        client.getRepository({ owner: 'unicode-test-😀', repo: 'unicode-repo-unique' })
-      ).rejects.toThrow()
+      await expect(client.getRepository('unicode-test-😀', 'unicode-repo-unique')).rejects.toThrow()
     })
 
     it('should handle rapid successive error conditions', async () => {
@@ -393,10 +383,7 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('Real API Error Recovery Integration', (
   describe('Real-world Error Scenarios', () => {
     it('should handle non-existent repository gracefully', async () => {
       await expect(
-        client.getRepository({
-          owner: 'definitely-does-not-exist-123456789',
-          repo: 'also-does-not-exist-987654321',
-        })
+        client.getRepository('definitely-does-not-exist-123456789', 'also-does-not-exist-987654321')
       ).rejects.toThrow(GitHubError)
     }, 10000)
 
@@ -406,10 +393,7 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('Real API Error Recovery Integration', (
       expect(rateLimit.core.remaining).toBeGreaterThanOrEqual(0)
 
       // Make a request and check rate limit again
-      await client.getRepository({
-        owner: 'microsoft',
-        repo: 'vscode',
-      })
+      await client.getRepository('microsoft', 'vscode')
 
       const newRateLimit = await client.getRateLimit()
       expect(newRateLimit.core.remaining).toBeLessThanOrEqual(rateLimit.core.remaining)
@@ -420,10 +404,7 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('Real API Error Recovery Integration', (
       const start = Date.now()
 
       try {
-        const repo = await client.getRepository({
-          owner: 'facebook',
-          repo: 'react',
-        })
+        const repo = await client.getRepository('facebook', 'react')
 
         expect(repo.name).toBe('react')
         expect(repo.owner.login).toBe('facebook')

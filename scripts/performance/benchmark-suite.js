@@ -308,8 +308,14 @@ class PerformanceBenchmarks {
         WHERE schemaname = 'public'
         ORDER BY idx_tup_read DESC
       `
-      indexStats.slice(0, 10).forEach(_stat => {})
-    } catch (_error) {}
+      indexStats.slice(0, 10).forEach(stat => {
+        console.log(
+          `Index: ${stat.indexname}, Scans: ${stat.idx_scan}, Tuples: ${stat.idx_tup_read}`
+        )
+      })
+    } catch (error) {
+      console.error('Error fetching index statistics:', error.message)
+    }
   }
 
   async benchmarkCacheOperations() {

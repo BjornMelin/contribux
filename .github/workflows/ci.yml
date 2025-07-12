@@ -1,0 +1,90 @@
+name: Basic CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  # Mock environment variables for basic CI (no database dependencies)
+  NEXTAUTH_SECRET: "test-secret-for-ci-only-not-production"
+  NEXTAUTH_URL: "http://localhost:3000"
+  
+  # Mock GitHub credentials for testing (not real tokens!)
+  GITHUB_CLIENT_ID: "mock_github_client_id_for_testing"
+  GITHUB_CLIENT_SECRET: "mock_github_client_secret_for_testing"
+  GITHUB_TOKEN: "ghp_mock_token_for_testing_only_1234567890"
+  
+  # OpenTelemetry for testing
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://localhost:4318"
+
+jobs:
+  basic-checks:
+    name: Code Quality & Build
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run type checking
+        run: pnpm type-check
+
+      - name: Run linting
+        run: pnpm lint
+
+      - name: Run unit tests (non-database)
+        run: pnpm test:unit
+        env:
+          NODE_ENV: test
+          # Use mock database URL for unit tests that don't need real DB
+          DATABASE_URL: "postgresql://mock:mock@localhost:5432/mock_db"
+
+      - name: Build application
+        run: pnpm build
+        env:
+          NODE_ENV: production
+          # Mock DATABASE_URL for build process
+          DATABASE_URL: "postgresql://mock:mock@localhost:5432/mock_db"
+
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Security audit
+        run: |
+          # Run security audit with proper error handling
+          pnpm audit --audit-level high
+          pnpm outdated

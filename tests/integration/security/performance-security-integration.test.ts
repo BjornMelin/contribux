@@ -13,7 +13,7 @@
  * - Security monitoring performance impact
  */
 
-import { http, HttpResponse } from 'msw'
+import { HttpResponse, http } from 'msw'
 import { setupServer } from 'msw/node'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
@@ -140,7 +140,10 @@ describe('Performance Security Integration Tests', () => {
             rateLimitStore.set(userId, { count: 0, timestamps: [] })
           }
 
-          const userLimit = rateLimitStore.get(userId)!
+          const userLimit = rateLimitStore.get(userId)
+          if (!userLimit) {
+            throw new Error('Rate limit data not found after initialization')
+          }
 
           // Clean old timestamps
           userLimit.timestamps = userLimit.timestamps.filter(ts => now - ts < windowSize)

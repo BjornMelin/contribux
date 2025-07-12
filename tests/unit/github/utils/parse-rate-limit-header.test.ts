@@ -8,8 +8,8 @@
  * - Edge cases (NaN, Infinity, negative numbers)
  */
 
-import { parseRateLimitHeader } from '@/lib/github/utils'
 import { describe, expect, it } from 'vitest'
+import { parseRateLimitHeader } from '@/lib/github/utils'
 
 describe('parseRateLimitHeader', () => {
   describe('Valid Input Handling', () => {

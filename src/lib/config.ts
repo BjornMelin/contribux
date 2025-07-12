@@ -52,7 +52,7 @@ export const appConfig = {
   },
 
   features: {
-    enterprise: env.DEMO_ENTERPRISE === 'true',
+    enterprise: env.DEMO_ENTERPRISE,
   },
 
   monitoring: {

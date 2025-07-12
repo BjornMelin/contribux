@@ -3,10 +3,10 @@
  * Handles MFA settings management (get, update, disable)
  */
 
-import { getMFASettings, regenerateBackupCodes, updateMFASettings } from '@/lib/auth/mfa-service'
-import type { User } from '@/types/auth'
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { getMFASettings, regenerateBackupCodes, updateMFASettings } from '@/lib/auth/mfa-service'
+import type { User } from '@/types/auth'
 
 const UpdateMFASettingsSchema = z.object({
   enabled: z.boolean().optional(),

@@ -8,9 +8,9 @@
  * - Enhanced cleanup patterns
  */
 
+import { afterEach, beforeEach, vi } from 'vitest'
 import type { GitHubClient } from '@/lib/github'
 import type { GitHubClientConfig } from '@/lib/github/client'
-import { afterEach, beforeEach, vi } from 'vitest'
 import { mockGitHubAPI } from './msw-setup'
 
 // Store references to created clients for cleanup

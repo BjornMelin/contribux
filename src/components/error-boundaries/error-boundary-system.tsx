@@ -18,6 +18,7 @@ import {
   type Result,
   Success,
 } from '@/lib/types/advanced'
+import { isDevelopment } from '@/lib/validation/env'
 
 // Base error boundary component
 interface ErrorBoundaryProps extends PropsWithChildren {
@@ -148,7 +149,7 @@ function DefaultErrorFallback({ error, retry, reset, canRetry }: ErrorFallbackPr
             Reset
           </Button>
         </div>
-        {process.env.NODE_ENV === 'development' && (
+        {isDevelopment() && (
           <details className="mt-4 text-left">
             <summary className="cursor-pointer text-destructive/70 text-sm">
               Error Details (Development)

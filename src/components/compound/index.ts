@@ -4,8 +4,8 @@
  */
 
 export { SearchContainer } from './search-container'
-export { SearchInput, SearchButton, SearchClearButton } from './search-input'
-export { SearchFilter, SearchActiveFilters } from './search-filters'
-export { SearchResults, SearchPagination, SearchStats } from './search-results'
-export { useSearch } from './search-context'
 export type { SearchContextValue, SearchResult } from './search-context'
+export { useSearch } from './search-context'
+export { SearchActiveFilters, SearchFilter } from './search-filters'
+export { SearchButton, SearchClearButton, SearchInput } from './search-input'
+export { SearchPagination, SearchResults, SearchStats } from './search-results'

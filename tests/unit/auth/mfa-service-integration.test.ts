@@ -4,18 +4,18 @@
  * Tests user enrollment flow, authentication flow, and recovery procedures
  */
 
+import type { NextRequest } from 'next/server'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  MFA_SECURITY,
   enrollMFA,
   generateDeviceFingerprint,
   getMFASettings,
+  MFA_SECURITY,
   regenerateBackupCodes,
   updateMFASettings,
   verifyMFA,
 } from '@/lib/auth/mfa-service'
 import type { MFAEnrollmentRequest, MFASettings, MFAVerificationRequest, User } from '@/types/auth'
-import type { NextRequest } from 'next/server'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock the MFA implementation modules
 vi.mock('@/lib/auth/totp', () => ({

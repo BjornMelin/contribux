@@ -5,8 +5,8 @@
 
 'use client'
 
-import { useBeginnerOpportunities } from '@/lib/api/hooks/use-opportunities'
 import { memo } from 'react'
+import { useBeginnerOpportunities } from '@/lib/api/hooks/use-opportunities'
 
 export const BeginnerSidebar = memo(function BeginnerSidebar() {
   const { data: beginnerOpportunities, isLoading: beginnerLoading } = useBeginnerOpportunities({

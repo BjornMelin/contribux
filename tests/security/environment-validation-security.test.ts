@@ -28,7 +28,9 @@ describe('Environment Variable Security', () => {
     })
 
     // Mock console.error to capture security error output
-    mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {
+      /* intentionally empty - suppress console output during tests */
+    })
 
     // Clear security-related environment variables for clean test state
     const securityVars = [
@@ -434,7 +436,7 @@ describe('Environment Variable Security', () => {
 
       // Test for potential injection patterns
       const injectionPatterns = [
-        '${OTHER_VAR}',
+        '$' + '{OTHER_VAR}',
         '$(command)',
         '`command`',
         '$((expression))',

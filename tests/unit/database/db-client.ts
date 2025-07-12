@@ -3,10 +3,10 @@
  * Provides a unified interface using TestDatabaseManager
  */
 
-import { TestDatabaseManager } from '@/lib/test-utils/test-database-manager'
 import type { NeonQueryFunction } from '@neondatabase/serverless'
 import { config } from 'dotenv'
 import { Client } from 'pg'
+import { TestDatabaseManager } from '@/lib/test-utils/test-database-manager'
 
 // Load test environment variables
 config({ path: '.env.test' })
@@ -49,8 +49,12 @@ export async function executeSql<T extends QueryRow = QueryRow>(
     return result.rows
   }
 
-  // Get connection from TestDatabaseManager
-  const connection = await dbManager.getConnection('db-client-test', {})
+  // Get connection from TestDatabaseManager with explicit mock strategy for tests
+  const connection = await dbManager.getConnection('db-client-test', {
+    strategy: 'mock',
+    cleanup: 'rollback',
+    verbose: false,
+  })
 
   // Execute query using the managed connection's sql function
   const results = await executeWithConnection(connection.sql, query, params)
@@ -122,8 +126,12 @@ export const sql: SqlTemplateFunction = async function sql<T extends QueryRow = 
   strings: TemplateStringsArray,
   ...values: unknown[]
 ): Promise<T[]> {
-  // Get connection from TestDatabaseManager
-  const connection = await dbManager.getConnection('sql-template-test', {})
+  // Get connection from TestDatabaseManager with explicit mock strategy for tests
+  const connection = await dbManager.getConnection('sql-template-test', {
+    strategy: 'mock',
+    cleanup: 'rollback',
+    verbose: false,
+  })
 
   // Process values for special types (vectors, arrays)
   const processedValues = values.map(value => {
@@ -147,8 +155,12 @@ export const sql: SqlTemplateFunction = async function sql<T extends QueryRow = 
  * Uses TestDatabaseManager configuration
  */
 export async function createTestClient(): Promise<Client> {
-  // Get a connection to check the strategy
-  const connection = await dbManager.getConnection('createTestClient-check', {})
+  // Get a connection to check the strategy with explicit mock strategy for tests
+  const connection = await dbManager.getConnection('createTestClient-check', {
+    strategy: 'mock',
+    cleanup: 'rollback',
+    verbose: false,
+  })
 
   if (connection.strategy === 'neon-transaction' || connection.strategy === 'neon-branch') {
     // For Neon strategies, we can get the connection string from environment
@@ -169,8 +181,12 @@ export async function createTestClient(): Promise<Client> {
  * Uses TestDatabaseManager to determine the appropriate strategy
  */
 export async function withTransaction<T>(fn: (client: Client) => Promise<T>): Promise<T> {
-  // Get a connection to check the strategy
-  const connection = await dbManager.getConnection('withTransaction-check', {})
+  // Get a connection to check the strategy with explicit mock strategy for tests
+  const connection = await dbManager.getConnection('withTransaction-check', {
+    strategy: 'mock',
+    cleanup: 'rollback',
+    verbose: false,
+  })
 
   if (connection.strategy === 'pglite') {
     throw new Error(
@@ -202,8 +218,12 @@ export async function withTransaction<T>(fn: (client: Client) => Promise<T>): Pr
  * Uses TestDatabaseManager to determine the strategy
  */
 export async function isLocalPostgres(): Promise<boolean> {
-  // Get a connection to check the strategy
-  const connection = await dbManager.getConnection('isLocalPostgres-check', {})
+  // Get a connection to check the strategy with explicit mock strategy for tests
+  const connection = await dbManager.getConnection('isLocalPostgres-check', {
+    strategy: 'mock',
+    cleanup: 'rollback',
+    verbose: false,
+  })
   return connection.strategy !== 'pglite'
 }
 

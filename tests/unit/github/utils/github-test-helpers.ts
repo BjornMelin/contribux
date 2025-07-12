@@ -21,28 +21,25 @@ export const getPrivateCacheKey = (
 }
 
 /**
- * Test client configuration options
+ * Test client configuration options - Updated for simplified GitHubClient
  */
 export const testClientConfigs = {
   basicToken: {
-    auth: { type: 'token' as const, token: 'ghp_test_token' },
+    accessToken: 'ghp_test_token',
   },
   tokenWithCache: {
-    auth: { type: 'token' as const, token: 'ghp_test_token' },
-    cache: { maxSize: 100, maxAge: 60000 },
+    accessToken: 'ghp_test_token',
+    // Note: cache config is internal to GitHubClient, not configurable
   },
   customConfig: {
-    auth: { type: 'token' as const, token: 'ghp_test_token' },
+    accessToken: 'ghp_test_token',
     baseUrl: 'https://api.github.com',
     userAgent: 'test-agent/1.0',
-    cache: {
-      maxSize: 500,
-      maxAge: 300000,
-    },
+    timeout: 30000,
   },
   retryConfig: {
-    auth: { type: 'token' as const, token: 'ghp_test_token' },
-    retry: { retries: 2, doNotRetry: [] },
+    accessToken: 'ghp_test_token',
+    timeout: 10000,
   },
 } as const
 
@@ -167,22 +164,18 @@ export const testGraphQLQueries = {
  */
 export const testSearchParams = {
   basic: {
-    q: 'test',
-    sort: 'stars' as const,
-    order: 'desc' as const,
+    query: 'test',
   },
   withPagination: {
-    q: 'test',
-    sort: 'stars' as const,
-    order: 'desc' as const,
-    per_page: 5,
+    query: 'test',
+    perPage: 5,
   },
   large: {
-    q: 'javascriptlargepage',
-    per_page: 100,
+    query: 'javascriptlargepage',
+    perPage: 100,
   },
   empty: {
-    q: 'nonexistentquery12345unique',
+    query: 'nonexistentquery12345unique',
   },
 } as const
 
@@ -216,9 +209,9 @@ export const testPRParams = {
  */
 export const cacheKeyTestCases = {
   differentOrder: [
-    { owner: 'test', repo: 'repo', page: 1, per_page: 10 },
-    { per_page: 10, page: 1, repo: 'repo', owner: 'test' },
-    { repo: 'repo', owner: 'test', per_page: 10, page: 1 },
+    { owner: 'test', repo: 'repo', page: 1, perPage: $1 },
+    { perPage: $1, page: 1, repo: 'repo', owner: 'test' },
+    { repo: 'repo', owner: 'test', perPage: $1, page: 1 },
   ],
   differentValues: [
     { owner: 'test1', repo: 'repo' },
@@ -256,7 +249,7 @@ export const cacheKeyTestCases = {
     },
     sort: 'updated',
     order: 'desc',
-    per_page: 100,
+    perPage: $1,
     page: 1,
   },
 } as const
@@ -282,7 +275,7 @@ export function createConcurrentTestPromises(client: GitHubClient) {
   return [
     client.getAuthenticatedUser(),
     client.getUser('testuser'),
-    client.getRepository({ owner: 'testowner', repo: 'testrepo' }),
+    client.getRepository('testowner', 'testrepo'),
   ]
 }
 

@@ -1,10 +1,14 @@
 /**
- * Enhanced Logger with OpenTelemetry Integration
- * 
- * Extends the existing logger with trace correlation and structured logging
+ * Enhanced Logger with OpenTelemetry Integration and Pino Structured Logging
+ *
+ * Extends the Pino logger with trace correlation and telemetry context
  */
 
-import { logger as baseLogger, LogContext, SecurityEventContext } from '@/lib/logger'
+import {
+  compatibilityTelemetryLogger,
+  type LogContext,
+  type SecurityEventContext,
+} from '@/lib/logging'
 import { getTraceContext } from './utils'
 
 /**
@@ -22,54 +26,57 @@ class TelemetryLogger {
   /**
    * Add trace context to log context
    */
-  private enhanceContext(context?: LogContext): TelemetryLogContext {
+  private enhanceContext<T extends LogContext>(context?: T): T & TelemetryLogContext {
     const traceContext = getTraceContext()
     return {
       ...context,
       ...traceContext,
-    }
+    } as T & TelemetryLogContext
   }
 
   /**
    * Debug logging with trace context
    */
   debug(message: string, context?: LogContext): void {
-    baseLogger.debug(message, this.enhanceContext(context))
+    compatibilityTelemetryLogger.debug(message, this.enhanceContext(context))
   }
 
   /**
    * Info logging with trace context
    */
   info(message: string, context?: LogContext): void {
-    baseLogger.info(message, this.enhanceContext(context))
+    compatibilityTelemetryLogger.info(message, this.enhanceContext(context))
   }
 
   /**
    * Warning logging with trace context
    */
   warn(message: string, context?: LogContext): void {
-    baseLogger.warn(message, this.enhanceContext(context))
+    compatibilityTelemetryLogger.warn(message, this.enhanceContext(context))
   }
 
   /**
    * Error logging with trace context
    */
   error(message: string, error?: Error | unknown, context?: LogContext): void {
-    baseLogger.error(message, error, this.enhanceContext(context))
+    compatibilityTelemetryLogger.error(message, error, this.enhanceContext(context))
   }
 
   /**
    * Critical error logging with trace context
    */
   critical(message: string, error?: Error | unknown, context?: LogContext): void {
-    baseLogger.critical(message, error, this.enhanceContext(context))
+    compatibilityTelemetryLogger.critical(message, error, this.enhanceContext(context))
   }
 
   /**
    * Security event logging with trace context
    */
   security(message: string, context: SecurityEventContext): void {
-    baseLogger.security(message, this.enhanceContext(context) as SecurityEventContext)
+    compatibilityTelemetryLogger.security(
+      message,
+      this.enhanceContext(context) as SecurityEventContext
+    )
   }
 
   /**
@@ -84,17 +91,13 @@ class TelemetryLogger {
       statusCode?: number
     }
   ): void {
-    const level = context.statusCode && context.statusCode >= 400 ? 'error' : 'info'
-    const enhancedContext = this.enhanceContext({
-      ...context,
-      component: 'github-api',
-    })
-
-    if (level === 'error') {
-      this.error(message, undefined, enhancedContext)
-    } else {
-      this.info(message, enhancedContext)
-    }
+    compatibilityTelemetryLogger.githubApi(
+      message,
+      this.enhanceContext({
+        ...context,
+        component: 'github-api',
+      })
+    )
   }
 
   /**
@@ -104,7 +107,7 @@ class TelemetryLogger {
     message: string,
     context: LogContext & { operation: string; duration?: number; success: boolean }
   ): void {
-    baseLogger.database(message, this.enhanceContext(context))
+    compatibilityTelemetryLogger.database(message, this.enhanceContext(context))
   }
 
   /**
@@ -119,17 +122,13 @@ class TelemetryLogger {
       similarity?: number
     }
   ): void {
-    const level = context.duration && context.duration > 100 ? 'warn' : 'info'
-    const enhancedContext = this.enhanceContext({
-      ...context,
-      component: 'vector-search',
-    })
-
-    if (level === 'warn') {
-      this.warn(message, enhancedContext)
-    } else {
-      this.info(message, enhancedContext)
-    }
+    compatibilityTelemetryLogger.vectorSearch(
+      message,
+      this.enhanceContext({
+        ...context,
+        component: 'vector-search',
+      })
+    )
   }
 
   /**
@@ -143,10 +142,13 @@ class TelemetryLogger {
       ttl?: number
     }
   ): void {
-    this.debug(message, this.enhanceContext({
-      ...context,
-      component: 'cache',
-    }))
+    compatibilityTelemetryLogger.cache(
+      message,
+      this.enhanceContext({
+        ...context,
+        component: 'cache',
+      })
+    )
   }
 
   /**
@@ -156,28 +158,34 @@ class TelemetryLogger {
     message: string,
     context: LogContext & { duration: number; operation: string }
   ): void {
-    baseLogger.performance(message, this.enhanceContext(context))
+    compatibilityTelemetryLogger.performance(message, this.enhanceContext(context))
   }
 
   /**
    * API request logging with trace context
    */
   api(message: string, context: LogContext & { statusCode: number; duration?: number }): void {
-    baseLogger.api(message, this.enhanceContext(context))
+    compatibilityTelemetryLogger.api(message, this.enhanceContext(context))
   }
 
   /**
    * Authentication logging with trace context
    */
   auth(message: string, context: LogContext & { success: boolean; reason?: string }): void {
-    baseLogger.auth(message, this.enhanceContext(context) as LogContext & { success: boolean; reason?: string })
+    compatibilityTelemetryLogger.auth(
+      message,
+      this.enhanceContext(context) as LogContext & { success: boolean; reason?: string }
+    )
   }
 
   /**
    * Rate limiting logging with trace context
    */
   rateLimit(message: string, context: LogContext & { limit: number; current: number }): void {
-    baseLogger.rateLimit(message, this.enhanceContext(context) as LogContext & { limit: number; current: number })
+    compatibilityTelemetryLogger.rateLimit(
+      message,
+      this.enhanceContext(context) as LogContext & { limit: number; current: number }
+    )
   }
 
   /**
@@ -187,7 +195,13 @@ class TelemetryLogger {
     message: string,
     context: LogContext & { eventType: 'enrollment' | 'verification' | 'disable'; success: boolean }
   ): void {
-    baseLogger.mfa(message, this.enhanceContext(context) as LogContext & { eventType: 'enrollment' | 'verification' | 'disable'; success: boolean })
+    compatibilityTelemetryLogger.mfa(
+      message,
+      this.enhanceContext(context) as LogContext & {
+        eventType: 'enrollment' | 'verification' | 'disable'
+        success: boolean
+      }
+    )
   }
 }
 

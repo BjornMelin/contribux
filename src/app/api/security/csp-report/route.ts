@@ -1,35 +1,45 @@
 /**
  * CSP Violation Reporting Endpoint
- * 
+ *
  * Receives and processes Content Security Policy violation reports.
  * Implements rate limiting to prevent report flooding.
  */
 
-import { NextRequest, NextResponse } from 'next/server'
-import { auditLogger, AuditEventType, AuditSeverity } from '@/lib/security/audit-logger'
-import { SecurityMonitoringDashboard } from '@/lib/security/monitoring-dashboard'
+import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { AuditEventType, AuditSeverity, auditLogger } from '@/lib/security/audit-logger'
+import { SecurityMonitoringDashboard } from '@/lib/security/monitoring-dashboard'
 
 // Initialize services
-const monitoringDashboard = new SecurityMonitoringDashboard()
+const _monitoringDashboard = new SecurityMonitoringDashboard()
 
 // CSP Report schema (based on W3C spec)
 const cspReportSchema = z.object({
   'csp-report': z.object({
     'document-uri': z.string().url().optional(),
-    'referrer': z.string().optional(),
+    referrer: z.string().optional(),
     'violated-directive': z.string(),
     'effective-directive': z.string().optional(),
     'original-policy': z.string(),
-    'disposition': z.enum(['enforce', 'report']).optional(),
+    disposition: z.enum(['enforce', 'report']).optional(),
     'blocked-uri': z.string().optional(),
     'line-number': z.number().optional(),
     'column-number': z.number().optional(),
     'source-file': z.string().optional(),
     'status-code': z.number().optional(),
-    'script-sample': z.string().optional()
-  })
+    'script-sample': z.string().optional(),
+  }),
 })
+
+// TypeScript types
+type CSPReportData = z.infer<typeof cspReportSchema>['csp-report']
+
+interface ViolationAnalysis {
+  severity: AuditSeverity
+  message: string
+  isLikelyAttack: boolean
+  category: string
+}
 
 // Rate limiting for CSP reports (prevent flooding)
 const reportRateLimiter = new Map<string, { count: number; resetTime: number }>()
@@ -70,24 +80,20 @@ setInterval(() => {
 export async function POST(request: NextRequest) {
   try {
     // Get client IP for rate limiting
-    const clientIp = request.headers.get('x-forwarded-for') || 
-                    request.headers.get('x-real-ip') || 
-                    'unknown'
+    const clientIp =
+      request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
 
     // Check rate limit
     if (!checkRateLimit(clientIp)) {
-      return NextResponse.json(
-        { error: 'Rate limit exceeded' },
-        { status: 429 }
-      )
+      return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 })
     }
 
     // Parse and validate report
-    let report: any
+    let report: CSPReportData
     try {
       const body = await request.json()
       const validation = cspReportSchema.safeParse(body)
-      
+
       if (!validation.success) {
         // Log invalid report format
         await auditLogger.log({
@@ -96,28 +102,22 @@ export async function POST(request: NextRequest) {
           actor: {
             type: 'system',
             ip: clientIp,
-            userAgent: request.headers.get('user-agent') || 'unknown'
+            userAgent: request.headers.get('user-agent') || 'unknown',
           },
           action: 'Invalid CSP report format',
           result: 'failure',
           reason: 'Schema validation failed',
           metadata: {
-            errors: validation.error.errors
-          }
+            errors: validation.error.errors,
+          },
         })
 
-        return NextResponse.json(
-          { error: 'Invalid report format' },
-          { status: 400 }
-        )
+        return NextResponse.json({ error: 'Invalid report format' }, { status: 400 })
       }
 
       report = validation.data['csp-report']
-    } catch (error) {
-      return NextResponse.json(
-        { error: 'Invalid JSON' },
-        { status: 400 }
-      )
+    } catch (_error) {
+      return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
     }
 
     // Analyze the violation
@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
       actor: {
         type: 'system',
         ip: clientIp,
-        userAgent: request.headers.get('user-agent') || 'unknown'
+        userAgent: request.headers.get('user-agent') || 'unknown',
       },
       action: 'CSP violation reported',
       result: 'success',
@@ -144,8 +144,8 @@ export async function POST(request: NextRequest) {
         lineNumber: report['line-number'],
         columnNumber: report['column-number'],
         scriptSample: report['script-sample'],
-        analysis: violationAnalysis
-      }
+        analysis: violationAnalysis,
+      },
     })
 
     // TODO: Implement alert triggering when public API is available
@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
       actor: { type: 'system' },
       action: 'CSP report processing failed',
       result: 'failure',
-      reason: error instanceof Error ? error.message : 'Unknown error'
+      reason: error instanceof Error ? error.message : 'Unknown error',
     })
 
     return new NextResponse(null, { status: 204 })
@@ -169,82 +169,136 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Analyze CSP violation to determine severity and potential security impact
+ * Check for inline script violations (potential XSS)
  */
-function analyzeCSPViolation(report: any): {
-  severity: AuditSeverity
-  message: string
-  isLikelyAttack: boolean
-  category: string
-} {
-  const violatedDirective = report['violated-directive']
-  const blockedUri = report['blocked-uri'] || ''
-  const sourceFile = report['source-file'] || ''
-
-  // Check for inline script/style violations (potential XSS)
+function checkInlineScriptViolation(
+  violatedDirective: string,
+  blockedUri: string
+): ViolationAnalysis | null {
   if (violatedDirective.includes('script-src') && blockedUri.includes('inline')) {
     return {
       severity: AuditSeverity.ERROR,
       message: 'Inline script blocked - potential XSS attempt',
       isLikelyAttack: true,
-      category: 'xss'
+      category: 'xss',
     }
   }
+  return null
+}
 
-  // Check for data: URI violations (potential data exfiltration)
+/**
+ * Check for data URI violations (potential data exfiltration)
+ */
+function checkDataUriViolation(
+  violatedDirective: string,
+  blockedUri: string
+): ViolationAnalysis | null {
   if (blockedUri.startsWith('data:') && violatedDirective.includes('img-src')) {
     return {
       severity: AuditSeverity.WARNING,
       message: 'Data URI blocked in image source',
       isLikelyAttack: false,
-      category: 'data-uri'
+      category: 'data-uri',
     }
   }
+  return null
+}
 
-  // Check for external script violations
+/**
+ * Check for external script violations
+ */
+function checkExternalScriptViolation(
+  violatedDirective: string,
+  blockedUri: string
+): ViolationAnalysis | null {
   if (violatedDirective.includes('script-src') && blockedUri.includes('://')) {
-    const isKnownCDN = ['cdnjs.cloudflare.com', 'unpkg.com', 'jsdelivr.net']
-      .some(cdn => blockedUri.includes(cdn))
-    
+    const isKnownCDN = ['cdnjs.cloudflare.com', 'unpkg.com', 'jsdelivr.net'].some(cdn =>
+      blockedUri.includes(cdn)
+    )
+
     if (!isKnownCDN) {
       return {
         severity: AuditSeverity.ERROR,
         message: 'External script blocked from unknown source',
         isLikelyAttack: true,
-        category: 'external-script'
+        category: 'external-script',
       }
     }
   }
+  return null
+}
 
-  // Check for frame-ancestors violations (clickjacking attempts)
+/**
+ * Check for frame-ancestors violations (clickjacking attempts)
+ */
+function checkFrameAncestorsViolation(violatedDirective: string): ViolationAnalysis | null {
   if (violatedDirective.includes('frame-ancestors')) {
     return {
       severity: AuditSeverity.ERROR,
       message: 'Frame embedding attempt blocked - potential clickjacking',
       isLikelyAttack: true,
-      category: 'clickjacking'
+      category: 'clickjacking',
     }
   }
+  return null
+}
 
-  // Check for form-action violations
+/**
+ * Check for form-action violations
+ */
+function checkFormActionViolation(violatedDirective: string): ViolationAnalysis | null {
   if (violatedDirective.includes('form-action')) {
     return {
       severity: AuditSeverity.ERROR,
       message: 'Form submission to unauthorized target blocked',
       isLikelyAttack: true,
-      category: 'form-hijacking'
+      category: 'form-hijacking',
     }
   }
+  return null
+}
 
-  // Check for connect-src violations (API calls)
+/**
+ * Check for connect-src violations (API calls)
+ */
+function checkConnectSrcViolation(
+  violatedDirective: string,
+  blockedUri: string
+): ViolationAnalysis | null {
   if (violatedDirective.includes('connect-src')) {
     const isLocalhost = blockedUri.includes('localhost') || blockedUri.includes('127.0.0.1')
-    
+
     return {
       severity: isLocalhost ? AuditSeverity.DEBUG : AuditSeverity.WARNING,
       message: `API connection blocked to ${blockedUri}`,
       isLikelyAttack: !isLocalhost,
-      category: 'api-connection'
+      category: 'api-connection',
+    }
+  }
+  return null
+}
+
+/**
+ * Analyze CSP violation to determine severity and potential security impact
+ */
+function analyzeCSPViolation(report: CSPReportData): ViolationAnalysis {
+  const violatedDirective = report['violated-directive']
+  const blockedUri = report['blocked-uri'] || ''
+
+  // Check each violation type using helper functions
+  const violationChecks = [
+    checkInlineScriptViolation,
+    checkDataUriViolation,
+    checkExternalScriptViolation,
+    checkFrameAncestorsViolation,
+    checkFormActionViolation,
+    checkConnectSrcViolation,
+  ]
+
+  for (const checkFunction of violationChecks) {
+    const result = checkFunction(violatedDirective, blockedUri)
+    if (result) {
+      return result
     }
   }
 
@@ -253,7 +307,7 @@ function analyzeCSPViolation(report: any): {
     severity: AuditSeverity.WARNING,
     message: `CSP violation: ${violatedDirective}`,
     isLikelyAttack: false,
-    category: 'other'
+    category: 'other',
   }
 }
 
@@ -261,11 +315,8 @@ function analyzeCSPViolation(report: any): {
  * GET /api/security/csp-report
  * Get CSP violation statistics (admin only)
  */
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   // This endpoint could be used to retrieve CSP violation statistics
   // For now, return method not allowed
-  return NextResponse.json(
-    { error: 'Method not allowed' },
-    { status: 405 }
-  )
+  return NextResponse.json({ error: 'Method not allowed' }, { status: 405 })
 }

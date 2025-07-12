@@ -2,20 +2,41 @@
 
 ## Overview
 
-This guide provides comprehensive database performance monitoring, optimization, and tuning strategies specifically designed for the contribux platform's Neon PostgreSQL setup with vector search capabilities. It focuses on practical, cost-effective solutions for solo developers managing a serverless-first architecture.
+This guide provides comprehensive database performance monitoring, optimization, and tuning strategies
+specifically designed for the contribux platform's Neon PostgreSQL setup with vector search capabilities. It
+focuses on practical, cost-effective solutions for solo developers managing a serverless-first architecture.
 
 ## Table of Contents
 
-1. [Neon PostgreSQL Performance Overview](#neon-postgresql-performance-overview)
-2. [Vector Search Optimization](#vector-search-optimization)
-3. [Query Performance Monitoring](#query-performance-monitoring)
-4. [Index Management and Optimization](#index-management-and-optimization)
-5. [Connection Pool Monitoring](#connection-pool-monitoring)
-6. [Automated Performance Analysis](#automated-performance-analysis)
-7. [Cost-Effective Monitoring Solutions](#cost-effective-monitoring-solutions)
-8. [Performance Tuning Strategies](#performance-tuning-strategies)
-9. [Alerting and Incident Response](#alerting-and-incident-response)
-10. [Maintenance and Optimization Workflows](#maintenance-and-optimization-workflows)
+- [Database Performance Monitoring and Tuning Guide for Contribux](#database-performance-monitoring-and-tuning-guide-for-contribux)
+  - [Overview](#overview)
+  - [Table of Contents](#table-of-contents)
+  - [Neon PostgreSQL Performance Overview](#neon-postgresql-performance-overview)
+    - [Understanding Neon's Architecture](#understanding-neons-architecture)
+    - [Performance Monitoring Setup](#performance-monitoring-setup)
+  - [Vector Search Optimization](#vector-search-optimization)
+    - [HNSW Index Performance Monitoring](#hnsw-index-performance-monitoring)
+    - [Vector Index Optimization](#vector-index-optimization)
+  - [Query Performance Monitoring](#query-performance-monitoring)
+    - [Slow Query Detection and Analysis](#slow-query-detection-and-analysis)
+    - [Query Optimization Recommendations](#query-optimization-recommendations)
+  - [Index Management and Optimization](#index-management-and-optimization)
+    - [Automated Index Analysis](#automated-index-analysis)
+  - [Connection Pool Monitoring](#connection-pool-monitoring)
+    - [Neon Connection Management](#neon-connection-management)
+  - [Automated Performance Analysis](#automated-performance-analysis)
+    - [Performance Dashboard API](#performance-dashboard-api)
+  - [Cost-Effective Monitoring Solutions](#cost-effective-monitoring-solutions)
+    - [DIY Performance Monitoring](#diy-performance-monitoring)
+    - [Alerting on a Budget](#alerting-on-a-budget)
+  - [Performance Tuning Strategies](#performance-tuning-strategies)
+    - [Automated Tuning Recommendations](#automated-tuning-recommendations)
+  - [Alerting and Incident Response](#alerting-and-incident-response)
+    - [Incident Response Automation](#incident-response-automation)
+  - [Maintenance and Optimization Workflows](#maintenance-and-optimization-workflows)
+    - [Automated Maintenance Tasks](#automated-maintenance-tasks)
+    - [Performance Monitoring Scripts](#performance-monitoring-scripts)
+  - [Conclusion](#conclusion)
 
 ## Neon PostgreSQL Performance Overview
 
@@ -2554,7 +2575,8 @@ if (require.main === module) {
 
 ## Conclusion
 
-This Database Performance Monitoring and Tuning Guide provides a comprehensive framework for maintaining optimal database performance in the contribux platform. The implementation focuses on:
+This Database Performance Monitoring and Tuning Guide provides a comprehensive framework for maintaining optimal
+database performance in the contribux platform. The implementation focuses on:
 
 - **Neon PostgreSQL Optimization** - Serverless-specific connection and query optimization
 - **Vector Search Performance** - HNSW index monitoring and optimization for AI-powered features
@@ -2562,12 +2584,15 @@ This Database Performance Monitoring and Tuning Guide provides a comprehensive f
 - **Automated Incident Response** - Proactive issue detection and resolution
 - **Maintenance Workflows** - Structured approach to database maintenance and optimization
 
-Regular implementation of these monitoring and tuning strategies will ensure the platform operates efficiently, maintains excellent performance, and scales effectively while keeping operational costs manageable for solo developers.
+Regular implementation of these monitoring and tuning strategies will ensure the platform operates efficiently,
+maintains excellent performance, and scales effectively while keeping operational costs manageable for solo developers.
 
 The monitoring framework is designed to be:
+
 - **Lightweight** - Minimal overhead on database performance
 - **Automated** - Reduces manual maintenance requirements
 - **Actionable** - Provides specific optimization recommendations
 - **Cost-effective** - Uses built-in PostgreSQL features and simple alerting
 
-This approach provides enterprise-level database performance monitoring capabilities while remaining practical and affordable for solo developer operations.
+This approach provides enterprise-level database performance monitoring capabilities while remaining
+practical and affordable for solo developer operations.

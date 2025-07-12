@@ -1,29 +1,24 @@
 /**
  * Authentication Flow Security Integration Tests
- * 
+ *
  * Comprehensive security validation for authentication flows including:
  * - OAuth security compliance
- * - Session security management  
+ * - Session security management
  * - Rate limiting effectiveness
  * - Brute force attack prevention
  * - Authentication state persistence
  * - Cross-component security integration
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { NextRequest, NextResponse } from 'next/server'
-import { createMocks } from 'node-mocks-http'
-import { 
-  signIn, 
-  signOut, 
-  getServerSession 
-} from 'next-auth/next'
+import { NextRequest } from 'next/server'
+import { getServerSession, signIn, signOut } from 'next-auth/next'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { authOptions } from '@/lib/auth'
-import { auditLogger, AuditEventType, AuditSeverity } from '@/lib/security/audit-logger'
-import { SecurityMonitoringDashboard } from '@/lib/security/monitoring-dashboard'
-import { ApiKeyRotationService } from '@/lib/security/api-key-rotation'
-import { GitHubClient } from '@/lib/github'
 import { db } from '@/lib/db'
+import { GitHubClient } from '@/lib/github'
+import { ApiKeyRotationService } from '@/lib/security/api-key-rotation'
+import { AuditEventType, AuditSeverity, auditLogger } from '@/lib/security/audit-logger'
+import { SecurityMonitoringDashboard } from '@/lib/security/monitoring-dashboard'
 
 // Mock dependencies
 vi.mock('next-auth/next')
@@ -34,26 +29,43 @@ vi.mock('@/lib/github')
 vi.mock('@/lib/db')
 
 const mockSignIn = vi.mocked(signIn)
-const mockSignOut = vi.mocked(signOut)
+const _mockSignOut = vi.mocked(signOut)
 const mockGetServerSession = vi.mocked(getServerSession)
 const mockAuditLogger = vi.mocked(auditLogger)
 
 describe('Authentication Flow Security Integration', () => {
   let securityDashboard: SecurityMonitoringDashboard
   let apiKeyService: ApiKeyRotationService
-  let mockDb: any
+  let mockDb: {
+    session: {
+      findUnique: ReturnType<typeof vi.fn>
+      create: ReturnType<typeof vi.fn>
+      update: ReturnType<typeof vi.fn>
+      delete: ReturnType<typeof vi.fn>
+      deleteMany: ReturnType<typeof vi.fn>
+    }
+    user: {
+      findUnique: ReturnType<typeof vi.fn>
+      create: ReturnType<typeof vi.fn>
+      update: ReturnType<typeof vi.fn>
+    }
+    auditLog: {
+      create: ReturnType<typeof vi.fn>
+      findMany: ReturnType<typeof vi.fn>
+    }
+  }
 
   beforeEach(() => {
     vi.clearAllMocks()
-    
+
     // Setup security monitoring dashboard
     securityDashboard = new SecurityMonitoringDashboard()
     vi.mocked(SecurityMonitoringDashboard).mockImplementation(() => securityDashboard)
-    
+
     // Setup API key rotation service
     apiKeyService = new ApiKeyRotationService()
     vi.mocked(ApiKeyRotationService).mockImplementation(() => apiKeyService)
-    
+
     // Setup database mock
     mockDb = {
       session: {
@@ -71,7 +83,7 @@ describe('Authentication Flow Security Integration', () => {
       auditLog: {
         create: vi.fn(),
         findMany: vi.fn(),
-      }
+      },
     }
     vi.mocked(db).mockReturnValue(mockDb)
   })
@@ -83,7 +95,7 @@ describe('Authentication Flow Security Integration', () => {
   describe('OAuth Flow Security Integration', () => {
     it('should validate complete GitHub OAuth security flow', async () => {
       // Simulate OAuth initiation
-      const oauthRequest = new NextRequest('http://localhost:3000/api/auth/signin/github', {
+      const _oauthRequest = new NextRequest('http://localhost:3000/api/auth/signin/github', {
         method: 'GET',
         headers: {
           'User-Agent': 'Mozilla/5.0 (compatible test)',
@@ -92,9 +104,9 @@ describe('Authentication Flow Security Integration', () => {
       })
 
       // Mock successful OAuth flow
-      mockSignIn.mockResolvedValue({ 
+      mockSignIn.mockResolvedValue({
         url: 'http://localhost:3000/api/auth/callback/github?code=test_code&state=test_state',
-        error: null 
+        error: null,
       })
 
       // Mock session creation
@@ -118,9 +130,9 @@ describe('Authentication Flow Security Integration', () => {
       })
 
       // Execute OAuth flow
-      await signIn('github', { 
+      await signIn('github', {
         callbackUrl: '/dashboard',
-        redirect: false 
+        redirect: false,
       })
 
       // Validate security audit logging
@@ -150,7 +162,7 @@ describe('Authentication Flow Security Integration', () => {
 
     it('should detect and prevent OAuth state parameter tampering', async () => {
       // Simulate OAuth callback with tampered state
-      const tamperedRequest = new NextRequest('http://localhost:3000/api/auth/callback/github', {
+      const _tamperedRequest = new NextRequest('http://localhost:3000/api/auth/callback/github', {
         method: 'GET',
         headers: {
           'User-Agent': 'Mozilla/5.0 (compatible test)',
@@ -159,15 +171,15 @@ describe('Authentication Flow Security Integration', () => {
       })
 
       // Mock OAuth failure due to state mismatch
-      mockSignIn.mockResolvedValue({ 
+      mockSignIn.mockResolvedValue({
         url: null,
-        error: 'OAuthStateVerificationError' 
+        error: 'OAuthStateVerificationError',
       })
 
       // Execute OAuth callback with tampered state
-      const result = await signIn('github', { 
+      const result = await signIn('github', {
         callbackUrl: '/dashboard',
-        redirect: false 
+        redirect: false,
       })
 
       // Validate security violation logging
@@ -195,7 +207,7 @@ describe('Authentication Flow Security Integration', () => {
       // Mock GitHub API response for token exchange
       const mockGitHubClient = new GitHubClient({})
       vi.mocked(GitHubClient).mockImplementation(() => mockGitHubClient)
-      
+
       // Mock successful token validation
       vi.spyOn(mockGitHubClient, 'getCurrentUser').mockResolvedValue({
         login: 'testuser',
@@ -288,13 +300,13 @@ describe('Authentication Flow Security Integration', () => {
 
       // Test expired session handling
       const session = await mockDb.session.findUnique({
-        where: { sessionToken: 'expired_token_123' }
+        where: { sessionToken: 'expired_token_123' },
       })
 
       if (session && session.expires < new Date()) {
         // Delete expired session
         await mockDb.session.delete({
-          where: { id: session.id }
+          where: { id: session.id },
         })
 
         // Log security event
@@ -315,7 +327,7 @@ describe('Authentication Flow Security Integration', () => {
       }
 
       expect(mockDb.session.delete).toHaveBeenCalledWith({
-        where: { id: 'expired_session_123' }
+        where: { id: 'expired_session_123' },
       })
 
       expect(mockAuditLogger.log).toHaveBeenCalledWith(
@@ -335,12 +347,12 @@ describe('Authentication Flow Security Integration', () => {
       }
 
       // Simulate session access from different IP
-      const suspiciousRequest = new NextRequest('http://localhost:3000/api/user', {
+      const _suspiciousRequest = new NextRequest('http://localhost:3000/api/user', {
         method: 'GET',
         headers: {
           'User-Agent': 'Mozilla/5.0 (suspicious browser)',
           'X-Forwarded-For': '10.0.0.999', // Different IP
-          'Cookie': 'next-auth.session-token=valid_token_123',
+          Cookie: 'next-auth.session-token=valid_token_123',
         },
       })
 
@@ -348,7 +360,7 @@ describe('Authentication Flow Security Integration', () => {
 
       // Mock session validation with IP change detection
       const session = await mockDb.session.findUnique({
-        where: { sessionToken: 'valid_token_123' }
+        where: { sessionToken: 'valid_token_123' },
       })
 
       // Simulate IP change detection
@@ -394,7 +406,7 @@ describe('Authentication Flow Security Integration', () => {
 
       // Simulate multiple failed authentication attempts
       for (let i = 0; i < 6; i++) {
-        const request = new NextRequest('http://localhost:3000/api/auth/signin', {
+        const _request = new NextRequest('http://localhost:3000/api/auth/signin', {
           method: 'POST',
           headers: {
             'User-Agent': userAgent,
@@ -408,9 +420,9 @@ describe('Authentication Flow Security Integration', () => {
         })
 
         // Mock failed authentication
-        mockSignIn.mockResolvedValue({ 
+        mockSignIn.mockResolvedValue({
           url: null,
-          error: 'CredentialsSignin' 
+          error: 'CredentialsSignin',
         })
 
         // Track failed attempts
@@ -472,7 +484,7 @@ describe('Authentication Flow Security Integration', () => {
       // Simulate brute force attack pattern
       for (let i = 0; i < attackPattern.attempts; i++) {
         const email = attackPattern.uniqueEmails[i % attackPattern.uniqueEmails.length]
-        
+
         await mockAuditLogger.log({
           type: AuditEventType.AUTHENTICATION_FAILURE,
           severity: AuditSeverity.WARNING,
@@ -492,8 +504,7 @@ describe('Authentication Flow Security Integration', () => {
       }
 
       // Detect brute force pattern
-      const bruteForceDetected = attackPattern.attempts > 20 && 
-                                attackPattern.timeWindow < 300000 // 5 minutes
+      const bruteForceDetected = attackPattern.attempts > 20 && attackPattern.timeWindow < 300000 // 5 minutes
 
       if (bruteForceDetected) {
         await mockAuditLogger.log({

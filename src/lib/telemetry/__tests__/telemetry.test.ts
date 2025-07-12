@@ -1,12 +1,12 @@
 /**
  * Telemetry Tests
- * 
+ *
  * Tests for OpenTelemetry instrumentation and utilities
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { createSpan, getCurrentTraceId, getTraceContext } from '../utils'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { telemetryLogger } from '../logger'
+import { createSpan, getCurrentTraceId, getTraceContext } from '../utils'
 
 // Mock OpenTelemetry API
 vi.mock('@opentelemetry/api', () => ({
@@ -66,9 +66,9 @@ describe('Telemetry Utils', () => {
   describe('createSpan', () => {
     it('should create a span and execute operation', async () => {
       const operation = vi.fn().mockResolvedValue('test-result')
-      
+
       const result = await createSpan('test-span', operation)
-      
+
       expect(result).toBe('test-result')
       expect(operation).toHaveBeenCalled()
     })
@@ -76,16 +76,16 @@ describe('Telemetry Utils', () => {
     it('should handle errors in operation', async () => {
       const error = new Error('Test error')
       const operation = vi.fn().mockRejectedValue(error)
-      
+
       await expect(createSpan('test-span', operation)).rejects.toThrow('Test error')
     })
 
     it('should set attributes on span', async () => {
       const operation = vi.fn().mockResolvedValue('result')
       const attributes = { 'test.attr': 'value' }
-      
+
       await createSpan('test-span', operation, attributes)
-      
+
       expect(operation).toHaveBeenCalled()
     })
   })
@@ -112,26 +112,30 @@ describe('Telemetry Logger', () => {
   })
 
   it('should log with trace context', () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
-    
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {
+      // Mock implementation - intentionally empty to prevent console output during tests
+    })
+
     telemetryLogger.info('Test message', { component: 'test' })
-    
+
     // In a real test, you would check that the logger was called with trace context
     // This is a simplified test since we're mocking the entire logger
     expect(consoleSpy).not.toHaveBeenCalled() // Logger uses structured output, not console.log
-    
+
     consoleSpy.mockRestore()
   })
 
   it('should log GitHub API operations', () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
-    
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {
+      // Mock implementation - intentionally empty to prevent console output during tests
+    })
+
     telemetryLogger.githubApi('API call completed', {
       operation: 'search_repositories',
       duration: 123,
       statusCode: 200,
     })
-    
+
     consoleSpy.mockRestore()
   })
 })

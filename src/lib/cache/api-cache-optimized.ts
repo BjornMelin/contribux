@@ -123,58 +123,70 @@ export const CACHE_CONFIGS: Record<string, CacheConfig> = {
 }
 
 // Advanced cache key generation with normalization
-export class CacheKeyManager {
-  private static normalizeParams(params: Record<string, any>): string {
-    // Sort keys for consistent cache keys
-    const sortedKeys = Object.keys(params).sort()
-    const normalizedParams = sortedKeys.map(key => {
-      const value = params[key]
-      // Handle arrays and objects consistently
-      if (Array.isArray(value)) {
-        return `${key}:[${value.sort().join(',')}]`
-      }
-      if (typeof value === 'object' && value !== null) {
-        return `${key}:${JSON.stringify(value)}`
-      }
-      return `${key}:${value}`
-    })
-
-    return normalizedParams.join('|')
-  }
-
-  static generateKey(baseKey: string, params?: Record<string, any>, userId?: string): string {
-    const parts = [baseKey]
-
-    if (userId) {
-      parts.push(`user:${userId}`)
+function normalizeParams(params: Record<string, unknown>): string {
+  // Sort keys for consistent cache keys
+  const sortedKeys = Object.keys(params).sort()
+  const normalizedParams = sortedKeys.map(key => {
+    const value = params[key]
+    // Handle arrays and objects consistently
+    if (Array.isArray(value)) {
+      return `${key}:[${value.sort().join(',')}]`
     }
-
-    if (params && Object.keys(params).length > 0) {
-      parts.push(this.normalizeParams(params))
+    if (typeof value === 'object' && value !== null) {
+      return `${key}:${JSON.stringify(value)}`
     }
+    return `${key}:${value}`
+  })
 
-    return parts.join('::')
+  return normalizedParams.join('|')
+}
+
+export function generateCacheKey(
+  baseKey: string,
+  params?: Record<string, unknown>,
+  userId?: string
+): string {
+  const parts = [baseKey]
+
+  if (userId) {
+    parts.push(`user:${userId}`)
   }
 
-  static repository(id: string, userId?: string): string {
-    return this.generateKey(CACHE_KEYS.REPOSITORY_DETAILS, { id }, userId)
+  if (params && Object.keys(params).length > 0) {
+    parts.push(normalizeParams(params))
   }
 
-  static repositories(filters?: Record<string, any>, userId?: string): string {
-    return this.generateKey(CACHE_KEYS.REPOSITORIES, filters, userId)
-  }
+  return parts.join('::')
+}
 
-  static search(query: string, filters?: Record<string, any>, userId?: string): string {
-    return this.generateKey(CACHE_KEYS.SEARCH_RESULTS, { query, ...filters }, userId)
-  }
+export function getRepositoryCacheKey(id: string, userId?: string): string {
+  return generateCacheKey(CACHE_KEYS.REPOSITORY_DETAILS, { id }, userId)
+}
 
-  static opportunities(filters?: Record<string, any>, userId?: string): string {
-    return this.generateKey(CACHE_KEYS.OPPORTUNITIES, filters, userId)
-  }
+export function getRepositoriesCacheKey(
+  filters?: Record<string, unknown>,
+  userId?: string
+): string {
+  return generateCacheKey(CACHE_KEYS.REPOSITORIES, filters, userId)
+}
 
-  static trending(timeframe?: string, language?: string): string {
-    return this.generateKey(CACHE_KEYS.TRENDING, { timeframe, language })
-  }
+export function getSearchCacheKey(
+  query: string,
+  filters?: Record<string, unknown>,
+  userId?: string
+): string {
+  return generateCacheKey(CACHE_KEYS.SEARCH_RESULTS, { query, ...filters }, userId)
+}
+
+export function getOpportunitiesCacheKey(
+  filters?: Record<string, unknown>,
+  userId?: string
+): string {
+  return generateCacheKey(CACHE_KEYS.OPPORTUNITIES, filters, userId)
+}
+
+export function getTrendingCacheKey(timeframe?: string, language?: string): string {
+  return generateCacheKey(CACHE_KEYS.TRENDING, { timeframe, language })
 }
 
 // Enhanced cache invalidation strategies
@@ -259,47 +271,45 @@ export class CacheInvalidationManager {
 }
 
 // Optimized query options factory
-export class QueryOptionsFactory {
-  static createOptions<T>(
-    baseKey: string,
-    userId?: string,
-    additionalOptions?: Partial<CacheConfig>
-  ) {
-    const config = CACHE_CONFIGS[baseKey]
-    if (!config) {
-      throw new Error(`No cache configuration found for key: ${baseKey}`)
-    }
-
-    return {
-      staleTime: config.staleTime,
-      gcTime: config.gcTime,
-      retry: false, // Disable automatic retries for API efficiency
-      retryOnMount: config.retryOnMount,
-      refetchOnWindowFocus: config.refetchOnWindowFocus,
-      refetchOnReconnect: config.refetchOnReconnect,
-      ...additionalOptions,
-    }
+export function createQueryOptions<_T>(
+  baseKey: string,
+  _userId?: string,
+  additionalOptions?: Partial<CacheConfig>
+) {
+  const config = CACHE_CONFIGS[baseKey]
+  if (!config) {
+    throw new Error(`No cache configuration found for key: ${baseKey}`)
   }
 
-  static repository(repositoryId: string, userId?: string) {
-    return this.createOptions(CACHE_KEYS.REPOSITORY_DETAILS, userId)
+  return {
+    staleTime: config.staleTime,
+    gcTime: config.gcTime,
+    retry: false, // Disable automatic retries for API efficiency
+    retryOnMount: config.retryOnMount,
+    refetchOnWindowFocus: config.refetchOnWindowFocus,
+    refetchOnReconnect: config.refetchOnReconnect,
+    ...additionalOptions,
   }
+}
 
-  static repositories(userId?: string) {
-    return this.createOptions(CACHE_KEYS.REPOSITORIES, userId)
-  }
+export function getRepositoryQueryOptions(_repositoryId: string, userId?: string) {
+  return createQueryOptions(CACHE_KEYS.REPOSITORY_DETAILS, userId)
+}
 
-  static search(userId?: string) {
-    return this.createOptions(CACHE_KEYS.SEARCH_RESULTS, userId)
-  }
+export function getRepositoriesQueryOptions(userId?: string) {
+  return createQueryOptions(CACHE_KEYS.REPOSITORIES, userId)
+}
 
-  static opportunities(userId?: string) {
-    return this.createOptions(CACHE_KEYS.OPPORTUNITIES, userId)
-  }
+export function getSearchQueryOptions(userId?: string) {
+  return createQueryOptions(CACHE_KEYS.SEARCH_RESULTS, userId)
+}
 
-  static trending() {
-    return this.createOptions(CACHE_KEYS.TRENDING)
-  }
+export function getOpportunitiesQueryOptions(userId?: string) {
+  return createQueryOptions(CACHE_KEYS.OPPORTUNITIES, userId)
+}
+
+export function getTrendingQueryOptions() {
+  return createQueryOptions(CACHE_KEYS.TRENDING)
 }
 
 // Background cache warming strategies
@@ -313,9 +323,9 @@ export class CacheWarmingService {
     // Pre-load trending repositories
     warmingPromises.push(
       this.queryClient.prefetchQuery({
-        queryKey: CacheKeyManager.trending('daily').split('::'),
+        queryKey: getTrendingCacheKey('daily').split('::'),
         queryFn: () => this.fetchTrendingRepositories('daily'),
-        ...QueryOptionsFactory.trending(),
+        ...getTrendingQueryOptions(),
       })
     )
 
@@ -323,9 +333,9 @@ export class CacheWarmingService {
     if (userId) {
       warmingPromises.push(
         this.queryClient.prefetchQuery({
-          queryKey: CacheKeyManager.opportunities({}, userId).split('::'),
+          queryKey: getOpportunitiesCacheKey({}, userId).split('::'),
           queryFn: () => this.fetchOpportunities(userId),
-          ...QueryOptionsFactory.opportunities(userId),
+          ...getOpportunitiesQueryOptions(userId),
         })
       )
     }
@@ -333,12 +343,12 @@ export class CacheWarmingService {
     await Promise.all(warmingPromises)
   }
 
-  private async fetchTrendingRepositories(timeframe: string) {
+  private async fetchTrendingRepositories(_timeframe: string) {
     // Implementation would call actual API
     return []
   }
 
-  private async fetchOpportunities(userId: string) {
+  private async fetchOpportunities(_userId: string) {
     // Implementation would call actual API
     return []
   }

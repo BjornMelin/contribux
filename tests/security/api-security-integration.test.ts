@@ -3,10 +3,10 @@
  * Tests security patterns and validation logic for API endpoints
  */
 
-import { http, HttpResponse } from 'msw'
+import { HttpResponse, http } from 'msw'
 import { setupServer } from 'msw/node'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { mswServer } from '../github/msw-setup'
+import { mswServer } from '../utils/msw-setup'
 
 // Dedicated MSW server for security tests with localhost handlers
 const securityServer = setupServer(

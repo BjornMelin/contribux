@@ -2,8 +2,8 @@
  * Memory profiling test to measure heap usage
  */
 
-import { GitHubClient } from '@/lib/github'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { GitHubClient } from '@/lib/github'
 
 describe('Memory Profiling', () => {
   // Skip MSW setup to reduce memory overhead

@@ -11,12 +11,12 @@
  * - Real-world usage patterns
  */
 
-import type { GitHubClientConfig } from '@/lib/github/client'
-import { GitHubClient, createGitHubClient } from '@/lib/github/client'
-import { GitHubError } from '@/lib/github/errors'
 import { fc, test as fcTest } from '@fast-check/vitest'
-import { http, HttpResponse } from 'msw'
+import { HttpResponse, http } from 'msw'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { GitHubClientConfig } from '@/lib/github/client'
+import { createGitHubClient, GitHubClient } from '@/lib/github/client'
+import { GitHubError } from '@/lib/github/errors'
 import { mockGitHubAPI, mswServer, setupMSW } from './msw-setup'
 import { setupGitHubTestIsolation } from './test-helpers'
 
@@ -121,10 +121,7 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('GitHub Client - Real API Integration', 
 
   describe('End-to-End API Usage', () => {
     it('should get a public repository', async () => {
-      const repo = await client.getRepository({
-        owner: 'microsoft',
-        repo: 'vscode',
-      })
+      const repo = await client.getRepository('microsoft', 'vscode')
 
       expect(repo).toBeDefined()
       expect(repo.name).toBe('vscode')
@@ -135,10 +132,10 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('GitHub Client - Real API Integration', 
 
     it('should search repositories with realistic patterns', async () => {
       const results = await client.searchRepositories({
-        q: 'language:typescript stars:>1000',
+        query: '$1',
         sort: 'stars',
         order: 'desc',
-        per_page: 5,
+        perPage: $1,
       })
 
       expect(results).toBeDefined()
@@ -150,14 +147,14 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('GitHub Client - Real API Integration', 
     it('should handle pagination in real usage', async () => {
       // Test pagination by requesting multiple pages
       const page1 = await client.searchRepositories({
-        q: 'language:javascript',
-        per_page: 10,
+        query: '$1',
+        perPage: $1,
         page: 1,
       })
 
       const page2 = await client.searchRepositories({
-        q: 'language:javascript',
-        per_page: 10,
+        query: '$1',
+        perPage: $1,
         page: 2,
       })
 
@@ -210,18 +207,12 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('GitHub Client - Real API Integration', 
     it('should cache responses and improve performance', async () => {
       // First call
       const start1 = Date.now()
-      const repo1 = await client.getRepository({
-        owner: 'microsoft',
-        repo: 'vscode',
-      })
+      const repo1 = await client.getRepository('microsoft', 'vscode')
       const time1 = Date.now() - start1
 
       // Second call (should be faster due to caching)
       const start2 = Date.now()
-      const repo2 = await client.getRepository({
-        owner: 'microsoft',
-        repo: 'vscode',
-      })
+      const repo2 = await client.getRepository('microsoft', 'vscode')
       const time2 = Date.now() - start2
 
       expect(repo1.id).toBe(repo2.id)
@@ -233,10 +224,7 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('GitHub Client - Real API Integration', 
 
     it('should clear cache successfully', async () => {
       // Make a request to populate cache
-      await client.getRepository({
-        owner: 'microsoft',
-        repo: 'vscode',
-      })
+      await client.getRepository('microsoft', 'vscode')
 
       let cacheStats = client.getCacheStats()
       expect(cacheStats.size).toBeGreaterThan(0)
@@ -251,10 +239,7 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('GitHub Client - Real API Integration', 
   describe('Error Handling Integration', () => {
     it('should handle 404 errors gracefully', async () => {
       await expect(async () => {
-        await client.getRepository({
-          owner: 'nonexistent-user-12345',
-          repo: 'nonexistent-repo-12345',
-        })
+        await client.getRepository('nonexistent-user-12345', 'nonexistent-repo-12345')
       }).rejects.toThrow(GitHubError)
     }, 10000)
   })
@@ -322,9 +307,7 @@ describe.sequential('Authentication Integration Flows', () => {
       expect(user.login).toBe('testuser')
 
       // Repository access should fail due to limited scope
-      await expect(
-        client.listIssues({ owner: 'test', repo: 'test' }, { per_page: 5 })
-      ).rejects.toThrow(GitHubError)
+      await expect(client.listIssues('test', 'test', { perPage: $1 })).rejects.toThrow(GitHubError)
     })
 
     // Property-based testing for token validation
@@ -390,10 +373,7 @@ describe.sequential('Authentication Integration Flows', () => {
       expect(user1.login).toBe('testuser')
 
       // Second request to different endpoint
-      const repos = await client.listIssues(
-        { owner: 'testuser', repo: 'test-repo' },
-        { per_page: 5 }
-      )
+      const repos = await client.listIssues('testuser', 'test-repo', { perPage: $1 })
       expect(repos).toHaveLength(2)
 
       // Third request (same as first)
@@ -464,10 +444,7 @@ describe.sequential('Authentication Integration Flows', () => {
       expect(user1.login).toBe('testuser')
 
       // Second request (different endpoint)
-      const repos = await client.listIssues(
-        { owner: 'testuser', repo: 'test-repo' },
-        { per_page: 5 }
-      )
+      const repos = await client.listIssues('testuser', 'test-repo', { perPage: $1 })
       expect(repos).toHaveLength(2)
 
       // Third request (same as first)
@@ -564,7 +541,7 @@ describe('Modern API Integration Patterns', () => {
         auth: { type: 'token', token: 'test_token' },
       })
 
-      const repo = await client.getRepository({ owner: 'testowner', repo: 'testrepo' })
+      const repo = await client.getRepository('testowner', 'testrepo')
 
       expect(repo).toMatchObject({
         name: 'testrepo',
@@ -769,11 +746,11 @@ describe('Modern API Integration Patterns', () => {
       })
 
       const searchOptions = {
-        q: 'test',
+        query: '$1',
         sort: 'stars',
         order: 'desc' as const,
         page: 1,
-        per_page: 10,
+        perPage: $1,
       }
 
       const result = await client.searchRepositories(searchOptions)
@@ -792,15 +769,15 @@ describe('Modern API Integration Patterns', () => {
 
       // Page 1
       const page1 = await client.searchRepositories({
-        q: 'javascript',
-        per_page: 5,
+        query: '$1',
+        perPage: $1,
         page: 1,
       })
 
       // Page 2
       const page2 = await client.searchRepositories({
-        q: 'javascript',
-        per_page: 5,
+        query: '$1',
+        perPage: $1,
         page: 2,
       })
 
@@ -833,7 +810,7 @@ describe('Modern API Integration Patterns', () => {
       // Mix of REST and GraphQL operations
       const operations = [
         client.getAuthenticatedUser(),
-        client.getRepository({ owner: 'testowner', repo: 'testrepo' }),
+        client.getRepository('testowner', 'testrepo'),
         client.graphql('query { viewer { login } }'),
         client.getRateLimit(),
       ]

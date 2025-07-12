@@ -5,8 +5,9 @@
 
 'use client'
 
+import { type ComponentType, lazy, memo, Suspense } from 'react'
 import { Card } from '@/components/ui/card'
-import { type ComponentType, Suspense, lazy, memo } from 'react'
+import { isDevelopment } from '@/lib/validation/env'
 
 // Loading fallback components
 const ComponentLoadingFallback = memo(function ComponentLoadingFallback() {
@@ -132,7 +133,7 @@ export const preloadFeatureComponents = () => {
 
 // Bundle analysis utilities (development only)
 export const getBundleInfo = () => {
-  if (process.env.NODE_ENV === 'development') {
+  if (isDevelopment()) {
     return {
       searchComponentsLoaded: !!window.__SEARCH_COMPONENTS_LOADED__,
       featureComponentsLoaded: !!window.__FEATURE_COMPONENTS_LOADED__,

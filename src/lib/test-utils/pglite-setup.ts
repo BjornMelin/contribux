@@ -18,8 +18,8 @@ import { config } from 'dotenv'
 import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest'
 import type {
   BenchmarkQuery,
-  PGliteResult,
   PerformanceMeasurement,
+  PGliteResult,
   QueryParameter,
   TemplateQueryValues,
 } from '../../types/pglite'

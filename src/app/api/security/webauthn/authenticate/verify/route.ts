@@ -3,16 +3,16 @@
  * Verify WebAuthn authentication responses with rate limiting protection
  */
 
-import { securityFeatures } from '@/lib/security/feature-flags'
-import { verifyWebAuthnAuthentication } from '@/lib/security/webauthn/server'
-import { 
-  checkAuthRateLimit, 
-  recordAuthResult, 
-  createRateLimitResponse,
-  applyProgressiveDelay 
-} from '@/lib/security/auth-rate-limiting'
 import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import {
+  applyProgressiveDelay,
+  checkAuthRateLimit,
+  createRateLimitResponse,
+  recordAuthResult,
+} from '@/lib/security/auth-rate-limiting'
+import { securityFeatures } from '@/lib/security/feature-flags'
+import { verifyWebAuthnAuthentication } from '@/lib/security/webauthn/server'
 
 const AuthenticationRequestSchema = z.object({
   response: z.object({
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (result.verified) {
       // Record successful authentication
       recordAuthResult(request, true)
-      
+
       return NextResponse.json({
         success: true,
         message: 'WebAuthn authentication successful',
@@ -71,10 +71,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         credentialId: result.credentialId,
       })
     }
-    
+
     // Record failed authentication
     recordAuthResult(request, false)
-    
+
     return NextResponse.json(
       {
         success: false,
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   } catch (error) {
     // Record failed authentication for any error
     recordAuthResult(request, false)
-    
+
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Invalid request data', details: error.errors },

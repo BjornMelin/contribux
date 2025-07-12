@@ -5,7 +5,6 @@
 
 import { beforeAll, describe, expect, it } from 'vitest'
 import {
-  type QueryRow,
   createGitHubRepositoryMock,
   createGitHubUserMock,
   createOpportunity,
@@ -18,6 +17,7 @@ import {
   hasValidQueryStructure,
   isValidEmbedding,
   isValidSimilarityScore,
+  type QueryRow,
   resetFactoryCounters,
   sql,
 } from './index'
@@ -211,8 +211,8 @@ describe('Test Utilities Validation', () => {
       // Mock the executeSql function behavior
       const mockExecuteSql = async <T extends QueryRow>(
         _query: string,
-        // biome-ignore lint/suspicious/noExplicitAny: Test mock accepts generic parameters, typed at call site
-        _params?: any[]
+        // Test mock accepts generic parameters, typed at call site
+        _params?: unknown[]
       ): Promise<T[]> => {
         return [{ test: 1 } as T]
       }

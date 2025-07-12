@@ -3,6 +3,7 @@
  * These factories create objects that conform to the auth types schema
  */
 
+import type { AdapterUser } from 'next-auth/adapters'
 import { generateUUID } from '@/lib/crypto-utils'
 import type {
   AccessTokenPayload,
@@ -19,7 +20,6 @@ import type {
   UserSession,
 } from '@/types/auth'
 import type { Email, GitHubUsername, UUID } from '@/types/base'
-import type { AdapterUser } from 'next-auth/adapters'
 
 // Counter for generating unique values
 let userCounter = 1

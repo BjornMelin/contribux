@@ -3,117 +3,112 @@
  * Central export point for all security components
  */
 
-// Rate limiting
+export type {
+  ApiKeyConfig,
+  ApiKeyMetadata,
+  KeyValidationResult,
+} from './api-key-rotation'
+// API key rotation
 export {
-  IRateLimiter,
-  RateLimitConfig,
-  RateLimitResult,
-  RateLimitAlgorithm,
-  InMemoryRateLimiter,
-  RedisRateLimiter,
-  rateLimiterFactory,
-  createRateLimitMiddleware,
-} from './rate-limiting/rate-limiter'
-
-// Request signing
-export {
-  RequestSigningConfig,
-  SignedRequest,
-  RequestSigner,
-  requestSigner,
-  createSigningMiddleware,
-  validateSignedRequest,
-} from './request-signing'
-
-// IP allowlist
-export {
-  IPAllowlistConfig,
-  IPAllowlistEntry,
-  IPAllowlistManager,
-  ipAllowlist,
-  createIpAllowlistMiddleware,
-} from './ip-allowlist'
-
+  ApiKeyManager,
+  apiKeyAuthMiddleware,
+  apiKeyManager,
+} from './api-key-rotation'
+export type {
+  AuditEvent,
+  AuditLoggerConfig,
+} from './audit-logger'
 // Audit logging
 export {
   AuditEventType,
   AuditSeverity,
-  AuditEventSchema,
-  AuditEvent,
-  AuditLoggerConfig,
-  SecurityAuditLogger,
   auditLogger,
+  SecurityAuditLogger,
 } from './audit-logger'
-
+// Existing security components
+export * from './auth-rate-limiting'
+export type { CorsConfig } from './cors-config'
+// CORS configuration
+export {
+  CorsManager,
+  CorsPresets,
+  checkSuspiciousCorsPatterns,
+  corsConfig,
+  createRouteCorsMiddleware,
+  DynamicCorsConfig,
+  logCorsViolation,
+} from './cors-config'
+export * from './enhanced-middleware'
+export type { ErrorBoundaryConfig } from './error-boundaries'
 // Error boundaries
 export {
-  SecurityErrorType,
-  SecurityError,
-  ErrorBoundaryConfig,
-  withSecurityBoundary,
+  CircuitBreaker,
   createSecureErrorResponse,
+  SecurityError,
+  SecurityErrorType,
   withApiSecurityBoundary,
   withRetryBoundary,
-  CircuitBreaker,
+  withSecurityBoundary,
 } from './error-boundaries'
 
 // Input validation
 export {
-  ValidationPatterns,
-  Sanitizers,
-  CommonSchemas,
-  GitHubSchemas,
   ApiSchemas,
-  InputValidator,
-  validator,
+  CommonSchemas,
   createValidationMiddleware,
+  GitHubSchemas,
+  InputValidator,
+  Sanitizers,
+  ValidationPatterns,
+  validator,
 } from './input-validation'
-
-// Security headers
+// IP allowlist
+export type {
+  IPAllowlistConfig,
+  IPEntry as IPAllowlistEntry,
+} from './ip-allowlist'
 export {
-  SecurityHeadersConfig,
-  SecurityHeadersManager,
-  securityHeaders,
-  securityHeadersMiddleware,
-  productionSecurityHeaders,
-  developmentSecurityHeaders,
-} from './security-headers'
-
-// CORS configuration
-export {
-  CorsConfigSchema,
-  CorsConfig,
-  CorsPresets,
-  CorsManager,
-  DynamicCorsConfig,
-  CorsSecurityMonitor,
-  corsConfig,
-  createRouteCorsMiddleware,
-} from './cors-config'
-
-// API key rotation
-export {
-  ApiKeyConfig,
-  ApiKeyMetadata,
-  KeyValidationResult,
-  ApiKeyRotationSchema,
-  ApiKeyManager,
-  apiKeyManager,
-  apiKeyAuthMiddleware,
-} from './api-key-rotation'
-
+  createIPAllowlistMiddleware,
+  IPAllowlistManager,
+} from './ip-allowlist'
+export type {
+  AlertAction,
+  AlertConfig,
+  SecurityAlert,
+  SecurityMetrics,
+} from './monitoring-dashboard'
 // Security monitoring
 export {
-  SecurityMetrics,
-  AlertConfig,
-  AlertAction,
-  SecurityAlert,
   SecurityMonitoringDashboard,
   securityDashboard,
   securityMonitoringApi,
 } from './monitoring-dashboard'
-
-// Existing security components
-export * from './auth-rate-limiting'
-export * from './enhanced-middleware'
+// Rate limiting
+export type {
+  IRateLimiter,
+  RateLimitConfig,
+  RateLimitResult,
+} from './rate-limiting/rate-limiter'
+export {
+  RateLimitAlgorithm,
+  RedisRateLimiter,
+} from './rate-limiting/rate-limiter'
+// Request signing
+export type {
+  RequestSigningConfig,
+  SignedRequest,
+} from './request-signing'
+export {
+  createSigningMiddleware,
+  RequestSigner,
+} from './request-signing'
+export type { SecurityHeadersConfig } from './security-headers'
+// Security headers
+export {
+  developmentSecurityHeaders,
+  productionSecurityHeaders,
+  SecurityHeadersManager,
+  securityHeaders,
+  securityHeadersMiddleware,
+} from './security-headers'
 export * from './webhook-security'

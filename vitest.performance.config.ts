@@ -1,3 +1,4 @@
+import os from 'node:os'
 import path from 'node:path'
 import react from '@vitejs/plugin-react'
 import tsconfigPaths from 'vite-tsconfig-paths'
@@ -49,7 +50,7 @@ export default defineConfig({
       threads: {
         singleThread: false,
         minThreads: 2,
-        maxThreads: Math.min(8, require('os').cpus().length),
+        maxThreads: Math.min(8, os.cpus().length),
       },
     },
 

@@ -3,11 +3,11 @@
  * Validates complete security architecture with monitoring system integration
  */
 
+import { type NextRequest, NextResponse } from 'next/server'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { apiMonitoring } from '@/lib/api/monitoring'
 import { monitoringMiddleware } from '@/lib/middleware/monitoring-middleware'
 import { enhancedSecurityMiddleware } from '@/lib/security/enhanced-middleware'
-import { type NextRequest, NextResponse } from 'next/server'
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 // Mock NextRequest for testing
 function createMockRequest(options: {

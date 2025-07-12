@@ -5,11 +5,11 @@
 
 'use client'
 
+import type React from 'react'
+import { memo, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { PropsWithClassName } from '@/lib/types/advanced'
-import type React from 'react'
-import { memo, useCallback } from 'react'
 import { useSearch } from './search-context'
 
 // Search input component

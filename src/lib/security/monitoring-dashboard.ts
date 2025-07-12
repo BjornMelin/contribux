@@ -1,22 +1,10 @@
-/**
- * Security Monitoring and Alerting Dashboard
- * Provides real-time security monitoring, alerting, and analytics
- * Implements comprehensive security metrics and threat detection
- */
-
-import { z } from 'zod'
-import { Redis } from '@redis/client'
-import { 
-  auditLogger, 
-  AuditEventType, 
-  AuditSeverity,
-  AuditEvent 
-} from './audit-logger'
+import type { RedisClientType } from '@redis/client'
+import { type AuditEvent, AuditEventType, AuditSeverity, auditLogger } from './audit-logger'
 
 // Security metrics
 export interface SecurityMetrics {
   timestamp: Date
-  
+
   // Authentication metrics
   authMetrics: {
     successCount: number
@@ -25,7 +13,7 @@ export interface SecurityMetrics {
     suspiciousAttempts: number
     uniqueUsers: number
   }
-  
+
   // API metrics
   apiMetrics: {
     totalRequests: number
@@ -34,14 +22,14 @@ export interface SecurityMetrics {
     averageResponseTime: number
     errorRate: number
   }
-  
+
   // Security violations
   violations: {
     total: number
     byType: Record<string, number>
     bySeverity: Record<AuditSeverity, number>
   }
-  
+
   // Threat indicators
   threats: {
     bruteForceAttempts: number
@@ -50,7 +38,7 @@ export interface SecurityMetrics {
     suspiciousIps: string[]
     anomalousPatterns: number
   }
-  
+
   // System health
   health: {
     cpuUsage: number
@@ -95,18 +83,18 @@ export interface SecurityAlert {
  * Security Monitoring Dashboard
  */
 export class SecurityMonitoringDashboard {
-  private redis: Redis | null
+  private redis: RedisClientType | null
   private alerts: Map<string, AlertConfig> = new Map()
   private activeAlerts: Map<string, SecurityAlert> = new Map()
   private metricsBuffer: SecurityMetrics[] = []
   private flushInterval: NodeJS.Timeout | null = null
-  
-  constructor(redis?: Redis) {
+
+  constructor(redis?: RedisClientType) {
     this.redis = redis || null
     this.initializeDefaultAlerts()
     this.startMetricsCollection()
   }
-  
+
   /**
    * Initialize default security alerts
    */
@@ -124,7 +112,7 @@ export class SecurityMonitoringDashboard {
         { type: 'webhook', config: { url: process.env.SECURITY_WEBHOOK_URL } },
       ],
     })
-    
+
     // Rate limit violations
     this.addAlert({
       type: 'threshold',
@@ -138,7 +126,7 @@ export class SecurityMonitoringDashboard {
         { type: 'rateLimit', config: { multiplier: 0.5 } },
       ],
     })
-    
+
     // SQL injection attempts
     this.addAlert({
       type: 'threshold',
@@ -153,7 +141,7 @@ export class SecurityMonitoringDashboard {
         { type: 'email', config: { to: process.env.SECURITY_EMAIL } },
       ],
     })
-    
+
     // Brute force detection
     this.addAlert({
       type: 'pattern',
@@ -167,7 +155,7 @@ export class SecurityMonitoringDashboard {
         { type: 'block', config: { duration: 1800 } },
       ],
     })
-    
+
     // Error rate anomaly
     this.addAlert({
       type: 'anomaly',
@@ -182,20 +170,20 @@ export class SecurityMonitoringDashboard {
       ],
     })
   }
-  
+
   /**
    * Collect current security metrics
    */
   async collectMetrics(): Promise<SecurityMetrics> {
     const now = new Date()
     const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000)
-    
+
     // Query recent audit events
     const events = await auditLogger.query({
       startDate: fiveMinutesAgo,
       endDate: now,
     })
-    
+
     // Calculate metrics
     const metrics: SecurityMetrics = {
       timestamp: now,
@@ -232,19 +220,19 @@ export class SecurityMonitoringDashboard {
         queuedRequests: await this.getQueuedRequests(),
       },
     }
-    
+
     // Store metrics
     this.metricsBuffer.push(metrics)
     if (this.metricsBuffer.length > 100) {
       this.metricsBuffer.shift()
     }
-    
+
     // Check alerts
     await this.checkAlerts(metrics)
-    
+
     return metrics
   }
-  
+
   /**
    * Get dashboard summary
    */
@@ -263,7 +251,7 @@ export class SecurityMonitoringDashboard {
     const activeAlerts = Array.from(this.activeAlerts.values())
       .filter(a => a.status === 'active')
       .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-    
+
     // Get recent security incidents
     const recentIncidents = await auditLogger.query({
       startDate: new Date(Date.now() - 24 * 60 * 60 * 1000),
@@ -271,22 +259,19 @@ export class SecurityMonitoringDashboard {
       severities: [AuditSeverity.ERROR, AuditSeverity.CRITICAL],
       limit: 10,
     })
-    
+
     // Calculate trends
-    const authFailureRate = currentMetrics.authMetrics.failureCount / 
+    const authFailureRate =
+      currentMetrics.authMetrics.failureCount /
       (currentMetrics.authMetrics.successCount + currentMetrics.authMetrics.failureCount)
-    
+
     const apiErrorRate = currentMetrics.apiMetrics.errorRate
-    
+
     const threatLevel = this.calculateThreatLevel(currentMetrics, activeAlerts)
-    
+
     // Generate recommendations
-    const recommendations = this.generateRecommendations(
-      currentMetrics,
-      activeAlerts,
-      threatLevel
-    )
-    
+    const recommendations = this.generateRecommendations(currentMetrics, activeAlerts, threatLevel)
+
     return {
       currentMetrics,
       activeAlerts,
@@ -299,13 +284,11 @@ export class SecurityMonitoringDashboard {
       recommendations,
     }
   }
-  
+
   /**
    * Get security timeline
    */
-  async getSecurityTimeline(
-    hours: number = 24
-  ): Promise<{
+  async getSecurityTimeline(hours = 24): Promise<{
     timeline: Array<{
       timestamp: Date
       events: AuditEvent[]
@@ -319,55 +302,54 @@ export class SecurityMonitoringDashboard {
   }> {
     const endDate = new Date()
     const startDate = new Date(endDate.getTime() - hours * 60 * 60 * 1000)
-    
+
     // Get all events in timeframe
     const allEvents = await auditLogger.query({
       startDate,
       endDate,
     })
-    
+
     // Group by hour
     const timeline: Array<{
       timestamp: Date
       events: AuditEvent[]
       metrics: SecurityMetrics
     }> = []
-    
+
     for (let i = 0; i < hours; i++) {
       const hourStart = new Date(startDate.getTime() + i * 60 * 60 * 1000)
       const hourEnd = new Date(hourStart.getTime() + 60 * 60 * 1000)
-      
-      const hourEvents = allEvents.filter(e => 
-        e.timestamp >= hourStart && e.timestamp < hourEnd
-      )
-      
+
+      const hourEvents = allEvents.filter(e => e.timestamp >= hourStart && e.timestamp < hourEnd)
+
       // Find matching metrics from buffer
-      const metrics = this.metricsBuffer.find(m =>
-        m.timestamp >= hourStart && m.timestamp < hourEnd
-      ) || await this.collectMetrics()
-      
+      const metrics =
+        this.metricsBuffer.find(m => m.timestamp >= hourStart && m.timestamp < hourEnd) ||
+        (await this.collectMetrics())
+
       timeline.push({
         timestamp: hourStart,
         events: hourEvents,
         metrics,
       })
     }
-    
+
     // Calculate summary
-    const criticalEvents = allEvents.filter(e => 
-      e.severity === AuditSeverity.CRITICAL
-    ).length
-    
-    const eventTypeCounts = allEvents.reduce((acc, event) => {
-      acc[event.type] = (acc[event.type] || 0) + 1
-      return acc
-    }, {} as Record<string, number>)
-    
+    const criticalEvents = allEvents.filter(e => e.severity === AuditSeverity.CRITICAL).length
+
+    const eventTypeCounts = allEvents.reduce(
+      (acc, event) => {
+        acc[event.type] = (acc[event.type] || 0) + 1
+        return acc
+      },
+      {} as Record<string, number>
+    )
+
     const topEventTypes = Object.entries(eventTypeCounts)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 10)
       .map(([type, count]) => ({ type, count }))
-    
+
     return {
       timeline,
       summary: {
@@ -377,7 +359,7 @@ export class SecurityMonitoringDashboard {
       },
     }
   }
-  
+
   /**
    * Add custom alert
    */
@@ -385,19 +367,16 @@ export class SecurityMonitoringDashboard {
     const id = `${config.metric}-${config.condition}-${config.value}`
     this.alerts.set(id, config)
   }
-  
+
   /**
    * Acknowledge alert
    */
-  async acknowledgeAlert(
-    alertId: string,
-    userId: string
-  ): Promise<void> {
+  async acknowledgeAlert(alertId: string, userId: string): Promise<void> {
     const alert = this.activeAlerts.get(alertId)
     if (!alert) return
-    
+
     alert.status = 'acknowledged'
-    
+
     await auditLogger.log({
       type: AuditEventType.SECURITY_CONFIG_CHANGE,
       severity: AuditSeverity.INFO,
@@ -413,22 +392,18 @@ export class SecurityMonitoringDashboard {
       },
     })
   }
-  
+
   /**
    * Resolve alert
    */
-  async resolveAlert(
-    alertId: string,
-    userId: string,
-    resolution?: string
-  ): Promise<void> {
+  async resolveAlert(alertId: string, userId: string, resolution?: string): Promise<void> {
     const alert = this.activeAlerts.get(alertId)
     if (!alert) return
-    
+
     alert.status = 'resolved'
     alert.resolvedAt = new Date()
     alert.resolvedBy = userId
-    
+
     await auditLogger.log({
       type: AuditEventType.SECURITY_CONFIG_CHANGE,
       severity: AuditSeverity.INFO,
@@ -445,7 +420,7 @@ export class SecurityMonitoringDashboard {
       },
     })
   }
-  
+
   /**
    * Check alerts against current metrics
    */
@@ -453,13 +428,13 @@ export class SecurityMonitoringDashboard {
     for (const [id, config] of this.alerts) {
       const value = this.getMetricValue(metrics, config.metric)
       const triggered = this.evaluateCondition(value, config.condition, config.value)
-      
+
       if (triggered) {
         await this.triggerAlert(id, config, metrics)
       }
     }
   }
-  
+
   /**
    * Trigger an alert
    */
@@ -469,15 +444,15 @@ export class SecurityMonitoringDashboard {
     metrics: SecurityMetrics
   ): Promise<void> {
     // Check cooldown
-    const existingAlert = Array.from(this.activeAlerts.values())
-      .find(a => 
+    const existingAlert = Array.from(this.activeAlerts.values()).find(
+      a =>
         a.type === alertId &&
         a.status === 'active' &&
-        new Date().getTime() - a.timestamp.getTime() < config.cooldownMinutes * 60 * 1000
-      )
-    
+        Date.now() - a.timestamp.getTime() < config.cooldownMinutes * 60 * 1000
+    )
+
     if (existingAlert) return
-    
+
     // Create alert
     const alert: SecurityAlert = {
       id: crypto.randomUUID(),
@@ -489,22 +464,22 @@ export class SecurityMonitoringDashboard {
       metrics: { value: this.getMetricValue(metrics, config.metric) },
       status: 'active',
     }
-    
+
     this.activeAlerts.set(alert.id, alert)
-    
+
     // Execute actions
     for (const action of config.actions) {
       await this.executeAlertAction(action, alert, metrics)
     }
   }
-  
+
   /**
    * Execute alert action
    */
   private async executeAlertAction(
     action: AlertAction,
     alert: SecurityAlert,
-    metrics: SecurityMetrics
+    _metrics: SecurityMetrics
   ): Promise<void> {
     switch (action.type) {
       case 'log':
@@ -523,111 +498,113 @@ export class SecurityMonitoringDashboard {
           },
         })
         break
-        
+
       case 'email':
-        // Email implementation would go here
-        console.log('[SecurityAlert] Email alert:', alert)
         break
-        
+
       case 'webhook':
-        // Webhook implementation would go here
-        console.log('[SecurityAlert] Webhook alert:', alert)
         break
-        
+
       case 'block':
-        // Blocking implementation would go here
-        console.log('[SecurityAlert] Block action:', action.config)
         break
-        
+
       case 'rateLimit':
-        // Rate limit adjustment would go here
-        console.log('[SecurityAlert] Rate limit action:', action.config)
         break
     }
   }
-  
+
   /**
    * Helper methods
    */
   private countEvents(events: AuditEvent[], type: AuditEventType): number {
     return events.filter(e => e.type === type).length
   }
-  
+
   private countUniqueUsers(events: AuditEvent[]): number {
     const users = new Set(events.map(e => e.actor.id).filter(Boolean))
     return users.size
   }
-  
+
   private countSuspiciousAuth(events: AuditEvent[]): number {
-    return events.filter(e => 
-      e.type === AuditEventType.AUTH_FAILURE &&
-      e.metadata?.suspicious === true
+    return events.filter(
+      e => e.type === AuditEventType.AUTH_FAILURE && e.metadata?.suspicious === true
     ).length
   }
-  
+
   private countUnauthorized(events: AuditEvent[]): number {
-    return events.filter(e => 
-      e.type === AuditEventType.AUTHZ_FAILURE ||
-      (e.type === AuditEventType.API_ACCESS && e.metadata?.statusCode === 401)
+    return events.filter(
+      e =>
+        e.type === AuditEventType.AUTHZ_FAILURE ||
+        (e.type === AuditEventType.API_ACCESS && e.metadata?.statusCode === 401)
     ).length
   }
-  
+
   private calculateErrorRate(events: AuditEvent[]): number {
     const apiEvents = events.filter(e => e.type === AuditEventType.API_ACCESS)
     if (apiEvents.length === 0) return 0
-    
-    const errors = apiEvents.filter(e => 
-      e.metadata?.statusCode && e.metadata.statusCode >= 500
+
+    const errors = apiEvents.filter(
+      e =>
+        e.metadata?.statusCode &&
+        typeof e.metadata.statusCode === 'number' &&
+        e.metadata.statusCode >= 500
     ).length
-    
+
     return errors / apiEvents.length
   }
-  
+
   private groupViolationsByType(events: AuditEvent[]): Record<string, number> {
     const violations = events.filter(e => e.type === AuditEventType.SECURITY_VIOLATION)
-    return violations.reduce((acc, e) => {
-      const violationType = e.metadata?.violationType as string || 'unknown'
-      acc[violationType] = (acc[violationType] || 0) + 1
-      return acc
-    }, {} as Record<string, number>)
+    return violations.reduce(
+      (acc, e) => {
+        const violationType = (e.metadata?.violationType as string) || 'unknown'
+        acc[violationType] = (acc[violationType] || 0) + 1
+        return acc
+      },
+      {} as Record<string, number>
+    )
   }
-  
+
   private groupEventsBySeverity(events: AuditEvent[]): Record<AuditSeverity, number> {
-    return events.reduce((acc, e) => {
-      acc[e.severity] = (acc[e.severity] || 0) + 1
-      return acc
-    }, {} as Record<AuditSeverity, number>)
+    return events.reduce(
+      (acc, e) => {
+        acc[e.severity] = (acc[e.severity] || 0) + 1
+        return acc
+      },
+      {} as Record<AuditSeverity, number>
+    )
   }
-  
+
   private async detectBruteForce(events: AuditEvent[]): Promise<number> {
     // Simple brute force detection: multiple failed auth from same IP
     const failedAuths = events.filter(e => e.type === AuditEventType.AUTH_FAILURE)
-    const ipCounts = failedAuths.reduce((acc, e) => {
-      const ip = e.actor.ip || 'unknown'
-      acc[ip] = (acc[ip] || 0) + 1
-      return acc
-    }, {} as Record<string, number>)
-    
+    const ipCounts = failedAuths.reduce(
+      (acc, e) => {
+        const ip = e.actor.ip || 'unknown'
+        acc[ip] = (acc[ip] || 0) + 1
+        return acc
+      },
+      {} as Record<string, number>
+    )
+
     return Object.values(ipCounts).filter(count => count > 5).length
   }
-  
+
   private async detectSqlInjection(events: AuditEvent[]): Promise<number> {
-    return events.filter(e => 
-      e.metadata?.threat === 'sql_injection' ||
-      (e.reason && /sql.*injection/i.test(e.reason))
+    return events.filter(
+      e => e.metadata?.threat === 'sql_injection' || (e.reason && /sql.*injection/i.test(e.reason))
     ).length
   }
-  
+
   private async detectXss(events: AuditEvent[]): Promise<number> {
-    return events.filter(e => 
-      e.metadata?.threat === 'xss' ||
-      (e.reason && /xss|cross.*site.*script/i.test(e.reason))
+    return events.filter(
+      e => e.metadata?.threat === 'xss' || (e.reason && /xss|cross.*site.*script/i.test(e.reason))
     ).length
   }
-  
+
   private async getSuspiciousIps(events: AuditEvent[]): Promise<string[]> {
     const suspiciousIps = new Set<string>()
-    
+
     events.forEach(e => {
       if (
         e.type === AuditEventType.SECURITY_VIOLATION ||
@@ -638,148 +615,148 @@ export class SecurityMonitoringDashboard {
         }
       }
     })
-    
+
     return Array.from(suspiciousIps)
   }
-  
+
   private async detectAnomalies(events: AuditEvent[]): Promise<number> {
     // Simple anomaly detection based on unusual patterns
     let anomalies = 0
-    
+
     // Check for unusual time patterns
-    const hourCounts = events.reduce((acc, e) => {
-      const hour = e.timestamp.getHours()
-      acc[hour] = (acc[hour] || 0) + 1
-      return acc
-    }, {} as Record<number, number>)
-    
+    const hourCounts = events.reduce(
+      (acc, e) => {
+        const hour = e.timestamp.getHours()
+        acc[hour] = (acc[hour] || 0) + 1
+        return acc
+      },
+      {} as Record<number, number>
+    )
+
     const avgCount = events.length / 24
-    anomalies += Object.values(hourCounts)
-      .filter(count => count > avgCount * 3).length
-    
+    anomalies += Object.values(hourCounts).filter(count => count > avgCount * 3).length
+
     return anomalies
   }
-  
+
   private async getCpuUsage(): Promise<number> {
     // Placeholder - would integrate with actual monitoring
     return Math.random() * 100
   }
-  
+
   private async getMemoryUsage(): Promise<number> {
     // Placeholder - would integrate with actual monitoring
     return Math.random() * 100
   }
-  
+
   private async getActiveConnections(): Promise<number> {
     // Placeholder - would integrate with actual monitoring
     return Math.floor(Math.random() * 1000)
   }
-  
+
   private async getQueuedRequests(): Promise<number> {
     // Placeholder - would integrate with actual monitoring
     return Math.floor(Math.random() * 100)
   }
-  
+
   private async getAverageResponseTime(): Promise<number> {
     // Placeholder - would integrate with actual monitoring
     return Math.random() * 500
   }
-  
-  private getMetricValue(metrics: SecurityMetrics, path: string): any {
+
+  private getMetricValue(metrics: SecurityMetrics, path: string): unknown {
     const parts = path.split('.')
-    let value: any = metrics
-    
+    let value: unknown = metrics
+
     for (const part of parts) {
-      value = value[part]
+      value = (value as Record<string, unknown>)?.[part]
       if (value === undefined) return 0
     }
-    
+
     return value
   }
-  
-  private evaluateCondition(
-    value: any,
-    condition: string,
-    threshold: any
-  ): boolean {
+
+  private evaluateCondition(value: unknown, condition: string, threshold: unknown): boolean {
     switch (condition) {
       case 'gt':
-        return value > threshold
+        return typeof value === 'number' && typeof threshold === 'number' && value > threshold
       case 'lt':
-        return value < threshold
+        return typeof value === 'number' && typeof threshold === 'number' && value < threshold
       case 'eq':
         return value === threshold
       case 'contains':
         return String(value).includes(String(threshold))
       case 'matches':
-        return new RegExp(threshold).test(String(value))
+        return new RegExp(String(threshold)).test(String(value))
       default:
         return false
     }
   }
-  
+
   private calculateThreatLevel(
     metrics: SecurityMetrics,
     alerts: SecurityAlert[]
   ): 'low' | 'medium' | 'high' | 'critical' {
     const criticalAlerts = alerts.filter(a => a.severity === 'critical').length
     const highAlerts = alerts.filter(a => a.severity === 'high').length
-    
+
     if (criticalAlerts > 0) return 'critical'
     if (highAlerts > 2) return 'critical'
     if (highAlerts > 0) return 'high'
-    
-    const totalThreats = 
+
+    const totalThreats =
       metrics.threats.bruteForceAttempts +
       metrics.threats.sqlInjectionAttempts +
       metrics.threats.xssAttempts
-    
+
     if (totalThreats > 10) return 'high'
     if (totalThreats > 5) return 'medium'
-    
+
     return 'low'
   }
-  
+
   private generateRecommendations(
     metrics: SecurityMetrics,
     alerts: SecurityAlert[],
-    threatLevel: string
+    _threatLevel: string
   ): string[] {
     const recommendations: string[] = []
-    
+
     // High auth failure rate
     if (metrics.authMetrics.failureCount > metrics.authMetrics.successCount * 0.1) {
-      recommendations.push('Consider implementing stricter rate limiting for authentication endpoints')
+      recommendations.push(
+        'Consider implementing stricter rate limiting for authentication endpoints'
+      )
     }
-    
+
     // Low MFA usage
     if (metrics.authMetrics.mfaUsage < metrics.authMetrics.successCount * 0.5) {
       recommendations.push('Encourage or enforce MFA adoption for better account security')
     }
-    
+
     // High error rate
     if (metrics.apiMetrics.errorRate > 0.05) {
       recommendations.push('Investigate high API error rate - possible system issues')
     }
-    
+
     // Active threats
     if (metrics.threats.bruteForceAttempts > 0) {
       recommendations.push('Active brute force attempts detected - review IP blocking rules')
     }
-    
+
     if (metrics.threats.sqlInjectionAttempts > 0) {
       recommendations.push('SQL injection attempts detected - audit input validation')
     }
-    
+
     // Critical alerts
     const criticalAlerts = alerts.filter(a => a.severity === 'critical')
     if (criticalAlerts.length > 0) {
       recommendations.push(`Address ${criticalAlerts.length} critical security alerts immediately`)
     }
-    
+
     return recommendations
   }
-  
+
   private mapAlertSeverity(severity: string): AuditSeverity {
     switch (severity) {
       case 'critical':
@@ -792,18 +769,30 @@ export class SecurityMonitoringDashboard {
         return AuditSeverity.INFO
     }
   }
-  
+
   /**
    * Start metrics collection
    */
   private startMetricsCollection(): void {
     this.flushInterval = setInterval(() => {
       this.collectMetrics().catch(error => {
-        console.error('[SecurityMonitoring] Metrics collection error:', error)
+        // Log metric collection failures via audit logger
+        auditLogger
+          .log({
+            type: AuditEventType.SYSTEM_ERROR,
+            severity: AuditSeverity.ERROR,
+            actor: { id: 'system', type: 'system' },
+            action: 'Failed to collect security metrics',
+            result: 'error',
+            reason: error instanceof Error ? error.message : String(error),
+          })
+          .catch(() => {
+            // Fallback: silent failure to prevent logging loops
+          })
       })
     }, 60000) // Collect every minute
   }
-  
+
   /**
    * Stop monitoring
    */
@@ -825,32 +814,49 @@ export const securityMonitoringApi = {
   /**
    * Get dashboard summary
    */
-  async getDashboard(): Promise<any> {
+  async getDashboard(): Promise<{
+    currentMetrics: SecurityMetrics
+    activeAlerts: SecurityAlert[]
+    recentIncidents: AuditEvent[]
+    trends: {
+      authFailureRate: number
+      apiErrorRate: number
+      threatLevel: 'low' | 'medium' | 'high' | 'critical'
+    }
+    recommendations: string[]
+  }> {
     return securityDashboard.getDashboardSummary()
   },
-  
+
   /**
    * Get security timeline
    */
-  async getTimeline(hours = 24): Promise<any> {
+  async getTimeline(hours = 24): Promise<{
+    timeline: Array<{
+      timestamp: Date
+      events: AuditEvent[]
+      metrics: SecurityMetrics
+    }>
+    summary: {
+      totalEvents: number
+      criticalEvents: number
+      topEventTypes: Array<{ type: string; count: number }>
+    }
+  }> {
     return securityDashboard.getSecurityTimeline(hours)
   },
-  
+
   /**
    * Acknowledge alert
    */
   async acknowledgeAlert(alertId: string, userId: string): Promise<void> {
     return securityDashboard.acknowledgeAlert(alertId, userId)
   },
-  
+
   /**
    * Resolve alert
    */
-  async resolveAlert(
-    alertId: string, 
-    userId: string,
-    resolution?: string
-  ): Promise<void> {
+  async resolveAlert(alertId: string, userId: string, resolution?: string): Promise<void> {
     return securityDashboard.resolveAlert(alertId, userId, resolution)
   },
 }

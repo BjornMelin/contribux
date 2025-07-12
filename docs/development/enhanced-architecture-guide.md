@@ -1,10 +1,12 @@
 # Enhanced Architecture Guide
 
-This document describes the advanced architectural patterns implemented in the Contribux project, following Clean Architecture principles and modern TypeScript best practices.
+This document describes the advanced architectural patterns implemented in the Contribux project,
+following Clean Architecture principles and modern TypeScript best practices.
 
 ## Architecture Overview
 
-The Contribux architecture has been enhanced with advanced design patterns to improve maintainability, testability, and scalability while keeping complexity low (KISS principle).
+The Contribux architecture has been enhanced with advanced design patterns to improve maintainability,
+testability, and scalability while keeping complexity low (KISS principle).
 
 ```mermaid
 graph TB
@@ -53,6 +55,7 @@ graph TB
 ### Location: `src/lib/types/advanced.ts`
 
 #### Branded Types
+
 Enhanced type safety using branded types to prevent value mixing:
 
 ```typescript
@@ -64,6 +67,7 @@ const userId = createBrand<string, 'UserId'>("user123")
 ```
 
 #### Result Pattern
+
 Functional error handling without exceptions:
 
 ```typescript
@@ -81,6 +85,7 @@ if (result.success) {
 ```
 
 #### Advanced Utility Types
+
 - `DeepReadonly<T>` - Makes nested objects readonly
 - `KeysOfType<T, U>` - Extract keys with specific value types
 - `NonEmptyArray<T>` - Ensures arrays have at least one element
@@ -102,14 +107,16 @@ const database = await container.resolve(ServiceKeys.DATABASE)
 const githubClient = await container.resolve(ServiceKeys.GITHUB_CLIENT)
 ```
 
-#### Features:
+#### Features
+
 - **Type Safety**: Full TypeScript support with service keys
 - **Lifecycle Management**: Singleton and transient service lifetimes
 - **Dependency Resolution**: Automatic dependency injection
 - **Circular Dependency Detection**: Prevents infinite loops
 - **Child Containers**: Isolated scopes for testing
 
-#### Service Keys:
+#### Service Keys
+
 ```typescript
 export const ServiceKeys = {
   DATABASE: Symbol('database'),
@@ -125,7 +132,8 @@ export const ServiceKeys = {
 
 Clean abstraction over data access with proper interfaces:
 
-#### Interface Design:
+#### Interface Design
+
 ```typescript
 export interface IUserRepository extends Repository<User, UserId> {
   findByEmail(email: string): Promise<Optional<User>>
@@ -134,14 +142,16 @@ export interface IUserRepository extends Repository<User, UserId> {
 }
 ```
 
-#### Base Repository:
+#### Base Repository
+
 - **Common Operations**: CRUD operations with proper error handling
 - **Query Building**: Dynamic where conditions and pagination
 - **Caching**: Built-in caching support with TTL
 - **Metrics**: Operation tracking and performance monitoring
 - **Transactions**: Safe transaction handling
 
-#### Vector Search Support:
+#### Vector Search Support
+
 ```typescript
 export interface VectorRepository<T> {
   findSimilar(embedding: number[], limit?: number): Promise<Array<T & { similarity: number }>>
@@ -155,7 +165,8 @@ export interface VectorRepository<T> {
 
 Complex object creation with proper configuration:
 
-#### Abstract Factory:
+#### Abstract Factory
+
 ```typescript
 export abstract class AbstractServiceFactory {
   abstract createRepository(type: string): ServiceFactory<any>
@@ -164,12 +175,14 @@ export abstract class AbstractServiceFactory {
 }
 ```
 
-#### Environment-Specific Factories:
+#### Environment-Specific Factories
+
 - **Production Factory**: Real implementations
 - **Testing Factory**: Mock implementations
 - **Factory Registry**: Dynamic factory selection
 
-#### Service Builder Pattern:
+#### Service Builder Pattern
+
 ```typescript
 const service = await serviceBuilder<MyService>()
   .withConfig({ timeout: 5000 })
@@ -195,13 +208,15 @@ Flexible component composition using compound components:
 </Search>
 ```
 
-#### Features:
+#### Features - Compound Component Pattern
+
 - **Context Sharing**: Shared state between sub-components
 - **Flexible Composition**: Mix and match components as needed
 - **Type Safety**: Full TypeScript support with proper types
 - **Performance**: Optimized re-rendering with memoization
 
-#### Components Available:
+#### Components Available
+
 - `Search.Input` - Search input field
 - `Search.Button` - Search trigger button
 - `Search.Filter` - Various filter types (select, multiselect, range, toggle)
@@ -215,19 +230,22 @@ Flexible component composition using compound components:
 
 Systematic error handling throughout the application:
 
-#### Specialized Boundaries:
+#### Specialized Boundaries
+
 - **AuthErrorBoundary**: Authentication-specific errors
 - **ApiErrorBoundary**: Network and API errors
 - **SearchErrorBoundary**: Search operation errors
 - **AsyncErrorBoundary**: Unhandled promise rejections
 
-#### Features:
+#### Features - Error Boundary System
+
 - **Error Recovery**: Retry mechanisms with limits
 - **Error Reporting**: Integration with monitoring systems
 - **Fallback UI**: User-friendly error messages
 - **Development Mode**: Detailed error information in development
 
-#### Usage:
+#### Usage
+
 ```typescript
 export function AppErrorBoundaries({ children }: PropsWithChildren) {
   return (
@@ -248,14 +266,16 @@ export function AppErrorBoundaries({ children }: PropsWithChildren) {
 
 Centralized, type-safe configuration management:
 
-#### Features:
+#### Features - Configuration Provider
+
 - **Schema Validation**: Zod-based validation for all configuration
 - **Environment-Specific**: Different configs for dev/prod/test
 - **Type Safety**: Full TypeScript support with proper types
 - **Hot Reloading**: Configuration reload in development
 - **Security**: Sensitive data sanitization
 
-#### Configuration Sections:
+#### Configuration Sections
+
 ```typescript
 interface ApplicationConfig {
   app: AppConfig
@@ -270,7 +290,8 @@ interface ApplicationConfig {
 }
 ```
 
-#### React Integration:
+#### React Integration
+
 ```typescript
 function MyComponent() {
   const config = useConfig()
@@ -287,7 +308,8 @@ function MyComponent() {
 
 Event-driven architecture for monitoring and analytics:
 
-#### System Events:
+#### System Events
+
 - User activities (login, logout)
 - Search operations
 - Repository interactions
@@ -296,7 +318,8 @@ Event-driven architecture for monitoring and analytics:
 - API calls
 - Cache operations
 
-#### Usage:
+#### Usage - Observer Pattern for Monitoring
+
 ```typescript
 // Track user activity
 await systemObserver.trackUserLogin(userId, ip)
@@ -311,7 +334,8 @@ const duration = systemObserver.endTiming('database_query')
 await systemObserver.trackError(error, { context: 'user_registration' })
 ```
 
-#### Specialized Observers:
+#### Specialized Observers
+
 - **PerformanceObserver**: Tracks slow operations
 - **ErrorObserver**: Tracks error patterns
 - **AnalyticsObserver**: Collects usage data
@@ -319,6 +343,7 @@ await systemObserver.trackError(error, { context: 'user_registration' })
 ## 9. Integration Patterns
 
 ### Service Registration
+
 ```typescript
 // Register all services with the container
 export function registerCoreServices(container: DIContainer = getContainer()): void {
@@ -330,6 +355,7 @@ export function registerCoreServices(container: DIContainer = getContainer()): v
 ```
 
 ### Error Handling Decorators
+
 ```typescript
 // Automatic error tracking
 const trackingDecorator = observerUtils.withErrorTracking('user_service')
@@ -345,6 +371,7 @@ class UserService {
 ```
 
 ### Configuration-Driven Features
+
 ```typescript
 // Feature flags integration
 function AdvancedSearch() {
@@ -361,6 +388,7 @@ function AdvancedSearch() {
 ## 10. Testing Strategy
 
 ### Unit Testing
+
 Each architectural component is designed for easy unit testing:
 
 ```typescript
@@ -378,6 +406,7 @@ describe('UserRepository', () => {
 ```
 
 ### Integration Testing
+
 ```typescript
 // Service integration testing
 describe('SearchService Integration', () => {
@@ -391,6 +420,7 @@ describe('SearchService Integration', () => {
 ```
 
 ### Component Testing
+
 ```typescript
 // Compound component testing
 describe('Search Component', () => {
@@ -411,16 +441,19 @@ describe('Search Component', () => {
 ## 11. Performance Optimizations
 
 ### Caching Strategy
+
 - **Repository Level**: Automatic caching with TTL
 - **Component Level**: React.memo and useMemo optimizations
 - **Service Level**: Request deduplication
 
 ### Bundle Optimization
+
 - **Code Splitting**: Dynamic imports for non-critical paths
 - **Tree Shaking**: ES modules for better tree shaking
 - **Lazy Loading**: Compound components loaded on demand
 
 ### Database Optimization
+
 - **Connection Pooling**: Neon serverless with connection pooling
 - **Query Optimization**: Performance monitoring and slow query detection
 - **Vector Search**: Optimized HNSW indexes for similarity search
@@ -428,16 +461,19 @@ describe('Search Component', () => {
 ## 12. Security Considerations
 
 ### Input Validation
+
 - **Zod Schemas**: All boundaries validated with Zod
 - **Branded Types**: Prevent value mixing and injection
 - **Sanitization**: Automatic data sanitization
 
 ### Authentication
+
 - **NextAuth v5**: Modern authentication with PKCE
 - **JWT Security**: Secure token handling with rotation
 - **Session Management**: Secure session handling
 
 ### Error Handling
+
 - **Information Disclosure**: Safe error messages in production
 - **Error Tracking**: Comprehensive error monitoring
 - **Rate Limiting**: Built-in rate limiting for APIs
@@ -445,16 +481,19 @@ describe('Search Component', () => {
 ## 13. Deployment Architecture
 
 ### Vercel Serverless
+
 - **Edge Functions**: Authentication and API routes
 - **Static Generation**: Pre-rendered pages where possible
 - **Dynamic Rendering**: Server-side rendering for personalized content
 
 ### Database
+
 - **Neon PostgreSQL**: Serverless PostgreSQL with branching
 - **Connection Pooling**: Automatic connection management
 - **Vector Search**: pgvector extension for similarity search
 
 ### Monitoring
+
 - **Real-time Monitoring**: System observer for live metrics
 - **Error Tracking**: Comprehensive error reporting
 - **Performance Monitoring**: Automatic performance tracking
@@ -462,6 +501,7 @@ describe('Search Component', () => {
 ## 14. Development Workflow
 
 ### Code Quality
+
 ```bash
 # Run quality checks
 pnpm quality         # Type check + lint + format check
@@ -474,6 +514,7 @@ pnpm test:e2e       # End-to-end tests
 ```
 
 ### Architecture Validation
+
 - **Type Safety**: Strict TypeScript configuration
 - **Dependency Analysis**: Automatic dependency validation
 - **Performance Monitoring**: Built-in performance tracking
@@ -482,6 +523,7 @@ pnpm test:e2e       # End-to-end tests
 ## 15. Future Enhancements
 
 ### Planned Improvements
+
 1. **Microservices**: Split into domain-specific services
 2. **Event Sourcing**: Event-driven architecture patterns
 3. **CQRS**: Command Query Responsibility Segregation
@@ -490,8 +532,11 @@ pnpm test:e2e       # End-to-end tests
 6. **AI Integration**: Enhanced recommendation algorithms
 
 ### Migration Strategy
-The current architecture is designed to support gradual migration to more advanced patterns without breaking changes, following the principle of evolutionary architecture.
+
+The current architecture is designed to support gradual migration to more advanced patterns without breaking
+changes, following the principle of evolutionary architecture.
 
 ---
 
-This enhanced architecture provides a solid foundation for building scalable, maintainable applications while keeping complexity manageable through proven design patterns and modern TypeScript practices.
+This enhanced architecture provides a solid foundation for building scalable, maintainable applications
+while keeping complexity manageable through proven design patterns and modern TypeScript practices.

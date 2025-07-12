@@ -4,14 +4,12 @@
  * Tests the TestDatabaseManager functionality with PGlite
  */
 
-import type { TestDatabaseManager as TestDatabaseManagerType } from '@/lib/test-utils/test-database-manager'
 import { beforeEach, describe, expect, it } from 'vitest'
+import type { TestDatabaseManager as TestDatabaseManagerType } from '@/lib/test-utils/test-database-manager'
 
 describe('Test Database Manager', () => {
   let TestDatabaseManager: typeof TestDatabaseManagerType
-  let getTestDatabase: typeof import(
-    '../../../src/lib/test-utils/test-database-manager'
-  ).getTestDatabase
+  let getTestDatabase: typeof import('../../../src/lib/test-utils/test-database-manager').getTestDatabase
 
   beforeEach(async () => {
     // Dynamic import to avoid module resolution issues during startup
@@ -25,24 +23,24 @@ describe('Test Database Manager', () => {
     expect(manager).toBeDefined()
   })
 
-  it('should determine optimal strategy as pglite for tests', async () => {
+  it('should determine optimal strategy as mock for tests', async () => {
     const manager = TestDatabaseManager.getInstance()
 
     // Access the private method via reflection for testing
-    const strategy = (
-      manager as TestDatabaseManager & { determineOptimalStrategy: () => string }
+    const strategy = await (
+      manager as TestDatabaseManagerType & { determineOptimalStrategy: () => Promise<string> }
     ).determineOptimalStrategy()
-    expect(strategy).toBe('pglite')
+    expect(strategy).toBe('mock')
   })
 
-  it('should get test database connection with PGlite', async () => {
+  it('should get test database connection with mock strategy', async () => {
     const connection = await getTestDatabase('test-manager-test', {
-      strategy: 'pglite',
+      strategy: 'mock',
       verbose: true,
     })
 
     expect(connection).toBeDefined()
-    expect(connection.strategy).toBe('pglite')
+    expect(connection.strategy).toBe('mock')
     expect(connection.info.performance).toBe('ultra-fast')
     expect(connection.sql).toBeDefined()
     expect(typeof connection.sql).toBe('function')
@@ -61,7 +59,7 @@ describe('Test Database Manager', () => {
 
     try {
       connection = await getTestDatabase('schema-test', {
-        strategy: 'pglite',
+        strategy: 'mock',
         verbose: false,
       })
 
@@ -99,11 +97,11 @@ describe('Test Database Manager', () => {
         }
       }
     }
-  }, 10000) // Extended timeout to 10 seconds
+  }, 3000) // Fast timeout for mock strategy
 
-  it('should handle vector operations (converted for PGlite)', async () => {
+  it('should handle vector operations (converted for mock)', async () => {
     const connection = await getTestDatabase('vector-test', {
-      strategy: 'pglite',
+      strategy: 'mock',
     })
 
     // Create test repository
@@ -149,9 +147,9 @@ describe('Test Database Manager', () => {
 
     try {
       connections = await Promise.all([
-        getTestDatabase('concurrent-1', { strategy: 'pglite' }),
-        getTestDatabase('concurrent-2', { strategy: 'pglite' }),
-        getTestDatabase('concurrent-3', { strategy: 'pglite' }),
+        getTestDatabase('concurrent-1'),
+        getTestDatabase('concurrent-2'),
+        getTestDatabase('concurrent-3'),
       ])
 
       expect(connections).toHaveLength(3)
@@ -184,12 +182,12 @@ describe('Test Database Manager', () => {
 
     try {
       // Create a few connections
-      conn1 = await getTestDatabase('stats-1', { strategy: 'pglite' })
-      conn2 = await getTestDatabase('stats-2', { strategy: 'pglite' })
+      conn1 = await getTestDatabase('stats-1')
+      conn2 = await getTestDatabase('stats-2')
 
       const stats = manager.getStats()
       expect(stats.totalConnections).toBeGreaterThanOrEqual(2)
-      expect(stats.byStrategy.pglite).toBeGreaterThanOrEqual(2)
+      expect(stats.byStrategy.mock).toBeGreaterThanOrEqual(2) // TEST_DB_STRATEGY=mock
       expect(stats.byPerformance['ultra-fast']).toBeGreaterThanOrEqual(2)
     } finally {
       // Cleanup with proper error handling
@@ -210,5 +208,5 @@ describe('Test Database Manager', () => {
         }
       }
     }
-  }, 10000) // Extended timeout to 10 seconds
+  }, 3000) // Fast timeout for mock strategy
 })

@@ -4,7 +4,7 @@
  * authorization, input validation, and attack prevention
  */
 
-import { http, HttpResponse } from 'msw'
+import { HttpResponse, http } from 'msw'
 import { setupServer } from 'msw/node'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
@@ -290,7 +290,7 @@ const securityServer = setupServer(
       return HttpResponse.json({ error: 'CSRF token required' }, { status: 403 })
     }
 
-    let body
+    let body: unknown
     try {
       body = await request.json()
     } catch {

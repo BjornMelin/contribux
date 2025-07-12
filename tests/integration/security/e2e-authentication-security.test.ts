@@ -12,7 +12,7 @@
  * - Real-world authentication attack scenarios
  */
 
-import { http, HttpResponse } from 'msw'
+import { HttpResponse, http } from 'msw'
 import { setupServer } from 'msw/node'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
@@ -141,10 +141,10 @@ describe('End-to-End Authentication Security Integration', () => {
           expect(nonce).toBeDefined()
 
           const oauthContext: z.infer<typeof OAuthSecurityContextSchema> = {
-            state: state!,
-            codeChallenge: codeChallenge!,
+            state: state || '',
+            codeChallenge: codeChallenge || '',
             codeChallengeMethod: 'S256',
-            nonce: nonce!,
+            nonce: nonce || '',
             redirectUri: 'http://localhost:3000/api/auth/callback/github',
             scope: 'read:user user:email',
             clientId: 'test-client-id',

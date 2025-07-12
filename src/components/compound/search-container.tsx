@@ -5,11 +5,11 @@
 
 'use client'
 
+import { useCallback, useMemo, useState } from 'react'
 import type { PropsWithChildren, SearchCriteria, SearchQuery } from '@/lib/types/advanced'
 import { createBrand } from '@/lib/types/advanced'
-import { useCallback, useMemo, useState } from 'react'
-import { SearchContext } from './search-context'
 import type { SearchContextValue, SearchResult } from './search-context'
+import { SearchContext } from './search-context'
 
 // Container component
 interface SearchContainerProps extends PropsWithChildren {

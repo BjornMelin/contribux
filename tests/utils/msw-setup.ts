@@ -6,7 +6,7 @@
  * and fixes fetch/Node.js compatibility issues
  */
 
-import { http, type HttpHandler, HttpResponse } from 'msw'
+import { type HttpHandler, HttpResponse, http } from 'msw'
 import { setupServer } from 'msw/node'
 import { afterAll, afterEach, beforeAll } from 'vitest'
 // Import comprehensive handlers from unified setup
@@ -25,12 +25,12 @@ import {
   testScenarios,
 } from '../mocks/unified-handlers'
 import {
-  type GitHubRepositoryMock,
-  type GitHubUserMock,
   createGitHubRepositoryMock,
   createGitHubUserMock,
   createManyGitHubIssueMocks,
   createManyGitHubRepositoryMocks,
+  type GitHubRepositoryMock,
+  type GitHubUserMock,
   resetAllGitHubMockCounters,
 } from './github-mocks'
 
@@ -580,9 +580,10 @@ export function createInputValidationHandlers() {
 }
 
 /**
- * Setup comprehensive security-aware MSW server
+ * Add security handlers to the existing MSW server instance
+ * Use this to add comprehensive security testing capabilities to an existing server
  */
-export function setupSecurityMSW() {
+export function addSecurityHandlers() {
   // Use the same server instance to avoid conflicts
   const securityHandlers = [
     ...createAuthenticationHandlers(),
@@ -618,7 +619,7 @@ export {
   setupComprehensiveMSW,
   setupCustomMSW,
   setupAuthMSW,
-  setupSecurityMSW,
+  setupSecurityMSW, // This is the one from unified-handlers that creates a new server
   setupSearchMSW,
   // Handler collections
   allHandlers,
@@ -641,7 +642,7 @@ export const MSWScenarios = {
   // Authentication testing only
   auth: setupAuthMSW,
 
-  // Security testing only
+  // Security testing only (creates new dedicated server)
   security: setupSecurityMSW,
 
   // Search functionality testing
@@ -649,6 +650,9 @@ export const MSWScenarios = {
 
   // Custom handler selection
   custom: setupCustomMSW,
+
+  // Add security handlers to existing server (alternative approach)
+  addSecurityToExisting: addSecurityHandlers,
 }
 
 /**

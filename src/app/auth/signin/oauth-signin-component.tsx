@@ -1,20 +1,23 @@
 'use client'
 
-import { MotionDiv } from '@/components/motion'
-import { Github, Loader2, Mail } from 'lucide-react'
-
-import { Card } from '@/components/ui/card'
-import { cn } from '@/lib/utils'
 import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
+import { Github, Loader2, Mail } from '@/components/icons'
+import { MotionDiv } from '@/components/motion'
+import { Card } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
 
 // Safe NextAuth import with error handling
-let signIn: any = null
+type SignInFunction =
+  | ((provider?: string, options?: { callbackUrl?: string }) => Promise<void>)
+  | null
+
+let signIn: SignInFunction = null
 try {
   const nextAuthReact = require('next-auth/react')
   signIn = nextAuthReact.signIn
-} catch (error) {
-  console.warn('NextAuth not properly configured, falling back to manual OAuth')
+} catch (_error) {
+  // NextAuth not available, fallback will be used
 }
 
 // Aurora Button Component
@@ -29,6 +32,7 @@ const AuroraButton = ({ children, className, onClick, disabled }: AuroraButtonPr
   const [visible, setVisible] = useState(false)
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: This div is a visual wrapper for hover effects, contains actual button inside
     <div
       onMouseEnter={() => setVisible(true)}
       onMouseLeave={() => setVisible(false)}

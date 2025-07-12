@@ -4,8 +4,8 @@
  * Provides configurable rate limiting for different endpoints and use cases
  */
 
-import { Redis } from '@redis/client'
-import { NextRequest } from 'next/server'
+import type { RedisClientType } from '@redis/client'
+import type { NextRequest } from 'next/server'
 import { z } from 'zod'
 
 // Rate limiting algorithms
@@ -48,10 +48,10 @@ export interface IRateLimiter {
  * Redis-based rate limiter implementation
  */
 export class RedisRateLimiter implements IRateLimiter {
-  private redis: Redis | null = null
+  private redis: RedisClientType | null = null
   private defaultConfig: RateLimitConfig
 
-  constructor(redis: Redis | null, defaultConfig: RateLimitConfig) {
+  constructor(redis: RedisClientType | null, defaultConfig: RateLimitConfig) {
     this.redis = redis
     this.defaultConfig = defaultConfig
   }
@@ -79,8 +79,7 @@ export class RedisRateLimiter implements IRateLimiter {
         default:
           throw new Error(`Unsupported algorithm: ${finalConfig.algorithm}`)
       }
-    } catch (error) {
-      console.error('[RateLimiter] Redis error, falling back to in-memory:', error)
+    } catch (_error) {
       return this.checkInMemoryLimit(identifier, finalConfig)
     }
   }
@@ -94,9 +93,9 @@ export class RedisRateLimiter implements IRateLimiter {
     ]
 
     try {
-      await Promise.all(keys.map(key => this.redis!.del(key)))
-    } catch (error) {
-      console.error('[RateLimiter] Failed to reset limit:', error)
+      await Promise.all(keys.map(key => this.redis?.del(key)))
+    } catch {
+      // Ignore Redis deletion errors - failed cleanup should not break application flow
     }
   }
 
@@ -108,10 +107,7 @@ export class RedisRateLimiter implements IRateLimiter {
   /**
    * Token bucket algorithm implementation
    */
-  private async checkTokenBucket(
-    key: string,
-    config: RateLimitConfig
-  ): Promise<RateLimitResult> {
+  private async checkTokenBucket(key: string, config: RateLimitConfig): Promise<RateLimitResult> {
     const now = Date.now()
     const bucketKey = `${key}:bucket`
     const timestampKey = `${key}:timestamp`
@@ -156,15 +152,10 @@ export class RedisRateLimiter implements IRateLimiter {
       end
     `
 
-    const result = await this.redis!.eval(
-      luaScript,
-      2,
-      bucketKey,
-      timestampKey,
-      config.maxRequests,
-      config.windowMs,
-      now
-    ) as [number, number, number]
+    const result = (await this.redis?.eval(luaScript, {
+      keys: [bucketKey, timestampKey],
+      arguments: [config.maxRequests.toString(), config.windowMs.toString(), now.toString()],
+    })) as [number, number, number]
 
     const [allowed, remaining, lastRefill] = result
     const reset = new Date(lastRefill + config.windowMs)
@@ -181,21 +172,18 @@ export class RedisRateLimiter implements IRateLimiter {
   /**
    * Sliding window algorithm implementation
    */
-  private async checkSlidingWindow(
-    key: string,
-    config: RateLimitConfig
-  ): Promise<RateLimitResult> {
+  private async checkSlidingWindow(key: string, config: RateLimitConfig): Promise<RateLimitResult> {
     const now = Date.now()
     const windowStart = now - config.windowMs
 
     // Remove old entries and count current window
-    await this.redis!.zRemRangeByScore(key, 0, windowStart)
-    const count = await this.redis!.zCard(key)
+    await this.redis?.zRemRangeByScore(key, 0, windowStart)
+    const count = (await this.redis?.zCard(key)) ?? 0
 
     if (count < config.maxRequests) {
       // Add current request
-      await this.redis!.zAdd(key, { score: now, value: `${now}` })
-      await this.redis!.expire(key, Math.ceil(config.windowMs / 1000))
+      await this.redis?.zAdd(key, { score: now, value: `${now}` })
+      await this.redis?.expire(key, Math.ceil(config.windowMs / 1000))
 
       return {
         success: true,
@@ -206,8 +194,9 @@ export class RedisRateLimiter implements IRateLimiter {
     }
 
     // Get oldest entry to calculate retry time
-    const oldestEntry = await this.redis!.zRange(key, 0, 0)
-    const oldestTimestamp = oldestEntry.length > 0 ? parseInt(oldestEntry[0]) : now
+    const oldestEntry = await this.redis?.zRange(key, 0, 0)
+    const oldestTimestamp =
+      oldestEntry && oldestEntry.length > 0 ? Number.parseInt(oldestEntry[0]) : now
     const reset = new Date(oldestTimestamp + config.windowMs)
 
     return {
@@ -222,18 +211,15 @@ export class RedisRateLimiter implements IRateLimiter {
   /**
    * Fixed window algorithm implementation
    */
-  private async checkFixedWindow(
-    key: string,
-    config: RateLimitConfig
-  ): Promise<RateLimitResult> {
+  private async checkFixedWindow(key: string, config: RateLimitConfig): Promise<RateLimitResult> {
     const now = Date.now()
     const window = Math.floor(now / config.windowMs)
     const windowKey = `${key}:${window}`
 
-    const count = await this.redis!.incr(windowKey)
-    
+    const count = (await this.redis?.incr(windowKey)) ?? 1
+
     if (count === 1) {
-      await this.redis!.expire(windowKey, Math.ceil(config.windowMs / 1000))
+      await this.redis?.expire(windowKey, Math.ceil(config.windowMs / 1000))
     }
 
     const windowEnd = (window + 1) * config.windowMs
@@ -244,9 +230,7 @@ export class RedisRateLimiter implements IRateLimiter {
       limit: config.maxRequests,
       remaining: Math.max(0, config.maxRequests - count),
       reset,
-      retryAfter: count > config.maxRequests
-        ? Math.ceil((windowEnd - now) / 1000)
-        : undefined,
+      retryAfter: count > config.maxRequests ? Math.ceil((windowEnd - now) / 1000) : undefined,
     }
   }
 
@@ -255,10 +239,7 @@ export class RedisRateLimiter implements IRateLimiter {
    */
   private inMemoryLimits = new Map<string, { count: number; reset: number }>()
 
-  private checkInMemoryLimit(
-    identifier: string,
-    config: RateLimitConfig
-  ): RateLimitResult {
+  private checkInMemoryLimit(identifier: string, config: RateLimitConfig): RateLimitResult {
     const now = Date.now()
     const key = this.generateKey(identifier, config.keyPrefix)
     const limit = this.inMemoryLimits.get(key)
@@ -302,10 +283,10 @@ export class RedisRateLimiter implements IRateLimiter {
     }
   }
 
-  private cleanupInMemoryLimits(now: number): void {
+  private cleanupInMemoryLimits(_now: number): void {
     const entries = Array.from(this.inMemoryLimits.entries())
     entries.sort((a, b) => a[1].reset - b[1].reset)
-    
+
     const toRemove = Math.floor(entries.length * 0.3)
     for (let i = 0; i < toRemove; i++) {
       this.inMemoryLimits.delete(entries[i][0])
@@ -333,10 +314,8 @@ export function getClientIdentifier(request: NextRequest): string {
 
   // Fallback to IP address
   const forwarded = request.headers.get('x-forwarded-for')
-  const ip = forwarded?.split(',')[0]?.trim() || 
-    request.headers.get('x-real-ip') ||
-    'unknown'
-  
+  const ip = forwarded?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown'
+
   return `ip:${ip}`
 }
 

@@ -216,8 +216,12 @@ export class PerformanceBenchmark {
     maxTime: 10000, // 10 seconds
     minIterations: 10,
     forceGC: true,
-    setup: () => {},
-    teardown: () => {},
+    setup: () => {
+      // Default setup - override as needed
+    },
+    teardown: () => {
+      // Default teardown - override as needed
+    },
   }
 
   /**

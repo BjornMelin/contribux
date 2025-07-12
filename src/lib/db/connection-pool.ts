@@ -1,6 +1,27 @@
 /**
- * Memory-Optimized Database Connection Pool
- * Manages Neon connections with aggressive memory optimization
+ * @deprecated This custom connection pool is deprecated in favor of Neon's built-in PgBouncer pooling
+ *
+ * MIGRATION NOTICE:
+ * This file contains a custom connection pooling implementation that is no longer needed
+ * as we now use Neon's native PgBouncer pooling which provides:
+ *
+ * - Up to 10,000 concurrent connections
+ * - Automatic connection management
+ * - Better performance in serverless environments
+ * - No double-pooling issues
+ * - Zero maintenance required
+ *
+ * The new implementation is in:
+ * - src/lib/db/config.ts (enhanced configuration)
+ * - src/lib/db/index.ts (updated database client)
+ *
+ * To migrate your code:
+ * 1. Use `import { createConnectionByType } from '@/lib/db/config'`
+ * 2. Replace custom pooling with `createConnectionByType.pooled()`
+ * 3. For migrations, use `createConnectionByType.direct()`
+ * 4. For edge functions, use `createConnectionByType.edge()`
+ *
+ * This file will be removed in the next major version.
  */
 
 import type { NeonQueryFunction } from '@neondatabase/serverless'
@@ -299,6 +320,7 @@ let globalPool: MemoryOptimizedPool | null = null
 
 /**
  * Get the global memory-optimized pool instance
+ * @deprecated Use createConnectionByType.pooled() from config.ts instead
  */
 export function getOptimizedPool(): MemoryOptimizedPool {
   if (!globalPool) {
@@ -309,6 +331,7 @@ export function getOptimizedPool(): MemoryOptimizedPool {
 
 /**
  * Get an optimized database connection
+ * @deprecated Use createConnectionByType.pooled() from config.ts instead
  */
 export function getOptimizedConnection(databaseUrl: string): NeonQueryFunction<false, false> {
   const pool = getOptimizedPool()

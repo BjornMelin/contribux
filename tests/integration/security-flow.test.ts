@@ -14,7 +14,7 @@
  * - Cross-component security coordination
  */
 
-import { http, HttpResponse } from 'msw'
+import { HttpResponse, http } from 'msw'
 import { setupServer } from 'msw/node'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
@@ -53,7 +53,7 @@ interface SecurityIncident {
   userAgent: string
   endpoint: string
   timestamp: Date
-  details: Record<string, any>
+  details: Record<string, unknown>
   status: 'detected' | 'investigating' | 'mitigated' | 'resolved'
   responseActions: string[]
 }
@@ -146,7 +146,7 @@ const SecurityIncidentResponseSchema = z.object({
     severity: z.enum(['low', 'medium', 'high', 'critical']),
     status: z.enum(['detected', 'investigating', 'mitigated', 'resolved']),
     timestamp: z.string().datetime(),
-    details: z.record(z.any()),
+    details: z.record(z.unknown()),
     responseActions: z.array(z.string()),
   }),
   mitigation: z.object({
@@ -262,7 +262,11 @@ describe('Security Flow Integration Tests', () => {
         http.post('http://localhost:3000/api/auth/signin', async ({ request }) => {
           const ipAddress = request.headers.get('X-Forwarded-For') || testIP
           const userAgent = request.headers.get('User-Agent') || testUserAgent
-          const body = (await request.json()) as any
+          interface SignInRequestBody {
+            email: string
+            provider: string
+          }
+          const body = (await request.json()) as SignInRequestBody
 
           // Enhanced security checks for authentication endpoint
           const securityChecks = {
@@ -765,7 +769,21 @@ describe('Security Flow Integration Tests', () => {
 
         // CSP violation reporting endpoint
         http.post('http://localhost:3000/api/security/csp-report', async ({ request }) => {
-          const violation = (await request.json()) as any
+          interface CSPReportBody {
+            'csp-report': {
+              'document-uri': string
+              referrer: string
+              'violated-directive': string
+              'effective-directive': string
+              'original-policy': string
+              'blocked-uri': string
+              'source-file': string
+              'line-number': number
+              'column-number': number
+              'status-code': number
+            }
+          }
+          const violation = (await request.json()) as CSPReportBody
 
           const cspViolation: CSPViolation = {
             violationId: crypto.randomUUID(),
@@ -1011,7 +1029,11 @@ describe('Security Flow Integration Tests', () => {
         http.post('http://localhost:3000/api/auth/signin', async ({ request }) => {
           const ipAddress = request.headers.get('X-Forwarded-For') || '127.0.0.1'
           const userAgent = request.headers.get('User-Agent') || 'unknown'
-          const body = (await request.json()) as any
+          interface AttackRequestBody {
+            email: string
+            provider: string
+          }
+          const body = (await request.json()) as AttackRequestBody
 
           // Detect attack patterns
           const isAttackerIP = attackerIPs.includes(ipAddress)
@@ -1081,7 +1103,10 @@ describe('Security Flow Integration Tests', () => {
 
         // Security incident response endpoint
         http.post('http://localhost:3000/api/security/incident/respond', async ({ request }) => {
-          const body = (await request.json()) as any
+          interface IncidentResponseBody {
+            incidentId: string
+          }
+          const body = (await request.json()) as IncidentResponseBody
           const incidentId = body.incidentId
 
           const incident = securityFlowState.securityIncidents.find(
@@ -1313,7 +1338,10 @@ describe('Security Flow Integration Tests', () => {
 
         // Recovery action endpoint
         http.post('http://localhost:3000/api/security/recovery/action', async ({ request }) => {
-          const body = (await request.json()) as any
+          interface RecoveryActionBody {
+            action: string
+          }
+          const body = (await request.json()) as RecoveryActionBody
           const action = body.action
 
           const incident = securityFlowState.securityIncidents.find(i => i.severity === 'critical')

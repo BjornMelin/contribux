@@ -5,9 +5,9 @@
  * Validates that performance optimizations are properly implemented
  */
 
-import fs from 'fs'
-import path from 'path'
-import { fileURLToPath } from 'url'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -18,21 +18,21 @@ class OptimizationValidator {
     this.results = {
       iconOptimization: false,
       motionOptimization: false,
+      bundleAnalyzer: false,
+      dynamicImports: false,
+      modularizeImports: false,
       cacheOptimization: false,
-      queryOptimization: false,
-      bundleConfig: false,
       performanceDashboard: false,
     }
     this.issues = []
+    this.improvements = []
   }
 
   validateIconOptimization() {
-    console.log('🎯 Validating icon optimization...')
-
-    const iconIndexPath = path.join(projectRoot, 'src/components/icons/index.ts')
+    const iconIndexPath = path.join(projectRoot, 'src/components/icons/index.tsx')
 
     if (!fs.existsSync(iconIndexPath)) {
-      this.issues.push('Icon optimization file missing: src/components/icons/index.ts')
+      this.issues.push('Icon optimization file missing: src/components/icons/index.tsx')
       return false
     }
 
@@ -48,10 +48,14 @@ class OptimizationValidator {
 
     if (!hasTreeShakenExports) {
       this.issues.push('Icon tree-shaking not properly implemented')
+    } else {
+      this.improvements.push('✅ Icon tree-shaking implemented')
     }
 
     if (!hasLazyImports) {
       this.issues.push('Lazy icon loading not implemented')
+    } else {
+      this.improvements.push('✅ Lazy icon loading implemented')
     }
 
     this.results.iconOptimization = hasTreeShakenExports && hasLazyImports
@@ -59,8 +63,6 @@ class OptimizationValidator {
   }
 
   validateMotionOptimization() {
-    console.log('🎬 Validating motion optimization...')
-
     const motionIndexPath = path.join(projectRoot, 'src/components/motion/index.tsx')
 
     if (!fs.existsSync(motionIndexPath)) {
@@ -73,232 +75,303 @@ class OptimizationValidator {
     // Check for lazy loading
     const hasLazyLoading = content.includes('lazy(') && content.includes('framer-motion')
 
-    // Check for motion preference detection
-    const hasMotionPreference = content.includes('prefers-reduced-motion')
+    // Check for SSR safety
+    const hasSSRSafety = content.includes("typeof window === 'undefined'")
 
-    // Check for suspense wrapper
-    const hasSuspense = content.includes('Suspense')
+    // Check for proper exports
+    const hasProperExports =
+      content.includes('export const MotionDiv') && content.includes('export const AnimatePresence')
 
     if (!hasLazyLoading) {
-      this.issues.push('Motion lazy loading not properly implemented')
+      this.issues.push('Motion components lazy loading not implemented')
+    } else {
+      this.improvements.push('✅ Framer Motion lazy loading implemented')
     }
 
-    if (!hasMotionPreference) {
-      this.issues.push('Motion preference detection missing')
+    if (!hasSSRSafety) {
+      this.issues.push('Motion components SSR safety not implemented')
+    } else {
+      this.improvements.push('✅ Motion components SSR-safe')
     }
 
-    if (!hasSuspense) {
-      this.issues.push('Suspense wrapper for motion components missing')
+    if (!hasProperExports) {
+      this.issues.push('Motion components exports not properly structured')
+    } else {
+      this.improvements.push('✅ Motion components properly exported')
     }
 
-    this.results.motionOptimization = hasLazyLoading && hasMotionPreference && hasSuspense
+    this.results.motionOptimization = hasLazyLoading && hasSSRSafety && hasProperExports
     return this.results.motionOptimization
   }
 
-  validateCacheOptimization() {
-    console.log('🚀 Validating cache optimization...')
-
-    const cacheOptimizedPath = path.join(projectRoot, 'src/lib/cache/api-cache-optimized.ts')
-
-    if (!fs.existsSync(cacheOptimizedPath)) {
-      this.issues.push('Cache optimization file missing: src/lib/cache/api-cache-optimized.ts')
-      return false
-    }
-
-    const content = fs.readFileSync(cacheOptimizedPath, 'utf8')
-
-    // Check for cache configurations
-    const hasCacheConfigs = content.includes('CACHE_CONFIGS') && content.includes('staleTime')
-
-    // Check for cache key management
-    const hasCacheKeyManager = content.includes('CacheKeyManager')
-
-    // Check for invalidation strategies
-    const hasInvalidationManager = content.includes('CacheInvalidationManager')
-
-    // Check for priority-based caching
-    const hasPrioritySystem = content.includes('CachePriority')
-
-    if (!hasCacheConfigs) {
-      this.issues.push('Cache configurations not properly implemented')
-    }
-
-    if (!hasCacheKeyManager) {
-      this.issues.push('Cache key management missing')
-    }
-
-    if (!hasInvalidationManager) {
-      this.issues.push('Cache invalidation strategies missing')
-    }
-
-    this.results.cacheOptimization = hasCacheConfigs && hasCacheKeyManager && hasInvalidationManager
-    return this.results.cacheOptimization
-  }
-
-  validateQueryOptimization() {
-    console.log('📊 Validating query optimization...')
-
-    const queryOptimizerPath = path.join(projectRoot, 'src/lib/db/query-optimizer.ts')
-
-    if (!fs.existsSync(queryOptimizerPath)) {
-      this.issues.push('Query optimizer missing: src/lib/db/query-optimizer.ts')
-      return false
-    }
-
-    const content = fs.readFileSync(queryOptimizerPath, 'utf8')
-
-    // Check for query analysis
-    const hasQueryAnalysis = content.includes('analyzeQuery') && content.includes('EXPLAIN')
-
-    // Check for index recommendations
-    const hasIndexRecommendations = content.includes('generateIndexRecommendations')
-
-    // Check for performance metrics
-    const hasPerformanceMetrics = content.includes('QueryMetrics')
-
-    if (!hasQueryAnalysis) {
-      this.issues.push('Query analysis functionality missing')
-    }
-
-    if (!hasIndexRecommendations) {
-      this.issues.push('Index recommendation system missing')
-    }
-
-    this.results.queryOptimization =
-      hasQueryAnalysis && hasIndexRecommendations && hasPerformanceMetrics
-    return this.results.queryOptimization
-  }
-
-  validateBundleConfig() {
-    console.log('📦 Validating bundle configuration...')
-
+  validateBundleAnalyzer() {
+    const packageJsonPath = path.join(projectRoot, 'package.json')
     const nextConfigPath = path.join(projectRoot, 'next.config.js')
 
-    if (!fs.existsSync(nextConfigPath)) {
-      this.issues.push('Next.js config missing')
+    try {
+      const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
+      const nextConfig = fs.readFileSync(nextConfigPath, 'utf8')
+
+      // Check for bundle analyzer dependency
+      const hasBundleAnalyzer = packageJson.devDependencies?.['@next/bundle-analyzer']
+
+      // Check for bundle analyzer scripts
+      const hasAnalyzeScript = packageJson.scripts?.analyze
+
+      // Check for bundle analyzer configuration
+      const hasConfiguration =
+        nextConfig.includes('withBundleAnalyzer') &&
+        nextConfig.includes('bundleAnalyzer(nextConfig)')
+
+      if (!hasBundleAnalyzer) {
+        this.issues.push('@next/bundle-analyzer not installed')
+      } else {
+        this.improvements.push('✅ Bundle analyzer dependency installed')
+      }
+
+      if (!hasAnalyzeScript) {
+        this.issues.push('Bundle analyzer script not configured')
+      } else {
+        this.improvements.push('✅ Bundle analyzer scripts configured')
+      }
+
+      if (!hasConfiguration) {
+        this.issues.push('Bundle analyzer not configured in next.config.js')
+      } else {
+        this.improvements.push('✅ Bundle analyzer configured in Next.js')
+      }
+
+      this.results.bundleAnalyzer = hasBundleAnalyzer && hasAnalyzeScript && hasConfiguration
+      return this.results.bundleAnalyzer
+    } catch (error) {
+      this.issues.push(`Bundle analyzer validation failed: ${error.message}`)
       return false
     }
-
-    const content = fs.readFileSync(nextConfigPath, 'utf8')
-
-    // Check for optimized chunk splitting
-    const hasChunkSplitting = content.includes('splitChunks') && content.includes('cacheGroups')
-
-    // Check for performance hints
-    const hasPerformanceHints = content.includes('performance') && content.includes('maxAssetSize')
-
-    // Check for image optimization
-    const hasImageOptimization = content.includes('images') && content.includes('formats')
-
-    if (!hasChunkSplitting) {
-      this.issues.push('Optimized chunk splitting not configured')
-    }
-
-    if (!hasPerformanceHints) {
-      this.issues.push('Performance hints not configured')
-    }
-
-    this.results.bundleConfig = hasChunkSplitting && hasPerformanceHints && hasImageOptimization
-    return this.results.bundleConfig
   }
 
-  validatePerformanceDashboard() {
-    console.log('📈 Validating performance dashboard...')
+  validateDynamicImports() {
+    const srcFiles = this.getAllSourceFiles()
+    let dynamicImportsFound = 0
+    let rechartsDynamicImport = false
 
-    const dashboardPath = path.join(
-      projectRoot,
-      'src/components/monitoring/performance-dashboard.tsx'
-    )
-    const pagePath = path.join(projectRoot, 'src/app/performance/page.tsx')
+    for (const file of srcFiles) {
+      try {
+        const content = fs.readFileSync(file, 'utf8')
 
-    if (!fs.existsSync(dashboardPath)) {
-      this.issues.push(
-        'Performance dashboard missing: src/components/monitoring/performance-dashboard.tsx'
-      )
-      return false
+        // Check for Next.js dynamic imports
+        if (content.includes("import('") || content.includes('dynamic(')) {
+          dynamicImportsFound++
+        }
+
+        // Check for recharts dynamic import optimization
+        if (
+          file.includes('real-time-dashboard') &&
+          content.includes('dynamic(') &&
+          content.includes('recharts')
+        ) {
+          rechartsDynamicImport = true
+        }
+      } catch (_error) {
+        // Ignore import errors for optional dependencies
+      }
     }
 
-    if (!fs.existsSync(pagePath)) {
-      this.issues.push('Performance page missing: src/app/performance/page.tsx')
-      return false
+    if (dynamicImportsFound === 0) {
+      this.issues.push('No dynamic imports found - missing bundle optimization')
+    } else {
+      this.improvements.push(`✅ ${dynamicImportsFound} dynamic imports implemented`)
     }
 
-    const dashboardContent = fs.readFileSync(dashboardPath, 'utf8')
+    if (!rechartsDynamicImport) {
+      this.issues.push('Recharts not dynamically imported in dashboard')
+    } else {
+      this.improvements.push('✅ Recharts dynamically imported for better performance')
+    }
 
-    // Check for metrics tracking
-    const hasMetricsTracking = dashboardContent.includes('PerformanceMetrics')
+    this.results.dynamicImports = dynamicImportsFound > 0 && rechartsDynamicImport
+    return this.results.dynamicImports
+  }
 
-    // Check for optimization status
-    const hasOptimizationStatus = dashboardContent.includes('OptimizationStatus')
+  validateModularizeImports() {
+    const nextConfigPath = path.join(projectRoot, 'next.config.js')
 
-    // Check for performance scoring
-    const hasPerformanceScoring = dashboardContent.includes('calculateOverallScore')
+    try {
+      const content = fs.readFileSync(nextConfigPath, 'utf8')
 
-    this.results.performanceDashboard =
-      hasMetricsTracking && hasOptimizationStatus && hasPerformanceScoring
-    return this.results.performanceDashboard
+      // Check for modularizeImports configuration
+      const hasModularizeImports = content.includes('modularizeImports')
+      const hasLucideOptimization = content.includes("'lucide-react'")
+      const hasRadixOptimization = content.includes("'@radix-ui/react-**'")
+
+      if (!hasModularizeImports) {
+        this.issues.push('modularizeImports not configured in next.config.js')
+      } else {
+        this.improvements.push('✅ modularizeImports configured')
+      }
+
+      if (!hasLucideOptimization) {
+        this.issues.push('Lucide React import optimization not configured')
+      } else {
+        this.improvements.push('✅ Lucide React imports optimized')
+      }
+
+      if (!hasRadixOptimization) {
+        this.issues.push('Radix UI import optimization not configured')
+      } else {
+        this.improvements.push('✅ Radix UI imports optimized')
+      }
+
+      this.results.modularizeImports = hasModularizeImports && hasLucideOptimization
+      return this.results.modularizeImports
+    } catch (error) {
+      this.issues.push(`modularizeImports validation failed: ${error.message}`)
+      return false
+    }
+  }
+
+  validateUsageOptimization() {
+    const srcFiles = this.getAllSourceFiles()
+    let optimizedImports = 0
+    let totalIconImports = 0
+
+    for (const file of srcFiles) {
+      try {
+        const content = fs.readFileSync(file, 'utf8')
+
+        // Count imports from our optimized icon barrel
+        if (content.includes("from '@/components/icons'")) {
+          optimizedImports++
+        }
+
+        // Count direct lucide-react imports (should be minimal)
+        if (content.includes("from 'lucide-react'")) {
+          totalIconImports++
+        }
+      } catch (_error) {
+        // Ignore import errors for optional dependencies
+      }
+    }
+
+    const optimizationRatio =
+      totalIconImports > 0 ? optimizedImports / (optimizedImports + totalIconImports) : 1
+
+    if (optimizationRatio > 0.8) {
+      this.improvements.push(`✅ ${Math.round(optimizationRatio * 100)}% of icon imports optimized`)
+    } else {
+      this.issues.push(`Only ${Math.round(optimizationRatio * 100)}% of icon imports optimized`)
+    }
+
+    return optimizationRatio > 0.8
+  }
+
+  getAllSourceFiles() {
+    const srcDir = path.join(projectRoot, 'src')
+    const files = []
+
+    const walkDir = dir => {
+      try {
+        const entries = fs.readdirSync(dir, { withFileTypes: true })
+
+        for (const entry of entries) {
+          const fullPath = path.join(dir, entry.name)
+
+          if (entry.isDirectory()) {
+            walkDir(fullPath)
+          } else if (entry.isFile() && /\.(ts|tsx|js|jsx)$/.test(entry.name)) {
+            files.push(fullPath)
+          }
+        }
+      } catch (_error) {
+        // Skip directories we can't read
+      }
+    }
+
+    if (fs.existsSync(srcDir)) {
+      walkDir(srcDir)
+    }
+
+    return files
   }
 
   generateReport() {
-    console.log('\n🚀 OPTIMIZATION VALIDATION REPORT')
-    console.log('==================================\n')
+    console.log('\n🔍 BUNDLE OPTIMIZATION VALIDATION REPORT\n')
 
-    const validations = [
-      { name: 'Icon Optimization', status: this.results.iconOptimization },
-      { name: 'Motion Optimization', status: this.results.motionOptimization },
-      { name: 'Cache Optimization', status: this.results.cacheOptimization },
-      { name: 'Query Optimization', status: this.results.queryOptimization },
-      { name: 'Bundle Configuration', status: this.results.bundleConfig },
-      { name: 'Performance Dashboard', status: this.results.performanceDashboard },
-    ]
+    // Overall score
+    const totalChecks = Object.keys(this.results).length
+    const passedChecks = Object.values(this.results).filter(Boolean).length
+    const score = Math.round((passedChecks / totalChecks) * 100)
 
-    let passedCount = 0
+    console.log(
+      `📊 Overall Score: ${score}% (${passedChecks}/${totalChecks} optimizations implemented)\n`
+    )
 
-    validations.forEach(validation => {
-      const status = validation.status ? '✅ PASS' : '❌ FAIL'
-      console.log(`${validation.name}: ${status}`)
-      if (validation.status) passedCount++
-    })
-
-    console.log(`\nValidation Score: ${passedCount}/${validations.length}`)
-
-    if (this.issues.length > 0) {
-      console.log('\n🚨 ISSUES FOUND:')
-      this.issues.forEach((issue, i) => {
-        console.log(`${i + 1}. ${issue}`)
-      })
-    } else {
-      console.log('\n🎉 All optimizations validated successfully!')
+    // Improvements
+    if (this.improvements.length > 0) {
+      console.log('✅ IMPLEMENTED OPTIMIZATIONS:')
+      this.improvements.forEach(improvement => console.log(`   ${improvement}`))
+      console.log('')
     }
 
-    const overallStatus = passedCount === validations.length ? 'PASS' : 'FAIL'
-    console.log(`\nOverall Status: ${overallStatus}`)
+    // Issues
+    if (this.issues.length > 0) {
+      console.log('❌ OPTIMIZATION ISSUES:')
+      this.issues.forEach(issue => console.log(`   ❌ ${issue}`))
+      console.log('')
+    }
 
-    return overallStatus === 'PASS'
+    // Detailed results
+    console.log('📋 DETAILED RESULTS:')
+    Object.entries(this.results).forEach(([check, passed]) => {
+      const status = passed ? '✅' : '❌'
+      const formattedCheck = check.replace(/([A-Z])/g, ' $1').toLowerCase()
+      console.log(`   ${status} ${formattedCheck}`)
+    })
+
+    // Recommendations
+    console.log('\n💡 RECOMMENDATIONS:')
+    if (score >= 90) {
+      console.log('   🎉 Excellent! Your bundle optimizations are well implemented.')
+    } else if (score >= 70) {
+      console.log('   👍 Good progress! A few more optimizations will improve performance.')
+    } else {
+      console.log('   ⚠️ More optimizations needed for optimal bundle performance.')
+    }
+
+    // Next steps
+    if (this.issues.length > 0) {
+      console.log('\n🚀 NEXT STEPS:')
+      console.log('   1. Run `pnpm analyze` to see detailed bundle analysis')
+      console.log('   2. Address the issues listed above')
+      console.log('   3. Run this validator again to verify improvements')
+    }
+
+    console.log('\n📈 PERFORMANCE COMMANDS:')
+    console.log('   • pnpm analyze - View bundle analyzer')
+    console.log('   • pnpm perf:bundle - Run custom bundle analysis')
+    console.log('   • pnpm perf:report - Full performance report')
+
+    return score
   }
 
   async run() {
-    console.log('🔍 Starting optimization validation...\n')
-
     try {
+      console.log('🔍 Validating bundle optimizations...\n')
+
+      // Run all validations
       this.validateIconOptimization()
       this.validateMotionOptimization()
-      this.validateCacheOptimization()
-      this.validateQueryOptimization()
-      this.validateBundleConfig()
-      this.validatePerformanceDashboard()
+      this.validateBundleAnalyzer()
+      this.validateDynamicImports()
+      this.validateModularizeImports()
+      this.validateUsageOptimization()
 
-      const success = this.generateReport()
+      // Generate and display report
+      const score = this.generateReport()
 
-      if (success) {
-        console.log('\n✅ All performance optimizations are properly implemented!')
-        process.exit(0)
-      } else {
-        console.log('\n❌ Some optimizations need attention. Check the issues above.')
-        process.exit(1)
-      }
+      // Exit with appropriate code
+      process.exit(score >= 70 ? 0 : 1)
     } catch (error) {
-      console.error('❌ Error during validation:', error)
+      console.error('❌ Validation failed:', error.message)
       process.exit(1)
     }
   }

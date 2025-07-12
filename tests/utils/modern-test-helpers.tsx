@@ -5,14 +5,14 @@
  * FIXES: Complex renderIsolated patterns causing SearchBar test failures
  */
 
-import type { UUID } from '@/types/base'
-import type { Repository, SearchFilters } from '@/types/search'
 import { cleanup, render, screen } from '@testing-library/react'
 import type React from 'react'
 import { afterEach, beforeEach, vi } from 'vitest'
+import type { UUID } from '@/types/base'
+import type { Repository, SearchFilters } from '@/types/search'
 
 // Conditionally import userEvent only when in DOM environment
-let userEvent: any = null
+let userEvent: typeof import('@testing-library/user-event') | null = null
 if (typeof window !== 'undefined') {
   import('@testing-library/user-event').then(module => {
     userEvent = module.userEvent

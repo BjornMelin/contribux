@@ -5,8 +5,8 @@
 
 'use client'
 
-import { getCircuitBreakerStyle } from '@/lib/utils/badge-styles'
 import { memo } from 'react'
+import { getCircuitBreakerStyle } from '@/lib/utils/badge-styles'
 
 interface CircuitBreakerState {
   endpoint: string

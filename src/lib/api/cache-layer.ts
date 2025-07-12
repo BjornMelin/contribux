@@ -11,6 +11,7 @@
  * - Compression for large cache entries
  */
 
+import { Redis } from 'ioredis'
 import {
   type CacheMetrics,
   type CacheTierMetrics,
@@ -18,7 +19,6 @@ import {
   recordOperationTime,
 } from '@/lib/utils/cache-utils'
 import { estimateObjectSize } from '@/lib/utils/object-transformation'
-import { Redis } from 'ioredis'
 
 // Cache configuration
 interface CacheConfig {
@@ -565,7 +565,7 @@ export class CacheLayer {
 // Export cache layer as lazy-loaded singleton to avoid build-time issues
 let cacheLayerInstance: CacheLayer | null = null
 export const cacheLayer = new Proxy({} as CacheLayer, {
-  get(target, prop) {
+  get(_target, prop) {
     if (!cacheLayerInstance) {
       cacheLayerInstance = new CacheLayer()
     }

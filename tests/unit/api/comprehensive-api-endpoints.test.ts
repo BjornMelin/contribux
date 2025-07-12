@@ -3,7 +3,7 @@
  * Tests all API endpoints with MSW mocking and comprehensive scenarios
  */
 
-import { http, HttpResponse } from 'msw'
+import { HttpResponse, http } from 'msw'
 import { setupServer } from 'msw/node'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { z } from 'zod'
@@ -11,14 +11,14 @@ import {
   type ApiErrorResponse,
   type AuthProvidersResponse,
   type AuthSigninResponse,
-  type HealthResponse,
-  type MfaSettingsResponse,
-  type SecurityHealthResponse,
-  type WebAuthnVerificationResponse,
   apiResponseFactory,
   authResponseFactory,
+  type HealthResponse,
+  type MfaSettingsResponse,
   repositoryFactory,
+  type SecurityHealthResponse,
   userFactory,
+  type WebAuthnVerificationResponse,
   webauthnFactory,
 } from './api-test-factories'
 

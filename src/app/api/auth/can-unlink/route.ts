@@ -1,7 +1,7 @@
-import { auth } from '@/lib/auth'
-import { canUnlinkProvider } from '@/lib/auth/helpers'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
+import { auth } from '@/lib/auth'
+import { canUnlinkProvider } from '@/lib/auth/helpers'
 
 export async function GET(request: NextRequest) {
   try {

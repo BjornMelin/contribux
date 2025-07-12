@@ -337,14 +337,14 @@ export function deepClone<T>(obj: T): T {
  */
 export function parseRateLimitHeader(value: string | undefined | null, defaultValue = 0): number {
   if (!value) return defaultValue
-  
+
   const parsed = Number.parseInt(value, 10)
-  
+
   // Return default value if parsing resulted in NaN or invalid number
   if (Number.isNaN(parsed) || !Number.isFinite(parsed)) {
     return defaultValue
   }
-  
+
   // Ensure non-negative values for rate limits
   return Math.max(0, parsed)
 }
