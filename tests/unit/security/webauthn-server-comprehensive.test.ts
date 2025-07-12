@@ -38,6 +38,7 @@ vi.mock('@simplewebauthn/server', () => ({
 // Mock the database module with template literal support
 vi.mock('@/lib/db', () => {
   const mockSql = vi.fn()
+  // biome-ignore lint/suspicious/noExplicitAny: Test mock functions require flexible parameter types
   const sqlMock = (template: TemplateStringsArray, ...substitutions: any[]) => {
     // Call the underlying mock first to handle any configured return values
     const result = mockSql(template, ...substitutions)
@@ -1346,6 +1347,7 @@ describe('WebAuthn Server Error Recovery', () => {
     const userId = WebAuthnTestHelpers.generateUserId()
 
     // Mock database failure using the underlying mock function
+    // biome-ignore lint/suspicious/noExplicitAny: Type assertion required for accessing Vitest mock methods
     const underlyingMock = mockSql as any
     underlyingMock.mockRejectedValueOnce(new Error('Database temporarily unavailable'))
 

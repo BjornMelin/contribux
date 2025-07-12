@@ -90,7 +90,7 @@ test.describe('Comprehensive Playwright Security Validation', () => {
 
     // Test OAuth state parameter security
     const githubProvider = providers.github
-    if (githubProvider && githubProvider.authorization) {
+    if (githubProvider?.authorization) {
       const authUrl = new URL(githubProvider.authorization.url)
       expect(authUrl.searchParams.has('state')).toBeTruthy()
       const state = authUrl.searchParams.get('state')

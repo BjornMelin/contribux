@@ -246,10 +246,10 @@ browsers.forEach(({ name: browserName, device }) => {
       expect(cspTest.inlineScriptBlocked).toBeTruthy()
 
       // Test CSP violation reporting
-      let cspViolationReported = false
+      let _cspViolationReported = false
       page.on('console', msg => {
         if (msg.text().includes('Content Security Policy')) {
-          cspViolationReported = true
+          _cspViolationReported = true
         }
       })
 

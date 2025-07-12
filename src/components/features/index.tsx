@@ -16,8 +16,11 @@ export const OpportunityList = dynamic(
   {
     loading: () => (
       <div className="space-y-4">
-        {Array.from({ length: 3 }, (_, i) => (
-          <div key={`loading-skeleton-${i}`} className="h-32 animate-pulse rounded-lg bg-muted" />
+        {['top', 'middle', 'bottom'].map(position => (
+          <div
+            key={`opportunity-skeleton-${position}`}
+            className="h-32 animate-pulse rounded-lg bg-muted"
+          />
         ))}
       </div>
     ),

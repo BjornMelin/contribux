@@ -163,6 +163,7 @@ test.describe('Attack Simulation Security Testing', () => {
     console.log('✅ XSS Attack Simulation completed')
   })
 
+  // biome-ignore lint/correctness/noUnusedFunctionParameters: Playwright test fixtures may not always be used
   test('CSRF Attack Simulation', async ({ page, context }) => {
     console.log('🔒 Simulating CSRF Attacks')
 

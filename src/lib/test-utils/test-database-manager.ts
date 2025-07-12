@@ -1959,6 +1959,7 @@ export class TestDatabaseManager {
   private createMockSqlClient(
     mockData: Map<string, Record<string, unknown>[]>
   ): NeonQueryFunction<false, false> {
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Complex SQL query parsing logic required for comprehensive test mocking
     return async function sql(strings: TemplateStringsArray, ...values: unknown[]) {
       // Reconstruct the query with placeholders for parsing
       let query = strings[0]

@@ -224,6 +224,9 @@
         "**/*.spec.tsx",
         "**/tests/**/*"
       ],
+      "javascript": {
+        "globals": ["$1", "vi"]
+      },
       "linter": {
         "rules": {
           "suspicious": {

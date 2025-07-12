@@ -10,6 +10,7 @@ vi.mock('@/lib/db', () => {
   const mockSql = vi.fn()
 
   // Setup template literal mock function
+  // biome-ignore lint/suspicious/noExplicitAny: Test mock functions require flexible parameter types
   const sqlMock = (template: TemplateStringsArray, ...substitutions: any[]) => {
     mockSql(template, ...substitutions)
     return Promise.resolve([]) // Always return empty array for WebAuthn queries
