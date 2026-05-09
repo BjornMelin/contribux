@@ -107,6 +107,12 @@ jobs:
           EOF
 
       # Run database migrations
+      - name: Reset isolated Neon branch schema
+        run: pnpm db:migrate:reset
+        env:
+          DATABASE_URL: ${{ steps.create-branch.outputs.db_url_with_pooler }}
+          ALLOW_CI_DATABASE_RESET: 'true'
+
       - name: Run Database Migrations
         run: pnpm db:migrate
         env:

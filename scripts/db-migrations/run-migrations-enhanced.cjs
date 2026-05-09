@@ -29,12 +29,109 @@ function resolveMigrationPath(group, filename) {
   return path.join(group.directory, filename)
 }
 
+function readDollarQuoteTag(content, start) {
+  const tagMatch = content.slice(start).match(/^\$[A-Za-z_][A-Za-z0-9_]*\$|^\$\$/)
+  return tagMatch?.[0] ?? null
+}
+
+function splitSqlStatements(content) {
+  const statements = []
+  let statement = ''
+  let dollarQuoteTag = null
+  let inSingleQuote = false
+  let inDoubleQuote = false
+  let inLineComment = false
+  let inBlockComment = false
+
+  for (let index = 0; index < content.length; index++) {
+    const char = content[index]
+    const nextChar = content[index + 1]
+
+    if (inLineComment) {
+      statement += char
+      if (char === '\n') {
+        inLineComment = false
+      }
+      continue
+    }
+
+    if (inBlockComment) {
+      statement += char
+      if (char === '*' && nextChar === '/') {
+        statement += nextChar
+        index++
+        inBlockComment = false
+      }
+      continue
+    }
+
+    if (!dollarQuoteTag && !inSingleQuote && !inDoubleQuote && char === '-' && nextChar === '-') {
+      statement += char + nextChar
+      index++
+      inLineComment = true
+      continue
+    }
+
+    if (!dollarQuoteTag && !inSingleQuote && !inDoubleQuote && char === '/' && nextChar === '*') {
+      statement += char + nextChar
+      index++
+      inBlockComment = true
+      continue
+    }
+
+    if (!inSingleQuote && !inDoubleQuote && char === '$') {
+      const tag = readDollarQuoteTag(content, index)
+
+      if (tag && (!dollarQuoteTag || tag === dollarQuoteTag)) {
+        statement += tag
+        index += tag.length - 1
+        dollarQuoteTag = dollarQuoteTag ? null : tag
+        continue
+      }
+    }
+
+    statement += char
+
+    if (dollarQuoteTag) {
+      continue
+    }
+
+    if (char === "'" && !inDoubleQuote) {
+      if (inSingleQuote && nextChar === "'") {
+        statement += nextChar
+        index++
+        continue
+      }
+
+      inSingleQuote = !inSingleQuote
+      continue
+    }
+
+    if (char === '"' && !inSingleQuote) {
+      inDoubleQuote = !inDoubleQuote
+      continue
+    }
+
+    if (char === ';' && !inSingleQuote && !inDoubleQuote) {
+      const trimmed = statement.trim()
+      if (trimmed) {
+        statements.push(trimmed)
+      }
+      statement = ''
+    }
+  }
+
+  const trailingStatement = statement.trim()
+  if (trailingStatement) {
+    statements.push(trailingStatement.endsWith(';') ? trailingStatement : `${trailingStatement};`)
+  }
+
+  return statements
+}
+
 // Helper function to execute SQL statements from file
 async function executeMigrationStatements(sql, content) {
-  const statements = content
-    .split(/;\s*$/m)
-    .filter(stmt => stmt.trim().length > 0)
-    .map(stmt => `${stmt.trim()};`)
+  const statements = splitSqlStatements(content)
 
   for (const statement of statements) {
     if (statement.trim() && !statement.includes('\\i')) {
@@ -428,8 +525,13 @@ async function resetDatabase() {
     process.exit(1)
   }
 
-  // Only allow reset in test environment
-  if (!databaseUrl.includes('test') && !databaseUrl.includes('localhost')) {
+  const allowCiDatabaseReset =
+    process.env.ALLOW_CI_DATABASE_RESET === 'true' &&
+    process.env.CI === 'true' &&
+    process.env.GITHUB_ACTIONS === 'true'
+
+  // Only allow reset in local/test databases or explicitly isolated CI branches.
+  if (!databaseUrl.includes('test') && !databaseUrl.includes('localhost') && !allowCiDatabaseReset) {
     process.exit(1)
   }
 
@@ -491,4 +593,5 @@ module.exports = {
   resetDatabase,
   createDatabaseClient,
   closeDatabaseClient,
+  splitSqlStatements,
 }
