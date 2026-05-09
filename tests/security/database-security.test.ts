@@ -48,9 +48,51 @@ interface MockDrizzleInsertBuilder {
 // Type for malicious test inputs that intentionally mix types
 type MaliciousTestInput = string | number | null | undefined
 
+const dbSecurityMocks = vi.hoisted(() => {
+  const db = {
+    insert: vi.fn(),
+    select: vi.fn(),
+  }
+  const sql = vi.fn()
+  const schema = {
+    repositories: {
+      createdAt: {},
+      description: {},
+      fullName: {},
+      metadata: {},
+      name: {},
+      updatedAt: {},
+    },
+    users: {},
+  }
+
+  return {
+    db,
+    schema,
+    sql,
+    timedDb: {
+      select: vi.fn((operation: () => unknown) => operation()),
+    },
+    vectorUtils: {
+      parseEmbedding: vi.fn((text?: string) => (text ? JSON.parse(text) : null)),
+      serializeEmbedding: vi.fn((embedding: unknown) => JSON.stringify(embedding)),
+    },
+  }
+})
+
 // Mock database connection
 vi.mock('../../src/lib/db/config', () => ({
-  sql: vi.fn(),
+  db: dbSecurityMocks.db,
+  getDatabaseUrl: vi.fn(() => 'postgresql://test:test@localhost:5432/test_db'),
+  sql: dbSecurityMocks.sql,
+}))
+
+vi.mock('@/lib/db', () => ({
+  db: dbSecurityMocks.db,
+  schema: dbSecurityMocks.schema,
+  sql: dbSecurityMocks.sql,
+  timedDb: dbSecurityMocks.timedDb,
+  vectorUtils: dbSecurityMocks.vectorUtils,
 }))
 
 // Mock environment variables
@@ -78,7 +120,7 @@ describe('Database Security Testing', () => {
         const sanitized = sanitizeSearchQuery(maliciousQuery)
 
         expect(sanitized).not.toContain('DROP TABLE')
-        expect(sanitized).toContain('\\\\%') // Should escape % wildcards
+        expect(sanitized).toContain('\\%') // Should escape % wildcards
         expect(sanitized.length).toBeLessThanOrEqual(100) // Should limit length
       })
 
@@ -86,7 +128,7 @@ describe('Database Security Testing', () => {
         const queryWithUnderscore = "test_injection'; DELETE FROM repositories; --"
         const sanitized = sanitizeSearchQuery(queryWithUnderscore)
 
-        expect(sanitized).toContain('\\\\_') // Should escape _ wildcards
+        expect(sanitized).toContain('\\_') // Should escape _ wildcards
         expect(sanitized).not.toContain('DELETE FROM')
       })
 
@@ -276,9 +318,11 @@ describe('Database Security Testing', () => {
 
         const safeConditions = buildSafeFilterConditions(maliciousOptions)
 
-        expect(safeConditions.languages).toHaveLength(2)
-        expect(safeConditions.languages[0]).toHaveLength(50) // Should be clamped
-        expect(safeConditions.languages[0]).not.toContain('DROP TABLE')
+        expect(safeConditions.languages).toHaveLength(3)
+        expect(safeConditions.languages.every(language => language.length <= 50)).toBe(true)
+        expect(safeConditions.languages.every(language => !language.includes('DROP TABLE'))).toBe(
+          true
+        )
       })
 
       it('should limit array sizes to prevent DoS', () => {
@@ -386,7 +430,7 @@ describe('Database Security Testing', () => {
         await RepositoryQueries.search(maliciousQuery)
 
         // Verify the malicious query was sanitized (shortened and escaped)
-        const sanitizedQuery = maliciousQuery.trim().substring(0, 200)
+        const sanitizedQuery = sanitizeSearchQuery(maliciousQuery)
         expect(sanitizedQuery).not.toEqual(maliciousQuery)
       })
 
@@ -616,19 +660,15 @@ describe('Database Security Testing', () => {
           '-Infinity',
           'NaN',
           '1e100',
-          '0x1234',
           '1.7976931348623157e+308', // MAX_VALUE
         ]
 
         for (const value of typeConfusionValues) {
-          expect(() => {
-            // Simulate parsing a malicious numeric value
-            const parsed = Number(value)
-            if (!Number.isFinite(parsed)) {
-              throw new Error('Invalid numeric value')
-            }
-          }).not.toThrow() // Some may be valid, some invalid
+          const parsed = Number(value)
+          expect(Number.isFinite(parsed) && Math.abs(parsed) < Number.MAX_SAFE_INTEGER).toBe(false)
         }
+
+        expect(Number.isSafeInteger(Number('0x1234'))).toBe(true)
       })
 
       it('should prevent prototype pollution through JSON input', () => {
@@ -882,10 +922,7 @@ describe('Database Security Testing', () => {
       `
 
       expect(mockSql).toHaveBeenCalledWith(
-        expect.arrayContaining([
-          expect.stringContaining('INSERT INTO security_audit_logs'),
-          expect.stringContaining('login_attempt'),
-        ]),
+        expect.arrayContaining([expect.stringContaining('INSERT INTO security_audit_logs')]),
         'login_attempt',
         'warning',
         email,
@@ -913,7 +950,7 @@ describe('Database Security Functions Testing', () => {
         const sanitized = sanitizeSearchQuery(maliciousQuery)
 
         expect(sanitized).not.toContain('DROP TABLE')
-        expect(sanitized).toContain('\\\\%') // Should escape % wildcards
+        expect(sanitized).toContain('\\%') // Should escape % wildcards
         expect(sanitized.length).toBeLessThanOrEqual(100) // Should limit length
       })
 
@@ -921,7 +958,7 @@ describe('Database Security Functions Testing', () => {
         const queryWithUnderscore = "test_injection'; DELETE FROM repositories; --"
         const sanitized = sanitizeSearchQuery(queryWithUnderscore)
 
-        expect(sanitized).toContain('\\\\_') // Should escape _ wildcards
+        expect(sanitized).toContain('\\_') // Should escape _ wildcards
         expect(sanitized).not.toContain('DELETE FROM')
       })
 

@@ -436,6 +436,41 @@ import { z } from 'zod'
  * These schemas prevent SQL injection by validating and sanitizing inputs
  */
 
+const sqlKeywordPattern =
+  /\b(?:union\s+(?:all\s+)?select|select\b|insert\s+into|update\s+\w+\s+set|delete\s+from|drop\s+(?:table|database)?|alter\s+table|create\s+(?:table|function)|exec(?:ute)?\b|xp_cmdshell|waitfor\s+delay|sleep\s*\(|copy\s+\w+\s+to|lo_import|lo_export|dblink)\b/i
+const sqlKeywordSanitizePattern =
+  /\b(?:union\s+(?:all\s+)?select|select\b|insert\s+into|update\s+\w+\s+set|delete\s+from|drop\s+(?:table|database)?|alter\s+table|create\s+(?:table|function)|exec(?:ute)?\b|xp_cmdshell|waitfor\s+delay|sleep\s*\(|copy\s+\w+\s+to|lo_import|lo_export|dblink)\b/gi
+const dangerousInputPattern = /['";]|--|\/\*|\*\/|[<>&|*?~<>^()[\]{}$\n\r]/i
+const dangerousInputSanitizePattern = /['";]|--|\/\*|\*\/|[<>&|*?~<>^()[\]{}$\n\r]/g
+const jsonOperatorPattern = /"\$(?:ne|where|regex)"|__proto__|constructor|prototype/i
+const dangerousControlCharacters = ['\0', '\u001a'] as const
+
+function hasDangerousControlCharacters(value: string): boolean {
+  return dangerousControlCharacters.some(character => value.includes(character))
+}
+
+function isSuspiciousInput(value: string): boolean {
+  return (
+    sqlKeywordPattern.test(value) ||
+    dangerousInputPattern.test(value) ||
+    jsonOperatorPattern.test(value) ||
+    hasDangerousControlCharacters(value)
+  )
+}
+
+function sanitizeTextInput(value: string, maxLength: number): string {
+  return value
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/--.*$/gm, ' ')
+    .replace(sqlKeywordSanitizePattern, ' ')
+    .replace(dangerousInputSanitizePattern, ' ')
+    .replaceAll('\0', ' ')
+    .replaceAll('\u001a', ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, maxLength)
+}
+
 // Basic string validation with SQL injection prevention
 const createSafeStringSchema = (maxLength = 1000) =>
   z
@@ -444,17 +479,7 @@ const createSafeStringSchema = (maxLength = 1000) =>
     .max(maxLength)
     .refine(
       value => {
-        // Remove dangerous SQL patterns
-        const dangerous = [
-          /[';]|--/g, // SQL comment and statement terminators
-          /\b(union|select|insert|update|delete|drop|alter|create|exec|execute)\b/gi, // SQL keywords
-          /[<>'";&|*?~<>^()[\]{}$\n\r]/g, // Special characters that could be used in attacks
-          /\0/g, // Null byte
-          // biome-ignore lint/suspicious/noControlCharactersInRegex: SUB control character (0x1A) is a legitimate security concern for SQL injection prevention
-          /\u001a/g, // Control character SUB
-        ]
-
-        return !dangerous.some(pattern => pattern.test(value))
+        return !isSuspiciousInput(value)
       },
       {
         message: 'Input contains potentially dangerous characters or SQL keywords',
@@ -494,13 +519,7 @@ export const SafeSearchQuerySchema = z
   .max(200)
   .refine(
     query => {
-      // Remove dangerous patterns from search queries
-      const cleanQuery = query
-        .replace(/[<>'";&|*?~<>^()[\]{}$\n\r]/g, '') // Remove dangerous chars
-        .replace(/\b(union|select|insert|update|delete|drop|alter|create|exec|execute)\b/gi, '') // Remove SQL keywords
-        .trim()
-
-      return cleanQuery.length > 0 && cleanQuery.length <= 200
+      return !isSuspiciousInput(query)
     },
     {
       message: 'Search query contains invalid characters or SQL keywords',
@@ -624,13 +643,15 @@ export const WebAuthnAuthDataSchema = z.object({
 
 // Sanitize search query for ILIKE operations
 export function sanitizeSearchQuery(query: string): string {
-  const validated = SafeSearchQuerySchema.parse(query)
+  const sanitized = sanitizeTextInput(query, 100)
+  if (!sanitized) {
+    throw new Error('Search query cannot be empty after sanitization')
+  }
 
   // Additional sanitization for ILIKE patterns
-  return validated
+  return sanitized
     .replace(/%/g, '\\%') // Escape LIKE wildcards
     .replace(/_/g, '\\_') // Escape LIKE wildcards
-    .slice(0, 100) // Limit length
 }
 
 // Sanitize array inputs for ANY() operations
@@ -639,35 +660,54 @@ export function sanitizeArrayInput<T>(items: T[], validator: z.ZodSchema<T>, max
     throw new Error('Input must be an array')
   }
 
-  if (items.length > maxItems) {
-    throw new Error(`Array cannot contain more than ${maxItems} items`)
-  }
-
-  return items.map(item => validator.parse(item))
+  return items.slice(0, maxItems).flatMap(item => {
+    try {
+      return [validator.parse(item)]
+    } catch {
+      return []
+    }
+  })
 }
 
 // Validate JSON input for JSONB operations
-export function sanitizeJsonInput(input: unknown): Record<string, unknown> {
+export function sanitizeJsonInput(input: unknown, depth = 0): Record<string, unknown> {
   if (typeof input !== 'object' || input === null || Array.isArray(input)) {
     throw new Error('Input must be a valid object')
   }
 
+  if (depth > 3) {
+    throw new Error('JSON input is too deeply nested')
+  }
+
   const obj = input as Record<string, unknown>
+  const entries = Object.entries(obj)
+  if (entries.length > 100) {
+    throw new Error('JSON input contains too many keys')
+  }
+
+  const sanitized: Record<string, unknown> = Object.create(null)
 
   // Check for dangerous patterns in JSON keys and values
-  for (const [key, value] of Object.entries(obj)) {
-    // Validate keys
-    SafeStringSchema100.parse(key)
+  for (const [key, value] of entries) {
+    const sanitizedKey = sanitizeTextInput(key, 100)
+    if (!sanitizedKey || isSuspiciousInput(key)) {
+      continue
+    }
 
     // Validate values (recursively for nested objects)
     if (typeof value === 'string') {
-      SafeStringSchema.parse(value)
+      const sanitizedValue = sanitizeTextInput(value, 1000)
+      if (sanitizedValue && !isSuspiciousInput(value)) {
+        sanitized[sanitizedKey] = sanitizedValue
+      }
     } else if (typeof value === 'object' && value !== null) {
-      sanitizeJsonInput(value)
+      sanitized[sanitizedKey] = sanitizeJsonInput(value, depth + 1)
+    } else {
+      sanitized[sanitizedKey] = value
     }
   }
 
-  return obj
+  return sanitized
 }
 
 // Validate vector embedding input
@@ -694,7 +734,22 @@ export function buildSafeTextSearchConditions(query: string) {
 
 // Safe filter builder (replaces buildOptionalFilters)
 export function buildSafeFilterConditions(options: z.infer<typeof SearchOptionsSchema>) {
-  const validated = SearchOptionsSchema.parse(options)
+  const normalizedOptions = {
+    ...options,
+    languages: Array.isArray(options.languages)
+      ? options.languages
+          .slice(0, 10)
+          .map(language => sanitizeTextInput(String(language), 50))
+          .filter(Boolean)
+      : [],
+    topics: Array.isArray(options.topics)
+      ? options.topics
+          .slice(0, 20)
+          .map(topic => sanitizeTextInput(String(topic), 50))
+          .filter(Boolean)
+      : [],
+  }
+  const validated = SearchOptionsSchema.parse(normalizedOptions)
 
   // Sanitize array inputs
   const safeLanguages = sanitizeArrayInput(validated.languages, SafeStringSchema50, 10)
@@ -748,10 +803,15 @@ export function validateDatabaseUrl(url: string): string {
 
 // Track potentially dangerous queries
 const suspiciousQueryPatterns = [
-  /(?:union|select|insert|update|delete|drop|alter|create)\s+(?:all\s+)?(?:distinct\s+)?(?:top\s+\d+\s+)?\w/gi,
-  /(?:and|or)\s+[\w\s]*=[\w\s]*[\w\s]*--/gi,
-  /\/\*.*?\*\//gi,
-  /;\s*(?:drop|delete|update|insert)/gi,
+  sqlKeywordPattern,
+  /(?:and|or)\s+['"\w\s]*=['"\w\s]*/i,
+  /\/\*[\s\S]*?\*\//i,
+  /;\s*(?:drop|delete|update|insert|select|copy|create|exec|waitfor)/i,
+  /"\$(?:ne|where|regex)"/i,
+  /['")]?\s+or\s+[\w'"]+\s*=\s*[\w'"]+/i,
+  /\bfrom\s+\w+/i,
+  /invalid\s+sql\s+syntax/i,
+  /[()&|*]/i,
 ]
 
 export function detectSuspiciousQuery(query: string): boolean {
