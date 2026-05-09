@@ -74,6 +74,9 @@ describe('middleware', () => {
     expect(response.headers.get('Content-Security-Policy')).toContain('nonce-test-nonce')
     expect(response.headers.get('X-Frame-Options')).toBe('DENY')
     expect(response.headers.get('x-middleware-request-x-nonce')).toBe('test-nonce')
+    expect(response.headers.get('x-middleware-request-content-security-policy')).toContain(
+      'nonce-test-nonce'
+    )
   })
 
   it('allows public repository search API with CORS headers', async () => {

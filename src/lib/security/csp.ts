@@ -139,7 +139,6 @@ export function getCSPDirectives(forceProduction?: boolean): CSPDirectives {
     'default-src': ["'self'"],
     'script-src': [
       "'self'",
-      "'strict-dynamic'",
       // Allow wasm in production for better performance
       ...(isProduction ? ["'wasm-unsafe-eval'"] : []),
     ],

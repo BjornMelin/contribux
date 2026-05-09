@@ -13,17 +13,6 @@
 'use client'
 
 import { QueryClientProvider } from '@tanstack/react-query'
-import dynamic from 'next/dynamic'
-
-// Completely exclude DevTools from production bundle
-const ReactQueryDevtools = dynamic(
-  () => import('@tanstack/react-query-devtools').then(mod => ({ default: mod.ReactQueryDevtools })),
-  {
-    ssr: false,
-    loading: () => null,
-  }
-)
-
 import {
   type ErrorInfo,
   type PropsWithChildren,
@@ -308,13 +297,6 @@ export function QueryProvider({ children }: QueryProviderProps) {
       <NetworkStatusIndicator />
       <QueryPerformanceMonitor />
       {children}
-
-      {/* Development tools - only in development with enhanced Suspense */}
-      {isClientDevelopment() && (
-        <Suspense fallback={null}>
-          <ReactQueryDevtools initialIsOpen={false} position="bottom" />
-        </Suspense>
-      )}
     </QueryClientWrapper>
   )
 }

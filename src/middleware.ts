@@ -35,9 +35,13 @@ export async function middleware(request: NextRequest) {
   // Generate unique nonce for this request using Web Crypto API (Edge Runtime compatible)
   const nonce = generateNonce()
 
-  // Clone the request headers efficiently
+  const csp = buildCSP(getCSPDirectives(), nonce)
+
+  // Clone the request headers efficiently. Next.js reads the request CSP to
+  // apply the nonce to framework scripts during dynamic rendering.
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-nonce', nonce)
+  requestHeaders.set('Content-Security-Policy', csp)
 
   // Create response with updated headers
   const response = NextResponse.next({
@@ -47,7 +51,7 @@ export async function middleware(request: NextRequest) {
   })
 
   // Set security headers with optimized CSP
-  setSecurityHeaders(response, nonce, pathname)
+  setSecurityHeaders(response, csp, pathname)
 
   // Set CORS headers for API routes with dynamic origins
   if (pathname.startsWith('/api')) {
@@ -123,11 +127,9 @@ function extractToken(request: NextRequest): string | null {
 }
 
 /**
- * Set security headers with optimized CSP for Next.js 15
+ * Set security headers with optimized CSP for the App Router.
  */
-function setSecurityHeaders(response: NextResponse, nonce: string, _pathname: string) {
-  // Build CSP with nonce
-  const csp = buildCSP(getCSPDirectives(), nonce)
+function setSecurityHeaders(response: NextResponse, csp: string, _pathname: string) {
   response.headers.set('Content-Security-Policy', csp)
 
   // Core security headers

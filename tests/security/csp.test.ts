@@ -88,10 +88,11 @@ describe('CSP Configuration', () => {
       expect(directives['form-action']).toEqual(["'self'"])
     })
 
-    it('should include strict-dynamic in script-src', () => {
+    it('should allow self-hosted Next.js script chunks', () => {
       const directives = getCSPDirectives()
 
-      expect(directives['script-src']).toContain("'strict-dynamic'")
+      expect(directives['script-src']).toContain("'self'")
+      expect(directives['script-src']).not.toContain("'strict-dynamic'")
     })
 
     it('should include GitHub API endpoints in connect-src', () => {
@@ -244,10 +245,12 @@ describe('CSP Configuration', () => {
       expect(directives['form-action']).toEqual(["'self'"])
     })
 
-    it('should use strict-dynamic for modern script loading', () => {
+    it('should keep script-src compatible with nonced inline and self-hosted external scripts', () => {
       const directives = getCSPDirectives()
 
-      expect(directives['script-src']).toContain("'strict-dynamic'")
+      expect(directives['script-src']).toContain("'self'")
+      expect(directives['script-src']).not.toContain("'unsafe-inline'")
+      expect(directives['script-src']).not.toContain("'strict-dynamic'")
     })
   })
 })

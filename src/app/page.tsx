@@ -1,38 +1,13 @@
 'use client'
 
-import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { useEffect } from 'react'
+import { OptimizedSearchExample } from '@/components/examples/optimized-search'
 import { ArrowRight, Github, Sparkles, Zap } from '@/components/icons'
+import { MotionDiv } from '@/components/motion'
 import { useSession } from '@/components/providers/app-providers'
 import { Button } from '@/components/ui/button'
 import { preloadSearchComponents } from '@/lib/performance/preloader'
-
-// Lazy load heavy components
-const OptimizedSearchExample = dynamic(
-  () =>
-    import('@/components/examples/optimized-search').then(mod => ({
-      default: mod.OptimizedSearchExample,
-    })),
-  {
-    loading: () => (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="h-8 w-8 animate-spin rounded-full border-primary border-b-2" />
-          <p className="text-muted-foreground text-sm">Loading search interface...</p>
-        </div>
-      </div>
-    ),
-  }
-)
-
-const MotionDiv = dynamic(
-  () => import('@/components/motion').then(mod => ({ default: mod.MotionDiv })),
-  {
-    loading: () => <div className="contents" />,
-    ssr: false,
-  }
-)
 
 export default function Home() {
   const { status } = useSession()

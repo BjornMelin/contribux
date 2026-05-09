@@ -1,51 +1,12 @@
 'use client'
 
 /**
- * Optimized Motion Component System
- * Lazy-loaded Framer Motion components for reduced initial bundle size
+ * Motion Component System
+ * Thin wrappers around Framer Motion components.
  */
 
-// Type-only import for SSR safety
-import type { MotionProps } from 'framer-motion'
-import React, { lazy, Suspense } from 'react'
-
-// Fallback component for loading states
-const MotionFallback: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div style={{ opacity: 0.8 }}>{children}</div>
-)
-
-// Lazy-loaded motion components with proper typing
-const LazyMotionDiv = lazy(() =>
-  typeof window === 'undefined'
-    ? Promise.resolve({ default: MotionFallback })
-    : import('framer-motion').then(mod => ({
-        default: mod.motion.div,
-      }))
-)
-
-const LazyMotionButton = lazy(() =>
-  typeof window === 'undefined'
-    ? Promise.resolve({ default: MotionFallback })
-    : import('framer-motion').then(mod => ({
-        default: mod.motion.button,
-      }))
-)
-
-const LazyMotionSpan = lazy(() =>
-  typeof window === 'undefined'
-    ? Promise.resolve({ default: MotionFallback })
-    : import('framer-motion').then(mod => ({
-        default: mod.motion.span,
-      }))
-)
-
-const LazyAnimatePresence = lazy(() =>
-  typeof window === 'undefined'
-    ? Promise.resolve({ default: MotionFallback })
-    : import('framer-motion').then(mod => ({
-        default: mod.AnimatePresence,
-      }))
-)
+import { AnimatePresence as FramerAnimatePresence, type MotionProps, motion } from 'framer-motion'
+import React from 'react'
 
 // Optimized motion wrapper
 export interface OptimizedMotionProps extends MotionProps {
@@ -55,10 +16,10 @@ export interface OptimizedMotionProps extends MotionProps {
   enableMotion?: boolean
 }
 
-// Motion div with lazy loading
+// Motion div wrapper
 export const MotionDiv: React.FC<OptimizedMotionProps> = ({
   children,
-  fallback,
+  fallback: _fallback,
   enableMotion = true,
   ...props
 }) => {
@@ -66,19 +27,13 @@ export const MotionDiv: React.FC<OptimizedMotionProps> = ({
     return <div className={props.className}>{children}</div>
   }
 
-  return (
-    <Suspense
-      fallback={fallback || (children ? <MotionFallback>{children}</MotionFallback> : <div />)}
-    >
-      <LazyMotionDiv {...props}>{children}</LazyMotionDiv>
-    </Suspense>
-  )
+  return <motion.div {...props}>{children}</motion.div>
 }
 
-// Motion button with lazy loading
+// Motion button wrapper
 export const MotionButton: React.FC<OptimizedMotionProps> = ({
   children,
-  fallback,
+  fallback: _fallback,
   enableMotion = true,
   ...props
 }) => {
@@ -91,21 +46,16 @@ export const MotionButton: React.FC<OptimizedMotionProps> = ({
   }
 
   return (
-    <Suspense
-      fallback={
-        fallback ||
-        (children ? <MotionFallback>{children}</MotionFallback> : <button type="button" />)
-      }
-    >
-      <LazyMotionButton {...props}>{children}</LazyMotionButton>
-    </Suspense>
+    <motion.button type="button" {...props}>
+      {children}
+    </motion.button>
   )
 }
 
-// Motion span with lazy loading
+// Motion span wrapper
 export const MotionSpan: React.FC<OptimizedMotionProps> = ({
   children,
-  fallback,
+  fallback: _fallback,
   enableMotion = true,
   ...props
 }) => {
@@ -113,25 +63,15 @@ export const MotionSpan: React.FC<OptimizedMotionProps> = ({
     return <span className={props.className}>{children}</span>
   }
 
-  return (
-    <Suspense
-      fallback={fallback || (children ? <MotionFallback>{children}</MotionFallback> : <span />)}
-    >
-      <LazyMotionSpan {...props}>{children}</LazyMotionSpan>
-    </Suspense>
-  )
+  return <motion.span {...props}>{children}</motion.span>
 }
 
-// AnimatePresence wrapper with lazy loading
+// AnimatePresence wrapper
 export const OptimizedAnimatePresence: React.FC<{
   children: React.ReactNode
   mode?: 'wait' | 'sync' | 'popLayout'
 }> = ({ children, mode = 'wait' }) => {
-  return (
-    <Suspense fallback={children}>
-      <LazyAnimatePresence {...(mode ? { mode } : {})}>{children}</LazyAnimatePresence>
-    </Suspense>
-  )
+  return <FramerAnimatePresence mode={mode}>{children}</FramerAnimatePresence>
 }
 
 // Export alias for compatibility

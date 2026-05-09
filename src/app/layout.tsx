@@ -3,9 +3,9 @@ import { Inter } from 'next/font/google'
 import type { ReactNode } from 'react'
 import './globals.css'
 // Lazy load navigation for better initial bundle size
-import dynamic from 'next/dynamic'
+import dynamicImport from 'next/dynamic'
 
-const Navigation = dynamic(
+const Navigation = dynamicImport(
   () => import('@/components/layout/navigation').then(mod => ({ default: mod.Navigation })),
   {
     loading: () => (
@@ -33,6 +33,10 @@ const inter = Inter({
   display: 'swap',
   variable: '--font-inter',
 })
+
+// Nonce-based CSP needs per-request rendering so Next.js can apply the nonce
+// to framework scripts and streamed App Router payloads.
+export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
   title: {
