@@ -7,6 +7,7 @@
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
+import { OpportunitySearchService } from '@/lib/business-logic/search-service'
 import { OpportunityQueries } from '@/lib/db/queries/opportunities'
 
 const blankToUndefined = (value: unknown) => (value === '' ? undefined : value)
@@ -261,9 +262,6 @@ const OpportunitySchema = z.object({
 
 export async function GET(request: NextRequest) {
   const startTime = Date.now()
-
-  // Import service functions
-  const { OpportunitySearchService } = require('@/lib/business-logic/search-service')
 
   try {
     // Check authentication using service

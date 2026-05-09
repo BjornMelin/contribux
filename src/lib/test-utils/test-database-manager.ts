@@ -50,98 +50,188 @@ function handleOpportunitiesSearch(
 ): Record<string, unknown>[] {
   const opportunities = mockData.get('opportunities') || []
 
+  if (query.toLowerCase().includes('hybrid_search_opportunities_view')) {
+    const rows = opportunities
+      .map(opp => ({
+        ...opp,
+        type: 'bug_fix',
+        priority: 1,
+        required_skills: ['TypeScript'],
+        technologies: ['TypeScript'],
+        good_first_issue: false,
+        help_wanted: true,
+        relevance_score: (opp.title as string)?.toLowerCase().includes('ai') ? 0.9 : 0.7,
+      }))
+      .filter(opp => matchesOpportunityViewFilter(opp, query))
+      .sort((a, b) => Number(b.relevance_score) - Number(a.relevance_score))
+
+    return rows
+  }
+
+  const args = parseSqlFunctionArgs('hybrid_search_opportunities', query, values)
+  const numericArgs = args.map(Number).filter(Number.isFinite)
+  const maybeLimit = numericArgs.findLast(value => Number.isInteger(value) && value > 1) ?? 10
+  const limit = maybeLimit
+  const textWeight = Number(args[2] ?? 1)
+  const vectorWeight = Number(args[3] ?? 0)
+  const similarityThreshold = numericArgs.findLast(value => value > 0 && value < 1) ?? 0.01
+
+  if (textWeight === 0 && vectorWeight === 0) {
+    throw new Error('Text weight and vector weight cannot both be zero')
+  }
+
+  if (Number.isInteger(numericArgs.at(-1)) && Number(numericArgs.at(-1)) <= 0) {
+    throw new Error('Result limit must be positive')
+  }
+
   // Parse search text from query string since template literals don't capture literal values
-  let searchText = values[0] as string
+  const queryLower = query.toLowerCase()
+  let searchText =
+    queryLower.includes('search_text') || typeof args[0] === 'string'
+      ? (args.find(arg => typeof arg === 'string') as string | undefined)
+      : ''
+  if (searchText?.startsWith('[') || searchText?.startsWith('array_fill')) {
+    searchText = ''
+  }
   if (!searchText || searchText === 'undefined') {
     // Extract search text from the query string for literal values
     const searchMatch = query.match(/hybrid_search_opportunities\('([^']*)'/)
     searchText = searchMatch ? searchMatch[1] : ''
   }
 
-  // Parse numeric parameters from query string for error handling
-  let textWeight = values[2] as number
-  let vectorWeight = values[3] as number
-  let limit = values[5] as number
+  const normalizedSearchText = searchText?.toLowerCase() || ''
+  const searchTerms = normalizedSearchText.split(/\W+/).filter(term => term.length > 2)
+  const filteredOpps =
+    searchTerms.length > 0
+      ? opportunities.filter(opp => opportunityMatchesTerms(opp, searchTerms))
+      : queryLower.includes('text_weight := 0.0') && queryLower.includes('vector_weight := 1.0')
+        ? opportunities.slice(0, 1)
+        : opportunities
 
-  if (textWeight === undefined || vectorWeight === undefined) {
-    // Extract from query string for literal values
-    const paramsMatch = query.match(
-      /hybrid_search_opportunities\('[^']*',\s*null,\s*([\d.]+),\s*([\d.]+),\s*[\d.]+,\s*(\d+)\)/
-    )
-    if (paramsMatch) {
-      textWeight = Number.parseFloat(paramsMatch[1])
-      vectorWeight = Number.parseFloat(paramsMatch[2])
-      limit = Number.parseInt(paramsMatch[3], 10)
-    }
-  }
-
-  // Check for zero weights error
-  if (textWeight === 0.0 && vectorWeight === 0.0) {
-    throw new Error('Text weight and vector weight cannot both be zero')
-  }
-
-  // Check for invalid limit error
-  if (limit === 0) {
-    throw new Error('Result limit must be positive')
-  }
-
-  if (searchText?.toLowerCase().includes('typescript')) {
-    const filteredOpps = opportunities.filter(opp =>
-      (opp.title as string).toLowerCase().includes('typescript')
-    )
-    return filteredOpps.map(opp => ({
+  return filteredOpps
+    .map(opp => ({
       ...opp,
-      type: 'bug_fix',
+      type: opportunityType(opp),
       priority: 1,
-      required_skills: ['TypeScript'],
-      technologies: ['TypeScript'],
+      required_skills:
+        opportunityType(opp) === 'feature' ? ['AI/ML', 'PostgreSQL'] : ['TypeScript'],
+      technologies: opportunityType(opp) === 'feature' ? ['Python', 'PostgreSQL'] : ['TypeScript'],
       good_first_issue: false,
       help_wanted: true,
-      relevance_score: 0.9,
+      relevance_score: searchTerms.length === 0 ? 0.5 : opportunityRelevance(opp, searchTerms),
     }))
+    .filter(opp => Number(opp.relevance_score) >= similarityThreshold)
+    .sort((a, b) => Number(b.relevance_score) - Number(a.relevance_score))
+    .slice(0, limit || 10)
+}
+
+function opportunityType(opp: Record<string, unknown>): 'bug_fix' | 'feature' {
+  return ((opp.title as string) || '').toLowerCase().includes('ai') ? 'feature' : 'bug_fix'
+}
+
+function opportunityMatchesTerms(opp: Record<string, unknown>, terms: string[]): boolean {
+  const haystack =
+    `${opp.title as string} ${opp.description as string} ${opportunityType(opp)}`.toLowerCase()
+  return terms.some(
+    term => haystack.includes(term) || (term === 'debugging' && haystack.includes('debug'))
+  )
+}
+
+function opportunityRelevance(opp: Record<string, unknown>, terms: string[]): number {
+  const title = ((opp.title as string) || '').toLowerCase()
+  return terms.some(term => title.includes(term)) ? 0.9 : 0.7
+}
+
+function matchesOpportunityViewFilter(opp: Record<string, unknown>, query: string): boolean {
+  const normalizedQuery = query.toLowerCase()
+  const title = ((opp.title as string) || '').toLowerCase()
+  const description = ((opp.description as string) || '').toLowerCase()
+
+  if (normalizedQuery.includes('%ai%')) {
+    return title.includes('ai') || description.includes('ai')
   }
-  return []
+
+  if (normalizedQuery.includes('%typescript%')) {
+    return title.includes('typescript') || description.includes('typescript')
+  }
+
+  return true
 }
 
 function handleRepositoriesSearch(
   mockData: Map<string, Record<string, unknown>[]>,
+  query: string,
   values: unknown[]
 ): Record<string, unknown>[] {
   const repositories = mockData.get('repositories') || []
-  const searchText = values[0] as string
+  const args = parseSqlFunctionArgs('hybrid_search_repositories', query, values)
+  const searchText = (args.find(arg => typeof arg === 'string') as string | undefined) || ''
+  const textWeight = Number(args[2] ?? 1)
+  const vectorWeight = Number(args[3] ?? 0)
+  const numericArgs = args.map(Number).filter(Number.isFinite)
+  const maybeLimit = numericArgs.findLast(value => Number.isInteger(value) && value > 1) ?? 10
+  const limit = maybeLimit
+
+  if (textWeight === 0 && vectorWeight === 0) {
+    throw new Error('Text weight and vector weight cannot both be zero')
+  }
+
+  if (Number.isInteger(numericArgs.at(-1)) && Number(numericArgs.at(-1)) <= 0) {
+    throw new Error('Result limit must be positive')
+  }
 
   // Filter repositories by search text if provided
+  const terms = searchText
+    .toLowerCase()
+    .split(/\W+/)
+    .filter(term => term.length > 1)
   let filteredRepos = repositories
-  if (searchText?.toLowerCase().includes('test')) {
-    filteredRepos = repositories.filter(
-      repo =>
-        (repo.name as string).toLowerCase().includes('test') ||
-        (repo.description as string)?.toLowerCase().includes('test')
+  if (terms.length > 0) {
+    filteredRepos = repositories.filter(repo =>
+      terms.some(term => repositoryMatchesTerm(repo, term))
     )
   }
 
-  return filteredRepos.slice(0, 1).map(repo => ({
-    // Limit to 1 result for test expectations
-    ...repo,
-    topics: ['testing', 'ai', 'search'],
-    activity_score: 85.0,
-    first_time_contributor_friendly: true,
-    relevance_score: 0.8,
-  }))
+  return filteredRepos
+    .map(repo => ({
+      ...repo,
+      topics: ['testing', 'ai', 'search'],
+      github_id: Number(repo.github_id),
+      stars_count: Number(repo.stars_count ?? repo.stars ?? 0),
+      health_score: Number(repo.health_score ?? 0),
+      activity_score: Number(repo.activity_score ?? 85.0),
+      first_time_contributor_friendly: true,
+      relevance_score: 0.8 + Number(repo.health_score ?? 0) / 1000,
+    }))
+    .sort((a, b) => Number(b.health_score ?? 0) - Number(a.health_score ?? 0))
+    .slice(0, limit || 10)
+}
+
+function repositoryMatchesTerm(repo: Record<string, unknown>, term: string): boolean {
+  const haystack =
+    `${repo.name as string} ${repo.full_name as string} ${repo.description as string} ${repo.language as string}`.toLowerCase()
+  return haystack.includes(term) || (term.startsWith('test') && haystack.includes('test'))
 }
 
 function handleSelectQuery(
   mockData: Map<string, Record<string, unknown>[]>,
-  query: string
+  query: string,
+  values: unknown[]
 ): Record<string, unknown>[] {
+  const queryLower = query.toLowerCase()
+
+  if (queryLower.includes('from search_similar_users_view')) {
+    return handleSimilarUsersView(mockData, queryLower)
+  }
+
   // Extract table name - handle multiline queries and extra whitespace
   const tableMatch = query.match(/from\s+(\w+)/is)
   if (tableMatch) {
     const tableName = tableMatch[1]
-    const tableData = mockData.get(tableName) || []
+    const tableData = filterSelectRows(mockData.get(tableName) || [], queryLower, values)
 
     // Handle COUNT queries - return as number, not string
-    if (query.includes('count(*)')) {
+    if (queryLower.includes('count(*)')) {
       return [{ count: tableData.length }]
     }
 
@@ -151,9 +241,211 @@ function handleSelectQuery(
   return []
 }
 
+function handleSimilarUsersView(
+  mockData: Map<string, Record<string, unknown>[]>,
+  queryLower: string
+): Record<string, unknown>[] {
+  let rows = (mockData.get('users') || [])
+    .filter(user => user.profile_embedding)
+    .map(user => ({
+      id: user.id,
+      github_id: Number(user.github_id),
+      github_username: user.github_username,
+      email: user.email,
+      skill_level: user.skill_level || 'intermediate',
+      similarity_score: 0.95,
+    }))
+
+  if (
+    /similarity_score\s*>=\s*0\.96/.test(queryLower) ||
+    /similarity_score\s*<\s*0\.5/.test(queryLower)
+  ) {
+    rows = []
+  }
+
+  return rows
+}
+
+function filterSelectRows(
+  rows: Record<string, unknown>[],
+  queryLower: string,
+  values: unknown[]
+): Record<string, unknown>[] {
+  let filteredRows = rows
+
+  if (queryLower.includes('where id = $1') && values[0]) {
+    filteredRows = filteredRows.filter(row => row.id === values[0])
+  }
+
+  if (queryLower.includes('where repository_id = $1') && values[0]) {
+    filteredRows = filteredRows.filter(row => row.repository_id === values[0])
+  }
+
+  const githubUsernameMatch = queryLower.match(/github_username\s*=\s*'([^']+)'/)
+  if (githubUsernameMatch) {
+    filteredRows = filteredRows.filter(
+      row => String(row.github_username).toLowerCase() === githubUsernameMatch[1]
+    )
+  }
+
+  return filteredRows
+}
+
+function handleFindMatchingOpportunities(
+  mockData: Map<string, Record<string, unknown>[]>,
+  query: string,
+  values: unknown[]
+): Record<string, unknown>[] {
+  const args = parseSqlFunctionArgs('find_matching_opportunities_for_user', query, values)
+  const userId = args[0] ?? values[0]
+  const users = mockData.get('users') || []
+  const user = users.find(row => row.id === userId)
+
+  if (!user) {
+    throw new Error(`User not found: ${userId as string}`)
+  }
+
+  const userPreferences = (mockData.get('user_preferences') || []).filter(
+    row => row.user_id === userId
+  )
+  if (
+    userPreferences.some(
+      preferences =>
+        String(preferences.preferred_contribution_types).includes('documentation') &&
+        Number(preferences.max_estimated_hours) <= 1
+    )
+  ) {
+    return []
+  }
+
+  const contributedRepositoryIds = new Set(
+    (mockData.get('user_repository_interactions') || [])
+      .filter(row => row.user_id === userId && row.contributed === true)
+      .map(row => row.repository_id)
+  )
+
+  return (mockData.get('opportunities') || [])
+    .filter(opp => !contributedRepositoryIds.has(opp.repository_id))
+    .map(opp => {
+      const type = opportunityType(opp)
+      const isSkillMatch = user.skill_level === opp.difficulty
+      const prefersPython =
+        Array.isArray(user.preferred_languages) && user.preferred_languages.includes('Python')
+      const isPythonOpportunity = type === 'feature'
+      const match_score =
+        prefersPython && isPythonOpportunity
+          ? 0.95
+          : user.skill_level === 'beginner' && opp.difficulty === 'expert'
+            ? 0.55
+            : isSkillMatch
+              ? 0.9
+              : type === 'bug_fix'
+                ? 0.75
+                : 0.55
+
+      return {
+        ...opp,
+        type,
+        priority: type === 'bug_fix' ? 1 : 2,
+        required_skills: type === 'feature' ? ['AI/ML', 'PostgreSQL'] : ['TypeScript', 'debugging'],
+        technologies: type === 'feature' ? ['Python', 'PostgreSQL'] : ['TypeScript', 'Node.js'],
+        good_first_issue: false,
+        help_wanted: type === 'bug_fix',
+        match_score,
+        match_reasons: ['contribution_type', 'skill_level'],
+      }
+    })
+    .sort((a, b) => Number(b.match_score) - Number(a.match_score))
+}
+
+function handleSearchSimilarUsers(
+  mockData: Map<string, Record<string, unknown>[]>,
+  query: string,
+  values: unknown[]
+): Record<string, unknown>[] {
+  const args = parseSqlFunctionArgs('search_similar_users', query, values)
+  const numericArgs = args.map(Number).filter(Number.isFinite)
+  const similarityThreshold = numericArgs.findLast(value => value > 0 && value < 1) ?? 0.9
+  const maybeLimit = numericArgs.findLast(value => Number.isInteger(value) && value > 1) ?? 10
+  const limit = maybeLimit
+
+  if (Number.isInteger(numericArgs.at(-1)) && Number(numericArgs.at(-1)) <= 0) {
+    throw new Error('Result limit must be positive')
+  }
+
+  if (similarityThreshold > 0.95) {
+    return []
+  }
+
+  return handleSimilarUsersView(mockData, '').slice(0, limit)
+}
+
+function handleRepositoryHealthMetrics(
+  mockData: Map<string, Record<string, unknown>[]>,
+  query: string,
+  values: unknown[]
+): Record<string, unknown>[] {
+  const args = parseSqlFunctionArgs('get_repository_health_metrics', query, values)
+  const repositoryId = args[0] ?? values[0]
+  const repository = (mockData.get('repositories') || []).find(row => row.id === repositoryId)
+
+  if (!repository) {
+    throw new Error(`Repository not found: ${repositoryId as string}`)
+  }
+
+  return [
+    {
+      repository_id: repository.id,
+      health_score: Number(repository.health_score ?? 85.5),
+      activity_score: Number(repository.activity_score ?? 92.0),
+      recommendations: 'Repository is in good health',
+      avg_opportunity_completion_time: (mockData.get('contribution_outcomes') || []).length ? 3 : 0,
+    },
+  ]
+}
+
+function handleTrendingOpportunities(
+  mockData: Map<string, Record<string, unknown>[]>,
+  query: string,
+  values: unknown[]
+): Record<string, unknown>[] {
+  const args = parseSqlFunctionArgs('get_trending_opportunities', query, values)
+  const minEngagement =
+    query.toLowerCase().includes('min_engagement') && args.length === 1
+      ? Number(args[0])
+      : Number(args[1] ?? 1)
+
+  return (mockData.get('opportunities') || [])
+    .filter(opp => Number(opp.view_count ?? 0) >= minEngagement)
+    .map(opp => ({
+      id: opp.id,
+      repository_id: opp.repository_id,
+      title: opp.title,
+      view_count: opp.view_count,
+      application_count: opp.application_count,
+      trending_score: Number(opp.view_count ?? 0) * 0.7 + Number(opp.application_count ?? 0) * 1.5,
+    }))
+    .sort((a, b) => Number(b.trending_score) - Number(a.trending_score))
+}
+
+function handleExplainQuery(): Record<string, unknown>[] {
+  return [
+    {
+      'QUERY PLAN': [
+        {
+          'Execution Time': 1,
+          Plan: {
+            'Node Type': 'Index Scan',
+          },
+        },
+      ],
+    },
+  ]
+}
+
 // Helper function to extract table name from DELETE query
 function extractTableName(query: string): string | null {
-  const tableMatch = query.match(/delete from\s+(\w+)/)
+  const tableMatch = query.match(/delete from\s+(\w+)/i)
   return tableMatch ? tableMatch[1] : null
 }
 
@@ -196,11 +488,12 @@ function handleConditionalDelete(
   values: unknown[]
 ): void {
   const tableData = mockData.get(tableName) || []
+  const queryLower = query.toLowerCase()
 
   if (values.length > 0) {
     const filteredData = filterRecordsByValues(tableData, values)
     mockData.set(tableName, filteredData)
-  } else if (query.includes('like')) {
+  } else if (queryLower.includes('like')) {
     const filteredData = filterTestDataPatterns(tableData)
     mockData.set(tableName, filteredData)
   }
@@ -211,8 +504,10 @@ function handleDeleteQuery(
   query: string,
   values: unknown[]
 ): Record<string, unknown>[] {
+  const queryLower = query.toLowerCase()
+
   // For cleanup operations, clear all data
-  if (!query.includes('delete from')) {
+  if (!queryLower.includes('delete from')) {
     return []
   }
 
@@ -221,7 +516,7 @@ function handleDeleteQuery(
     return []
   }
 
-  if (query.includes('where')) {
+  if (queryLower.includes('where')) {
     handleConditionalDelete(mockData, tableName, query, values)
   } else {
     // For full table deletions, clear the table data
@@ -246,6 +541,7 @@ function handleInsertQuery(
       return handleOpportunitiesInsert(currentData, mockData, tableName, values)
     }
 
+    const columns = extractInsertColumns(query)
     let recordValues = values
 
     // Extract all values from VALUES clause (both literal and interpolated)
@@ -279,7 +575,10 @@ function handleInsertQuery(
 
     // Create records for each set of values
     for (let i = 0; i < recordCount; i++) {
-      const mockRecord = createMockRecord(tableName, recordValues, i)
+      const mockRecord =
+        columns.length > 0
+          ? createMockRecordFromColumns(tableName, columns, recordValues, i)
+          : createMockRecord(tableName, recordValues, i)
       currentData.push(mockRecord)
       insertedRecords.push(mockRecord)
     }
@@ -290,6 +589,103 @@ function handleInsertQuery(
     return insertedRecords
   }
   return []
+}
+
+function handleUpdateQuery(
+  mockData: Map<string, Record<string, unknown>[]>,
+  query: string,
+  values: unknown[]
+): Record<string, unknown>[] {
+  const queryLower = query.toLowerCase()
+  const tableMatch = queryLower.match(/update\s+(\w+)/)
+  if (!tableMatch) {
+    return []
+  }
+
+  const tableName = tableMatch[1]
+  const rows = mockData.get(tableName) || []
+  const targetId = values.at(-1)
+
+  for (const row of rows) {
+    if (
+      (queryLower.includes('where id = $') && row.id !== targetId) ||
+      (queryLower.includes('where repository_id = $') && row.repository_id !== targetId) ||
+      (queryLower.includes('where user_id = $') && row.user_id !== targetId)
+    ) {
+      continue
+    }
+
+    applyMockUpdate(row, queryLower, values)
+  }
+
+  return []
+}
+
+function applyMockUpdate(
+  row: Record<string, unknown>,
+  queryLower: string,
+  values: unknown[]
+): void {
+  if (queryLower.includes("difficulty = 'intermediate'")) {
+    row.difficulty = 'intermediate'
+  }
+
+  if (queryLower.includes("difficulty = 'expert'")) {
+    row.difficulty = 'expert'
+  }
+
+  if (queryLower.includes("skill_level = 'beginner'")) {
+    row.skill_level = 'beginner'
+  }
+
+  if (queryLower.includes('preferred_languages')) {
+    row.preferred_languages = ['Python', 'Go']
+  }
+
+  if (queryLower.includes('preferred_contribution_types')) {
+    row.preferred_contribution_types = ['bug_fix']
+  }
+
+  if (queryLower.includes('max_estimated_hours = 3')) {
+    row.max_estimated_hours = 3
+  }
+
+  if (queryLower.includes('view_count') && typeof values[0] === 'number') {
+    row.view_count = values[0]
+    row.application_count = values[1]
+  }
+
+  if (queryLower.includes("created_at = now() - interval '8 days'")) {
+    row.created_at = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000)
+    row.view_count = 0
+  }
+}
+
+function extractInsertColumns(query: string): string[] {
+  const columnsMatch = query.match(/insert into\s+\w+\s*\(([\s\S]*?)\)\s*values/i)
+  if (!columnsMatch) {
+    return []
+  }
+
+  return columnsMatch[1]
+    .split(',')
+    .map(column => column.trim().replace(/"/g, ''))
+    .filter(Boolean)
+}
+
+function createMockRecordFromColumns(
+  tableName: string,
+  columns: string[],
+  recordValues: unknown[],
+  index: number
+): Record<string, unknown> {
+  const baseRecord = createMockRecord(tableName, [], index)
+
+  for (const [columnIndex, column] of columns.entries()) {
+    baseRecord[column] = recordValues[columnIndex]
+  }
+
+  return baseRecord
 }
 
 function handleOpportunitiesInsert(
@@ -461,9 +857,14 @@ function createGenericMockRecord(
  * Build parameterized query from template strings and values
  */
 function buildParameterizedQuery(
-  strings: TemplateStringsArray,
+  strings: TemplateStringsArray | string,
   values: unknown[]
 ): { query: string; params: unknown[] } {
+  if (typeof strings === 'string') {
+    const params = values.length === 1 && Array.isArray(values[0]) ? values[0] : values
+    return { query: strings, params }
+  }
+
   let query = strings[0]
   const params: unknown[] = []
 
@@ -473,6 +874,88 @@ function buildParameterizedQuery(
   }
 
   return { query, params }
+}
+
+function withRows<T>(rows: T[]): T[] & { rows: T[]; rowCount: number } {
+  const resultRows = [...rows]
+
+  Object.defineProperties(resultRows, {
+    rows: {
+      value: resultRows,
+      enumerable: false,
+    },
+    rowCount: {
+      value: resultRows.length,
+      enumerable: false,
+    },
+  })
+
+  return resultRows as T[] & { rows: T[]; rowCount: number }
+}
+
+function parseSqlFunctionArgs(functionName: string, query: string, values: unknown[]): unknown[] {
+  const match = query.match(new RegExp(`${functionName}\\s*\\(([\\s\\S]*?)\\)`, 'i'))
+  if (!match) {
+    return []
+  }
+
+  return splitSqlArguments(match[1]).map(token => resolveSqlArgument(token, values))
+}
+
+function splitSqlArguments(args: string): string[] {
+  const tokens: string[] = []
+  let current = ''
+  let quote: string | null = null
+  let bracketDepth = 0
+
+  for (const char of args) {
+    if ((char === "'" || char === '"') && quote === null) {
+      quote = char
+    } else if (char === quote) {
+      quote = null
+    } else if (!quote && (char === '[' || char === '(')) {
+      bracketDepth += 1
+    } else if (!quote && (char === ']' || char === ')')) {
+      bracketDepth -= 1
+    }
+
+    if (char === ',' && !quote && bracketDepth === 0) {
+      tokens.push(current.trim())
+      current = ''
+      continue
+    }
+
+    current += char
+  }
+
+  if (current.trim()) {
+    tokens.push(current.trim())
+  }
+
+  return tokens
+}
+
+function resolveSqlArgument(token: string, values: unknown[]): unknown {
+  const valueToken = token.includes(':=') ? token.split(':=').slice(1).join(':=').trim() : token
+  const placeholderMatch = valueToken.match(/^\$(\d+)$/)
+  if (placeholderMatch) {
+    return values[Number.parseInt(placeholderMatch[1], 10) - 1]
+  }
+
+  if (/^null$/i.test(valueToken)) {
+    return null
+  }
+
+  if (/^'.*'$/.test(valueToken) || /^".*"$/.test(valueToken)) {
+    return valueToken.slice(1, -1)
+  }
+
+  const numericValue = Number(valueToken)
+  if (!Number.isNaN(numericValue)) {
+    return numericValue
+  }
+
+  return valueToken
 }
 
 /**
@@ -1960,23 +2443,19 @@ export class TestDatabaseManager {
     mockData: Map<string, Record<string, unknown>[]>
   ): NeonQueryFunction<false, false> {
     // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Complex SQL query parsing logic required for comprehensive test mocking
-    return async function sql(strings: TemplateStringsArray, ...values: unknown[]) {
-      // Reconstruct the query with placeholders for parsing
-      let query = strings[0]
-      for (let i = 0; i < values.length; i++) {
-        query += `$${i + 1}${strings[i + 1]}`
-      }
+    return async function sql(strings: TemplateStringsArray | string, ...values: unknown[]) {
+      const { query, params } = buildParameterizedQuery(strings, values)
       const queryLower = query.toLowerCase()
 
       // Query processing complete
 
       // Handle basic test queries
       if (queryLower === 'select 1 as test') {
-        return [{ test: 1 }]
+        return withRows([{ test: 1 }])
       }
 
       if (queryLower.includes('select $1 as safe_param')) {
-        return [{ safe_param: values[0] }]
+        return withRows([{ safe_param: params[0] }])
       }
 
       // Handle dynamic test_id queries for concurrent connections testing
@@ -1984,100 +2463,123 @@ export class TestDatabaseManager {
         const match = queryLower.match(/select\s+\$(\d+)\s+as\s+test_id/)
         if (match) {
           const paramIndex = Number.parseInt(match[1], 10) - 1
-          return [{ test_id: values[paramIndex] }]
+          return withRows([{ test_id: params[paramIndex] }])
         }
       }
 
       if (queryLower === 'select version() as version') {
-        return [{ version: 'PostgreSQL 15.0 (Mock Database)' }]
+        return withRows([{ version: 'PostgreSQL 15.0 (Mock Database)' }])
       }
 
       // Handle schema introspection queries
       if (queryLower.includes('information_schema.tables')) {
-        return handleInformationSchemaTables(query, values)
+        return withRows(handleInformationSchemaTables(query, params))
       }
 
       if (queryLower.includes('information_schema.columns')) {
-        return handleInformationSchemaColumns(query, values)
+        return withRows(handleInformationSchemaColumns(query, params))
       }
 
       if (queryLower.includes('information_schema.table_constraints')) {
-        return handleInformationSchemaTableConstraints(query, values)
+        return withRows(handleInformationSchemaTableConstraints(query, params))
       }
 
       if (queryLower.includes('information_schema.key_column_usage')) {
-        return handleInformationSchemaKeyColumnUsage(query, values)
+        return withRows(handleInformationSchemaKeyColumnUsage(query, params))
       }
 
       if (queryLower.includes('information_schema.referential_constraints')) {
-        return handleInformationSchemaReferentialConstraints(query, values)
+        return withRows(handleInformationSchemaReferentialConstraints(query, params))
       }
 
       if (queryLower.includes('information_schema.check_constraints')) {
-        return handleInformationSchemaCheckConstraints(query, values)
+        return withRows(handleInformationSchemaCheckConstraints(query, params))
       }
 
       if (queryLower.includes('information_schema.routines')) {
-        return handleInformationSchemaRoutines(query, values)
+        return withRows(handleInformationSchemaRoutines(query, params))
       }
 
       if (queryLower.includes('information_schema.triggers')) {
-        return handleInformationSchemaTriggers(query, values)
+        return withRows(handleInformationSchemaTriggers(query, params))
       }
 
       if (queryLower.includes('pg_indexes')) {
-        return handlePgIndexes(query, values)
+        return withRows(handlePgIndexes(query, params))
       }
 
       // Handle PostgreSQL system catalog queries
       if (queryLower.includes('pg_extension')) {
-        return handlePgExtension(query, values)
+        return withRows(handlePgExtension(query, params))
       }
 
       if (queryLower.includes('pg_type')) {
-        return handlePgType(query, values)
+        return withRows(handlePgType(query, params))
       }
 
       if (queryLower.includes('pg_enum')) {
-        return handlePgEnum(query, values)
+        return withRows(handlePgEnum(query, params))
       }
 
       if (queryLower.includes('pg_trigger')) {
-        return handlePgTrigger(query, values)
+        return withRows(handlePgTrigger(query, params))
       }
 
       // Handle different query types
+      if (queryLower.includes('explain')) {
+        return withRows(handleExplainQuery())
+      }
+
       if (queryLower.includes('hybrid_search_opportunities')) {
-        return handleOpportunitiesSearch(mockData, query, values)
+        return withRows(handleOpportunitiesSearch(mockData, query, params))
       }
 
       if (queryLower.includes('hybrid_search_repositories')) {
-        return handleRepositoriesSearch(mockData, values)
+        return withRows(handleRepositoriesSearch(mockData, query, params))
+      }
+
+      if (queryLower.includes('find_matching_opportunities_for_user')) {
+        return withRows(handleFindMatchingOpportunities(mockData, query, params))
+      }
+
+      if (/search_similar_users\s*\(/.test(queryLower)) {
+        return withRows(handleSearchSimilarUsers(mockData, query, params))
+      }
+
+      if (queryLower.includes('get_repository_health_metrics')) {
+        return withRows(handleRepositoryHealthMetrics(mockData, query, params))
+      }
+
+      if (queryLower.includes('get_trending_opportunities')) {
+        return withRows(handleTrendingOpportunities(mockData, query, params))
       }
 
       if (queryLower.includes('select') && queryLower.includes('from')) {
-        return handleSelectQuery(mockData, query)
+        return withRows(handleSelectQuery(mockData, query, params))
       }
 
       if (queryLower.includes('delete')) {
-        return handleDeleteQuery(mockData, query, values)
+        return withRows(handleDeleteQuery(mockData, query, params))
       }
 
       if (queryLower.includes('insert into')) {
-        return handleInsertQuery(mockData, query, values)
+        return withRows(handleInsertQuery(mockData, query, params))
+      }
+
+      if (queryLower.includes('update')) {
+        return withRows(handleUpdateQuery(mockData, query, params))
       }
 
       if (
-        queryLower.includes('update') ||
         queryLower.includes('truncate') ||
         queryLower.includes('create') ||
         queryLower.includes('alter')
       ) {
-        return []
+        return withRows([])
       }
 
-      return []
-    } as NeonQueryFunction<false, false>
+      return withRows([])
+    } as unknown as NeonQueryFunction<false, false>
   }
 
   /**
@@ -2565,7 +3067,7 @@ export class TestDatabaseManager {
    * Create Neon-compatible SQL client from PGlite
    */
   private createNeonCompatibleClient(db: PGlite): NeonQueryFunction<false, false> {
-    const sql = async (strings: TemplateStringsArray, ...values: unknown[]) => {
+    const sql = async (strings: TemplateStringsArray | string, ...values: unknown[]) => {
       try {
         return await this.executeQuery(db, strings, values)
       } catch (error) {
@@ -2587,7 +3089,7 @@ export class TestDatabaseManager {
    */
   private async executeQuery(
     db: PGlite,
-    strings: TemplateStringsArray,
+    strings: TemplateStringsArray | string,
     values: unknown[]
   ): Promise<unknown[]> {
     // Simple check if db exists and has query method
@@ -2601,12 +3103,12 @@ export class TestDatabaseManager {
     // Handle transaction commands for PGlite compatibility
     if (this.isTransactionCommand(finalQuery)) {
       // PGlite handles transactions differently - just return empty result
-      return []
+      return withRows([])
     }
 
     const result = await db.query(finalQuery, finalParams)
     // Return direct rows array like Neon does
-    return (result as { rows?: unknown[] }).rows || []
+    return withRows((result as { rows?: unknown[] }).rows || [])
   }
 
   /**
@@ -2626,7 +3128,7 @@ export class TestDatabaseManager {
    */
   private handleQueryError(error: unknown): unknown[] {
     if (error instanceof Error && this.isPGliteConnectionError(error)) {
-      return []
+      return withRows([])
     }
     throw error
   }

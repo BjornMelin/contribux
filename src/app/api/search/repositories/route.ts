@@ -147,18 +147,7 @@ const validateSearchParams = (searchParams: URLSearchParams) => {
   })
 
   if (!parseResult.success) {
-    throw ErrorHandler.createError(
-      'INVALID_PARAMS',
-      `Validation failed: ${parseResult.error.issues.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`,
-      'validation',
-      'low',
-      {
-        context: {
-          validationErrors: parseResult.error.issues,
-          receivedParams: params,
-        },
-      }
-    )
+    throw parseResult.error
   }
 
   return parseResult.data
