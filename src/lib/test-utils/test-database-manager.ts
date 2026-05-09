@@ -894,7 +894,8 @@ function withRows<T>(rows: T[]): T[] & { rows: T[]; rowCount: number } {
 }
 
 function parseSqlFunctionArgs(functionName: string, query: string, values: unknown[]): unknown[] {
-  const match = query.match(new RegExp(`${functionName}\\s*\\(([\\s\\S]*?)\\)`, 'i'))
+  const escapedName = functionName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const match = query.match(new RegExp(`${escapedName}\\s*\\(([\\s\\S]*?)\\)`, 'i'))
   if (!match) {
     return []
   }

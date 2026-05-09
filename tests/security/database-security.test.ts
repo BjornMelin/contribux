@@ -405,6 +405,20 @@ describe('Database Security Testing', () => {
 
         expect(() => sanitizeJsonInput(largeJson)).toThrow()
       })
+
+      it('should sanitize nested JSON arrays without rejecting safe values', () => {
+        const sanitized = sanitizeJsonInput({
+          topics: ['typescript', "'; DROP TABLE repositories; --", 'react'],
+          nested: {
+            labels: [{ name: 'good first issue' }, { name: '<script>alert("xss")</script>' }],
+          },
+        })
+
+        expect(sanitized.topics).toEqual(['typescript', 'react'])
+        expect(sanitized.nested).toEqual({
+          labels: [{ name: 'good first issue' }],
+        })
+      })
     })
   })
 

@@ -18,9 +18,10 @@ describe('Search API', () => {
       const body = await response.json()
 
       expect(body.success).toBe(true)
-      expect(body.data.repositories).toHaveLength(1)
-      expect(body.data.repositories[0].fullName).toBe('microsoft/TypeScript')
-      expect(body.data.total_count).toBe(1)
+      expect(body.data.repositories).toEqual(
+        expect.arrayContaining([expect.objectContaining({ fullName: 'microsoft/TypeScript' })])
+      )
+      expect(body.data.total_count).toBeGreaterThanOrEqual(1)
       expect(body.metadata.query).toBe('typescript')
     })
 

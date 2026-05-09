@@ -157,9 +157,7 @@ describe('Health Check API with Enterprise Zod Validation', () => {
       expect(typeof data.response_time_ms).toBe('number')
       expect(data.response_time_ms).toBeGreaterThanOrEqual(0)
       expect(typeof data.request_id).toBe('string')
-      expect(data.request_id).toMatch(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-      )
+      expect(data.request_id).toMatch(UUID_PATTERN)
     })
 
     it('should include performance monitoring data', async () => {

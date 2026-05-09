@@ -161,7 +161,7 @@ const createMockPull = (owner: string, repo: string, number: number, state: stri
   number,
   title: `Pull Request ${number}`,
   body: `Test pull request ${number} description`,
-  state: number === 2 ? 'closed' : state,
+  state,
   user: {
     login: owner,
     id: 12345,
@@ -187,7 +187,7 @@ const createMockPull = (owner: string, repo: string, number: number, state: stri
     repo: { full_name: `${owner}/${repo}` },
   },
   mergeable: true,
-  merged: number === 2,
+  merged: state === 'closed',
   merge_commit_sha: `merge${number}`,
 })
 
@@ -749,7 +749,7 @@ const defaultHandlers = [
       ? 30
       : Number.parseInt(perPageParam, 10)
     const stateParam = url.searchParams.get('state') || 'open'
-    const state = stateParam === 'all' ? 'open' : stateParam
+    const state = stateParam === 'closed' ? 'closed' : 'open'
     const authHeader = request.headers.get('authorization')
 
     // Check for limited scope token (should return 403)
@@ -777,7 +777,7 @@ const defaultHandlers = [
       number: i + 1,
       title: `Issue ${i + 1}`,
       body: `Test issue ${i + 1} description`,
-      state,
+      state: stateParam === 'all' && i === 1 ? 'closed' : state,
       user: {
         login: owner,
         id: 12345,
@@ -926,6 +926,7 @@ const defaultHandlers = [
       pull_number: string
     }
     const authHeader = request.headers.get('authorization')
+    const pullNumber = Number.parseInt(pull_number, 10)
 
     if (!isValidToken(authHeader)) {
       return HttpResponse.json({ message: 'Bad credentials' }, { status: 401 })
@@ -939,11 +940,13 @@ const defaultHandlers = [
       return HttpResponse.json({ invalid: 'data' })
     }
 
-    if (owner === 'validation-test' || Number(pull_number) <= 0) {
+    if (owner === 'validation-test' || Number.isNaN(pullNumber) || pullNumber <= 0) {
       return HttpResponse.json({ invalid: 'data' })
     }
 
-    return HttpResponse.json(createMockPull(owner, repo, Number(pull_number), 'open'))
+    return HttpResponse.json(
+      createMockPull(owner, repo, pullNumber, pullNumber === 2 ? 'closed' : 'open')
+    )
   }),
 
   // GET /repos/:owner/:repo/issues/:issue_number/comments

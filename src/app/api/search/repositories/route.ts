@@ -111,13 +111,13 @@ function searchDemoRepositories(validatedParams: RepositorySearchParams) {
   const language = validatedParams.language?.toLowerCase()
 
   const filteredRepositories = demoRepositories.filter(repository => {
+    const repositoryLanguage = repository.metadata.language.toLowerCase()
     const matchesQuery =
       repository.fullName.toLowerCase().includes(normalizedQuery) ||
       repository.description.toLowerCase().includes(normalizedQuery) ||
       repository.metadata.topics.some(topic => topic.includes(normalizedQuery))
 
-    const matchesLanguage =
-      !language || repository.metadata.language.toLowerCase() === language.toLowerCase()
+    const matchesLanguage = !language || repositoryLanguage === language
 
     return matchesQuery && matchesLanguage
   })

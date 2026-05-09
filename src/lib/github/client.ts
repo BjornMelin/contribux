@@ -173,8 +173,10 @@ export class GitHubClient {
   private octokit: InstanceType<typeof EnhancedOctokit>
   private cache: Map<string, { data: unknown; expires: number }> = new Map()
   private readonly maxCacheSize = 1000
+  private readonly cacheCleanupIntervalMs = 60 * 1000
   private cacheHits = 0
   private cacheMisses = 0
+  private lastCacheCleanupAt = 0
 
   // Helper function to transform GitHub labels
   private transformLabel(label: unknown): GitHubLabel {
@@ -244,12 +246,25 @@ export class GitHubClient {
     }
 
     const issueObj = issue as Record<string, unknown>
+    const { id, number, title, state, created_at, updated_at, html_url } = issueObj
+    if (
+      typeof id !== 'number' ||
+      typeof number !== 'number' ||
+      typeof title !== 'string' ||
+      (state !== 'open' && state !== 'closed') ||
+      typeof created_at !== 'string' ||
+      typeof updated_at !== 'string' ||
+      typeof html_url !== 'string'
+    ) {
+      throw new Error('Invalid issue data')
+    }
+
     return {
-      id: Number(issueObj.id || 0),
-      number: Number(issueObj.number || 0),
-      title: String(issueObj.title || ''),
+      id,
+      number,
+      title,
       body: issueObj.body ? String(issueObj.body) : null,
-      state: (issueObj.state as string) === 'closed' ? 'closed' : 'open',
+      state,
       labels: Array.isArray(issueObj.labels)
         ? issueObj.labels.map((label: unknown) => this.transformLabel(label))
         : [],
@@ -260,9 +275,9 @@ export class GitHubClient {
             .map((assignee: unknown) => this.transformUser(assignee))
             .filter(Boolean) as GitHubUser[])
         : [],
-      created_at: String(issueObj.created_at || ''),
-      updated_at: String(issueObj.updated_at || ''),
-      html_url: String(issueObj.html_url || ''),
+      created_at,
+      updated_at,
+      html_url,
       ...this.transformPullRequestIssueFields(issueObj),
     }
   }
@@ -652,12 +667,12 @@ export class GitHubClient {
         repo,
         issue_number: issueNumber,
       })
-      this.validateResponse(GitHubIssueSchema, response.data, 'getIssue', {
-        owner,
-        repo,
-        issueNumber,
-      })
-      const result = this.transformIssue(response.data)
+      const result = this.validateResponse(
+        GitHubIssueSchema,
+        this.transformIssue(response.data),
+        'getIssue',
+        { owner, repo, issueNumber }
+      )
       this.setCached(cacheKey, result)
       return result
     } catch (error) {
@@ -694,10 +709,13 @@ export class GitHubClient {
         per_page: Math.min(params.perPage || 20, 100),
       })
 
-      const result = response.data.map((issue: unknown) => {
-        this.validateResponse(GitHubIssueSchema, issue, 'listIssues', { owner, repo, ...params })
-        return this.transformIssue(issue)
-      })
+      const result = response.data.map((issue: unknown) =>
+        this.validateResponse(GitHubIssueSchema, this.transformIssue(issue), 'listIssues', {
+          owner,
+          repo,
+          ...params,
+        })
+      )
       this.setCached(cacheKey, result)
       return result
     } catch (error) {
@@ -715,12 +733,12 @@ export class GitHubClient {
         repo,
         pull_number: pullNumber,
       })
-      this.validateResponse(GitHubIssueSchema, response.data, 'getPullRequest', {
-        owner,
-        repo,
-        pullNumber,
-      })
-      const result = this.transformIssue(response.data)
+      const result = this.validateResponse(
+        GitHubIssueSchema,
+        this.transformIssue(response.data),
+        'getPullRequest',
+        { owner, repo, pullNumber }
+      )
       return result
     } catch (error) {
       this.handleOctokitError(error, 'getPullRequest', { owner, repo, pullNumber })
@@ -758,7 +776,13 @@ export class GitHubClient {
         per_page: Math.min(params.perPage || 20, 100),
       })
 
-      const result = response.data.map((pr: unknown) => this.transformIssue(pr))
+      const result = response.data.map((pr: unknown) =>
+        this.validateResponse(GitHubIssueSchema, this.transformIssue(pr), 'listPullRequests', {
+          owner,
+          repo,
+          ...params,
+        })
+      )
       this.setCached(cacheKey, result)
       return result
     } catch (error) {
@@ -787,7 +811,19 @@ export class GitHubClient {
         per_page: Math.min(params.perPage || 20, 100),
       })
 
-      return response.data.map((comment: unknown) => this.transformComment(comment))
+      return response.data.map((comment: unknown) =>
+        this.validateResponse(
+          GitHubCommentSchema,
+          this.transformComment(comment),
+          'listIssueComments',
+          {
+            owner,
+            repo,
+            issueNumber,
+            ...params,
+          }
+        )
+      )
     } catch (error) {
       this.handleOctokitError(error, 'listIssueComments', { owner, repo, issueNumber, ...params })
     }
@@ -810,7 +846,12 @@ export class GitHubClient {
         comment_id: commentId,
       })
 
-      const result = this.transformComment(response.data)
+      const result = this.validateResponse(
+        GitHubCommentSchema,
+        this.transformComment(response.data),
+        'getComment',
+        { owner, repo, commentId }
+      )
       this.setCached(cacheKey, result)
       return result
     } catch (error) {
@@ -979,7 +1020,15 @@ export class GitHubClient {
       data,
       expires: Date.now() + 5 * 60 * 1000,
     })
-    this.cleanExpiredCache()
+
+    const now = Date.now()
+    if (
+      this.cache.size > this.maxCacheSize * 0.9 ||
+      now - this.lastCacheCleanupAt > this.cacheCleanupIntervalMs
+    ) {
+      this.lastCacheCleanupAt = now
+      this.cleanExpiredCache()
+    }
   }
 
   /**

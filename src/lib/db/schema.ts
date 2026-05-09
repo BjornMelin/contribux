@@ -700,6 +700,11 @@ export function sanitizeJsonInput(input: unknown, depth = 0): Record<string, unk
       if (sanitizedValue && !isSuspiciousInput(value)) {
         sanitized[sanitizedKey] = sanitizedValue
       }
+    } else if (Array.isArray(value)) {
+      const sanitizedItems = sanitizeJsonArrayInput(value, depth + 1)
+      if (sanitizedItems.length > 0) {
+        sanitized[sanitizedKey] = sanitizedItems
+      }
     } else if (typeof value === 'object' && value !== null) {
       sanitized[sanitizedKey] = sanitizeJsonInput(value, depth + 1)
     } else {
@@ -708,6 +713,27 @@ export function sanitizeJsonInput(input: unknown, depth = 0): Record<string, unk
   }
 
   return sanitized
+}
+
+function sanitizeJsonArrayInput(items: unknown[], depth: number): unknown[] {
+  return items.slice(0, 100).flatMap(item => {
+    if (typeof item === 'string') {
+      const sanitizedValue = sanitizeTextInput(item, 1000)
+      return sanitizedValue && !isSuspiciousInput(item) ? [sanitizedValue] : []
+    }
+
+    if (Array.isArray(item)) {
+      const sanitizedItems = sanitizeJsonArrayInput(item, depth + 1)
+      return sanitizedItems.length > 0 ? [sanitizedItems] : []
+    }
+
+    if (item && typeof item === 'object') {
+      const sanitizedObject = sanitizeJsonInput(item, depth + 1)
+      return Object.keys(sanitizedObject).length > 0 ? [sanitizedObject] : []
+    }
+
+    return [item]
+  })
 }
 
 // Validate vector embedding input

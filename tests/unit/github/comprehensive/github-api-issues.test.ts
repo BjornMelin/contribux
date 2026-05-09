@@ -283,6 +283,23 @@ describe('GitHubClient - Issues & Pull Requests', () => {
 
       expect(Array.isArray(openPRs)).toBe(true)
       expect(Array.isArray(closedPRs)).toBe(true)
+      expect(openPRs.every(pr => pr.state === 'open')).toBe(true)
+      expect(closedPRs.every(pr => pr.state === 'closed')).toBe(true)
+    })
+
+    it('should return mixed issue states when state all is requested', async () => {
+      const client = new GitHubClient(testClientConfigs.basicToken)
+
+      const issues = await client.listIssues(
+        testIssueParams.repository.owner,
+        testIssueParams.repository.repo,
+        {
+          state: 'all',
+          perPage: 2,
+        }
+      )
+
+      expect(issues.map(issue => issue.state)).toEqual(expect.arrayContaining(['open', 'closed']))
     })
 
     it('should handle merged pull requests', async () => {
