@@ -211,11 +211,11 @@ export const envSchema = z
 
     // Monitoring and logging
     LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
-    ENABLE_AUDIT_LOGS: z.string().pipe(z.coerce.boolean<string>()).default(true),
+    ENABLE_AUDIT_LOGS: z.stringbool().default(true),
 
     // Feature flags
-    ENABLE_OAUTH: z.string().pipe(z.coerce.boolean<string>()).default(true),
-    ENABLE_WEBAUTHN: z.string().pipe(z.coerce.boolean<string>()).default(true),
+    ENABLE_OAUTH: z.stringbool().default(true),
+    ENABLE_WEBAUTHN: z.stringbool().default(true),
 
     // WebAuthn configuration
     NEXT_PUBLIC_RP_ID: z.string().default('localhost'),
@@ -225,7 +225,7 @@ export const envSchema = z
     WEBAUTHN_SUPPORTED_ALGORITHMS: z.string().default('-7,-257'),
 
     // Maintenance mode
-    MAINTENANCE_MODE: z.string().pipe(z.coerce.boolean<string>()).default(false),
+    MAINTENANCE_MODE: z.stringbool().default(false),
     MAINTENANCE_BYPASS_TOKEN: z.string().optional(),
 
     // Additional OAuth origins

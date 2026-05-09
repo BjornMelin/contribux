@@ -150,6 +150,6 @@ export * from './utils/integration-test-helpers'
 export * from './utils/test-assertions'
 export * from './utils/test-factories'
 // Export enhanced utilities
-export { addCleanupTask, testConfig, type testUtils }
+export { addCleanupTask, testConfig }
 
 console.log(`✅ Enhanced test setup loaded for ${testType} tests`)

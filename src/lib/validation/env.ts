@@ -9,7 +9,11 @@ import { createEnv } from '@t3-oss/env-nextjs'
 import { z } from 'zod'
 
 const isProductionBuildPhase = process.env.NEXT_PHASE === 'phase-production-build'
-const shouldSkipValidation = process.env.SKIP_ENV_VALIDATION === 'true' || isProductionBuildPhase
+const shouldSkipValidation = process.env.SKIP_ENV_VALIDATION === 'true'
+const buildTimeDatabaseUrl = 'postgresql://build:build@localhost:5432/build'
+const buildTimeNextAuthSecret = 'build-time-nextauth-secret-placeholder'
+const runtimeString = (value: string | undefined, buildFallback?: string) =>
+  value ?? (isProductionBuildPhase ? buildFallback : undefined)
 
 export const env = createEnv({
   /**
@@ -134,19 +138,19 @@ export const env = createEnv({
     SERVICE_VERSION: z.string().default('1.0.0'),
 
     // Feature flags
-    ENABLE_WEBAUTHN: z.coerce.boolean<string>().default(false),
-    ENABLE_ADVANCED_SECURITY: z.coerce.boolean<string>().default(false),
-    ENABLE_SECURITY_DASHBOARD: z.coerce.boolean<string>().default(false),
-    ENABLE_DEVICE_FINGERPRINTING: z.coerce.boolean<string>().default(false),
-    ENABLE_DETAILED_AUDIT: z.coerce.boolean<string>().default(false),
-    ENABLE_RATE_LIMITING: z.coerce.boolean<string>().default(true),
-    ENABLE_OAUTH: z.coerce.boolean<string>().default(true),
-    ENABLE_AUDIT_LOGS: z.coerce.boolean<string>().default(true),
-    DEMO_ZERO_TRUST: z.coerce.boolean<string>().default(false),
-    DEMO_ENTERPRISE: z.coerce.boolean<string>().default(false),
+    ENABLE_WEBAUTHN: z.stringbool().default(false),
+    ENABLE_ADVANCED_SECURITY: z.stringbool().default(false),
+    ENABLE_SECURITY_DASHBOARD: z.stringbool().default(false),
+    ENABLE_DEVICE_FINGERPRINTING: z.stringbool().default(false),
+    ENABLE_DETAILED_AUDIT: z.stringbool().default(false),
+    ENABLE_RATE_LIMITING: z.stringbool().default(true),
+    ENABLE_OAUTH: z.stringbool().default(true),
+    ENABLE_AUDIT_LOGS: z.stringbool().default(true),
+    DEMO_ZERO_TRUST: z.stringbool().default(false),
+    DEMO_ENTERPRISE: z.stringbool().default(false),
 
     // Maintenance mode
-    MAINTENANCE_MODE: z.coerce.boolean<string>().default(false),
+    MAINTENANCE_MODE: z.stringbool().default(false),
     MAINTENANCE_BYPASS_TOKEN: z.string().optional(),
 
     // CORS configuration
@@ -164,12 +168,12 @@ export const env = createEnv({
     NEON_DATABASE_PASSWORD: z.string().optional(),
 
     // CI/CD configuration
-    CI: z.coerce.boolean<string>().default(false),
-    USE_LOCAL_PG: z.coerce.boolean<string>().default(false),
+    CI: z.stringbool().default(false),
+    USE_LOCAL_PG: z.stringbool().default(false),
     TEST_DB_STRATEGY: z.enum(['neon', 'local']).default('neon'),
 
     // Vercel environment
-    VERCEL: z.coerce.boolean<string>().default(false),
+    VERCEL: z.stringbool().default(false),
     VERCEL_ENV: z.enum(['development', 'preview', 'production']).optional(),
     VERCEL_URL: z.string().optional(),
   },
@@ -191,10 +195,10 @@ export const env = createEnv({
    */
   runtimeEnv: {
     NODE_ENV: process.env.NODE_ENV,
-    DATABASE_URL: process.env.DATABASE_URL,
+    DATABASE_URL: runtimeString(process.env.DATABASE_URL, buildTimeDatabaseUrl),
     DATABASE_URL_DEV: process.env.DATABASE_URL_DEV,
     DATABASE_URL_TEST: process.env.DATABASE_URL_TEST,
-    NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
+    NEXTAUTH_SECRET: runtimeString(process.env.NEXTAUTH_SECRET, buildTimeNextAuthSecret),
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
     JWT_SECRET: process.env.JWT_SECRET,
     GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID,
@@ -347,9 +351,14 @@ export function getAppUrl(): string {
 
 // Helper function for JWT secret with fallback
 export function getJwtSecret(): string {
-  return (
+  const secret =
     process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || env.JWT_SECRET || env.NEXTAUTH_SECRET
-  )
+
+  if (!secret) {
+    throw new Error('JWT_SECRET or NEXTAUTH_SECRET is required')
+  }
+
+  return secret
 }
 
 // Helper function for encryption key

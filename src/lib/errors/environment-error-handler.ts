@@ -37,7 +37,7 @@ export function validateEnvironment() {
         .map(e => ({
           field: e.path.join('.'),
           issue: e.message,
-          received: 'input' in e ? e.input : 'unknown',
+          received: 'input' in e && e.input !== undefined ? '[REDACTED]' : 'missing',
         }))
 
       throw ErrorHandler.createError(

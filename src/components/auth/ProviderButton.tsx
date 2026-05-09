@@ -42,7 +42,7 @@ export function ProviderButton({ provider, callbackUrl, disabled }: ProviderButt
       type="button"
       onClick={handleSignIn}
       disabled={disabled || isLoading}
-      className={`group relative flex w-full items-center justify-center rounded-md px-3 py-3 font-semibold text-sm transition-all duration-200 ease-in-out sm:py-2.5 ${provider.bgColor} ${provider.hoverColor} ${provider.textColor}focus-visible:outline-2 min-h-[44px] shadow-sm hover:shadow-md focus-visible:outline-gray-900 focus-visible:outline-offset-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-[40px]`}
+      className={`group relative flex w-full items-center justify-center rounded-md px-3 py-3 font-semibold text-sm transition-all duration-200 ease-in-out sm:py-2.5 ${provider.bgColor} ${provider.hoverColor} ${provider.textColor} min-h-[44px] shadow-sm hover:shadow-md focus-visible:outline-2 focus-visible:outline-gray-900 focus-visible:outline-offset-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-[40px]`}
       aria-label={`Sign in with ${provider.name}`}
     >
       <span className="absolute inset-y-0 left-0 flex items-center pl-3 sm:pl-3">

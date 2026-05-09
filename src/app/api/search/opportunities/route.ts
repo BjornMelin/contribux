@@ -9,6 +9,12 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { OpportunityQueries } from '@/lib/db/queries/opportunities'
 
+const blankToUndefined = (value: unknown) => (value === '' ? undefined : value)
+const optionalScore = z.preprocess(
+  blankToUndefined,
+  z.coerce.number().int().min(1).max(10).optional()
+)
+
 // Request validation schema
 const SearchOpportunitiesQuerySchema = z
   .object({
@@ -16,10 +22,10 @@ const SearchOpportunitiesQuerySchema = z
     page: z.coerce.number().int().min(1).default(1),
     per_page: z.coerce.number().int().min(1).max(100).default(20),
     difficulty: z.enum(['beginner', 'intermediate', 'advanced']).optional(),
-    min_difficulty_score: z.coerce.number().int().min(1).max(10).optional(),
-    max_difficulty_score: z.coerce.number().int().min(1).max(10).optional(),
-    min_impact_score: z.coerce.number().int().min(1).max(10).optional(),
-    max_impact_score: z.coerce.number().int().min(1).max(10).optional(),
+    min_difficulty_score: optionalScore,
+    max_difficulty_score: optionalScore,
+    min_impact_score: optionalScore,
+    max_impact_score: optionalScore,
     repository_id: z.string().uuid().optional(),
     good_first_issue: z
       .string()

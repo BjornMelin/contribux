@@ -354,7 +354,7 @@ export const securityTestHandlers: HttpHandler[] = [
     const report = await request.json()
 
     // Validate CSP report structure
-    if (!report['csp-report']?.['violated-directive']) {
+    if (!report?.['csp-report']?.['violated-directive']) {
       return HttpResponse.json({ error: 'Invalid CSP report format' }, { status: 400 })
     }
 

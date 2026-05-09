@@ -92,6 +92,7 @@ export function OptimizedSearchExample() {
   const mutations = useOptimisticMutations()
   const { handlePrefetch, handleBookmark, handleSaveOpportunity } = useSearchActions(mutations)
   const isAuthenticated = status === 'authenticated'
+  const isSessionLoading = status === 'loading'
 
   // Initialize real-time updates (disabled for now to prevent WebSocket errors)
   // useRealtimeUpdates()
@@ -214,7 +215,9 @@ export function OptimizedSearchExample() {
 
         {/* Sidebar with beginner opportunities */}
         <div className="space-y-6">
-          {isAuthenticated ? (
+          {isSessionLoading ? (
+            <div className="h-32 animate-pulse rounded-lg border bg-muted" />
+          ) : isAuthenticated ? (
             <BeginnerSidebar />
           ) : (
             <div className="rounded-lg border bg-card shadow-sm">

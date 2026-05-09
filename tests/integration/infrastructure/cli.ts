@@ -18,6 +18,16 @@ import { runIntegrationTests } from './test-suite-runner'
 // Package info
 const packageJson = JSON.parse(readFileSync(join(__dirname, '../../../package.json'), 'utf-8'))
 
+function parseIntegerOption(value: string, name: string, min = 0): number {
+  const parsed = Number(value)
+
+  if (!Number.isInteger(parsed) || parsed < min) {
+    throw new Error(`${name} must be an integer >= ${min}`)
+  }
+
+  return parsed
+}
+
 program
   .name('integration-test-runner')
   .description('Run integration tests with comprehensive reporting and analysis')
@@ -44,8 +54,8 @@ program
     try {
       const config: TestSuiteConfig = {
         testPattern: options.pattern,
-        timeout: Number.parseInt(options.timeout, 10),
-        retries: Number.parseInt(options.retries, 10),
+        timeout: parseIntegerOption(options.timeout, 'timeout', 1),
+        retries: parseIntegerOption(options.retries, 'retries', 0),
         parallel: options.parallel,
         coverage: options.coverage,
         bail: options.bail,
@@ -194,7 +204,8 @@ program
   .action(async options => {
     try {
       const _reportsDir = './tests/integration/reports'
-      const _olderThanMs = Number.parseInt(options.olderThan, 10) * 24 * 60 * 60 * 1000
+      const _olderThanMs =
+        parseIntegerOption(options.olderThan, 'older-than', 1) * 24 * 60 * 60 * 1000
 
       console.log('🧹 Starting cleanup...')
 

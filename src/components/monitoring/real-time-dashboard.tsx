@@ -122,7 +122,12 @@ export function RealTimeMonitoringDashboard() {
 
     // Create WebSocket connection with authentication
     const wsEndpoint = process.env.NEXT_PUBLIC_WS_ENDPOINT || 'ws://localhost:8080/metrics'
-    const wsUrl = new URL(wsEndpoint)
+    let wsUrl: URL
+    try {
+      wsUrl = new URL(wsEndpoint)
+    } catch {
+      wsUrl = new URL('ws://localhost:8080/metrics')
+    }
     wsUrl.searchParams.set('token', authToken)
 
     const ws = new WebSocket(wsUrl.toString())
