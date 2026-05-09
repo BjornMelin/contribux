@@ -865,4 +865,4 @@ export const comprehensiveSecurityOrchestrator = new ComprehensiveSecurityOrches
 export const authenticationTester = new AuthenticationSecurityTester()
 
 // Export configuration schemas for external use
-export { ComprehensiveSecurityConfigSchema, type ComprehensiveSecurityConfig }
+export { type ComprehensiveSecurityConfig, ComprehensiveSecurityConfigSchema }

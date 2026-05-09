@@ -101,7 +101,6 @@ export function itSlow(name: string, fn: () => void | Promise<void>, timeout?: n
 export class OptimizedMemoryTracker {
   private usage = 0
   private allocations = new Map<string, number>()
-  private checkInterval = process.env.CI ? 100 : 50
 
   allocate(size: number): string {
     const id = Math.random().toString(36).substring(7)
@@ -161,7 +160,7 @@ export function setupBatchMocking(
     .get(/\/repos\/owner\/repo\d+/)
     .reply((uri: string) => {
       const match = uri.match(/repo(\d+)/)
-      const num = match?.[1] ? Number.parseInt(match[1]) : 1
+      const num = match?.[1] ? Number.parseInt(match[1], 10) : 1
       const response = responses.get(`/repos/owner/repo${num}`)
       return [200, response || { error: 'Not found' }]
     })

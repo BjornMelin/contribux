@@ -146,7 +146,7 @@ test.describe('Accessibility and Cross-Browser Compatibility', () => {
       const headings = await page.evaluate(() => {
         const headingElements = document.querySelectorAll('h1, h2, h3, h4, h5, h6')
         return Array.from(headingElements).map(h => ({
-          level: Number.parseInt(h.tagName.substring(1)),
+          level: Number.parseInt(h.tagName.substring(1), 10),
           text: h.textContent?.trim() || '',
           hasId: !!h.id,
         }))
@@ -541,8 +541,8 @@ test.describe('Accessibility and Cross-Browser Compatibility', () => {
           return {
             naturalWidth: el.naturalWidth,
             naturalHeight: el.naturalHeight,
-            displayWidth: Number.parseInt(computedStyle.width),
-            displayHeight: Number.parseInt(computedStyle.height),
+            displayWidth: Number.parseInt(computedStyle.width, 10),
+            displayHeight: Number.parseInt(computedStyle.height, 10),
             src: el.src,
           }
         })

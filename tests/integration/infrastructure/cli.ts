@@ -44,8 +44,8 @@ program
     try {
       const config: TestSuiteConfig = {
         testPattern: options.pattern,
-        timeout: Number.parseInt(options.timeout),
-        retries: Number.parseInt(options.retries),
+        timeout: Number.parseInt(options.timeout, 10),
+        retries: Number.parseInt(options.retries, 10),
         parallel: options.parallel,
         coverage: options.coverage,
         bail: options.bail,
@@ -194,7 +194,7 @@ program
   .action(async options => {
     try {
       const _reportsDir = './tests/integration/reports'
-      const _olderThanMs = Number.parseInt(options.olderThan) * 24 * 60 * 60 * 1000
+      const _olderThanMs = Number.parseInt(options.olderThan, 10) * 24 * 60 * 60 * 1000
 
       console.log('🧹 Starting cleanup...')
 

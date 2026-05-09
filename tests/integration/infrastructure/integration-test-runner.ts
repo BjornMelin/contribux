@@ -188,9 +188,9 @@ export class IntegrationTestRunner {
       const failedMatch = output.match(/(\d+) failed/)
       const skippedMatch = output.match(/(\d+) skipped/)
 
-      result.passed = passedMatch ? Number.parseInt(passedMatch[1]) : 0
-      result.failed = failedMatch ? Number.parseInt(failedMatch[1]) : 0
-      result.skipped = skippedMatch ? Number.parseInt(skippedMatch[1]) : 0
+      result.passed = passedMatch ? Number.parseInt(passedMatch[1], 10) : 0
+      result.failed = failedMatch ? Number.parseInt(failedMatch[1], 10) : 0
+      result.skipped = skippedMatch ? Number.parseInt(skippedMatch[1], 10) : 0
     }
 
     if (errorOutput) {

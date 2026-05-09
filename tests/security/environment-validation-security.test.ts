@@ -262,7 +262,9 @@ describe('Environment Variable Security', () => {
       // Test each required variable individually
       for (const varName of requiredProdVars) {
         // Clear all variables
-        requiredProdVars.forEach(v => delete process.env[v])
+        requiredProdVars.forEach(v => {
+          delete process.env[v]
+        })
 
         vi.resetModules()
         const { getRequiredEnv } = await import('../../src/lib/validation/env')

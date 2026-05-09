@@ -24,7 +24,7 @@ const SecurityContextSchema = z.object({
   requestId: z.string().uuid(),
   userId: z.string().uuid().optional(),
   sessionId: z.string().uuid().optional(),
-  ipAddress: z.string().ip(),
+  ipAddress: z.union([z.ipv4(), z.ipv6()]),
   userAgent: z.string(),
   timestamp: z.string().datetime(),
   securityLevel: z.enum(['public', 'authenticated', 'privileged', 'admin']),
@@ -64,7 +64,7 @@ const MiddlewareSecurityChainSchema = z.object({
       executed: z.boolean(),
       passed: z.boolean(),
       duration: z.number(),
-      details: z.record(z.any()),
+      details: z.record(z.string(), z.any()),
     })
   ),
   totalSecurityOverhead: z.number(),
@@ -87,7 +87,7 @@ const SecurityCorrelationEventSchema = z.object({
   securityContext: SecurityContextSchema,
   timestamp: z.string().datetime(),
   outcome: z.enum(['success', 'failure', 'blocked', 'challenged']),
-  metrics: z.record(z.number()),
+  metrics: z.record(z.string(), z.number()),
 })
 
 // Test setup

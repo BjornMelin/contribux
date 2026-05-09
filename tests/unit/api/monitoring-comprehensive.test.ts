@@ -739,7 +739,9 @@ describe('MetricsStore - Internal Implementation Tests', () => {
         { url: '/api/test', method: 'GET', statusCode: 500, duration: 200, timestamp: Date.now() },
       ]
 
-      requests.forEach(req => metricsStore.recordRequest(req))
+      requests.forEach(req => {
+        metricsStore.recordRequest(req)
+      })
 
       const endpointMetrics = metricsStore.getEndpointMetrics()
       const testEndpoint = endpointMetrics.find(em => em.endpoint === '/api/test')

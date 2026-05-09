@@ -2,7 +2,7 @@
  * @vitest-environment node
  */
 
-import jwt from 'jsonwebtoken'
+import { SignJWT } from 'jose'
 import { testApiHandler } from 'next-test-api-route-handler'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as authHandlers from '@/app/api/auth/[...nextauth]/route'
@@ -37,6 +37,19 @@ vi.mock('@/lib/db', () => ({
     },
   },
 }))
+
+const signRefreshToken = (payload: Record<string, unknown>, expiresAt: number | string) => {
+  const secret = process.env.NEXTAUTH_SECRET
+  if (!secret) {
+    throw new Error('NEXTAUTH_SECRET environment variable is required for testing')
+  }
+
+  return new SignJWT(payload)
+    .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
+    .setIssuedAt()
+    .setExpirationTime(expiresAt)
+    .sign(new TextEncoder().encode(secret))
+}
 
 describe('Authentication API Integration Tests', () => {
   beforeEach(() => {
@@ -237,14 +250,7 @@ describe('Authentication API Integration Tests', () => {
         email: 'test@example.com',
       }
 
-      const secret = process.env.NEXTAUTH_SECRET
-      if (!secret) {
-        throw new Error('NEXTAUTH_SECRET environment variable is required for testing')
-      }
-
-      const validRefreshToken = jwt.sign({ sub: mockUser.id, type: 'refresh' }, secret, {
-        expiresIn: '7d',
-      })
+      const validRefreshToken = await signRefreshToken({ sub: mockUser.id, type: 'refresh' }, '7d')
 
       vi.mocked(prisma.user.findUnique).mockResolvedValueOnce(mockUser)
 
@@ -292,14 +298,10 @@ describe('Authentication API Integration Tests', () => {
     })
 
     it('should reject expired refresh token', async () => {
-      const secret = process.env.NEXTAUTH_SECRET
-      if (!secret) {
-        throw new Error('NEXTAUTH_SECRET environment variable is required for testing')
-      }
-
-      const expiredToken = jwt.sign({ sub: 'user-123', type: 'refresh' }, secret, {
-        expiresIn: '-1s',
-      })
+      const expiredToken = await signRefreshToken(
+        { sub: 'user-123', type: 'refresh' },
+        Math.floor(Date.now() / 1000) - 1
+      )
 
       await testApiHandler({
         handler: refreshHandler.POST,

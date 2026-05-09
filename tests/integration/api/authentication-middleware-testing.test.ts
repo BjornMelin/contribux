@@ -108,7 +108,7 @@ describe('Middleware Authentication Validation', () => {
         http.get('http://localhost:3000/api/search/repositories', ({ request }) => {
           const sessionCookie = request.headers.get('Cookie')
 
-          if (!sessionCookie || !sessionCookie.includes('next-auth.session-token')) {
+          if (!sessionCookie?.includes('next-auth.session-token')) {
             return HttpResponse.json(
               {
                 success: false,
@@ -262,7 +262,7 @@ describe('Middleware Authentication Validation', () => {
         http.get('http://localhost:3000/api/search/repositories', ({ request }) => {
           const authHeader = request.headers.get('Authorization')
 
-          if (!authHeader || !authHeader.startsWith('Bearer ')) {
+          if (!authHeader?.startsWith('Bearer ')) {
             return HttpResponse.json(
               {
                 success: false,

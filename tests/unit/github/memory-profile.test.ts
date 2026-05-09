@@ -77,7 +77,9 @@ describe('Memory Profiling', () => {
     console.log('After requests from all clients:', getMemoryUsage())
 
     // Clear all caches
-    clients.forEach(client => client.clearCache())
+    clients.forEach(client => {
+      client.clearCache()
+    })
 
     console.log('After clearing all caches:', getMemoryUsage())
 

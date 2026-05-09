@@ -213,7 +213,7 @@ function setupDefaultHandlers() {
     http.get('https://api.github.com/search/repositories', ({ request }) => {
       const url = new URL(request.url)
       const q = url.searchParams.get('q') || ''
-      const per_page = Number.parseInt(url.searchParams.get('per_page') || '30')
+      const per_page = Number.parseInt(url.searchParams.get('per_page') || '30', 10)
 
       // Generate mock results based on query
       const items = Array.from({ length: Math.min(per_page, 10) }, (_, index) => ({
@@ -295,7 +295,7 @@ function setupDefaultHandlers() {
     // User repositories endpoint
     http.get('https://api.github.com/user/repos', ({ request }) => {
       const url = new URL(request.url)
-      const per_page = Number.parseInt(url.searchParams.get('per_page') || '30')
+      const per_page = Number.parseInt(url.searchParams.get('per_page') || '30', 10)
 
       const repos = Array.from({ length: Math.min(per_page, 5) }, (_, index) => ({
         id: 987654321 + index,

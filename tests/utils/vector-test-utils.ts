@@ -467,7 +467,7 @@ export class VectorTestUtils {
     return {
       buildTime,
       indexSize,
-      rowCount: Number.parseInt(String(rowCount)),
+      rowCount: Number.parseInt(String(rowCount), 10),
     }
   }
 

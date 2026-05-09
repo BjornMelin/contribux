@@ -169,7 +169,7 @@ const CompleteUserProfileSchema = z.object({
       accountId: z.string(),
       connectedAt: z.string().datetime(),
       isPrimary: z.boolean(),
-      metadata: z.record(z.any()),
+      metadata: z.record(z.string(), z.any()),
     })
   ),
   webauthnCredentials: z.array(
@@ -1028,7 +1028,7 @@ describe('Complete Authentication Flow Integration', () => {
           const userSession = authFlowState.userSessions.get(sessionId)
           expect(userSession).toBeDefined()
           expect(userSession).not.toBeNull()
-          if (!userSession || !userSession.providers.includes(body.provider)) {
+          if (!userSession?.providers.includes(body.provider)) {
             return HttpResponse.json(
               {
                 success: false,

@@ -9,7 +9,7 @@ import { setupIntegrationTests } from './config/enhanced-test-setup'
 const { config, addCleanupTask, getDbManager, getMockManager } = setupIntegrationTests()
 
 // Export utilities specific to integration testing
-export { config, addCleanupTask, getDbManager, getMockManager }
+export { addCleanupTask, config, getDbManager, getMockManager }
 
 // Integration-specific test utilities
 export const integrationTestUtils = {

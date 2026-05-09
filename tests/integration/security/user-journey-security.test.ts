@@ -90,7 +90,7 @@ const SecurityAuditTrailSchema = z.object({
     z.object({
       eventType: z.string(),
       timestamp: z.string().datetime(),
-      ipAddress: z.string().ip(),
+      ipAddress: z.union([z.ipv4(), z.ipv6()]),
       userAgent: z.string(),
       outcome: z.string(),
       securityLevel: z.string(),

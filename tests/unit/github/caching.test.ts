@@ -122,9 +122,9 @@ describe('GitHubCacheManager', () => {
       ]
 
       for (const str of testStrings) {
-        // @ts-ignore - accessing private method for testing
+        // @ts-expect-error - accessing private method for testing
         const key1 = (cacheManager as { hashString: (str: string) => string }).hashString(str)
-        // @ts-ignore - accessing private method for testing
+        // @ts-expect-error - accessing private method for testing
         const key2 = (cacheManager as { hashString: (str: string) => string }).hashString(str)
 
         expect(key1).toBe(key2) // Consistent hashing
@@ -134,11 +134,11 @@ describe('GitHubCacheManager', () => {
     })
 
     it('should generate different hashes for different inputs', () => {
-      // @ts-ignore - accessing private method for testing
+      // @ts-expect-error - accessing private method for testing
       const hash1 = (cacheManager as { hashString: (str: string) => string }).hashString('test1')
-      // @ts-ignore - accessing private method for testing
+      // @ts-expect-error - accessing private method for testing
       const hash2 = (cacheManager as { hashString: (str: string) => string }).hashString('test2')
-      // @ts-ignore - accessing private method for testing
+      // @ts-expect-error - accessing private method for testing
       const hash3 = (cacheManager as { hashString: (str: string) => string }).hashString('test1') // Same as hash1
 
       expect(hash1).not.toBe(hash2)

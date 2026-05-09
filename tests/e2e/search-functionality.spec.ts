@@ -215,7 +215,7 @@ test.describe('Search and Repository Discovery', () => {
 
       await page.route('/api/search/**', async route => {
         const url = new URL(route.request().url())
-        const page = Number.parseInt(url.searchParams.get('page') || '1')
+        const page = Number.parseInt(url.searchParams.get('page') || '1', 10)
         currentPage = page
 
         const results = Array.from({ length: 10 }, (_, i) => ({

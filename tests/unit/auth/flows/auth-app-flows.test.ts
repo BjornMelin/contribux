@@ -51,7 +51,7 @@ describeIntegration(
             return
           }
 
-          const appId = Number.parseInt(context.env.GITHUB_APP_ID || '0')
+          const appId = Number.parseInt(context.env.GITHUB_APP_ID || '0', 10)
 
           // Mock GitHub App authentication
           mockGitHubAppAuth(appId, 'Test Contribux App')
@@ -112,7 +112,7 @@ describeIntegration(
             return
           }
 
-          const appId = Number.parseInt(context.env.GITHUB_APP_ID || '0')
+          const appId = Number.parseInt(context.env.GITHUB_APP_ID || '0', 10)
 
           // Mock GitHub App responses
           mockGitHubAppAuth(appId, 'Test Contribux App')
@@ -162,8 +162,8 @@ describeIntegration(
             return
           }
 
-          const appId = Number.parseInt(context.env.GITHUB_APP_ID || '0')
-          const installationId = Number.parseInt(context.env.GITHUB_APP_INSTALLATION_ID || '0')
+          const appId = Number.parseInt(context.env.GITHUB_APP_ID || '0', 10)
+          const installationId = Number.parseInt(context.env.GITHUB_APP_INSTALLATION_ID || '0', 10)
 
           // Mock installation authentication
           mockInstallationAuth(installationId, appId)
@@ -224,8 +224,8 @@ describeIntegration(
             return
           }
 
-          const installationId = Number.parseInt(context.env.GITHUB_APP_INSTALLATION_ID || '0')
-          const appId = Number.parseInt(context.env.GITHUB_APP_ID || '0')
+          const installationId = Number.parseInt(context.env.GITHUB_APP_INSTALLATION_ID || '0', 10)
+          const appId = Number.parseInt(context.env.GITHUB_APP_ID || '0', 10)
 
           // Mock installation with specific permissions
           mockInstallationAuth(installationId, appId)
@@ -294,7 +294,7 @@ describeIntegration(
 
           for (const installationType of installationTypes) {
             const installationId = 12345 + Math.floor(Math.random() * 1000)
-            const appId = Number.parseInt(context.env.GITHUB_APP_ID || '12345')
+            const appId = Number.parseInt(context.env.GITHUB_APP_ID || '12345', 10)
 
             // Mock installation for this type
             mockInstallationAuth(installationId, appId)
@@ -340,7 +340,7 @@ describeIntegration(
             { id: 22222, targetId: 12345, targetType: 'User' },
           ]
 
-          const appId = Number.parseInt(context.env.GITHUB_APP_ID || '12345')
+          const appId = Number.parseInt(context.env.GITHUB_APP_ID || '12345', 10)
 
           for (const installation of installations) {
             // Mock each installation
@@ -387,7 +387,7 @@ describeIntegration(
             return
           }
 
-          const appId = Number.parseInt(context.env.GITHUB_APP_ID || '0')
+          const appId = Number.parseInt(context.env.GITHUB_APP_ID || '0', 10)
 
           // Mock GitHub App authentication
           mockGitHubAppAuth(appId, 'Performance Test App')

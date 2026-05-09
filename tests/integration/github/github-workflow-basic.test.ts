@@ -65,14 +65,13 @@ describe('GitHub Basic Workflows Integration', () => {
     })
 
     // Parametric testing with test.each
-    it.each(testFixtures.authConfigs())(
-      'should create client with %s authentication',
-      authConfig => {
-        const config: GitHubClientConfig = { auth: authConfig }
-        const client = new GitHubClient(config)
-        expect(client).toBeInstanceOf(GitHubClient)
-      }
-    )
+    it.each(
+      testFixtures.authConfigs()
+    )('should create client with %s authentication', authConfig => {
+      const config: GitHubClientConfig = { auth: authConfig }
+      const client = new GitHubClient(config)
+      expect(client).toBeInstanceOf(GitHubClient)
+    })
 
     // Property-based testing for configuration validation
     fcTest.prop([

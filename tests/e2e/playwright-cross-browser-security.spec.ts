@@ -69,7 +69,7 @@ browsers.forEach(({ name: browserName, device }) => {
       const cryptoTest = await page.evaluate(async () => {
         try {
           // Check if Web Crypto API is available
-          if (!window.crypto || !window.crypto.subtle) {
+          if (!window.crypto?.subtle) {
             return { available: false, error: 'Web Crypto API not available' }
           }
 

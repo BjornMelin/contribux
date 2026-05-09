@@ -1,5 +1,4 @@
 const express = require('express')
-const bodyParser = require('body-parser')
 const crypto = require('node:crypto')
 
 const app = express()
@@ -12,7 +11,7 @@ const MAX_WEBHOOKS = 100
 
 // Middleware to capture raw body for signature verification
 app.use(
-  bodyParser.raw({
+  express.raw({
     type: 'application/json',
     verify: (req, _res, buf) => {
       req.rawBody = buf.toString('utf-8')

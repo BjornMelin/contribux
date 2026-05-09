@@ -146,7 +146,7 @@ const SecurityIncidentResponseSchema = z.object({
     severity: z.enum(['low', 'medium', 'high', 'critical']),
     status: z.enum(['detected', 'investigating', 'mitigated', 'resolved']),
     timestamp: z.string().datetime(),
-    details: z.record(z.unknown()),
+    details: z.record(z.string(), z.unknown()),
     responseActions: z.array(z.string()),
   }),
   mitigation: z.object({

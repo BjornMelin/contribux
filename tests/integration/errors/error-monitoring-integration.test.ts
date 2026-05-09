@@ -409,8 +409,12 @@ describe('Error Monitoring Integration Tests', () => {
           userMessage: 'GitHub error',
         }))
 
-      dbErrors.forEach(err => errorMonitor.logError(new Error('DB'), err))
-      githubErrors.forEach(err => errorMonitor.logError(new Error('GitHub'), err))
+      dbErrors.forEach(err => {
+        errorMonitor.logError(new Error('DB'), err)
+      })
+      githubErrors.forEach(err => {
+        errorMonitor.logError(new Error('GitHub'), err)
+      })
 
       const report = await dashboard.getHealthReport()
 

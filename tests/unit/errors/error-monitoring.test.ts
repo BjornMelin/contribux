@@ -303,7 +303,9 @@ describe('AlertingSystem', () => {
         },
       ]
 
-      channels.forEach(channel => alertingSystem.addChannel(channel))
+      channels.forEach(channel => {
+        alertingSystem.addChannel(channel)
+      })
 
       expect(alertingSystem.getChannels()).toHaveLength(2)
     })

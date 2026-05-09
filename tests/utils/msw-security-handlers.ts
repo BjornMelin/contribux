@@ -271,7 +271,7 @@ export const securityTestHandlers: HttpHandler[] = [
 
     // Request smuggling prevention - detect malformed content-length
     if (contentLength) {
-      const length = Number.parseInt(contentLength)
+      const length = Number.parseInt(contentLength, 10)
       if (Number.isNaN(length) || length < 0) {
         return HttpResponse.json({ error: 'Invalid Content-Length' }, { status: 400 })
       }
@@ -286,7 +286,7 @@ export const securityTestHandlers: HttpHandler[] = [
     }
 
     // Size validation
-    if (contentLength && Number.parseInt(contentLength) > 50 * 1024 * 1024) {
+    if (contentLength && Number.parseInt(contentLength, 10) > 50 * 1024 * 1024) {
       return HttpResponse.json({ error: 'File too large' }, { status: 413 })
     }
 
@@ -354,7 +354,7 @@ export const securityTestHandlers: HttpHandler[] = [
     const report = await request.json()
 
     // Validate CSP report structure
-    if (!report['csp-report'] || !report['csp-report']['violated-directive']) {
+    if (!report['csp-report']?.['violated-directive']) {
       return HttpResponse.json({ error: 'Invalid CSP report format' }, { status: 400 })
     }
 
@@ -389,7 +389,7 @@ export const securityTestHandlers: HttpHandler[] = [
 
     // Detect malformed content-length
     if (contentLength) {
-      const length = Number.parseInt(contentLength)
+      const length = Number.parseInt(contentLength, 10)
       if (Number.isNaN(length) || length < 0) {
         return HttpResponse.json({ error: 'Invalid Content-Length' }, { status: 400 })
       }
@@ -407,9 +407,7 @@ export const securityTestHandlers: HttpHandler[] = [
     // Detect various bypass attempts
     const bypassAttempts = [
       xForwardedFor?.includes(','), // Multiple IPs in X-Forwarded-For
-      userAgent
-        ?.toLowerCase()
-        .includes('bot'), // User-Agent manipulation
+      userAgent?.toLowerCase().includes('bot'), // User-Agent manipulation
       xRealIp && xForwardedFor && xRealIp !== xForwardedFor, // IP header inconsistency
       request.headers.has('CF-Connecting-IP'), // Cloudflare header spoofing
       request.headers.has('X-Vercel-Forwarded-For'), // Vercel header spoofing

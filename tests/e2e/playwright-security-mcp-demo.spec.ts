@@ -254,7 +254,9 @@ test.describe('Playwright MCP Tools Security Demo', () => {
     console.log('🔍 Security Events Captured:', securityEvents.length)
     console.log('🌐 Network Requests Monitored:', networkRequests.length)
 
-    networkRequests.forEach(req => console.log(`  📡 ${req}`))
+    networkRequests.forEach(req => {
+      console.log(`  📡 ${req}`)
+    })
 
     // Validate monitoring is working
     expect(networkRequests.length).toBeGreaterThan(0)

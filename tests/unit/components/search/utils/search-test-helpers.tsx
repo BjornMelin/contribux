@@ -17,7 +17,9 @@ import type { Repository, SearchFilters } from '@/types/search'
 export function renderIsolated(component: React.ReactElement) {
   // Clean up any existing test containers first to prevent conflicts
   const existingContainers = document.querySelectorAll('[id^="test-container-"]')
-  existingContainers.forEach(container => container.remove())
+  existingContainers.forEach(container => {
+    container.remove()
+  })
 
   // Ensure we start with a clean DOM state
   cleanup()

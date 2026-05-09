@@ -56,7 +56,7 @@ test.describe('Performance Tests', () => {
       const contentLength = response.headers()['content-length']
 
       if (contentLength) {
-        resourceSizes[url] = Number.parseInt(contentLength)
+        resourceSizes[url] = Number.parseInt(contentLength, 10)
       }
 
       // Track timing for main resources

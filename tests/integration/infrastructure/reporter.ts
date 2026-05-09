@@ -338,13 +338,17 @@ export class IntegrationTestReporter implements Reporter {
           duration: task.result.duration,
         })
       } else if ('tasks' in task && task.tasks) {
-        task.tasks.forEach(t => collectTestTimes(t, file))
+        task.tasks.forEach(t => {
+          collectTestTimes(t, file)
+        })
       }
     }
 
     files.forEach(file => {
       if (file.tasks) {
-        file.tasks.forEach(task => collectTestTimes(task, file))
+        file.tasks.forEach(task => {
+          collectTestTimes(task, file)
+        })
       }
       // Estimate setup/teardown time from file duration if available
       // Note: Vitest doesn't expose setup/teardown times directly
@@ -714,7 +718,9 @@ export class IntegrationTestReporter implements Reporter {
 
     if (failedGates.length > 0) {
       console.log('\n❌ Failed Quality Gates:')
-      failedGates.forEach(gate => console.log(`  ${gate.message}`))
+      failedGates.forEach(gate => {
+        console.log(`  ${gate.message}`)
+      })
     } else {
       console.log('\n✅ All Quality Gates Passed!')
     }

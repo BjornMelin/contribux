@@ -162,7 +162,9 @@ export const createMockStorage = () => {
     delete storage[key]
   })
   const clear = vi.fn(() => {
-    Object.keys(storage).forEach(key => delete storage[key])
+    Object.keys(storage).forEach(key => {
+      delete storage[key]
+    })
   })
 
   // Mock localStorage

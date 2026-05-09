@@ -37,10 +37,10 @@ const AttackVectorSchema = z.object({
     'replay_attack',
   ]),
   severity: z.enum(['low', 'medium', 'high', 'critical']),
-  payload: z.record(z.any()),
+  payload: z.record(z.string(), z.any()),
   expectedDefense: z.string(),
   timestamp: z.string().datetime(),
-  sourceIp: z.string().ip(),
+  sourceIp: z.union([z.ipv4(), z.ipv6()]),
   userAgent: z.string(),
 })
 

@@ -814,8 +814,8 @@ describe('Comprehensive CORS Security Configuration', () => {
       applyCORSHeaders(response, request)
 
       const maxAge = response.headers.get('Access-Control-Max-Age')
-      expect(Number.parseInt(maxAge || '0')).toBeGreaterThan(0)
-      expect(Number.parseInt(maxAge || '0')).toBeLessThanOrEqual(86400) // 24 hours max
+      expect(Number.parseInt(maxAge || '0', 10)).toBeGreaterThan(0)
+      expect(Number.parseInt(maxAge || '0', 10)).toBeLessThanOrEqual(86400) // 24 hours max
     })
   })
 })
@@ -920,7 +920,7 @@ describe('Comprehensive Security Headers Testing', () => {
 
       const hsts = response.headers.get('Strict-Transport-Security')
       const maxAge = hsts?.match(/max-age=(\d+)/)?.[1]
-      expect(Number.parseInt(maxAge || '0')).toBeGreaterThanOrEqual(31536000) // 1 year minimum
+      expect(Number.parseInt(maxAge || '0', 10)).toBeGreaterThanOrEqual(31536000) // 1 year minimum
     })
 
     it('should include subdomains in HSTS', async () => {

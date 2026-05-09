@@ -469,7 +469,7 @@ describe('GitHubClient Edge Cases - Consolidated', () => {
         auth: { type: 'token', token: 'test_token' },
         retry: { retries: 0 },
       })
-      const result = await client.searchRepositories({ query: '$1', perPage: $1 })
+      const result = await client.searchRepositories({ query: '$1', perPage: 100 })
 
       expect(result.items).toHaveLength(100)
       expect(result.total_count).toBe(1000)

@@ -106,7 +106,7 @@ describe('API Performance Testing', () => {
       const metrics: ApiPerformanceMetrics = {
         responseTime,
         statusCode: response.status,
-        contentLength: Number.parseInt(response.headers.get('content-length') || '0'),
+        contentLength: Number.parseInt(response.headers.get('content-length') || '0', 10),
         headers: Object.fromEntries(response.headers.entries()),
         body,
         serverTiming,

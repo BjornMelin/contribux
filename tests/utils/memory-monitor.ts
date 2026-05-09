@@ -406,4 +406,4 @@ export function getMemoryMonitoringStats(): {
 }
 
 // Export types for external use
-export type { MemorySnapshot, MemoryLeakResult, MemoryMonitorConfig }
+export type { MemoryLeakResult, MemoryMonitorConfig, MemorySnapshot }

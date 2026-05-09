@@ -196,13 +196,17 @@ async function generateMemoryReport(finalSnapshot: MemorySnapshot): Promise<void
   // Alerts summary
   if (memoryAlerts.length > 0) {
     console.log(`\n🚨 MEMORY ALERTS (${memoryAlerts.length}):`)
-    memoryAlerts.forEach(alert => console.log(`  • ${alert}`))
+    memoryAlerts.forEach(alert => {
+      console.log(`  • ${alert}`)
+    })
   }
 
   // Recommendations
   if (trends.recommendations.length > 0) {
     console.log('\n💡 RECOMMENDATIONS:')
-    trends.recommendations.forEach(rec => console.log(`  • ${rec}`))
+    trends.recommendations.forEach(rec => {
+      console.log(`  • ${rec}`)
+    })
   }
 
   // Solo developer specific advice
