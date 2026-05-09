@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
           result: 'failure',
           reason: 'Schema validation failed',
           metadata: {
-            errors: validation.error.errors,
+            errors: validation.error.issues,
           },
         })
 

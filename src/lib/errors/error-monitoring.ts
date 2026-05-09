@@ -61,7 +61,6 @@ const METRICS_WINDOW_MS = 15 * 60 * 1000 // 15 minutes
 export class ErrorDashboard {
   private static instance: ErrorDashboard
   private errorMonitor: ErrorMonitor
-  private alertingSystem: AlertingSystem
 
   static getInstance(): ErrorDashboard {
     if (!ErrorDashboard.instance) {
@@ -72,7 +71,6 @@ export class ErrorDashboard {
 
   constructor() {
     this.errorMonitor = ErrorMonitor.getInstance()
-    this.alertingSystem = AlertingSystem.getInstance()
   }
 
   /**

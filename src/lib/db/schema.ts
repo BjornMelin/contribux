@@ -541,8 +541,8 @@ export const RepositoryDataSchema = z.object({
   name: SafeStringSchema100,
   owner: SafeStringSchema100,
   description: SafeStringSchema.optional(),
-  metadata: z.record(z.unknown()).optional(),
-  healthMetrics: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+  healthMetrics: z.record(z.string(), z.unknown()).optional(),
   embedding: z.string().optional(), // Serialized embedding
 })
 
@@ -553,8 +553,8 @@ export const UserDataSchema = z.object({
   email: SafeEmailSchema.optional(),
   name: SafeStringSchema200.optional(),
   avatarUrl: z.string().url().max(500).optional(),
-  profile: z.record(z.unknown()).optional(),
-  preferences: z.record(z.unknown()).optional(),
+  profile: z.record(z.string(), z.unknown()).optional(),
+  preferences: z.record(z.string(), z.unknown()).optional(),
 })
 
 // Search options validation

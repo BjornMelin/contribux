@@ -83,14 +83,12 @@ export interface SecurityAlert {
  * Security Monitoring Dashboard
  */
 export class SecurityMonitoringDashboard {
-  private redis: RedisClientType | null
   private alerts: Map<string, AlertConfig> = new Map()
   private activeAlerts: Map<string, SecurityAlert> = new Map()
   private metricsBuffer: SecurityMetrics[] = []
   private flushInterval: NodeJS.Timeout | null = null
 
-  constructor(redis?: RedisClientType) {
-    this.redis = redis || null
+  constructor(_redis?: RedisClientType) {
     this.initializeDefaultAlerts()
     this.startMetricsCollection()
   }

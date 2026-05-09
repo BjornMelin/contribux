@@ -116,7 +116,7 @@ export const LinkedInProfileSchema = z.object({
   localizedLastName: z.string().optional(),
   firstName: z
     .object({
-      localized: z.record(z.string()),
+      localized: z.record(z.string(), z.string()),
       preferredLocale: z.object({
         country: z.string(),
         language: z.string(),
@@ -125,7 +125,7 @@ export const LinkedInProfileSchema = z.object({
     .optional(),
   lastName: z
     .object({
-      localized: z.record(z.string()),
+      localized: z.record(z.string(), z.string()),
       preferredLocale: z.object({
         country: z.string(),
         language: z.string(),

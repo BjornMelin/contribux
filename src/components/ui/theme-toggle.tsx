@@ -12,10 +12,10 @@
 
 'use client'
 
-import { useTheme } from 'next-themes'
 import { useEffect, useState } from 'react'
 import { Monitor, Moon, Sun } from '@/components/icons'
 import { MotionDiv } from '@/components/motion'
+import { useTheme } from '@/components/providers/theme-provider'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 

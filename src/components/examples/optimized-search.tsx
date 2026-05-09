@@ -15,6 +15,7 @@
 
 import dynamic from 'next/dynamic'
 import { useMemo } from 'react'
+import { useSession } from '@/components/providers/app-providers'
 import { useSaveOpportunity } from '@/lib/api/hooks/use-opportunities'
 import { useRepositoryBookmark } from '@/lib/api/hooks/use-repositories'
 
@@ -85,10 +86,12 @@ function useOptimisticMutations() {
 // }
 
 export function OptimizedSearchExample() {
+  const { status } = useSession()
   const { searchType, setSearchType, filters, setFilters } = useSearchState()
   const queries = useSearchQueries(searchType, filters)
   const mutations = useOptimisticMutations()
   const { handlePrefetch, handleBookmark, handleSaveOpportunity } = useSearchActions(mutations)
+  const isAuthenticated = status === 'authenticated'
 
   // Initialize real-time updates (disabled for now to prevent WebSocket errors)
   // useRealtimeUpdates()
@@ -211,7 +214,20 @@ export function OptimizedSearchExample() {
 
         {/* Sidebar with beginner opportunities */}
         <div className="space-y-6">
-          <BeginnerSidebar />
+          {isAuthenticated ? (
+            <BeginnerSidebar />
+          ) : (
+            <div className="rounded-lg border bg-card shadow-sm">
+              <div className="border-b p-4">
+                <h3 className="font-semibold text-card-foreground text-lg">
+                  Beginner Opportunities
+                </h3>
+              </div>
+              <div className="p-4 text-muted-foreground text-sm">
+                Sign in to view personalized beginner-friendly issues.
+              </div>
+            </div>
+          )}
 
           <CircuitBreakerStatus circuitBreakerStates={queries.queryMetrics.circuitBreakerStates} />
         </div>

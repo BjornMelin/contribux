@@ -566,10 +566,10 @@ export function getAPIMonitoringSnapshot() {
 
 // Export monitoring utilities
 export {
-  MetricsStore,
-  type RequestMetrics,
   type EndpointMetrics,
   type ErrorMetrics,
   type HealthMetrics,
+  MetricsStore,
+  type RequestMetrics,
 }
 export default apiMonitoring

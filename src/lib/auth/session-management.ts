@@ -3,11 +3,25 @@
  * Comprehensive session handling for NextAuth.js integration
  */
 
-import jwt from 'jsonwebtoken'
+import { webcrypto } from 'node:crypto'
+import { jwtVerify, SignJWT } from 'jose'
 import { getServerSession } from 'next-auth'
 import { decryptToken, encryptToken, getCurrentEncryptionKey } from '@/lib/auth/crypto'
 import { generateSecureRandomString } from '@/lib/security/crypto-secure'
 import { getGitHubConfig, getJwtSecret } from '@/lib/validation/env'
+
+function ensureWebCrypto() {
+  if (typeof globalThis.crypto?.subtle?.importKey !== 'function') {
+    Object.defineProperty(globalThis, 'crypto', {
+      value: webcrypto,
+      configurable: true,
+    })
+  }
+}
+
+ensureWebCrypto()
+
+const getJwtKey = () => new TextEncoder().encode(getJwtSecret())
 
 export interface SessionData {
   user: {
@@ -109,8 +123,7 @@ export async function validateSession(): Promise<SessionValidationResult> {
  */
 export async function validateJWT(token: string): Promise<TokenValidationResult> {
   try {
-    const jwtSecret = getJwtSecret()
-    const payload = jwt.verify(token, jwtSecret) as TokenPayload
+    const { payload } = await jwtVerify(token, getJwtKey())
 
     // Check if token is expired
     const now = Math.floor(Date.now() / 1000)
@@ -123,9 +136,16 @@ export async function validateJWT(token: string): Promise<TokenValidationResult>
 
     return {
       valid: true,
-      payload,
+      payload: payload as unknown as TokenPayload,
     }
   } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'ERR_JWT_EXPIRED') {
+      return {
+        valid: false,
+        error: 'Token expired',
+      }
+    }
+
     return {
       valid: false,
       error: `Invalid token: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -137,14 +157,22 @@ export async function validateJWT(token: string): Promise<TokenValidationResult>
  * Generate new JWT token
  */
 export async function generateJWT(payload: Partial<TokenPayload>): Promise<string> {
-  const jwtSecret = getJwtSecret()
   const tokenPayload = {
     ...payload,
     iat: Math.floor(Date.now() / 1000),
     exp: Math.floor(Date.now() / 1000) + 3600, // 1 hour
   }
 
-  return jwt.sign(tokenPayload, jwtSecret, { expiresIn: '1h' })
+  const signer = new SignJWT(tokenPayload)
+    .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
+    .setIssuedAt(tokenPayload.iat)
+    .setExpirationTime(tokenPayload.exp)
+
+  if (tokenPayload.sub) {
+    signer.setSubject(tokenPayload.sub)
+  }
+
+  return signer.sign(getJwtKey())
 }
 
 /**
@@ -241,12 +269,15 @@ export async function handleOAuthCallback(
       },
       body: (() => {
         const githubConfig = getGitHubConfig()
-        if (!githubConfig.clientId || !githubConfig.clientSecret) {
+        const clientId = process.env.GITHUB_CLIENT_ID || githubConfig.clientId
+        const clientSecret = process.env.GITHUB_CLIENT_SECRET || githubConfig.clientSecret
+
+        if (!clientId || !clientSecret) {
           throw new Error('GitHub OAuth credentials not configured')
         }
         return new URLSearchParams({
-          client_id: githubConfig.clientId,
-          client_secret: githubConfig.clientSecret,
+          client_id: clientId,
+          client_secret: clientSecret,
           code,
           state: state || '',
         })

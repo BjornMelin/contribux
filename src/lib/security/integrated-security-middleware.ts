@@ -293,7 +293,7 @@ async function checkInputValidation(
         const result = await inputValidator.validate(schema, body)
         securityChecks.inputValidation = {
           passed: result.success,
-          details: result.errors?.errors.map(e => e.message).join(', '),
+          details: result.errors?.issues.map(e => e.message).join(', '),
         }
 
         if (!result.success) {
@@ -304,7 +304,7 @@ async function checkInputValidation(
             action: 'Input validation failed',
             metadata: {
               ...securityContext,
-              errors: result.errors?.errors.map(e => e.message),
+              errors: result.errors?.issues.map(e => e.message),
             } as Record<string, unknown>,
             result: 'failure',
           })

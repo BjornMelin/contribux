@@ -178,7 +178,7 @@ export class WebhookSecurityValidator {
    */
   private performPayloadSizeCheck(request: NextRequest, result: WebhookSecurityResult): boolean {
     const contentLength = request.headers.get('content-length')
-    if (contentLength && Number.parseInt(contentLength) > WEBHOOK_CONFIG.maxPayloadSize) {
+    if (contentLength && Number.parseInt(contentLength, 10) > WEBHOOK_CONFIG.maxPayloadSize) {
       const securityFlags = this.ensureSecurityFlags(result)
       securityFlags.payloadTooLarge = true
       result.error = 'Payload too large'
@@ -370,7 +370,7 @@ export class WebhookSecurityValidator {
     if (!parseResult.success) {
       return {
         success: false,
-        error: `Invalid headers: ${parseResult.error.errors.map(e => e.message).join(', ')}`,
+        error: `Invalid headers: ${parseResult.error.issues.map(e => e.message).join(', ')}`,
       }
     }
 
@@ -393,7 +393,7 @@ export class WebhookSecurityValidator {
     try {
       // Get signature from headers
       const signature = request.headers.get(WEBHOOK_CONFIG.signatureHeader)
-      if (!signature || !signature.startsWith('sha256=')) {
+      if (!signature?.startsWith('sha256=')) {
         return {
           success: false,
           error: 'Missing or invalid signature header',
@@ -478,7 +478,7 @@ export class WebhookSecurityValidator {
         if (!result.success) {
           return {
             success: false,
-            error: `Invalid payload structure: ${result.error.errors.map(e => e.message).join(', ')}`,
+            error: `Invalid payload structure: ${result.error.issues.map(e => e.message).join(', ')}`,
           }
         }
       }
@@ -597,4 +597,4 @@ export function createWebhookValidator(): WebhookSecurityValidator {
 
 // ==================== EXPORTS ====================
 
-export { WEBHOOK_CONFIG, type AllowedWebhookEvent }
+export { type AllowedWebhookEvent, WEBHOOK_CONFIG }

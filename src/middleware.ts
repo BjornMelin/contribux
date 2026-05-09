@@ -77,6 +77,7 @@ async function lightweightAuthCheck(request: NextRequest): Promise<NextResponse 
   if (
     path.startsWith('/auth/') ||
     path.startsWith('/api/auth/') ||
+    path === '/api/search/repositories' ||
     path === '/api/health' ||
     path.startsWith('/_next/') ||
     path === '/favicon.ico'
@@ -92,7 +93,7 @@ async function lightweightAuthCheck(request: NextRequest): Promise<NextResponse 
 
   try {
     const payload = await verifyAccessToken(token)
-    if (!payload || !payload.sub) {
+    if (!payload?.sub) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
     // Token is valid, continue to route

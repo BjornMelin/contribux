@@ -459,4 +459,4 @@ export class GitHubRuntimeValidator {
 export const gitHubRuntimeValidator = new GitHubRuntimeValidator()
 
 // Export validation schemas for external use
-export { GitHubTokenSchema, GitHubAppConfigSchema, EnvironmentConfigSchema, ValidationResultSchema }
+export { EnvironmentConfigSchema, GitHubAppConfigSchema, GitHubTokenSchema, ValidationResultSchema }

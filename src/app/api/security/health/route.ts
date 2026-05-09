@@ -15,10 +15,11 @@ const healthResponseSchema = z.object({
   status: z.enum(['healthy', 'degraded', 'unhealthy']),
   timestamp: z.string(),
   components: z.record(
+    z.string(),
     z.object({
       status: z.enum(['healthy', 'degraded', 'unhealthy']),
       message: z.string(),
-      details: z.record(z.unknown()).optional(),
+      details: z.record(z.string(), z.unknown()).optional(),
     })
   ),
   securityScore: z.number().min(0).max(100),
@@ -55,7 +56,7 @@ export async function GET(request: NextRequest) {
   try {
     // Check authentication
     const session = await getServerSession(authConfig)
-    if (!session || !session.user) {
+    if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

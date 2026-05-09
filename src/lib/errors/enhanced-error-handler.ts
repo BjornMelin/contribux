@@ -297,7 +297,7 @@ export function createValidationError(
   zodError: ZodError,
   context?: Record<string, unknown>
 ): EnhancedError {
-  const fieldErrors = zodError.errors.map(error => {
+  const fieldErrors = zodError.issues.map(error => {
     const path = error.path.join('.')
     return `${path}: ${error.message}`
   })
@@ -312,7 +312,7 @@ export function createValidationError(
     context: {
       ...context,
       fieldErrors,
-      invalidFields: zodError.errors.map(e => e.path.join('.')),
+      invalidFields: zodError.issues.map(e => e.path.join('.')),
     },
     actionableSteps,
     developmentDetails: `Zod validation failed for fields: ${fieldErrors.join(', ')}`,

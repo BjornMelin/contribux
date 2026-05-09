@@ -8,6 +8,9 @@
 import { createEnv } from '@t3-oss/env-nextjs'
 import { z } from 'zod'
 
+const isProductionBuildPhase = process.env.NEXT_PHASE === 'phase-production-build'
+const shouldSkipValidation = process.env.SKIP_ENV_VALIDATION === 'true' || isProductionBuildPhase
+
 export const env = createEnv({
   /**
    * Server-side environment variables
@@ -57,16 +60,16 @@ export const env = createEnv({
     OPENAI_API_KEY: z.string().min(1).optional(),
 
     // Vector database configuration with proper number coercion
-    HNSW_EF_SEARCH: z.coerce.number().int().min(1).default(200),
-    HNSW_EF_CONSTRUCTION: z.coerce.number().int().min(1).default(400),
-    HNSW_M_CONNECTIONS: z.coerce.number().int().min(1).default(16),
-    VECTOR_SIMILARITY_THRESHOLD: z.coerce.number().min(0).max(1).default(0.7),
-    VECTOR_MAX_RESULTS: z.coerce.number().int().min(1).default(100),
-    VECTOR_BATCH_SIZE: z.coerce.number().int().min(1).default(1000),
-    VECTOR_CACHE_SIZE: z.coerce.number().int().min(1).default(10000),
-    VECTOR_CACHE_TTL: z.coerce.number().int().min(1).default(3600),
-    HYBRID_SEARCH_TEXT_WEIGHT: z.coerce.number().min(0).max(1).default(0.3),
-    HYBRID_SEARCH_VECTOR_WEIGHT: z.coerce.number().min(0).max(1).default(0.7),
+    HNSW_EF_SEARCH: z.coerce.number<string>().int().min(1).default(200),
+    HNSW_EF_CONSTRUCTION: z.coerce.number<string>().int().min(1).default(400),
+    HNSW_M_CONNECTIONS: z.coerce.number<string>().int().min(1).default(16),
+    VECTOR_SIMILARITY_THRESHOLD: z.coerce.number<string>().min(0).max(1).default(0.7),
+    VECTOR_MAX_RESULTS: z.coerce.number<string>().int().min(1).default(100),
+    VECTOR_BATCH_SIZE: z.coerce.number<string>().int().min(1).default(1000),
+    VECTOR_CACHE_SIZE: z.coerce.number<string>().int().min(1).default(10000),
+    VECTOR_CACHE_TTL: z.coerce.number<string>().int().min(1).default(3600),
+    HYBRID_SEARCH_TEXT_WEIGHT: z.coerce.number<string>().min(0).max(1).default(0.3),
+    HYBRID_SEARCH_VECTOR_WEIGHT: z.coerce.number<string>().min(0).max(1).default(0.7),
 
     // Database branch configuration
     DB_MAIN_BRANCH: z.string().default('main'),
@@ -75,30 +78,30 @@ export const env = createEnv({
 
     // Database connection pool configuration
     DB_PROJECT_ID: z.string().optional(),
-    DB_POOL_MIN: z.coerce.number().int().min(0).default(2),
-    DB_POOL_MAX: z.coerce.number().int().min(1).default(20),
-    DB_POOL_IDLE_TIMEOUT: z.coerce.number().int().min(1000).default(10000),
+    DB_POOL_MIN: z.coerce.number<string>().int().min(0).default(2),
+    DB_POOL_MAX: z.coerce.number<string>().int().min(1).default(20),
+    DB_POOL_IDLE_TIMEOUT: z.coerce.number<string>().int().min(1000).default(10000),
 
     // Database connection and query timeouts
-    DB_CONNECTION_TIMEOUT: z.coerce.number().int().min(1000).default(30000),
-    DB_QUERY_TIMEOUT: z.coerce.number().int().min(1000).default(30000),
-    DB_HEALTH_CHECK_INTERVAL: z.coerce.number().int().min(1000).default(30000),
-    DB_MAX_RETRIES: z.coerce.number().int().min(0).default(3),
-    DB_RETRY_DELAY: z.coerce.number().int().min(100).default(1000),
+    DB_CONNECTION_TIMEOUT: z.coerce.number<string>().int().min(1000).default(30000),
+    DB_QUERY_TIMEOUT: z.coerce.number<string>().int().min(1000).default(30000),
+    DB_HEALTH_CHECK_INTERVAL: z.coerce.number<string>().int().min(1000).default(30000),
+    DB_MAX_RETRIES: z.coerce.number<string>().int().min(0).default(3),
+    DB_RETRY_DELAY: z.coerce.number<string>().int().min(100).default(1000),
 
     // Enhanced database connection configuration for Neon pooling
-    DB_STATEMENT_TIMEOUT: z.coerce.number().int().min(1000).default(30000),
-    DB_IDLE_TIMEOUT: z.coerce.number().int().min(1000).default(30000),
-    DB_MAX_LIFETIME: z.coerce.number().int().min(10000).default(3600000),
+    DB_STATEMENT_TIMEOUT: z.coerce.number<string>().int().min(1000).default(30000),
+    DB_IDLE_TIMEOUT: z.coerce.number<string>().int().min(1000).default(30000),
+    DB_MAX_LIFETIME: z.coerce.number<string>().int().min(10000).default(3600000),
 
     // Rate limiting configuration
-    RATE_LIMIT_MAX: z.coerce.number().int().min(1).default(100),
-    RATE_LIMIT_WINDOW: z.coerce.number().int().min(1).default(900),
+    RATE_LIMIT_MAX: z.coerce.number<string>().int().min(1).default(100),
+    RATE_LIMIT_WINDOW: z.coerce.number<string>().int().min(1).default(900),
 
     // Cache configuration
-    CACHE_MEMORY_SIZE: z.coerce.number().int().min(1).default(100),
-    CACHE_DEFAULT_TTL: z.coerce.number().int().min(1).default(300),
-    CACHE_EDGE_TTL: z.coerce.number().int().min(1).default(3600),
+    CACHE_MEMORY_SIZE: z.coerce.number<string>().int().min(1).default(100),
+    CACHE_DEFAULT_TTL: z.coerce.number<string>().int().min(1).default(300),
+    CACHE_EDGE_TTL: z.coerce.number<string>().int().min(1).default(3600),
 
     // Admin configuration
     ADMIN_USER_IDS: z.string().optional(),
@@ -107,8 +110,8 @@ export const env = createEnv({
     WEBAUTHN_RP_ID: z.string().optional(),
     WEBAUTHN_ORIGIN: z.string().url().optional(),
     WEBAUTHN_RP_NAME: z.string().default('Contribux'),
-    WEBAUTHN_TIMEOUT: z.coerce.number().int().min(1000).default(60000),
-    WEBAUTHN_CHALLENGE_EXPIRY: z.coerce.number().int().min(1000).default(300000),
+    WEBAUTHN_TIMEOUT: z.coerce.number<string>().int().min(1000).default(60000),
+    WEBAUTHN_CHALLENGE_EXPIRY: z.coerce.number<string>().int().min(1000).default(300000),
     WEBAUTHN_SUPPORTED_ALGORITHMS: z.string().default('-7,-257'),
 
     // GitHub webhook configuration
@@ -131,19 +134,19 @@ export const env = createEnv({
     SERVICE_VERSION: z.string().default('1.0.0'),
 
     // Feature flags
-    ENABLE_WEBAUTHN: z.coerce.boolean().default(false),
-    ENABLE_ADVANCED_SECURITY: z.coerce.boolean().default(false),
-    ENABLE_SECURITY_DASHBOARD: z.coerce.boolean().default(false),
-    ENABLE_DEVICE_FINGERPRINTING: z.coerce.boolean().default(false),
-    ENABLE_DETAILED_AUDIT: z.coerce.boolean().default(false),
-    ENABLE_RATE_LIMITING: z.coerce.boolean().default(true),
-    ENABLE_OAUTH: z.coerce.boolean().default(true),
-    ENABLE_AUDIT_LOGS: z.coerce.boolean().default(true),
-    DEMO_ZERO_TRUST: z.coerce.boolean().default(false),
-    DEMO_ENTERPRISE: z.coerce.boolean().default(false),
+    ENABLE_WEBAUTHN: z.coerce.boolean<string>().default(false),
+    ENABLE_ADVANCED_SECURITY: z.coerce.boolean<string>().default(false),
+    ENABLE_SECURITY_DASHBOARD: z.coerce.boolean<string>().default(false),
+    ENABLE_DEVICE_FINGERPRINTING: z.coerce.boolean<string>().default(false),
+    ENABLE_DETAILED_AUDIT: z.coerce.boolean<string>().default(false),
+    ENABLE_RATE_LIMITING: z.coerce.boolean<string>().default(true),
+    ENABLE_OAUTH: z.coerce.boolean<string>().default(true),
+    ENABLE_AUDIT_LOGS: z.coerce.boolean<string>().default(true),
+    DEMO_ZERO_TRUST: z.coerce.boolean<string>().default(false),
+    DEMO_ENTERPRISE: z.coerce.boolean<string>().default(false),
 
     // Maintenance mode
-    MAINTENANCE_MODE: z.coerce.boolean().default(false),
+    MAINTENANCE_MODE: z.coerce.boolean<string>().default(false),
     MAINTENANCE_BYPASS_TOKEN: z.string().optional(),
 
     // CORS configuration
@@ -161,12 +164,12 @@ export const env = createEnv({
     NEON_DATABASE_PASSWORD: z.string().optional(),
 
     // CI/CD configuration
-    CI: z.coerce.boolean().default(false),
-    USE_LOCAL_PG: z.coerce.boolean().default(false),
+    CI: z.coerce.boolean<string>().default(false),
+    USE_LOCAL_PG: z.coerce.boolean<string>().default(false),
     TEST_DB_STRATEGY: z.enum(['neon', 'local']).default('neon'),
 
     // Vercel environment
-    VERCEL: z.coerce.boolean().default(false),
+    VERCEL: z.coerce.boolean<string>().default(false),
     VERCEL_ENV: z.enum(['development', 'preview', 'production']).optional(),
     VERCEL_URL: z.string().optional(),
   },
@@ -298,7 +301,7 @@ export const env = createEnv({
   /**
    * Skip validation during build time for certain environments
    */
-  skipValidation: !!process.env.SKIP_ENV_VALIDATION,
+  skipValidation: shouldSkipValidation,
 
   /**
    * Custom validation error handler
@@ -344,7 +347,9 @@ export function getAppUrl(): string {
 
 // Helper function for JWT secret with fallback
 export function getJwtSecret(): string {
-  return env.JWT_SECRET || env.NEXTAUTH_SECRET
+  return (
+    process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || env.JWT_SECRET || env.NEXTAUTH_SECRET
+  )
 }
 
 // Helper function for encryption key

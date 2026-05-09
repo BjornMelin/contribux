@@ -66,7 +66,9 @@ export async function getUserPermissions(userId: string): Promise<string[]> {
   for (const roleName of userRoles) {
     const role = ROLES[roleName]
     if (role) {
-      role.permissions.forEach(perm => permissions.add(perm))
+      role.permissions.forEach(perm => {
+        permissions.add(perm)
+      })
     }
   }
 

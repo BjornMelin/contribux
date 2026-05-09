@@ -170,7 +170,11 @@ export async function enhancedFetch<T>(
 ): Promise<T> {
   const { maxRetries = 3, baseDelay = 1000, maxDelay = 10000 } = retryConfig
 
-  const endpoint = new URL(url).pathname
+  const baseUrl =
+    typeof window !== 'undefined' && window.location.origin
+      ? window.location.origin
+      : 'http://localhost'
+  const endpoint = new URL(url, baseUrl).pathname
   const circuitBreaker = checkCircuitBreaker(endpoint)
 
   let lastError: Error | null = null

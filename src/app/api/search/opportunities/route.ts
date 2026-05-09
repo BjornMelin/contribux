@@ -13,13 +13,13 @@ import { OpportunityQueries } from '@/lib/db/queries/opportunities'
 const SearchOpportunitiesQuerySchema = z
   .object({
     q: z.string().optional(),
-    page: z.string().pipe(z.coerce.number().int().min(1)).default('1'),
-    per_page: z.string().pipe(z.coerce.number().int().min(1).max(100)).default('20'),
+    page: z.coerce.number().int().min(1).default(1),
+    per_page: z.coerce.number().int().min(1).max(100).default(20),
     difficulty: z.enum(['beginner', 'intermediate', 'advanced']).optional(),
-    min_difficulty_score: z.string().pipe(z.coerce.number().int().min(1).max(10)).optional(),
-    max_difficulty_score: z.string().pipe(z.coerce.number().int().min(1).max(10)).optional(),
-    min_impact_score: z.string().pipe(z.coerce.number().int().min(1).max(10)).optional(),
-    max_impact_score: z.string().pipe(z.coerce.number().int().min(1).max(10)).optional(),
+    min_difficulty_score: z.coerce.number().int().min(1).max(10).optional(),
+    max_difficulty_score: z.coerce.number().int().min(1).max(10).optional(),
+    min_impact_score: z.coerce.number().int().min(1).max(10).optional(),
+    max_impact_score: z.coerce.number().int().min(1).max(10).optional(),
     repository_id: z.string().uuid().optional(),
     good_first_issue: z
       .string()

@@ -28,17 +28,23 @@ interface NeonConnectionOptions {
 
 // Branch-specific connections for different environments with type safety
 export const getDatabaseUrl = (branch: 'main' | 'dev' | 'test' = 'main', pooled = true): string => {
+  const isProductionBuildPhase = process.env.NEXT_PHASE === 'phase-production-build'
+  const buildTimeDatabaseUrl = 'postgresql://build:build@localhost:5432/contribux_build'
   let baseUrl: string
 
   switch (branch) {
     case 'dev':
-      baseUrl = env.DATABASE_URL_DEV || env.DATABASE_URL
+      baseUrl = env.DATABASE_URL_DEV || env.DATABASE_URL || buildTimeDatabaseUrl
       break
     case 'test':
-      baseUrl = env.DATABASE_URL_TEST || env.DATABASE_URL
+      baseUrl = env.DATABASE_URL_TEST || env.DATABASE_URL || buildTimeDatabaseUrl
       break
     default:
-      baseUrl = env.DATABASE_URL
+      baseUrl = env.DATABASE_URL || buildTimeDatabaseUrl
+  }
+
+  if (!isProductionBuildPhase && baseUrl === buildTimeDatabaseUrl) {
+    throw new Error('DATABASE_URL is required for database connections')
   }
 
   // Add Neon's pooler endpoint for connection pooling if requested and not already present
@@ -51,7 +57,7 @@ export const getDatabaseUrl = (branch: 'main' | 'dev' | 'test' = 'main', pooled 
 }
 
 // Detect if using local PostgreSQL (skip pooling for local dev)
-function isLocalPostgres(url: string = env.DATABASE_URL): boolean {
+function isLocalPostgres(url = getDatabaseUrl('main', false)): boolean {
   return (
     process.env.CI === 'true' ||
     process.env.USE_LOCAL_PG === 'true' ||
@@ -82,7 +88,10 @@ const createSql = () => {
 
 // Export a getter function that creates the connection on first use
 let sqlInstance: NeonQueryFunction<false, false> | null = null
-export const sql = new Proxy({} as NeonQueryFunction<false, false>, {
+const sqlProxyTarget = (() => {
+  throw new Error('SQL proxy target should only be invoked through proxy traps')
+}) as unknown as NeonQueryFunction<false, false>
+export const sql = new Proxy(sqlProxyTarget, {
   get(_target, prop) {
     if (!sqlInstance) {
       sqlInstance = createSql()

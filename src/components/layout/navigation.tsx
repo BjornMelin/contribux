@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { Github, Home, LogOut, Menu, Settings, Sparkles, X } from '@/components/icons'
 import { useSession } from '@/components/providers/app-providers'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 // Lazy load heavy components to reduce initial bundle size
@@ -15,13 +16,6 @@ const MotionDiv = dynamic(
   {
     loading: () => <div className="rounded-full bg-gradient-to-r from-primary to-purple-600 p-2" />,
     ssr: false,
-  }
-)
-
-const Button = dynamic(
-  () => import('@/components/ui/button').then(mod => ({ default: mod.Button })),
-  {
-    loading: () => <div className="h-8 w-16 animate-pulse rounded bg-muted" />,
   }
 )
 

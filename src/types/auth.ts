@@ -203,7 +203,7 @@ export const UserSessionSchema = BaseEntitySchema.extend({
   userId: UUIDSchema,
   expiresAt: z.date(),
   authMethod: AuthMethodSchema,
-  ipAddress: z.string().ip().optional(),
+  ipAddress: z.union([z.ipv4(), z.ipv6()]).optional(),
   userAgent: z.string().optional(),
   lastActiveAt: z.date(),
 })
@@ -522,9 +522,9 @@ export const SecurityAuditLogSchema = BaseEntitySchema.extend({
   eventType: AuthEventTypeSchema,
   eventSeverity: EventSeveritySchema,
   userId: UUIDSchema.optional(),
-  ipAddress: z.string().ip().optional(),
+  ipAddress: z.union([z.ipv4(), z.ipv6()]).optional(),
   userAgent: z.string().optional(),
-  eventData: z.record(z.unknown()).optional(),
+  eventData: z.record(z.string(), z.unknown()).optional(),
   success: z.boolean(),
   errorMessage: z.string().optional(),
   checksum: z.string().optional(),
@@ -597,7 +597,7 @@ export const AnomalyDetectionSchema = z.object({
   detected: z.boolean(),
   type: z.string().optional(),
   confidence: z.number().min(0).max(1).optional(),
-  details: z.record(z.boolean()).optional(),
+  details: z.record(z.string(), z.boolean()).optional(),
 })
 
 // ==================== CONSENT MANAGEMENT ====================
@@ -639,7 +639,7 @@ export const UserConsentSchema = BaseEntitySchema.extend({
   granted: z.boolean(),
   version: z.string().min(1),
   timestamp: z.date(),
-  ipAddress: z.string().ip().optional(),
+  ipAddress: z.union([z.ipv4(), z.ipv6()]).optional(),
   userAgent: z.string().optional(),
 })
 
@@ -731,7 +731,7 @@ export const UserDataExportSchema = z.object({
   sessions: z.array(UserSessionSchema),
   consents: z.array(UserConsentSchema),
   auditLogs: z.array(SecurityAuditLogSchema),
-  preferences: z.record(z.unknown()),
+  preferences: z.record(z.string(), z.unknown()),
   notifications: z.array(z.unknown()),
   contributions: z.array(z.unknown()),
   interactions: z.array(z.unknown()),
@@ -944,7 +944,7 @@ export interface SecurityContext {
  * Zod schema for security context validation
  */
 export const SecurityContextSchema = z.object({
-  ipAddress: z.string().ip().optional(),
+  ipAddress: z.union([z.ipv4(), z.ipv6()]).optional(),
   userAgent: z.string().optional(),
   fingerprint: z.string().optional(),
   geoLocation: z

@@ -34,6 +34,97 @@ interface RepositorySearchParams {
   page: number
 }
 
+const demoRepositories = [
+  {
+    id: 'demo-react',
+    githubId: 10270250,
+    fullName: 'facebook/react',
+    name: 'react',
+    owner: 'facebook',
+    description: 'The library for web and native user interfaces.',
+    metadata: {
+      language: 'JavaScript',
+      stars: 238000,
+      forks: 49000,
+      topics: ['react', 'ui', 'javascript'],
+      defaultBranch: 'main',
+    },
+    healthMetrics: {
+      overallScore: 96,
+      maintainerResponsiveness: 92,
+      activityLevel: 98,
+    },
+    createdAt: '2013-05-24T16:15:54Z',
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'demo-typescript',
+    githubId: 20929025,
+    fullName: 'microsoft/TypeScript',
+    name: 'TypeScript',
+    owner: 'microsoft',
+    description: 'TypeScript is a superset of JavaScript that compiles to clean JavaScript output.',
+    metadata: {
+      language: 'TypeScript',
+      stars: 104000,
+      forks: 13000,
+      topics: ['typescript', 'javascript', 'compiler'],
+      defaultBranch: 'main',
+    },
+    healthMetrics: {
+      overallScore: 94,
+      maintainerResponsiveness: 90,
+      activityLevel: 95,
+    },
+    createdAt: '2014-06-17T15:28:39Z',
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'demo-nextjs',
+    githubId: 70107786,
+    fullName: 'vercel/next.js',
+    name: 'next.js',
+    owner: 'vercel',
+    description: 'The React framework for production.',
+    metadata: {
+      language: 'JavaScript',
+      stars: 135000,
+      forks: 29000,
+      topics: ['react', 'nextjs', 'framework'],
+      defaultBranch: 'canary',
+    },
+    healthMetrics: {
+      overallScore: 95,
+      maintainerResponsiveness: 91,
+      activityLevel: 97,
+    },
+    createdAt: '2016-10-05T23:32:51Z',
+    updatedAt: new Date().toISOString(),
+  },
+]
+
+function searchDemoRepositories(validatedParams: RepositorySearchParams) {
+  const normalizedQuery = validatedParams.q.toLowerCase()
+  const language = validatedParams.language?.toLowerCase()
+
+  return demoRepositories
+    .filter(repository => {
+      const matchesQuery =
+        repository.fullName.toLowerCase().includes(normalizedQuery) ||
+        repository.description.toLowerCase().includes(normalizedQuery) ||
+        repository.metadata.topics.some(topic => topic.includes(normalizedQuery))
+
+      const matchesLanguage =
+        !language || repository.metadata.language.toLowerCase() === language.toLowerCase()
+
+      return matchesQuery && matchesLanguage
+    })
+    .slice(
+      (validatedParams.page - 1) * validatedParams.per_page,
+      validatedParams.page * validatedParams.per_page
+    )
+}
+
 /**
  * GET /api/search/repositories
  * Search GitHub repositories with rate limiting
@@ -52,11 +143,11 @@ const validateSearchParams = (searchParams: URLSearchParams) => {
     const { ErrorHandler } = require('@/lib/errors/enhanced-error-handler')
     throw ErrorHandler.createError(
       'INVALID_PARAMS',
-      `Validation failed: ${parseResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`,
+      `Validation failed: ${parseResult.error.issues.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`,
       'validation',
       'low',
       {
-        validationErrors: parseResult.error.errors,
+        validationErrors: parseResult.error.issues,
         receivedParams: params,
       }
     )
@@ -70,19 +161,22 @@ const buildSuccessResponse = (
   validatedParams: RepositorySearchParams,
   requestContext: RequestContext
 ) => {
+  const repositories = searchDemoRepositories(validatedParams)
+
   return {
-    total_count: 0,
-    items: [],
-    query: validatedParams,
-    message: 'Repository search endpoint with enhanced rate limiting',
-    correlationId: requestContext.timestamp,
+    success: true,
+    data: {
+      repositories,
+      total_count: repositories.length,
+      page: validatedParams.page,
+      per_page: validatedParams.per_page,
+      has_more: false,
+    },
     metadata: {
-      timestamp: new Date().toISOString(),
-      apiVersion: '1.0',
-      rateLimit: {
-        applied: true,
-        policy: 'search',
-      },
+      query: validatedParams.q,
+      filters: validatedParams,
+      execution_time_ms: 0,
+      request_id: requestContext.timestamp,
     },
   }
 }

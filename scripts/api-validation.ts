@@ -105,7 +105,7 @@ const ErrorResponseSchema = z.object({
   error: z.object({
     code: z.string(),
     message: z.string(),
-    details: z.record(z.unknown()).optional(),
+    details: z.record(z.string(), z.unknown()).optional(),
   }),
   request_id: z.string().optional(),
 })
@@ -214,7 +214,7 @@ function validateResponse(
     const parseResult = schema.safeParse(responseData)
     if (!parseResult.success) {
       testPassed = false
-      const schemaErrorMessage = `Schema validation failed: ${parseResult.error.errors.map(e => e.message).join(', ')}`
+      const schemaErrorMessage = `Schema validation failed: ${parseResult.error.issues.map(e => e.message).join(', ')}`
       failureReason = failureReason ? `${failureReason}; ${schemaErrorMessage}` : schemaErrorMessage
     }
   }
@@ -534,4 +534,4 @@ if (require.main === module) {
   main()
 }
 
-export { validateAPIs, runTest, type TestResult, type ValidationSummary }
+export { runTest, type TestResult, type ValidationSummary, validateAPIs }

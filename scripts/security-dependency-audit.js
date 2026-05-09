@@ -159,7 +159,7 @@ class DependencySecurityAuditor {
           const { stdout } = await execAsync(
             `du -sb node_modules/${packageName} 2>/dev/null || echo "0"`
           )
-          const size = Number.parseInt(stdout.trim().split('\t')[0]) || 0
+          const size = Number.parseInt(stdout.trim().split('\t')[0], 10) || 0
           this.results.packageSizes[packageName] = size
 
           if (size > SECURITY_CONFIG.maxPackageSize) {

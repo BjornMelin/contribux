@@ -98,7 +98,9 @@ export class IPAllowlistManager {
    */
   private initializeStaticAllowlist(): void {
     // Add GitHub webhook IPs
-    GITHUB_WEBHOOK_IPS.forEach(ip => this.staticAllowlist.add(ip))
+    GITHUB_WEBHOOK_IPS.forEach(ip => {
+      this.staticAllowlist.add(ip)
+    })
 
     // Add localhost if configured
     if (this.config.allowLocalhost) {
@@ -302,7 +304,7 @@ export class IPAllowlistManager {
 
         if (ip.kind() !== prefixIP.kind()) return false
 
-        return ip.match(prefixIP, Number.parseInt(bits))
+        return ip.match(prefixIP, Number.parseInt(bits, 10))
       }
       // Exact match
       const allowedIP = ipaddr.process(allowed)

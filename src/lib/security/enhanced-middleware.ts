@@ -235,7 +235,7 @@ function applySecurityHeaders(response: NextResponse, nonce: string): void {
  */
 function validateRequestSize(request: NextRequest): { valid: boolean; message?: string } {
   const contentLength = request.headers.get('content-length')
-  if (contentLength && Number.parseInt(contentLength) > 10 * 1024 * 1024) {
+  if (contentLength && Number.parseInt(contentLength, 10) > 10 * 1024 * 1024) {
     return { valid: false, message: 'Request too large' }
   }
   return { valid: true }

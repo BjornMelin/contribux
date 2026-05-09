@@ -221,7 +221,7 @@ async function _validateRedirectUriSecure(redirectUri: string): Promise<boolean>
 
     // Port validation (development only)
     const allowedPorts = [3000, 3001, 8080, 80, 443]
-    const port = url.port ? Number.parseInt(url.port) : url.protocol === 'https:' ? 443 : 80
+    const port = url.port ? Number.parseInt(url.port, 10) : url.protocol === 'https:' ? 443 : 80
 
     if (!allowedPorts.includes(port)) {
       return false
@@ -686,7 +686,7 @@ export async function validateRedirectUriSecure(
     })
 
     // Port validation (only for non-standard ports)
-    const port = url.port ? Number.parseInt(url.port) : url.protocol === 'https:' ? 443 : 80
+    const port = url.port ? Number.parseInt(url.port, 10) : url.protocol === 'https:' ? 443 : 80
     const portValid =
       validation.allowedPorts.includes(port as 3000 | 3001 | 8080) || port === 443 || port === 80 // Standard ports always allowed
 

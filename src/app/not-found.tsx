@@ -55,14 +55,12 @@ export default function NotFound() {
             </Link>
           </div>
 
-          <Button
-            variant="ghost"
-            onClick={() => window.history.back()}
-            className="flex items-center gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Go Back
-          </Button>
+          <Link href="/" className="inline-flex">
+            <Button variant="ghost" className="flex items-center gap-2">
+              <ArrowLeft className="h-4 w-4" />
+              Go Back
+            </Button>
+          </Link>
         </div>
 
         {/* Popular Links */}

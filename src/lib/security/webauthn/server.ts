@@ -215,7 +215,7 @@ export async function verifyWebAuthnAuthentication(
     expectedRPID: config.webauthn.rpId,
     credential: {
       id: credential.credential_id,
-      publicKey: credential.public_key,
+      publicKey: new Uint8Array(credential.public_key),
       counter: credential.counter,
     },
     requireUserVerification: false,

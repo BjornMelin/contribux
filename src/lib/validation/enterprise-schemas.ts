@@ -26,6 +26,11 @@ import {
 // Initialize enterprise validation components
 const versionManager = new SchemaVersionManager()
 
+type ParseableSchema<TOutput> = {
+  parse(input: unknown): TOutput
+  constructor: { name: string }
+}
+
 /**
  * SECURITY-FIRST INPUT VALIDATION
  * Implements OWASP validation best practices
@@ -312,8 +317,8 @@ export const EnhancedErrorResponseSchema = z.object({
       'internal',
       'external',
     ]),
-    details: z.record(z.unknown()).optional(),
-    field_errors: z.record(z.array(z.string())).optional(),
+    details: z.record(z.string(), z.unknown()).optional(),
+    field_errors: z.record(z.string(), z.array(z.string())).optional(),
     suggestion: z.string().optional(),
     documentation_url: z.string().url().optional(),
     retry_after: z.number().int().min(0).optional(),
@@ -346,8 +351,8 @@ export const validateRepositoryWithCache = createMemoizedValidator(
  */
 
 // Type-safe schema validation with proper error handling
-export function validateWithTypeGuards<TInput, TOutput>(
-  schema: z.ZodSchema<TOutput, z.ZodTypeDef, TInput>,
+export function validateWithTypeGuards<TOutput>(
+  schema: z.ZodType<TOutput, unknown>,
   input: unknown,
   options: {
     strict?: boolean
@@ -543,8 +548,8 @@ versionManager.registerVersion('repository', 'v2.0.0', GitHubRepositorySchemaV2)
  * VALIDATION MIDDLEWARE FACTORY
  * Creates type-safe validation middleware for API routes
  */
-export function createEnterpriseValidationMiddleware<TInput, TOutput = TInput>(
-  schema: z.ZodSchema<TOutput, z.ZodTypeDef, TInput>,
+export function createEnterpriseValidationMiddleware<TOutput>(
+  schema: ParseableSchema<TOutput>,
   options: {
     enableCaching?: boolean
     enablePerformanceMonitoring?: boolean
@@ -561,17 +566,13 @@ export function createEnterpriseValidationMiddleware<TInput, TOutput = TInput>(
     onValidationError,
   } = options
 
-  return async (input: TInput): Promise<TOutput> => {
+  return async (input: unknown): Promise<TOutput> => {
     const validationFn = () => {
       if (enableCaching) {
         // Use memoized validation for performance
         const cacheKey = JSON.stringify(input)
         // Create memoized validator with proper typing
-        const memoizedValidator = createMemoizedValidator(
-          schema as unknown as z.ZodSchema<TOutput>,
-          (_: unknown) => cacheKey,
-          100 // Default cache size
-        )
+        const memoizedValidator = createMemoizedValidator(schema, (_: unknown) => cacheKey, 100)
         return memoizedValidator(input)
       }
       return schema.parse(input)
@@ -644,12 +645,12 @@ export function createValidationSummary() {
 
 // Export for external usage
 export {
-  registerValidationSchema,
-  getValidationSchema,
   composeValidationSchemas,
-  versionManager,
-  trackValidationPerformance,
   getValidationMetrics,
+  getValidationSchema,
+  registerValidationSchema,
   resetValidationMetrics,
+  trackValidationPerformance,
   ValidationErrorAggregator,
+  versionManager,
 }

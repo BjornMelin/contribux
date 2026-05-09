@@ -199,7 +199,7 @@ export async function createHmac(
   const webCryptoAlgo = algoMap[algorithm.toLowerCase()] || 'SHA-256'
 
   // Convert secret to CryptoKey
-  const secretBytes = typeof secret === 'string' ? encoder.encode(secret) : secret
+  const secretBytes = new Uint8Array(typeof secret === 'string' ? encoder.encode(secret) : secret)
   const key = await crypto.subtle.importKey(
     'raw',
     secretBytes,

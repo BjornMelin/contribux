@@ -10,33 +10,15 @@ import { z } from 'zod'
 // Configuration validation schemas
 const TokenAuthSchema = z.object({
   type: z.literal('token'),
-  token: z
-    .string({
-      required_error: 'Token is required for token authentication',
-      invalid_type_error: 'Token must be a string',
-    })
-    .min(1, 'Token cannot be empty'),
+  token: z.string().min(1, 'Token cannot be empty'),
 })
 
 const AppAuthSchema = z.object({
   type: z.literal('app'),
-  appId: z
-    .number({
-      required_error: 'App ID is required for app authentication',
-      invalid_type_error: 'App ID must be a positive integer',
-    })
-    .int()
-    .positive('App ID must be a positive integer'),
-  privateKey: z
-    .string({
-      required_error: 'Private key is required for app authentication',
-      invalid_type_error: 'Private key must be a string',
-    })
-    .min(1, 'Private key cannot be empty'),
+  appId: z.number().int().positive('App ID must be a positive integer'),
+  privateKey: z.string().min(1, 'Private key cannot be empty'),
   installationId: z
-    .number({
-      invalid_type_error: 'Installation ID must be a positive integer',
-    })
+    .number()
     .int()
     .positive('Installation ID must be a positive integer')
     .optional(),
@@ -73,29 +55,15 @@ const AuthSchema = z.any().refine(data => {
 
 const CacheOptionsSchema = z
   .object({
-    maxAge: z
-      .number({
-        invalid_type_error: 'Cache maxAge must be a positive integer',
-      })
-      .int()
-      .positive('Cache maxAge must be a positive integer')
-      .optional(),
-    maxSize: z
-      .number({
-        invalid_type_error: 'Cache maxSize must be a positive integer',
-      })
-      .int()
-      .positive('Cache maxSize must be a positive integer')
-      .optional(),
+    maxAge: z.number().int().positive('Cache maxAge must be a positive integer').optional(),
+    maxSize: z.number().int().positive('Cache maxSize must be a positive integer').optional(),
   })
   .optional()
 
 const RetryOptionsSchema = z
   .object({
     retries: z
-      .number({
-        invalid_type_error: 'Retries must be a non-negative integer',
-      })
+      .number()
       .int()
       .min(0, 'Retries must be a non-negative integer')
       .max(10, 'Retries cannot exceed 10')
@@ -115,25 +83,19 @@ const RetryOptionsSchema = z
 
 const ThrottleOptionsSchema = z
   .object({
-    onRateLimit: z.function().optional(),
-    onSecondaryRateLimit: z.function().optional(),
+    onRateLimit: z.custom<(...args: unknown[]) => unknown>(
+      value => value === undefined || typeof value === 'function'
+    ),
+    onSecondaryRateLimit: z.custom<(...args: unknown[]) => unknown>(
+      value => value === undefined || typeof value === 'function'
+    ),
   })
   .optional()
 
 const GitHubClientConfigSchema = z.object({
   auth: AuthSchema.optional(),
-  baseUrl: z
-    .string({
-      invalid_type_error: 'baseUrl must be a string',
-    })
-    .url('baseUrl must be a valid URL')
-    .optional(),
-  userAgent: z
-    .string({
-      invalid_type_error: 'userAgent must be a string',
-    })
-    .min(1, 'userAgent cannot be empty')
-    .optional(),
+  baseUrl: z.string().url('baseUrl must be a valid URL').optional(),
+  userAgent: z.string().min(1, 'userAgent cannot be empty').optional(),
   cache: CacheOptionsSchema,
   retry: RetryOptionsSchema,
   throttle: ThrottleOptionsSchema,
@@ -141,9 +103,9 @@ const GitHubClientConfigSchema = z.object({
 
 // Export validation schemas and their inferred types
 export {
-  GitHubClientConfigSchema,
   AuthSchema,
   CacheOptionsSchema,
+  GitHubClientConfigSchema,
   RetryOptionsSchema,
   ThrottleOptionsSchema,
 }

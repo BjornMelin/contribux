@@ -166,7 +166,6 @@ export class GitHubClient {
   private octokit: InstanceType<typeof EnhancedOctokit>
   private cache: Map<string, { data: unknown; expires: number }> = new Map()
   private readonly maxCacheSize = 500
-  private readonly maxCacheAge = 300000 // 5 minutes in ms
 
   // Helper function to transform GitHub labels
   private transformLabel(label: unknown): GitHubLabel {
@@ -263,7 +262,7 @@ export class GitHubClient {
     const parseResult = GitHubClientConfigSchema.safeParse(config)
     if (!parseResult.success) {
       throw new Error(
-        `Invalid GitHub client configuration: ${parseResult.error.errors.map(e => e.message).join(', ')}`
+        `Invalid GitHub client configuration: ${parseResult.error.issues.map(e => e.message).join(', ')}`
       )
     }
     const validatedConfig = parseResult.data
@@ -283,35 +282,7 @@ export class GitHubClient {
 
       // Built-in retry configuration
       retry: {
-        doNotRetry: ['abuse', 'user-agent', 'invalid-request'],
-        retryFilter: (error: unknown) => {
-          // Extract status code from various possible error structures
-          const errorObj = error as {
-            status?: number
-            response?: { status?: number }
-            code?: number
-          }
-          const status = errorObj.status || errorObj.response?.status || errorObj.code
-
-          // Don't retry on 401 Unauthorized (authentication errors)
-          if (status === 401) {
-            return false
-          }
-          // Don't retry on 403 Forbidden (authorization errors)
-          if (status === 403) {
-            return false
-          }
-          // Don't retry on 422 Unprocessable Entity (validation errors)
-          if (status === 422) {
-            return false
-          }
-          // Don't retry on other 4xx client errors
-          if (status && status >= 400 && status < 500) {
-            return false
-          }
-          // Allow retries for 5xx server errors and network issues
-          return true
-        },
+        doNotRetry: [401, 403, 422],
       },
 
       // Built-in throttling configuration
@@ -873,26 +844,6 @@ export class GitHubClient {
       cacheSize: this.cache.size,
       memorySizeMB: Math.round((memorySizeBytes / (1024 * 1024)) * 100) / 100,
       maxCacheSize: this.maxCacheSize,
-    }
-  }
-
-  /**
-   * Force garbage collection of cache if memory usage is high
-   */
-  private forceMemoryCleanup(): void {
-    if (this.cache.size > this.maxCacheSize * 0.8) {
-      this.cleanExpiredCache()
-
-      // If still over 80% capacity, remove oldest 25% of entries
-      if (this.cache.size > this.maxCacheSize * 0.8) {
-        const entries = Array.from(this.cache.entries())
-        const sortedByExpiry = entries.sort((a, b) => a[1].expires - b[1].expires)
-        const toDelete = Math.floor(this.cache.size * 0.25)
-
-        for (let i = 0; i < toDelete; i++) {
-          this.cache.delete(sortedByExpiry[i][0])
-        }
-      }
     }
   }
 }

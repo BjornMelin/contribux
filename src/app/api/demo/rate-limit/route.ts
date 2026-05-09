@@ -15,8 +15,8 @@ export async function GET(req: NextRequest) {
   const { allowed, headers } = await checkApiRateLimit(req, 'api')
 
   // Parse rate limit info from headers
-  const limit = Number.parseInt(headers['X-RateLimit-Limit'] || '0')
-  const remaining = Number.parseInt(headers['X-RateLimit-Remaining'] || '0')
+  const limit = Number.parseInt(headers['X-RateLimit-Limit'] || '0', 10)
+  const remaining = Number.parseInt(headers['X-RateLimit-Remaining'] || '0', 10)
   const reset = headers['X-RateLimit-Reset']
   const retryAfter = headers['Retry-After']
 
@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
           used: limit,
           percentageUsed: 100,
           resetAt: reset,
-          retryAfter: Number.parseInt(retryAfter || '0'),
+          retryAfter: Number.parseInt(retryAfter || '0', 10),
         },
         tip: 'Rate limits reset on a sliding window. Wait for the retry-after period.',
       },

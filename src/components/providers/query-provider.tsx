@@ -34,7 +34,7 @@ import {
   useState,
 } from 'react'
 import { getQueryMetrics, queryClient, setupBackgroundSync } from '@/lib/api/query-client'
-import { isDevelopment, isProduction } from '@/lib/validation/env'
+import { isClientDevelopment, isClientProduction } from '@/lib/client-env'
 
 interface QueryProviderProps {
   children: ReactNode
@@ -54,7 +54,7 @@ function QueryErrorBoundary({ children, fallback }: PropsWithChildren<{ fallback
         setErrorInfo({ componentStack: event.error.stack || '' })
 
         // Log to external error service in production
-        if (isProduction()) {
+        if (isClientProduction()) {
           // Example: Sentry.captureException(event.error, { extra: { componentStack: event.error.stack } })
         }
       }
@@ -68,7 +68,7 @@ function QueryErrorBoundary({ children, fallback }: PropsWithChildren<{ fallback
           setError(error)
           setErrorInfo({ componentStack: error.stack || '' })
 
-          if (isProduction()) {
+          if (isClientProduction()) {
             // Example: Sentry.captureException(error, { extra: { type: 'unhandledRejection' } })
           }
         }
@@ -127,7 +127,7 @@ function QueryErrorBoundary({ children, fallback }: PropsWithChildren<{ fallback
             We encountered an unexpected error. Please try refreshing the page.
           </div>
 
-          {isDevelopment() && error && (
+          {isClientDevelopment() && error && (
             <details className="mb-4">
               <summary className="cursor-pointer font-medium text-card-foreground text-sm">
                 Error Details (Development)
@@ -195,7 +195,7 @@ function processQueryMetrics() {
 // Performance monitoring component
 function QueryPerformanceMonitor() {
   useEffect(() => {
-    if (!isDevelopment()) {
+    if (!isClientDevelopment()) {
       return () => {
         // Cleanup function for non-development environment
       }
@@ -310,7 +310,7 @@ export function QueryProvider({ children }: QueryProviderProps) {
       {children}
 
       {/* Development tools - only in development with enhanced Suspense */}
-      {isDevelopment() && (
+      {isClientDevelopment() && (
         <Suspense fallback={null}>
           <ReactQueryDevtools initialIsOpen={false} position="bottom" />
         </Suspense>

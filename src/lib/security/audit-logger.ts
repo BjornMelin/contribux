@@ -85,7 +85,7 @@ export const AuditEventSchema = z.object({
       type: z.string(),
       id: z.string().optional(),
       name: z.string().optional(),
-      metadata: z.record(z.unknown()).optional(),
+      metadata: z.record(z.string(), z.unknown()).optional(),
     })
     .optional(),
 
@@ -95,7 +95,7 @@ export const AuditEventSchema = z.object({
   reason: z.string().optional(),
 
   // Additional context
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 
   // Compliance fields
   compliance: z

@@ -188,7 +188,7 @@ async function handleAuthentication(
 
   try {
     const payload = await verifyAccessToken(token)
-    if (!payload || !payload.sub) {
+    if (!payload?.sub) {
       return createUnauthorizedResponse('Invalid token')
     }
 
@@ -384,7 +384,7 @@ export function validateRequest(request: NextRequest): { valid: boolean; violati
 
   // Check request size (basic protection against large payloads)
   const contentLength = request.headers.get('content-length')
-  if (contentLength && Number.parseInt(contentLength) > 10 * 1024 * 1024) {
+  if (contentLength && Number.parseInt(contentLength, 10) > 10 * 1024 * 1024) {
     // 10MB limit
     violations.push('Request payload too large')
   }

@@ -25,7 +25,7 @@ const AuthenticationRequestSchema = z.object({
       userHandle: z.string().optional(),
     }),
     type: z.literal('public-key'),
-    clientExtensionResults: z.record(z.unknown()).optional().default({}),
+    clientExtensionResults: z.record(z.string(), z.unknown()).optional().default({}),
   }),
   expectedChallenge: z.string(),
 })
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Invalid request data', details: error.errors },
+        { error: 'Invalid request data', details: error.issues },
         { status: 400 }
       )
     }

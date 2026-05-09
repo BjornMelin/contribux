@@ -548,8 +548,8 @@ export function useOpportunityMutations() {
 
 // Export types for components
 export type {
-  OpportunitySearchParams,
   Opportunity,
-  OpportunitySearchResponse,
   OpportunityApplyRequest,
+  OpportunitySearchParams,
+  OpportunitySearchResponse,
 }

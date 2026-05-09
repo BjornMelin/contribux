@@ -340,7 +340,7 @@ export class InputValidator {
           SecurityErrorType.VALIDATION,
           'Input validation failed',
           400,
-          result.error.errors,
+          result.error.issues,
           'Invalid input data'
         )
       }

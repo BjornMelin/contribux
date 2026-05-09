@@ -14,6 +14,7 @@
 import dynamic from 'next/dynamic'
 import type { ReactNode } from 'react'
 import { createContext, useContext, useEffect, useState } from 'react'
+import { ThemeProvider } from './theme-provider'
 
 const QueryProvider = dynamic(
   () => import('./query-provider').then(mod => ({ default: mod.QueryProvider })),
@@ -26,15 +27,6 @@ const QueryProvider = dynamic(
         </div>
       </div>
     ),
-  }
-)
-
-// Lazy load ThemeProvider to reduce initial bundle size
-const ThemeProvider = dynamic(
-  () => import('next-themes').then(mod => ({ default: mod.ThemeProvider })),
-  {
-    loading: () => <div className="contents">{/* Invisible wrapper */}</div>,
-    ssr: false, // Theme provider handles SSR internally
   }
 )
 
@@ -173,7 +165,7 @@ function MockSessionProvider({ children }: { children: ReactNode }) {
 
 export function AppProviders({ children }: AppProvidersProps) {
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+    <ThemeProvider>
       <MockSessionProvider>
         <QueryProvider>{children}</QueryProvider>
       </MockSessionProvider>

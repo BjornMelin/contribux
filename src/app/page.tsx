@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useEffect } from 'react'
 import { ArrowRight, Github, Sparkles, Zap } from '@/components/icons'
 import { useSession } from '@/components/providers/app-providers'
+import { Button } from '@/components/ui/button'
 import { preloadSearchComponents } from '@/lib/performance/preloader'
 
 // Lazy load heavy components
@@ -33,13 +34,6 @@ const MotionDiv = dynamic(
   }
 )
 
-const Button = dynamic(
-  () => import('@/components/ui/button').then(mod => ({ default: mod.Button })),
-  {
-    loading: () => <div className="h-10 w-24 animate-pulse rounded bg-muted" />,
-  }
-)
-
 export default function Home() {
   const { status } = useSession()
   const isAuthenticated = status === 'authenticated'
@@ -59,7 +53,7 @@ export default function Home() {
       {/* Hero Section with Beautiful Gradient */}
       <section className="relative overflow-hidden px-4 pt-32 pb-24">
         {/* Background Effects */}
-        <div className="-z-10 absolute inset-0">
+        <div className="absolute inset-0 -z-10">
           <div className="absolute top-0 left-1/4 h-96 w-96 animate-pulse rounded-full bg-purple-500/20 opacity-50 mix-blend-multiply blur-3xl filter" />
           <div className="absolute top-0 right-1/4 h-96 w-96 animate-pulse rounded-full bg-blue-500/20 opacity-50 mix-blend-multiply blur-3xl filter [animation-delay:2s]" />
           <div className="absolute bottom-0 left-1/2 h-96 w-96 animate-pulse rounded-full bg-pink-500/20 opacity-50 mix-blend-multiply blur-3xl filter [animation-delay:4s]" />

@@ -27,7 +27,7 @@ export const IncidentSchema = z.object({
   severity: SeverityLevelSchema,
   service: z.string(),
   description: z.string(),
-  metrics: z.record(z.unknown()),
+  metrics: z.record(z.string(), z.unknown()),
   detectedAt: z.date(),
   status: z.enum(['detected', 'investigating', 'mitigating', 'resolved', 'escalated']),
   autoMitigationEnabled: z.boolean().default(true),
@@ -39,8 +39,8 @@ export type Incident = z.infer<typeof IncidentSchema>
 const ResponseActionSchema = z.object({
   name: z.string(),
   description: z.string(),
-  execute: z.function().args().returns(z.promise(z.boolean())),
-  rollback: z.function().args().returns(z.promise(z.void())).optional(),
+  execute: z.function({ input: [], output: z.promise(z.boolean()) }),
+  rollback: z.function({ input: [], output: z.promise(z.void()) }).optional(),
 })
 
 type ResponseAction = z.infer<typeof ResponseActionSchema>
@@ -48,7 +48,7 @@ type ResponseAction = z.infer<typeof ResponseActionSchema>
 // Notification channel schema
 const NotificationChannelSchema = z.object({
   type: z.enum(['slack', 'discord', 'pagerduty', 'email', 'webhook']),
-  send: z.function().args(IncidentSchema, z.string()).returns(z.promise(z.void())),
+  send: z.function({ input: [IncidentSchema, z.string()], output: z.promise(z.void()) }),
 })
 
 type NotificationChannel = z.infer<typeof NotificationChannelSchema>
