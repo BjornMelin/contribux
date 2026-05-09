@@ -40,27 +40,27 @@ export default function NotFound() {
         {/* Suggested Actions */}
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Link href="/" className="block">
-              <Button className="flex w-full items-center gap-2" size="lg">
+            <Button asChild className="flex w-full items-center gap-2" size="lg">
+              <Link href="/">
                 <Home className="h-4 w-4" />
                 Go Home
-              </Button>
-            </Link>
+              </Link>
+            </Button>
 
-            <Link href="/search" className="block">
-              <Button variant="outline" className="flex w-full items-center gap-2" size="lg">
+            <Button asChild variant="outline" className="flex w-full items-center gap-2" size="lg">
+              <Link href="/search">
                 <Search className="h-4 w-4" />
                 Search Projects
-              </Button>
-            </Link>
+              </Link>
+            </Button>
           </div>
 
-          <Link href="/" className="inline-flex">
-            <Button variant="ghost" className="flex items-center gap-2">
+          <Button asChild variant="ghost" className="inline-flex items-center gap-2">
+            <Link href="/">
               <ArrowLeft className="h-4 w-4" />
               Back to Home
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         </div>
 
         {/* Popular Links */}

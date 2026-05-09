@@ -135,10 +135,12 @@ class PerformanceAnalyzer {
   }
 
   async isDependencyUsed(depName, files) {
+    const escapedDepName = depName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')
+    const packageSpecifier = `${escapedDepName}(?:/[^'"]+)?`
     const importPatterns = [
-      new RegExp(`import.*from\\s+['"]@?${depName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}['"]`),
-      new RegExp(`require\\(['"]@?${depName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}['"]\\)`),
-      new RegExp(`import\\(['"]@?${depName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}['"]\\)`),
+      new RegExp(`import.*from\\s+['"]${packageSpecifier}['"]`),
+      new RegExp(`require\\(['"]${packageSpecifier}['"]\\)`),
+      new RegExp(`import\\(['"]${packageSpecifier}['"]\\)`),
     ]
 
     for (const file of files) {

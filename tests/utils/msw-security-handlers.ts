@@ -11,6 +11,15 @@ import { HttpResponse, http } from 'msw'
 const rateLimitState = new Map<string, { count: number; firstRequest: number; delays: number[] }>()
 const authAttemptCounts = new Map<string, number>()
 
+const parseContentLength = (value: string): number | null => {
+  if (!/^[0-9]+$/.test(value)) {
+    return null
+  }
+
+  const length = Number(value)
+  return Number.isSafeInteger(length) ? length : null
+}
+
 // Helper to track authentication attempts for progressive delays
 export async function getAuthAttemptCount(request: Request): Promise<number> {
   // Extract client IP using same logic as auth handler to prevent bypass
@@ -271,8 +280,8 @@ export const securityTestHandlers: HttpHandler[] = [
 
     // Request smuggling prevention - detect malformed content-length
     if (contentLength) {
-      const length = Number.parseInt(contentLength, 10)
-      if (Number.isNaN(length) || length < 0) {
+      const length = parseContentLength(contentLength)
+      if (length === null) {
         return HttpResponse.json({ error: 'Invalid Content-Length' }, { status: 400 })
       }
     }
@@ -286,7 +295,8 @@ export const securityTestHandlers: HttpHandler[] = [
     }
 
     // Size validation
-    if (contentLength && Number.parseInt(contentLength, 10) > 50 * 1024 * 1024) {
+    const parsedContentLength = contentLength ? parseContentLength(contentLength) : null
+    if (parsedContentLength !== null && parsedContentLength > 50 * 1024 * 1024) {
       return HttpResponse.json({ error: 'File too large' }, { status: 413 })
     }
 
@@ -389,8 +399,8 @@ export const securityTestHandlers: HttpHandler[] = [
 
     // Detect malformed content-length
     if (contentLength) {
-      const length = Number.parseInt(contentLength, 10)
-      if (Number.isNaN(length) || length < 0) {
+      const length = parseContentLength(contentLength)
+      if (length === null) {
         return HttpResponse.json({ error: 'Invalid Content-Length' }, { status: 400 })
       }
     }
