@@ -156,6 +156,57 @@ const isValidToken = (authHeader: string | null, expectedToken?: string): boolea
   )
 }
 
+const createMockPull = (owner: string, repo: string, number: number, state: string) => ({
+  id: 2000 + number,
+  number,
+  title: `Pull Request ${number}`,
+  body: `Test pull request ${number} description`,
+  state: number === 2 ? 'closed' : state,
+  user: {
+    login: owner,
+    id: 12345,
+    type: 'User',
+    avatar_url: `https://github.com/images/error/${owner}_happy.gif`,
+    html_url: `https://github.com/${owner}`,
+    site_admin: false,
+  },
+  labels: [],
+  assignee: null,
+  assignees: [],
+  created_at: '2024-01-01T00:00:00Z',
+  updated_at: '2024-01-01T00:00:00Z',
+  html_url: `https://github.com/${owner}/${repo}/pull/${number}`,
+  head: {
+    ref: `feature-${number}`,
+    sha: `abc123${number}`,
+    repo: { full_name: `${owner}/${repo}` },
+  },
+  base: {
+    ref: 'main',
+    sha: `def456${number}`,
+    repo: { full_name: `${owner}/${repo}` },
+  },
+  mergeable: true,
+  merged: number === 2,
+  merge_commit_sha: `merge${number}`,
+})
+
+const createMockComment = (owner: string, repo: string, issueNumber: number, id: number) => ({
+  id,
+  body: `Test comment ${id}`,
+  user: {
+    login: owner,
+    id: 12345,
+    type: 'User',
+    avatar_url: `https://github.com/images/error/${owner}_happy.gif`,
+    html_url: `https://github.com/${owner}`,
+    site_admin: false,
+  },
+  created_at: '2024-01-01T00:00:00Z',
+  updated_at: '2024-01-01T00:00:00Z',
+  html_url: `https://github.com/${owner}/${repo}/issues/${issueNumber}#issuecomment-${id}`,
+})
+
 // Default MSW handlers with handler precedence awareness
 const defaultHandlers = [
   // GET /user
@@ -628,7 +679,7 @@ const defaultHandlers = [
       : Number.parseInt(perPageParam, 10)
 
     // Handle specific test queries first
-    if (q === 'nonexistentquery12345unique') {
+    if (q.startsWith('nonexistentquery12345unique')) {
       return HttpResponse.json({
         total_count: 0,
         incomplete_results: false,
@@ -636,7 +687,7 @@ const defaultHandlers = [
       })
     }
 
-    if (q === 'javascriptlargepage' && url.searchParams.get('per_page') === '100') {
+    if (q.startsWith('javascriptlargepage') && url.searchParams.get('per_page') === '100') {
       const items = Array.from({ length: 100 }, (_, i) => ({
         id: i + 1,
         name: `repo-${i + 1}`,
@@ -697,7 +748,8 @@ const defaultHandlers = [
     const perPage = Number.isNaN(Number.parseInt(perPageParam, 10))
       ? 30
       : Number.parseInt(perPageParam, 10)
-    const state = url.searchParams.get('state') || 'open'
+    const stateParam = url.searchParams.get('state') || 'open'
+    const state = stateParam === 'all' ? 'open' : stateParam
     const authHeader = request.headers.get('authorization')
 
     // Check for limited scope token (should return 403)
@@ -714,6 +766,10 @@ const defaultHandlers = [
     // Check authentication
     if (!isValidToken(authHeader)) {
       return HttpResponse.json({ message: 'Bad credentials' }, { status: 401 })
+    }
+
+    if (owner === 'test' && repo === 'rate-limited-issues') {
+      return HttpResponse.json({ message: 'API rate limit exceeded' }, { status: 429 })
     }
 
     const issues = Array.from({ length: Math.min(perPage, 2) }, (_, i) => ({
@@ -762,11 +818,47 @@ const defaultHandlers = [
       return HttpResponse.json({ message: 'Bad credentials' }, { status: 401 })
     }
 
+    if (owner === 'private' || repo === 'private-repo') {
+      return HttpResponse.json({ message: 'Not Found' }, { status: 404 })
+    }
+
+    if (owner === 'server-error-test' || issue_number === '500') {
+      return HttpResponse.json({ message: 'Server Error' }, { status: 500 })
+    }
+
+    if (owner === 'malformed-test') {
+      return HttpResponse.json({ invalid: 'data' })
+    }
+
+    if (owner === 'notfound' || repo === 'notfound' || issue_number === '999') {
+      return HttpResponse.json({ message: 'Not Found' }, { status: 404 })
+    }
+
+    if (owner === 'owner' && repo === 'bad-types') {
+      return HttpResponse.json({
+        id: 'not-a-number',
+        number: 'wrong',
+        title: 123,
+        body: {},
+        state: 'open',
+        user: null,
+        labels: [],
+        assignee: null,
+        assignees: [],
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+        html_url: `https://github.com/${owner}/${repo}/issues/${issue_number}`,
+      })
+    }
+
     // Handle null user test case
-    if (owner === 'null-user-test' && repo === 'null-user-repo' && issue_number === '1') {
+    if (
+      (owner === 'null-user-test' && repo === 'null-user-repo' && issue_number === '1') ||
+      (owner === 'null-test' && repo === 'null-values' && issue_number === '2')
+    ) {
       return HttpResponse.json({
         id: 1,
-        number: 1,
+        number: Number(issue_number),
         title: 'Test Issue',
         body: null,
         state: 'open',
@@ -787,7 +879,7 @@ const defaultHandlers = [
         : Number.parseInt(issue_number, 10),
       title: `Issue ${issue_number}`,
       body: `Test issue ${issue_number} description`,
-      state: 'open',
+      state: issue_number === '2' ? 'closed' : 'open',
       user: {
         login: owner,
         id: 12345,
@@ -805,6 +897,96 @@ const defaultHandlers = [
       comments: 0,
     })
   }),
+
+  // GET /repos/:owner/:repo/pulls
+  http.get(`${GITHUB_API_BASE}/repos/:owner/:repo/pulls`, ({ request, params }) => {
+    const { owner, repo } = params as { owner: string; repo: string }
+    const url = new URL(request.url)
+    const perPage = Number.parseInt(url.searchParams.get('per_page') || '30', 10)
+    const stateParam = url.searchParams.get('state') || 'open'
+    const state = stateParam === 'all' ? 'open' : stateParam
+    const authHeader = request.headers.get('authorization')
+
+    if (!isValidToken(authHeader)) {
+      return HttpResponse.json({ message: 'Bad credentials' }, { status: 401 })
+    }
+
+    const pulls = Array.from({ length: Math.min(perPage, 2) }, (_, i) =>
+      createMockPull(owner, repo, i + 1, state)
+    )
+
+    return HttpResponse.json(pulls)
+  }),
+
+  // GET /repos/:owner/:repo/pulls/:pull_number
+  http.get(`${GITHUB_API_BASE}/repos/:owner/:repo/pulls/:pull_number`, ({ request, params }) => {
+    const { owner, repo, pull_number } = params as {
+      owner: string
+      repo: string
+      pull_number: string
+    }
+    const authHeader = request.headers.get('authorization')
+
+    if (!isValidToken(authHeader)) {
+      return HttpResponse.json({ message: 'Bad credentials' }, { status: 401 })
+    }
+
+    if (owner === 'notfound' || repo === 'notfound' || pull_number === '999') {
+      return HttpResponse.json({ message: 'Not Found' }, { status: 404 })
+    }
+
+    if (owner === 'owner' && repo === 'bad-types') {
+      return HttpResponse.json({ invalid: 'data' })
+    }
+
+    if (owner === 'validation-test' || Number(pull_number) <= 0) {
+      return HttpResponse.json({ invalid: 'data' })
+    }
+
+    return HttpResponse.json(createMockPull(owner, repo, Number(pull_number), 'open'))
+  }),
+
+  // GET /repos/:owner/:repo/issues/:issue_number/comments
+  http.get(
+    `${GITHUB_API_BASE}/repos/:owner/:repo/issues/:issue_number/comments`,
+    ({ request, params }) => {
+      const { owner, repo, issue_number } = params as {
+        owner: string
+        repo: string
+        issue_number: string
+      }
+      const authHeader = request.headers.get('authorization')
+
+      if (!isValidToken(authHeader)) {
+        return HttpResponse.json({ message: 'Bad credentials' }, { status: 401 })
+      }
+
+      return HttpResponse.json([createMockComment(owner, repo, Number(issue_number), 12345)])
+    }
+  ),
+
+  // GET /repos/:owner/:repo/issues/comments/:comment_id
+  http.get(
+    `${GITHUB_API_BASE}/repos/:owner/:repo/issues/comments/:comment_id`,
+    ({ request, params }) => {
+      const { owner, repo, comment_id } = params as {
+        owner: string
+        repo: string
+        comment_id: string
+      }
+      const authHeader = request.headers.get('authorization')
+
+      if (!isValidToken(authHeader)) {
+        return HttpResponse.json({ message: 'Bad credentials' }, { status: 401 })
+      }
+
+      if (comment_id === '99999') {
+        return HttpResponse.json({ message: 'Not Found' }, { status: 404 })
+      }
+
+      return HttpResponse.json(createMockComment(owner, repo, 1, Number(comment_id)))
+    }
+  ),
 
   // GraphQL endpoint
   http.post(GITHUB_GRAPHQL_URL, async ({ request }) => {
