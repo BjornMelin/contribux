@@ -7,17 +7,12 @@ import { NextRequest } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { GET, HEAD } from '../../../src/app/api/monitoring/health/route'
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 // Mock Neon database
 vi.mock('@neondatabase/serverless', () => ({
   neon: vi.fn(() => vi.fn().mockResolvedValue([{ status: 1 }])),
 }))
-
-// Mock crypto.randomUUID
-Object.defineProperty(globalThis, 'crypto', {
-  value: {
-    randomUUID: vi.fn(() => '123e4567-e89b-12d3-a456-426614174000'),
-  },
-})
 
 // Mock process.env
 const mockEnv = {
@@ -80,11 +75,11 @@ describe('Health Check API with Enterprise Zod Validation', () => {
         },
         uptime: 3600,
         response_time_ms: expect.any(Number),
-        request_id: '123e4567-e89b-12d3-a456-426614174000',
+        request_id: expect.stringMatching(UUID_PATTERN),
       })
 
       // Validate enterprise response headers
-      expect(response.headers.get('X-Request-ID')).toBe('123e4567-e89b-12d3-a456-426614174000')
+      expect(response.headers.get('X-Request-ID')).toMatch(UUID_PATTERN)
       expect(response.headers.get('X-Health-Status')).toBe('healthy')
       expect(response.headers.get('X-Response-Time')).toMatch(/^\d+ms$/)
       expect(response.headers.get('Cache-Control')).toBe('no-cache, no-store, must-revalidate')
@@ -130,7 +125,7 @@ describe('Health Check API with Enterprise Zod Validation', () => {
     })
 
     it('should handle missing DATABASE_URL gracefully', async () => {
-      process.env.DATABASE_URL = undefined
+      delete process.env.DATABASE_URL
 
       const request = new NextRequest('http://localhost:3000/api/monitoring/health')
       const response = await GET(request)
@@ -187,7 +182,7 @@ describe('Health Check API with Enterprise Zod Validation', () => {
       expect(response.status).toBe(200)
       expect(response.body).toBeNull()
       expect(response.headers.get('X-Health-Status')).toBe('healthy')
-      expect(response.headers.get('X-Request-ID')).toBe('123e4567-e89b-12d3-a456-426614174000')
+      expect(response.headers.get('X-Request-ID')).toMatch(UUID_PATTERN)
     })
 
     it('should return unhealthy status for database errors', async () => {
@@ -202,7 +197,7 @@ describe('Health Check API with Enterprise Zod Validation', () => {
       expect(response.status).toBe(503)
       expect(response.body).toBeNull()
       expect(response.headers.get('X-Health-Status')).toBe('unhealthy')
-      expect(response.headers.get('X-Request-ID')).toBe('123e4567-e89b-12d3-a456-426614174000')
+      expect(response.headers.get('X-Request-ID')).toMatch(UUID_PATTERN)
     })
   })
 

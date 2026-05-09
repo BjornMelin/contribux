@@ -108,6 +108,8 @@ export default defineConfig({
       ENABLE_OAUTH: 'false',
       ENABLE_WEBAUTHN: 'false',
       ENABLE_AUDIT_LOGS: 'false',
+      DATABASE_URL: 'postgresql://test:test@localhost:5432/contribux_test',
+      DATABASE_URL_TEST: 'postgresql://test:test@localhost:5432/contribux_test',
       NEXTAUTH_SECRET: 'unit-test-secret-32-chars-minimum-for-testing',
       ENCRYPTION_KEY: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
       TEST_DB_STRATEGY: 'mock', // Force mock database strategy to avoid PGlite WASM issues

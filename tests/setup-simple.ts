@@ -19,6 +19,8 @@ beforeAll(async () => {
   process.env.SKIP_ENV_VALIDATION = 'true'
   process.env.VITEST = 'true'
   process.env.LOG_LEVEL = 'error'
+  process.env.DATABASE_URL ??= 'postgresql://test:test@localhost:5432/contribux_test'
+  process.env.DATABASE_URL_TEST ??= 'postgresql://test:test@localhost:5432/contribux_test'
 
   // Setup minimal browser APIs
   setupBrowserAPIs()
