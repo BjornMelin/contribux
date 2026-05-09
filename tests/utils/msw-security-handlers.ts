@@ -274,12 +274,12 @@ export const securityTestHandlers: HttpHandler[] = [
     const transferEncoding = request.headers.get('Transfer-Encoding')
 
     // Request smuggling prevention - detect conflicting headers
-    if (contentLength && transferEncoding) {
+    if (contentLength !== null && transferEncoding !== null) {
       return HttpResponse.json({ error: 'Conflicting length headers' }, { status: 400 })
     }
 
     // Request smuggling prevention - detect malformed content-length
-    if (contentLength) {
+    if (contentLength !== null) {
       const length = parseContentLength(contentLength)
       if (length === null) {
         return HttpResponse.json({ error: 'Invalid Content-Length' }, { status: 400 })
@@ -295,7 +295,7 @@ export const securityTestHandlers: HttpHandler[] = [
     }
 
     // Size validation
-    const parsedContentLength = contentLength ? parseContentLength(contentLength) : null
+    const parsedContentLength = contentLength !== null ? parseContentLength(contentLength) : null
     if (parsedContentLength !== null && parsedContentLength > 50 * 1024 * 1024) {
       return HttpResponse.json({ error: 'File too large' }, { status: 413 })
     }
@@ -393,12 +393,12 @@ export const securityTestHandlers: HttpHandler[] = [
     const transferEncoding = request.headers.get('Transfer-Encoding')
 
     // Detect conflicting length headers
-    if (contentLength && transferEncoding) {
+    if (contentLength !== null && transferEncoding !== null) {
       return HttpResponse.json({ error: 'Conflicting length headers' }, { status: 400 })
     }
 
     // Detect malformed content-length
-    if (contentLength) {
+    if (contentLength !== null) {
       const length = parseContentLength(contentLength)
       if (length === null) {
         return HttpResponse.json({ error: 'Invalid Content-Length' }, { status: 400 })

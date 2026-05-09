@@ -138,7 +138,7 @@ class PerformanceAnalyzer {
     const escapedDepName = depName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')
     const packageSpecifier = `${escapedDepName}(?:/[^'"]+)?`
     const importPatterns = [
-      new RegExp(`import.*from\\s+['"]${packageSpecifier}['"]`),
+      new RegExp(`\\bimport(?:[\\s\\S]*?)from\\s+['"]${packageSpecifier}['"]`),
       new RegExp(`require\\(['"]${packageSpecifier}['"]\\)`),
       new RegExp(`import\\(['"]${packageSpecifier}['"]\\)`),
     ]
