@@ -15,7 +15,6 @@ export const preloadSearchComponents = () => {
   scheduler(() => {
     // Preload search-related components
     Promise.all([
-      import('@/components/examples/optimized-search'),
       import('@/components/examples/beginner-sidebar'),
       import('@/components/examples/circuit-breaker-status'),
       import('@/components/examples/performance-metrics'),
