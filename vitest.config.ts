@@ -1,15 +1,15 @@
 import { cpus } from 'node:os'
 import path from 'node:path'
 import react from '@vitejs/plugin-react'
-import tsconfigPaths from 'vite-tsconfig-paths'
 import { configDefaults, defineConfig } from 'vitest/config'
 
 export default defineConfig({
   cacheDir: '.vitest/cache',
 
-  plugins: [tsconfigPaths(), react()],
+  plugins: [react()],
 
   resolve: {
+    tsconfigPaths: true,
     alias: {
       '@': path.resolve(__dirname, './src'),
       'next/server': path.resolve(__dirname, 'node_modules/next/dist/server/web/exports/index.js'),
@@ -65,15 +65,8 @@ export default defineConfig({
 
     // Optimized pool configuration for fast mock tests
     pool: 'threads',
-    poolOptions: {
-      threads: {
-        singleThread: false,
-        minThreads: 1,
-        maxThreads: Math.min(2, cpus().length), // Reduced for faster startup
-        useAtomics: true,
-        isolate: true,
-      },
-    },
+    maxWorkers: Math.min(2, cpus().length), // Reduced for faster startup
+    isolate: true,
 
     // Coverage configuration
     coverage: {

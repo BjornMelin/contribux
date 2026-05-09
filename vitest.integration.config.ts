@@ -1,14 +1,14 @@
 import path from 'node:path'
 import react from '@vitejs/plugin-react'
-import tsconfigPaths from 'vite-tsconfig-paths'
 import { configDefaults, defineConfig } from 'vitest/config'
 
 export default defineConfig({
   cacheDir: '.vitest/cache-integration',
 
-  plugins: [tsconfigPaths(), react()],
+  plugins: [react()],
 
   resolve: {
+    tsconfigPaths: true,
     alias: {
       '@': path.resolve(__dirname, './src'),
       'next/server': path.resolve(__dirname, 'node_modules/next/dist/server/index.js'),
@@ -55,13 +55,8 @@ export default defineConfig({
 
     // Sequential execution for integration tests to prevent DB conflicts
     pool: 'threads',
-    poolOptions: {
-      threads: {
-        singleThread: true,
-        minThreads: 1,
-        maxThreads: 1,
-      },
-    },
+    fileParallelism: false,
+    maxWorkers: 1,
 
     // Integration test specific timeouts
     testTimeout: 30000,
