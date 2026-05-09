@@ -3,8 +3,10 @@
  * Provides search functionality for GitHub repositories
  */
 
-import type { NextRequest } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { ErrorHandler, withEnhancedErrorHandling } from '@/lib/errors/enhanced-error-handler'
+import { extractRequestContext } from '@/lib/errors/error-utils'
 import { withRateLimit } from '@/lib/security/rate-limit-middleware'
 
 // Search query schema
@@ -22,6 +24,7 @@ interface RequestContext {
   timestamp: string
   userAgent?: string
   ip?: string
+  [key: string]: unknown
 }
 
 // Repository search parameters interface
@@ -107,22 +110,26 @@ function searchDemoRepositories(validatedParams: RepositorySearchParams) {
   const normalizedQuery = validatedParams.q.toLowerCase()
   const language = validatedParams.language?.toLowerCase()
 
-  return demoRepositories
-    .filter(repository => {
-      const matchesQuery =
-        repository.fullName.toLowerCase().includes(normalizedQuery) ||
-        repository.description.toLowerCase().includes(normalizedQuery) ||
-        repository.metadata.topics.some(topic => topic.includes(normalizedQuery))
+  const filteredRepositories = demoRepositories.filter(repository => {
+    const matchesQuery =
+      repository.fullName.toLowerCase().includes(normalizedQuery) ||
+      repository.description.toLowerCase().includes(normalizedQuery) ||
+      repository.metadata.topics.some(topic => topic.includes(normalizedQuery))
 
-      const matchesLanguage =
-        !language || repository.metadata.language.toLowerCase() === language.toLowerCase()
+    const matchesLanguage =
+      !language || repository.metadata.language.toLowerCase() === language.toLowerCase()
 
-      return matchesQuery && matchesLanguage
-    })
-    .slice(
-      (validatedParams.page - 1) * validatedParams.per_page,
-      validatedParams.page * validatedParams.per_page
-    )
+    return matchesQuery && matchesLanguage
+  })
+
+  const startIndex = (validatedParams.page - 1) * validatedParams.per_page
+  const endIndex = validatedParams.page * validatedParams.per_page
+
+  return {
+    repositories: filteredRepositories.slice(startIndex, endIndex),
+    totalCount: filteredRepositories.length,
+    hasMore: endIndex < filteredRepositories.length,
+  }
 }
 
 /**
@@ -140,15 +147,16 @@ const validateSearchParams = (searchParams: URLSearchParams) => {
   })
 
   if (!parseResult.success) {
-    const { ErrorHandler } = require('@/lib/errors/enhanced-error-handler')
     throw ErrorHandler.createError(
       'INVALID_PARAMS',
       `Validation failed: ${parseResult.error.issues.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`,
       'validation',
       'low',
       {
-        validationErrors: parseResult.error.issues,
-        receivedParams: params,
+        context: {
+          validationErrors: parseResult.error.issues,
+          receivedParams: params,
+        },
       }
     )
   }
@@ -161,16 +169,16 @@ const buildSuccessResponse = (
   validatedParams: RepositorySearchParams,
   requestContext: RequestContext
 ) => {
-  const repositories = searchDemoRepositories(validatedParams)
+  const { repositories, totalCount, hasMore } = searchDemoRepositories(validatedParams)
 
   return {
     success: true,
     data: {
       repositories,
-      total_count: repositories.length,
+      total_count: totalCount,
       page: validatedParams.page,
       per_page: validatedParams.per_page,
-      has_more: false,
+      has_more: hasMore,
     },
     metadata: {
       query: validatedParams.q,
@@ -187,8 +195,6 @@ const handleSearchError = (
   request: NextRequest,
   requestContext: RequestContext
 ) => {
-  const { ErrorHandler } = require('@/lib/errors/enhanced-error-handler')
-
   if (error instanceof z.ZodError) {
     const enhancedError = ErrorHandler.createValidationError(error, {
       endpoint: '/api/search/repositories',
@@ -237,11 +243,15 @@ const handleSearchError = (
 }
 export const GET = withRateLimit(
   async (req: NextRequest) => {
-    const { withEnhancedErrorHandling } = require('@/lib/errors/enhanced-error-handler')
-    const { extractRequestContext } = require('@/lib/errors/error-utils')
-
     return withEnhancedErrorHandling(async (request: NextRequest) => {
-      const requestContext = extractRequestContext(request)
+      const extractedContext = extractRequestContext(request)
+      const requestContext: RequestContext = {
+        ...extractedContext,
+        timestamp: String(extractedContext.timestamp),
+        userAgent:
+          typeof extractedContext.userAgent === 'string' ? extractedContext.userAgent : undefined,
+        ip: typeof extractedContext.ip === 'string' ? extractedContext.ip : undefined,
+      }
 
       try {
         // Parse and validate search parameters
@@ -251,7 +261,7 @@ export const GET = withRateLimit(
         // Build and return success response
         const responseData = buildSuccessResponse(validatedParams, requestContext)
 
-        return Response.json(responseData, {
+        return NextResponse.json(responseData, {
           status: 200,
           headers: {
             'Content-Type': 'application/json',
