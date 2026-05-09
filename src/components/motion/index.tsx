@@ -8,18 +8,16 @@
 import { AnimatePresence as FramerAnimatePresence, type MotionProps, motion } from 'framer-motion'
 import React from 'react'
 
-// Optimized motion wrapper
+// Motion wrapper props
 export interface OptimizedMotionProps extends MotionProps {
   children?: React.ReactNode
   className?: string
-  fallback?: React.ReactNode
   enableMotion?: boolean
 }
 
 // Motion div wrapper
 export const MotionDiv: React.FC<OptimizedMotionProps> = ({
   children,
-  fallback: _fallback,
   enableMotion = true,
   ...props
 }) => {
@@ -33,7 +31,6 @@ export const MotionDiv: React.FC<OptimizedMotionProps> = ({
 // Motion button wrapper
 export const MotionButton: React.FC<OptimizedMotionProps> = ({
   children,
-  fallback: _fallback,
   enableMotion = true,
   ...props
 }) => {
@@ -55,7 +52,6 @@ export const MotionButton: React.FC<OptimizedMotionProps> = ({
 // Motion span wrapper
 export const MotionSpan: React.FC<OptimizedMotionProps> = ({
   children,
-  fallback: _fallback,
   enableMotion = true,
   ...props
 }) => {
@@ -67,15 +63,14 @@ export const MotionSpan: React.FC<OptimizedMotionProps> = ({
 }
 
 // AnimatePresence wrapper
-export const OptimizedAnimatePresence: React.FC<{
+export const AnimatePresenceWrapper: React.FC<{
   children: React.ReactNode
   mode?: 'wait' | 'sync' | 'popLayout'
 }> = ({ children, mode = 'wait' }) => {
   return <FramerAnimatePresence mode={mode}>{children}</FramerAnimatePresence>
 }
 
-// Export alias for compatibility
-export const AnimatePresence = OptimizedAnimatePresence
+export const AnimatePresence = AnimatePresenceWrapper
 
 // Common animation presets
 export const animationPresets = {

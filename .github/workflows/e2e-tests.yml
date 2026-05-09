@@ -170,12 +170,12 @@ jobs:
 
       # Clean up Neon branch (always runs, even on failure)
       - name: Delete Neon E2E Test Branch
-        if: always()
+        if: always() && steps.create-branch.outputs.branch_id != ''
         uses: neondatabase/delete-branch-action@v3
         with:
           project_id: ${{ env.NEON_PROJECT_ID }}
           api_key: ${{ env.NEON_API_KEY }}
-          branch_id: ${{ steps.create-branch.outputs.branch_id }}
+          branch: ${{ steps.create-branch.outputs.branch_id }}
 
       # Report test results summary
       - name: Test Results Summary

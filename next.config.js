@@ -3,7 +3,6 @@ import withBundleAnalyzer from '@next/bundle-analyzer'
 const otelPackages = [
   '@opentelemetry/api',
   '@opentelemetry/auto-instrumentations-node',
-  '@opentelemetry/exporter-jaeger',
   '@opentelemetry/exporter-metrics-otlp-http',
   '@opentelemetry/exporter-prometheus',
   '@opentelemetry/exporter-trace-otlp-grpc',
