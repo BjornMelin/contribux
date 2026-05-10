@@ -486,8 +486,9 @@ test.describe('Accessibility and Cross-Browser Compatibility', () => {
             expect(buttonSize.height).toBeGreaterThanOrEqual(44)
           }
 
-          // Test tap interaction
-          await authButton.click()
+          // Verify the OAuth button is tap-ready without leaving the app for
+          // the external provider handoff covered by the user-journey tests.
+          await authButton.click({ trial: true })
         }
 
         await mobileUtils.page.takeScreenshot('mobile-browser-test')
