@@ -13,10 +13,10 @@
  * - Error recovery and security incident handling
  */
 
-import { HttpResponse, http } from 'msw'
-import { setupServer } from 'msw/node'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { type HttpHandler, HttpResponse, http } from 'msw'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
+import { getMockManager } from '../setup-integration-enhanced'
 
 // Authentication flow state management
 interface AuthFlowState {
@@ -220,7 +220,6 @@ const _AuthenticationJourneySchema = z.object({
 })
 
 // Test setup
-const server = setupServer()
 const authFlowState: AuthFlowState = {
   oauthSessions: new Map(),
   userSessions: new Map(),
@@ -229,17 +228,31 @@ const authFlowState: AuthFlowState = {
   rateLimitCounters: new Map(),
 }
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
-afterEach(() => {
-  server.resetHandlers()
-  // Clear state but keep some data for cross-test consistency
+const resetAuthFlowState = () => {
+  authFlowState.oauthSessions.clear()
+  authFlowState.userSessions.clear()
+  authFlowState.webauthnCredentials.clear()
   authFlowState.auditEvents = []
   authFlowState.rateLimitCounters.clear()
+}
+
+const useMSWHandlers = (...handlers: HttpHandler[]) => {
+  const mockManager = getMockManager()
+
+  if (!mockManager) {
+    throw new Error('Integration MSW server is not initialized')
+  }
+
+  mockManager.useMSWHandlers(...handlers)
+}
+
+afterEach(() => {
+  getMockManager()?.resetMSWHandlers()
 })
-afterAll(() => server.close())
 
 describe('Complete Authentication Flow Integration', () => {
   beforeEach(() => {
+    resetAuthFlowState()
     vi.clearAllMocks()
   })
 
@@ -251,7 +264,7 @@ describe('Complete Authentication Flow Integration', () => {
       let currentUserId: string
 
       // Stage 1: OAuth Initiation
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/auth/signin/github', ({ request }) => {
           const _url = new URL(request.url)
           const state = crypto.randomUUID()
@@ -559,7 +572,7 @@ describe('Complete Authentication Flow Integration', () => {
 
       // Validate journey consistency
       expect(sessionData.data.journeyId).toBe(oauthData.data.journeyId)
-      expect(authFlowState.auditEvents).toHaveLength(5) // oauth_start, oauth_complete, webauthn_register, session_create
+      expect(authFlowState.auditEvents).toHaveLength(4) // oauth_start, oauth_complete, webauthn_register, session_create
       expect(authFlowState.userSessions.size).toBe(1)
       expect(currentUserId).toBeDefined()
       expect(authFlowState.webauthnCredentials.get(currentUserId)).toHaveLength(1)
@@ -582,7 +595,7 @@ describe('Complete Authentication Flow Integration', () => {
       const journeyId = crypto.randomUUID()
       let failureCount = 0
 
-      server.use(
+      useMSWHandlers(
         http.post('http://localhost:3000/api/security/webauthn/register/verify', async () => {
           failureCount++
 
@@ -698,7 +711,7 @@ describe('Complete Authentication Flow Integration', () => {
         },
       ])
 
-      server.use(
+      useMSWHandlers(
         // WebAuthn Authentication Options
         http.post('http://localhost:3000/api/security/webauthn/authenticate/options', () => {
           const challenge = crypto.randomUUID()
@@ -945,7 +958,7 @@ describe('Complete Authentication Flow Integration', () => {
         },
       })
 
-      server.use(
+      useMSWHandlers(
         // Link additional provider
         http.post('http://localhost:3000/api/auth/link-provider', async ({ request }) => {
           const body = (await request.json()) as LinkProviderRequest
@@ -1180,7 +1193,7 @@ describe('Complete Authentication Flow Integration', () => {
         },
       })
 
-      server.use(
+      useMSWHandlers(
         // Detect suspicious activity requiring session rotation
         http.post('http://localhost:3000/api/auth/session/validate', ({ request }) => {
           const newIpAddress = request.headers.get('X-Forwarded-For') || '192.168.1.101'
@@ -1398,7 +1411,7 @@ describe('Complete Authentication Flow Integration', () => {
         },
       ])
 
-      server.use(
+      useMSWHandlers(
         // Validate complete user profile across components
         http.get('http://localhost:3000/api/auth/profile/complete', ({ request }) => {
           const sessionToken = request.headers.get('Authorization')?.replace('Bearer ', '')

@@ -14,10 +14,6 @@ import { type MFAVerificationRequest, MFAVerificationRequestSchema, type User } 
  */
 export async function POST(req: NextRequest) {
   try {
-    // Parse and validate request body
-    const body = await req.json()
-    const verificationRequest = MFAVerificationRequestSchema.parse(body)
-
     // Get authenticated user
     const authReq = req as NextRequest & {
       auth?: { user: User; session_id: string }
@@ -28,6 +24,10 @@ export async function POST(req: NextRequest) {
     }
 
     const { user } = authReq.auth
+
+    // Parse and validate request body after authentication to avoid unauthenticated schema leakage.
+    const body = await req.json()
+    const verificationRequest = MFAVerificationRequestSchema.parse(body)
 
     // Check if user has MFA enabled
     if (!user.twoFactorEnabled) {
@@ -52,6 +52,11 @@ export async function POST(req: NextRequest) {
     if (!result.success) {
       // Log failed verification attempt for security monitoring (handled by application logging)
       // Monitoring service will capture failed MFA attempts
+      const status = result.lockoutDuration
+        ? 423
+        : result.error?.toLowerCase().includes('too many')
+          ? 429
+          : 400
 
       return NextResponse.json(
         {
@@ -62,7 +67,7 @@ export async function POST(req: NextRequest) {
           }),
           ...(result.lockoutDuration && { lockoutDuration: result.lockoutDuration }),
         },
-        { status: 400 }
+        { status }
       )
     }
 

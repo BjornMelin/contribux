@@ -8,12 +8,14 @@ import { z } from 'zod'
 import { getMFASettings, regenerateBackupCodes, updateMFASettings } from '@/lib/auth/mfa-service'
 import type { User } from '@/types/auth'
 
-const UpdateMFASettingsSchema = z.object({
-  enabled: z.boolean().optional(),
-  primaryMethod: z.enum(['totp', 'webauthn', 'backup_code']).optional(),
-  trustedDevices: z.array(z.string()).optional(),
-  regenerateBackupCodes: z.boolean().optional(),
-})
+const UpdateMFASettingsSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    primaryMethod: z.enum(['totp', 'webauthn', 'backup_code']).optional(),
+    trustedDevices: z.array(z.string()).optional(),
+    regenerateBackupCodes: z.boolean().optional(),
+  })
+  .strict()
 
 /**
  * GET /api/auth/mfa/settings
@@ -37,10 +39,15 @@ export async function GET(req: NextRequest) {
 
     // Get enrolled methods information
     const enrolledMethodsInfo = await getEnrolledMethodsInfo(user.id)
+    const enrolledMethods =
+      enrolledMethodsInfo.length > 0
+        ? enrolledMethodsInfo.map(methodInfo => methodInfo.method)
+        : settings.enrolledMethods
 
     return NextResponse.json({
       ...settings,
-      enrolledMethods: enrolledMethodsInfo,
+      enrolledMethods,
+      enrolledMethodDetails: enrolledMethodsInfo,
       setupUrl: '/settings/security/mfa',
       supportedMethods: [
         {
@@ -68,10 +75,6 @@ export async function GET(req: NextRequest) {
  */
 export async function PUT(req: NextRequest) {
   try {
-    // Parse and validate request body
-    const body = await req.json()
-    const updateRequest = UpdateMFASettingsSchema.parse(body)
-
     // Get authenticated user
     const authReq = req as NextRequest & {
       auth?: { user: User; session_id: string }
@@ -82,6 +85,10 @@ export async function PUT(req: NextRequest) {
     }
 
     const { user } = authReq.auth
+
+    // Parse and validate request body after authentication to avoid unauthenticated schema leakage.
+    const body = await req.json()
+    const updateRequest = UpdateMFASettingsSchema.parse(body)
 
     // Special handling for regenerating backup codes
     if (updateRequest.regenerateBackupCodes) {

@@ -528,6 +528,8 @@ async function resetDatabase() {
 
     // Drop tables in reverse dependency order
     const dropStatements = [
+      'DROP TABLE IF EXISTS security_audit_logs CASCADE',
+      'DROP TABLE IF EXISTS oauth_accounts CASCADE',
       'DROP TABLE IF EXISTS webauthn_credentials CASCADE',
       'DROP TABLE IF EXISTS user_repository_interactions CASCADE',
       'DROP TABLE IF EXISTS contribution_outcomes CASCADE',

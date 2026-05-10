@@ -18,6 +18,7 @@
 import { relations, sql } from 'drizzle-orm'
 import {
   bigint,
+  boolean,
   check,
   index,
   integer,
@@ -45,9 +46,9 @@ export const contributionTypeEnum = pgEnum('contribution_type', [
 // Users table
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
-  githubId: integer('github_id').unique().notNull(),
+  githubId: integer('github_id').unique(),
   username: text('username').notNull(),
-  githubLogin: text('github_login').notNull(),
+  githubLogin: text('github_login'),
   email: text('email').unique(),
   name: text('name'),
   avatarUrl: text('avatar_url'),
@@ -82,6 +83,60 @@ export const users = pgTable('users', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 })
+
+// OAuth account links for provider-agnostic auth sessions
+export const oauthAccounts = pgTable(
+  'oauth_accounts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .references(() => users.id, { onDelete: 'cascade' })
+      .notNull(),
+    provider: text('provider').notNull(),
+    providerAccountId: text('provider_account_id').notNull(),
+    accessToken: text('access_token'),
+    refreshToken: text('refresh_token'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    tokenType: text('token_type'),
+    scope: text('scope'),
+    idToken: text('id_token'),
+    sessionState: text('session_state'),
+    isPrimary: boolean('is_primary').notNull().default(false),
+    linkedAt: timestamp('linked_at', { withTimezone: true }).defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  },
+  table => ({
+    userIdIdx: index('idx_oauth_accounts_user_id').on(table.userId),
+    providerAccountUnique: unique('oauth_accounts_provider_provider_account_id_unique').on(
+      table.provider,
+      table.providerAccountId
+    ),
+  })
+)
+
+// Security audit trail for authentication-sensitive events
+export const securityAuditLogs = pgTable(
+  'security_audit_logs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    eventType: text('event_type').notNull(),
+    eventSeverity: text('event_severity').notNull().default('info'),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+    sessionId: text('session_id'),
+    ipAddress: text('ip_address'),
+    userAgent: text('user_agent'),
+    success: boolean('success').notNull(),
+    eventData: jsonb('event_data').$type<Record<string, unknown>>().default({}),
+    errorMessage: text('error_message'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  },
+  table => ({
+    eventTypeIdx: index('idx_security_audit_logs_event_type').on(table.eventType),
+    userIdIdx: index('idx_security_audit_logs_user_id').on(table.userId),
+    createdAtIdx: index('idx_security_audit_logs_created_at').on(table.createdAt),
+  })
+)
 
 // WebAuthn credentials table for passwordless authentication
 export const webauthnCredentials = pgTable(

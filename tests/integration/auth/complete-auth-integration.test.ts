@@ -8,33 +8,38 @@ import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest'
 import { authConfig } from '@/lib/auth/config'
 import { generateRegistrationOptions, verifyRegistrationResponse } from '@/lib/auth/webauthn'
 import { sql } from '@/lib/db/config'
-import type { AuthUser } from '@/types/auth'
+
+interface TestAuthUser {
+  id: string
+  email: string
+  name?: string | null
+  github_login?: string | null
+}
 
 // Test database setup
 async function setupTestDatabase() {
-  // Create test user table if not exists (using test database)
+  // Keep focused local runs usable even when the migration script was not invoked first.
   await sql`
-    CREATE TABLE IF NOT EXISTS test_users (
+    CREATE TABLE IF NOT EXISTS users (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      github_id INTEGER UNIQUE,
+      github_login TEXT,
       email TEXT UNIQUE NOT NULL,
-      display_name TEXT,
+      name TEXT,
       username TEXT,
-      github_username TEXT,
-      email_verified BOOLEAN DEFAULT false,
-      two_factor_enabled BOOLEAN DEFAULT false,
-      recovery_email TEXT,
-      locked_at TIMESTAMP,
-      failed_login_attempts INTEGER DEFAULT 0,
       last_login_at TIMESTAMP,
+      avatar_url TEXT,
+      profile JSONB DEFAULT '{}',
+      preferences JSONB,
       created_at TIMESTAMP DEFAULT NOW(),
       updated_at TIMESTAMP DEFAULT NOW()
     )
   `
 
   await sql`
-    CREATE TABLE IF NOT EXISTS test_oauth_accounts (
+    CREATE TABLE IF NOT EXISTS oauth_accounts (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID REFERENCES test_users(id) ON DELETE CASCADE,
+      user_id UUID REFERENCES users(id) ON DELETE CASCADE,
       provider TEXT NOT NULL,
       provider_account_id TEXT NOT NULL,
       access_token TEXT,
@@ -52,28 +57,24 @@ async function setupTestDatabase() {
   `
 
   await sql`
-    CREATE TABLE IF NOT EXISTS test_webauthn_credentials (
+    CREATE TABLE IF NOT EXISTS webauthn_credentials (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID REFERENCES test_users(id) ON DELETE CASCADE,
+      user_id UUID REFERENCES users(id) ON DELETE CASCADE,
       credential_id TEXT UNIQUE NOT NULL,
       public_key BYTEA NOT NULL,
       counter BIGINT NOT NULL DEFAULT 0,
-      device_type TEXT,
       device_name TEXT,
-      backed_up BOOLEAN DEFAULT false,
-      transports TEXT[],
       created_at TIMESTAMP DEFAULT NOW(),
-      last_used_at TIMESTAMP,
-      is_active BOOLEAN DEFAULT true
+      last_used_at TIMESTAMP
     )
   `
 
   await sql`
-    CREATE TABLE IF NOT EXISTS test_security_audit_logs (
+    CREATE TABLE IF NOT EXISTS security_audit_logs (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       event_type TEXT NOT NULL,
       event_severity TEXT NOT NULL DEFAULT 'info',
-      user_id UUID REFERENCES test_users(id) ON DELETE SET NULL,
+      user_id UUID REFERENCES users(id) ON DELETE SET NULL,
       session_id TEXT,
       ip_address INET,
       user_agent TEXT,
@@ -85,10 +86,10 @@ async function setupTestDatabase() {
 }
 
 async function cleanupTestDatabase() {
-  await sql`DROP TABLE IF EXISTS test_security_audit_logs CASCADE`
-  await sql`DROP TABLE IF EXISTS test_webauthn_credentials CASCADE`
-  await sql`DROP TABLE IF EXISTS test_oauth_accounts CASCADE`
-  await sql`DROP TABLE IF EXISTS test_users CASCADE`
+  await sql`
+    TRUNCATE TABLE security_audit_logs, oauth_accounts, webauthn_credentials, users
+    RESTART IDENTITY CASCADE
+  `
 }
 
 // Mock data factories
@@ -130,6 +131,10 @@ function createMockAccount(): Account {
   }
 }
 
+function eventData(value: unknown): Record<string, unknown> {
+  return typeof value === 'string' ? JSON.parse(value) : (value as Record<string, unknown>)
+}
+
 describe('Complete Authentication Integration', () => {
   beforeAll(async () => {
     await setupTestDatabase()
@@ -141,10 +146,7 @@ describe('Complete Authentication Integration', () => {
 
   beforeEach(async () => {
     // Clean test data before each test
-    await sql`DELETE FROM test_security_audit_logs`
-    await sql`DELETE FROM test_webauthn_credentials`
-    await sql`DELETE FROM test_oauth_accounts`
-    await sql`DELETE FROM test_users`
+    await cleanupTestDatabase()
   })
 
   describe('OAuth + Database Integration', () => {
@@ -168,17 +170,17 @@ describe('Complete Authentication Integration', () => {
 
         // Verify user was created in database
         const users = await sql`
-          SELECT * FROM test_users WHERE email = ${mockUser.email}
+          SELECT * FROM users WHERE email = ${mockUser.email}
         `
         expect(users).toHaveLength(1)
 
-        const user = users[0] as AuthUser
+        const user = users[0] as TestAuthUser
         expect(user.email).toBe(mockUser.email)
-        expect(user.github_username).toBe(mockProfile.login)
+        expect(user.github_login).toBe(mockProfile.login)
 
         // Verify OAuth account was created
         const accounts = await sql`
-          SELECT * FROM test_oauth_accounts WHERE user_id = ${user.id}
+          SELECT * FROM oauth_accounts WHERE user_id = ${user.id}
         `
         expect(accounts).toHaveLength(1)
 
@@ -211,9 +213,11 @@ describe('Complete Authentication Integration', () => {
           providerAccountId: 'google-67890',
         }
         const googleProfile = {
+          id: 'google-67890',
           sub: 'google-67890',
           name: 'Test User',
           email: 'test@example.com',
+          verified_email: true,
           picture: 'https://google.com/avatar.jpg',
         }
 
@@ -227,13 +231,13 @@ describe('Complete Authentication Integration', () => {
 
         // Verify only one user exists
         const users = await sql`
-          SELECT * FROM test_users WHERE email = ${initialUser.email}
+          SELECT * FROM users WHERE email = ${initialUser.email}
         `
         expect(users).toHaveLength(1)
 
         // Verify both OAuth accounts exist
         const accounts = await sql`
-          SELECT * FROM test_oauth_accounts WHERE user_id = ${users[0].id}
+          SELECT * FROM oauth_accounts WHERE user_id = ${users[0].id}
         `
         expect(accounts).toHaveLength(2)
 
@@ -260,12 +264,12 @@ describe('Complete Authentication Integration', () => {
 
         // Should still have only one user and one account
         const users = await sql`
-          SELECT * FROM test_users WHERE email = ${user.email}
+          SELECT * FROM users WHERE email = ${user.email}
         `
         expect(users).toHaveLength(1)
 
         const accounts = await sql`
-          SELECT * FROM test_oauth_accounts WHERE user_id = ${users[0].id}
+          SELECT * FROM oauth_accounts WHERE user_id = ${users[0].id}
         `
         expect(accounts).toHaveLength(1)
       }
@@ -287,7 +291,9 @@ describe('Complete Authentication Integration', () => {
       expect(options).toBeDefined()
       expect(options.challenge).toBeTruthy()
       expect(options.rp.name).toBe('Contribux')
-      expect(options.user.id).toBe(userId)
+      expect([options.user.id, Buffer.from(options.user.id, 'base64url').toString()]).toContain(
+        userId
+      )
       expect(options.user.name).toBe(userEmail)
       expect(options.user.displayName).toBe(userName)
       expect(options.pubKeyCredParams).toHaveLength(2)
@@ -321,37 +327,36 @@ describe('Complete Authentication Integration', () => {
     test('should store WebAuthn credential in database', async () => {
       // Create test user first
       const userResult = await sql`
-        INSERT INTO test_users (email, display_name, username)
-        VALUES ('webauthn@example.com', 'WebAuthn User', 'webauthnuser')
+        INSERT INTO users (email, name, username, github_login)
+        VALUES ('webauthn@example.com', 'WebAuthn User', 'webauthnuser', 'webauthnuser')
         RETURNING *
       `
-      const user = userResult[0] as AuthUser
+      const user = userResult[0] as TestAuthUser
 
       // Store WebAuthn credential
+      const publicKey = Buffer.from('mock-public-key').toString('base64')
       await sql`
-        INSERT INTO test_webauthn_credentials (
-          user_id, credential_id, public_key, counter, device_type, device_name
+        INSERT INTO webauthn_credentials (
+          user_id, credential_id, public_key, counter, device_name
         )
         VALUES (
           ${user.id},
           'credential-123',
-          decode('mock-public-key', 'base64'),
+          decode(${publicKey}, 'base64'),
           0,
-          'platform',
           'Test Device'
         )
       `
 
       // Verify credential was stored
       const credentials = await sql`
-        SELECT * FROM test_webauthn_credentials WHERE user_id = ${user.id}
+        SELECT * FROM webauthn_credentials WHERE user_id = ${user.id}
       `
       expect(credentials).toHaveLength(1)
 
       const credential = credentials[0]
       expect(credential.credential_id).toBe('credential-123')
-      expect(credential.device_type).toBe('platform')
-      expect(credential.is_active).toBe(true)
+      expect(credential.device_name).toBe('Test Device')
     })
   })
 
@@ -359,14 +364,14 @@ describe('Complete Authentication Integration', () => {
     test('should create session with user and provider information', async () => {
       // Create test user with OAuth account
       const userResult = await sql`
-        INSERT INTO test_users (email, display_name, github_username, email_verified)
-        VALUES ('session@example.com', 'Session User', 'sessionuser', true)
+        INSERT INTO users (email, name, username, github_login)
+        VALUES ('session@example.com', 'Session User', 'sessionuser', 'sessionuser')
         RETURNING *
       `
-      const user = userResult[0] as AuthUser
+      const user = userResult[0] as TestAuthUser
 
       await sql`
-        INSERT INTO test_oauth_accounts (user_id, provider, provider_account_id, is_primary)
+        INSERT INTO oauth_accounts (user_id, provider, provider_account_id, is_primary)
         VALUES (${user.id}, 'github', 'github-123', true)
       `
 
@@ -379,7 +384,7 @@ describe('Complete Authentication Integration', () => {
           user: {
             id: user.id,
             email: user.email,
-            name: user.display_name,
+            name: user.name,
           },
           expires: new Date(Date.now() + 86400000).toISOString(),
         }
@@ -444,7 +449,7 @@ describe('Complete Authentication Integration', () => {
 
         // Check for security audit log
         const logs = await sql`
-          SELECT * FROM test_security_audit_logs 
+          SELECT * FROM security_audit_logs
           WHERE event_type = 'login_success'
         `
 
@@ -452,7 +457,7 @@ describe('Complete Authentication Integration', () => {
 
         const log = logs[0]
         expect(log.success).toBe(true)
-        expect(JSON.parse(log.event_data)).toMatchObject({
+        expect(eventData(log.event_data)).toMatchObject({
           provider: 'github',
           new_user: true,
         })
@@ -480,7 +485,7 @@ describe('Complete Authentication Integration', () => {
 
         // Check for OAuth linking log
         const logs = await sql`
-          SELECT * FROM test_security_audit_logs 
+          SELECT * FROM security_audit_logs
           WHERE event_type = 'oauth_link'
         `
 
@@ -488,7 +493,7 @@ describe('Complete Authentication Integration', () => {
 
         const log = logs[0]
         expect(log.success).toBe(true)
-        expect(JSON.parse(log.event_data)).toMatchObject({
+        expect(eventData(log.event_data)).toMatchObject({
           provider: 'google',
           linked_account_id: 'google-67890',
         })
@@ -606,7 +611,7 @@ describe('Complete Authentication Integration', () => {
 
         // Verify all users were created
         const createdUsers = await sql`
-          SELECT * FROM test_users WHERE email LIKE 'concurrent%@example.com'
+          SELECT * FROM users WHERE email LIKE 'concurrent%@example.com'
         `
         expect(createdUsers).toHaveLength(5)
       }

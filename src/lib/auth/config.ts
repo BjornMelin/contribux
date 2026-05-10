@@ -4,24 +4,40 @@ import Google from 'next-auth/providers/google'
 
 import { sql } from '@/lib/db/config'
 import { env, isDevelopment, isProduction } from '@/lib/validation/env'
-import type { User as AuthUser, OAuthProvider } from '@/types/auth'
-import {
-  extractGitHubUserData,
-  extractGoogleUserData,
-  type GitHubProfile,
-  type GoogleProfile,
-  parseOAuthProfile,
-} from '@/types/oauth'
+import type { OAuthProvider } from '@/types/auth'
 
 // Database query result interfaces
-interface UserQueryResult extends AuthUser {
-  connected_providers: string[]
-  primary_provider: OAuthProvider
+interface DatabaseUser {
+  id: string
+  email: string | null
+  name: string | null
+  username: string
+  github_id: number | null
+  github_login: string | null
+  profile: Record<string, unknown> | null
+  created_at?: Date
+  updated_at?: Date
 }
 
-interface ExistingAccountResult extends AuthUser {
+interface UserQueryResult extends DatabaseUser {
+  connected_providers: string[] | null
+  primary_provider: OAuthProvider | null
+}
+
+interface ExistingAccountResult extends DatabaseUser {
   provider: OAuthProvider
   provider_account_id: string
+}
+
+interface OAuthUserData {
+  email: string
+  emailVerified: boolean
+  name: string
+  username: string
+  avatarUrl: string | null
+  githubId: number | null
+  githubLogin: string | null
+  profile: Record<string, unknown>
 }
 
 /**
@@ -89,46 +105,48 @@ export const authConfig: AuthOptions = {
 
     async session({ session, token }): Promise<Session> {
       if (token.sub) {
-        // Fetch fresh user data with provider information
-        const userResult = await sql`
-          SELECT u.id, u.email, u.display_name, u.username, 
-                 u.github_username, u.email_verified, u.two_factor_enabled,
-                 u.recovery_email, u.locked_at, u.failed_login_attempts, u.last_login_at,
-                 u.created_at, u.updated_at,
-                 array_agg(DISTINCT oa.provider) FILTER (WHERE oa.provider IS NOT NULL) as connected_providers,
-                 oa_primary.provider as primary_provider
-          FROM users u
-          LEFT JOIN oauth_accounts oa ON u.id = oa.user_id
-          LEFT JOIN oauth_accounts oa_primary ON u.id = oa_primary.user_id AND oa_primary.is_primary = true
-          WHERE u.id = ${token.sub}
-          GROUP BY u.id, u.email, u.display_name, u.username, u.github_username, 
-                   u.email_verified, u.two_factor_enabled, u.recovery_email, u.locked_at, 
-                   u.failed_login_attempts, u.last_login_at, u.created_at, u.updated_at, 
-                   oa_primary.provider
-          LIMIT 1
-        `
+        try {
+          // Fetch fresh user data with provider information
+          const userResult = await sql`
+            SELECT u.id, u.email, u.name, u.username, u.github_id, u.github_login,
+                   u.profile, u.created_at, u.updated_at,
+                   array_agg(DISTINCT oa.provider) FILTER (WHERE oa.provider IS NOT NULL) as connected_providers,
+                   oa_primary.provider as primary_provider
+            FROM users u
+            LEFT JOIN oauth_accounts oa ON u.id = oa.user_id
+            LEFT JOIN oauth_accounts oa_primary ON u.id = oa_primary.user_id AND oa_primary.is_primary = true
+            WHERE u.id = ${token.sub}
+            GROUP BY u.id, u.email, u.name, u.username, u.github_id, u.github_login,
+                     u.profile, u.created_at, u.updated_at, oa_primary.provider
+            LIMIT 1
+          `
 
-        if ((userResult as UserQueryResult[]).length > 0) {
-          const user = (userResult as UserQueryResult[])[0]
+          if ((userResult as UserQueryResult[]).length > 0) {
+            const user = (userResult as UserQueryResult[])[0]
 
-          // Return new session object that matches NextAuth Session type
-          const userUpdate: typeof session.user = {
-            ...session.user,
-            id: token.sub,
-            email: String(user.email),
-            connectedProviders: user.connected_providers || [],
-            primaryProvider: user.primary_provider || 'github',
+            // Return new session object that matches NextAuth Session type
+            const userUpdate: typeof session.user = {
+              ...session.user,
+              id: token.sub,
+              email: String(user.email),
+              name: user.name || user.username,
+              githubId: user.github_id ?? undefined,
+              connectedProviders: user.connected_providers || [],
+              primaryProvider: user.primary_provider || 'github',
+            }
+
+            // Only add githubUsername if it exists to satisfy exactOptionalPropertyTypes
+            if (user.github_login) {
+              userUpdate.githubUsername = String(user.github_login)
+            }
+
+            return {
+              ...session,
+              user: userUpdate,
+            }
           }
-
-          // Only add githubUsername if it exists to satisfy exactOptionalPropertyTypes
-          if (user.githubUsername) {
-            userUpdate.githubUsername = String(user.githubUsername)
-          }
-
-          return {
-            ...session,
-            user: userUpdate,
-          }
+        } catch (_error) {
+          // Fall back to the existing session payload if fresh user enrichment is unavailable.
         }
       }
 
@@ -221,7 +239,7 @@ interface SignInParams {
 
 interface SignInResult {
   success: boolean
-  user?: AuthUser
+  user?: DatabaseUser
   error?: string
   requiresVerification?: boolean
 }
@@ -263,7 +281,7 @@ async function handleMultiProviderSignIn({
 
     if ((existingUserResult as unknown[]).length > 0) {
       // User exists with same email - implement account linking
-      const existingUser = (existingUserResult as unknown[])[0] as AuthUser
+      const existingUser = (existingUserResult as unknown[])[0] as DatabaseUser
       return await linkAccountToExistingUser(existingUser, account, profile)
     }
 
@@ -278,7 +296,7 @@ async function handleMultiProviderSignIn({
  * Link OAuth account to existing user
  */
 async function linkAccountToExistingUser(
-  existingUser: AuthUser,
+  existingUser: DatabaseUser,
   account: Account,
   profile?: Profile
 ): Promise<SignInResult> {
@@ -352,22 +370,25 @@ async function createNewUserWithOAuth(
     // Create new user
     const newUserResult = await sql`
       INSERT INTO users (
-        email, display_name, username, github_username,
-        email_verified, created_at, updated_at
+        email, name, username, github_id, github_login,
+        avatar_url, profile, last_login_at, created_at, updated_at
       )
       VALUES (
         ${userData.email},
-        ${userData.displayName},
+        ${userData.name},
         ${userData.username},
-        ${userData.githubUsername},
-        ${userData.emailVerified},
+        ${userData.githubId},
+        ${userData.githubLogin},
+        ${userData.avatarUrl},
+        ${JSON.stringify(userData.profile)}::jsonb,
+        CURRENT_TIMESTAMP,
         CURRENT_TIMESTAMP,
         CURRENT_TIMESTAMP
       )
       RETURNING *
     `
 
-    const newUser = (newUserResult as unknown[])[0] as AuthUser
+    const newUser = (newUserResult as unknown[])[0] as DatabaseUser
 
     // Create OAuth account as primary
     await sql`
@@ -414,59 +435,102 @@ function extractUserDataFromProfile(
   provider: string,
   user: SignInParams['user'],
   profile?: Profile
-) {
-  const baseData = {
-    email: user.email,
+): OAuthUserData {
+  const email = user.email || ''
+  const baseData: OAuthUserData = {
+    email,
     emailVerified: true,
-    displayName: user.name || '',
-    username: '',
-    githubUsername: null as string | null,
+    name: user.name || email || 'Authenticated User',
+    username: normalizeUsername(
+      email.split('@')[0] || user.name || accountFallbackId(provider, user.id)
+    ),
+    avatarUrl: user.image || null,
+    githubId: null,
+    githubLogin: null,
+    profile: {
+      provider,
+      emailVerified: true,
+    },
   }
 
   if (!profile) {
+    return baseData
+  }
+
+  const profileRecord = profile as Record<string, unknown>
+
+  if (provider === 'github') {
+    const githubId = Number(profileRecord.id ?? accountFallbackId(provider, user.id))
+    const login = stringValue(profileRecord.login) || baseData.username
     return {
       ...baseData,
-      username: user.email?.split('@')[0] || user.name?.toLowerCase().replace(/\s+/g, '') || '',
+      email: stringValue(profileRecord.email) || email,
+      emailVerified: Boolean(profileRecord.email),
+      name: stringValue(profileRecord.name) || login,
+      username: normalizeUsername(login),
+      avatarUrl: stringValue(profileRecord.avatar_url) || user.image || null,
+      githubId: Number.isFinite(githubId) ? githubId : null,
+      githubLogin: login,
+      profile: {
+        provider,
+        bio: profileRecord.bio ?? null,
+        company: profileRecord.company ?? null,
+        location: profileRecord.location ?? null,
+        website: profileRecord.blog ?? null,
+        publicRepos: numberValue(profileRecord.public_repos),
+        publicGists: numberValue(profileRecord.public_gists),
+        followers: numberValue(profileRecord.followers),
+        following: numberValue(profileRecord.following),
+        emailVerified: Boolean(profileRecord.email),
+      },
     }
   }
 
-  const parsedProfile = parseOAuthProfile(provider, profile)
-  if (!parsedProfile) {
+  if (provider === 'google') {
     return {
       ...baseData,
-      username: user.email?.split('@')[0] || user.name?.toLowerCase().replace(/\s+/g, '') || '',
+      email: stringValue(profileRecord.email) || email,
+      emailVerified: Boolean(profileRecord.verified_email ?? profileRecord.email_verified),
+      name: stringValue(profileRecord.name) || baseData.name,
+      username: normalizeUsername(
+        stringValue(profileRecord.email)?.split('@')[0] ||
+          stringValue(profileRecord.name) ||
+          baseData.username
+      ),
+      avatarUrl: stringValue(profileRecord.picture) || user.image || null,
+      profile: {
+        provider,
+        locale: profileRecord.locale ?? null,
+        hostedDomain: profileRecord.hd ?? null,
+        emailVerified: Boolean(profileRecord.verified_email ?? profileRecord.email_verified),
+      },
     }
   }
 
-  switch (provider) {
-    case 'github': {
-      const githubData = extractGitHubUserData(parsedProfile as GitHubProfile)
-      return {
-        email: githubData.email,
-        emailVerified: githubData.emailVerified,
-        displayName: githubData.name,
-        username: githubData.username,
-        githubUsername: githubData.githubUsername,
-      }
-    }
+  return baseData
+}
 
-    case 'google': {
-      const googleData = extractGoogleUserData(parsedProfile as GoogleProfile)
-      return {
-        email: googleData.email,
-        emailVerified: googleData.emailVerified,
-        displayName: googleData.name,
-        username: googleData.username,
-        githubUsername: null,
-      }
-    }
+function stringValue(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value : null
+}
 
-    default:
-      return {
-        ...baseData,
-        username: user.email?.split('@')[0] || user.name?.toLowerCase().replace(/\s+/g, '') || '',
-      }
-  }
+function numberValue(value: unknown): number | null {
+  const number = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(number) ? number : null
+}
+
+function normalizeUsername(value: string | null | undefined): string {
+  const normalized = (value || 'user')
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 50)
+
+  return normalized || 'user'
+}
+
+function accountFallbackId(provider: string, userId: string | undefined): string {
+  return userId || `${provider}-user`
 }
 
 /**
@@ -495,25 +559,46 @@ async function updateUserProfileFromProvider(userId: string, provider: string, p
   if (!profile) return
 
   try {
-    const parsedProfile = parseOAuthProfile(provider, profile)
-    if (!parsedProfile) return
+    const profileRecord = profile as Record<string, unknown>
 
     if (provider === 'github') {
-      const githubProfile = parsedProfile as GitHubProfile
+      const githubId = Number(profileRecord.id)
+      const githubLogin = stringValue(profileRecord.login)
+      const profilePatch = {
+        bio: profileRecord.bio ?? null,
+        company: profileRecord.company ?? null,
+        location: profileRecord.location ?? null,
+        website: profileRecord.blog ?? null,
+        publicRepos: numberValue(profileRecord.public_repos),
+        publicGists: numberValue(profileRecord.public_gists),
+        followers: numberValue(profileRecord.followers),
+        following: numberValue(profileRecord.following),
+      }
+
       await sql`
         UPDATE users
         SET 
-          github_username = ${githubProfile.login},
-          display_name = COALESCE(${githubProfile.name}, display_name),
+          github_id = COALESCE(${Number.isFinite(githubId) ? githubId : null}, github_id),
+          github_login = COALESCE(${githubLogin}, github_login),
+          name = COALESCE(${stringValue(profileRecord.name)}, name),
+          avatar_url = COALESCE(${stringValue(profileRecord.avatar_url)}, avatar_url),
+          profile = COALESCE(profile, '{}'::jsonb) || ${JSON.stringify(profilePatch)}::jsonb,
           updated_at = CURRENT_TIMESTAMP
         WHERE id = ${userId}
       `
     } else if (provider === 'google') {
-      const googleProfile = parsedProfile as GoogleProfile
+      const profilePatch = {
+        locale: profileRecord.locale ?? null,
+        hostedDomain: profileRecord.hd ?? null,
+        emailVerified: Boolean(profileRecord.verified_email ?? profileRecord.email_verified),
+      }
+
       await sql`
         UPDATE users
         SET 
-          display_name = COALESCE(${googleProfile.name}, display_name),
+          name = COALESCE(${stringValue(profileRecord.name)}, name),
+          avatar_url = COALESCE(${stringValue(profileRecord.picture)}, avatar_url),
+          profile = COALESCE(profile, '{}'::jsonb) || ${JSON.stringify(profilePatch)}::jsonb,
           updated_at = CURRENT_TIMESTAMP
         WHERE id = ${userId}
       `
@@ -553,7 +638,7 @@ async function logSecurityEvent(event: {
         'info',
         ${event.user_id},
         ${event.success},
-        ${JSON.stringify(event.event_data || {})}
+        ${JSON.stringify(event.event_data || {})}::jsonb
       )
     `
   } catch (_error) {

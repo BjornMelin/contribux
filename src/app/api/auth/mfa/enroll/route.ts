@@ -18,10 +18,6 @@ const EnrollmentRequestSchema = MFAEnrollmentRequestSchema.extend({
  */
 export async function POST(req: NextRequest) {
   try {
-    // Parse and validate request body
-    const body = await req.json()
-    const enrollmentRequest = EnrollmentRequestSchema.parse(body)
-
     // Get authenticated user
     const authReq = req as NextRequest & {
       auth?: { user: User; session_id: string }
@@ -32,6 +28,10 @@ export async function POST(req: NextRequest) {
     }
 
     const { user } = authReq.auth
+
+    // Parse and validate request body after authentication to avoid unauthenticated schema leakage.
+    const body = await req.json()
+    const enrollmentRequest = EnrollmentRequestSchema.parse(body)
 
     // Check if user already has MFA enabled
     if (user.twoFactorEnabled) {

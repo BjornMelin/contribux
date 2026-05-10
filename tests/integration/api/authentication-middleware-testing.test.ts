@@ -10,16 +10,24 @@
  * - Security boundary testing
  */
 
-import { HttpResponse, http } from 'msw'
-import { setupServer } from 'msw/node'
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { type HttpHandler, HttpResponse, http } from 'msw'
+import { afterEach, describe, expect, it } from 'vitest'
 import { z } from 'zod'
+import { getMockManager } from '../../setup-integration-enhanced'
 
-const server = setupServer()
+const useMSWHandlers = (...handlers: HttpHandler[]) => {
+  const mockManager = getMockManager()
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
-afterEach(() => server.resetHandlers())
-afterAll(() => server.close())
+  if (!mockManager) {
+    throw new Error('Integration MSW server is not initialized')
+  }
+
+  mockManager.useMSWHandlers(...handlers)
+}
+
+afterEach(() => {
+  getMockManager()?.resetMSWHandlers()
+})
 
 // Test schemas
 const _SessionSchema = z.object({
@@ -104,7 +112,7 @@ describe('Middleware Authentication Validation', () => {
     it('should validate active session for protected routes', async () => {
       const _mockSession = generateMockSession()
 
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/search/repositories', ({ request }) => {
           const sessionCookie = request.headers.get('Cookie')
 
@@ -152,7 +160,7 @@ describe('Middleware Authentication Validation', () => {
     })
 
     it('should handle expired sessions gracefully', async () => {
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/search/opportunities', ({ request }) => {
           const sessionCookie = request.headers.get('Cookie')
 
@@ -195,7 +203,7 @@ describe('Middleware Authentication Validation', () => {
     })
 
     it('should validate session scopes and permissions', async () => {
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/auth/providers', ({ request }) => {
           const sessionCookie = request.headers.get('Cookie')
           const url = new URL(request.url)
@@ -258,7 +266,7 @@ describe('Middleware Authentication Validation', () => {
 
   describe('JWT Token Validation', () => {
     it('should validate JWT structure and claims', async () => {
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/search/repositories', ({ request }) => {
           const authHeader = request.headers.get('Authorization')
 
@@ -379,7 +387,7 @@ describe('Middleware Authentication Validation', () => {
     })
 
     it('should handle JWT signature validation failures', async () => {
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/search/opportunities', ({ request }) => {
           const authHeader = request.headers.get('Authorization')
           const token = authHeader?.split(' ')[1]
@@ -423,7 +431,7 @@ describe('Middleware Authentication Validation', () => {
 
   describe('OAuth Provider Integration', () => {
     it('should handle OAuth provider configuration requests', async () => {
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/auth/providers', () => {
           return HttpResponse.json({
             github: {
@@ -457,7 +465,7 @@ describe('Middleware Authentication Validation', () => {
     })
 
     it('should validate OAuth callback handling', async () => {
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/auth/callback/github', ({ request }) => {
           const url = new URL(request.url)
           const code = url.searchParams.get('code')
@@ -509,7 +517,7 @@ describe('Middleware Authentication Validation', () => {
     })
 
     it('should handle multiple OAuth provider management', async () => {
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/auth/providers', ({ request }) => {
           const url = new URL(request.url)
           const userId = url.searchParams.get('userId')
@@ -585,7 +593,7 @@ describe('Middleware Authentication Validation', () => {
 
   describe('Security Boundary Testing', () => {
     it('should prevent session hijacking attempts', async () => {
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/search/repositories', ({ request }) => {
           const sessionCookie = request.headers.get('Cookie')
           const userAgent = request.headers.get('User-Agent')
@@ -660,7 +668,7 @@ describe('Middleware Authentication Validation', () => {
     })
 
     it('should enforce CSRF protection', async () => {
-      server.use(
+      useMSWHandlers(
         http.post('http://localhost:3000/api/auth/set-primary', ({ request }) => {
           const csrfToken = request.headers.get('X-CSRF-Token')
           const contentType = request.headers.get('Content-Type')
@@ -734,7 +742,7 @@ describe('Middleware Authentication Validation', () => {
     })
 
     it('should validate request origin and referrer', async () => {
-      server.use(
+      useMSWHandlers(
         http.post('http://localhost:3000/api/auth/unlink', ({ request }) => {
           const origin = request.headers.get('Origin')
           const referer = request.headers.get('Referer')

@@ -79,7 +79,7 @@ describe('NextAuth API Route Protection Integration', () => {
   describe('Protected Route Access', () => {
     it('should block access to protected routes without authentication', async () => {
       const mockAuth = vi.mocked(auth)
-      mockAuth.mockResolvedValueOnce(null) // No session
+      mockAuth.mockResolvedValue(null) // No session
 
       const protectedRoutes = [
         '/api/user/profile',
@@ -119,7 +119,7 @@ describe('NextAuth API Route Protection Integration', () => {
         expires: new Date(Date.now() + 86400000).toISOString(),
       }
 
-      mockAuth.mockResolvedValueOnce(mockSession)
+      mockAuth.mockResolvedValue(mockSession)
 
       const protectedRoutes = [
         '/api/user/profile',
@@ -194,7 +194,7 @@ describe('NextAuth API Route Protection Integration', () => {
         expires: new Date(Date.now() + 86400000).toISOString(),
       }
 
-      mockAuth.mockResolvedValueOnce(adminSession)
+      mockAuth.mockResolvedValue(adminSession)
 
       const adminRoutes = ['/api/admin/users', '/api/admin/settings', '/api/admin/analytics']
 
@@ -221,7 +221,7 @@ describe('NextAuth API Route Protection Integration', () => {
         expires: new Date(Date.now() + 86400000).toISOString(),
       }
 
-      mockAuth.mockResolvedValueOnce(userSession)
+      mockAuth.mockResolvedValue(userSession)
 
       const session = await auth()
       expect(session?.user?.role).toBeUndefined()
@@ -496,7 +496,7 @@ describe('NextAuth API Route Protection Integration', () => {
         expires: new Date(Date.now() + 86400000).toISOString(),
       }
 
-      mockAuth.mockResolvedValueOnce(userSession)
+      mockAuth.mockResolvedValue(userSession)
 
       // Simulate multiple requests from the same user
       const requests = Array.from({ length: 5 }, (_, i) => ({

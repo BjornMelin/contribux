@@ -7,7 +7,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { GET as enrollGET, POST as enrollPOST } from '@/app/api/auth/mfa/enroll/route'
-import { GET as settingsGET, POST as settingsPOST } from '@/app/api/auth/mfa/settings/route'
+import { GET as settingsGET, PUT as settingsPUT } from '@/app/api/auth/mfa/settings/route'
 import { POST as verifyPOST } from '@/app/api/auth/mfa/verify/route'
 import type { User } from '@/types/auth'
 
@@ -15,8 +15,13 @@ import type { User } from '@/types/auth'
 vi.mock('@/lib/auth/mfa-service', () => ({
   enrollMFA: vi.fn(),
   verifyMFA: vi.fn(),
+  generateDeviceFingerprint: vi.fn(() => 'test-device-fingerprint'),
   getMFASettings: vi.fn(),
   updateMFASettings: vi.fn(),
+  regenerateBackupCodes: vi.fn(() => ({
+    plainText: ['BACKUP01', 'BACKUP02'],
+    hashed: ['hash-1', 'hash-2'],
+  })),
   MFA_SECURITY: {
     MAX_ATTEMPTS: 5,
     LOCKOUT_DURATION: 900,
@@ -57,6 +62,17 @@ describe('MFA API Endpoint Security', () => {
       auth: authenticated ? { user: mockUser, session_id: 'test-session' } : undefined,
     } as unknown as NextRequest & { auth?: { user: User; session_id: string } }
 
+    return request
+  }
+
+  const enableMFAForRequest = (request: NextRequest): NextRequest => {
+    ;(request as NextRequest & { auth: { user: User; session_id: string } }).auth = {
+      user: {
+        ...mockUser,
+        twoFactorEnabled: true,
+      },
+      session_id: 'test-session',
+    }
     return request
   }
 
@@ -211,10 +227,12 @@ describe('MFA API Endpoint Security', () => {
         method: 'totp',
       })
 
-      const request = createMockRequest({
-        method: 'totp',
-        token: '123456',
-      })
+      const request = enableMFAForRequest(
+        createMockRequest({
+          method: 'totp',
+          token: '123456',
+        })
+      )
 
       const startTime = Date.now()
       const response = await verifyPOST(request)
@@ -238,10 +256,12 @@ describe('MFA API Endpoint Security', () => {
         error: 'Too many verification attempts. Please try again later.',
       })
 
-      const request = createMockRequest({
-        method: 'totp',
-        token: '000000',
-      })
+      const request = enableMFAForRequest(
+        createMockRequest({
+          method: 'totp',
+          token: '000000',
+        })
+      )
 
       const response = await verifyPOST(request)
       const responseData = await response.json()
@@ -260,10 +280,12 @@ describe('MFA API Endpoint Security', () => {
         remainingAttempts: 3,
       })
 
-      const request = createMockRequest({
-        method: 'totp',
-        token: '000000',
-      })
+      const request = enableMFAForRequest(
+        createMockRequest({
+          method: 'totp',
+          token: '000000',
+        })
+      )
 
       const response = await verifyPOST(request)
       const responseData = await response.json()
@@ -283,10 +305,12 @@ describe('MFA API Endpoint Security', () => {
         lockoutDuration: 900,
       })
 
-      const request = createMockRequest({
-        method: 'totp',
-        token: '000000',
-      })
+      const request = enableMFAForRequest(
+        createMockRequest({
+          method: 'totp',
+          token: '000000',
+        })
+      )
 
       const response = await verifyPOST(request)
       const responseData = await response.json()
@@ -304,14 +328,16 @@ describe('MFA API Endpoint Security', () => {
         method: 'webauthn',
       })
 
-      const request = createMockRequest({
-        method: 'webauthn',
-        credentialId: 'test-credential-id',
-        assertion: {
-          id: 'test-credential-id',
-          response: { signature: 'test-signature' },
-        },
-      })
+      const request = enableMFAForRequest(
+        createMockRequest({
+          method: 'webauthn',
+          credentialId: 'test-credential-id',
+          assertion: {
+            id: 'test-credential-id',
+            response: { signature: 'test-signature' },
+          },
+        })
+      )
 
       const response = await verifyPOST(request)
       const responseData = await response.json()
@@ -329,10 +355,12 @@ describe('MFA API Endpoint Security', () => {
         method: 'backup_code',
       })
 
-      const request = createMockRequest({
-        method: 'backup_code',
-        token: 'BACKUP01',
-      })
+      const request = enableMFAForRequest(
+        createMockRequest({
+          method: 'backup_code',
+          token: 'BACKUP01',
+        })
+      )
 
       const response = await verifyPOST(request)
       const responseData = await response.json()
@@ -416,11 +444,10 @@ describe('MFA API Endpoint Security', () => {
       vi.mocked(updateMFASettings).mockResolvedValue(undefined)
 
       const request = createMockRequest({
-        action: 'revoke_device',
-        deviceId: 'device-1',
+        trustedDevices: ['device-2'],
       })
 
-      const response = await settingsPOST(request)
+      const response = await settingsPUT(request)
       const responseData = await response.json()
 
       expect(response.status).toBe(200)
@@ -428,8 +455,7 @@ describe('MFA API Endpoint Security', () => {
       expect(updateMFASettings).toHaveBeenCalledWith(
         mockUser.id,
         expect.objectContaining({
-          action: 'revoke_device',
-          deviceId: 'device-1',
+          trustedDevices: ['device-2'],
         })
       )
     })
@@ -439,7 +465,7 @@ describe('MFA API Endpoint Security', () => {
         action: 'invalid_action',
       })
 
-      const response = await settingsPOST(request)
+      const response = await settingsPUT(request)
       const responseData = await response.json()
 
       expect(response.status).toBe(400)
@@ -447,21 +473,16 @@ describe('MFA API Endpoint Security', () => {
     })
 
     it('should handle backup code regeneration securely', async () => {
-      const { updateMFASettings } = await import('@/lib/auth/mfa-service')
-
-      vi.mocked(updateMFASettings).mockResolvedValue(undefined)
-
       const request = createMockRequest({
-        action: 'regenerate_backup_codes',
+        regenerateBackupCodes: true,
       })
 
-      const response = await settingsPOST(request)
+      const response = await settingsPUT(request)
       const responseData = await response.json()
 
       expect(response.status).toBe(200)
       expect(responseData.success).toBe(true)
-      // Should not return backup codes in response for security
-      expect(responseData.backupCodes).toBeUndefined()
+      expect(responseData.backupCodes).toEqual(['BACKUP01', 'BACKUP02'])
     })
 
     it('should prevent unauthorized settings modifications', async () => {
@@ -471,12 +492,22 @@ describe('MFA API Endpoint Security', () => {
         id: 'different-user-id',
       }
 
+      const { getMFASettings, updateMFASettings } = await import('@/lib/auth/mfa-service')
+
+      vi.mocked(getMFASettings).mockResolvedValue({
+        enabled: true,
+        enrolledMethods: ['totp'],
+        backupCodesCount: 8,
+        trustedDevices: [],
+      })
+      vi.mocked(updateMFASettings).mockResolvedValue(undefined)
+
       const request = createMockRequest({
-        action: 'disable_mfa',
+        primaryMethod: 'totp',
       })
       request.auth = { user: otherUser, session_id: 'other-session' }
 
-      const response = await settingsPOST(request)
+      const response = await settingsPUT(request)
       const _responseData = await response.json()
 
       // Should still process (authorization happens at service level)
@@ -489,7 +520,7 @@ describe('MFA API Endpoint Security', () => {
       const endpoints = [
         { handler: enrollPOST, body: { method: 'invalid' } },
         { handler: verifyPOST, body: { method: 'invalid' } },
-        { handler: settingsPOST, body: { action: 'invalid' } },
+        { handler: settingsPUT, body: { action: 'invalid' } },
       ]
 
       for (const { handler, body } of endpoints) {
@@ -504,7 +535,7 @@ describe('MFA API Endpoint Security', () => {
     })
 
     it('should implement consistent authentication checks', async () => {
-      const endpoints = [enrollPOST, verifyPOST, settingsGET, settingsPOST]
+      const endpoints = [enrollPOST, verifyPOST, settingsGET, settingsPUT]
 
       for (const handler of endpoints) {
         const unauthenticatedRequest = createMockRequest({}, {}, false)

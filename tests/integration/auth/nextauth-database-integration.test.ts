@@ -21,6 +21,9 @@ vi.mock('@/lib/validation/env', () => ({
     DATABASE_URL: 'postgresql://test:test@localhost:5432/test',
     NODE_ENV: 'test',
   },
+  isDevelopment: () => false,
+  isProduction: () => false,
+  isTest: () => true,
 }))
 
 import type { Account, Profile } from 'next-auth'
@@ -30,6 +33,11 @@ import type { User as AuthUser } from '@/types/auth'
 
 // Get the mocked sql function
 const mockSql = vi.mocked(sql)
+
+const sqlTemplateWasCalledWith = (fragment: string) =>
+  mockSql.mock.calls.some(
+    ([templateParts]) => Array.isArray(templateParts) && templateParts.join('').includes(fragment)
+  )
 
 describe('NextAuth Database Integration', () => {
   beforeEach(() => {
@@ -118,8 +126,10 @@ describe('NextAuth Database Integration', () => {
         'github-user@example.com',
         'GitHub User',
         expect.any(String),
-        null,
-        true
+        12345,
+        'githubuser',
+        'https://avatars.githubusercontent.com/u/12345',
+        expect.stringContaining('"provider":"github"')
       )
 
       // 4. Create OAuth account
@@ -276,8 +286,10 @@ describe('NextAuth Database Integration', () => {
         },
         account: googleAccount,
         profile: {
+          id: 'google-new-account',
           sub: 'google-new-account',
           email: 'user@example.com',
+          verified_email: true,
           name: 'Existing User',
         },
       })
@@ -372,7 +384,7 @@ describe('NextAuth Database Integration', () => {
 
       // Should handle the existing account (update tokens)
       expect(result).toBe(true)
-      expect(mockSql).toHaveBeenCalledTimes(1)
+      expect(mockSql).toHaveBeenCalledTimes(2)
     })
   })
 
@@ -416,9 +428,7 @@ describe('NextAuth Database Integration', () => {
       expect(mockSql).toHaveBeenCalledTimes(2)
 
       // Verify token update query
-      expect(mockSql).toHaveBeenCalledWith(
-        expect.arrayContaining([expect.stringContaining('UPDATE oauth_accounts')])
-      )
+      expect(sqlTemplateWasCalledWith('UPDATE oauth_accounts')).toBe(true)
     })
 
     it('should handle token refresh database updates', async () => {
@@ -516,9 +526,7 @@ describe('NextAuth Database Integration', () => {
 
       expect(result?.user?.id).toBe('session-user-123')
       expect(result?.user?.connectedProviders).toEqual(['github'])
-      expect(mockSql).toHaveBeenCalledWith(
-        expect.arrayContaining([expect.stringContaining('SELECT u.id, u.email')])
-      )
+      expect(sqlTemplateWasCalledWith('SELECT u.id, u.email')).toBe(true)
     })
 
     it('should handle concurrent session queries', async () => {
@@ -628,9 +636,7 @@ describe('NextAuth Database Integration', () => {
       expect(result).toBe(true)
 
       // Verify security event logging
-      expect(mockSql).toHaveBeenCalledWith(
-        expect.arrayContaining([expect.stringContaining('INSERT INTO security_audit_logs')])
-      )
+      expect(sqlTemplateWasCalledWith('INSERT INTO security_audit_logs')).toBe(true)
     })
 
     it('should log account linking events', async () => {
@@ -645,7 +651,6 @@ describe('NextAuth Database Integration', () => {
         .mockResolvedValueOnce([existingUser]) // Existing user
         .mockResolvedValueOnce([]) // No existing provider link
         .mockResolvedValueOnce([]) // Account linked
-        .mockResolvedValueOnce([]) // Profile updated
         .mockResolvedValueOnce([]) // Security event logged
 
       const result = await authConfig.callbacks?.signIn?.({
@@ -664,7 +669,7 @@ describe('NextAuth Database Integration', () => {
       })
 
       expect(result).toBe(true)
-      expect(mockSql).toHaveBeenCalledTimes(6)
+      expect(mockSql).toHaveBeenCalledTimes(5)
     })
 
     it('should handle audit log failures gracefully', async () => {

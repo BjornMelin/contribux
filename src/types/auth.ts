@@ -337,6 +337,33 @@ export const MFAVerificationRequestSchema = z
     credentialId: z.string().optional(),
     assertion: z.object({}).optional(),
   })
+  .superRefine((request, ctx) => {
+    if ((request.method === 'totp' || request.method === 'backup_code') && !request.token) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['token'],
+        message: 'Token is required for this MFA method',
+      })
+    }
+
+    if (request.method === 'webauthn') {
+      if (!request.credentialId) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['credentialId'],
+          message: 'Credential ID is required for WebAuthn verification',
+        })
+      }
+
+      if (!request.assertion) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['assertion'],
+          message: 'Assertion is required for WebAuthn verification',
+        })
+      }
+    }
+  })
   .strict()
 
 /**

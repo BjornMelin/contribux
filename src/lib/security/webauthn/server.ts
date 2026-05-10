@@ -13,7 +13,7 @@ import {
   verifyAuthenticationResponse,
   verifyRegistrationResponse,
 } from '@simplewebauthn/server'
-import { sql } from '@/lib/db'
+import { sql } from '@/lib/db/config'
 import { getSecurityConfig } from '../feature-flags'
 
 // Types for WebAuthn credentials
@@ -267,6 +267,7 @@ export async function removeWebAuthnCredential(userId: string, credentialId: str
   const result = await sql`
     DELETE FROM webauthn_credentials 
     WHERE user_id = ${userId} AND credential_id = ${credentialId}
+    RETURNING id
   `
 
   return Array.isArray(result) ? result.length > 0 : false
