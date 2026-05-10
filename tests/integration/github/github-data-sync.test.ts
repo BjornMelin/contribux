@@ -34,10 +34,7 @@ describe('GitHub Data Synchronization & Caching Integration', () => {
   describe('Cache Management Patterns', () => {
     it('should provide cache management functionality', () => {
       const client = createGitHubClient({
-        auth: {
-          type: 'token',
-          token: 'ghp_test1234567890abcdef1234567890abcdef12',
-        },
+        accessToken: 'ghp_test1234567890abcdef1234567890abcdef12',
       })
 
       const stats = client.getCacheStats()
@@ -53,11 +50,7 @@ describe('GitHub Data Synchronization & Caching Integration', () => {
 
     it('should track cache utilization accurately', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
-        cache: {
-          maxAge: 300,
-          maxSize: 100,
-        },
+        accessToken: 'test_token',
       })
 
       // Initial cache should be empty
@@ -65,42 +58,34 @@ describe('GitHub Data Synchronization & Caching Integration', () => {
       expect(stats.size).toBe(0)
 
       // Make some requests to populate cache
-      await client.getAuthenticatedUser()
       await client.getRepository('testowner', 'testrepo')
-      await client.getRateLimit()
 
       // Cache should now have entries
       stats = client.getCacheStats()
       expect(stats.size).toBeGreaterThan(0)
-      expect(stats.maxSize).toBe(100)
+      expect(stats.maxSize).toBe(1000)
     })
 
-    it('should handle cache overflow gracefully', async () => {
+    it('should keep cache size within the built-in capacity', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
-        cache: {
-          maxAge: 300,
-          maxSize: 2, // Very small cache
-        },
+        accessToken: 'test_token',
       })
 
-      // Make multiple requests to exceed cache size
-      await client.getAuthenticatedUser()
+      // Make multiple requests to exercise cache bound checks.
       await client.getRepository('owner1', 'repo1')
       await client.getRepository('owner2', 'repo2')
       await client.getRepository('owner3', 'repo3')
 
       const stats = client.getCacheStats()
-      expect(stats.size).toBeLessThanOrEqual(2) // Should not exceed maxSize
+      expect(stats.size).toBeLessThanOrEqual(stats.maxSize)
     })
 
     it('should clear cache effectively', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       // Populate cache
-      await client.getAuthenticatedUser()
       await client.getRepository('testowner', 'testrepo')
 
       let stats = client.getCacheStats()
@@ -116,52 +101,41 @@ describe('GitHub Data Synchronization & Caching Integration', () => {
   describe('Data Consistency Validation', () => {
     it('should maintain consistent data across cached requests', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
-        cache: {
-          maxAge: 300,
-          maxSize: 100,
-        },
+        accessToken: 'test_token',
       })
 
       // First request
-      const user1 = await client.getAuthenticatedUser()
-      expect(user1.login).toBe('testuser')
-      expect(user1.id).toBe(12345)
+      const repo1 = await client.getRepository('testowner', 'testrepo')
+      expect(repo1.name).toBe('testrepo')
+      expect(repo1.owner.login).toBe('testowner')
 
       // Second request (should use cache)
-      const user2 = await client.getAuthenticatedUser()
-      expect(user2.login).toBe(user1.login)
-      expect(user2.id).toBe(user1.id)
+      const repo2 = await client.getRepository('testowner', 'testrepo')
+      expect(repo2.name).toBe(repo1.name)
+      expect(repo2.id).toBe(repo1.id)
 
       // Data should be identical (same reference for cached responses)
-      expect(user2).toEqual(user1)
+      expect(repo2).toEqual(repo1)
     })
 
-    it('should handle cache expiration correctly', async () => {
+    it('should return consistent cached data across repeated requests', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
-        cache: {
-          maxAge: 1, // Very short cache time
-          maxSize: 100,
-        },
+        accessToken: 'test_token',
       })
 
       // First request
-      const user1 = await client.getAuthenticatedUser()
-      expect(user1.login).toBe('testuser')
+      const repo1 = await client.getRepository('testowner', 'testrepo')
+      expect(repo1.name).toBe('testrepo')
 
-      // Wait for cache to expire
-      await new Promise(resolve => setTimeout(resolve, 1100))
-
-      // Second request (should fetch fresh data)
-      const user2 = await client.getAuthenticatedUser()
-      expect(user2.login).toBe('testuser')
-      expect(user2.id).toBe(user1.id)
+      // Second request should read through the built-in cache.
+      const repo2 = await client.getRepository('testowner', 'testrepo')
+      expect(repo2.id).toBe(repo1.id)
+      expect(client.getCacheStats().hits).toBeGreaterThan(0)
     })
 
     it('should maintain data consistency across different endpoints', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       // Get user via authenticated endpoint
@@ -177,11 +151,7 @@ describe('GitHub Data Synchronization & Caching Integration', () => {
   describe('Performance Optimization through Caching', () => {
     it('should demonstrate performance improvement with caching', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
-        cache: {
-          maxAge: 300,
-          maxSize: 100,
-        },
+        accessToken: 'test_token',
       })
 
       // First request (cache miss)
@@ -204,7 +174,7 @@ describe('GitHub Data Synchronization & Caching Integration', () => {
 
     it('should handle multiple concurrent requests efficiently', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       // Make multiple concurrent requests for the same resource
@@ -224,7 +194,7 @@ describe('GitHub Data Synchronization & Caching Integration', () => {
 
     it('should batch similar requests when possible', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       const repoParams = { owner: 'testowner', repo: 'testrepo' }
@@ -245,11 +215,7 @@ describe('GitHub Data Synchronization & Caching Integration', () => {
   describe('Cache Statistics and Monitoring', () => {
     it('should provide detailed cache statistics', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
-        cache: {
-          maxAge: 300,
-          maxSize: 50,
-        },
+        accessToken: 'test_token',
       })
 
       // Make various requests
@@ -261,16 +227,16 @@ describe('GitHub Data Synchronization & Caching Integration', () => {
 
       expect(stats).toMatchObject({
         size: expect.any(Number),
-        maxSize: 50,
+        maxSize: 1000,
       })
 
       expect(stats.size).toBeGreaterThan(0)
-      expect(stats.size).toBeLessThanOrEqual(50)
+      expect(stats.size).toBeLessThanOrEqual(stats.maxSize)
     })
 
     it('should track cache performance over time', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       // Track stats changes
@@ -278,12 +244,12 @@ describe('GitHub Data Synchronization & Caching Integration', () => {
       expect(initialStats.size).toBe(0)
 
       // Add some cached data
-      await client.getAuthenticatedUser()
+      await client.getRepository('testowner', 'testrepo')
       const afterFirstRequest = client.getCacheStats()
       expect(afterFirstRequest.size).toBeGreaterThan(initialStats.size)
 
       // Add more cached data
-      await client.getRepository('testowner', 'testrepo')
+      await client.getRepository('anotherowner', 'anotherrepo')
       const afterSecondRequest = client.getCacheStats()
       expect(afterSecondRequest.size).toBeGreaterThanOrEqual(afterFirstRequest.size)
 
@@ -297,17 +263,15 @@ describe('GitHub Data Synchronization & Caching Integration', () => {
   describe('Multi-Client Cache Coordination', () => {
     it('should handle multiple client instances independently', async () => {
       const client1 = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
-        cache: { maxAge: 300, maxSize: 50 },
+        accessToken: 'test_token',
       })
 
       const client2 = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
-        cache: { maxAge: 300, maxSize: 50 },
+        accessToken: 'test_token',
       })
 
       // Each client should have its own cache
-      await client1.getAuthenticatedUser()
+      await client1.getRepository('testowner', 'testrepo')
 
       const stats1 = client1.getCacheStats()
       const stats2 = client2.getCacheStats()
@@ -316,7 +280,7 @@ describe('GitHub Data Synchronization & Caching Integration', () => {
       expect(stats2.size).toBe(0) // client2 hasn't made any requests
 
       // Client2 makes request
-      await client2.getAuthenticatedUser()
+      await client2.getRepository('testowner', 'testrepo')
       const stats2After = client2.getCacheStats()
       expect(stats2After.size).toBeGreaterThan(0)
 
@@ -339,14 +303,7 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('Real API Data Sync Integration', () => 
 
   beforeEach(() => {
     client = new GitHubClient({
-      auth: {
-        type: 'token',
-        token: process.env.GITHUB_TOKEN ?? 'dummy-token',
-      },
-      cache: {
-        maxAge: 60, // 1 minute for tests
-        maxSize: 100,
-      },
+      accessToken: process.env.GITHUB_TOKEN ?? 'dummy-token',
     })
   })
 

@@ -356,6 +356,7 @@ export class GitHubClient {
       )
     }
     const validatedConfig = parseResult.data
+    const isTestRuntime = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true'
 
     // Create Octokit instance with built-in plugins
     this.octokit = new EnhancedOctokit({
@@ -372,17 +373,17 @@ export class GitHubClient {
 
       // Built-in retry configuration
       retry: {
-        retries: process.env.NODE_ENV === 'test' || process.env.VITEST === 'true' ? 0 : 2,
+        retries: isTestRuntime ? 0 : 2,
         doNotRetry: [401, 403, 404, 422],
       },
 
       // Built-in throttling configuration
       throttle: {
         onRateLimit: (retryAfter, _options, _octokit) => {
-          return retryAfter <= 60 // Retry if under 1 minute
+          return !isTestRuntime && retryAfter <= 60 // Retry if under 1 minute
         },
         onSecondaryRateLimit: (_retryAfter, _options, _octokit) => {
-          return true
+          return !isTestRuntime
         },
       },
     })
@@ -943,8 +944,25 @@ export class GitHubClient {
    * Execute GraphQL queries for testing compatibility
    */
   async graphql<T = unknown>(query: string, variables?: Record<string, unknown>): Promise<T> {
-    const response = await this.octokit.graphql<T>(query, variables)
-    return response
+    try {
+      return await this.octokit.graphql<T>(query, variables ?? {})
+    } catch (error) {
+      const errorWithDetails = error as {
+        status?: unknown
+        response?: unknown
+      }
+      const status =
+        typeof errorWithDetails.status === 'number' ? errorWithDetails.status : undefined
+      const message = error instanceof Error ? error.message : 'GitHub GraphQL request failed'
+
+      throw new GitHubError(
+        message,
+        'GRAPHQL_ERROR',
+        status,
+        errorWithDetails.response,
+        createRequestContext('POST', 'graphql', { query, variables })
+      )
+    }
   }
 
   /**

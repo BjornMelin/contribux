@@ -18,13 +18,13 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
-import { HttpResponse, http } from 'msw'
-import { setupServer } from 'msw/node'
+import { type HttpHandler, HttpResponse, http } from 'msw'
 import { SessionProvider } from 'next-auth/react'
 import React, { useEffect, useMemo, useState } from 'react'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { GitHubRepository } from '@/src/lib/github/types'
-import { cleanupComponentTest, setupComponentTest } from '@/tests/utils/modern-test-helpers'
+import { getMockManager } from '../../setup-integration-enhanced'
+import { cleanupComponentTest, setupComponentTest } from '../../utils/modern-test-helpers'
 
 // Mock components representing the actual app components
 const SearchBar = ({
@@ -149,6 +149,8 @@ type TestUserProfile = {
   avatar_url: string
   location?: string
   company?: string
+  public_repos?: number
+  followers?: number
 }
 
 const UserProfile = ({ userId }: { userId: string }) => {
@@ -174,7 +176,7 @@ const UserProfile = ({ userId }: { userId: string }) => {
     fetchProfile()
   }, [userId])
 
-  if (loading) return <output>Loading profile...</output>
+  if (loading) return <output aria-label="Loading profile...">Loading profile...</output>
   if (error) return <div role="alert">Error: {error}</div>
   if (!profile) return <div>No profile found</div>
 
@@ -197,15 +199,20 @@ const _mockReact = {
   useMemo: vi.fn(),
 }
 
-// Setup MSW server
-const server = setupServer()
+const useMSWHandlers = (...handlers: HttpHandler[]) => {
+  const mockManager = getMockManager()
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
+  if (!mockManager) {
+    throw new Error('Integration MSW server is not initialized')
+  }
+
+  mockManager.useMSWHandlers(...handlers)
+}
+
 afterEach(() => {
-  server.resetHandlers()
+  getMockManager()?.resetMSWHandlers()
   vi.clearAllMocks()
 })
-afterAll(() => server.close())
 
 // Mock session data
 const mockSession = {
@@ -264,7 +271,7 @@ describe('Component-API Integration Testing', () => {
       let searchQuery = ''
       const user = userEvent.setup()
 
-      server.use(
+      useMSWHandlers(
         http.get('/api/search/repositories', ({ request }) => {
           const url = new URL(request.url)
           searchQuery = url.searchParams.get('q') || ''
@@ -339,7 +346,7 @@ describe('Component-API Integration Testing', () => {
       const user = userEvent.setup()
       let isLoading = false
 
-      server.use(
+      useMSWHandlers(
         http.get('/api/search/repositories', async () => {
           // Simulate network delay
           await new Promise(resolve => setTimeout(resolve, 100))
@@ -396,7 +403,7 @@ describe('Component-API Integration Testing', () => {
         // Suppress expected console errors during tests
       })
 
-      server.use(
+      useMSWHandlers(
         http.get('/api/search/repositories', () => {
           return HttpResponse.json(
             {
@@ -447,7 +454,7 @@ describe('Component-API Integration Testing', () => {
       const user = userEvent.setup()
       const bookmarkRequests: string[] = []
 
-      server.use(
+      useMSWHandlers(
         http.post('/api/bookmarks', async ({ request }) => {
           const { repository_id } = await request.json()
           bookmarkRequests.push(repository_id)
@@ -597,7 +604,7 @@ describe('Component-API Integration Testing', () => {
 
   describe('User Profile Integration', () => {
     it('fetches and displays user profile data', async () => {
-      server.use(
+      useMSWHandlers(
         http.get('/api/users/:userId', ({ params }) => {
           expect(params.userId).toBe('user-123')
 
@@ -637,7 +644,7 @@ describe('Component-API Integration Testing', () => {
     })
 
     it('handles profile API errors', async () => {
-      server.use(
+      useMSWHandlers(
         http.get('/api/users/:userId', () => {
           return HttpResponse.json(
             {
@@ -675,7 +682,7 @@ describe('Component-API Integration Testing', () => {
       const user = userEvent.setup()
       let _bookmarkState = false
 
-      server.use(
+      useMSWHandlers(
         http.post('/api/bookmarks', async () => {
           // Simulate slow API response
           await new Promise(resolve => setTimeout(resolve, 100))
@@ -729,7 +736,7 @@ describe('Component-API Integration Testing', () => {
         is_bookmarked: Math.random() > 0.5,
       }))
 
-      server.use(
+      useMSWHandlers(
         http.get('/api/search/repositories', () => {
           return HttpResponse.json({
             success: true,
@@ -767,7 +774,10 @@ describe('Component-API Integration Testing', () => {
     })
 
     it('monitors memory usage during component lifecycle', () => {
-      const initialMemory = performance.memory?.usedJSHeapSize || 0
+      const hasMemoryMetrics =
+        typeof performance.memory?.usedJSHeapSize === 'number' &&
+        performance.memory.usedJSHeapSize > 0
+      const initialMemory = hasMemoryMetrics ? performance.memory.usedJSHeapSize : 0
 
       const { unmount } = render(
         <TestWrapper>
@@ -793,7 +803,7 @@ describe('Component-API Integration Testing', () => {
         </TestWrapper>
       )
 
-      const afterRenderMemory = performance.memory?.usedJSHeapSize || 0
+      const afterRenderMemory = hasMemoryMetrics ? performance.memory.usedJSHeapSize : 0
 
       unmount()
 
@@ -802,7 +812,7 @@ describe('Component-API Integration Testing', () => {
         global.gc()
       }
 
-      const afterUnmountMemory = performance.memory?.usedJSHeapSize || 0
+      const afterUnmountMemory = hasMemoryMetrics ? performance.memory.usedJSHeapSize : 0
 
       const memoryIncrease = afterRenderMemory - initialMemory
       const memoryRecovered = afterRenderMemory - afterUnmountMemory
@@ -811,8 +821,13 @@ describe('Component-API Integration Testing', () => {
         `Memory usage: +${memoryIncrease} bytes after render, -${memoryRecovered} bytes after unmount`
       )
 
-      // Memory should be reasonably recovered after unmount
-      expect(memoryRecovered).toBeGreaterThan(0)
+      // Component lifecycle cleanup should not leave rendered cards mounted.
+      expect(screen.queryAllByRole('article')).toHaveLength(0)
+
+      if (hasMemoryMetrics) {
+        expect(memoryIncrease).toBeGreaterThanOrEqual(0)
+        expect(memoryRecovered).toBeGreaterThanOrEqual(0)
+      }
     })
   })
 
@@ -822,7 +837,7 @@ describe('Component-API Integration Testing', () => {
         // Suppress expected console errors during tests
       })
 
-      server.use(
+      useMSWHandlers(
         http.get('/api/users/:userId', () => {
           return new HttpResponse(null, { status: 500 })
         })

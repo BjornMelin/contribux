@@ -3,6 +3,7 @@
  * Dedicated setup for integration tests with full service mocking and database isolation
  */
 
+import '@testing-library/jest-dom/vitest'
 import { setupIntegrationTests } from './config/enhanced-test-setup'
 
 // Setup enhanced integration test environment

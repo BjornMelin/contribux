@@ -14,7 +14,7 @@ if (typeof globalThis.fetch === 'undefined') {
   throw new Error('fetch polyfill not loaded. Ensure tests/setup.ts is properly configured.')
 }
 
-import { HttpResponse, http, passthrough } from 'msw'
+import { HttpResponse, http } from 'msw'
 import { setupServer } from 'msw/node'
 import { afterAll, afterEach, beforeAll } from 'vitest'
 
@@ -388,53 +388,7 @@ const defaultHandlers = [
     const pathname = url.pathname
     const _authHeader = request.headers.get('authorization')
 
-    // Check for edge case authentication tests that should fail
-    // These patterns indicate test-specific error scenarios that should not be handled by default handlers
-    const edgeCasePatterns = [
-      'auth-test',
-      'private-org',
-      'restricted-org',
-      'scope-test',
-      'rate-limit',
-      'permission-change',
-      'token-expiry',
-      'refresh-fail',
-      'concurrent-expiry',
-      'security-test',
-      'csrf-test',
-      'suspicious',
-      'hijack-test',
-      'multi-user',
-      'cross-user',
-      'oauth-test',
-      'oauth-scope',
-      'oauth-state',
-      'oauth-callback',
-      'auth-recovery',
-      'concurrent-auth',
-      'auth-errors',
-      'partial-auth',
-      // Add specific patterns that are causing test failures
-      'notfound/repo',
-      'test/rate-limited-unique',
-      'test/secondary-limit-unique',
-      'test/bad-credentials-unique',
-      'server-error-test/bad-gateway',
-      'server-error-test/service-unavailable',
-      'empty/response',
-      'malformed-test/non-json',
-      'html/response',
-    ]
-
-    // If this is an edge case test pattern, let test-specific handlers take precedence
-    if (edgeCasePatterns.some(pattern => pathname.includes(pattern))) {
-      // Always let test-specific handlers handle edge case patterns first
-      // This ensures test-specific error scenarios are not overridden by default success handlers
-      // Return passthrough() to continue to next handler
-      return passthrough()
-    }
-
-    // Let test-specific error handlers take precedence
+    // Let test-specific error handlers take precedence.
     if (pathname.includes('malformed-test/malformed-repo-unique')) {
       // Return malformed JSON for the malformed JSON test
       return new HttpResponse('{"invalid": json}', {
@@ -504,6 +458,36 @@ const defaultHandlers = [
     if (pathname.includes('bad-credentials-unique')) {
       // Return bad credentials error
       return HttpResponse.json({ message: 'Bad credentials' }, { status: 401 })
+    }
+
+    if (owner === 'private-org') {
+      return HttpResponse.json(
+        {
+          message: 'Resource not accessible by integration',
+          documentation_url: 'https://docs.github.com/rest',
+        },
+        { status: 403 }
+      )
+    }
+
+    if (owner === 'timeout-test') {
+      return HttpResponse.json({ message: 'Request timeout' }, { status: 408 })
+    }
+
+    if (owner === 'connection-test') {
+      return HttpResponse.json({ message: 'Connection refused' }, { status: 503 })
+    }
+
+    if (
+      owner === 'retry-test' ||
+      owner === 'outage-test' ||
+      owner === 'fallback-test' ||
+      owner === 'concurrent-error-test' ||
+      owner === 'error-tracking-test' ||
+      owner === 'rapid-error-test' ||
+      pathname.includes('unicode-test')
+    ) {
+      return HttpResponse.json({ message: 'Simulated GitHub API failure' }, { status: 500 })
     }
 
     // Handle specific test scenarios based on owner/repo combination
@@ -677,6 +661,8 @@ const defaultHandlers = [
     const perPage = Number.isNaN(Number.parseInt(perPageParam, 10))
       ? 30
       : Number.parseInt(perPageParam, 10)
+    const pageParam = url.searchParams.get('page') || '1'
+    const page = Number.isNaN(Number.parseInt(pageParam, 10)) ? 1 : Number.parseInt(pageParam, 10)
 
     // Handle specific test queries first
     if (q.startsWith('nonexistentquery12345unique')) {
@@ -722,7 +708,7 @@ const defaultHandlers = [
     // Generate multiple items for pagination tests
     const items = Array.from({ length: perPage }, (_, i) => ({
       ...defaultMockResponses.repository,
-      id: 1000 + i,
+      id: 1000 + (page - 1) * perPage + i,
       name: `${q}-${i + 1}`,
       full_name: `testowner/${q}-${i + 1}`,
       html_url: `https://github.com/testowner/${q}-${i + 1}`,
@@ -994,7 +980,10 @@ const defaultHandlers = [
   // GraphQL endpoint
   http.post(GITHUB_GRAPHQL_URL, async ({ request }) => {
     const authHeader = request.headers.get('authorization')
-    const body = (await request.json()) as { query: string; variables?: Record<string, unknown> }
+    const body = (await request.clone().json()) as {
+      query: string
+      variables?: Record<string, unknown>
+    }
 
     // Check authentication
     if (!isValidToken(authHeader)) {

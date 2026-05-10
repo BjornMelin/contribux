@@ -28,7 +28,7 @@ setupGitHubTestIsolation()
 const testFixtures = {
   githubClient: ({ task }) => {
     const client = new GitHubClient({
-      auth: { type: 'token', token: 'test_token' },
+      accessToken: 'test_token',
     })
 
     // Cleanup after test
@@ -40,8 +40,8 @@ const testFixtures = {
   },
 
   authConfigs: () => [
-    { type: 'token' as const, token: 'ghp_test_token' },
-    { type: 'token' as const, token: 'github_pat_11ABC123456789' },
+    { accessToken: 'ghp_test_token' },
+    { accessToken: 'github_pat_11ABC123456789' },
   ],
 }
 
@@ -58,25 +58,22 @@ describe('GitHub Basic Workflows Integration', () => {
   describe('Client Initialization Patterns', () => {
     it('should create client with token authentication', () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'ghp_test_token' },
+        accessToken: 'ghp_test_token',
       })
       expect(client).toBeInstanceOf(GitHubClient)
       expect(client.getCacheStats).toBeDefined()
     })
 
     // Parametric testing with test.each
-    it.each(
-      testFixtures.authConfigs()
-    )('should create client with %s authentication', authConfig => {
-      const config: GitHubClientConfig = { auth: authConfig }
-      const client = new GitHubClient(config)
+    it.each(testFixtures.authConfigs())('should create client with %s authentication', config => {
+      const client = new GitHubClient(config satisfies GitHubClientConfig)
       expect(client).toBeInstanceOf(GitHubClient)
     })
 
     // Property-based testing for configuration validation
     fcTest.prop([
       fc.record({
-        auth: fc.constant({ type: 'token', token: 'ghp_test_token' }),
+        accessToken: fc.constant('ghp_test_token'),
         baseUrl: fc.webUrl(),
         userAgent: fc.string({ minLength: 1, maxLength: 100 }),
       }),
@@ -86,7 +83,7 @@ describe('GitHub Basic Workflows Integration', () => {
 
     it('should use default configuration when none provided', () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'ghp_test_token' },
+        accessToken: 'ghp_test_token',
       })
       expect(client).toBeInstanceOf(GitHubClient)
       expect(client.getCacheStats().maxSize).toBe(1000)
@@ -96,7 +93,7 @@ describe('GitHub Basic Workflows Integration', () => {
   describe('REST API Integration Patterns', () => {
     it('should get authenticated user with proper integration', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       const user = await client.getAuthenticatedUser()
@@ -109,7 +106,7 @@ describe('GitHub Basic Workflows Integration', () => {
 
     it('should get repository with owner/repo pattern', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       const repo = await client.getRepository('testowner', 'testrepo')
@@ -123,7 +120,7 @@ describe('GitHub Basic Workflows Integration', () => {
 
     it('should get user by username', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       const user = await client.getUser('testuser')
@@ -142,10 +139,10 @@ describe('GitHub Basic Workflows Integration', () => {
       mockGitHubAPI.mockRepository(owner, repo)
 
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
-      const response = await client.getRepository({ owner, repo })
+      const response = await client.getRepository(owner, repo)
 
       expect(response).toMatchObject({
         name: repo,
@@ -158,15 +155,13 @@ describe('GitHub Basic Workflows Integration', () => {
   describe('Search and Pagination Integration', () => {
     it('should handle search operations with realistic patterns', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       const searchOptions = {
-        q: 'test',
-        sort: 'stars',
-        order: 'desc' as const,
+        query: 'test',
         page: 1,
-        per_page: 10,
+        perPage: 10,
       }
 
       const result = await client.searchRepositories(searchOptions)
@@ -180,20 +175,20 @@ describe('GitHub Basic Workflows Integration', () => {
 
     it('should handle pagination patterns', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       // Page 1
       const page1 = await client.searchRepositories({
-        q: 'javascript',
-        per_page: 5,
+        query: 'javascript',
+        perPage: 5,
         page: 1,
       })
 
       // Page 2
       const page2 = await client.searchRepositories({
-        q: 'javascript',
-        per_page: 5,
+        query: 'javascript',
+        perPage: 5,
         page: 2,
       })
 
@@ -206,7 +201,7 @@ describe('GitHub Basic Workflows Integration', () => {
   describe('Issue Management Workflows', () => {
     it('should list repository issues', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       const issues = await client.listIssues('testuser', 'test-repo', { per_page: 5 })
@@ -222,10 +217,10 @@ describe('GitHub Basic Workflows Integration', () => {
 
     it('should get single issue by number', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
-      const issue = await client.getIssue({ owner: 'testuser', repo: 'test-repo', issue_number: 1 })
+      const issue = await client.getIssue('testuser', 'test-repo', 1)
 
       expect(issue).toMatchObject({
         id: expect.any(Number),
@@ -239,7 +234,7 @@ describe('GitHub Basic Workflows Integration', () => {
   describe('Rate Limiting Integration', () => {
     it('should retrieve rate limit information', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       const rateLimit = await client.getRateLimit()
@@ -267,10 +262,7 @@ describe('GitHub Basic Workflows Integration', () => {
       const token = 'ghp_test_token'
 
       const client = new GitHubClient({
-        auth: {
-          type: 'token',
-          token,
-        },
+        accessToken: token,
       })
 
       const user = await client.getAuthenticatedUser()
@@ -284,7 +276,7 @@ describe('GitHub Basic Workflows Integration', () => {
   describe('Concurrent Operations Integration', () => {
     it('should handle concurrent requests properly', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       // Simulate concurrent requests
@@ -298,7 +290,7 @@ describe('GitHub Basic Workflows Integration', () => {
 
     it('should handle mixed API operations concurrently', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       // Mix of REST and GraphQL operations
@@ -325,14 +317,7 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('Real API Basic Workflow Integration', (
 
   beforeEach(() => {
     client = new GitHubClient({
-      auth: {
-        type: 'token',
-        token: process.env.GITHUB_TOKEN ?? 'dummy-token',
-      },
-      cache: {
-        maxAge: 60, // 1 minute for tests
-        maxSize: 100,
-      },
+      accessToken: process.env.GITHUB_TOKEN ?? 'dummy-token',
     })
   })
 
@@ -349,10 +334,8 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('Real API Basic Workflow Integration', (
 
     it('should search repositories with realistic patterns', async () => {
       const results = await client.searchRepositories({
-        q: 'language:typescript stars:>1000',
-        sort: 'stars',
-        order: 'desc',
-        per_page: 5,
+        query: 'language:typescript stars:>1000',
+        perPage: 5,
       })
 
       expect(results).toBeDefined()
@@ -364,14 +347,14 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('Real API Basic Workflow Integration', (
     it('should handle pagination in real usage', async () => {
       // Test pagination by requesting multiple pages
       const page1 = await client.searchRepositories({
-        q: 'language:javascript',
-        per_page: 10,
+        query: 'language:javascript',
+        perPage: 10,
         page: 1,
       })
 
       const page2 = await client.searchRepositories({
-        q: 'language:javascript',
-        per_page: 10,
+        query: 'language:javascript',
+        perPage: 10,
         page: 2,
       })
 
@@ -396,10 +379,7 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('Real API Basic Workflow Integration', (
   describe('Real-World Usage Patterns', () => {
     it('should create client with token auth', () => {
       const tokenClient = createGitHubClient({
-        auth: {
-          type: 'token',
-          token: 'ghp_test1234567890abcdef1234567890abcdef12',
-        },
+        accessToken: 'ghp_test1234567890abcdef1234567890abcdef12',
       })
       expect(tokenClient).toBeDefined()
       expect(tokenClient.getCacheStats).toBeDefined()
@@ -408,29 +388,19 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('Real API Basic Workflow Integration', (
 
     it('should create client with custom configuration', () => {
       const customClient = createGitHubClient({
-        auth: {
-          type: 'token',
-          token: 'ghp_test1234567890abcdef1234567890abcdef12',
-        },
+        accessToken: 'ghp_test1234567890abcdef1234567890abcdef12',
         baseUrl: 'https://api.github.enterprise.com',
         userAgent: 'custom-agent/1.0.0',
-        cache: {
-          maxAge: 600,
-          maxSize: 500,
-        },
       })
       expect(customClient).toBeDefined()
-      expect(customClient.getCacheStats().maxSize).toBe(500)
+      expect(customClient.getCacheStats().maxSize).toBe(1000)
     })
 
     it('should work with real-world authentication patterns', async () => {
-      const authPatterns = [
-        { type: 'token' as const, token: `ghp_${'x'.repeat(36)}` },
-        { type: 'token' as const, token: `github_pat_${'x'.repeat(70)}` },
-      ]
+      const authPatterns = [`ghp_${'x'.repeat(36)}`, `github_pat_${'x'.repeat(70)}`]
 
-      for (const auth of authPatterns) {
-        const client = new GitHubClient({ auth })
+      for (const accessToken of authPatterns) {
+        const client = new GitHubClient({ accessToken })
         expect(client).toBeInstanceOf(GitHubClient)
       }
     })
