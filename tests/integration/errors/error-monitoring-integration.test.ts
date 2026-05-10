@@ -206,7 +206,7 @@ describe('Error Monitoring Integration Tests', () => {
       alertingSystem.addRule({
         name: 'High Error Rate',
         description: 'Alert on high error rate',
-        condition: metrics => metrics.errorRate > 5,
+        condition: metrics => metrics.totalErrors >= 20,
         severity: 'high',
         channels: ['webhook'],
       })
@@ -235,40 +235,45 @@ describe('Error Monitoring Integration Tests', () => {
     })
 
     it('should respect alert cooldown periods', async () => {
+      vi.useFakeTimers()
       const mockSend = vi.fn().mockResolvedValue(true)
 
-      alertingSystem.addChannel({
-        name: 'test',
-        type: 'console',
-        enabled: true,
-        send: mockSend,
-      })
+      try {
+        alertingSystem.addChannel({
+          name: 'test',
+          type: 'console',
+          enabled: true,
+          send: mockSend,
+        })
 
-      alertingSystem.addRule({
-        name: 'Test Alert',
-        description: 'Test',
-        condition: () => true,
-        severity: 'medium',
-        channels: ['test'],
-        cooldownMinutes: 5,
-      })
+        alertingSystem.addRule({
+          name: 'Test Alert',
+          description: 'Test',
+          condition: () => true,
+          severity: 'medium',
+          channels: ['test'],
+          cooldownMinutes: 5,
+        })
 
-      const metrics = errorMonitor.getMetrics()
+        const metrics = errorMonitor.getMetrics()
 
-      // First alert
-      await alertingSystem.checkAlerts(metrics)
-      expect(mockSend).toHaveBeenCalledTimes(1)
+        // First alert
+        await alertingSystem.checkAlerts(metrics)
+        expect(mockSend).toHaveBeenCalledTimes(1)
 
-      // Second alert should be suppressed
-      await alertingSystem.checkAlerts(metrics)
-      expect(mockSend).toHaveBeenCalledTimes(1)
+        // Second alert should be suppressed
+        await alertingSystem.checkAlerts(metrics)
+        expect(mockSend).toHaveBeenCalledTimes(1)
 
-      // Advance time
-      vi.advanceTimersByTime(6 * 60 * 1000)
+        // Advance time
+        vi.advanceTimersByTime(6 * 60 * 1000)
 
-      // Third alert should go through
-      await alertingSystem.checkAlerts(metrics)
-      expect(mockSend).toHaveBeenCalledTimes(2)
+        // Third alert should go through
+        await alertingSystem.checkAlerts(metrics)
+        expect(mockSend).toHaveBeenCalledTimes(2)
+      } finally {
+        vi.useRealTimers()
+      }
     })
   })
 
@@ -355,7 +360,9 @@ describe('Error Monitoring Integration Tests', () => {
       const report = await dashboard.getHealthReport()
 
       expect(report.overall.errorVelocity).toBeGreaterThan(0)
-      expect(report.recommendations).toContain(expect.stringContaining('Error trend is increasing'))
+      expect(report.recommendations).toEqual(
+        expect.arrayContaining([expect.stringContaining('Error trend is increasing')])
+      )
     })
 
     it('should detect error patterns', async () => {

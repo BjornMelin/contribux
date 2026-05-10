@@ -19,6 +19,7 @@ interface RequestMetrics {
   statusCode: number
   duration: number
   timestamp: number
+  normalizedEndpoint?: string
   userAgent?: string
   userId?: string
   error?: string
@@ -83,6 +84,7 @@ const defaultConfig: MonitoringConfig = {
 // Storage for metrics (in production, this would be a time-series database)
 class MetricsStore {
   private requests: RequestMetrics[] = []
+  private requestsByEndpoint: Map<string, RequestMetrics[]> = new Map()
   private endpoints: Map<string, EndpointMetrics> = new Map()
   private errors: ErrorMetrics[] = []
   private health: Map<string, HealthMetrics> = new Map()
@@ -94,19 +96,26 @@ class MetricsStore {
 
   // Record request metrics
   recordRequest(metrics: RequestMetrics): void {
-    this.requests.push(metrics)
-    this.updateEndpointMetrics(metrics)
+    const endpoint = this.normalizeEndpoint(metrics.url)
+    const request = { ...metrics, normalizedEndpoint: endpoint }
+    this.requests.push(request)
+
+    const endpointRequests = this.requestsByEndpoint.get(endpoint) ?? []
+    endpointRequests.push(request)
+    this.requestsByEndpoint.set(endpoint, endpointRequests)
+
+    this.updateEndpointMetrics(request, endpoint, endpointRequests)
 
     // Record errors
-    if (metrics.statusCode >= 400) {
+    if (request.statusCode >= 400) {
       const errorMetrics: ErrorMetrics = {
-        type: this.categorizeError(metrics.statusCode),
-        endpoint: this.normalizeEndpoint(metrics.url),
-        statusCode: metrics.statusCode,
-        message: metrics.error || `HTTP ${metrics.statusCode}`,
-        timestamp: metrics.timestamp,
+        type: this.categorizeError(request.statusCode),
+        endpoint,
+        statusCode: request.statusCode,
+        message: request.error || `HTTP ${request.statusCode}`,
+        timestamp: request.timestamp,
         count: 1,
-        userId: metrics.userId,
+        userId: request.userId,
       }
       this.recordError(errorMetrics)
     }
@@ -114,8 +123,11 @@ class MetricsStore {
     this.checkAlerts()
   }
 
-  private updateEndpointMetrics(request: RequestMetrics): void {
-    const endpoint = this.normalizeEndpoint(request.url)
+  private updateEndpointMetrics(
+    request: RequestMetrics,
+    endpoint: string,
+    endpointRequests: RequestMetrics[]
+  ): void {
     const existing = this.endpoints.get(endpoint) || {
       endpoint,
       totalRequests: 0,
@@ -139,7 +151,8 @@ class MetricsStore {
     }
 
     // Calculate response time metrics
-    const recentRequests = this.getRecentRequestsForEndpoint(endpoint, 5 * 60 * 1000) // Last 5 minutes
+    const cutoff = Date.now() - 5 * 60 * 1000
+    const recentRequests = endpointRequests.filter(r => r.timestamp > cutoff)
     const responseTimes = recentRequests.map(r => r.duration).sort((a, b) => a - b)
 
     if (responseTimes.length > 0) {
@@ -266,9 +279,7 @@ class MetricsStore {
 
   private getRecentRequestsForEndpoint(endpoint: string, timeWindow: number): RequestMetrics[] {
     const cutoff = Date.now() - timeWindow
-    return this.requests.filter(
-      r => this.normalizeEndpoint(r.url) === endpoint && r.timestamp > cutoff
-    )
+    return (this.requestsByEndpoint.get(endpoint) ?? []).filter(r => r.timestamp > cutoff)
   }
 
   private getRecentHealthChecks(endpoint: string, _timeWindow: number): HealthMetrics[] {
@@ -290,6 +301,14 @@ class MetricsStore {
 
         // Clean old requests
         this.requests = this.requests.filter(r => r.timestamp > cutoff)
+        for (const [endpoint, requests] of this.requestsByEndpoint) {
+          const retainedRequests = requests.filter(r => r.timestamp > cutoff)
+          if (retainedRequests.length > 0) {
+            this.requestsByEndpoint.set(endpoint, retainedRequests)
+          } else {
+            this.requestsByEndpoint.delete(endpoint)
+          }
+        }
 
         // Clean old errors
         this.errors = this.errors.filter(e => e.timestamp > cutoff)
@@ -502,12 +521,54 @@ export class APIMonitoring {
 
 // Global monitoring instance - lazy loaded to avoid build-time issues
 let apiMonitoringInstance: APIMonitoring | null = null
+
+function getAPIMonitoringInstance(): APIMonitoring {
+  if (!apiMonitoringInstance) {
+    apiMonitoringInstance = new APIMonitoring()
+  }
+  return apiMonitoringInstance
+}
+
 export const apiMonitoring = new Proxy({} as APIMonitoring, {
-  get(_target, prop) {
+  get(target, prop, receiver) {
+    if (Reflect.has(target, prop)) {
+      return Reflect.get(target, prop, receiver)
+    }
+    const instance = getAPIMonitoringInstance()
+    const value = Reflect.get(instance, prop)
+    return typeof value === 'function' ? value.bind(instance) : value
+  },
+  getOwnPropertyDescriptor(target, prop) {
+    const targetDescriptor = Reflect.getOwnPropertyDescriptor(target, prop)
+    if (targetDescriptor) return targetDescriptor
+
+    const instance = getAPIMonitoringInstance()
+    const value = Reflect.get(instance, prop)
+    if (value === undefined) return undefined
+
+    return {
+      configurable: true,
+      enumerable: false,
+      value: typeof value === 'function' ? value.bind(instance) : value,
+      writable: true,
+    }
+  },
+  defineProperty(target, prop, attributes) {
+    return Reflect.defineProperty(target, prop, attributes)
+  },
+  set(target, prop, value, receiver) {
+    return Reflect.set(target, prop, value, receiver)
+  },
+  has(target, prop) {
+    if (Reflect.has(target, prop)) return true
+    const instance = getAPIMonitoringInstance()
+    return prop in instance
+  },
+  getPrototypeOf() {
     if (!apiMonitoringInstance) {
       apiMonitoringInstance = new APIMonitoring()
     }
-    return Reflect.get(apiMonitoringInstance, prop)
+    return APIMonitoring.prototype
   },
 })
 

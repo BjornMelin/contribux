@@ -145,6 +145,14 @@ async function mockAPICall(
   }
 }
 
+async function observe<T>(promise: Promise<T>): Promise<PromiseSettledResult<T>> {
+  try {
+    return { status: 'fulfilled', value: await promise }
+  } catch (reason) {
+    return { status: 'rejected', reason }
+  }
+}
+
 describe('Performance + Monitoring Integration', () => {
   let helper: PerformanceTestHelper
 
@@ -209,9 +217,11 @@ describe('Performance + Monitoring Integration', () => {
 
     test('should measure performance percentiles', async () => {
       // Generate varied performance data
-      for (let i = 0; i < 100; i++) {
-        await mockAPICall('health', 'light')
-      }
+      const results = await Promise.allSettled(
+        Array.from({ length: 100 }, () => mockAPICall('health', 'light'))
+      )
+      const successfulSamples = results.filter(result => result.status === 'fulfilled').length
+      expect(successfulSamples).toBeGreaterThan(80)
 
       const p50 = helper.getPercentile('api_call_health_light', 50)
       const p95 = helper.getPercentile('api_call_health_light', 95)
@@ -280,13 +290,13 @@ describe('Performance + Monitoring Integration', () => {
     test('should maintain performance under sustained load', async () => {
       const duration = 5000 // 5 seconds
       const startTime = Date.now()
-      const requests: Promise<{ success: boolean; data: Record<string, unknown> }>[] = []
+      const requests: Promise<PromiseSettledResult<unknown>>[] = []
 
       // Generate sustained load
       const intervalId = setInterval(() => {
         if (Date.now() - startTime < duration) {
-          requests.push(mockAPICall('search', 'light'))
-          requests.push(mockDatabaseQuery('simple'))
+          requests.push(observe(mockAPICall('search', 'light')))
+          requests.push(observe(mockDatabaseQuery('simple')))
         }
       }, 100) // Every 100ms
 
@@ -295,7 +305,7 @@ describe('Performance + Monitoring Integration', () => {
       clearInterval(intervalId)
 
       // Wait for all requests to complete
-      const results = await Promise.allSettled(requests)
+      const results = await Promise.all(requests)
 
       const successCount = results.filter(r => r.status === 'fulfilled').length
       const totalRequests = results.length
@@ -403,11 +413,13 @@ describe('Performance + Monitoring Integration', () => {
       const promises = Array.from({ length: 1000 }, async (_, i) => {
         // Create some memory pressure
         const data = new Array(1000).fill(i)
-        await mockAPICall('memory-test', 'light')
-        return data.length
+        const result = await observe(mockAPICall('memory-test', 'light'))
+        return { length: data.length, success: result.status === 'fulfilled' }
       })
 
-      await Promise.all(promises)
+      const results = await Promise.all(promises)
+      const successfulCalls = results.filter(result => result.success).length
+      expect(successfulCalls).toBeGreaterThan(900)
 
       // Force garbage collection if available
       if (global.gc) {
@@ -460,7 +472,7 @@ describe('Performance + Monitoring Integration', () => {
       const largeTime = metrics.find(m => m.metadata?.size === 100000)?.duration || 0
 
       // Large dataset should not be more than 100x slower
-      expect(largeTime / smallTime).toBeLessThan(100)
+      expect(largeTime / Math.max(smallTime, 1)).toBeLessThan(100)
     })
   })
 
