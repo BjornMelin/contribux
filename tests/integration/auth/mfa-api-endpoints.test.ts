@@ -177,8 +177,8 @@ describe('MFA API Endpoint Security', () => {
       const response = await enrollPOST(request)
       const responseData = await response.json()
 
-      expect(response.status).toBe(500)
-      expect(responseData.error).toBe('Internal server error')
+      expect(response.status).toBe(400)
+      expect(responseData.error).toBe('Malformed JSON')
     })
 
     it('should return available MFA methods on GET request', async () => {
@@ -582,8 +582,8 @@ describe('MFA API Endpoint Security', () => {
       const response = await enrollPOST(request)
       const responseData = await response.json()
 
-      expect(response.status).toBe(500)
-      expect(responseData.error).toBe('Internal server error')
+      expect(response.status).toBe(400)
+      expect(responseData.error).toBe('Malformed JSON')
     })
 
     it('should handle concurrent requests safely', async () => {
