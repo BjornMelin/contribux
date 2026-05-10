@@ -3,6 +3,7 @@
  * High-performance query layer with automatic optimization and caching
  */
 
+import { createHash } from 'node:crypto'
 import { performance } from 'node:perf_hooks'
 
 import { and, desc, eq, ilike, isNotNull, or, sql } from 'drizzle-orm'
@@ -62,7 +63,7 @@ function generateCacheKey(queryType: string, params: Record<string, unknown>): s
     )
 
   const paramString = JSON.stringify(normalizedParams)
-  const hash = Buffer.from(paramString).toString('base64').slice(0, 16)
+  const hash = createHash('sha256').update(paramString).digest('hex').slice(0, 16)
 
   return `${cacheConfig.keyPrefix}${queryType}:${hash}`
 }
@@ -210,7 +211,7 @@ export class OptimizedQueryBuilder {
   }) {
     const cacheKey = generateCacheKey('repo_search', params)
 
-    return this.executeWithCache(
+    const result = await this.executeWithCache(
       'searchRepositories',
       async () => {
         const { query, languages = [], minStars = 0, maxStars, limit = 20, offset = 0 } = params
@@ -247,6 +248,25 @@ export class OptimizedQueryBuilder {
           conditions.push(sql`(${schema.repositories.metadata}->>'stars')::integer <= ${maxStars}`)
         }
 
+        const relevanceScore = query
+          ? sql<number>`
+              (
+                CASE WHEN ${schema.repositories.name} ILIKE ${`%${query}%`} THEN 0.4 ELSE 0 END +
+                CASE WHEN ${schema.repositories.description} ILIKE ${`%${query}%`} THEN 0.2 ELSE 0 END
+              ) * 0.3 +
+              COALESCE(${schema.repositories.overallHealthScore}, 50) / 100.0 * 0.4 +
+              LEAST(LOG(GREATEST(COALESCE((${schema.repositories.metadata}->>'stars')::integer, 0), 1)) / 20.0, 1.0) * 0.2 +
+              CASE
+                WHEN ${schema.repositories.updatedAt} > NOW() - INTERVAL '30 days' THEN 0.1
+                WHEN ${schema.repositories.updatedAt} > NOW() - INTERVAL '90 days' THEN 0.05
+                ELSE 0.0
+              END
+            `.as('relevance_score')
+          : sql<number>`
+              COALESCE(${schema.repositories.overallHealthScore}, 50) / 100.0 * 0.6 +
+              LEAST(LOG(GREATEST(COALESCE((${schema.repositories.metadata}->>'stars')::integer, 0), 1)) / 20.0, 1.0) * 0.4
+            `.as('relevance_score')
+
         // Base filters for quality
         conditions.push(
           sql`(${schema.repositories.metadata}->>'archived')::boolean = false`,
@@ -267,31 +287,7 @@ export class OptimizedQueryBuilder {
             openIssuesCount: sql<number>`(${schema.repositories.metadata}->>'openIssues')::integer`,
             healthScore: schema.repositories.overallHealthScore,
             updatedAt: schema.repositories.updatedAt,
-            // Calculate relevance score
-            relevanceScore: sql<number>`
-              CASE 
-                WHEN ${query} IS NOT NULL THEN
-                  -- Text relevance (30%)
-                  (
-                    CASE WHEN ${schema.repositories.name} ILIKE ${`%${query}%`} THEN 0.4 ELSE 0 END +
-                    CASE WHEN ${schema.repositories.description} ILIKE ${`%${query}%`} THEN 0.2 ELSE 0 END
-                  ) * 0.3 +
-                  -- Quality score (40%)
-                  COALESCE(${schema.repositories.overallHealthScore}, 50) / 100.0 * 0.4 +
-                  -- Popularity (20%)
-                  LEAST(LOG(GREATEST(COALESCE((${schema.repositories.metadata}->>'stars')::integer, 0), 1)) / 20.0, 1.0) * 0.2 +
-                  -- Recency (10%)
-                  CASE 
-                    WHEN ${schema.repositories.updatedAt} > NOW() - INTERVAL '30 days' THEN 0.1
-                    WHEN ${schema.repositories.updatedAt} > NOW() - INTERVAL '90 days' THEN 0.05
-                    ELSE 0.0
-                  END
-                ELSE 
-                  -- Default scoring without text query
-                  COALESCE(${schema.repositories.overallHealthScore}, 50) / 100.0 * 0.6 +
-                  LEAST(LOG(GREATEST(COALESCE((${schema.repositories.metadata}->>'stars')::integer, 0), 1)) / 20.0, 1.0) * 0.4
-              END
-            `.as('relevance_score'),
+            relevanceScore,
           })
           .from(schema.repositories)
           .where(and(...conditions))
@@ -308,6 +304,12 @@ export class OptimizedQueryBuilder {
       cacheKey,
       300 // 5 minute cache
     )
+
+    return {
+      repositories: result.data,
+      totalCount: result.data.length,
+      metrics: result.metrics,
+    }
   }
 
   /**
@@ -324,7 +326,7 @@ export class OptimizedQueryBuilder {
       embedding: params.embedding.slice(0, 10), // Only use first 10 dimensions for cache key
     })
 
-    return this.executeWithCache(
+    const result = await this.executeWithCache(
       'vectorSearchRepositories',
       async () => {
         const {
@@ -371,6 +373,12 @@ export class OptimizedQueryBuilder {
       cacheKey,
       600 // 10 minute cache for vector searches
     )
+
+    return {
+      repositories: result.data,
+      totalCount: result.data.length,
+      metrics: result.metrics,
+    }
   }
 
   /**
@@ -388,7 +396,7 @@ export class OptimizedQueryBuilder {
       embedding: params.embedding.slice(0, 10), // Only first 10 for cache key
     })
 
-    return this.executeWithCache(
+    const result = await this.executeWithCache(
       'hybridSearchRepositories',
       async () => {
         const {
@@ -454,6 +462,12 @@ export class OptimizedQueryBuilder {
       cacheKey,
       300 // 5 minute cache
     )
+
+    return {
+      repositories: result.data,
+      totalCount: result.data.length,
+      metrics: result.metrics,
+    }
   }
 
   /**
@@ -473,7 +487,7 @@ export class OptimizedQueryBuilder {
   }) {
     const cacheKey = generateCacheKey('personalized_opps', params)
 
-    return this.executeWithCache(
+    const result = await this.executeWithCache(
       'getPersonalizedOpportunities',
       async () => {
         const {
@@ -538,7 +552,7 @@ export class OptimizedQueryBuilder {
           )
           .where(and(...conditions))
           .orderBy(
-            desc(sql`match_score`),
+            desc(sql`personalized_match_score`),
             desc(sql`${schema.opportunities.metadata}->>'priority'`),
             desc(schema.opportunities.createdAt)
           )
@@ -549,6 +563,12 @@ export class OptimizedQueryBuilder {
       cacheKey,
       180 // 3 minute cache for personalized results
     )
+
+    return {
+      opportunities: result.data,
+      totalCount: result.data.length,
+      metrics: result.metrics,
+    }
   }
 
   /**
@@ -581,6 +601,18 @@ export class OptimizedQueryBuilder {
   ) {
     const languagePreferences =
       languages.length > 0 ? languages : userProfile.preferences?.languagePreferences || []
+    const languageMatch =
+      languagePreferences.length > 0
+        ? sql<number>`
+            CASE
+              WHEN ${schema.repositories.metadata}->>'language' IN (${sql.join(
+                languagePreferences.map(language => sql`${language}`),
+                sql`, `
+              )}) THEN 0.3
+              ELSE 0.0
+            END
+          `
+        : sql<number>`0.0`
 
     return sql<number>`
       -- Skill level compatibility (40%)
@@ -592,10 +624,7 @@ export class OptimizedQueryBuilder {
       END +
       
       -- Language preference match (30%)
-      CASE 
-        WHEN (${schema.repositories.metadata}->>'language') = ANY(${languagePreferences}) THEN 0.3
-        ELSE 0.0
-      END +
+      ${languageMatch} +
       
       -- Repository quality (20%)
       COALESCE(${schema.repositories.overallHealthScore}, 50) / 100.0 * 0.2 +
@@ -606,7 +635,7 @@ export class OptimizedQueryBuilder {
         WHEN (${schema.opportunities.metadata}->>'mentorshipAvailable')::boolean = true THEN 0.05
         ELSE 0.0
       END
-    `.as('match_score')
+    `.as('personalized_match_score')
   }
 
   private buildTextScoreSQL(searchPattern: string) {
