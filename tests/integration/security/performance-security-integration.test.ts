@@ -13,10 +13,10 @@
  * - Security monitoring performance impact
  */
 
-import { type HttpHandler, HttpResponse, http } from 'msw'
+import { HttpResponse, http } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
-import { getMockManager } from '../../setup-integration-enhanced'
+import { getMockManager, useMSWHandlers } from '../../setup-integration-enhanced'
 import { apiTestUtils } from '../api/utils/api-test-utilities'
 
 // Performance security schemas
@@ -97,16 +97,6 @@ const SecurityLoadTestResultSchema = z.object({
 
 // Test setup
 const performanceTracker = new apiTestUtils.performanceTracker()
-
-const useMSWHandlers = (...handlers: HttpHandler[]) => {
-  const mockManager = getMockManager()
-
-  if (!mockManager) {
-    throw new Error('Integration MSW server is not initialized')
-  }
-
-  mockManager.useMSWHandlers(...handlers)
-}
 
 afterEach(() => {
   getMockManager()?.resetMSWHandlers()

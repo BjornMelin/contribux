@@ -13,10 +13,10 @@
  * - Error recovery and security incident handling
  */
 
-import { type HttpHandler, HttpResponse, http } from 'msw'
+import { HttpResponse, http } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
-import { getMockManager } from '../setup-integration-enhanced'
+import { getMockManager, useMSWHandlers } from '../setup-integration-enhanced'
 
 // Authentication flow state management
 interface AuthFlowState {
@@ -234,16 +234,6 @@ const resetAuthFlowState = () => {
   authFlowState.webauthnCredentials.clear()
   authFlowState.auditEvents = []
   authFlowState.rateLimitCounters.clear()
-}
-
-const useMSWHandlers = (...handlers: HttpHandler[]) => {
-  const mockManager = getMockManager()
-
-  if (!mockManager) {
-    throw new Error('Integration MSW server is not initialized')
-  }
-
-  mockManager.useMSWHandlers(...handlers)
 }
 
 afterEach(() => {

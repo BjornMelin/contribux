@@ -4,6 +4,7 @@
  */
 
 import '@testing-library/jest-dom/vitest'
+import type { HttpHandler } from 'msw'
 import { setupIntegrationTests } from './config/enhanced-test-setup'
 
 // Setup enhanced integration test environment
@@ -11,6 +12,16 @@ const { config, addCleanupTask, getDbManager, getMockManager } = setupIntegratio
 
 // Export utilities specific to integration testing
 export { addCleanupTask, config, getDbManager, getMockManager }
+
+export const useMSWHandlers = (...handlers: HttpHandler[]) => {
+  const mockManager = getMockManager()
+
+  if (!mockManager) {
+    throw new Error('Integration MSW server is not initialized')
+  }
+
+  mockManager.useMSWHandlers(...handlers)
+}
 
 // Integration-specific test utilities
 export const integrationTestUtils = {

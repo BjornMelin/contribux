@@ -14,10 +14,10 @@
  * - Cross-component security coordination
  */
 
-import { type HttpHandler, HttpResponse, http } from 'msw'
+import { HttpResponse, http } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
-import { getMockManager } from '../setup-integration-enhanced'
+import { getMockManager, useMSWHandlers } from '../setup-integration-enhanced'
 
 // Security flow state management
 interface SecurityFlowState {
@@ -189,16 +189,6 @@ const resetSecurityFlowState = () => {
   securityFlowState.securityMetrics = createInitialSecurityMetrics()
   securityFlowState.alertLog = []
   securityFlowState.cspViolations = []
-}
-
-const useMSWHandlers = (...handlers: HttpHandler[]) => {
-  const mockManager = getMockManager()
-
-  if (!mockManager) {
-    throw new Error('Integration MSW server is not initialized')
-  }
-
-  mockManager.useMSWHandlers(...handlers)
 }
 
 afterEach(() => {
