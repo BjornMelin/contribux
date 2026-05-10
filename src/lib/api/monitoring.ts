@@ -565,9 +565,7 @@ export const apiMonitoring = new Proxy({} as APIMonitoring, {
     return prop in instance
   },
   getPrototypeOf() {
-    if (!apiMonitoringInstance) {
-      apiMonitoringInstance = new APIMonitoring()
-    }
+    getAPIMonitoringInstance()
     return APIMonitoring.prototype
   },
 })

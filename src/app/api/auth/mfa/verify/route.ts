@@ -12,6 +12,7 @@ import { type MFAVerificationRequest, MFAVerificationRequestSchema, type User } 
  * POST /api/auth/mfa/verify
  * Verify MFA token/assertion for authentication
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: MFA verification branches by auth state and method type in one route handler.
 export async function POST(req: NextRequest) {
   try {
     // Get authenticated user

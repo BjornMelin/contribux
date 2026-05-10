@@ -87,7 +87,12 @@ export async function PUT(req: NextRequest) {
     const { user } = authReq.auth
 
     // Parse and validate request body after authentication to avoid unauthenticated schema leakage.
-    const body = await req.json()
+    let body: unknown
+    try {
+      body = await req.json()
+    } catch {
+      return NextResponse.json({ error: 'Malformed JSON' }, { status: 400 })
+    }
     const updateRequest = UpdateMFASettingsSchema.parse(body)
 
     // Special handling for regenerating backup codes

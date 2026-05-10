@@ -50,7 +50,7 @@ export async function proxy(request: NextRequest) {
   })
 
   // Set security headers with optimized CSP
-  setSecurityHeaders(response, csp, pathname)
+  setSecurityHeaders(response, csp)
 
   // Set CORS headers for API routes with dynamic origins
   if (pathname.startsWith('/api')) {
@@ -127,7 +127,7 @@ function extractToken(request: NextRequest): string | null {
 /**
  * Set security headers with optimized CSP for the App Router.
  */
-function setSecurityHeaders(response: NextResponse, csp: string, _pathname: string) {
+function setSecurityHeaders(response: NextResponse, csp: string) {
   response.headers.set('Content-Security-Policy', csp)
 
   // Core security headers
@@ -202,7 +202,7 @@ export function applySecurityHeaders(response: NextResponse, request: NextReques
   const nonce = generateNonce()
   const csp = buildCSP(getCSPDirectives(), nonce)
 
-  setSecurityHeaders(response, csp, request.nextUrl.pathname)
+  setSecurityHeaders(response, csp)
 
   if (request.nextUrl.pathname.startsWith('/api')) {
     setCorsHeaders(response, request)

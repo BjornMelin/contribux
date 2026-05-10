@@ -602,7 +602,10 @@ export class ErrorDashboard {
       if (error.classification.category.includes('AUTH')) {
         components.add('Authentication')
       }
-      if (error.classification.category.includes('THIRD_PARTY')) {
+      if (
+        error.classification.category.includes('THIRD_PARTY') ||
+        error.classification.category === ErrorCategory.SERVICE_UNAVAILABLE
+      ) {
         components.add('External Services')
       }
       // Add more component mapping as needed
@@ -1081,10 +1084,6 @@ export class ErrorMonitor {
       this.errors = this.errors.slice(-this.maxErrors)
     }
 
-    // Update patterns
-    const patternKey = `${classification.category}:${classification.userMessage}`
-    this.errorPatterns.set(patternKey, (this.errorPatterns.get(patternKey) || 0) + 1)
-
     // Clean old entries
     this.cleanOldEntries()
 
@@ -1104,7 +1103,9 @@ export class ErrorMonitor {
    * Record an error without awaiting alert/audit side effects.
    */
   logError(error: unknown, classification: ErrorClassification, context?: ErrorContext): void {
-    void this.track(error, classification, context)
+    void this.track(error, classification, context).catch(() => {
+      // logError is intentionally fire-and-forget; tracking failures must not become unhandled rejections.
+    })
   }
 
   clearErrors(): void {
@@ -1335,12 +1336,24 @@ export class ErrorMonitor {
 
     // Clean error patterns with no recent occurrences
     for (const [pattern, _] of this.errorPatterns) {
-      const hasRecentError = this.errors.some(
-        e => `${e.classification.category}:${e.classification.userMessage}` === pattern
-      )
+      const hasRecentError = this.errors.some(e => this.getErrorPatternKey(e) === pattern)
       if (!hasRecentError) {
         this.errorPatterns.delete(pattern)
       }
+    }
+
+    this.rebuildErrorPatterns()
+  }
+
+  private getErrorPatternKey(error: ErrorEntry): string {
+    return `${error.classification.category}:${error.classification.userMessage}`
+  }
+
+  private rebuildErrorPatterns(): void {
+    this.errorPatterns.clear()
+    for (const error of this.errors) {
+      const patternKey = this.getErrorPatternKey(error)
+      this.errorPatterns.set(patternKey, (this.errorPatterns.get(patternKey) || 0) + 1)
     }
   }
 
@@ -1796,6 +1809,7 @@ export class AlertingSystem {
    */
   private async sendPagerDutyAlert(channel: AlertChannel, alert: AlertEvent): Promise<void> {
     if (!channel.pagerDutyKey) return
+    const severity = this.normalizePagerDutySeverity(alert.severity)
 
     const payload = {
       routing_key: channel.pagerDutyKey,
@@ -1803,7 +1817,7 @@ export class AlertingSystem {
       payload: {
         summary: alert.title,
         source: 'contribux-error-monitoring',
-        severity: alert.severity.toLowerCase(),
+        severity,
         component: 'error-monitoring',
         group: 'backend',
         class: alert.metadata.errorCategory,
@@ -1821,6 +1835,26 @@ export class AlertingSystem {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
+  }
+
+  private normalizePagerDutySeverity(
+    severity: AlertSeverity
+  ): 'critical' | 'error' | 'warning' | 'info' {
+    switch (severity) {
+      case 'critical':
+      case 'error':
+      case 'warning':
+      case 'info':
+        return severity
+      case 'high':
+        return 'error'
+      case 'medium':
+        return 'warning'
+      case 'low':
+        return 'info'
+      default:
+        return 'warning'
+    }
   }
 
   /**

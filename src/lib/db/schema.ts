@@ -21,6 +21,7 @@ import {
   boolean,
   check,
   index,
+  inet,
   integer,
   jsonb,
   pgEnum,
@@ -124,7 +125,7 @@ export const securityAuditLogs = pgTable(
     eventSeverity: text('event_severity').notNull().default('info'),
     userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
     sessionId: text('session_id'),
-    ipAddress: text('ip_address'),
+    ipAddress: inet('ip_address'),
     userAgent: text('user_agent'),
     success: boolean('success').notNull(),
     eventData: jsonb('event_data').$type<Record<string, unknown>>().default({}),
@@ -353,6 +354,10 @@ export const opportunities = pgTable(
     repositoryIdIdx: index('opportunities_repository_id_idx').on(table.repositoryId),
     difficultyScoreIdx: index('opportunities_difficulty_score_idx').on(table.difficultyScore),
     impactScoreIdx: index('opportunities_impact_score_idx').on(table.impactScore),
+    uniqueRepositoryIssue: unique('opportunities_unique_issue').on(
+      table.repositoryId,
+      table.issueNumber
+    ),
     // Vector index will be created via SQL migration for HNSW
 
     // Check constraints for data integrity
@@ -725,6 +730,7 @@ export function sanitizeArrayInput<T>(items: T[], validator: z.ZodSchema<T>, max
 }
 
 // Validate JSON input for JSONB operations
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Central JSON sanitizer handles nested object, array, and primitive validation in one audited path.
 export function sanitizeJsonInput(input: unknown, depth = 0): Record<string, unknown> {
   if (typeof input !== 'object' || input === null || Array.isArray(input)) {
     throw new Error('Input must be a valid object')

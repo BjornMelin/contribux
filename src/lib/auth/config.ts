@@ -128,7 +128,7 @@ export const authConfig: AuthOptions = {
             const userUpdate: typeof session.user = {
               ...session.user,
               id: token.sub,
-              email: String(user.email),
+              email: user.email ?? null,
               name: user.name || user.username,
               githubId: user.github_id ?? undefined,
               connectedProviders: user.connected_providers || [],
@@ -431,6 +431,7 @@ async function createNewUserWithOAuth(
 /**
  * Extract user data from OAuth profile with proper typing
  */
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Provider profile extraction preserves provider-specific fallbacks in one mapping function.
 function extractUserDataFromProfile(
   provider: string,
   user: SignInParams['user'],
