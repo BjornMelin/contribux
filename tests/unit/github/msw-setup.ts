@@ -22,6 +22,9 @@ import { afterAll, afterEach, beforeAll } from 'vitest'
 const GITHUB_API_BASE = 'https://api.github.com'
 const GITHUB_GRAPHQL_URL = `${GITHUB_API_BASE}/graphql`
 
+const parsePositiveIntParam = (value: string): number | null =>
+  /^\d+$/.test(value) ? Number.parseInt(value, 10) : null
+
 // Default mock responses
 export const defaultMockResponses = {
   user: {
@@ -843,6 +846,12 @@ const defaultHandlers = [
       })
     }
 
+    const issueNumber = parsePositiveIntParam(issue_number)
+
+    if (issueNumber === null || issueNumber <= 0) {
+      return HttpResponse.json({ message: 'Not Found' }, { status: 404 })
+    }
+
     // Handle null user test case
     if (
       (owner === 'null-user-test' && repo === 'null-user-repo' && issue_number === '1') ||
@@ -850,7 +859,7 @@ const defaultHandlers = [
     ) {
       return HttpResponse.json({
         id: 1,
-        number: Number(issue_number),
+        number: issueNumber,
         title: 'Test Issue',
         body: null,
         state: 'open',
@@ -866,9 +875,7 @@ const defaultHandlers = [
 
     return HttpResponse.json({
       id: 1000,
-      number: Number.isNaN(Number.parseInt(issue_number, 10))
-        ? 1
-        : Number.parseInt(issue_number, 10),
+      number: issueNumber,
       title: `Issue ${issue_number}`,
       body: `Test issue ${issue_number} description`,
       state: issue_number === '2' ? 'closed' : 'open',
@@ -922,7 +929,7 @@ const defaultHandlers = [
       pull_number: string
     }
     const authHeader = request.headers.get('authorization')
-    const pullNumber = Number.parseInt(pull_number, 10)
+    const pullNumber = parsePositiveIntParam(pull_number)
 
     if (!isValidToken(authHeader)) {
       return HttpResponse.json({ message: 'Bad credentials' }, { status: 401 })
@@ -936,7 +943,7 @@ const defaultHandlers = [
       return HttpResponse.json({ invalid: 'data' })
     }
 
-    if (owner === 'validation-test' || Number.isNaN(pullNumber) || pullNumber <= 0) {
+    if (owner === 'validation-test' || pullNumber === null || pullNumber <= 0) {
       return HttpResponse.json({ invalid: 'data' })
     }
 
@@ -961,13 +968,13 @@ const defaultHandlers = [
         issue_number: string
       }
       const authHeader = request.headers.get('authorization')
-      const issueNumber = Number.parseInt(issue_number, 10)
+      const issueNumber = parsePositiveIntParam(issue_number)
 
       if (!isValidToken(authHeader)) {
         return HttpResponse.json({ message: 'Bad credentials' }, { status: 401 })
       }
 
-      if (Number.isNaN(issueNumber) || issueNumber <= 0) {
+      if (issueNumber === null || issueNumber <= 0) {
         return HttpResponse.json({ message: 'Not Found' }, { status: 404 })
       }
 
@@ -985,13 +992,13 @@ const defaultHandlers = [
         comment_id: string
       }
       const authHeader = request.headers.get('authorization')
-      const commentId = Number.parseInt(comment_id, 10)
+      const commentId = parsePositiveIntParam(comment_id)
 
       if (!isValidToken(authHeader)) {
         return HttpResponse.json({ message: 'Bad credentials' }, { status: 401 })
       }
 
-      if (Number.isNaN(commentId) || commentId <= 0 || comment_id === '99999') {
+      if (commentId === null || commentId <= 0 || comment_id === '99999') {
         return HttpResponse.json({ message: 'Not Found' }, { status: 404 })
       }
 
@@ -1002,14 +1009,24 @@ const defaultHandlers = [
   // GraphQL endpoint
   http.post(GITHUB_GRAPHQL_URL, async ({ request }) => {
     const authHeader = request.headers.get('authorization')
-    const body = (await request.clone().json()) as {
-      query: string
-      variables?: Record<string, unknown>
-    }
 
     // Check authentication
     if (!isValidToken(authHeader)) {
       return HttpResponse.json({ message: 'Bad credentials' }, { status: 401 })
+    }
+
+    let body: {
+      query: string
+      variables?: Record<string, unknown>
+    }
+
+    try {
+      body = (await request.clone().json()) as {
+        query: string
+        variables?: Record<string, unknown>
+      }
+    } catch {
+      return HttpResponse.json({ errors: [{ message: 'Problems parsing JSON' }] }, { status: 400 })
     }
 
     // Check for intentional errors in queries (like invalidField)

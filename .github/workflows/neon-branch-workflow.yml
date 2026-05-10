@@ -26,6 +26,8 @@ jobs:
   create_neon_branch:
     name: Create Neon Branch
     needs: setup
+    outputs:
+      db_url_with_pooler: ${{ steps.create_neon_branch.outputs.db_url_with_pooler }}
     if: |
       github.event_name == 'pull_request' && (
       github.event.action == 'synchronize'
@@ -73,41 +75,31 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Resolve Neon Preview Database Branch
-        id: preview_branch
-        uses: neondatabase/create-branch-action@v5
-        with:
-          project_id: ${{ vars.NEON_PROJECT_ID }}
-          branch_name: preview/pr-${{ github.event.number }}-${{ needs.setup.outputs.branch }}
-          api_key: ${{ secrets.NEON_API_KEY }}
-          username: neondb_owner
-          database: neondb
-
       - name: Reset isolated Neon branch schema
         run: pnpm db:migrate:reset
         env:
-          DATABASE_URL: ${{ steps.preview_branch.outputs.db_url_with_pooler }}
+          DATABASE_URL: ${{ needs.create_neon_branch.outputs.db_url_with_pooler }}
           ALLOW_CI_DATABASE_RESET: 'true'
 
       - name: Run database migrations
         run: pnpm db:migrate
         env:
-          DATABASE_URL: ${{ steps.preview_branch.outputs.db_url_with_pooler }}
+          DATABASE_URL: ${{ needs.create_neon_branch.outputs.db_url_with_pooler }}
 
       - name: Test database connection
         run: pnpm db:test-connection
         env:
-          DATABASE_URL: ${{ steps.preview_branch.outputs.db_url_with_pooler }}
+          DATABASE_URL: ${{ needs.create_neon_branch.outputs.db_url_with_pooler }}
 
       - name: Run database health checks
         run: pnpm db:health
         env:
-          DATABASE_URL: ${{ steps.preview_branch.outputs.db_url_with_pooler }}
+          DATABASE_URL: ${{ needs.create_neon_branch.outputs.db_url_with_pooler }}
 
       - name: Run vector metrics check
         run: pnpm db:vector-metrics
         env:
-          DATABASE_URL: ${{ steps.preview_branch.outputs.db_url_with_pooler }}
+          DATABASE_URL: ${{ needs.create_neon_branch.outputs.db_url_with_pooler }}
 
       - name: Run type checking
         run: pnpm type-check
@@ -118,31 +110,31 @@ jobs:
       - name: Run unit tests
         run: pnpm test:unit
         env:
-          DATABASE_URL: ${{ steps.preview_branch.outputs.db_url_with_pooler }}
-          DATABASE_URL_TEST: ${{ steps.preview_branch.outputs.db_url_with_pooler }}
+          DATABASE_URL: ${{ needs.create_neon_branch.outputs.db_url_with_pooler }}
+          DATABASE_URL_TEST: ${{ needs.create_neon_branch.outputs.db_url_with_pooler }}
 
       - name: Run database tests
         run: pnpm test:db
         env:
-          DATABASE_URL: ${{ steps.preview_branch.outputs.db_url_with_pooler }}
-          DATABASE_URL_TEST: ${{ steps.preview_branch.outputs.db_url_with_pooler }}
+          DATABASE_URL: ${{ needs.create_neon_branch.outputs.db_url_with_pooler }}
+          DATABASE_URL_TEST: ${{ needs.create_neon_branch.outputs.db_url_with_pooler }}
 
       - name: Run integration tests
         run: pnpm test:integration:ci
         env:
-          DATABASE_URL: ${{ steps.preview_branch.outputs.db_url_with_pooler }}
-          DATABASE_URL_TEST: ${{ steps.preview_branch.outputs.db_url_with_pooler }}
+          DATABASE_URL: ${{ needs.create_neon_branch.outputs.db_url_with_pooler }}
+          DATABASE_URL_TEST: ${{ needs.create_neon_branch.outputs.db_url_with_pooler }}
 
       - name: Run security tests
         run: pnpm test:security
         env:
-          DATABASE_URL: ${{ steps.preview_branch.outputs.db_url_with_pooler }}
-          DATABASE_URL_TEST: ${{ steps.preview_branch.outputs.db_url_with_pooler }}
+          DATABASE_URL: ${{ needs.create_neon_branch.outputs.db_url_with_pooler }}
+          DATABASE_URL_TEST: ${{ needs.create_neon_branch.outputs.db_url_with_pooler }}
 
       - name: Build application
         run: pnpm build
         env:
-          DATABASE_URL: ${{ steps.preview_branch.outputs.db_url_with_pooler }}
+          DATABASE_URL: ${{ needs.create_neon_branch.outputs.db_url_with_pooler }}
 
       - name: Post Schema Diff Comment to PR
         uses: neondatabase/schema-diff-action@v1

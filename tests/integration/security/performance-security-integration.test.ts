@@ -475,6 +475,7 @@ describe('Performance Security Integration Tests', () => {
       const testEmails = invalidEmails.flatMap((invalidEmail, index) =>
         index % 2 === 0 ? [validEmails[index], invalidEmail] : [invalidEmail, validEmails[index]]
       )
+      const totalRequests = testEmails.length
 
       const promises = testEmails.map(email =>
         fetch('http://localhost:3000/api/auth/check-email', {
@@ -529,7 +530,7 @@ describe('Performance Security Integration Tests', () => {
           attackIntensity: 'high',
         },
         securityEffectiveness: {
-          threatsBlocked: timingAttackAttempts, // All timing attacks should be ineffective
+          threatsBlocked: totalRequests, // All timing attack probes should be ineffective
           falsePositives: 0,
           falseNegatives: 0,
           detectionAccuracy: 100,

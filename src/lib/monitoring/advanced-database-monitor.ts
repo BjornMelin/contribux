@@ -19,6 +19,7 @@ export interface AdvancedDatabaseMetrics {
   }
   indexUsage: {
     efficiency: number
+    totalIndexes: number
     scannedIndexes: number
   }
   vectorSearch: {
@@ -36,6 +37,7 @@ interface ConnectionStatsRow {
 
 interface IndexStatsRow {
   index_count?: number
+  scanned_count?: number
   scans?: number
 }
 
@@ -49,6 +51,7 @@ export class AdvancedDatabaseMonitor {
       const indexStats = await db.execute(sql`
         SELECT
           COUNT(*)::int AS index_count,
+          COUNT(*) FILTER (WHERE idx_scan > 0)::int AS scanned_count,
           COALESCE(SUM(idx_scan), 0)::int AS scans
         FROM pg_stat_user_indexes
         WHERE schemaname = 'public'
@@ -74,8 +77,8 @@ export class AdvancedDatabaseMonitor {
       const indexRow = indexStats.rows[0] as IndexStatsRow | undefined
       const connectionRow = connectionStats.rows[0] as ConnectionStatsRow | undefined
       const vectorRow = vectorStats.rows[0] as { scans?: number } | undefined
-      const scannedIndexes = Number(indexRow?.index_count ?? 0)
-      const scans = Number(indexRow?.scans ?? 0)
+      const totalIndexes = Number(indexRow?.index_count ?? 0)
+      const scannedIndexes = Number(indexRow?.scanned_count ?? 0)
       const vectorQueryCount = Number(vectorRow?.scans ?? 0)
 
       return {
@@ -91,7 +94,8 @@ export class AdvancedDatabaseMonitor {
           averageCheckoutTime: averageLatency,
         },
         indexUsage: {
-          efficiency: scannedIndexes > 0 ? Math.min(1, scans / scannedIndexes) : 1,
+          efficiency: totalIndexes > 0 ? Math.min(1, scannedIndexes / totalIndexes) : 0,
+          totalIndexes,
           scannedIndexes,
         },
         vectorSearch: {
@@ -119,6 +123,7 @@ export class AdvancedDatabaseMonitor {
         },
         indexUsage: {
           efficiency: 0,
+          totalIndexes: 0,
           scannedIndexes: 0,
         },
         vectorSearch: {
@@ -147,7 +152,12 @@ export class AdvancedDatabaseMonitor {
   async checkAlerts(metrics?: AdvancedDatabaseMetrics): Promise<void> {
     const currentMetrics = metrics ?? (await this.getPerformanceMetrics())
 
-    if (currentMetrics.queryPerformance.averageLatency > 1000) {
+    const averageLatency = currentMetrics.queryPerformance.averageLatency
+    if (!Number.isFinite(averageLatency) || averageLatency < 0) {
+      throw new Error('Database metrics collection alert: average latency unavailable')
+    }
+
+    if (averageLatency > 1000) {
       throw new Error(
         `Database latency alert: ${Math.round(currentMetrics.queryPerformance.averageLatency)}ms`
       )

@@ -42,6 +42,7 @@ describe('AdvancedDatabaseMonitor', () => {
       },
       indexUsage: {
         efficiency: 0,
+        totalIndexes: 0,
         scannedIndexes: 0,
       },
       vectorSearch: {
@@ -53,5 +54,32 @@ describe('AdvancedDatabaseMonitor', () => {
       { error: expect.any(Error) },
       'Failed to collect database performance metrics'
     )
+  })
+
+  it('alerts when metric collection returns unavailable latency', async () => {
+    await expect(
+      new AdvancedDatabaseMonitor().checkAlerts({
+        queryPerformance: {
+          averageLatency: -1,
+          totalQueries: 0,
+        },
+        connectionPool: {
+          active: 0,
+          idle: 0,
+          waiting: 0,
+          totalConnections: 0,
+          averageCheckoutTime: -1,
+        },
+        indexUsage: {
+          efficiency: 0,
+          totalIndexes: 0,
+          scannedIndexes: 0,
+        },
+        vectorSearch: {
+          averageQueryTime: -1,
+          totalVectorQueries: 0,
+        },
+      })
+    ).rejects.toThrow('Database metrics collection alert')
   })
 })

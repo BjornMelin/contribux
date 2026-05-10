@@ -214,8 +214,13 @@ describe('Security Flow Integration Tests', () => {
         provider: string
       }
 
-      const getPipelineRequestId = (request: Request) =>
-        request.headers.get('X-Test-Request-ID') ?? `${request.method}:${request.url}`
+      const getPipelineRequestId = (request: Request) => {
+        const requestId = request.headers.get('X-Test-Request-ID')
+        if (!requestId) {
+          throw new Error('X-Test-Request-ID is required for security pipeline tests')
+        }
+        return requestId
+      }
 
       const countPipelineRequest = (request: Request) => {
         const requestId = getPipelineRequestId(request)

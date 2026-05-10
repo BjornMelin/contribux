@@ -845,14 +845,20 @@ describe('Rate Limiting Enforcement', () => {
       let burstCount = 0
       const burstThreshold = 10
       const burstWindow = 5000 // 5 seconds
+      const requestTimestamps: number[] = []
 
       useMSWHandlers(
         http.get('http://localhost:3000/api/search/repositories', () => {
-          const _now = Date.now()
-          burstCount++
-
-          // Reset burst count after window
-          setTimeout(() => burstCount--, burstWindow)
+          const now = Date.now()
+          while (requestTimestamps.length > 0) {
+            const oldestTimestamp = requestTimestamps[0]
+            if (oldestTimestamp === undefined || now - oldestTimestamp <= burstWindow) {
+              break
+            }
+            requestTimestamps.shift()
+          }
+          requestTimestamps.push(now)
+          burstCount = requestTimestamps.length
 
           if (burstCount > burstThreshold) {
             return HttpResponse.json(
@@ -989,10 +995,12 @@ describe('CORS Policy Validation', () => {
 
           // Validate headers
           const allowedHeaders = ['Content-Type', 'Authorization', 'X-CSRF-Token']
-          const requestedHeaders = requestHeaders?.split(',').map(h => h.trim()) || []
+          const allowedHeaderNames = new Set(allowedHeaders.map(header => header.toLowerCase()))
+          const requestedHeaders =
+            requestHeaders?.split(',').map(header => header.trim().toLowerCase()) || []
 
           for (const header of requestedHeaders) {
-            if (!allowedHeaders.includes(header)) {
+            if (!allowedHeaderNames.has(header)) {
               return new HttpResponse(null, { status: 400 })
             }
           }

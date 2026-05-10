@@ -382,7 +382,7 @@ function handleFindMatchingOpportunities(
         const match_score =
           prefersPython && isPythonOpportunity
             ? 0.95
-            : user.skill_level === 'beginner' && opp.difficulty === 'expert'
+            : user.skill_level === 'beginner' && opp.difficulty === 'advanced'
               ? 0.55
               : isSkillMatch
                 ? 0.9
@@ -669,38 +669,98 @@ function handleUpdateQuery(
   return []
 }
 
+function resolveMockUpdateAssignment(
+  queryLower: string,
+  values: unknown[],
+  columnName: string
+): unknown {
+  const assignment = queryLower.match(
+    new RegExp(`${columnName}\\s*=\\s*(?:'([^']*)'|\\$([0-9]+)|([^,\\s]+))`)
+  )
+  if (!assignment) {
+    return undefined
+  }
+
+  const literalValue = assignment[1]
+  if (literalValue !== undefined) {
+    return literalValue
+  }
+
+  const placeholderIndex = assignment[2] ? Number.parseInt(assignment[2], 10) - 1 : undefined
+  if (placeholderIndex !== undefined) {
+    return values[placeholderIndex]
+  }
+
+  return assignment[3]
+}
+
+function parseMockStringArray(value: unknown, fallback: string[]): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((entry): entry is string => typeof entry === 'string')
+  }
+
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value)
+      if (Array.isArray(parsed)) {
+        return parsed.filter((entry): entry is string => typeof entry === 'string')
+      }
+    } catch {
+      return [value]
+    }
+  }
+
+  return fallback
+}
+
 function applyMockUpdate(
   row: Record<string, unknown>,
   queryLower: string,
   values: unknown[]
 ): void {
-  if (queryLower.includes("difficulty = 'intermediate'")) {
-    row.difficulty = 'intermediate'
+  const difficulty = resolveMockUpdateAssignment(queryLower, values, 'difficulty')
+  if (difficulty === 'beginner' || difficulty === 'intermediate' || difficulty === 'advanced') {
+    row.difficulty = difficulty
   }
 
-  if (queryLower.includes("difficulty = 'expert'")) {
-    row.difficulty = 'expert'
+  const skillLevel = resolveMockUpdateAssignment(queryLower, values, 'skill_level')
+  if (skillLevel === 'beginner' || skillLevel === 'intermediate' || skillLevel === 'advanced') {
+    row.skill_level = skillLevel
   }
 
-  if (queryLower.includes("skill_level = 'beginner'")) {
-    row.skill_level = 'beginner'
+  const preferredLanguages = resolveMockUpdateAssignment(queryLower, values, 'preferred_languages')
+  if (preferredLanguages !== undefined) {
+    row.preferred_languages = parseMockStringArray(preferredLanguages, ['Python', 'Go'])
   }
 
-  if (queryLower.includes('preferred_languages')) {
-    row.preferred_languages = ['Python', 'Go']
+  const preferredContributionTypes = resolveMockUpdateAssignment(
+    queryLower,
+    values,
+    'preferred_contribution_types'
+  )
+  if (preferredContributionTypes !== undefined) {
+    row.preferred_contribution_types = parseMockStringArray(preferredContributionTypes, ['bug_fix'])
   }
 
-  if (queryLower.includes('preferred_contribution_types')) {
-    row.preferred_contribution_types = ['bug_fix']
+  const maxEstimatedHours = resolveMockUpdateAssignment(queryLower, values, 'max_estimated_hours')
+  const maxEstimatedHoursNumber =
+    typeof maxEstimatedHours === 'number'
+      ? maxEstimatedHours
+      : typeof maxEstimatedHours === 'string'
+        ? Number(maxEstimatedHours)
+        : undefined
+  if (typeof maxEstimatedHoursNumber === 'number' && Number.isFinite(maxEstimatedHoursNumber)) {
+    row.max_estimated_hours = maxEstimatedHoursNumber
   }
 
-  if (queryLower.includes('max_estimated_hours = 3')) {
-    row.max_estimated_hours = 3
+  const viewCount = resolveMockUpdateAssignment(queryLower, values, 'view_count')
+  if (typeof viewCount === 'number') {
+    row.view_count = viewCount
   }
 
-  if (queryLower.includes('view_count') && typeof values[0] === 'number') {
-    row.view_count = values[0]
-    row.application_count = values[1]
+  const applicationCount = resolveMockUpdateAssignment(queryLower, values, 'application_count')
+  if (typeof applicationCount === 'number') {
+    row.application_count = applicationCount
   }
 
   if (queryLower.includes("created_at = now() - interval '8 days'")) {
@@ -1880,7 +1940,6 @@ const MOCK_SCHEMA_DATA = {
     { enumtypid: 2, enumlabel: 'beginner' },
     { enumtypid: 2, enumlabel: 'intermediate' },
     { enumtypid: 2, enumlabel: 'advanced' },
-    { enumtypid: 2, enumlabel: 'expert' },
     { enumtypid: 3, enumlabel: 'oauth' },
     { enumtypid: 3, enumlabel: 'webauthn' },
     { enumtypid: 3, enumlabel: 'password' },

@@ -300,8 +300,10 @@ export const opportunities = pgTable(
   'opportunities',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    repositoryId: uuid('repository_id').references(() => repositories.id),
-    issueNumber: integer('issue_number'),
+    repositoryId: uuid('repository_id')
+      .notNull()
+      .references(() => repositories.id),
+    issueNumber: integer('issue_number').notNull(),
     title: text('title').notNull(),
     description: text('description'),
     url: text('url'),
@@ -501,9 +503,9 @@ import { z } from 'zod'
  */
 
 const sqlKeywordPattern =
-  /\b(?:union\s+(?:all\s+)?select|select\b|insert\s+into|update\s+\w+\s+set|delete\s+from|drop\s+(?:table|database)?|alter\s+table|create\s+(?:table|function)|exec(?:ute)?\b|xp_cmdshell|waitfor\s+delay|sleep\s*\(|copy\s+\w+\s+to|lo_import|lo_export|dblink)\b/i
+  /\b(?:union\s+(?:all\s+)?select|select\s+[\w*.,\s]+\s+from|insert\s+into|update\s+\w+\s+set|delete\s+from|drop\s+(?:table|database)?|alter\s+table|create\s+(?:table|function)|exec(?:ute)?\b|xp_cmdshell|waitfor\s+delay|sleep\s*\(|copy\s+\w+\s+to|lo_import|lo_export|dblink)\b/i
 const sqlKeywordSanitizePattern =
-  /\b(?:union\s+(?:all\s+)?select|select\b|insert\s+into|update\s+\w+\s+set|delete\s+from|drop\s+(?:table|database)?|alter\s+table|create\s+(?:table|function)|exec(?:ute)?\b|xp_cmdshell|waitfor\s+delay|sleep\s*\(|copy\s+\w+\s+to|lo_import|lo_export|dblink)\b/gi
+  /\b(?:union\s+(?:all\s+)?select|select\s+[\w*.,\s]+\s+from|insert\s+into|update\s+\w+\s+set|delete\s+from|drop\s+(?:table|database)?|alter\s+table|create\s+(?:table|function)|exec(?:ute)?\b|xp_cmdshell|waitfor\s+delay|sleep\s*\(|copy\s+\w+\s+to|lo_import|lo_export|dblink)\b/gi
 const dangerousInputPattern = /['";]|--|\/\*|\*\/|[<>&|*?~<>^()[\]{}$\n\r]/i
 const dangerousInputSanitizePattern = /['";]|--|\/\*|\*\/|[<>&|*?~<>^()[\]{}$\n\r]/g
 const jsonOperatorPattern = /"\$(?:ne|where|regex)"|__proto__|constructor|prototype/i

@@ -3,7 +3,7 @@
  * Validates complete security architecture with monitoring system integration
  */
 
-import { type NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { apiMonitoring } from '@/lib/api/monitoring'
 import { monitoringMiddleware } from '@/lib/middleware/monitoring-middleware'
@@ -51,14 +51,10 @@ function createMockRequest(options: {
   }
 
   const nextUrl = createNextUrl(url, fallbackOnInvalidUrl)
-  const mockRequest = {
-    url: nextUrl.toString(),
+  return new NextRequest(nextUrl, {
     method,
     headers: mockHeaders,
-    nextUrl,
-  } as NextRequest
-
-  return mockRequest
+  })
 }
 
 // Integration test suite for security + monitoring
@@ -370,11 +366,12 @@ describe('Security + Monitoring Integration', () => {
         },
       })
 
-      const response = await enhancedSecurityMiddleware(request)
-      expect(response).toBeDefined()
-
-      // Restore environment
-      restoreOptionalEnv('VERCEL', originalVercel)
+      try {
+        const response = await enhancedSecurityMiddleware(request)
+        expect(response).toBeDefined()
+      } finally {
+        restoreOptionalEnv('VERCEL', originalVercel)
+      }
     })
   })
 

@@ -201,7 +201,7 @@ const _mockReact = {
 
 afterEach(() => {
   getMockManager()?.resetMSWHandlers()
-  vi.clearAllMocks()
+  vi.restoreAllMocks()
 })
 
 // Mock session data

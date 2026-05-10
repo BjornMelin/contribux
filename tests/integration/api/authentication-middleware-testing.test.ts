@@ -19,6 +19,13 @@ afterEach(() => {
   getMockManager()?.resetMSWHandlers()
 })
 
+function getCookieValue(cookieHeader: string | null, name: string): string | undefined {
+  return cookieHeader
+    ?.split(';')
+    .map(cookie => cookie.trim().split('='))
+    .find(([key]) => key === name)?.[1]
+}
+
 // Test schemas
 const _SessionSchema = z.object({
   user: z.object({
@@ -153,9 +160,12 @@ describe('Middleware Authentication Validation', () => {
     it('should handle expired sessions gracefully', async () => {
       useMSWHandlers(
         http.get('http://localhost:3000/api/search/opportunities', ({ request }) => {
-          const sessionCookie = request.headers.get('Cookie')
+          const sessionToken = getCookieValue(
+            request.headers.get('Cookie'),
+            'next-auth.session-token'
+          )
 
-          if (sessionCookie?.includes('expired-session-token')) {
+          if (sessionToken === 'expired-session-token') {
             return HttpResponse.json(
               {
                 success: false,
@@ -586,12 +596,15 @@ describe('Middleware Authentication Validation', () => {
     it('should prevent session hijacking attempts', async () => {
       useMSWHandlers(
         http.get('http://localhost:3000/api/search/repositories', ({ request }) => {
-          const sessionCookie = request.headers.get('Cookie')
+          const sessionToken = getCookieValue(
+            request.headers.get('Cookie'),
+            'next-auth.session-token'
+          )
           const userAgent = request.headers.get('User-Agent')
           const xForwardedFor = request.headers.get('X-Forwarded-For')
 
           // Simulate session validation with additional security checks
-          if (sessionCookie?.includes('suspicious-session')) {
+          if (sessionToken === 'suspicious-session-token') {
             return HttpResponse.json(
               {
                 success: false,

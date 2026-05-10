@@ -1119,11 +1119,9 @@ export class ErrorMonitor {
    * Get current error metrics
    */
   getMetrics(): ErrorMetrics {
-    const now = Date.now()
-    const windowStart = now - METRICS_WINDOW_MS
-
     // Filter errors within window
-    const recentErrors = this.errors.filter(e => e.timestamp.getTime() >= windowStart)
+    const recentErrors = this.getRecentErrors()
+    this.rebuildErrorPatterns(recentErrors)
 
     // Calculate metrics
     const errorsByCategory: Record<string, number> = {} as Record<ErrorCategory, number>
@@ -1335,25 +1333,31 @@ export class ErrorMonitor {
 
     // Remove old errors
     this.errors = this.errors.filter(e => e.timestamp.getTime() >= cutoffTime)
+    const recentErrors = this.getRecentErrors()
 
     // Clean error patterns with no recent occurrences
     for (const [pattern, _] of this.errorPatterns) {
-      const hasRecentError = this.errors.some(e => this.getErrorPatternKey(e) === pattern)
+      const hasRecentError = recentErrors.some(e => this.getErrorPatternKey(e) === pattern)
       if (!hasRecentError) {
         this.errorPatterns.delete(pattern)
       }
     }
 
-    this.rebuildErrorPatterns()
+    this.rebuildErrorPatterns(recentErrors)
   }
 
   private getErrorPatternKey(error: ErrorEntry): string {
     return `${error.classification.category}:${error.classification.userMessage}`
   }
 
-  private rebuildErrorPatterns(): void {
+  private getRecentErrors(now = Date.now()): ErrorEntry[] {
+    const windowStart = now - METRICS_WINDOW_MS
+    return this.errors.filter(error => error.timestamp.getTime() >= windowStart)
+  }
+
+  private rebuildErrorPatterns(errors: ErrorEntry[] = this.getRecentErrors()): void {
     this.errorPatterns.clear()
-    for (const error of this.errors) {
+    for (const error of errors) {
       const patternKey = this.getErrorPatternKey(error)
       this.errorPatterns.set(patternKey, (this.errorPatterns.get(patternKey) || 0) + 1)
     }
@@ -1953,9 +1957,19 @@ export class AlertingSystem {
   ): boolean {
     if (channel.enabled === false) return false
     if (rule.channels && !rule.channels.includes(channel.name)) return false
-    return (
-      channel.severityFilter ?? ['critical', 'error', 'warning', 'info', 'high', 'medium', 'low']
-    ).includes(alertEvent.severity)
+    const severityFilter = channel.severityFilter ?? [
+      'critical',
+      'error',
+      'warning',
+      'info',
+      'high',
+      'medium',
+      'low',
+    ]
+    const normalizedFilter = new Set(
+      severityFilter.map(severity => this.normalizePagerDutySeverity(severity))
+    )
+    return normalizedFilter.has(this.normalizePagerDutySeverity(alertEvent.severity))
   }
 
   private meetsSeverityThreshold(current: ErrorSeverity, threshold: ErrorSeverity): boolean {

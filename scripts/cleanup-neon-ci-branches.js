@@ -3,6 +3,7 @@
 import { parseArgs } from 'node:util'
 
 const DEFAULT_MIN_AGE_MINUTES = 30
+const DEFAULT_REQUEST_TIMEOUT_MS = 10_000
 const NEON_API_BASE_URL = 'https://console.neon.tech/api/v2'
 
 function readOptions(argv) {
@@ -27,11 +28,17 @@ function readOptions(argv) {
   })
 
   const prefixes = values.prefix ?? []
-  const minAgeMinutes = Number.parseInt(values['min-age-minutes'], 10)
+  const rawMinAgeMinutes = values['min-age-minutes']
 
   if (prefixes.length === 0) {
     throw new Error('At least one --prefix value is required')
   }
+
+  if (!/^\d+$/.test(rawMinAgeMinutes)) {
+    throw new Error('--min-age-minutes must contain only digits')
+  }
+
+  const minAgeMinutes = Number.parseInt(rawMinAgeMinutes, 10)
 
   if (!Number.isFinite(minAgeMinutes) || minAgeMinutes < 1) {
     throw new Error('--min-age-minutes must be a positive integer')
@@ -74,14 +81,28 @@ function shouldDeleteBranch(branch, prefixes, cutoff) {
 }
 
 async function neonRequest(path, apiKey, init = {}) {
-  const response = await fetch(`${NEON_API_BASE_URL}${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      Accept: 'application/json',
-      ...init.headers,
-    },
-  })
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), DEFAULT_REQUEST_TIMEOUT_MS)
+  let response
+
+  try {
+    response = await fetch(`${NEON_API_BASE_URL}${path}`, {
+      ...init,
+      signal: controller.signal,
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        Accept: 'application/json',
+        ...init.headers,
+      },
+    })
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`Neon API request timed out after ${DEFAULT_REQUEST_TIMEOUT_MS}ms`)
+    }
+    throw error
+  } finally {
+    clearTimeout(timeout)
+  }
 
   if (!response.ok && response.status !== 204) {
     const body = await response.text()
