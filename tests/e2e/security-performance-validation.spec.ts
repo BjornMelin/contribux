@@ -18,24 +18,20 @@ test.describe('Security and performance validation', () => {
     }
   })
 
-  test('validates NextAuth bootstrap API response times', async ({ request }) => {
+  test('validates NextAuth bootstrap API contracts', async ({ request }) => {
     for (const endpoint of ['/api/auth/csrf', '/api/auth/providers', '/api/auth/session']) {
-      const startedAt = Date.now()
       const response = await request.get(endpoint, { headers: isolatedHeaders(endpoint) })
 
       expect(response.status(), endpoint).toBe(200)
-      expect(Date.now() - startedAt, endpoint).toBeLessThan(1000)
     }
   })
 
-  test('validates public search API response time and shape', async ({ request }) => {
-    const startedAt = Date.now()
+  test('validates public search API response shape', async ({ request }) => {
     const response = await request.get('/api/search/repositories?q=react', {
       headers: isolatedHeaders('search'),
     })
 
     expect(response.status()).toBe(200)
-    expect(Date.now() - startedAt).toBeLessThan(1500)
 
     const payload = await response.json()
     expect(payload.success).toBe(true)

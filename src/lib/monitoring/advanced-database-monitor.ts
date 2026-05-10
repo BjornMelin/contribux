@@ -42,6 +42,17 @@ interface IndexStatsRow {
 }
 
 export class AdvancedDatabaseMonitor {
+  private metricsUnavailable(metrics: AdvancedDatabaseMetrics): boolean {
+    return (
+      !Number.isFinite(metrics.queryPerformance.averageLatency) ||
+      metrics.queryPerformance.averageLatency < 0 ||
+      !Number.isFinite(metrics.connectionPool.averageCheckoutTime) ||
+      metrics.connectionPool.averageCheckoutTime < 0 ||
+      !Number.isFinite(metrics.vectorSearch.averageQueryTime) ||
+      metrics.vectorSearch.averageQueryTime < 0
+    )
+  }
+
   async getPerformanceMetrics(): Promise<AdvancedDatabaseMetrics> {
     try {
       const startTime = performance.now()
@@ -138,6 +149,12 @@ export class AdvancedDatabaseMonitor {
     const currentMetrics = metrics ?? (await this.getPerformanceMetrics())
     const suggestions: string[] = []
 
+    if (this.metricsUnavailable(currentMetrics)) {
+      return [
+        'Database metrics are unavailable; inspect database connectivity before optimization.',
+      ]
+    }
+
     if (currentMetrics.queryPerformance.averageLatency > 100) {
       suggestions.push('Investigate slow database round trips and query plans.')
     }
@@ -166,6 +183,13 @@ export class AdvancedDatabaseMonitor {
 
   async generateAdvancedReport(metrics?: AdvancedDatabaseMetrics): Promise<string> {
     const currentMetrics = metrics ?? (await this.getPerformanceMetrics())
+
+    if (this.metricsUnavailable(currentMetrics)) {
+      return [
+        '# Database Performance Report',
+        'Database metrics unavailable; check database connectivity before interpreting performance.',
+      ].join('\n')
+    }
 
     return [
       '# Database Performance Report',

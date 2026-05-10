@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
 import { Github, Loader2, Mail } from '@/components/icons'
-import { MotionDiv } from '@/components/motion'
+import { MotionDiv, MotionSpan } from '@/components/motion'
 import { Card } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 
@@ -103,20 +103,18 @@ interface BlurTextProps {
 
 const BlurText = ({ text, className, delay = 0 }: BlurTextProps) => {
   return (
-    <span className={cn('inline-block', className)}>
-      <MotionDiv
-        initial={{ filter: 'blur(10px)', opacity: 0 }}
-        animate={{ filter: 'blur(0px)', opacity: 1 }}
-        transition={{
-          duration: 1,
-          ease: 'easeOut',
-          delay,
-        }}
-        className="inline-block"
-      >
-        {text}
-      </MotionDiv>
-    </span>
+    <MotionSpan
+      initial={{ filter: 'blur(10px)', opacity: 0 }}
+      animate={{ filter: 'blur(0px)', opacity: 1 }}
+      transition={{
+        duration: 1,
+        ease: 'easeOut',
+        delay,
+      }}
+      className={cn('inline-block', className)}
+    >
+      {text}
+    </MotionSpan>
   )
 }
 

@@ -225,13 +225,11 @@ describe('Database Security Testing', () => {
       it('should reject dangerous characters', () => {
         const dangerousChars = [
           "test<script>alert('xss')</script>",
-          "search'query",
-          'search"query',
-          'search;query',
-          'search&query',
-          'search|query',
-          'search*query',
-          'search$query',
+          '<img src=x onerror=alert(1)>',
+          'search--query',
+          'search/*query*/',
+          'javascript:alert(1)',
+          'data:text/html,<script>alert(1)</script>',
           'search\nquery',
           'search\rquery',
         ]
@@ -257,6 +255,8 @@ describe('Database Security Testing', () => {
           'python machine learning',
           'web development',
           'database optimization',
+          "beginner's guide (React) & TypeScript",
+          'C++ templates [advanced]',
         ]
 
         validQueries.forEach(query => {

@@ -12,14 +12,29 @@ test.describe('Browser security smoke tests', () => {
   test('keeps keyboard focus within visible auth controls and links', async ({ page }) => {
     await page.goto('/auth/signin')
 
-    for (let index = 0; index < 8; index += 1) {
-      await page.keyboard.press('Tab')
-      if ((await page.locator('button:focus, a:focus').count()) > 0) {
-        break
+    const focusTargets = [
+      page.getByRole('button', { name: /continue with github/i }),
+      page.getByRole('button', { name: /continue with google/i }),
+      page.getByRole('link', { name: /terms of service/i }),
+      page.getByRole('link', { name: /privacy policy/i }),
+    ]
+
+    await focusTargets[0].focus()
+
+    for (const [index, target] of focusTargets.entries()) {
+      await expect(target).toBeFocused()
+
+      const focusedWithinAuth = await page.evaluate(() => {
+        const main = document.querySelector('main')
+        const active = document.activeElement
+        return active instanceof HTMLElement && Boolean(main?.contains(active))
+      })
+      expect(focusedWithinAuth).toBe(true)
+
+      if (index < focusTargets.length - 1) {
+        await page.keyboard.press('Tab')
       }
     }
-
-    await expect(page.locator('button:focus, a:focus').first()).toBeVisible()
   })
 
   test('serves public health without requiring app authentication', async ({ request }) => {

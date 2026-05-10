@@ -44,7 +44,7 @@ test.describe('API Endpoints Tests', () => {
     // Test with a simple query but no authentication
     const response = await request.get('/api/search/repositories?q=react')
 
-    expect([200, 400, 401, 500, 503].includes(response.status())).toBeTruthy()
+    expect([200, 400, 500, 503].includes(response.status())).toBeTruthy()
 
     if (response.status() === 200) {
       const data = await response.json()
@@ -104,10 +104,10 @@ test.describe('API Endpoints Tests', () => {
   })
 
   test('API endpoints should handle errors gracefully', async ({ request }) => {
-    // Test with malformed requests to repositories endpoint (requires auth)
+    // Test with malformed requests to repositories endpoint
     const repoResponse = await request.get('/api/search/repositories?q=')
 
-    expect([400, 401, 422, 500, 503].includes(repoResponse.status())).toBeTruthy()
+    expect([400, 422, 500, 503].includes(repoResponse.status())).toBeTruthy()
 
     const repoData = await repoResponse.json()
     expect(repoData).toHaveProperty('error')

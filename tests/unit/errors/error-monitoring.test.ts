@@ -592,6 +592,23 @@ describe('ErrorDashboard', () => {
       expect(report.overall.availability).toBeLessThan(100)
     })
 
+    it('should calculate availability from affected hours instead of event count', async () => {
+      const criticalError: ErrorClassification = {
+        category: ErrorCategory.DATABASE_CONNECTION,
+        severity: ErrorSeverity.CRITICAL,
+        isTransient: false,
+        recoveryStrategies: [],
+        userMessage: 'Database down',
+      }
+
+      for (let i = 0; i < 5; i++) {
+        errorMonitor.logError(new Error(`Critical ${i}`), criticalError)
+      }
+
+      const report = await dashboard.getHealthReport()
+      expect(report.overall.availability).toBeCloseTo((23 / 24) * 100, 5)
+    })
+
     it('should provide recommendations based on errors', async () => {
       const dbError: ErrorClassification = {
         category: ErrorCategory.DATABASE_CONNECTION,

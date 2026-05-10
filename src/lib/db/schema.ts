@@ -506,8 +506,10 @@ const sqlKeywordPattern =
   /\b(?:union\s+(?:all\s+)?select|select\s+[\w*.,\s]+\s+from|insert\s+into|update\s+\w+\s+set|delete\s+from|drop\s+(?:table|database)?|alter\s+table|create\s+(?:table|function)|exec(?:ute)?\b|xp_cmdshell|waitfor\s+delay|sleep\s*\(|copy\s+\w+\s+to|lo_import|lo_export|dblink)\b/i
 const sqlKeywordSanitizePattern =
   /\b(?:union\s+(?:all\s+)?select|select\s+[\w*.,\s]+\s+from|insert\s+into|update\s+\w+\s+set|delete\s+from|drop\s+(?:table|database)?|alter\s+table|create\s+(?:table|function)|exec(?:ute)?\b|xp_cmdshell|waitfor\s+delay|sleep\s*\(|copy\s+\w+\s+to|lo_import|lo_export|dblink)\b/gi
-const dangerousInputPattern = /['";]|--|\/\*|\*\/|[<>&|*?~<>^()[\]{}$\n\r]/i
-const dangerousInputSanitizePattern = /['";]|--|\/\*|\*\/|[<>&|*?~<>^()[\]{}$\n\r]/g
+const dangerousInputPattern =
+  /--|\/\*|\*\/|[\n\r]|<\s*\/?\s*(?:script|iframe|object|embed|svg|img|link|meta|style|base|form|input|button|textarea|select|option)\b|on[a-z]+\s*=|javascript\s*:|data\s*:/i
+const dangerousInputSanitizePattern =
+  /--|\/\*|\*\/|[\n\r]|<\s*\/?\s*(?:script|iframe|object|embed|svg|img|link|meta|style|base|form|input|button|textarea|select|option)[^>]*>|on[a-z]+\s*=|javascript\s*:|data\s*:/gi
 const jsonOperatorPattern = /"\$(?:ne|where|regex)"|__proto__|constructor|prototype/i
 const dangerousControlCharacters = ['\0', '\u001a'] as const
 

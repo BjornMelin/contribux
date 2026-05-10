@@ -81,15 +81,15 @@ export class ErrorDashboard {
     const metrics = this.errorMonitor.getMetrics()
     const trends = this.errorMonitor.getTrends(24)
 
-    // Calculate availability (based on critical errors)
-    const trendCriticalErrors = trends.reduce(
-      (sum, trend) => sum + (trend.severityCounts[ErrorSeverity.CRITICAL] || 0),
-      0
-    )
+    // Calculate availability by affected hours, not raw critical-event volume.
+    const trendCriticalHours = trends.filter(
+      trend => (trend.severityCounts[ErrorSeverity.CRITICAL] || 0) > 0
+    ).length
     const currentCriticalErrors = metrics.errorsBySeverity[ErrorSeverity.CRITICAL] || 0
-    const criticalErrors = Math.max(trendCriticalErrors, currentCriticalErrors)
+    const criticalHours = Math.max(trendCriticalHours, currentCriticalErrors > 0 ? 1 : 0)
     const totalHours = trends.length
-    const availability = Math.max(0, ((totalHours - criticalErrors) / totalHours) * 100)
+    const availability =
+      totalHours > 0 ? Math.max(0, ((totalHours - criticalHours) / totalHours) * 100) : 100
 
     // Calculate mean time to recovery (MTTR)
     const mttr = await this.calculateMTTR()
@@ -1665,6 +1665,10 @@ export class AlertingSystem {
 
       switch (channel.type) {
         case 'console':
+          createErrorLogger({
+            component: 'AlertingSystem',
+            operation: 'consoleAlert',
+          }).warn({ alert }, alert.title)
           break
 
         case 'webhook':

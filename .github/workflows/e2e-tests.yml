@@ -103,8 +103,16 @@ jobs:
       - name: Resolve Neon E2E branch outputs
         id: e2e-branch
         run: |
-          echo "branch_id=${{ steps.create-branch.outputs.branch_id || steps.create-branch-retry.outputs.branch_id }}" >> "$GITHUB_OUTPUT"
-          echo "db_url_with_pooler=${{ steps.create-branch.outputs.db_url_with_pooler || steps.create-branch-retry.outputs.db_url_with_pooler }}" >> "$GITHUB_OUTPUT"
+          branch_id="${{ steps.create-branch.outputs.branch_id || steps.create-branch-retry.outputs.branch_id }}"
+          db_url_with_pooler="${{ steps.create-branch.outputs.db_url_with_pooler || steps.create-branch-retry.outputs.db_url_with_pooler }}"
+
+          if [ -z "$branch_id" ] || [ -z "$db_url_with_pooler" ]; then
+            echo "::error::Failed to create or resolve Neon E2E branch outputs."
+            exit 1
+          fi
+
+          echo "branch_id=$branch_id" >> "$GITHUB_OUTPUT"
+          echo "db_url_with_pooler=$db_url_with_pooler" >> "$GITHUB_OUTPUT"
 
       # Setup environment variables for the application
       - name: Setup Environment Variables

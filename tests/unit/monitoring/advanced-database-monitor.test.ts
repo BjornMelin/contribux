@@ -82,4 +82,18 @@ describe('AdvancedDatabaseMonitor', () => {
       })
     ).rejects.toThrow('Database metrics collection alert')
   })
+
+  it('does not treat unavailable metrics as real optimization signals', async () => {
+    const monitor = new AdvancedDatabaseMonitor()
+    const metrics = await monitor.getPerformanceMetrics()
+
+    const suggestions = await monitor.optimizeDatabase(metrics)
+    const report = await monitor.generateAdvancedReport(metrics)
+
+    expect(suggestions).toEqual([
+      'Database metrics are unavailable; inspect database connectivity before optimization.',
+    ])
+    expect(report).toContain('Database metrics unavailable')
+    expect(report).not.toContain('-1ms')
+  })
 })
