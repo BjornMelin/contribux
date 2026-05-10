@@ -1,5 +1,5 @@
 /**
- * Advanced TypeScript 5.8+ Type Definitions
+ * Advanced TypeScript 5.9+ Type Definitions
  *
  * Demonstrates sophisticated type-level programming using:
  * - Template literal types with enhanced pattern inference

@@ -1,7 +1,7 @@
 /**
  * Enhanced Memory Monitoring and Leak Detection Utilities
  * Provides comprehensive memory tracking, leak detection, and performance monitoring
- * Optimized for Vitest 3.2+ with solo developer workflow
+ * Optimized for Vitest 4.1+ with solo developer workflow
  */
 
 interface MemorySnapshot {

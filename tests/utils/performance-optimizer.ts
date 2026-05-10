@@ -1,6 +1,6 @@
 /**
  * Test Infrastructure Performance Optimizer
- * Advanced optimization utilities for Vitest 3.2+ test execution
+ * Advanced optimization utilities for Vitest 4.1+ test execution
  */
 
 import { performance } from 'node:perf_hooks'

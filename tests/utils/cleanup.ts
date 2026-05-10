@@ -1,6 +1,6 @@
 /**
  * Test cleanup utilities for proper test isolation and memory optimization
- * Enhanced for Vitest 3.2+ with memory leak prevention
+ * Enhanced for Vitest 4.1+ with memory leak prevention
  */
 
 import { performance } from 'node:perf_hooks'

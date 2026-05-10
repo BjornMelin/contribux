@@ -468,7 +468,7 @@ describe('Search Component', () => {
 
 ### Authentication
 
-- **NextAuth v5**: Modern authentication with PKCE
+- **NextAuth v4**: Modern authentication with PKCE
 - **JWT Security**: Secure token handling with rotation
 - **Session Management**: Secure session handling
 

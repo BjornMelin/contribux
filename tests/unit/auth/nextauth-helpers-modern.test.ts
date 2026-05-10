@@ -7,7 +7,7 @@ import { getCurrentUser, getOAuthAccessToken, hasOAuthScope, requireAuth } from 
 import type { User } from '@/types/auth'
 import type { Email, GitHubUsername, UUID } from '@/types/base'
 
-// Modern Auth.js v5 test patterns - use node environment to avoid JSDOM issues
+// Modern Auth.js v4 test patterns - use node environment to avoid JSDOM issues
 
 // Mock Next.js modules first to prevent import issues
 vi.mock('next/server', () => ({
@@ -17,12 +17,12 @@ vi.mock('next/server', () => ({
   },
 }))
 
-// Mock NextAuth v5 modules
+// Mock NextAuth v4 modules
 vi.mock('next-auth', () => ({
   default: vi.fn(),
 }))
 
-// Mock the universal auth() function from Auth.js v5
+// Mock the universal auth() function from Auth.js v4
 vi.mock('@/lib/auth', () => ({
   auth: vi.fn(),
 }))
@@ -43,7 +43,7 @@ vi.mock('next/headers', () => ({
   ),
 }))
 
-describe('Auth.js v5 Helper Functions - Modern 2025 Approach', () => {
+describe('Auth.js v4 Helper Functions - Modern 2025 Approach', () => {
   const mockUser: User = {
     id: '123e4567-e89b-12d3-a456-426614174000' as UUID,
     email: 'test@example.com' as Email,
@@ -271,11 +271,11 @@ describe('Auth.js v5 Helper Functions - Modern 2025 Approach', () => {
     })
   })
 
-  describe('Auth.js v5 Integration Patterns', () => {
+  describe('Auth.js v4 Integration Patterns', () => {
     it('demonstrates universal auth() function usage', async () => {
       const { auth } = await import('@/lib/auth')
 
-      // In Auth.js v5, auth() replaces all these old methods:
+      // In Auth.js v4, auth() replaces all these old methods:
       // - getServerSession()
       // - getSession()
       // - withAuth()

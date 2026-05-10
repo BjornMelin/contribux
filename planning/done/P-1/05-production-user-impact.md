@@ -34,7 +34,7 @@ remain unimplemented, creating a significant gap between technical readiness and
 
 #### Security Architecture (Production-Ready)
 
-- **Multi-Provider OAuth**: GitHub + Google with NextAuth v5
+- **Multi-Provider OAuth**: GitHub + Google with NextAuth.js v4
 - **WebAuthn Support**: Passwordless authentication with biometric support
 - **Zero-Trust Design**: Vercel Edge Middleware for request validation
 - **Security Headers**: CSP, CORS, rate limiting implemented

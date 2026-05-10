@@ -13,7 +13,7 @@ vi.mock('next/server', () => ({
   },
 }))
 
-// Mock NextAuth v5 modules
+// Mock NextAuth v4 modules
 vi.mock('next-auth', () => ({
   default: vi.fn(),
 }))
@@ -93,7 +93,7 @@ describe('NextAuth OAuth Security Integration', () => {
       // Each OAuth provider should have PKCE enabled
       authConfig.providers?.forEach(provider => {
         if (provider.type === 'oauth') {
-          // NextAuth v5 enables PKCE by default for OAuth providers
+          // NextAuth v4 enables PKCE by default for OAuth providers
           expect(provider.options?.pkce).not.toBe(false)
         }
       })
@@ -331,7 +331,7 @@ describe('NextAuth OAuth Security Integration', () => {
     })
 
     it('should implement CSRF protection', () => {
-      // NextAuth v5 has built-in CSRF protection
+      // NextAuth v4 has built-in CSRF protection
       expect(authConfig.useSecureCookies).not.toBe(false)
 
       // Should have proper cookie configuration

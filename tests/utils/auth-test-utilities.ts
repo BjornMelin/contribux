@@ -1,5 +1,5 @@
 /**
- * NextAuth.js v5 Testing Utilities
+ * NextAuth.js v4 Testing Utilities
  * Comprehensive utilities for authentication state management, mocking, and test setup
  */
 

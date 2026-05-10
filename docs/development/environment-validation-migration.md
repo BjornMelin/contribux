@@ -1,7 +1,7 @@
 # Centralized Environment Variable Validation Migration Summary
 
 ## Overview
-Successfully migrated the contribux Next.js 15 project to use centralized environment variable validation with @t3-oss/env-nextjs, implementing T3 Stack best practices for type-safe environment management.
+Successfully migrated the contribux Next.js 16 project to use centralized environment variable validation with @t3-oss/env-nextjs, implementing T3 Stack best practices for type-safe environment management.
 
 ## Key Achievements
 

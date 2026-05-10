@@ -1,28 +1,29 @@
 # CLAUDE.md - CONTRIBUX PROJECT INSTRUCTIONS
 
-**Project**: contribux - AI-powered GitHub contribution discovery platform  
-**Stack**: Next.js 15, TypeScript, Neon PostgreSQL, Vector Search, AI-native serverless  
+**Project**: contribux - AI-powered GitHub contribution discovery platform
+**Stack**: Next.js 16, TypeScript, Neon PostgreSQL, vector search, serverless runtime
 **Package Manager**: pnpm (NEVER use npm/yarn)
 
 ```bash
 # Essential Commands - Run These First
 pnpm install           # Install dependencies
-pnpm dev              # Development server  
+pnpm dev              # Development server
 pnpm test             # Run all tests
 pnpm lint && pnpm type-check  # Code quality validation
 ```
 
 ## DATABASE & ARCHITECTURE
 
-**Database**: Neon PostgreSQL 16 + pgvector extension  
-**Vector Search**: halfvec(1536) embeddings with HNSW indexes  
-**Environment URLs**: `DATABASE_URL`, `DATABASE_URL_DEV`, `DATABASE_URL_TEST`  
+**Database**: Neon PostgreSQL + pgvector extension
+**Vector Search**: halfvec(1536) embeddings with HNSW indexes
+**Environment URLs**: `DATABASE_URL`, `DATABASE_URL_DEV`, `DATABASE_URL_TEST`
 **Monitoring**: Performance reports, health checks, vector metrics
 
 **Essential DB Commands:**
+
 ```bash
 pnpm db:test-connection    # Connection testing
-pnpm db:health            # Health monitoring  
+pnpm db:health            # Health monitoring
 pnpm db:performance-report # Performance analysis
 pnpm db:vector-metrics    # Vector search metrics
 ```
@@ -35,10 +36,10 @@ pnpm db:vector-metrics    # Vector search metrics
 
 ### TECH STACK DETAILS
 
-**Frontend**: Next.js 15 + App Router, React 19, TypeScript 5.8+  
-**Styling**: Tailwind CSS 4.0+, Biome formatting  
-**AI/ML**: OpenAI Agents SDK, vector embeddings  
-**Testing**: Vitest 3.2+ with V8 coverage  
+**Frontend**: Next.js 16 + App Router, React 19, TypeScript 5.9+
+**Styling**: Tailwind CSS 4.0+, Biome formatting
+**AI/ML**: OpenAI-compatible embeddings, vector search
+**Testing**: Vitest 4.1+ with V8 coverage
 **Architecture**: Serverless-first, AI-native, zero maintenance
 
 ### BROWSER AUTOMATION & E2E TESTING

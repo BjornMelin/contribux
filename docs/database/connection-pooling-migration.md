@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the migration from custom connection pooling to Neon's built-in PgBouncer pooling for the Contribux Next.js 15 project.
+This document describes the migration from custom connection pooling to Neon's built-in PgBouncer pooling for the Contribux Next.js 16 project.
 
 ## Migration Summary
 

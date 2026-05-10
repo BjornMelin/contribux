@@ -1,12 +1,12 @@
 /**
- * Vitest 3.2+ Optimization Features Test
+ * Vitest 4.1+ Optimization Features Test
  * Verifies that memory optimization and modern Vitest features are working
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryMonitor, getMemoryUsage } from '../utils/cleanup'
 
-describe('Vitest 3.2+ Memory Optimization', () => {
+describe('Vitest 4.1+ Memory Optimization', () => {
   let memoryMonitor: ReturnType<typeof createMemoryMonitor>
 
   beforeEach(() => {
@@ -99,7 +99,7 @@ describe('Vitest 3.2+ Memory Optimization', () => {
   })
 
   it('should handle concurrent test execution efficiently', async () => {
-    // Test concurrent operations to verify Vitest 3.2+ concurrency features
+    // Test concurrent operations to verify Vitest 4.1+ concurrency features
     const concurrentTasks = Array.from(
       { length: 10 },
       (_, i) =>
@@ -121,7 +121,7 @@ describe('Vitest 3.2+ Memory Optimization', () => {
   })
 
   it('should verify enhanced mock reset functionality', () => {
-    // Test that Vitest 3.2+ mock reset features are working
+    // Test that Vitest 4.1+ mock reset features are working
     const mockFn = vi.fn()
     mockFn('test_call')
 

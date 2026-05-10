@@ -1,5 +1,5 @@
 /**
- * Simplified GitHubClient - Octokit v5.0.3 wrapper using built-in features
+ * Simplified GitHubClient - @octokit/rest wrapper using built-in features
  *
  * Features:
  * - GitHub App and token authentication

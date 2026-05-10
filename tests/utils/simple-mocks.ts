@@ -150,7 +150,7 @@ export function setupAuthMock() {
     expires: '2024-12-31T23:59:59.999Z',
   }
 
-  // Fix NextAuth v5 mock with proper default export
+  // Fix NextAuth v4 mock with proper default export
   vi.mock('next-auth', () => {
     const mockNextAuth = vi.fn(() => ({
       handlers: {

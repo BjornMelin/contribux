@@ -16,7 +16,7 @@ best practices, and implementation details.
 
 ## Overview
 
-The contribux test suite uses **Vitest 3.2+** as the primary testing framework, providing:
+The contribux test suite uses **Vitest 4.1+** as the primary testing framework, providing:
 
 - Fast execution with native ESM support
 - Built-in TypeScript support
@@ -137,8 +137,8 @@ pnpm test:watch
 # Coverage report
 pnpm test:coverage
 
-# CI mode with verbose output
-pnpm test:ci
+# E2E CI mode with line reporter
+pnpm test:e2e:ci
 
 # Database-specific tests
 pnpm test:db
@@ -152,11 +152,11 @@ pnpm test:ui
 For faster feedback during development:
 
 ```bash
-# Fast mode (60-80% faster)
-pnpm test:fast
+# Focused unit suite for quick feedback
+pnpm test:unit
 
-# Fast watch mode
-pnpm test:fast:watch
+# Watch mode for focused development
+pnpm test:watch
 ```
 
 Fast mode reduces:
@@ -172,7 +172,7 @@ Fast mode reduces:
 pnpm test:integration
 
 # Watch integration tests
-pnpm test:integration:watch
+pnpm exec vitest watch --config vitest.integration.config.ts
 
 # CI-optimized integration tests
 pnpm test:integration:ci
@@ -429,7 +429,7 @@ pnpm test -t "should authenticate"
 
 For slow tests:
 
-1. Use `pnpm test:fast` for quick feedback
+1. Use `pnpm test:unit` for quick feedback
 2. Profile with `node --inspect`
 3. Check for unnecessary async operations
 4. Reduce test data size
@@ -448,7 +448,7 @@ Tests are automatically run in CI with:
 ```yaml
 - name: Run Tests
   run: |
-    pnpm test:ci
+    pnpm test:e2e:ci
     pnpm test:coverage
 ```
 

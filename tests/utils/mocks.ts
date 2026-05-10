@@ -1,5 +1,5 @@
 /**
- * Common mock definitions for Vitest 3.2+ testing
+ * Common mock definitions for Vitest 4.1+ testing
  * Extracted from setup.ts for better modularity
  */
 

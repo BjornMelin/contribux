@@ -1,5 +1,5 @@
 /**
- * NextAuth.js v5 API Route Protection Integration Tests
+ * NextAuth.js v4 API Route Protection Integration Tests
  * Testing authenticated vs unauthenticated access, middleware validation, and role-based access
  */
 

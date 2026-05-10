@@ -1,6 +1,6 @@
 /**
  * Advanced CSP and CORS Security Module
- * Enterprise-grade security configuration for Next.js 15
+ * Enterprise-grade security configuration for Next.js 16
  */
 
 import type { NextRequest, NextResponse } from 'next/server'
@@ -26,7 +26,7 @@ export interface CSPDirectives {
 }
 
 /**
- * Enhanced CSP directives for Next.js 15 with React 19
+ * Enhanced CSP directives for Next.js 16 with React 19
  */
 export function getEnhancedCSPDirectives(): CSPDirectives {
   const baseDirectives: CSPDirectives = {

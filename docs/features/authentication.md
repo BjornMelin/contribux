@@ -1,6 +1,6 @@
 # Authentication System Guide
 
-> **Consolidated Authentication Documentation** - This guide combines authentication implementation, NextAuth.js configuration, and Better Auth alternatives into a comprehensive resource.
+> **Consolidated Authentication Documentation** - This guide combines authentication implementation, NextAuth.js configuration, OAuth account linking, and feature-gated WebAuthn MFA into a comprehensive resource.
 
 Comprehensive documentation for the Contribux authentication system using GitHub OAuth and NextAuth.js.
 
@@ -10,8 +10,7 @@ Comprehensive documentation for the Contribux authentication system using GitHub
 - [Current Implementation (NextAuth.js)](#current-implementation-nextauthjs)
 - [Multi-Provider OAuth Implementation](#multi-provider-oauth-implementation)
 - [NextAuth.js Configuration](#nextauth-configuration)
-- [Better Auth Alternative (Future Implementation)](#better-auth-alternative-future-implementation)
-- [WebAuthn Simplification](#webauthn-simplification)
+- [WebAuthn MFA](#webauthn-mfa)
 - [Security Features](#security-features)
 - [Database Schema](#database-schema)
 - [Environment Configuration](#environment-configuration)
@@ -21,14 +20,14 @@ Comprehensive documentation for the Contribux authentication system using GitHub
 
 ## Overview
 
-The Contribux platform uses a simplified authentication system focused on GitHub OAuth for seamless
-integration with the developer ecosystem. The implementation has been streamlined to remove complexity
-while maintaining security best practices.
+The Contribux platform uses NextAuth.js v4 for multi-provider OAuth, with GitHub as the primary
+provider, Google as an optional provider, and WebAuthn available as feature-gated MFA.
 
 ### **What's Included in This Guide:**
-- **Current NextAuth.js v5 Implementation** - Production-ready OAuth system
-- **Better Auth Alternative** - Modern authentication framework for future migration
+
+- **Current NextAuth.js v4 Implementation** - Production-ready OAuth system
 - **Multi-Provider Support** - GitHub (primary), Google (optional)
+- **WebAuthn MFA** - Feature-gated passkey support backed by `@simplewebauthn/server`
 - **Security Features** - Account linking, session management, CSRF protection
 - **Implementation Patterns** - Practical code examples and best practices
 - **Testing Guide** - Comprehensive authentication testing strategies
@@ -118,225 +117,52 @@ export const authConfig = {
 
 ```typescript
 // src/lib/auth/index.ts
-export const { auth, signIn, signOut, handlers } = NextAuth(authConfig);
+const handler = NextAuth(authConfig);
+
+export const handlers = {
+  GET: handler,
+  POST: handler,
+};
+
+export const auth = () => getServerSession(authConfig);
+export const GET = handlers.GET;
+export const POST = handlers.POST;
 ```
 
 ### API Route Configuration
 
 ```typescript
 // src/app/api/auth/[...nextauth]/route.ts
-import { handlers } from "@/lib/auth";
-
-export const { GET, POST } = handlers;
+export { GET, POST } from "@/lib/auth";
 ```
 
-## Better Auth Alternative (Future Implementation)
+## WebAuthn MFA
 
-> **Modern Authentication Framework** - Better Auth provides a more modern, type-safe alternative to NextAuth.js with built-in security features and simplified configuration.
+WebAuthn support is present as a feature-gated MFA path. OAuth remains the primary sign-in surface, and
+WebAuthn endpoints are enabled only when `ENABLE_WEBAUTHN=true` or in development.
 
-### Why Consider Better Auth?
+### Implementation Surface
 
-Better Auth offers several advantages over NextAuth.js:
-- **Built-in Security**: CSRF protection, rate limiting, secure session management
-- **TypeScript-First**: Full type safety throughout the authentication flow
-- **Modern Architecture**: Designed for modern web standards and serverless environments
-- **Simplified Configuration**: Less boilerplate, more intuitive API design
+- **Server package**: `@simplewebauthn/server`
+- **Server helpers**: `src/lib/security/webauthn/server.ts`
+- **Feature flags**: `src/lib/security/feature-flags.ts`
+- **API routes**:
+  - `src/app/api/security/webauthn/register/options/route.ts`
+  - `src/app/api/security/webauthn/register/verify/route.ts`
+  - `src/app/api/security/webauthn/authenticate/options/route.ts`
+  - `src/app/api/security/webauthn/authenticate/verify/route.ts`
+- **Database table**: `webauthn_credentials`
 
-### Quick Start Implementation
-
-#### 1. Installation and Setup
+### Configuration
 
 ```bash
-# Install Better Auth and dependencies
-pnpm add better-auth @better-auth/pg
-pnpm add -D @types/pg
-
-# Install additional providers if needed
-pnpm add @better-auth/github @better-auth/google
+ENABLE_WEBAUTHN=true
+WEBAUTHN_RP_ID=your-domain.com
+WEBAUTHN_ORIGIN=https://your-domain.com
 ```
 
-#### 2. Environment Configuration
-
-```typescript
-// .env.local additions (keep existing variables)
-BETTER_AUTH_SECRET="your-secret-key-minimum-32-characters"
-BETTER_AUTH_URL="http://localhost:3000"
-
-# Keep existing OAuth credentials
-GITHUB_CLIENT_ID="your-github-client-id"
-GITHUB_CLIENT_SECRET="your-github-client-secret"
-GOOGLE_CLIENT_ID="your-google-client-id"
-GOOGLE_CLIENT_SECRET="your-google-client-secret"
-
-# Database (use existing DATABASE_URL)
-DATABASE_URL="your-existing-neon-url"
-```
-
-#### 3. Core Authentication Setup
-
-```typescript
-// src/lib/auth/better-auth.ts
-import { betterAuth } from "better-auth";
-import { pg } from "@better-auth/pg";
-import { getEnv } from "@/lib/validation/env";
-
-const env = getEnv();
-
-export const auth = betterAuth({
-  database: pg({
-    connectionString: env.DATABASE_URL,
-  }),
-
-  // Email and password authentication
-  emailAndPassword: {
-    enabled: true,
-    requireEmailVerification: true,
-    minPasswordLength: 8,
-    maxPasswordLength: 128,
-  },
-
-  // Social providers
-  socialProviders: {
-    github: {
-      clientId: env.GITHUB_CLIENT_ID!,
-      clientSecret: env.GITHUB_CLIENT_SECRET!,
-      scope: ["user:email"],
-    },
-    google: {
-      clientId: env.GOOGLE_CLIENT_ID!,
-      clientSecret: env.GOOGLE_CLIENT_SECRET!,
-      scope: ["openid", "email", "profile"],
-    },
-  },
-
-  // Session configuration
-  session: {
-    expiresIn: 60 * 60 * 24 * 7, // 7 days
-    updateAge: 60 * 60 * 24, // Update session every day
-    cookieCache: {
-      enabled: true,
-      maxAge: 60 * 5, // 5 minutes
-    },
-  },
-
-  // Security settings
-  secret: env.BETTER_AUTH_SECRET || env.JWT_SECRET,
-  baseURL: env.NEXT_PUBLIC_APP_URL,
-
-  // Rate limiting
-  rateLimit: {
-    window: 60, // 1 minute
-    max: 10, // 10 attempts per minute
-  },
-
-  // Advanced security
-  advanced: {
-    crossSubDomainCookies: {
-      enabled: false, // Enable for subdomain support
-    },
-    useSecureCookies: env.NODE_ENV === "production",
-    generateId: () => crypto.randomUUID(),
-  },
-});
-```
-
-#### 4. Client-Side Integration
-
-```typescript
-// src/lib/auth/client.ts
-import { createAuthClient } from "better-auth/react";
-
-export const authClient = createAuthClient({
-  baseURL: process.env.NEXT_PUBLIC_APP_URL,
-});
-
-export const {
-  signIn,
-  signOut,
-  signUp,
-  useSession,
-  $Infer,
-} = authClient;
-```
-
-#### 5. React Hooks Usage
-
-```typescript
-// In components
-'use client'
-import { useSession } from "@/lib/auth/client";
-
-export function UserProfile() {
-  const { data: session, isLoading } = useSession();
-
-  if (isLoading) return <div>Loading...</div>;
-  if (!session) return <div>Not authenticated</div>;
-
-  return (
-    <div>
-      <h1>Welcome, {session.user.name}</h1>
-      <p>Email: {session.user.email}</p>
-    </div>
-  );
-}
-```
-
-#### 6. API Route Setup
-
-```typescript
-// src/app/api/auth/[...auth]/route.ts
-import { auth } from "@/lib/auth/better-auth";
-
-export const { GET, POST } = auth.handler();
-```
-
-### Migration Strategy from NextAuth.js
-
-When migrating from NextAuth.js to Better Auth:
-
-1. **Database Migration**: Better Auth can use existing user tables with minor schema adjustments
-2. **Session Migration**: Implement session migration strategy for existing users
-3. **Provider Configuration**: Migrate OAuth provider configurations
-4. **Component Updates**: Update authentication hooks and components
-5. **Testing**: Comprehensive testing of authentication flows
-
-### Advantages for Contribux
-
-- **Type Safety**: Full TypeScript support reduces authentication bugs
-- **Better Developer Experience**: More intuitive API and clearer error messages
-- **Enhanced Security**: Built-in CSRF protection, rate limiting, and secure defaults
-- **Future-Proof**: Modern architecture designed for current web standards
-- **Performance**: Optimized for serverless environments and edge functions
-
-## WebAuthn Simplification
-
-The authentication system was simplified by removing WebAuthn complexity in favor of OAuth-only authentication.
-
-### What Was Removed
-
-- **Dependencies**:
-
-  - `@simplewebauthn/browser`
-  - `@simplewebauthn/server`
-  - `@simplewebauthn/types`
-
-- **Database Tables**:
-
-  - `webauthn_credentials`
-  - `auth_challenges`
-
-- **Code Files**:
-  - `src/lib/auth/webauthn.ts`
-  - `src/lib/auth/webauthn-config.ts`
-  - Related test files
-
-### Benefits of Simplification
-
-1. **Reduced Complexity**: Eliminated complex WebAuthn implementation
-2. **Fewer Dependencies**: Removed 3 WebAuthn packages
-3. **Simplified Auth Flow**: Single OAuth provider with NextAuth.js
-4. **Better Maintainability**: Standard NextAuth.js patterns
-5. **Improved Reliability**: Less code to maintain and debug
+In production, keep WebAuthn disabled until the relying party ID, origin, database migration state, and
+browser enrollment flow have been verified for the target deployment.
 
 ## Security Features
 
@@ -395,7 +221,7 @@ CREATE TABLE account_linking_requests (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Simplified GitHub sessions (post-WebAuthn removal)
+-- GitHub sessions used by OAuth flows
 CREATE TABLE github_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id),
@@ -431,6 +257,7 @@ GOOGLE_CLIENT_SECRET=your_google_client_secret
 
 # Feature Flags
 ENABLE_OAUTH=true
+ENABLE_WEBAUTHN=false
 ```
 
 ### OAuth Provider Configuration
@@ -490,7 +317,7 @@ function Profile() {
 ### Server-Side Access
 
 ```typescript
-import { auth } from "@/lib/auth/config";
+import { auth } from "@/lib/auth";
 
 export default async function ServerComponent() {
   const session = await auth();
@@ -643,4 +470,4 @@ pnpm test:coverage tests/auth/
 - Review audit logs for security patterns
 
 This implementation provides a production-ready, secure, and extensible authentication system that
-follows NextAuth.js v5 best practices and modern OAuth security standards.
+follows NextAuth.js v4 best practices and modern OAuth security standards.

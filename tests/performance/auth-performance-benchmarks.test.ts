@@ -1,5 +1,5 @@
 /**
- * NextAuth.js v5 Performance Benchmarks
+ * NextAuth.js v4 Performance Benchmarks
  * Comprehensive performance testing for authentication operations, token refresh, session management
  */
 
@@ -17,7 +17,7 @@ import {
   setupAuthTestEnvironment,
 } from '../utils/auth-test-utilities'
 
-// Advanced TypeScript 5.8+ Type Definitions for Test Environment
+// Advanced TypeScript 5.9+ Type Definitions for Test Environment
 interface MockUser {
   id: string
   email: string

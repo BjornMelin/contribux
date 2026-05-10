@@ -73,13 +73,13 @@ mindmap
 graph TB
     subgraph "🌐 External Systems"
         GitHub[GitHub API v4]
-        OpenAI[OpenAI Agents SDK]
-        Resend[Resend Email]
-        Telnyx[Telnyx SMS]
+        OpenAI[OpenAI API (optional)]
+        EmailProvider[Email Provider]
+        SmsProvider[SMS Provider]
     end
     
     subgraph "🎨 Client Layer"
-        PWA[Next.js 15 PWA]
+        PWA[Next.js 16 PWA]
         Mobile[Mobile App Future]
         CLI[CLI Tool Future]
     end
@@ -91,8 +91,8 @@ graph TB
     end
     
     subgraph "⚡ Application Layer"
-        API[tRPC API Router]
-        Auth[NextAuth.js v5]
+        API[Next.js Route Handlers]
+        Auth[NextAuth.js v4]
         Queue[Background Jobs]
         Cache[Redis Cache]
     end
@@ -106,7 +106,7 @@ graph TB
     end
     
     subgraph "💾 Data Layer"
-        Postgres[Neon PostgreSQL 16]
+        Postgres[Neon PostgreSQL]
         Vector[pgvector Extension]
         Analytics[Analytics Store]
         Backup[Automated Backups]
@@ -134,8 +134,8 @@ graph TB
     Strategist --> OpenAI
     API --> Postgres
     Postgres --> Vector
-    Queue --> Resend
-    Queue --> Telnyx
+    Queue --> EmailProvider
+    Queue --> SmsProvider
     API --> Cache
     
     Monitor --> Alerts
@@ -155,7 +155,7 @@ sequenceDiagram
     participant User
     participant CDN as Vercel CDN
     participant Edge as Edge Functions
-    participant API as tRPC Router
+    participant API as Route Handler Layer
     participant Auth as NextAuth.js
     participant AI as AI Orchestrator
     participant DB as Neon Database
@@ -210,9 +210,9 @@ graph TD
     end
     
     subgraph "🌐 External Integration"
-        API[tRPC Client]
+        API[HTTP Client]
         Auth[NextAuth Client]
-        Cache[SWR Cache]
+        Cache[TanStack Query Cache]
         PWA[Service Worker]
     end
     
@@ -236,14 +236,14 @@ graph TD
 ```mermaid
 graph TB
     subgraph "🚪 API Gateway Layer"
-        Router[tRPC Router]
+        Router[Route Handler Layer]
         Middleware[Middleware Stack]
         Validation[Zod Validation]
         RateLimit[Rate Limiting]
     end
     
     subgraph "🔐 Authentication Layer"
-        NextAuth[NextAuth.js v5]
+        NextAuth[NextAuth.js v4]
         Providers[OAuth Providers]
         Sessions[Session Management]
         JWT[JWT Handling]
@@ -581,36 +581,39 @@ graph LR
 
 ## 🤖 AI & Intelligence Architecture
 
-### **Multi-Agent System Design**
+### **Conceptual Search Intelligence Design**
+
+This diagram describes the intended search-intelligence flow. It is not a list of
+concrete class names exported from `src/`.
 
 ```mermaid
 graph TB
     subgraph "🎯 Orchestration Layer"
-        Orchestrator[ContribuxOrchestrator]
-        Scheduler[Job Scheduler]
-        Monitor[Agent Monitor]
+        Orchestrator[Search Route Handlers]
+        Scheduler[Background Job Scheduler]
+        Monitor[Telemetry Monitor]
         Router[Request Router]
     end
     
-    subgraph "🔍 Discovery Agents"
-        Scanner[ContribuxScanner]
-        Trend[TrendAnalyzer]
-        Health[HealthAssessor]
-        Filter[QualityFilter]
+    subgraph "🔍 Discovery Services"
+        Scanner[Repository Search Service]
+        Trend[Trending Query Functions]
+        Health[Health Signals]
+        Filter[Quality Filters]
     end
     
-    subgraph "🧠 Analysis Agents"
-        Analyzer[ContribuxAnalyzer]
-        Complexity[ComplexityEstimator]
-        Skills[SkillDetector]
-        Impact[ImpactPredictor]
+    subgraph "🧠 Analysis Services"
+        Analyzer[Opportunity Search Service]
+        Complexity[Complexity Signals]
+        Skills[Skill Metadata]
+        Impact[Impact Scoring]
     end
     
-    subgraph "💡 Strategy Agents"
-        Strategist[ContribuxStrategist]
-        Planner[ImplementationPlanner]
-        Risk[RiskAssessor]
-        Success[SuccessPredictor]
+    subgraph "💡 Matching Services"
+        Strategist[Recommendation Logic]
+        Planner[Contribution Metadata]
+        Risk[Risk Signals]
+        Success[Outcome Metrics]
     end
     
     subgraph "📊 Learning Agents"
@@ -984,8 +987,8 @@ graph TB
     subgraph "🔗 Integration Layer"
         GitHub[GitHub API]
         OpenAI[OpenAI API]
-        Email[Resend API]
-        SMS[Telnyx API]
+        Email[Email Provider API]
+        SMS[SMS Provider API]
     end
     
     subgraph "📊 Observability"
@@ -1173,9 +1176,9 @@ graph TB
     
     subgraph "🌐 External Services"
         GitHub[GitHub API v4]
-        OpenAI[OpenAI Agents]
-        Email[Resend Email]
-        SMS[Telnyx SMS]
+        OpenAI[OpenAI API (optional)]
+        Email[Email Provider]
+        SMS[SMS Provider]
         Analytics[Analytics APIs]
     end
     
@@ -1492,11 +1495,11 @@ sequenceDiagram
 | Decision | Rationale | Trade-offs | Status |
 |----------|-----------|------------|---------|
 | **Serverless-First** | Zero maintenance, infinite scale, cost efficiency | Vendor lock-in, cold starts | ✅ Accepted |
-| **Next.js 15 + App Router** | Modern React patterns, excellent DX, performance | Learning curve, bleeding edge | ✅ Accepted |
+| **Next.js 16 + App Router** | Modern React patterns, excellent DX, performance | Learning curve, bleeding edge | ✅ Accepted |
 | **Neon PostgreSQL** | Serverless database, branching, vector support | Newer service, potential lock-in | ✅ Accepted |
-| **tRPC + Zod** | End-to-end type safety, excellent DX | Bundle size, complexity | ✅ Accepted |
+| **Route Handlers + Zod** | End-to-end type safety, excellent DX | Bundle size, complexity | ✅ Accepted |
 | **Multi-Agent AI** | Specialized intelligence, scalable analysis | Complexity, cost management | ✅ Accepted |
-| **NextAuth.js v5** | Mature auth solution, OAuth support | Migration effort from v4 | ✅ Accepted |
+| **NextAuth.js v4** | Mature auth solution, OAuth support | Migration effort from v4 | ✅ Accepted |
 
 ### **Future Architecture Evolution**
 

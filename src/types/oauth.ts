@@ -1,6 +1,6 @@
 /**
  * TypeScript types for OAuth provider responses
- * Based on Auth.js v5 and official OAuth provider documentation
+ * Based on NextAuth.js v4 and official OAuth provider documentation
  */
 
 import { z } from 'zod'
@@ -204,7 +204,7 @@ export type OAuthProfile =
   | LinkedInProfile
   | MicrosoftProfile
 
-// Enhanced Auth.js types with proper generics
+// Enhanced NextAuth.js v4 types with proper generics
 export interface EnhancedAccount {
   provider: string
   type: string

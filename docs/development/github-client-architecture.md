@@ -3,7 +3,7 @@
 ## Executive Summary
 
 This document provides a comprehensive technical analysis of the GitHub API client implementation
-in the Contribux platform. The client is built on Octokit v5.0.3 with enhanced validation,
+in the Contribux platform. The client is built on `@octokit/rest` with enhanced validation,
 caching, error handling, and runtime monitoring capabilities.
 
 ## Architecture Overview
@@ -13,7 +13,7 @@ caching, error handling, and runtime monitoring capabilities.
 ```mermaid
 graph TB
     subgraph "GitHub Client Architecture"
-        A[GitHubClient] --> B[Octokit v5.0.3]
+        A[GitHubClient] --> B[@octokit/rest]
         A --> C[Runtime Validator]
         A --> D[Error Handler]
         A --> E[Cache Manager]

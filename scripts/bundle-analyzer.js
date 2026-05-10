@@ -282,7 +282,7 @@ class BundleAnalyzer {
         size: 100000,
         category: 'auth',
         treeshakeable: false,
-        optimization: 'Consider NextAuth.js v5',
+        optimization: 'Keep server-only auth imports out of client bundles',
       },
       '@simplewebauthn/server': {
         size: 150000,
@@ -402,11 +402,11 @@ class BundleAnalyzer {
     opportunities.push({
       category: 'Dependencies',
       priority: 'low',
-      title: 'Evaluate NextAuth.js v5 Migration',
-      description: 'Newer version has better bundle size optimization',
-      impact: '~30-50KB reduction',
-      implementation: 'Migrate to NextAuth.js v5 when stable',
-      effort: 'high',
+      title: 'Keep Auth Code Server-Side',
+      description: 'Avoid importing NextAuth server modules from client components',
+      impact: 'Prevents auth libraries from inflating browser bundles',
+      implementation: 'Use provider-scoped client hooks and server-only auth helpers',
+      effort: 'medium',
     })
 
     this.results.optimizationOpportunities = opportunities

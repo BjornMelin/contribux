@@ -1,5 +1,5 @@
 /**
- * TypeScript 5.8+ Advanced Features Validation
+ * TypeScript 5.9+ Advanced Features Validation
  *
  * This file demonstrates and validates all the advanced TypeScript features
  * implemented in the project, ensuring they work correctly with the enhanced

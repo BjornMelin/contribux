@@ -105,7 +105,7 @@ testApiRoute(GET, mockRequest)           // Direct handler calls
 1. **Real HTTP Testing** - Tests actual request/response cycles
 2. **Zero Complex Mocking** - No database or NextResponse mocking required
 3. **Production Behavior** - Matches real-world API usage exactly
-4. **Framework Compatibility** - Works seamlessly with Next.js 15 & Vitest 3.2+
+4. **Framework Compatibility** - Works seamlessly with Next.js 16 & Vitest 4.1+
 5. **Maintainable** - Simple, clear patterns for future development
 
 ## MANDATORY Testing Standards

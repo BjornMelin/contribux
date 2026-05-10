@@ -566,7 +566,7 @@ class GDPRComplianceManager {
 ```mermaid
 graph TB
     subgraph "🚪 API Gateway"
-        Gateway[tRPC Router]
+        Gateway[Route Handler Layer]
         Auth[Authentication]
         Rate[Rate Limiting]
         Validation[Input Validation]

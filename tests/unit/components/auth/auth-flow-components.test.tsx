@@ -4,7 +4,7 @@
 
 /**
  * Authentication Flow Components Test Suite
- * Comprehensive testing for NextAuth.js v5 + Drizzle architecture
+ * Comprehensive testing for NextAuth.js v4 + Drizzle architecture
  *
  * Features tested:
  * - Login/logout component behavior

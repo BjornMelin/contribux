@@ -164,7 +164,7 @@ This document outlines the modern security directives implemented in the Content
 
 ## Conclusion
 
-The updated CSP configuration provides comprehensive protection against modern web threats while maintaining compatibility with Next.js 15 and React 19. The implementation balances security with functionality, ensuring the platform remains both secure and performant.
+The updated CSP configuration provides comprehensive protection against modern web threats while maintaining compatibility with Next.js 16 and React 19. The implementation balances security with functionality, ensuring the platform remains both secure and performant.
 
 ### Key Achievements
 - ✅ DOM XSS prevention with Trusted Types

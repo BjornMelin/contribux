@@ -27,26 +27,33 @@ automated Neon database branching for CI/CD.
 
 ## 🚀 Installation Steps
 
-### Step 1: Install PostgreSQL 16 + pgvector
+### Step 1: Install PostgreSQL + pgvector
 
 ```bash
 # Update package list
 sudo apt update
 
-# Install PostgreSQL 16 from official repository
+# Install PostgreSQL from the official repository
 sudo apt install -y wget ca-certificates
 wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
 echo "deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
 
-# Update and install PostgreSQL 16
+# The repo setup script defaults to PostgreSQL 16 for local development.
+# Set POSTGRES_MAJOR_VERSION=18 only when you have verified extension support locally.
+export POSTGRES_MAJOR_VERSION="${POSTGRES_MAJOR_VERSION:-16}"
+
+# Update and install PostgreSQL
 sudo apt update
-sudo apt install -y postgresql-16 postgresql-client-16 postgresql-contrib-16
+sudo apt install -y \
+  "postgresql-${POSTGRES_MAJOR_VERSION}" \
+  "postgresql-client-${POSTGRES_MAJOR_VERSION}" \
+  "postgresql-contrib-${POSTGRES_MAJOR_VERSION}"
 
 # Install pgvector extension (required for vector search)
-sudo apt install -y postgresql-16-pgvector
+sudo apt install -y "postgresql-${POSTGRES_MAJOR_VERSION}-pgvector"
 
 # Install build tools for extensions
-sudo apt install -y build-essential postgresql-server-dev-16
+sudo apt install -y build-essential "postgresql-server-dev-${POSTGRES_MAJOR_VERSION}"
 ```
 
 ### Step 2: Configure PostgreSQL Service
@@ -266,7 +273,7 @@ sudo -u postgres psql -c "\du"
 
 ```bash
 # Install missing extensions
-sudo apt install postgresql-16-pgvector
+sudo apt install "postgresql-${POSTGRES_MAJOR_VERSION:-16}-pgvector"
 
 # Verify extensions are available
 psql -d contribux_dev -c "SELECT * FROM pg_available_extensions WHERE name IN ('uuid-ossp', 'vector');"

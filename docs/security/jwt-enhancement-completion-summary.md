@@ -2,7 +2,7 @@
 
 ## Task Overview
 
-**Objective**: Enhance JWT token validation with stricter test environment controls for the contribux Next.js 15 project.
+**Objective**: Enhance JWT token validation with stricter test environment controls for the contribux Next.js 16 project.
 
 **Status**: ✅ **COMPLETED**
 

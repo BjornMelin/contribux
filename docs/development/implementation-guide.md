@@ -18,13 +18,13 @@ modern development practices.
 
 ### Tech Stack Overview
 
-- **Frontend**: Next.js 15 with App Router, React 19, TypeScript 5.8+
+- **Frontend**: Next.js 16 with App Router, React 19, TypeScript 5.9+
 - **Styling**: Tailwind CSS 4.0+, Biome for formatting/linting
-- **Database**: Neon PostgreSQL 16 with pgvector extension for vector search
-- **AI/ML**: OpenAI Agents SDK, halfvec embeddings (1536 dimensions)
-- **Authentication**: NextAuth.js v5 with GitHub OAuth
-- **Testing**: Vitest 3.2+ with V8 coverage provider
-- **Package Manager**: pnpm 10.11.1 (strictly enforced)
+- **Database**: Neon PostgreSQL with pgvector extension for vector search
+- **AI/ML**: OpenAI-compatible embeddings, halfvec embeddings (1536 dimensions)
+- **Authentication**: NextAuth.js v4 with GitHub OAuth
+- **Testing**: Vitest 4.1+ with V8 coverage provider
+- **Package Manager**: pnpm 10.12.4 (strictly enforced)
 
 ### Directory Structure
 
@@ -197,7 +197,7 @@ Google({
 
 ### Testing Framework & Configuration
 
-- **Framework**: Vitest 3.2+ with V8 coverage provider
+- **Framework**: Vitest 4.1+ with V8 coverage provider
 - **Coverage targets**: 90% across all metrics through meaningful tests
 - **Test organization**: Feature-based in tests/ directory
 - **Global APIs**: Enabled for Jest-like syntax without imports
@@ -363,4 +363,4 @@ GOOGLE_CLIENT_SECRET=your_google_client_secret
 - Review audit logs for security patterns
 
 This implementation provides a production-ready, secure, and extensible foundation that follows
-NextAuth.js v5 best practices and modern development standards.
+NextAuth.js v4 best practices and modern development standards.

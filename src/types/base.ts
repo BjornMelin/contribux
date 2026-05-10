@@ -1,7 +1,7 @@
 /**
  * Base Type Definitions
  * Core interfaces and enums that serve as building blocks for other types
- * Follows TypeScript 5.8+ strict mode and exactOptionalPropertyTypes
+ * Follows TypeScript 5.9+ strict mode and exactOptionalPropertyTypes
  */
 
 import { z } from 'zod'

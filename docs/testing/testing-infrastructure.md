@@ -17,10 +17,10 @@ The new testing infrastructure provides three database strategies optimized for 
 
 ```bash
 # Run all database tests with PGlite (10x faster than Docker)
-pnpm test:db:pglite
+pnpm test:db
 
 # Watch mode for development
-pnpm test:db:pglite --watch
+pnpm exec vitest watch --config vitest.config.ts tests/security/database-security.test.ts
 ```
 
 ### Production-Like Testing (Neon Branching)

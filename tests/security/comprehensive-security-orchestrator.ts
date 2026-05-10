@@ -5,7 +5,7 @@
  * Mission: 95%+ security scenario coverage with executive reporting
  *
  * Integration Components:
- * - Phase 1: Authentication Security (NextAuth.js v5 specific testing)
+ * - Phase 1: Authentication Security (NextAuth.js v4 specific testing)
  * - Phase 2: Penetration Testing (Advanced attack simulation)
  * - Phase 3: Infrastructure Security (Environment & DDoS protection)
  *
@@ -139,7 +139,7 @@ export interface ExecutiveSecurityReport {
 
 /**
  * Authentication Security Testing (Phase 1)
- * Focused on NextAuth.js v5 and modern authentication patterns
+ * Focused on NextAuth.js v4 and modern authentication patterns
  */
 export class AuthenticationSecurityTester {
   private results: SecurityTestResult[] = []

@@ -168,13 +168,8 @@ Monitor for:
 
 ## Workflow Files
 
-- **Main**: `.github/workflows/test-with-neon.yml` (current)
-- **Improved**: `.github/workflows/test-with-neon-improved.yml` (enhanced version)
+- **Basic CI**: `.github/workflows/ci.yml`
+- **E2E Tests with Neon**: `.github/workflows/e2e-tests.yml`
+- **Database Branch Management**: `.github/workflows/neon-branch-workflow.yml`
+- **Deployments**: `.github/workflows/deploy.yml`
 - **Memory Check**: `.github/workflows/memory-check.yml` (memory profiling)
-
-Switch to the improved workflow by renaming:
-
-```bash
-mv .github/workflows/test-with-neon.yml .github/workflows/test-with-neon-old.yml
-mv .github/workflows/test-with-neon-improved.yml .github/workflows/test-with-neon.yml
-```

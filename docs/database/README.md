@@ -9,7 +9,7 @@ This directory contains database-related documentation for the Contribux project
 
 ## Database Stack
 
-- **Database**: Neon PostgreSQL 16 with pgvector extension
+- **Database**: Neon PostgreSQL with pgvector extension
 - **Vector Search**: halfvec(1536) embeddings with HNSW indexes
 - **Environment**: Production, Development, and Test environments
 

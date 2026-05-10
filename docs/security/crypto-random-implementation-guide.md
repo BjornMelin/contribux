@@ -457,6 +457,6 @@ it('should handle deterministic values in tests', () => {
 
 ## Conclusion
 
-Replacing Math.random() with cryptographically secure alternatives is critical for the security of the contribux project. This guide provides production-ready implementations that work across Next.js 15 Edge Runtime and Node.js environments, with comprehensive error handling and testing strategies.
+Replacing Math.random() with cryptographically secure alternatives is critical for the security of the contribux project. This guide provides production-ready implementations that work across Next.js 16 Edge Runtime and Node.js environments, with comprehensive error handling and testing strategies.
 
 The performance impact is minimal (5-6x slower but still sub-millisecond), and the security benefits far outweigh the cost. With proper implementation and testing, this migration will eliminate a critical vulnerability while maintaining application performance.

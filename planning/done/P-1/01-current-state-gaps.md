@@ -13,7 +13,7 @@
 - **Next.js 15 Project Setup**: ✅ Complete with TypeScript, Tailwind CSS 4.0+, Biome
 - **Database Architecture**: ✅ Neon PostgreSQL 16 + pgvector with halfvec(1536) embeddings
 - **GitHub API Client**: ✅ Advanced client with rate limiting, retry logic, GraphQL/REST
-- **Authentication System**: ✅ Multi-provider OAuth (GitHub + Google) with NextAuth v5
+- **Authentication System**: ✅ Multi-provider OAuth (GitHub + Google) with NextAuth.js v4
 
 #### 2. **Security & Compliance** (Task 19)
 
