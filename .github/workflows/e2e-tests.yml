@@ -92,6 +92,7 @@ jobs:
       - name: Retry Neon E2E Test Branch Resolution
         id: create-branch-retry
         if: steps.create-branch.outputs.db_url_pooled == ''
+        continue-on-error: true
         uses: neondatabase/create-branch-action@v6
         with:
           project_id: ${{ env.NEON_PROJECT_ID }}
@@ -102,15 +103,29 @@ jobs:
 
       - name: Resolve Neon E2E branch outputs
         id: e2e-branch
+        env:
+          BRANCH_NAME: e2e-test-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}
         run: |
           branch_id="${{ steps.create-branch.outputs.branch_id || steps.create-branch-retry.outputs.branch_id }}"
           db_url_pooled="${{ steps.create-branch.outputs.db_url_pooled || steps.create-branch-retry.outputs.db_url_pooled }}"
+
+          if [ -z "$branch_id" ]; then
+            branch_id="$(npx --yes neonctl@2 branches list --project-id "$NEON_PROJECT_ID" -o json \
+              | jq -r --arg name "$BRANCH_NAME" '.[] | select(.name == $name) | .id' \
+              | head -n 1)"
+          fi
+
+          if [ -n "$branch_id" ] && [ -z "$db_url_pooled" ]; then
+            neon_cs="$(npx --yes neonctl@2 cs "$branch_id" --project-id "$NEON_PROJECT_ID" --role-name neondb_owner --database-name neondb --ssl require --pooled --prisma false --extended -o json)"
+            db_url_pooled="$(echo "$neon_cs" | jq -r '.connection_string // empty')"
+          fi
 
           if [ -z "$branch_id" ] || [ -z "$db_url_pooled" ]; then
             echo "::error::Failed to create or resolve Neon E2E branch outputs."
             exit 1
           fi
 
+          echo "::add-mask::$db_url_pooled"
           echo "branch_id=$branch_id" >> "$GITHUB_OUTPUT"
           echo "db_url_pooled=$db_url_pooled" >> "$GITHUB_OUTPUT"
 
