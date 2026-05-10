@@ -203,20 +203,12 @@ async function createDatabaseClient(connectionString) {
     // Use Neon serverless driver for production
     const { neon } = require('@neondatabase/serverless')
     const sql = neon(connectionString)
+    const query = sql.query.bind(sql)
     
     // Add query method for compatibility
-    sql.query = async (queryText, params) => {
-      if (params && params.length > 0) {
-        // Neon doesn't support parameterized queries the same way
-        // We need to convert to template literal format
-        // This is a limitation we'll have to work around
-        const result = await sql(queryText)
-        return { rows: result }
-      } else {
-        // Simple query without parameters
-        const result = await sql(queryText)
-        return { rows: result }
-      }
+    sql.query = async (queryText, params = []) => {
+      const result = await query(queryText, params)
+      return Array.isArray(result) ? { rows: result } : result
     }
     
     return sql

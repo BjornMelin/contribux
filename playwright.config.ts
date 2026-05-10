@@ -1,5 +1,10 @@
 import { defineConfig, devices } from '@playwright/test'
 
+const port = Number(process.env.PORT || 3000)
+const baseURL = `http://127.0.0.1:${port}`
+const testNextAuthSecret = 'playwright-test-nextauth-secret-32-chars'
+const testEncryptionKey = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+
 /**
  * @see https://playwright.dev/docs/test-configuration
  */
@@ -20,7 +25,7 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: 'http://127.0.0.1:3000',
+    baseURL,
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
@@ -102,18 +107,33 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'pnpm dev',
-    url: 'http://127.0.0.1:3000',
+    command: `pnpm exec next dev --hostname 127.0.0.1 --port ${port}`,
+    url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: process.env.CI ? 60 * 1000 : 120 * 1000, // Reduced timeout for CI
     env: {
+      ...(process.env.DATABASE_URL && { DATABASE_URL: process.env.DATABASE_URL }),
+      ...(process.env.DATABASE_URL_TEST && { DATABASE_URL_TEST: process.env.DATABASE_URL_TEST }),
+      NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || testNextAuthSecret,
+      NEXTAUTH_URL: process.env.NEXTAUTH_URL || baseURL,
       NODE_OPTIONS: process.env.CI
         ? '--max-old-space-size=2048' // Reduced memory for CI
         : '--max-old-space-size=4096',
       NODE_ENV: 'development',
+      ENCRYPTION_KEY: process.env.ENCRYPTION_KEY || testEncryptionKey,
+      GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID || 'playwright-client-id',
+      GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET || 'playwright-client-secret',
+      ENABLE_AUDIT_LOGS: process.env.ENABLE_AUDIT_LOGS || 'false',
+      ENABLE_OAUTH: process.env.ENABLE_OAUTH || 'false',
+      ENABLE_WEBAUTHN: process.env.ENABLE_WEBAUTHN || 'false',
       // Optimize Next.js for faster startup
       NEXT_TELEMETRY_DISABLED: '1',
+      NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || baseURL,
+      NEXT_PUBLIC_RP_ID: process.env.NEXT_PUBLIC_RP_ID || 'localhost',
       NEXT_PRIVATE_STANDALONE: '1',
+      PORT: String(port),
+      WEBAUTHN_ORIGIN: process.env.WEBAUTHN_ORIGIN || baseURL,
+      WEBAUTHN_RP_ID: process.env.WEBAUTHN_RP_ID || 'localhost',
     },
     // CI-specific server optimizations
     ...(process.env.CI && {

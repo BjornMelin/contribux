@@ -14,6 +14,9 @@ const buildTimeDatabaseUrl = 'postgresql://build:build@localhost:5432/build'
 const buildTimeNextAuthSecret = 'build-time-nextauth-secret-placeholder'
 const runtimeString = (value: string | undefined, buildFallback?: string) =>
   value ?? (isProductionBuildPhase ? buildFallback : undefined)
+const formatValidationIssues = (
+  issues: readonly { path?: readonly unknown[]; message: string }[]
+) => issues.map(issue => `${issue.path?.join('.') || 'root'}: ${issue.message}`).join('; ')
 
 export const env = createEnv({
   /**
@@ -310,8 +313,8 @@ export const env = createEnv({
   /**
    * Custom validation error handler
    */
-  onValidationError: _error => {
-    throw new Error('Invalid environment variables')
+  onValidationError: error => {
+    throw new Error(`Invalid environment variables: ${formatValidationIssues(error)}`)
   },
 
   /**
