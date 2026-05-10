@@ -971,8 +971,9 @@ function resolveSqlFunctionNamedArgument(
   values: unknown[],
   argumentName: string
 ): unknown {
+  const escapedArgumentName = argumentName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const token = parseSqlFunctionTokens(functionName, query).find(candidate =>
-    new RegExp(`^\\s*${argumentName}\\s*:=`, 'i').test(candidate)
+    new RegExp(`^\\s*${escapedArgumentName}\\s*:=`, 'i').test(candidate)
   )
 
   return token ? resolveSqlArgument(token, values) : undefined

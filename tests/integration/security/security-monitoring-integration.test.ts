@@ -10,11 +10,14 @@ import { monitoringMiddleware } from '@/lib/middleware/monitoring-middleware'
 import { enhancedSecurityMiddleware } from '@/lib/security/enhanced-middleware'
 import { getSecurityConfig } from '@/lib/security/feature-flags'
 
-function createNextUrl(url: string): URL {
+function createNextUrl(url: string, fallbackOnInvalid = true): URL {
   try {
     return new URL(url)
   } catch {
-    return new URL('http://localhost:3000')
+    if (fallbackOnInvalid) {
+      return new URL('http://localhost:3000')
+    }
+    throw new TypeError(`Invalid URL for test request: ${url}`)
   }
 }
 
@@ -32,15 +35,22 @@ function createMockRequest(options: {
   method?: string
   headers?: Record<string, string>
   ip?: string
+  fallbackOnInvalidUrl?: boolean
 }): NextRequest {
-  const { url = 'http://localhost:3000', method = 'GET', headers = {}, ip = '127.0.0.1' } = options
+  const {
+    url = 'http://localhost:3000',
+    method = 'GET',
+    headers = {},
+    ip = '127.0.0.1',
+    fallbackOnInvalidUrl = true,
+  } = options
 
   const mockHeaders = new Headers(headers)
   if (ip && !headers['x-forwarded-for']) {
     mockHeaders.set('x-forwarded-for', ip)
   }
 
-  const nextUrl = createNextUrl(url)
+  const nextUrl = createNextUrl(url, fallbackOnInvalidUrl)
   const mockRequest = {
     url: nextUrl.toString(),
     method,
@@ -275,7 +285,15 @@ describe('Security + Monitoring Integration', () => {
 
   describe('Error Handling Integration', () => {
     test('should handle security middleware errors gracefully', async () => {
-      // Create malformed request to trigger error handling
+      expect(() =>
+        createMockRequest({
+          url: 'invalid-url',
+          method: 'GET',
+          fallbackOnInvalidUrl: false,
+        })
+      ).toThrow(TypeError)
+
+      // Preserve legacy malformed-request fallback for middleware error handling.
       const malformedRequest = createMockRequest({
         url: 'invalid-url',
         method: 'GET',

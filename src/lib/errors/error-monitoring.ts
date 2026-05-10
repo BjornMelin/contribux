@@ -82,10 +82,12 @@ export class ErrorDashboard {
     const trends = this.errorMonitor.getTrends(24)
 
     // Calculate availability (based on critical errors)
-    const criticalErrors = trends.reduce(
+    const trendCriticalErrors = trends.reduce(
       (sum, trend) => sum + (trend.severityCounts[ErrorSeverity.CRITICAL] || 0),
       0
     )
+    const currentCriticalErrors = metrics.errorsBySeverity[ErrorSeverity.CRITICAL] || 0
+    const criticalErrors = Math.max(trendCriticalErrors, currentCriticalErrors)
     const totalHours = trends.length
     const availability = Math.max(0, ((totalHours - criticalErrors) / totalHours) * 100)
 
@@ -1468,16 +1470,24 @@ export class AlertingSystem {
     const customRules = this.alertingRules.filter(rule => this.customRuleNames.has(rule.name))
 
     for (const rule of customRules) {
-      const classification: ErrorClassification = {
-        category: ErrorCategory.INTERNAL_ERROR,
-        severity: rule.severityThreshold ?? this.mapAlertSeverityToErrorSeverity(rule.severity),
-        isTransient: false,
-        recoveryStrategies: [],
-        userMessage: rule.description || rule.name,
-      }
+      const categories =
+        rule.categoryFilter && rule.categoryFilter.length > 0
+          ? rule.categoryFilter
+          : [ErrorCategory.INTERNAL_ERROR]
 
-      if (await this.shouldTriggerAlert(rule, classification, metrics)) {
-        await this.sendAlert(rule, classification, metrics)
+      for (const category of categories) {
+        const classification: ErrorClassification = {
+          category,
+          severity: rule.severityThreshold ?? this.mapAlertSeverityToErrorSeverity(rule.severity),
+          isTransient: false,
+          recoveryStrategies: [],
+          userMessage: rule.description || rule.name,
+        }
+
+        if (await this.shouldTriggerAlert(rule, classification, metrics)) {
+          await this.sendAlert(rule, classification, metrics)
+          break
+        }
       }
     }
   }

@@ -383,6 +383,17 @@ describe('MFA API Endpoint Security', () => {
       expect(responseData.error).toBe('Invalid request data')
     })
 
+    it('should handle malformed JSON gracefully', async () => {
+      const request = createMockRequest()
+      vi.mocked(request.json).mockRejectedValue(new SyntaxError('Invalid JSON'))
+
+      const response = await verifyPOST(request)
+      const responseData = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(responseData.error).toBe('Malformed JSON')
+    })
+
     it('should require authentication for verification', async () => {
       const unauthenticatedRequest = createMockRequest(
         { method: 'totp', token: '123456' },

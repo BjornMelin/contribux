@@ -18,6 +18,26 @@ import { ApiKeyManager } from '@/lib/security/api-key-rotation'
 import { AuditEventType, AuditSeverity, auditLogger } from '@/lib/security/audit-logger'
 import { SecurityMonitoringDashboard } from '@/lib/security/monitoring-dashboard'
 
+type MockAuditEvent = {
+  id: string
+  timestamp: Date
+  type: AuditEventType
+  severity: AuditSeverity
+  actor: {
+    id?: string
+    type: 'user' | 'system' | 'api' | 'webhook'
+    ip?: string
+    userAgent?: string
+    sessionId?: string
+  }
+  action: string
+  result: 'success' | 'failure' | 'error'
+  reason?: string
+  metadata?: Record<string, unknown>
+}
+
+const mockAuditEvents = vi.hoisted(() => [] as MockAuditEvent[])
+
 // Mock dependencies
 vi.mock('next/server', () => ({
   NextResponse: {
@@ -37,13 +57,43 @@ vi.mock('@/lib/security/audit-logger', async importOriginal => {
   return {
     ...actual,
     auditLogger: {
-      log: vi.fn().mockResolvedValue(undefined),
+      log: vi.fn(async (event: Omit<MockAuditEvent, 'id' | 'timestamp'>) => {
+        mockAuditEvents.push({
+          ...event,
+          id: `audit-event-${mockAuditEvents.length + 1}`,
+          timestamp: new Date(),
+        })
+      }),
+      query: vi.fn(
+        async (filters?: { startDate?: Date; endDate?: Date; types?: AuditEventType[] }) =>
+          mockAuditEvents.filter(event => {
+            if (filters?.startDate && event.timestamp < filters.startDate) {
+              return false
+            }
+            if (filters?.endDate && event.timestamp > filters.endDate) {
+              return false
+            }
+            if (filters?.types && !filters.types.includes(event.type)) {
+              return false
+            }
+            return true
+          })
+      ),
     },
   }
 })
 vi.mock('@/lib/github', () => {
   class MockGitHubClient {
-    static fromSession = vi.fn(async () => new MockGitHubClient())
+    static fromSession = vi.fn(async () => {
+      const { getServerSession } = await import('next-auth/next')
+      const session = await getServerSession()
+
+      if (!session?.accessToken) {
+        throw new Error('No valid session or access token found')
+      }
+
+      return new MockGitHubClient()
+    })
 
     getCurrentUser = vi.fn()
   }
@@ -83,6 +133,7 @@ describe('Authentication Flow Security Integration', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    mockAuditEvents.length = 0
 
     // Setup security monitoring dashboard
     securityDashboard = new SecurityMonitoringDashboard()
@@ -687,56 +738,75 @@ describe('Authentication Flow Security Integration', () => {
     })
 
     it('should integrate security monitoring with authentication events', async () => {
-      // Mock security dashboard metrics collection
-      vi.spyOn(securityDashboard, 'collectMetrics').mockResolvedValue({
-        timestamp: new Date(),
-        authMetrics: {
-          successCount: 10,
-          failureCount: 3,
-          mfaUsage: 2,
-          suspiciousAttempts: 1,
-          uniqueUsers: 8,
-        },
-        apiMetrics: {
-          totalRequests: 20,
-          rateLimitHits: 1,
-          unauthorizedAttempts: 0,
-          averageResponseTime: 42,
-          errorRate: 0,
-        },
-        violations: {
-          total: 0,
-          byType: {},
-          bySeverity: {
-            [AuditSeverity.DEBUG]: 0,
-            [AuditSeverity.INFO]: 0,
-            [AuditSeverity.WARNING]: 0,
-            [AuditSeverity.ERROR]: 0,
-            [AuditSeverity.CRITICAL]: 0,
-          },
-        },
-        threats: {
-          bruteForceAttempts: 0,
-          sqlInjectionAttempts: 0,
-          xssAttempts: 0,
-          suspiciousIps: [],
-          anomalousPatterns: 0,
-        },
-        health: {
-          cpuUsage: 0,
-          memoryUsage: 0,
-          activeConnections: 0,
-          queuedRequests: 0,
-        },
+      await mockAuditLogger.log({
+        type: AuditEventType.AUTH_SUCCESS,
+        severity: AuditSeverity.INFO,
+        actor: { type: 'user', id: 'user-1', ip: '192.168.1.10' },
+        action: 'OAuth authentication completed',
+        result: 'success',
+      })
+      await mockAuditLogger.log({
+        type: AuditEventType.AUTH_SUCCESS,
+        severity: AuditSeverity.INFO,
+        actor: { type: 'user', id: 'user-2', ip: '192.168.1.11' },
+        action: 'OAuth authentication completed',
+        result: 'success',
+      })
+      await mockAuditLogger.log({
+        type: AuditEventType.AUTH_FAILURE,
+        severity: AuditSeverity.WARNING,
+        actor: { type: 'user', id: 'user-2', ip: '192.168.1.11' },
+        action: 'OAuth authentication failed',
+        result: 'failure',
+        metadata: { suspicious: true },
+      })
+      await mockAuditLogger.log({
+        type: AuditEventType.AUTH_MFA_SUCCESS,
+        severity: AuditSeverity.INFO,
+        actor: { type: 'user', id: 'user-1' },
+        action: 'MFA challenge completed',
+        result: 'success',
+      })
+      await mockAuditLogger.log({
+        type: AuditEventType.API_ACCESS,
+        severity: AuditSeverity.INFO,
+        actor: { type: 'api', id: 'user-1' },
+        action: 'Authenticated API request',
+        result: 'success',
+        metadata: { statusCode: 200 },
+      })
+      await mockAuditLogger.log({
+        type: AuditEventType.API_ACCESS,
+        severity: AuditSeverity.WARNING,
+        actor: { type: 'api', id: 'user-2' },
+        action: 'Unauthorized API request',
+        result: 'failure',
+        metadata: { statusCode: 401 },
+      })
+      await mockAuditLogger.log({
+        type: AuditEventType.API_RATE_LIMIT,
+        severity: AuditSeverity.WARNING,
+        actor: { type: 'api', id: 'user-2' },
+        action: 'API rate limit hit',
+        result: 'failure',
       })
 
       const metrics = await securityDashboard.collectMetrics()
-      expect(metrics.authMetrics.successCount).toBe(10)
-      expect(metrics.authMetrics.failureCount).toBe(3)
-      expect(metrics.health.activeConnections).toBe(0)
+      expect(metrics.authMetrics.successCount).toBe(2)
+      expect(metrics.authMetrics.failureCount).toBe(1)
+      expect(metrics.authMetrics.mfaUsage).toBe(1)
+      expect(metrics.authMetrics.suspiciousAttempts).toBe(1)
+      expect(metrics.authMetrics.uniqueUsers).toBe(2)
+      expect(metrics.apiMetrics.totalRequests).toBe(2)
+      expect(metrics.apiMetrics.rateLimitHits).toBe(1)
+      expect(metrics.apiMetrics.unauthorizedAttempts).toBe(1)
 
-      // Validate metrics tracking
-      expect(securityDashboard.collectMetrics).toHaveBeenCalled()
+      expect(mockAuditLogger.query).toHaveBeenCalledWith(
+        expect.objectContaining({
+          startDate: expect.any(Date),
+          endDate: expect.any(Date),
+        })
+      )
     })
 
     it('should validate API key rotation integration with authentication', async () => {

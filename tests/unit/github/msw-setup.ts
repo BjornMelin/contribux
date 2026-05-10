@@ -894,7 +894,8 @@ const defaultHandlers = [
   http.get(`${GITHUB_API_BASE}/repos/:owner/:repo/pulls`, ({ request, params }) => {
     const { owner, repo } = params as { owner: string; repo: string }
     const url = new URL(request.url)
-    const perPage = Number.parseInt(url.searchParams.get('per_page') || '30', 10)
+    const parsedPerPage = Number.parseInt(url.searchParams.get('per_page') || '30', 10)
+    const perPage = Number.isNaN(parsedPerPage) || parsedPerPage <= 0 ? 30 : parsedPerPage
     const stateParam = url.searchParams.get('state') || 'open'
     const authHeader = request.headers.get('authorization')
 
@@ -960,12 +961,17 @@ const defaultHandlers = [
         issue_number: string
       }
       const authHeader = request.headers.get('authorization')
+      const issueNumber = Number.parseInt(issue_number, 10)
 
       if (!isValidToken(authHeader)) {
         return HttpResponse.json({ message: 'Bad credentials' }, { status: 401 })
       }
 
-      return HttpResponse.json([createMockComment(owner, repo, Number(issue_number), 12345)])
+      if (Number.isNaN(issueNumber) || issueNumber <= 0) {
+        return HttpResponse.json({ message: 'Not Found' }, { status: 404 })
+      }
+
+      return HttpResponse.json([createMockComment(owner, repo, issueNumber, 12345)])
     }
   ),
 
@@ -979,16 +985,17 @@ const defaultHandlers = [
         comment_id: string
       }
       const authHeader = request.headers.get('authorization')
+      const commentId = Number.parseInt(comment_id, 10)
 
       if (!isValidToken(authHeader)) {
         return HttpResponse.json({ message: 'Bad credentials' }, { status: 401 })
       }
 
-      if (comment_id === '99999') {
+      if (Number.isNaN(commentId) || commentId <= 0 || comment_id === '99999') {
         return HttpResponse.json({ message: 'Not Found' }, { status: 404 })
       }
 
-      return HttpResponse.json(createMockComment(owner, repo, 1, Number(comment_id)))
+      return HttpResponse.json(createMockComment(owner, repo, 1, commentId))
     }
   ),
 

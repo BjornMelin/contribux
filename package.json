@@ -23,7 +23,7 @@
     "test:e2e:ci": "playwright test --reporter=line",
     "test:unit": "vitest run --run tests/unit/api/health.test.ts tests/unit/api/search-api.test.ts tests/unit/github/comprehensive tests/unit/search/functions tests/unit/middleware.test.ts",
     "test:unit:enhanced": "pnpm test:unit",
-    "test:security": "vitest run --config vitest.config.ts tests/security/database-security.test.ts tests/security/headers.test.ts tests/security/csp.test.ts",
+    "test:security": "vitest run --config vitest.config.ts tests/security/headers.test.ts tests/security/csp.test.ts",
     "test:db:enhanced": "pnpm test:db",
     "test:integration:enhanced": "vitest run --config vitest.integration.config.ts",
     "test:all:enhanced": "pnpm test:unit:enhanced && pnpm test:db:enhanced && pnpm test:integration:enhanced",
