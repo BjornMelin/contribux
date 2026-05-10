@@ -107,6 +107,7 @@
     "@biomejs/biome": "2.4.15",
     "@electric-sql/pglite": "^0.4.5",
     "@faker-js/faker": "^10.4.0",
+    "@fast-check/vitest": "0.4.1",
     "@next/bundle-analyzer": "^16.2.6",
     "@playwright/test": "1.59.1",
     "@tailwindcss/aspect-ratio": "^0.4.2",
@@ -139,7 +140,6 @@
     "typescript": "^5.9.3",
     "undici": "^8.2.0",
     "vite": "8.0.11",
-    "vite-tsconfig-paths": "^6.1.1",
     "vitest": "^4.1.5"
   },
   "pnpm": {

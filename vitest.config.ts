@@ -1,15 +1,15 @@
 import { cpus } from 'node:os'
 import path from 'node:path'
 import react from '@vitejs/plugin-react'
-import tsconfigPaths from 'vite-tsconfig-paths'
 import { configDefaults, defineConfig } from 'vitest/config'
 
 export default defineConfig({
   cacheDir: '.vitest/cache',
 
-  plugins: [react(), tsconfigPaths()],
+  plugins: [react()],
 
   resolve: {
+    tsconfigPaths: true,
     alias: {
       '@': path.resolve(__dirname, './src'),
       'next/server': path.resolve(__dirname, 'node_modules/next/dist/server/web/exports/index.js'),
