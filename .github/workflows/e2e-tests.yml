@@ -66,7 +66,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Cleanup stale Neon E2E test branches
-        run: node scripts/cleanup-neon-ci-branches.js --prefix e2e-test- --min-age-minutes 30
+        run: node scripts/cleanup-neon-ci-branches.js --prefix db-test- --prefix e2e-test- --min-age-minutes 5
 
       # Create Neon branch for E2E testing
       - name: Create Neon E2E Test Branch
