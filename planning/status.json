@@ -1,4 +1,5 @@
 {
+  "note": "Historical planning snapshot. Use package.json, pnpm-lock.yaml, and docs/README.md as the current dependency and stack authority after dependency modernization.",
   "current_phase": "ENTERPRISE_INFRASTRUCTURE_COMPLETE",
   "status": "51_4_percent_complete_ai_and_advanced_features_ready",
   "phases": {
@@ -31,7 +32,7 @@
   "recommended_timeline": "8 weeks to MVP deployment",
   "week_1_roadmap": {
     "days_1_2": "Security foundation (crypto.getRandomValues, Redis rate limiting, CSP hardening)",
-    "days_3_5": "AI core implementation (OpenAI Agents SDK, vector search, repository scanner)",
+    "days_3_5": "AI core implementation (OpenAI-compatible analysis, vector search, repository scanner)",
     "days_6_7": "Integration & validation (basic UI, E2E testing, production deployment)"
   },
   "implementation_status": {
@@ -145,7 +146,7 @@
   },
   "next_immediate_actions": [
     "Continue AI Core Development Phase (Tasks 5-8)",
-    "Implement OpenAI Agents SDK v1.0 integration", 
+    "Implement OpenAI-compatible analysis integration",
     "Build repository discovery scanner with AI analysis",
     "Create issue discovery and filtering system",
     "Develop AI-powered opportunity analyzer"
@@ -154,7 +155,7 @@
   "portfolio_quality_score": "9.5/10",
   "enterprise_readiness": "production_ready",
   "major_accomplishments": {
-    "core_foundation": "Next.js 15, PostgreSQL 16, GitHub API client, OAuth authentication",
+    "core_foundation": "Historical snapshot; current stack versions are owned by package.json and docs/README.md",
     "enterprise_monitoring": "Comprehensive error tracking, security monitoring, performance analytics",
     "security_compliance": "Zero-trust architecture, GDPR compliance, automated security scanning",
     "testing_excellence": "184+ test files, 70% coverage, E2E automation, accessibility validation",

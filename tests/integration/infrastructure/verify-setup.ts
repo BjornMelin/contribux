@@ -207,7 +207,7 @@ async function verifySetup() {
       console.log('✅ Setup verification successful!')
       console.log('\nYou can now run integration tests:')
       console.log('  pnpm test:integration        # Run all tests')
-      console.log('  pnpm test:integration:watch  # Watch mode')
+      console.log('  pnpm exec vitest watch --config vitest.integration.config.ts  # Watch mode')
       console.log('  pnpm test:integration:status # Check status')
       console.log('  pnpm test:integration:report # Generate HTML report')
     }

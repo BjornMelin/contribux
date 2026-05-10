@@ -1,6 +1,6 @@
 /**
  * Authentication Middleware Testing Suite
- * Comprehensive testing for NextAuth.js v5 integration with API routes
+ * Comprehensive testing for NextAuth.js v4 integration with API routes
  *
  * Focus Areas:
  * - Middleware authentication validation

@@ -17,7 +17,7 @@ vi.mock('next/server', () => ({
   },
 }))
 
-// Mock NextAuth v5 modules
+// Mock NextAuth v4 modules
 vi.mock('next-auth', () => ({
   default: vi.fn(),
 }))

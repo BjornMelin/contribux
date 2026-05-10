@@ -1,8 +1,8 @@
-# NextAuth.js v5 Testing Guide - Contribux Project
+# NextAuth.js v4 Testing Guide - Contribux Project
 
-## **Complete Testing Documentation for NextAuth.js v5 Authentication System**
+## **Complete Testing Documentation for NextAuth.js v4 Authentication System**
 
-> This comprehensive guide covers all aspects of testing the NextAuth.js v5 authentication system
+> This comprehensive guide covers all aspects of testing the NextAuth.js v4 authentication system
 > implemented in the Contribux project, including unit tests, integration tests, E2E tests, security testing,
 > and performance benchmarks.
 
@@ -20,14 +20,14 @@
 
 ## Overview
 
-The Contribux project implements a comprehensive NextAuth.js v5 authentication system with GitHub and Google
-OAuth providers. This testing suite provides 95%+ coverage across all authentication flows, security scenarios,
-and performance requirements.
+The Contribux project implements a comprehensive NextAuth.js v4 authentication system with GitHub and Google
+OAuth providers. This testing suite covers authentication flows, security scenarios, and performance
+requirements.
 
 ### Migration Context
 
 This testing suite was created during **Phase 4** migration from a custom JWT implementation (which had a
-CVSS 9.8 vulnerability) to NextAuth.js v5. The tests ensure the new authentication system is secure, performant,
+CVSS 9.8 vulnerability) to NextAuth.js v4. The tests ensure the new authentication system is secure, performant,
 and reliable.
 
 ### Key Features Tested
@@ -372,7 +372,7 @@ cp .env.example .env.test
 
 ```bash
 # Run all authentication tests
-pnpm test:auth
+pnpm exec vitest run --config vitest.config.ts tests/unit/auth
 
 # Run specific test suites
 pnpm test tests/unit/auth/
@@ -404,22 +404,10 @@ DATABASE_URL_TEST=postgresql://test:test@localhost:5432/contribux_test
 
 ## Test Coverage
 
-### Current Coverage Metrics
+### Current Coverage Source
 
-```text
-Authentication Module Coverage:
-├── OAuth Flows: 98%
-├── Session Management: 96%
-├── Security Features: 94%
-├── Database Integration: 97%
-├── API Protection: 95%
-├── E2E Scenarios: 92%
-└── Performance: 89%
-
-Overall Authentication Coverage: 95.2%
-```
-
-### Coverage Reports
+Use generated V8 coverage reports as the authority for current coverage. Do not treat this guide as a
+static coverage ledger.
 
 ```bash
 # Generate coverage report
@@ -427,9 +415,6 @@ pnpm test:coverage
 
 # View HTML coverage report
 open coverage/index.html
-
-# Check coverage thresholds
-pnpm test:coverage:check
 ```
 
 ### Coverage Requirements
@@ -628,7 +613,7 @@ jobs:
         run: pnpm install
       
       - name: Run authentication tests
-        run: pnpm test:auth
+        run: pnpm exec vitest run --config vitest.config.ts tests/unit/auth
       
       - name: Run E2E tests
         run: pnpm test:e2e:ci
@@ -701,7 +686,7 @@ tests/
 
 ### Code Quality Standards
 
-- ✅ Minimum 95% test coverage for authentication modules
+- ✅ Meaningful coverage for authentication modules
 - ✅ All tests must pass before merging
 - ✅ Performance benchmarks must meet thresholds
 - ✅ Security tests must validate all scenarios
@@ -711,12 +696,12 @@ tests/
 
 ## Conclusion
 
-This comprehensive testing suite ensures the NextAuth.js v5 authentication system in the Contribux project is
-secure, performant, and reliable. With 95%+ coverage across all authentication scenarios, the test suite
-provides confidence in the system's robustness and helps prevent security vulnerabilities.
+This comprehensive testing suite ensures the NextAuth.js v4 authentication system in the Contribux project is
+secure, performant, and reliable. The test suite provides confidence in the system's robustness and helps
+prevent security vulnerabilities.
 
 For questions or issues with the testing suite, please refer to the troubleshooting section or contact the development team.
 
-**Last Updated**: December 2024  
+**Last Updated**: May 2026
 **Version**: 1.0.0  
-**Maintainer**: NextAuth v5 Testing Modernization Agent
+**Maintainer**: NextAuth v4 Testing Modernization Agent

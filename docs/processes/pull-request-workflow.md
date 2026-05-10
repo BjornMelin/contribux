@@ -40,9 +40,9 @@ Break large changes into 3 focused PRs that build on each other:
 
 #### PR 2: Authentication (20 files, ~2,000 lines)
 
-**Purpose**: Simplified GitHub OAuth only
+**Purpose**: NextAuth.js v4 OAuth and feature-gated WebAuthn MFA
 
-- ✅ Removes WebAuthn complexity
+- ✅ Keeps WebAuthn behind explicit feature flags
 - ✅ Depends only on PR 1 (uses GitHub client)
 - ✅ Clean, focused changes
 - ✅ Security best practices
@@ -72,14 +72,14 @@ Break large changes into 3 focused PRs that build on each other:
 
 #### Title
 
-`feat: implement core GitHub API client with Octokit v5`
+`feat: implement core GitHub API client with @octokit/rest`
 
 #### Description Template
 
 ````markdown
 ## Summary
 
-This PR implements a lightweight, type-safe GitHub API client using Octokit v5.0.3 with essential features for repository and issue management. This is the foundation for the contribux platform's GitHub integration.
+This PR implements a lightweight, type-safe GitHub API client using `@octokit/rest` with essential features for repository and issue management. This is the foundation for the contribux platform's GitHub integration.
 
 ## What's Included
 
@@ -158,21 +158,21 @@ Total: ~3,500 lines of production-ready code
 
 ````text
 
-### Template 2: Authentication Simplification
+### Template 2: Authentication Hardening
 
 #### Title
-`feat: simplify authentication to GitHub OAuth only`
+`feat: harden NextAuth OAuth and WebAuthn MFA`
 
 #### Description Template
 
 ~~~markdown
 ## Summary
 
-This PR streamlines authentication by implementing GitHub OAuth as the sole authentication method, removing WebAuthn complexity to follow KISS principles for the MVP.
+This PR hardens the NextAuth.js v4 OAuth flow and keeps WebAuthn MFA behind explicit feature flags.
 
 ## What Changed
 
-### Simplified Auth Stack
+### Auth Stack
 - 🔐 **GitHub OAuth**: Clean implementation with secure token handling
 - 🛡️ **Auth Middleware**: Streamlined for API route protection
 - 📊 **Database Schema**: Minimal schema for GitHub user sessions
@@ -274,7 +274,7 @@ pnpm test
 pnpm test:unit
 pnpm test:integration
 pnpm test:db
-pnpm test:performance
+pnpm exec vitest run --config vitest.performance.config.ts
 
 # With UI
 pnpm test:ui
@@ -332,7 +332,7 @@ git checkout feat/task-3-github-api-client -- tests/helpers/github-mocks.ts
 
 # Commit
 git add .
-git commit -m "feat: implement core GitHub API client with Octokit v5
+git commit -m "feat: implement core GitHub API client with @octokit/rest
 
 - Core GitHub client with REST and GraphQL support
 - GitHub App authentication with automatic token rotation
@@ -360,15 +360,12 @@ git checkout feat/task-3-github-api-client -- database/auth-schema.sql
 git checkout feat/task-3-github-api-client -- tests/auth/
 git checkout feat/task-3-github-api-client -- tests/integration/github/auth-flows.test.ts
 
-# Remove WebAuthn references
-git rm src/lib/auth/webauthn-config.ts
-
 git add .
-git commit -m "feat: simplify authentication to GitHub OAuth only
+git commit -m "feat: harden NextAuth OAuth and WebAuthn MFA
 
-- Remove WebAuthn complexity for MVP
 - Streamline auth middleware
-- Add GitHub OAuth database schema
+- Add OAuth database schema
+- Gate WebAuthn MFA configuration
 - Comprehensive auth testing"
 
 git push origin feat/simplified-auth

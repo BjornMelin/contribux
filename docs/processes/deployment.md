@@ -51,8 +51,8 @@ graph TB
     subgraph "🔗 External Services"
         GitHub[GitHub API]
         OpenAI[OpenAI Agents]
-        Email[Resend Email]
-        SMS[Telnyx SMS]
+        Email[Email Provider]
+        SMS[SMS Provider]
     end
     
     subgraph "📊 Monitoring Stack"
@@ -114,7 +114,7 @@ graph LR
     end
     
     subgraph "💾 Neon Database"
-        PostgreSQL[PostgreSQL 16]
+        PostgreSQL[Neon PostgreSQL]
         Branching[Database Branching]
         Scaling[Auto-scaling]
         Backup[Automated Backups]
@@ -122,8 +122,7 @@ graph LR
     
     subgraph "🔄 Upstash Services"
         Redis[Redis Cache]
-        QStash[Message Queue]
-        Vector[Vector Database]
+        RateLimit[Rate Limiting]
         Metrics[Performance Metrics]
     end
     
@@ -136,8 +135,8 @@ graph LR
     
     Hosting --> PostgreSQL
     Functions --> Redis
-    Analytics --> QStash
-    Domains --> Vector
+    Analytics --> Metrics
+    Domains --> RateLimit
     
     PostgreSQL --> Auth
     Branching --> Encryption
@@ -189,20 +188,16 @@ GITHUB_CLIENT_SECRET=your-github-oauth-app-secret
 
 # AI Service Configuration
 OPENAI_API_KEY=sk-your-openai-api-key
-OPENAI_ORGANIZATION_ID=org-your-openai-org-id
 
-# External Service Configuration
-RESEND_API_KEY=re_your-resend-api-key
-TELNYX_API_KEY=KEY_your-telnyx-api-key
+# Redis / Rate Limit Configuration
 UPSTASH_REDIS_REST_URL=https://your-redis-url
 UPSTASH_REDIS_REST_TOKEN=your-redis-token
-UPSTASH_QSTASH_URL=https://qstash.upstash.io
-UPSTASH_QSTASH_TOKEN=your-qstash-token
 
 # Security Configuration
 ENCRYPTION_KEY=your-256-bit-encryption-key
-WEBHOOK_SECRET=your-webhook-secret
-CORS_ORIGIN=https://contribux.dev
+CSRF_SECRET=your-csrf-secret
+REQUEST_SIGNING_SECRET=your-request-signing-secret
+CORS_ORIGINS=https://contribux.dev
 
 # Feature Flags
 ENABLE_AI_FEATURES=true
@@ -249,17 +244,15 @@ const envSchema = z.object({
   
   // AI Services
   OPENAI_API_KEY: z.string().startsWith('sk-'),
-  OPENAI_ORGANIZATION_ID: z.string().startsWith('org-'),
   
-  // External Services
-  RESEND_API_KEY: z.string().startsWith('re_'),
-  TELNYX_API_KEY: z.string().startsWith('KEY'),
+  // Redis / Rate Limits
   UPSTASH_REDIS_REST_URL: z.string().url(),
   UPSTASH_REDIS_REST_TOKEN: z.string().min(1),
   
   // Security
   ENCRYPTION_KEY: z.string().min(64), // 256-bit key in hex
-  WEBHOOK_SECRET: z.string().min(32),
+  CSRF_SECRET: z.string().min(32),
+  REQUEST_SIGNING_SECRET: z.string().min(32),
   
   // Feature Flags
   ENABLE_AI_FEATURES: z.string().transform(val => val === 'true'),
@@ -622,7 +615,7 @@ pnpm type-check
 
 # Run tests
 echo "🧪 Running tests..."
-pnpm test:ci
+pnpm test
 
 # Run security checks
 echo "🔒 Running security checks..."
@@ -1011,7 +1004,7 @@ jobs:
         run: pnpm install --frozen-lockfile
       
       - name: Run Unit Tests
-        run: pnpm test:ci
+        run: pnpm test
         env:
           DATABASE_URL_TEST: ${{ secrets.DATABASE_URL_TEST }}
       

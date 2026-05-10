@@ -42,8 +42,7 @@ declare module 'next-auth' {
   }
 }
 
-// Note: NextAuth v5 uses @auth/core/adapters internally
-// We define these interfaces here for type compatibility
+// Adapter-compatible local shapes used by the auth and database layers.
 export interface CustomAdapterUser {
   id: string
   email: string

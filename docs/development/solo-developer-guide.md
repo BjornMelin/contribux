@@ -79,18 +79,15 @@ pnpm memory:snapshot       # Generate heap snapshot
 # Database maintenance
 pnpm db:health            # Database health check
 pnpm db:performance-report # Generate performance report
-pnpm db:slow-queries      # Identify slow queries
-pnpm db:analyze           # Update table statistics
 
 # Cleanup and optimization
-pnpm clean                # Clean build artifacts
-node scripts/performance/cleanup-optimizer.js --deep
-node scripts/performance/memory-optimizer.js --test
+pnpm perf:report          # Generate performance and bundle reports
 
 # Testing and quality
-pnpm test:ci              # Full test suite for CI
-pnpm test:performance     # Performance benchmarks
-pnpm lint:fix             # Auto-fix linting issues
+pnpm test                 # Unit and security suites
+pnpm test:e2e:ci          # Playwright CI mode
+pnpm lint                 # Biome validation
+pnpm type-check           # TypeScript validation
 ```
 
 ## 📊 Monitoring and Alerting
@@ -109,7 +106,7 @@ Monitor these key metrics daily:
 
    - Target: < 30 seconds total test time
    - Alert: > 45 seconds or memory > 100MB during tests
-   - Check: `time pnpm test:ci`
+   - Check: `time pnpm test`
 
 3. **Database Performance**
 
@@ -174,7 +171,7 @@ pnpm test:watch # Watch memory during tests
 
 ```bash
 # Diagnosis
-time pnpm test:ci --reporter=verbose
+time pnpm test
 
 # Solutions
 1. Optimize Vitest configuration
@@ -187,7 +184,6 @@ time pnpm test:ci --reporter=verbose
 
 ```bash
 # Diagnosis
-pnpm db:slow-queries
 pnpm db:performance-report
 
 # Solutions
@@ -337,16 +333,13 @@ pnpm type-check          # TypeScript validation
 # Testing
 pnpm test                # Run tests
 pnpm test:coverage       # Test with coverage
-pnpm test:performance    # Performance tests
+pnpm exec vitest run --config vitest.performance.config.ts  # Performance tests
 
 # Database
 pnpm db:health           # Health check
-pnpm db:analyze          # Optimize performance
-pnpm db:backup           # Manual backup
 
 # Monitoring
-pnpm memory:check        # Memory usage
-pnpm memory:watch        # Memory monitoring
+pnpm perf:report         # Performance reports
 node scripts/performance/memory-optimizer.js --test
 
 # Cleanup
@@ -398,8 +391,8 @@ node scripts/performance/cleanup-optimizer.js --deep
    # Check database connectivity
    pnpm db:test-connection
 
-   # Review slow queries
-   pnpm db:slow-queries
+   # Review database performance
+   pnpm db:performance-report
 
    # Contact Neon support if needed
    ```

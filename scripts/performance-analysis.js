@@ -71,7 +71,7 @@ class PerformanceAnalyzer {
       'framer-motion': 'Use dynamic imports for non-critical animations',
       'lucide-react': 'Import only specific icons instead of entire library',
       '@tanstack/react-query': 'Already optimized with proper tree-shaking',
-      'next-auth': 'Consider NextAuth.js v5 for better bundle size',
+      'next-auth': 'Keep server-only auth imports out of client bundles',
       '@octokit/rest': 'Tree-shake unused API methods',
       '@simplewebauthn/server': 'Server-side only, good separation',
     }

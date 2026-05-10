@@ -1,5 +1,5 @@
 /**
- * Crypto and security mocks for Vitest 3.2+ testing environment
+ * Crypto and security mocks for Vitest 4.1+ testing environment
  * Extracted from setup.ts for better modularity and maintainability
  */
 
@@ -7,7 +7,7 @@ import { vi } from 'vitest'
 
 /**
  * Modern WebCrypto polyfill for Node.js test environment
- * Compatible with Vitest 3.2+ and Node.js 18+
+ * Compatible with Vitest 4.1+ and Node.js 18+
  */
 export function setupWebCryptoPolyfill() {
   const { webcrypto } = require('node:crypto')

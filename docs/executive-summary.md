@@ -27,14 +27,14 @@ scalable system design.
 ```mermaid
 graph TB
     subgraph "🤖 AI Agent Architecture"
-        A[ContribuxOrchestrator] --> B[ContribuxScanner]
-        A --> C[ContribuxAnalyzer] 
+        A[SearchOrchestrator] --> B[RepositoryScanner]
+        A --> C[OpportunityAnalyzer]
         A --> D[ContribuxStrategist]
         A --> E[SuccessTracker]
     end
     
     subgraph "🧠 Intelligence Stack"
-        F[OpenAI Agents SDK v1.0] --> G[GPT-4o-mini-2025-06]
+        F[OpenAI API (optional) v1.0] --> G[GPT-4o-mini-2025-06]
         H[Vector Embeddings] --> I[pgvector 0.7]
         J[Semantic Search] --> K[HNSW Indexing]
     end
@@ -66,25 +66,25 @@ graph TB
 ```mermaid
 graph LR
     subgraph "🎨 Frontend Layer"
-        A[Next.js 15 + App Router] --> B[React Server Components]
-        B --> C[SWR v3 Caching]
+        A[Next.js 16 + App Router] --> B[React Server Components]
+        B --> C[TanStack Query Caching]
         C --> D[Progressive Web App]
     end
     
     subgraph "⚡ API Layer"
-        E[Vercel Edge Functions] --> F[tRPC v11 Type Safety]
+        E[Vercel Edge Functions] --> F[typed route handlers v11 Type Safety]
         F --> G[Rate Limited APIs]
         G --> H[Circuit Breakers]
     end
     
     subgraph "💾 Data Layer"
-        I[Neon PostgreSQL 16] --> J[Vector Search]
-        K[Upstash Redis] --> L[QStash v3 Messaging]
+        I[Neon PostgreSQL] --> J[Vector Search]
+        K[Upstash Redis] --> L[Redis-backed Jobs]
         M[Connection Pooling] --> N[Auto-scaling]
     end
     
     subgraph "🔐 Security Layer"
-        O[NextAuth.js v5] --> P[OAuth 2.0/PKCE]
+        O[NextAuth.js v4] --> P[OAuth 2.0/PKCE]
         Q[WebAuthn/Passkeys] --> R[Zero-Trust Model]
         S[Rate Limiting] --> T[Input Validation]
     end
@@ -101,9 +101,9 @@ graph LR
 
 **Technical Highlights:**
 
-- **Type-Safe End-to-End**: TypeScript 5.8+ with Zod validation and tRPC for complete type safety
+- **Type-Safe End-to-End**: TypeScript 5.9+ with Zod validation and typed route handlers for complete type safety
 - **Serverless-First**: Vercel Edge Functions with automatic scaling and global distribution
-- **Advanced Caching**: Multi-layer caching strategy with SWR, Redis, and CDN optimization
+- **Advanced Caching**: Multi-layer caching strategy with TanStack Query, Redis, and CDN optimization
 - **Database Innovation**: Neon's serverless PostgreSQL with branching for test isolation
 
 ### **3. Comprehensive Testing Infrastructure**
@@ -123,7 +123,7 @@ graph TB
     end
     
     subgraph "📊 Quality Metrics"
-        K[89.5% Pass Rate] --> L[V8 Coverage Reports]
+        K[Vitest Gates] --> L[V8 Coverage Reports]
         M[Performance Benchmarks] --> N[Memory Profiling]
         O[Security Scanning] --> P[Vulnerability Testing]
     end
@@ -150,7 +150,7 @@ graph TB
 ```mermaid
 graph TB
     subgraph "🔐 Authentication & Authorization"
-        A[NextAuth.js v5] --> B[GitHub OAuth 2.0]
+        A[NextAuth.js v4] --> B[GitHub OAuth 2.0]
         B --> C[PKCE Flow]
         C --> D[WebAuthn/Passkeys]
         D --> E[JWT + Refresh Tokens]
@@ -207,10 +207,10 @@ graph TB
 
 ### **Test Coverage**
 
-- **Overall Pass Rate**: 89.5% (598 passing / 668 total tests)
-- **Unit Test Coverage**: 91.2% with meaningful assertions
-- **Integration Coverage**: 87.8% API and database flows
-- **E2E Coverage**: 100% critical user journeys
+- **Primary Gates**: `pnpm lint`, `pnpm type-check`, and `pnpm test`
+- **Unit Coverage**: Vitest suites with V8 coverage reporting
+- **Integration Coverage**: API and database flows
+- **E2E Coverage**: Playwright critical user journeys
 
 ---
 
@@ -244,10 +244,10 @@ export default async function OpportunitiesPage() {
 
 ```python
 # Multi-Agent Orchestration
-class ContribuxOrchestrator:
+class SearchOrchestrator:
     def __init__(self):
-        self.scanner = ContribuxScanner()
-        self.analyzer = ContribuxAnalyzer() 
+        self.scanner = RepositoryScanner()
+        self.analyzer = OpportunityAnalyzer()
         self.strategist = ContribuxStrategist()
         
     async def discover_opportunities(self, user_profile: UserProfile):
@@ -346,7 +346,7 @@ Advanced analytics for professional development:
 - **Auto-scaling**: Serverless functions scale to zero and infinity
 - **Global CDN**: Edge caching for optimal performance worldwide
 - **Database Scaling**: Neon's automatic compute scaling
-- **Queue Management**: Upstash QStash for reliable background jobs
+- **Queue Management**: Upstash Redis for reliable background jobs
 
 ---
 
@@ -406,7 +406,7 @@ Advanced analytics for professional development:
 
 ### **3. Type-Safe Development**
 
-**Decision**: End-to-end type safety with TypeScript, Zod, and tRPC
+**Decision**: End-to-end type safety with TypeScript, Zod, and typed route handlers
 
 **Rationale**:
 

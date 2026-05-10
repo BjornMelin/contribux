@@ -1,5 +1,5 @@
 /**
- * Global loading UI for Next.js 15 App Router
+ * Global loading UI for Next.js 16 App Router
  * Uses React 19 Suspense improvements for better UX
  */
 

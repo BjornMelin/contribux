@@ -1,6 +1,6 @@
 /**
  * Authentication Component Testing Utilities
- * Reusable helpers for testing NextAuth.js v5 components
+ * Reusable helpers for testing NextAuth.js v4 components
  *
  * Features:
  * - Session state mocking utilities

@@ -1,5 +1,5 @@
 /**
- * Unified MSW (Mock Service Worker) Configuration for Vitest 3.2+
+ * Unified MSW (Mock Service Worker) Configuration for Vitest 4.1+
  * Modern patterns with proper isolation and performance optimization
  *
  * FIXES: MSW server conflicts causing SearchBar test failures and performance issues

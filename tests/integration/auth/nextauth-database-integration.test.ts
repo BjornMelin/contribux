@@ -1,5 +1,5 @@
 /**
- * NextAuth.js v5 Database Integration Tests
+ * NextAuth.js v4 Database Integration Tests
  * Testing user creation, updates, account linking, session storage, and profile synchronization
  */
 

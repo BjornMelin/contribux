@@ -1,5 +1,5 @@
 /**
- * Environment variable management for Vitest 3.2+ testing
+ * Environment variable management for Vitest 4.1+ testing
  * Provides safe environment setup and cleanup patterns
  */
 

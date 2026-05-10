@@ -126,7 +126,7 @@ export function withRequestLogging(
 }
 
 /**
- * Enhanced API error monitoring middleware for Next.js 15 App Router
+ * Enhanced API error monitoring middleware for Next.js 16 App Router
  * Integrates with ErrorMonitor and AlertingSystem for comprehensive error tracking
  */
 

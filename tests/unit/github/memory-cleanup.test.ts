@@ -1,6 +1,6 @@
 /**
  * Enhanced Memory Cleanup Tests
- * Demonstrates improved memory leak prevention with Vitest 3.2+ patterns
+ * Demonstrates improved memory leak prevention with Vitest 4.1+ patterns
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'

@@ -1,5 +1,5 @@
 /**
- * Centralized MSW (Mock Service Worker) configuration for Vitest 3.2+
+ * Centralized MSW (Mock Service Worker) configuration for Vitest 4.1+
  * Modern patterns extracted from setup.ts for better modularity
  *
  * COMPATIBILITY FIX: Uses GitHub-specific MSW server for edge case test compatibility
@@ -25,14 +25,14 @@ import { mockGitHubAPI, resetGitHubMocks } from '../helpers/msw-setup'
 export { mockGitHubAPI, mswServer, resetGitHubMocks }
 
 /**
- * Enhanced MSW setup with automatic cleanup for Vitest 3.2+
+ * Enhanced MSW setup with automatic cleanup for Vitest 4.1+
  * Uses GitHub-specific MSW server for full compatibility with edge case tests
  */
 export function setupEnhancedMSW() {
   // Use GitHub-specific MSW setup for edge case compatibility
   setupGitHubMSW()
 
-  // Enhanced cleanup for Vitest 3.2+ memory optimization
+  // Enhanced cleanup for Vitest 4.1+ memory optimization
   afterEach(() => {
     resetGitHubMocks()
   })

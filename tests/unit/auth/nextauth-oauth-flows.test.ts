@@ -1,5 +1,5 @@
 /**
- * NextAuth.js v5 OAuth Flow Testing Suite
+ * NextAuth.js v4 OAuth Flow Testing Suite
  * Comprehensive testing for GitHub and Google OAuth authorization flows
  * Covers PKCE, state validation, callback handling, and error scenarios
  */
@@ -294,7 +294,7 @@ describe('NextAuth OAuth Flow Testing', () => {
       const githubProvider = authConfig.providers[0] as OAuthProviderConfig
       const googleProvider = authConfig.providers[1] as OAuthProviderConfig
 
-      // Both providers should support PKCE by default in NextAuth.js v5
+      // Both providers should support PKCE by default in NextAuth.js v4
       expect(githubProvider.type).toBe('oauth')
       expect(googleProvider.type).toBe('oauth')
     })

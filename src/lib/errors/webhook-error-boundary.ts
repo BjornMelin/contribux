@@ -251,7 +251,7 @@ export function createWebhookErrorResponse(result: WebhookResult): NextResponse 
 }
 
 /**
- * API Error Response utilities for Next.js 15 App Router
+ * API Error Response utilities for Next.js 16 App Router
  * Creates standardized error responses with proper HTTP status codes
  */
 

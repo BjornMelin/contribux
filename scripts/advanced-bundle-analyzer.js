@@ -2,7 +2,7 @@
 
 /**
  * Advanced Bundle Optimization Analysis
- * Comprehensive analysis of Next.js 15 bundle performance and optimization opportunities
+ * Comprehensive analysis of Next.js 16 bundle performance and optimization opportunities
  */
 
 import fs from 'node:fs'
@@ -253,9 +253,9 @@ class AdvancedBundleAnalyzer {
     recommendations.push({
       priority: 'MEDIUM',
       category: 'Build Optimization',
-      title: 'Enable Additional Next.js 15 Features',
+      title: 'Enable Additional Next.js 16 Features',
       description:
-        'Leverage Next.js 15 experimental features like optimizeServerReact and enhanced CSS optimization',
+        'Leverage Next.js 16 experimental features like optimizeServerReact and enhanced CSS optimization',
       implementation: 'Update next.config.js experimental settings',
       estimatedSaving: '~20-40KB',
       effort: 'Low',
@@ -326,7 +326,7 @@ class AdvancedBundleAnalyzer {
     console.log('   2. Fine-tune UI library imports for 80KB additional optimization')
     console.log('   3. Monitor bundle size regression in CI/CD pipeline')
     console.log('   4. Consider implementing service worker for performance gains')
-    console.log('   5. Explore additional Next.js 15 experimental features')
+    console.log('   5. Explore additional Next.js 16 experimental features')
     console.log('')
 
     console.log(

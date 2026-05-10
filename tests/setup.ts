@@ -1,5 +1,5 @@
 /**
- * Modern test setup file for Vitest 3.2+
+ * Modern test setup file for Vitest 4.1+
  * Runs before each test file
  */
 

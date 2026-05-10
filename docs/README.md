@@ -1,7 +1,7 @@
 # Contribux Documentation
 
 Welcome to the comprehensive documentation for the Contribux platform - an AI-powered GitHub contribution
-discovery platform built with Next.js 15, TypeScript, and Neon PostgreSQL.
+discovery platform built with Next.js 16, TypeScript, and Neon PostgreSQL.
 
 ## 🎯 Documentation Consolidation Summary
 
@@ -38,7 +38,7 @@ Technical implementation guides and standards for developers.
 - **[Implementation Guide](./development/implementation-guide.md)** -
   Comprehensive guide for implementing features following KISS principles
 - **[Performance Guide](./development/performance-guide.md)** - **⭐ CONSOLIDATED** -
-  Comprehensive performance optimization including Next.js 15, memory management, and monitoring
+  Comprehensive performance optimization including Next.js 16, memory management, and monitoring
 - **[Memory Optimization](./development/memory-optimization.md)** -
   Detailed memory optimization implementation and monitoring scripts (referenced by Performance Guide)
 - **[GitHub Client Architecture](./development/github-client-architecture.md)** -
@@ -54,7 +54,7 @@ Technical implementation guides and standards for developers.
 Documentation for platform features and capabilities.
 
 - **[Authentication System Guide](./features/authentication.md)** - **⭐ CONSOLIDATED** -
-  Complete authentication documentation including NextAuth.js, Better Auth, and implementation patterns
+  Complete authentication documentation including NextAuth.js v4, OAuth providers, and WebAuthn MFA
 - **[API Documentation](./features/api-documentation.md)** -
   Complete REST API reference with endpoints, authentication, and examples
 - **[API Testing Guide](./features/api-testing-guide.md)** -
@@ -119,13 +119,13 @@ Analysis reports and project status documentation.
 
 ### Tech Stack
 
-- **Frontend**: Next.js 15 with App Router, React 19, TypeScript 5.8+
+- **Frontend**: Next.js 16 with App Router, React 19, TypeScript 5.9+
 - **Styling**: Tailwind CSS 4.0+, Biome for formatting/linting
-- **Database**: Neon PostgreSQL 16 with pgvector extension for vector search
-- **AI/ML**: OpenAI Agents SDK, halfvec embeddings (1536 dimensions)
-- **Authentication**: NextAuth.js v5 with GitHub OAuth (simplified from WebAuthn)
-- **Testing**: Vitest 3.2+ with V8 coverage provider, MSW 2.x for HTTP mocking
-- **Package Manager**: pnpm 10.11.1 (strictly enforced)
+- **Database**: Neon PostgreSQL with pgvector extension for vector search
+- **AI/ML**: OpenAI-compatible embeddings, halfvec embeddings (1536 dimensions)
+- **Authentication**: NextAuth.js v4 with GitHub/Google OAuth and feature-gated WebAuthn MFA
+- **Testing**: Vitest 4.1+ with V8 coverage provider, MSW 2.x for HTTP mocking
+- **Package Manager**: pnpm 10.12.4 (strictly enforced)
 
 ### Key Principles
 
@@ -137,16 +137,16 @@ Analysis reports and project status documentation.
 
 ## 📈 Current Status
 
-### Test Coverage
+### Validation
 
-- **Pass Rate**: 89.5% (598 passing, 70 failing out of 668 total tests)
-- **Recent Improvement**: +4.4% pass rate increase (31 fewer failing tests)
-- **Coverage Target**: 90%+ through meaningful tests, not line-targeting
+- **Primary gates**: `pnpm lint`, `pnpm type-check`, and `pnpm test`
+- **Browser coverage**: `pnpm test:e2e:ci` for Playwright flows
+- **Coverage target**: 90%+ through meaningful tests, not line-targeting
 
 ### Key Achievements
 
-- ✅ **Core GitHub API Client** implemented with Octokit v5
-- ✅ **Authentication Simplified** to GitHub OAuth only (removed WebAuthn complexity)
+- ✅ **Core GitHub API Client** implemented with `@octokit/rest`
+- ✅ **Authentication Consolidated** around NextAuth.js v4 OAuth with feature-gated WebAuthn MFA
 - ✅ **Comprehensive Test Infrastructure** with MSW 2.x and Vitest
 - ✅ **Memory Optimized** to 4.22 MB heap usage (excellent efficiency)
 - ✅ **Security Implementation** with zero-trust architecture
@@ -158,7 +158,7 @@ Analysis reports and project status documentation.
 - **Import Fixes**: Resolved Lucide React compatibility issues
 - **E2E Testing**: Comprehensive OAuth sign-in flow validation
 - **Performance Optimization**: Bundle size reduction and memory monitoring
-- **Test Reliability**: Improved from 85.1% to 89.5% pass rate
+- **Dependency Modernization**: Aligned package versions and docs with the post-modernization stack
 
 ## 🔍 Finding Information
 

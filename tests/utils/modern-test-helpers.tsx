@@ -1,5 +1,5 @@
 /**
- * Modern Test Utilities for Vitest 3.2+
+ * Modern Test Utilities for Vitest 4.1+
  * Simplified patterns that eliminate complex isolation issues
  *
  * FIXES: Complex renderIsolated patterns causing SearchBar test failures

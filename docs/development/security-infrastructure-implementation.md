@@ -5,7 +5,7 @@
 
 ## Overview
 
-This document summarizes the comprehensive security infrastructure improvements implemented to address PR #10 review feedback. The implementation follows OWASP guidelines, Next.js 15 best practices, and modern security standards.
+This document summarizes the comprehensive security infrastructure improvements implemented to address PR #10 review feedback. The implementation follows OWASP guidelines, Next.js 16 best practices, and modern security standards.
 
 ## Core Systems Enhanced
 

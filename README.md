@@ -2,9 +2,9 @@
 
 **Portfolio-Grade AI-Powered GitHub Contribution Discovery Platform**
 
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7+-blue?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Next.js](https://img.shields.io/badge/Next.js-15+-black?logo=next.js&logoColor=white)](https://nextjs.org/)
-[![OpenAI](https://img.shields.io/badge/OpenAI-Agents_SDK_v1.0-green?logo=openai&logoColor=white)](https://platform.openai.com/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9+-blue?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-16+-black?logo=next.js&logoColor=white)](https://nextjs.org/)
+[![OpenAI](https://img.shields.io/badge/OpenAI-API_optional-green?logo=openai&logoColor=white)](https://platform.openai.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16+-blue?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Vercel](https://img.shields.io/badge/Deployed_on-Vercel-black?logo=vercel&logoColor=white)](https://vercel.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -18,21 +18,21 @@
 
 | **Technical Achievement** | **Implementation** | **Impact** |
 |---------------------------|-------------------|------------|
-| 🤖 **Multi-Agent AI System** | OpenAI Agents SDK v1.0 with orchestrated intelligence | 85% accuracy in opportunity relevance |
+| 🤖 **AI-Ready Search** | OpenAI-compatible embedding configuration with pgvector storage | Semantic opportunity discovery |
 | ⚡ **Serverless-First Architecture** | Zero-maintenance, infinite scale design | 95% reduction in operational complexity |
 | 🔒 **Enterprise Security** | Zero-trust model with comprehensive compliance | SOC 2 Type II aligned, 99.8% auth success |
 | 📊 **Performance Excellence** | <2s load times globally, 94.5% cache hit rate | Exceeds industry benchmarks by 40% |
-| 🧪 **Advanced Testing** | 90% coverage with Neon database branching | Zero-setup testing, 89.5% pass rate |
+| 🧪 **Advanced Testing** | Vitest, Playwright, PGlite, and Neon branching | Repo-native gates with coverage reporting |
 
 ## 📚 **Comprehensive Documentation**
 
 This project showcases professional-grade technical documentation:
 
-- 📋 **[Executive Summary](./EXECUTIVE_SUMMARY.md)** - Technical achievements and portfolio highlights
-- 🔌 **[API Documentation](./API_DOCUMENTATION.md)** - Complete API reference with SDKs and examples  
-- 🏗️ **[Architecture Guide](./ARCHITECTURE.md)** - System design with detailed Mermaid diagrams
-- 🛡️ **[Security Implementation](./SECURITY_IMPLEMENTATION.md)** - Enterprise-grade security architecture
-- 🚀 **[Deployment Guide](./DEPLOYMENT_GUIDE.md)** - Production deployment and infrastructure
+- 📋 **[Executive Summary](./docs/executive-summary.md)** - Technical achievements and portfolio highlights
+- 🔌 **[API Documentation](./docs/features/api-documentation.md)** - API reference and examples
+- 🏗️ **[Architecture Guide](./docs/development/architecture.md)** - System design and component architecture
+- 🛡️ **[Security Documentation](./docs/security/README.md)** - Security architecture and implementation guides
+- 🚀 **[Deployment Guide](./docs/processes/deployment.md)** - Production deployment and infrastructure
 
 ---
 
@@ -42,7 +42,7 @@ This project showcases professional-grade technical documentation:
 - [🏗️ Architecture](#️-architecture)
 - [🚀 Quick Start](#-quick-start)
 - [⚙️ Technology Stack](#️-technology-stack)
-- [📊 AI Agent System](#-ai-agent-system)
+- [📊 Search & Analysis Pipeline](#-search--analysis-pipeline)
 - [🗃️ Database Schema](#️-database-schema)
 - [🔧 Development](#-development)
 - [📈 Performance](#-performance)
@@ -73,7 +73,7 @@ This project showcases professional-grade technical documentation:
 ### 📱 **Smart Notifications**
 
 - **Intelligent Scheduling**: Timezone-aware delivery with user preference learning
-- **Multi-channel Support**: Email (Resend) + SMS (Telnyx) with fallback mechanisms
+- **Extensible Delivery**: Notification pipeline can connect to email, SMS, or webhook providers
 - **Spam Prevention**: Score-based triggers with cooldown periods and relevance filtering
 
 ### 📊 **Analytics & Tracking**
@@ -91,12 +91,12 @@ contribux follows a **serverless-first**, **AI-native** architecture designed fo
 ```mermaid
 graph TB
     subgraph "🎨 Client Layer"
-        A[Next.js 15 PWA] --> B[React Server Components]
-        B --> C[SWR v3 Cache]
+        A[Next.js 16 PWA] --> B[React Server Components]
+        B --> C[TanStack Query Cache]
     end
 
     subgraph "🔌 API Layer"
-        D[Vercel Edge Functions] --> E[tRPC v11 Router]
+        D[Next.js API Routes] --> E[Route Handlers]
         E --> F[Auth Middleware]
     end
 
@@ -107,20 +107,18 @@ graph TB
     end
 
     subgraph "💾 Data Layer"
-        K[Neon PostgreSQL 16] --> L[pgvector 0.7]
-        M[Upstash Redis] --> N[QStash v3]
+        K[Neon PostgreSQL] --> L[pgvector]
+        M[Upstash Redis] --> N[Rate Limiting]
     end
 
     subgraph "🌐 External Services"
-        O[GitHub API v4] --> P[OpenAI Agents SDK v1.0]
-        Q[Resend v4] --> R[Telnyx SMS]
+        O[GitHub API] --> P[OpenAI API Optional]
     end
 
     A --> D
     D --> G
     G --> K
     H --> P
-    J --> Q
 
     style A fill:#7C3AED,color:#fff
     style H fill:#10B981,color:#fff
@@ -153,8 +151,8 @@ sequenceDiagram
 ### Prerequisites
 
 - Node.js 20.x or higher
-- pnpm 9.x or higher
-- PostgreSQL 16 (or Neon account)
+- pnpm 10.12.4 via Corepack
+- PostgreSQL 16+ (or Neon account)
 - GitHub account for OAuth
 
 ### Installation
@@ -199,13 +197,9 @@ GITHUB_CLIENT_SECRET=your-github-oauth-app-secret
 
 # AI Services
 OPENAI_API_KEY=sk-...
-OPENAI_ORGANIZATION_ID=org-...
 
-# External Services
-RESEND_API_KEY=re_...
-TELNYX_API_KEY=KEY...
-UPSTASH_QSTASH_TOKEN=...
-UPSTASH_QSTASH_URL=...
+UPSTASH_REDIS_REST_URL=https://your-redis-url
+UPSTASH_REDIS_REST_TOKEN=your-redis-token
 
 # Environment Settings
 NODE_ENV=development
@@ -226,14 +220,12 @@ pnpm start
 
 # Linting and formatting
 pnpm lint          # Run Biome checks
-pnpm lint:fix      # Fix linting issues
-pnpm format        # Format code with Biome
 
 # Type checking
 pnpm type-check
 
-# Clean build artifacts
-pnpm clean
+# Production validation
+pnpm build
 ```
 
 Visit [http://localhost:3000](http://localhost:3000) to see your application.
@@ -244,86 +236,87 @@ Visit [http://localhost:3000](http://localhost:3000) to see your application.
 
 ### **Frontend Stack**
 
-| Technology                                    | Version | Purpose                              |
-| --------------------------------------------- | ------- | ------------------------------------ |
-| [Next.js](https://nextjs.org/)                | 15.0+   | React framework with App Router      |
-| [TypeScript](https://www.typescriptlang.org/) | 5.7+    | Type safety and developer experience |
-| [Tailwind CSS](https://tailwindcss.com/)      | 4.0+    | Utility-first styling framework      |
-| [shadcn/ui](https://ui.shadcn.com/)           | 2.0+    | Component library with accessibility |
-| [SWR](https://swr.vercel.app/)                | 3.0+    | Data fetching with caching           |
+| Technology                                         | Version | Purpose                              |
+| -------------------------------------------------- | ------- | ------------------------------------ |
+| [Next.js](https://nextjs.org/)                     | 16.2.6  | React framework with App Router      |
+| [React](https://react.dev/)                        | 19.2+   | UI runtime                           |
+| [TypeScript](https://www.typescriptlang.org/)      | 5.9+    | Type safety and developer experience |
+| [Tailwind CSS](https://tailwindcss.com/)           | 4.3+    | Utility-first styling framework      |
+| [TanStack Query](https://tanstack.com/query/latest) | 5.100+  | Client data fetching and caching     |
+| [Radix UI](https://www.radix-ui.com/)              | 1.4+    | Accessible UI primitives             |
 
 ### **Backend Stack**
 
 | Technology                                       | Version | Purpose                               |
 | ------------------------------------------------ | ------- | ------------------------------------- |
-| [Neon PostgreSQL](https://neon.tech/)            | 16+     | Serverless database with auto-scaling |
+| [Neon PostgreSQL](https://neon.tech/)            | Managed | Serverless database with branching    |
 | [pgvector](https://github.com/pgvector/pgvector) | 0.7+    | Vector similarity search              |
-| [tRPC](https://trpc.io/)                         | 11.0+   | End-to-end typesafe APIs              |
-| [Upstash QStash](https://upstash.com/qstash)     | 3.0+    | Serverless message queuing            |
+| [Drizzle ORM](https://orm.drizzle.team/)         | 0.45+   | Type-safe SQL and schema definitions  |
+| [Upstash Redis](https://upstash.com/)            | 1.38+   | Cache and rate-limit storage          |
 
 ### **AI & Analysis**
 
-| Technology                                        | Version | Purpose                       |
-| ------------------------------------------------- | ------- | ----------------------------- |
-| [OpenAI Agents SDK](https://platform.openai.com/) | 1.0+    | AI agent orchestration        |
-| [Vercel AI SDK](https://sdk.vercel.ai/)           | Latest  | LLM integration and streaming |
-| GPT-4o-mini-2025-06                               | Latest  | Cost-effective AI analysis    |
+| Technology                                        | Version | Purpose                                  |
+| ------------------------------------------------- | ------- | ---------------------------------------- |
+| [OpenAI API](https://platform.openai.com/)        | Optional | Embedding and model-provider integration |
+| [pgvector](https://github.com/pgvector/pgvector)  | 0.7+    | Semantic search storage                  |
+| [jose](https://github.com/panva/jose)             | 6.2+    | JWT signing and verification             |
 
 ### **Infrastructure**
 
-| Service                       | Tier      | Purpose                               |
-| ----------------------------- | --------- | ------------------------------------- |
-| [Vercel](https://vercel.com/) | Pro       | Serverless hosting and edge functions |
-| [Resend](https://resend.com/) | Free      | Transactional email delivery          |
-| [Telnyx](https://telnyx.com/) | Pay-as-go | SMS notifications                     |
+| Service                       | Purpose                                  |
+| ----------------------------- | ---------------------------------------- |
+| [Vercel](https://vercel.com/) | Serverless hosting and preview deploys   |
+| [Neon](https://neon.tech/)    | Managed PostgreSQL and CI branch testing |
+| [Upstash](https://upstash.com/) | Redis-backed cache and rate limiting   |
 
 ---
 
-## 📊 AI Agent System
+## 📊 Search & Analysis Pipeline
 
-contribux employs a **multi-agent architecture** with specialized roles for optimal contribution discovery:
+contribux uses a typed search and analysis pipeline for contribution discovery:
 
 ```mermaid
 graph LR
-    subgraph "🎯 Agent Orchestration"
-        A[ContribuxOrchestrator] --> B[ContribuxScanner]
-        A --> C[ContribuxAnalyzer]
-        A --> D[ContribuxStrategist]
-        A --> E[SuccessTracker]
+    subgraph "🎯 Discovery Flow"
+        A[GitHub Repository Input] --> B[Repository Health Scoring]
+        B --> C[Opportunity Extraction]
+        C --> D[Search Indexing]
+        D --> E[User-Facing Results]
     end
 
-    subgraph "🔍 Discovery Agents"
-        B --> F[Repository Health Check]
-        B --> G[Issue Discovery]
-        B --> H[Trend Analysis]
+    subgraph "🔍 Search Signals"
+        F[Text Search]
+        G[Vector Embeddings]
+        H[Repository Metadata]
     end
 
-    subgraph "🧠 Analysis Agents"
-        C --> I[Complexity Estimator]
-        C --> J[Skill Detector]
-        C --> K[Acceptance Predictor]
+    subgraph "🧠 Ranking"
+        I[Complexity Score]
+        J[Impact Score]
+        K[Difficulty Score]
     end
 
-    subgraph "💡 Strategy Agents"
-        D --> L[Implementation Planner]
-        D --> M[Risk Assessor]
-        D --> N[Success Predictor]
-    end
+    F --> D
+    G --> D
+    H --> B
+    E --> I
+    E --> J
+    E --> K
 
     style A fill:#7C3AED,color:#fff
-    style C fill:#10B981,color:#fff
-    style D fill:#F59E0B,color:#fff
+    style D fill:#10B981,color:#fff
+    style E fill:#F59E0B,color:#fff
 ```
 
-### Agent Capabilities
+### Pipeline Capabilities
 
-| Agent                     | Primary Function        | Key Outputs                           |
-| ------------------------- | ----------------------- | ------------------------------------- |
-| **ContribuxOrchestrator** | Workflow coordination   | Task routing, state management        |
-| **ContribuxScanner**      | Repository discovery    | Health scores, issue candidates       |
-| **ContribuxAnalyzer**     | Opportunity analysis    | Complexity scores, skill requirements |
-| **ContribuxStrategist**   | Implementation guidance | Success strategies, risk assessment   |
-| **SuccessTracker**        | Outcome monitoring      | Learning patterns, optimization       |
+| Stage | Primary Function | Key Outputs |
+| --- | --- | --- |
+| **Repository Ingest** | Normalize GitHub repository and issue metadata | Repository records, issue candidates |
+| **Search Indexing** | Store text and embedding-compatible vectors | Full-text and vector search inputs |
+| **Opportunity Ranking** | Score complexity, impact, and difficulty | Ranked opportunity results |
+| **User Feedback** | Track saved opportunities and outcomes | Preference and quality signals |
 
 ---
 
@@ -419,20 +412,18 @@ pnpm test:watch            # Watch mode for development
 pnpm test:coverage         # Coverage reporting
 pnpm test:db               # Database-specific tests
 pnpm test:ui               # Test UI interface
-pnpm test:ci               # CI mode with verbose output
+pnpm test:e2e:ci           # Playwright CI mode with line reporter
 
 # Database Management
 pnpm db:test-connection    # Test database connections
 pnpm db:health            # Check database health
 pnpm db:performance-report # Generate performance report
-pnpm db:slow-queries      # Analyze slow queries
 pnpm db:vector-metrics    # Vector search metrics
-pnpm db:indexes           # Analyze indexes
-pnpm db:analyze           # Full database analysis
 
 # Code Quality
 pnpm lint                  # Biome linting
-pnpm lint:fix             # Auto-fix linting issues
+pnpm type-check            # TypeScript validation
+pnpm build                 # Production build
 pnpm format               # Format code with Biome
 pnpm type-check           # TypeScript validation
 ```
@@ -462,7 +453,7 @@ pnpm type-check           # TypeScript validation
 
 - **Edge Functions**: Vercel Edge Runtime for global distribution
 - **Streaming SSR**: React Server Components with selective hydration
-- **Smart Caching**: Multi-layer caching with SWR and Redis
+- **Smart Caching**: TanStack Query on the client and Redis-compatible server caching
 - **Bundle Optimization**: Code splitting and dynamic imports
 - **Image Optimization**: Next.js Image component with WebP
 
@@ -545,14 +536,13 @@ pnpm test:watch    # Watch mode for TDD
 pnpm test:coverage # Coverage report
 pnpm test:db       # Database tests with Neon branching
 pnpm test:ui       # UI test runner
-pnpm test:ci       # CI mode
+pnpm test:e2e:ci   # Playwright CI mode
 
 # Neon branch management
-pnpm neon:list-branches         # List active test branches
-pnpm neon:cleanup-test-branches # Clean up old test branches
+node scripts/cleanup-neon-ci-branches.js --dry-run  # Preview stale CI branch cleanup
 ```
 
-See [docs/NEON_BRANCHING_TESTS.md](docs/NEON_BRANCHING_TESTS.md) for details on the test infrastructure.
+See [docs/testing/testing-infrastructure.md](docs/testing/testing-infrastructure.md) for test infrastructure details.
 
 ---
 
@@ -671,7 +661,7 @@ This project showcases expertise across multiple domains critical for senior AI 
 ### **🔧 Full-Stack Development**
 - **Type-Safe Architecture**: End-to-end TypeScript with runtime validation
 - **Modern React Patterns**: Server Components, Suspense, and advanced caching
-- **API Design**: tRPC for type-safe APIs with comprehensive documentation
+- **API Design**: Typed Next.js route handlers with Zod validation and comprehensive documentation
 - **Database Engineering**: Advanced PostgreSQL with vector search optimization
 
 ### **🛡️ Security & Compliance**

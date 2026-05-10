@@ -1,5 +1,5 @@
 /**
- * 404 Not Found page for Next.js 15 App Router
+ * 404 Not Found page for Next.js 16 App Router
  * Enhanced with modern UI and helpful navigation
  */
 

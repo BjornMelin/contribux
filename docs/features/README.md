@@ -17,7 +17,7 @@ This directory contains documentation for key features and functionality of the 
 The Contribux platform provides:
 
 - **AI-Powered Discovery**: GitHub contribution discovery using vector search
-- **Authentication**: NextAuth.js v5 with GitHub/Google OAuth
+- **Authentication**: NextAuth.js v4 with GitHub/Google OAuth
 - **API Architecture**: RESTful APIs with comprehensive testing
 - **Security**: CSP, rate limiting, and secure session management
 
@@ -26,4 +26,4 @@ The Contribux platform provides:
 - **Authentication Setup?** See [authentication.md](authentication.md)
 - **API Usage?** Check [api-documentation.md](api-documentation.md)
 - **API Testing?** Review [api-testing-guide.md](api-testing-guide.md)
-- **Authentication Testing?** See [../testing/nextauth-v5-testing-guide.md](../testing/nextauth-v5-testing-guide.md)
+- **Authentication Testing?** See [../testing/nextauth-v4-testing-guide.md](../testing/nextauth-v4-testing-guide.md)

@@ -1,5 +1,5 @@
 /**
- * Modern Test helpers - Vitest 3.2+ patterns
+ * Modern Test helpers - Vitest 4.1+ patterns
  *
  * Features:
  * - MSW integration replacing nock

@@ -1,18 +1,18 @@
 # Comprehensive Performance Guide for Contribux
 
 > **Consolidated Performance Documentation** - This guide combines all performance optimization strategies,
-> Next.js 15 specific techniques, memory management, and monitoring tools into a single comprehensive resource.
+> Next.js 16 specific techniques, memory management, and monitoring tools into a single comprehensive resource.
 
 ## Overview
 
 This comprehensive guide provides performance optimization strategies and best practices for the
-Contribux AI-powered GitHub contribution discovery platform. The platform is built with Next.js 15,
+Contribux AI-powered GitHub contribution discovery platform. The platform is built with Next.js 16,
 TypeScript, Neon PostgreSQL, and follows a serverless-first architecture.
 
 ### **What's Included in This Guide:**
 
 - **Core Performance Optimization** - General strategies and monitoring
-- **Next.js 15 Specific Optimizations** - App Router, rendering, and serverless optimization
+- **Next.js 16 Specific Optimizations** - App Router, rendering, and serverless optimization
 - **Memory Management** - Optimization results, monitoring tools, and best practices
 - **Database Performance** - PostgreSQL/pgvector optimization (links to specialized guide)
 - **Production Deployment** - Serverless and Vercel-specific optimizations
@@ -22,19 +22,19 @@ TypeScript, Neon PostgreSQL, and follows a serverless-first architecture.
 ```mermaid
 graph TB
     subgraph "Frontend Layer"
-        A[Next.js 15 App Router]
+        A[Next.js 16 App Router]
         B[React 19 Components]
         C[Tailwind CSS 4.0]
     end
     
     subgraph "API Layer"
         D[Next.js API Routes]
-        E[NextAuth.js v5]
+        E[NextAuth.js v4]
         F[Middleware Authentication]
     end
     
     subgraph "Database Layer"
-        G[Neon PostgreSQL 16]
+        G[Neon PostgreSQL]
         H[pgvector Extension]
         I[HNSW Indexes]
     end
@@ -54,7 +54,7 @@ graph TB
     L --> G
 ```
 
-## Next.js 15 Specific Optimizations
+## Next.js 16 Specific Optimizations
 
 ### Bundle Optimization
 
@@ -167,7 +167,7 @@ export default function SearchPage() {
 
 #### Font Optimization
 
-Optimize font loading with Next.js 15 font system:
+Optimize font loading with Next.js 16 font system:
 
 ```typescript
 // In layout.tsx
@@ -393,7 +393,7 @@ const react19Optimizations = {
 
 ### 2. API Performance Optimization
 
-#### Next.js 15 API Routes Optimization
+#### Next.js 16 API Routes Optimization
 
 ```typescript
 // Implemented in tests/performance/api-performance.test.ts
@@ -442,7 +442,7 @@ const serverlessOptimizations = {
 }
 ```
 
-#### Authentication Performance (NextAuth.js v5)
+#### Authentication Performance (NextAuth.js v4)
 
 ```typescript
 // Optimizations implemented in tests/integration/api/authentication-middleware-testing.test.ts
@@ -818,26 +818,14 @@ const loadTestingStrategy = {
 ### 2. Performance Test Automation
 
 ```bash
-# Performance testing commands
-# These are integrated into the project's package.json
+# Run the performance-oriented Vitest suite
+pnpm exec vitest run --config vitest.performance.config.ts
 
-# Run all performance tests
-pnpm test:performance
+# Run browser performance contracts
+pnpm exec playwright test tests/e2e/performance.spec.ts --project=chromium
 
-# Run specific performance test categories
-pnpm test:performance:api        # API performance testing
-pnpm test:performance:database   # Database performance testing
-pnpm test:performance:frontend   # Frontend performance testing
-pnpm test:performance:load       # Load testing scenarios
-
-# Performance monitoring
-pnpm test:performance:monitor    # Run continuous monitoring
-pnpm test:performance:baseline   # Establish new performance baselines
-pnpm test:performance:report     # Generate performance reports
-
-# Integration with CI/CD
-pnpm test:performance:ci         # CI-optimized performance tests
-pnpm test:performance:gates      # Performance gate validation
+# Generate bundle and dependency performance reports
+pnpm perf:report
 ```
 
 ## Best Practices and Recommendations
