@@ -1,5 +1,5 @@
 /**
- * NextAuth.js v5 Session Management Testing Suite
+ * NextAuth.js v4 Session Management Testing Suite
  * Comprehensive testing for session creation, validation, persistence, expiration, refresh, and cleanup
  */
 
@@ -17,6 +17,8 @@ vi.mock('@/lib/validation/env', () => ({
     GOOGLE_CLIENT_ID: 'test-google-client-id',
     GOOGLE_CLIENT_SECRET: 'test-google-client-secret',
   },
+  isDevelopment: () => false,
+  isProduction: () => false,
 }))
 
 // Mock database
@@ -50,7 +52,7 @@ describe('NextAuth Session Management Testing', () => {
           email: 'github-user@example.com',
           display_name: 'GitHub User',
           username: 'githubuser',
-          github_username: 'githubuser',
+          github_login: 'githubuser',
           email_verified: true,
           two_factor_enabled: false,
           recovery_email: null,
@@ -113,7 +115,7 @@ describe('NextAuth Session Management Testing', () => {
           email: 'google-user@example.com',
           display_name: 'Google User',
           username: 'googleuser',
-          github_username: null,
+          github_login: null,
           email_verified: true,
           two_factor_enabled: false,
           recovery_email: null,
@@ -176,7 +178,7 @@ describe('NextAuth Session Management Testing', () => {
           email: 'multi-user@example.com',
           display_name: 'Multi Provider User',
           username: 'multiuser',
-          github_username: 'multiuser',
+          github_login: 'multiuser',
           email_verified: true,
           two_factor_enabled: true,
           recovery_email: 'recovery@example.com',
@@ -345,7 +347,7 @@ describe('NextAuth Session Management Testing', () => {
             email: `user${i}@example.com`,
             display_name: `User ${i}`,
             username: `user${i}`,
-            github_username: `user${i}`,
+            github_login: `user${i}`,
             email_verified: true,
             connected_providers: ['github'],
             primary_provider: 'github',
