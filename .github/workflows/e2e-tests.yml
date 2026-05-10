@@ -71,6 +71,7 @@ jobs:
       # Create Neon branch for E2E testing
       - name: Create Neon E2E Test Branch
         id: create-branch
+        continue-on-error: true
         uses: neondatabase/create-branch-action@v5
         with:
           project_id: ${{ env.NEON_PROJECT_ID }}
@@ -79,14 +80,35 @@ jobs:
           username: 'neondb_owner'
           database: 'neondb'
 
+      - name: Wait before retrying Neon E2E branch resolution
+        if: steps.create-branch.outputs.db_url_with_pooler == ''
+        run: sleep 10
+
+      - name: Retry Neon E2E Test Branch Resolution
+        id: create-branch-retry
+        if: steps.create-branch.outputs.db_url_with_pooler == ''
+        uses: neondatabase/create-branch-action@v5
+        with:
+          project_id: ${{ env.NEON_PROJECT_ID }}
+          api_key: ${{ env.NEON_API_KEY }}
+          branch_name: 'e2e-test-${{ github.run_id }}-${{ github.run_attempt }}'
+          username: 'neondb_owner'
+          database: 'neondb'
+
+      - name: Resolve Neon E2E branch outputs
+        id: e2e-branch
+        run: |
+          echo "branch_id=${{ steps.create-branch.outputs.branch_id || steps.create-branch-retry.outputs.branch_id }}" >> "$GITHUB_OUTPUT"
+          echo "db_url_with_pooler=${{ steps.create-branch.outputs.db_url_with_pooler || steps.create-branch-retry.outputs.db_url_with_pooler }}" >> "$GITHUB_OUTPUT"
+
       # Setup environment variables for the application
       - name: Setup Environment Variables
         run: |
           cat > .env.local << EOF
           # Database Configuration
-          DATABASE_URL="${{ steps.create-branch.outputs.db_url_with_pooler }}"
-          DATABASE_URL_DEV="${{ steps.create-branch.outputs.db_url_with_pooler }}"
-          DATABASE_URL_TEST="${{ steps.create-branch.outputs.db_url_with_pooler }}"
+          DATABASE_URL="${{ steps.e2e-branch.outputs.db_url_with_pooler }}"
+          DATABASE_URL_DEV="${{ steps.e2e-branch.outputs.db_url_with_pooler }}"
+          DATABASE_URL_TEST="${{ steps.e2e-branch.outputs.db_url_with_pooler }}"
           
           # Application Configuration
           NODE_ENV=test
@@ -113,13 +135,13 @@ jobs:
       - name: Reset isolated Neon branch schema
         run: pnpm db:migrate:reset
         env:
-          DATABASE_URL: ${{ steps.create-branch.outputs.db_url_with_pooler }}
+          DATABASE_URL: ${{ steps.e2e-branch.outputs.db_url_with_pooler }}
           ALLOW_CI_DATABASE_RESET: 'true'
 
       - name: Run Database Migrations
         run: pnpm db:migrate
         env:
-          DATABASE_URL: ${{ steps.create-branch.outputs.db_url_with_pooler }}
+          DATABASE_URL: ${{ steps.e2e-branch.outputs.db_url_with_pooler }}
 
       # Install Playwright browsers
       - name: Install Playwright Browsers
@@ -141,14 +163,14 @@ jobs:
       - name: Build Application
         run: pnpm build
         env:
-          DATABASE_URL: ${{ steps.create-branch.outputs.db_url_with_pooler }}
+          DATABASE_URL: ${{ steps.e2e-branch.outputs.db_url_with_pooler }}
           NODE_OPTIONS: '--max-old-space-size=2048'
 
       # Run E2E tests
       - name: Run E2E Tests
         run: pnpm test:e2e:ci
         env:
-          DATABASE_URL: ${{ steps.create-branch.outputs.db_url_with_pooler }}
+          DATABASE_URL: ${{ steps.e2e-branch.outputs.db_url_with_pooler }}
           CI: true
           NODE_OPTIONS: '--max-old-space-size=2048'
 
@@ -177,12 +199,12 @@ jobs:
 
       # Clean up Neon branch (always runs, even on failure)
       - name: Delete Neon E2E Test Branch
-        if: always() && steps.create-branch.outputs.branch_id != ''
+        if: always() && steps.e2e-branch.outputs.branch_id != ''
         uses: neondatabase/delete-branch-action@v3
         with:
           project_id: ${{ env.NEON_PROJECT_ID }}
           api_key: ${{ env.NEON_API_KEY }}
-          branch: ${{ steps.create-branch.outputs.branch_id }}
+          branch: ${{ steps.e2e-branch.outputs.branch_id }}
 
       # Report test results summary
       - name: Test Results Summary
@@ -191,7 +213,7 @@ jobs:
           echo "## E2E Test Results 🎭" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Branch**: \`e2e-test-${{ github.run_id }}-${{ github.run_attempt }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Database**: \`${{ steps.create-branch.outputs.db_url_with_pooler }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Database Branch**: \`${{ steps.e2e-branch.outputs.branch_id }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Status**: $([ ${{ job.status }} == 'success' ] && echo '✅ Passed' || echo '❌ Failed')" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ -f playwright-report.json ]; then
