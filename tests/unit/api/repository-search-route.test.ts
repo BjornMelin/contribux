@@ -28,4 +28,18 @@ describe('repository search route', () => {
     expect(pageTwoBody.data.total_count).toBe(2)
     expect(pageTwoBody.data.has_more).toBe(false)
   })
+
+  it('honors sort and order before paginating demo repositories', async () => {
+    const response = await GET(
+      new NextRequest(
+        'http://localhost:3000/api/search/repositories?q=react&sort=stars&order=asc&per_page=2'
+      )
+    )
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(
+      body.data.repositories.map((repository: { fullName: string }) => repository.fullName)
+    ).toEqual(['vercel/next.js', 'facebook/react'])
+  })
 })

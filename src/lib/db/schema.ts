@@ -136,6 +136,10 @@ export const securityAuditLogs = pgTable(
     eventTypeIdx: index('idx_security_audit_logs_event_type').on(table.eventType),
     userIdIdx: index('idx_security_audit_logs_user_id').on(table.userId),
     createdAtIdx: index('idx_security_audit_logs_created_at').on(table.createdAt),
+    eventSeverityCheck: check(
+      'security_audit_logs_event_severity_check',
+      sql`${table.eventSeverity} IN ('info', 'warning', 'error', 'critical')`
+    ),
   })
 )
 
@@ -627,7 +631,8 @@ export const RepositoryDataSchema = z.object({
 
 // User data validation
 export const UserDataSchema = z.object({
-  githubId: GitHubIdSchema,
+  githubId: GitHubIdSchema.nullish(),
+  githubLogin: SafeStringSchema100.nullish(),
   username: SafeStringSchema100,
   email: SafeEmailSchema.optional(),
   name: SafeStringSchema200.optional(),
@@ -710,6 +715,7 @@ export function sanitizeSearchQuery(query: string): string {
 
   // Additional sanitization for ILIKE patterns
   return sanitized
+    .replace(/\\/g, '\\\\') // Escape LIKE escape characters
     .replace(/%/g, '\\%') // Escape LIKE wildcards
     .replace(/_/g, '\\_') // Escape LIKE wildcards
 }

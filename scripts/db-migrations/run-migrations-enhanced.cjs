@@ -521,9 +521,10 @@ async function resetDatabase() {
     process.env.ALLOW_CI_DATABASE_RESET === 'true' &&
     process.env.CI === 'true' &&
     process.env.GITHUB_ACTIONS === 'true'
+  const isLocalOrTestDatabase = isLocalOrTestDatabaseUrl(databaseUrl)
 
   // Only allow reset in local/test databases or explicitly isolated CI branches.
-  if (!databaseUrl.includes('test') && !databaseUrl.includes('localhost') && !allowCiDatabaseReset) {
+  if (!isLocalOrTestDatabase && !allowCiDatabaseReset) {
     process.exit(1)
   }
 
@@ -558,6 +559,19 @@ async function resetDatabase() {
     if (sql) {
       await closeDatabaseClient(sql)
     }
+  }
+}
+
+function isLocalOrTestDatabaseUrl(databaseUrl) {
+  if (databaseUrl.includes('test')) {
+    return true
+  }
+
+  try {
+    const { hostname } = new URL(databaseUrl)
+    return hostname === 'localhost' || hostname === '127.0.0.1'
+  } catch {
+    return databaseUrl.includes('localhost') || databaseUrl.includes('127.0.0.1')
   }
 }
 

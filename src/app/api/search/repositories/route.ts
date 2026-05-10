@@ -121,12 +121,28 @@ function searchDemoRepositories(validatedParams: RepositorySearchParams) {
 
     return matchesQuery && matchesLanguage
   })
+  const sortedRepositories = validatedParams.sort
+    ? [...filteredRepositories].sort((left, right) => {
+        const direction = validatedParams.order === 'asc' ? 1 : -1
+
+        switch (validatedParams.sort) {
+          case 'forks':
+            return (left.metadata.forks - right.metadata.forks) * direction
+          case 'updated':
+            return (Date.parse(left.updatedAt) - Date.parse(right.updatedAt)) * direction
+          case 'stars':
+            return (left.metadata.stars - right.metadata.stars) * direction
+          default:
+            return 0
+        }
+      })
+    : filteredRepositories
 
   const startIndex = (validatedParams.page - 1) * validatedParams.per_page
   const endIndex = validatedParams.page * validatedParams.per_page
 
   return {
-    repositories: filteredRepositories.slice(startIndex, endIndex),
+    repositories: sortedRepositories.slice(startIndex, endIndex),
     totalCount: filteredRepositories.length,
     hasMore: endIndex < filteredRepositories.length,
   }

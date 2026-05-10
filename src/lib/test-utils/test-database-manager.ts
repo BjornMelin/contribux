@@ -3039,7 +3039,7 @@ export class TestDatabaseManager {
     const securityAuditLogsTableSQL = `CREATE TABLE IF NOT EXISTS security_audit_logs (
       id UUID PRIMARY KEY DEFAULT ${uuidDefault},
       event_type TEXT NOT NULL CHECK (event_type IN ('auth_success', 'auth_failure', 'session_created', 'session_destroyed', 'token_refresh', 'account_linked', 'account_unlinked', 'security_violation')),
-      event_severity TEXT NOT NULL CHECK (event_severity IN ('low', 'medium', 'high', 'critical')),
+      event_severity TEXT NOT NULL CHECK (event_severity IN ('info', 'warning', 'error', 'critical')),
       user_id UUID REFERENCES users(id) ON DELETE SET NULL,
       ip_address INET,
       user_agent TEXT,

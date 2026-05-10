@@ -149,6 +149,13 @@ describe('Database Security Testing', () => {
         expect(sanitized).not.toContain('DELETE FROM')
       })
 
+      it('should escape LIKE escape characters once', () => {
+        const sanitized = sanitizeSearchQuery('owner\\repo')
+
+        expect(sanitized).toHaveLength('owner\\repo'.length + 1)
+        expect(sanitized.includes('\\\\')).toBe(true)
+      })
+
       it('should limit query length to prevent DoS', () => {
         const longQuery = `${'a'.repeat(500)}'; DROP TABLE users; --`
         const sanitized = sanitizeSearchQuery(longQuery)
@@ -576,16 +583,27 @@ describe('Database Security Testing', () => {
         // Test that required fields are enforced
         expect(() => {
           UserDataSchema.parse({
-            // Missing required githubId
-            username: 'testuser',
+            // Missing required username
+            githubId: 12345,
           })
         }).toThrow()
       })
 
-      it('should validate GitHub ID uniqueness', () => {
+      it('should allow nullable provider identity fields for non-GitHub users', () => {
+        const validUser = {
+          githubId: null,
+          githubLogin: null,
+          username: 'email-user',
+        }
+
+        expect(() => UserDataSchema.parse(validUser)).not.toThrow()
+      })
+
+      it('should validate GitHub ID shape when provided', () => {
         // In real implementation, this would be enforced at DB level
         const validUser = {
           githubId: 12345,
+          githubLogin: 'testuser',
           username: 'testuser',
         }
 
@@ -1003,6 +1021,13 @@ describe('Database Security Functions Testing', () => {
 
         expect(sanitized).toContain('\\_') // Should escape _ wildcards
         expect(sanitized).not.toContain('DELETE FROM')
+      })
+
+      it('should escape LIKE escape characters once', () => {
+        const sanitized = sanitizeSearchQuery('owner\\repo')
+
+        expect(sanitized).toHaveLength('owner\\repo'.length + 1)
+        expect(sanitized.includes('\\\\')).toBe(true)
       })
 
       it('should limit query length to prevent DoS', () => {

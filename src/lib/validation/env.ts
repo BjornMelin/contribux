@@ -358,12 +358,17 @@ export function getAppUrl(): string {
 export function getJwtSecret(): string {
   const secret =
     process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || env.JWT_SECRET || env.NEXTAUTH_SECRET
+  const normalized = secret?.trim()
 
-  if (!secret) {
-    throw new Error('JWT_SECRET or NEXTAUTH_SECRET is required')
+  if (!normalized) {
+    throw new Error('JWT_SECRET or NEXTAUTH_SECRET is required and cannot be empty')
   }
 
-  return secret
+  if (normalized.length < 32) {
+    throw new Error('JWT secret must be at least 32 characters')
+  }
+
+  return normalized
 }
 
 // Helper function for encryption key

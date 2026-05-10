@@ -46,9 +46,8 @@ export namespace RepositoryQueries {
 
   // Helper function to build text search conditions
   function buildTextSearchConditions(query: string) {
-    // Security: Sanitize search query to prevent SQL injection
+    // The repository search flow passes sanitizeRepositorySearchQuery(query) before this helper.
     const sanitizedQuery = query
-      .replace(/[%_\\]/g, '\\$&') // Escape LIKE special characters
       .replace(/'/g, "''") // Escape single quotes
       .trim()
       .substring(0, 100) // Limit length to prevent DoS
