@@ -15,16 +15,29 @@ const navigationMocks = vi.hoisted(() => {
   const mockPush = vi.fn()
   const mockReplace = vi.fn()
   const mockRefresh = vi.fn()
-  const mockUseRouter = vi.fn(() => ({
+  const createRouter = () => ({
     push: mockPush,
     replace: mockReplace,
     refresh: mockRefresh,
-  }))
-  const mockUseSearchParams = vi.fn(() => ({
+  })
+  const createSearchParams = () => ({
     get: vi.fn().mockReturnValue(null),
     toString: vi.fn().mockReturnValue(''),
-  }))
+  })
+  const mockUseRouter = vi.fn(createRouter)
+  const mockUseSearchParams = vi.fn(createSearchParams)
   const mockUsePathname = vi.fn(() => '/search')
+  const reset = () => {
+    mockPush.mockReset()
+    mockReplace.mockReset()
+    mockRefresh.mockReset()
+    mockUseRouter.mockReset()
+    mockUseSearchParams.mockReset()
+    mockUsePathname.mockReset()
+    mockUseRouter.mockImplementation(createRouter)
+    mockUseSearchParams.mockImplementation(createSearchParams)
+    mockUsePathname.mockImplementation(() => '/search')
+  }
 
   return {
     mockPush,
@@ -33,6 +46,7 @@ const navigationMocks = vi.hoisted(() => {
     mockUseRouter,
     mockUseSearchParams,
     mockUsePathname,
+    reset,
   }
 })
 
@@ -126,12 +140,7 @@ export function createModernMockRouter() {
 
     // Helper to reset mocks
     reset() {
-      navigationMocks.mockPush.mockClear()
-      navigationMocks.mockReplace.mockClear()
-      navigationMocks.mockRefresh.mockClear()
-      navigationMocks.mockUseRouter.mockClear()
-      navigationMocks.mockUseSearchParams.mockClear()
-      navigationMocks.mockUsePathname.mockClear()
+      navigationMocks.reset()
     },
   }
 }

@@ -12,7 +12,7 @@ export default defineConfig({
     tsconfigPaths: true,
     alias: {
       '@': path.resolve(__dirname, './src'),
-      'next/server': path.resolve(__dirname, 'node_modules/next/dist/server/web/exports/index.js'),
+      'next/server': path.resolve(__dirname, 'node_modules/next/server.js'),
       'next/headers': path.resolve(
         __dirname,
         'node_modules/next/dist/client/components/headers.js'

@@ -115,8 +115,9 @@ describe('Middleware Authentication Validation', () => {
       useMSWHandlers(
         http.get('http://localhost:3000/api/search/repositories', ({ request }) => {
           const sessionCookie = request.headers.get('Cookie')
+          const hasSessionCookie = /(?:^|;\s*)next-auth\.session-token=/.test(sessionCookie ?? '')
 
-          if (!sessionCookie?.includes('next-auth.session-token')) {
+          if (!hasSessionCookie) {
             return HttpResponse.json(
               {
                 success: false,

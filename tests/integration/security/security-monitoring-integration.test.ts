@@ -18,6 +18,14 @@ function createNextUrl(url: string): URL {
   }
 }
 
+function restoreOptionalEnv(name: string, value: string | undefined) {
+  if (value === undefined) {
+    delete process.env[name]
+  } else {
+    process.env[name] = value
+  }
+}
+
 // Mock NextRequest for testing
 function createMockRequest(options: {
   url?: string
@@ -32,11 +40,12 @@ function createMockRequest(options: {
     mockHeaders.set('x-forwarded-for', ip)
   }
 
+  const nextUrl = createNextUrl(url)
   const mockRequest = {
-    url,
+    url: nextUrl.toString(),
     method,
     headers: mockHeaders,
-    nextUrl: createNextUrl(url),
+    nextUrl,
   } as NextRequest
 
   return mockRequest
@@ -121,11 +130,7 @@ describe('Security + Monitoring Integration', () => {
         const rateLimitedResponses = responses.filter(r => r.status === 429)
         expect(rateLimitedResponses.length).toBeGreaterThan(0)
       } finally {
-        if (originalVercel) {
-          process.env.VERCEL = originalVercel
-        } else {
-          process.env.VERCEL = undefined
-        }
+        restoreOptionalEnv('VERCEL', originalVercel)
       }
 
       // Verify monitoring tracked rate limit events
@@ -351,11 +356,7 @@ describe('Security + Monitoring Integration', () => {
       expect(response).toBeDefined()
 
       // Restore environment
-      if (originalVercel) {
-        process.env.VERCEL = originalVercel
-      } else {
-        process.env.VERCEL = undefined
-      }
+      restoreOptionalEnv('VERCEL', originalVercel)
     })
   })
 

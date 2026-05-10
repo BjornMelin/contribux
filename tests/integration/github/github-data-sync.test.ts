@@ -34,7 +34,7 @@ describe('GitHub Data Synchronization & Caching Integration', () => {
   describe('Cache Management Patterns', () => {
     it('should provide cache management functionality', () => {
       const client = createGitHubClient({
-        accessToken: 'ghp_test1234567890abcdef1234567890abcdef12',
+        accessToken: 'TEST_GITHUB_TOKEN',
       })
 
       const stats = client.getCacheStats()

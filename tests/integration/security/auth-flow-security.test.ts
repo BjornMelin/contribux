@@ -131,9 +131,28 @@ describe('Authentication Flow Security Integration', () => {
       })
 
       // Mock successful OAuth flow
-      mockSignIn.mockResolvedValue({
-        url: 'http://localhost:3000/api/auth/callback/github?code=test_code&state=test_state',
-        error: null,
+      mockSignIn.mockImplementation(async () => {
+        await mockAuditLogger.log({
+          type: AuditEventType.AUTH_SUCCESS,
+          severity: AuditSeverity.INFO,
+          actor: {
+            type: 'user',
+            id: 'user123',
+            ip: '192.168.1.100',
+            userAgent: 'Mozilla/5.0 (compatible test)',
+          },
+          action: 'OAuth authentication initiated',
+          result: 'success',
+          metadata: {
+            provider: 'github',
+            authMethod: 'oauth',
+          },
+        })
+
+        return {
+          url: 'http://localhost:3000/api/auth/callback/github?code=test_code&state=test_state',
+          error: null,
+        }
       })
 
       // Mock session creation
@@ -148,7 +167,10 @@ describe('Authentication Flow Security Integration', () => {
         expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       }
 
-      mockGetServerSession.mockResolvedValue(testSession)
+      mockGetServerSession.mockImplementation((async (...args: unknown[]) => {
+        expect(args[0]).toBeDefined()
+        return testSession
+      }) as unknown as typeof getServerSession)
       mockDb.session.create.mockResolvedValue({
         id: 'session123',
         userId: 'user123',
@@ -160,23 +182,6 @@ describe('Authentication Flow Security Integration', () => {
       await signIn('github', {
         callbackUrl: '/dashboard',
         redirect: false,
-      })
-
-      await mockAuditLogger.log({
-        type: AuditEventType.AUTH_SUCCESS,
-        severity: AuditSeverity.INFO,
-        actor: {
-          type: 'user',
-          id: 'user123',
-          ip: '192.168.1.100',
-          userAgent: 'Mozilla/5.0 (compatible test)',
-        },
-        action: 'OAuth authentication initiated',
-        result: 'success',
-        metadata: {
-          provider: 'github',
-          authMethod: 'oauth',
-        },
       })
 
       // Validate security audit logging
@@ -198,7 +203,7 @@ describe('Authentication Flow Security Integration', () => {
       })
 
       // Validate session security
-      const session = await getServerSession()
+      const session = await getServerSession({} as never)
       expect(session).toBeDefined()
       expect(session?.user.id).toBe('user123')
       expect(session?.accessToken).toBe('gho_test_access_token')
@@ -215,32 +220,34 @@ describe('Authentication Flow Security Integration', () => {
       })
 
       // Mock OAuth failure due to state mismatch
-      mockSignIn.mockResolvedValue({
-        url: null,
-        error: 'OAuthStateVerificationError',
+      mockSignIn.mockImplementation(async () => {
+        await mockAuditLogger.log({
+          type: AuditEventType.SECURITY_VIOLATION,
+          severity: AuditSeverity.ERROR,
+          actor: {
+            type: 'user',
+            ip: '192.168.1.100',
+            userAgent: 'Mozilla/5.0 (compatible test)',
+          },
+          action: 'OAuth state parameter tampering detected',
+          result: 'failure',
+          reason: 'State parameter mismatch',
+          metadata: {
+            provider: 'github',
+            error: 'OAuthStateVerificationError',
+          },
+        })
+
+        return {
+          url: null,
+          error: 'OAuthStateVerificationError',
+        }
       })
 
       // Execute OAuth callback with tampered state
       const result = await signIn('github', {
         callbackUrl: '/dashboard',
         redirect: false,
-      })
-
-      await mockAuditLogger.log({
-        type: AuditEventType.SECURITY_VIOLATION,
-        severity: AuditSeverity.ERROR,
-        actor: {
-          type: 'user',
-          ip: '192.168.1.100',
-          userAgent: 'Mozilla/5.0 (compatible test)',
-        },
-        action: 'OAuth state parameter tampering detected',
-        result: 'failure',
-        reason: 'State parameter mismatch',
-        metadata: {
-          provider: 'github',
-          error: 'OAuthStateVerificationError',
-        },
       })
 
       // Validate security violation logging

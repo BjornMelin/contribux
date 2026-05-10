@@ -71,26 +71,47 @@ function handleOpportunitiesSearch(
 
   const args = parseSqlFunctionArgs('hybrid_search_opportunities', query, values)
   const numericArgs = args.map(Number).filter(Number.isFinite)
-  const maybeLimit = numericArgs.findLast(value => Number.isInteger(value) && value > 0) ?? 10
-  const limit = maybeLimit
-  const textWeight = Number(args[2] ?? 1)
-  const vectorWeight = Number(args[3] ?? 0)
+  const limit = resolveSqlFunctionLimit('hybrid_search_opportunities', query, values, 10, 5)
+  const textWeight = Number(
+    resolveSqlFunctionNamedArgument('hybrid_search_opportunities', query, values, 'text_weight') ??
+      args[2] ??
+      1
+  )
+  const vectorWeight = Number(
+    resolveSqlFunctionNamedArgument(
+      'hybrid_search_opportunities',
+      query,
+      values,
+      'vector_weight'
+    ) ??
+      args[3] ??
+      0
+  )
   const similarityThreshold = numericArgs.findLast(value => value > 0 && value < 1) ?? 0.01
 
   if (textWeight === 0 && vectorWeight === 0) {
     throw new Error('Text weight and vector weight cannot both be zero')
   }
 
-  if (Number.isInteger(numericArgs.at(-1)) && Number(numericArgs.at(-1)) <= 0) {
+  if (limit <= 0) {
     throw new Error('Result limit must be positive')
   }
 
   // Parse search text from query string since template literals don't capture literal values
   const queryLower = query.toLowerCase()
+  const namedSearchText = resolveSqlFunctionNamedArgument(
+    'hybrid_search_opportunities',
+    query,
+    values,
+    'search_text'
+  )
+  const hasNamedArgs = hasSqlFunctionNamedArguments('hybrid_search_opportunities', query)
   let searchText =
-    queryLower.includes('search_text') || typeof args[0] === 'string'
-      ? (args.find(arg => typeof arg === 'string') as string | undefined)
-      : ''
+    typeof namedSearchText === 'string'
+      ? namedSearchText
+      : !hasNamedArgs && typeof args[0] === 'string'
+        ? (args[0] as string)
+        : ''
   if (searchText?.startsWith('[') || searchText?.startsWith('array_fill')) {
     searchText = ''
   }
@@ -159,6 +180,7 @@ function matchesOpportunityViewFilter(opp: Record<string, unknown>, query: strin
   return true
 }
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Repository search mock mirrors positional and named SQL function call shapes.
 function handleRepositoriesSearch(
   mockData: Map<string, Record<string, unknown>[]>,
   query: string,
@@ -166,23 +188,45 @@ function handleRepositoriesSearch(
 ): Record<string, unknown>[] {
   const repositories = mockData.get('repositories') || []
   const args = parseSqlFunctionArgs('hybrid_search_repositories', query, values)
-  const searchText = (args.find(arg => typeof arg === 'string') as string | undefined) || ''
-  const textWeight = Number(args[2] ?? 1)
-  const vectorWeight = Number(args[3] ?? 0)
-  const numericArgs = args.map(Number).filter(Number.isFinite)
-  const maybeLimit = numericArgs.findLast(value => Number.isInteger(value) && value > 1) ?? 10
-  const limit = maybeLimit
+  const namedSearchText = resolveSqlFunctionNamedArgument(
+    'hybrid_search_repositories',
+    query,
+    values,
+    'search_text'
+  )
+  const hasNamedArgs = hasSqlFunctionNamedArguments('hybrid_search_repositories', query)
+  const searchText =
+    typeof namedSearchText === 'string'
+      ? namedSearchText
+      : !hasNamedArgs && typeof args[0] === 'string'
+        ? (args[0] as string)
+        : ''
+  const textWeight = Number(
+    resolveSqlFunctionNamedArgument('hybrid_search_repositories', query, values, 'text_weight') ??
+      args[2] ??
+      1
+  )
+  const vectorWeight = Number(
+    resolveSqlFunctionNamedArgument('hybrid_search_repositories', query, values, 'vector_weight') ??
+      args[3] ??
+      0
+  )
+  const limit = resolveSqlFunctionLimit('hybrid_search_repositories', query, values, 10, 5)
 
   if (textWeight === 0 && vectorWeight === 0) {
     throw new Error('Text weight and vector weight cannot both be zero')
   }
 
-  if (Number.isInteger(numericArgs.at(-1)) && Number(numericArgs.at(-1)) <= 0) {
+  if (limit <= 0) {
     throw new Error('Result limit must be positive')
   }
 
   // Filter repositories by search text if provided
-  const terms = searchText
+  const isVectorOnlySearch =
+    query.toLowerCase().includes('query_embedding') && !query.toLowerCase().includes('search_text')
+  const effectiveSearchText =
+    textWeight === 0 && vectorWeight > 0 ? '' : isVectorOnlySearch ? '' : searchText
+  const terms = effectiveSearchText
     .toLowerCase()
     .split(/\W+/)
     .filter(term => term.length > 1)
@@ -371,10 +415,9 @@ function handleSearchSimilarUsers(
   const args = parseSqlFunctionArgs('search_similar_users', query, values)
   const numericArgs = args.map(Number).filter(Number.isFinite)
   const similarityThreshold = numericArgs.findLast(value => value > 0 && value < 1) ?? 0.9
-  const maybeLimit = numericArgs.findLast(value => Number.isInteger(value) && value > 1) ?? 10
-  const limit = maybeLimit
+  const limit = resolveSqlFunctionLimit('search_similar_users', query, values, 10, 2)
 
-  if (Number.isInteger(numericArgs.at(-1)) && Number(numericArgs.at(-1)) <= 0) {
+  if (limit <= 0) {
     throw new Error('Result limit must be positive')
   }
 
@@ -899,6 +942,47 @@ function withRows<T>(rows: T[]): T[] & { rows: T[]; rowCount: number } {
 }
 
 function parseSqlFunctionArgs(functionName: string, query: string, values: unknown[]): unknown[] {
+  return parseSqlFunctionTokens(functionName, query).map(token => resolveSqlArgument(token, values))
+}
+
+function resolveSqlFunctionLimit(
+  functionName: string,
+  query: string,
+  values: unknown[],
+  fallback: number,
+  positionalIndex: number
+): number {
+  const tokens = parseSqlFunctionTokens(functionName, query)
+  const limitToken =
+    tokens.find(token => /^\s*(result_limit|limit|max_results)\s*:=/i.test(token)) ??
+    tokens[positionalIndex]
+
+  if (!limitToken) {
+    return fallback
+  }
+
+  const limit = Number(resolveSqlArgument(limitToken, values))
+  return Number.isFinite(limit) ? limit : fallback
+}
+
+function resolveSqlFunctionNamedArgument(
+  functionName: string,
+  query: string,
+  values: unknown[],
+  argumentName: string
+): unknown {
+  const token = parseSqlFunctionTokens(functionName, query).find(candidate =>
+    new RegExp(`^\\s*${argumentName}\\s*:=`, 'i').test(candidate)
+  )
+
+  return token ? resolveSqlArgument(token, values) : undefined
+}
+
+function hasSqlFunctionNamedArguments(functionName: string, query: string): boolean {
+  return parseSqlFunctionTokens(functionName, query).some(token => token.includes(':='))
+}
+
+function parseSqlFunctionTokens(functionName: string, query: string): string[] {
   const normalizedQuery = query.toLowerCase()
   const normalizedName = functionName.toLowerCase()
   let searchIndex = 0
@@ -927,9 +1011,7 @@ function parseSqlFunctionArgs(functionName: string, query: string, values: unkno
     }
 
     const args = extractSqlFunctionBody(query, openParenIndex)
-    return args === null
-      ? []
-      : splitSqlArguments(args).map(token => resolveSqlArgument(token, values))
+    return args === null ? [] : splitSqlArguments(args)
   }
 
   return []

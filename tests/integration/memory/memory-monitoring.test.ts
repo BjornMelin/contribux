@@ -68,6 +68,9 @@ describe('Memory Monitoring System', () => {
       const snapshot2 = await takeMemorySnapshot('after-allocation')
 
       expect(largeArray).toHaveLength(100000)
+      expect(snapshot2).not.toBe(snapshot1)
+      expect(snapshot1.testName).toBe('baseline')
+      expect(snapshot2.testName).toBe('after-allocation')
       expect(snapshot2.heapUsed).toBeGreaterThan(0)
       expect(snapshot2.heapTotal).toBeGreaterThan(0)
       expect(snapshot2.timestamp).toBeGreaterThanOrEqual(snapshot1.timestamp)

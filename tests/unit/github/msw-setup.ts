@@ -156,7 +156,13 @@ const isValidToken = (authHeader: string | null, expectedToken?: string): boolea
   )
 }
 
-const createMockPull = (owner: string, repo: string, number: number, state: string) => ({
+const createMockPull = (
+  owner: string,
+  repo: string,
+  number: number,
+  state: string,
+  merged = false
+) => ({
   id: 2000 + number,
   number,
   title: `Pull Request ${number}`,
@@ -187,7 +193,7 @@ const createMockPull = (owner: string, repo: string, number: number, state: stri
     repo: { full_name: `${owner}/${repo}` },
   },
   mergeable: true,
-  merged: state === 'closed',
+  merged,
   merge_commit_sha: `merge${number}`,
 })
 
@@ -890,16 +896,19 @@ const defaultHandlers = [
     const url = new URL(request.url)
     const perPage = Number.parseInt(url.searchParams.get('per_page') || '30', 10)
     const stateParam = url.searchParams.get('state') || 'open'
-    const state = stateParam === 'all' ? 'open' : stateParam
     const authHeader = request.headers.get('authorization')
 
     if (!isValidToken(authHeader)) {
       return HttpResponse.json({ message: 'Bad credentials' }, { status: 401 })
     }
 
-    const pulls = Array.from({ length: Math.min(perPage, 2) }, (_, i) =>
-      createMockPull(owner, repo, i + 1, state)
-    )
+    const allPulls = [
+      createMockPull(owner, repo, 1, 'open'),
+      createMockPull(owner, repo, 2, 'closed', true),
+    ]
+    const pulls = allPulls
+      .filter(pull => stateParam === 'all' || pull.state === stateParam)
+      .slice(0, perPage)
 
     return HttpResponse.json(pulls)
   }),
@@ -931,7 +940,13 @@ const defaultHandlers = [
     }
 
     return HttpResponse.json(
-      createMockPull(owner, repo, pullNumber, pullNumber === 2 ? 'closed' : 'open')
+      createMockPull(
+        owner,
+        repo,
+        pullNumber,
+        pullNumber === 2 ? 'closed' : 'open',
+        pullNumber === 2
+      )
     )
   }),
 
