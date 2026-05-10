@@ -11,16 +11,24 @@
  * - Data integrity validation
  */
 
-import { HttpResponse, http } from 'msw'
-import { setupServer } from 'msw/node'
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { type HttpHandler, HttpResponse, http } from 'msw'
+import { afterEach, describe, expect, it } from 'vitest'
 import { z } from 'zod'
+import { getMockManager } from '../../setup-integration-enhanced'
 
-const server = setupServer()
+const useMSWHandlers = (...handlers: HttpHandler[]) => {
+  const mockManager = getMockManager()
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
-afterEach(() => server.resetHandlers())
-afterAll(() => server.close())
+  if (!mockManager) {
+    throw new Error('Integration MSW server is not initialized')
+  }
+
+  mockManager.useMSWHandlers(...handlers)
+}
+
+afterEach(() => {
+  getMockManager()?.resetMSWHandlers()
+})
 
 // Security test schemas
 const SecurityErrorSchema = z.object({
@@ -66,8 +74,8 @@ describe('Input Validation & Sanitization', () => {
       ]
 
       // Reset handlers to ensure our test handlers take precedence
-      server.resetHandlers()
-      server.use(
+      getMockManager()?.resetMSWHandlers()
+      useMSWHandlers(
         http.get('http://localhost:3000/api/search/repositories', ({ request }) => {
           const url = new URL(request.url)
           const query = url.searchParams.get('q')
@@ -133,7 +141,7 @@ describe('Input Validation & Sanitization', () => {
     })
 
     it('should sanitize special characters in filter parameters', async () => {
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/search/opportunities', ({ request }) => {
           const url = new URL(request.url)
           const labels = url.searchParams.get('labels')
@@ -219,7 +227,7 @@ describe('Input Validation & Sanitization', () => {
         '<iframe src="javascript:alert(1)">',
       ]
 
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/search/repositories', ({ request }) => {
           const url = new URL(request.url)
           const query = url.searchParams.get('q')
@@ -280,8 +288,8 @@ describe('Input Validation & Sanitization', () => {
   describe('Parameter Validation', () => {
     it('should validate numeric parameters strictly', async () => {
       // Reset handlers to ensure our test handlers take precedence
-      server.resetHandlers()
-      server.use(
+      getMockManager()?.resetMSWHandlers()
+      useMSWHandlers(
         http.get('http://localhost:3000/api/search/repositories', ({ request }) => {
           const url = new URL(request.url)
           const page = url.searchParams.get('page')
@@ -490,7 +498,7 @@ describe('Input Validation & Sanitization', () => {
     })
 
     it('should validate enum parameters strictly', async () => {
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/search/opportunities', ({ request }) => {
           const url = new URL(request.url)
           const difficulty = url.searchParams.get('difficulty')
@@ -593,7 +601,7 @@ describe('Input Validation & Sanitization', () => {
     })
 
     it('should validate UUID parameters', async () => {
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/search/opportunities', ({ request }) => {
           const url = new URL(request.url)
           const repositoryId = url.searchParams.get('repository_id')
@@ -668,7 +676,7 @@ describe('Rate Limiting Enforcement', () => {
     it('should enforce per-user rate limits', async () => {
       const rateLimitStore = new Map<string, { count: number; resetTime: number }>()
 
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/search/repositories', ({ request }) => {
           // Simulate user identification (in real app, from session/JWT)
           const userId = request.headers.get('Authorization')?.split(' ')[1] || 'anonymous'
@@ -755,7 +763,7 @@ describe('Rate Limiting Enforcement', () => {
 
       const rateLimitStore = new Map<string, Map<string, { count: number; resetTime: number }>>()
 
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/search/:endpoint', ({ params }) => {
           const endpoint = `/api/search/${params.endpoint}`
           const userId = 'test-user'
@@ -848,7 +856,7 @@ describe('Rate Limiting Enforcement', () => {
       const burstThreshold = 10
       const burstWindow = 5000 // 5 seconds
 
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/search/repositories', () => {
           const _now = Date.now()
           burstCount++
@@ -920,7 +928,7 @@ describe('CORS Policy Validation', () => {
         'https://app.contribux.com',
       ]
 
-      server.use(
+      useMSWHandlers(
         http.options('http://localhost:3000/api/search/repositories', ({ request }) => {
           const origin = request.headers.get('Origin')
 
@@ -973,7 +981,7 @@ describe('CORS Policy Validation', () => {
     })
 
     it('should handle complex CORS preflight requests', async () => {
-      server.use(
+      useMSWHandlers(
         http.options('http://localhost:3000/api/auth/unlink', ({ request }) => {
           const origin = request.headers.get('Origin')
           const requestMethod = request.headers.get('Access-Control-Request-Method')
@@ -1050,7 +1058,7 @@ describe('CORS Policy Validation', () => {
 describe('Data Integrity Validation', () => {
   describe('Response Schema Validation', () => {
     it('should validate response schemas match API contracts', async () => {
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/search/repositories', () => {
           // Return response with missing required fields to test validation
           return HttpResponse.json({
@@ -1086,7 +1094,7 @@ describe('Data Integrity Validation', () => {
 
   describe('Request Size Limits', () => {
     it('should enforce request body size limits', async () => {
-      server.use(
+      useMSWHandlers(
         http.post('http://localhost:3000/api/auth/set-primary', ({ request }) => {
           const contentLength = request.headers.get('Content-Length')
           const maxSize = 1024 * 1024 // 1MB limit

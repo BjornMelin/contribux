@@ -107,9 +107,9 @@ export function OptimizedSearchExample() {
     <div className="mx-auto max-w-6xl space-y-6 p-6">
       {/* Header with performance metrics */}
       <div className="rounded-lg border bg-card p-4 shadow-sm">
-        <h1 className="mb-4 font-bold text-2xl text-card-foreground">
+        <h2 className="mb-4 font-bold text-2xl text-card-foreground">
           Optimized API Integration Demo
-        </h1>
+        </h2>
 
         <PerformanceMetrics queryMetrics={queries.queryMetrics} />
         <SearchTypeSelector searchType={searchType} setSearchType={setSearchType} />

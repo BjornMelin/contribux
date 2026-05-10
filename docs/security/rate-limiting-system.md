@@ -15,10 +15,10 @@ The contribux project implements a comprehensive rate limiting system designed t
 
 2. **Rate Limit Middleware** (`src/lib/security/rate-limit-middleware.ts`)
    - Wrapper functions for API routes
-   - Integration with Next.js middleware
+   - Integration with the Next.js proxy
    - Enhanced request identification
 
-3. **Main Middleware** (`src/middleware.ts`)
+3. **Main Proxy** (`src/proxy.ts`)
    - Automatic rate limiting for all API requests
    - Security headers integration
    - Request preprocessing

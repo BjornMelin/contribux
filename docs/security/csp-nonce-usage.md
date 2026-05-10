@@ -7,9 +7,9 @@ while allowing necessary inline scripts. Each request generates a unique cryptog
 
 ## How It Works
 
-1. **Middleware Generation**: The Next.js middleware (`src/middleware.ts`) generates a unique 128-bit nonce for each request
+1. **Proxy Generation**: The Next.js proxy (`src/proxy.ts`) generates a unique 128-bit nonce for each request
 2. **Header Injection**: The nonce is stored in the `x-nonce` request header
-3. **CSP Application**: The CSP header includes `'nonce-{value}'` for script-src and style-src
+3. **CSP Application**: The CSP header includes `'nonce-{value}'` for script-src
 4. **Script Usage**: Inline scripts must include the nonce attribute to execute
 
 ## Usage Examples

@@ -304,17 +304,17 @@ export async function enhancedSecurityMiddleware(
 ): Promise<NextResponse | null> {
   const startTime = Date.now()
 
-  // Skip middleware for static files and API routes that don't need security
-  const url = new URL(request.url)
-  if (
-    url.pathname.startsWith('/_next/') ||
-    url.pathname.startsWith('/favicon.ico') ||
-    url.pathname.startsWith('/public/')
-  ) {
-    return null
-  }
-
   try {
+    // Skip middleware for static files and API routes that don't need security
+    const url = new URL(request.url)
+    if (
+      url.pathname.startsWith('/_next/') ||
+      url.pathname.startsWith('/favicon.ico') ||
+      url.pathname.startsWith('/public/')
+    ) {
+      return null
+    }
+
     // Rate limiting check with secure IP extraction
     const clientIP = getTrustedClientIP(request)
 

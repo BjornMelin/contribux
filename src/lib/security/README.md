@@ -11,7 +11,7 @@ The contribux project implements dynamic Content Security Policy (CSP) nonces to
    - `buildCSP()`: Constructs CSP headers with nonce injection
    - `defaultCSPDirectives`: Base security policy configuration
 
-2. **Middleware** (`src/middleware.ts`)
+2. **Proxy** (`src/proxy.ts`)
    - Generates unique nonce per request
    - Stores nonce in `x-nonce` header
    - Applies CSP and other security headers
@@ -56,8 +56,8 @@ export const defaultCSPDirectives: CSPDirectives = {
 - **Per-request nonces**: Each HTTP request gets a unique nonce
 - **Cryptographic security**: Uses `crypto.getRandomValues()` for randomness
 - **Base64 URL-safe encoding**: Compatible with HTTP headers
-- **Automatic injection**: Nonces added to script-src and style-src
-- **Middleware integration**: Seamless with Next.js 15
+- **Automatic injection**: Nonces added to script sources
+- **Proxy integration**: Uses the Next.js 16 proxy file convention
 
 ### Testing
 

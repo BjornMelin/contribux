@@ -13,10 +13,10 @@
  * - Security monitoring performance impact
  */
 
-import { HttpResponse, http } from 'msw'
-import { setupServer } from 'msw/node'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { type HttpHandler, HttpResponse, http } from 'msw'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
+import { getMockManager } from '../../setup-integration-enhanced'
 import { apiTestUtils } from '../api/utils/api-test-utilities'
 
 // Performance security schemas
@@ -96,15 +96,22 @@ const SecurityLoadTestResultSchema = z.object({
 })
 
 // Test setup
-const server = setupServer()
 const performanceTracker = new apiTestUtils.performanceTracker()
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
+const useMSWHandlers = (...handlers: HttpHandler[]) => {
+  const mockManager = getMockManager()
+
+  if (!mockManager) {
+    throw new Error('Integration MSW server is not initialized')
+  }
+
+  mockManager.useMSWHandlers(...handlers)
+}
+
 afterEach(() => {
-  server.resetHandlers()
+  getMockManager()?.resetMSWHandlers()
   performanceTracker.clear()
 })
-afterAll(() => server.close())
 
 describe('Performance Security Integration Tests', () => {
   let performanceMetrics: z.infer<typeof SecurityPerformanceMetricsSchema>[] = []
@@ -128,7 +135,7 @@ describe('Performance Security Integration Tests', () => {
       const rateLimitStore = new Map<string, { count: number; timestamps: number[] }>()
       const performanceData: number[] = []
 
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/search/repositories', ({ request }) => {
           const startTime = performance.now()
           const userId = request.headers.get('X-User-ID') || 'anonymous'
@@ -294,7 +301,7 @@ describe('Performance Security Integration Tests', () => {
       const authPerformanceData: number[] = []
       const authResults: { success: boolean; responseTime: number; userId: string }[] = []
 
-      server.use(
+      useMSWHandlers(
         http.post('http://localhost:3000/api/auth/signin', async ({ request }) => {
           const startTime = performance.now()
           const body = await request.json()
@@ -430,6 +437,7 @@ describe('Performance Security Integration Tests', () => {
       const testId = apiTestUtils.dataGenerator.generateUUID()
       const timingAttackAttempts = 100
       const validEmail = 'admin@contribux.com'
+      const validEmails = Array.from({ length: timingAttackAttempts }, () => validEmail)
       const invalidEmails = Array.from(
         { length: timingAttackAttempts },
         (_, i) => `fake${i}@example.com`
@@ -437,7 +445,7 @@ describe('Performance Security Integration Tests', () => {
 
       const timingData: { email: string; responseTime: number; success: boolean }[] = []
 
-      server.use(
+      useMSWHandlers(
         http.post('http://localhost:3000/api/auth/check-email', async ({ request }) => {
           const startTime = performance.now()
           const body = await request.json()
@@ -473,8 +481,10 @@ describe('Performance Security Integration Tests', () => {
       // Execute timing attack test
       const startTime = Date.now()
 
-      // Mix valid and invalid emails randomly
-      const testEmails = [validEmail, ...invalidEmails].sort(() => Math.random() - 0.5)
+      // Use balanced valid/invalid samples so average timing comparisons are meaningful.
+      const testEmails = invalidEmails.flatMap((invalidEmail, index) =>
+        index % 2 === 0 ? [validEmails[index], invalidEmail] : [invalidEmail, validEmails[index]]
+      )
 
       const promises = testEmails.map(email =>
         fetch('http://localhost:3000/api/auth/check-email', {

@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { verifyAccessToken } from '@/lib/auth/jwt'
 import { enhancedRateLimitMiddleware } from '@/lib/security/rate-limiter'
-import { config, middleware } from '../../src/middleware'
+import { config, proxy } from '../../src/proxy'
 
 vi.mock('@/lib/auth/jwt', () => ({
   verifyAccessToken: vi.fn(),
@@ -48,7 +48,7 @@ describe('middleware', () => {
   })
 
   it('bypasses static assets and internal Next.js routes', async () => {
-    const response = await middleware(createRequest('https://example.com/_next/static/app.js'))
+    const response = await proxy(createRequest('https://example.com/_next/static/app.js'))
 
     expect(response.status).toBe(200)
     expect(enhancedRateLimitMiddleware).not.toHaveBeenCalled()
@@ -60,7 +60,7 @@ describe('middleware', () => {
     rateLimited.headers.set('X-RateLimit-Remaining', '0')
     vi.mocked(enhancedRateLimitMiddleware).mockResolvedValue(rateLimited)
 
-    const response = await middleware(createRequest('https://example.com/api/search/repositories'))
+    const response = await proxy(createRequest('https://example.com/api/search/repositories'))
 
     expect(response.status).toBe(429)
     expect(response.headers.get('X-RateLimit-Remaining')).toBe('0')
@@ -68,7 +68,7 @@ describe('middleware', () => {
   })
 
   it('allows public pages and applies security headers', async () => {
-    const response = await middleware(createRequest('https://example.com/about'))
+    const response = await proxy(createRequest('https://example.com/about'))
 
     expect(response.status).toBe(200)
     expect(response.headers.get('Content-Security-Policy')).toContain('nonce-test-nonce')
@@ -80,7 +80,7 @@ describe('middleware', () => {
   })
 
   it('allows public repository search API with CORS headers', async () => {
-    const response = await middleware(
+    const response = await proxy(
       createRequest('https://example.com/api/search/repositories', {
         headers: { origin: 'http://localhost:3000' },
       })
@@ -92,7 +92,7 @@ describe('middleware', () => {
   })
 
   it('requires a token for protected routes', async () => {
-    const response = await middleware(createRequest('https://example.com/dashboard'))
+    const response = await proxy(createRequest('https://example.com/dashboard'))
 
     expect(response.status).toBe(401)
     await expect(response.json()).resolves.toEqual({ error: 'Authentication required' })
@@ -102,7 +102,7 @@ describe('middleware', () => {
   it('rejects invalid bearer tokens', async () => {
     vi.mocked(verifyAccessToken).mockResolvedValue(null)
 
-    const response = await middleware(
+    const response = await proxy(
       createRequest('https://example.com/dashboard', {
         headers: { authorization: 'Bearer invalid-token' },
       })
@@ -115,7 +115,7 @@ describe('middleware', () => {
   it('allows valid bearer tokens through protected routes', async () => {
     vi.mocked(verifyAccessToken).mockResolvedValue({ sub: 'user-123' })
 
-    const response = await middleware(
+    const response = await proxy(
       createRequest('https://example.com/dashboard', {
         headers: { authorization: 'Bearer valid-token' },
       })

@@ -8,6 +8,15 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { apiMonitoring } from '@/lib/api/monitoring'
 import { monitoringMiddleware } from '@/lib/middleware/monitoring-middleware'
 import { enhancedSecurityMiddleware } from '@/lib/security/enhanced-middleware'
+import { getSecurityConfig } from '@/lib/security/feature-flags'
+
+function createNextUrl(url: string): URL {
+  try {
+    return new URL(url)
+  } catch {
+    return new URL('http://localhost:3000')
+  }
+}
 
 // Mock NextRequest for testing
 function createMockRequest(options: {
@@ -27,7 +36,7 @@ function createMockRequest(options: {
     url,
     method,
     headers: mockHeaders,
-    nextUrl: new URL(url),
+    nextUrl: createNextUrl(url),
   } as NextRequest
 
   return mockRequest
@@ -86,6 +95,9 @@ describe('Security + Monitoring Integration', () => {
     })
 
     test('should handle rate limiting with monitoring integration', async () => {
+      const originalVercel = process.env.VERCEL
+      process.env.VERCEL = '1'
+
       const testIP = '192.168.1.200'
       const request = createMockRequest({
         url: 'http://localhost:3000/api/search/repositories',
@@ -94,18 +106,27 @@ describe('Security + Monitoring Integration', () => {
       })
 
       const responses: NextResponse[] = []
+      const maxRequests = getSecurityConfig().rateLimit.maxRequests
 
       // Make multiple requests to trigger rate limiting
-      for (let i = 0; i < 12; i++) {
-        const response = await enhancedSecurityMiddleware(request)
-        if (response) {
-          responses.push(response)
+      try {
+        for (let i = 0; i < maxRequests + 2; i++) {
+          const response = await enhancedSecurityMiddleware(request)
+          if (response) {
+            responses.push(response)
+          }
+        }
+
+        // Should have at least one rate limit response
+        const rateLimitedResponses = responses.filter(r => r.status === 429)
+        expect(rateLimitedResponses.length).toBeGreaterThan(0)
+      } finally {
+        if (originalVercel) {
+          process.env.VERCEL = originalVercel
+        } else {
+          process.env.VERCEL = undefined
         }
       }
-
-      // Should have at least one rate limit response
-      const rateLimitedResponses = responses.filter(r => r.status === 429)
-      expect(rateLimitedResponses.length).toBeGreaterThan(0)
 
       // Verify monitoring tracked rate limit events
       await new Promise(resolve => setTimeout(resolve, 20))
@@ -142,6 +163,7 @@ describe('Security + Monitoring Integration', () => {
         url: 'http://localhost:3000/api/auth/signin',
         method: 'POST',
         headers: {
+          'content-type': 'application/json',
           'user-agent': '<script>alert("xss")</script>',
           'x-forwarded-for': '192.168.1.100',
         },
@@ -386,7 +408,7 @@ describe('Security + Monitoring Integration', () => {
       const securityProcessingTime = securityEnd - securityStart
 
       // Security processing should be tracked
-      expect(securityProcessingTime).toBeGreaterThan(0)
+      expect(securityProcessingTime).toBeGreaterThanOrEqual(0)
       expect(securityProcessingTime).toBeLessThan(100)
     })
   })

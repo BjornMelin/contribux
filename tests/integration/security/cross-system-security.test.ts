@@ -13,10 +13,10 @@
  * - Inter-service security communication
  */
 
-import { HttpResponse, http } from 'msw'
-import { setupServer } from 'msw/node'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { type HttpHandler, HttpResponse, http } from 'msw'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
+import { getMockManager } from '../../setup-integration-enhanced'
 import { apiTestUtils } from '../api/utils/api-test-utilities'
 
 // Cross-system security schemas
@@ -91,15 +91,22 @@ const SecurityCorrelationEventSchema = z.object({
 })
 
 // Test setup
-const server = setupServer()
 const performanceTracker = new apiTestUtils.performanceTracker()
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
+const useMSWHandlers = (...handlers: HttpHandler[]) => {
+  const mockManager = getMockManager()
+
+  if (!mockManager) {
+    throw new Error('Integration MSW server is not initialized')
+  }
+
+  mockManager.useMSWHandlers(...handlers)
+}
+
 afterEach(() => {
-  server.resetHandlers()
+  getMockManager()?.resetMSWHandlers()
   performanceTracker.clear()
 })
-afterAll(() => server.close())
 
 describe('Cross-System Security Integration', () => {
   let securityCorrelationLog: z.infer<typeof SecurityCorrelationEventSchema>[] = []
@@ -119,7 +126,7 @@ describe('Cross-System Security Integration', () => {
       const sessionId = apiTestUtils.dataGenerator.generateUUID()
       const requestId = apiTestUtils.dataGenerator.generateUUID()
 
-      server.use(
+      useMSWHandlers(
         // Authentication service
         http.post('http://localhost:3000/api/auth/validate-session', async ({ request }) => {
           const body = await request.json()
@@ -270,7 +277,7 @@ describe('Cross-System Security Integration', () => {
       const ipAddress = '192.168.1.100'
       const userAgent = 'test-browser'
 
-      server.use(
+      useMSWHandlers(
         http.post('http://localhost:3000/api/auth/validate-context', async ({ request }) => {
           const body = await request.json()
           const {
@@ -438,7 +445,7 @@ describe('Cross-System Security Integration', () => {
       const userId = apiTestUtils.dataGenerator.generateUUID()
       const connectionId = apiTestUtils.dataGenerator.generateUUID()
 
-      server.use(
+      useMSWHandlers(
         http.post('http://localhost:3000/api/search/repositories', async ({ request }) => {
           const body = await request.json()
           const { query } = body
@@ -626,7 +633,7 @@ describe('Cross-System Security Integration', () => {
     it('should validate input sanitization end-to-end across system boundaries', async () => {
       const userId = apiTestUtils.dataGenerator.generateUUID()
 
-      server.use(
+      useMSWHandlers(
         http.post('http://localhost:3000/api/user/update-profile', async ({ request }) => {
           const body = await request.json()
           const { profile } = body
@@ -717,6 +724,13 @@ describe('Cross-System Security Integration', () => {
             if (value !== undefined) {
               check.escaped = true // Assume parameterized queries escape properly
               check.parameterized = true
+            }
+          }
+
+          for (const check of validationLayers[0].checks) {
+            const sanitizedValue = sanitizedProfile[check.field]
+            if (sanitizedValue !== undefined) {
+              check.passed = check.pattern.test(sanitizedValue)
             }
           }
 
@@ -838,7 +852,7 @@ describe('Cross-System Security Integration', () => {
       const requestId = apiTestUtils.dataGenerator.generateUUID()
       const chainId = apiTestUtils.dataGenerator.generateUUID()
 
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/protected/data', async ({ request }) => {
           const middlewareChain: z.infer<typeof MiddlewareSecurityChainSchema> = {
             chainId,
@@ -858,6 +872,7 @@ describe('Cross-System Security Integration', () => {
           const ipAddress = request.headers.get('X-Forwarded-For') || '127.0.0.1'
           const origin = request.headers.get('Origin')
           const authorization = request.headers.get('Authorization')
+          const bearerToken = authorization?.replace(/^Bearer\s+/i, '')
           const csrfToken = request.headers.get('X-CSRF-Token')
 
           // Execute middleware chain
@@ -881,7 +896,8 @@ describe('Cross-System Security Integration', () => {
               }
 
               case 'auth_validator':
-                passed = authorization?.startsWith('Bearer ') && authorization.includes('valid')
+                passed =
+                  authorization?.startsWith('Bearer ') === true && bearerToken === 'valid-token'
                 details = { hasAuth: !!authorization, tokenValid: passed }
                 break
 
@@ -896,7 +912,7 @@ describe('Cross-System Security Integration', () => {
                 break
 
               case 'permission_checker':
-                passed = authorization?.includes('valid') // Simplified check
+                passed = bearerToken === 'valid-token' // Simplified check
                 details = { hasPermission: passed, requiredPermission: 'read:data' }
                 break
             }

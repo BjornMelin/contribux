@@ -13,10 +13,10 @@
  * - User data protection throughout journeys
  */
 
-import { HttpResponse, http } from 'msw'
-import { setupServer } from 'msw/node'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { type HttpHandler, HttpResponse, http } from 'msw'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
+import { getMockManager } from '../../setup-integration-enhanced'
 import { apiTestUtils } from '../api/utils/api-test-utilities'
 
 // User journey security schemas
@@ -105,15 +105,22 @@ const SecurityAuditTrailSchema = z.object({
 })
 
 // Test setup
-const server = setupServer()
 const performanceTracker = new apiTestUtils.performanceTracker()
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
+const useMSWHandlers = (...handlers: HttpHandler[]) => {
+  const mockManager = getMockManager()
+
+  if (!mockManager) {
+    throw new Error('Integration MSW server is not initialized')
+  }
+
+  mockManager.useMSWHandlers(...handlers)
+}
+
 afterEach(() => {
-  server.resetHandlers()
+  getMockManager()?.resetMSWHandlers()
   performanceTracker.clear()
 })
-afterAll(() => server.close())
 
 describe('User Journey Security Integration Tests', () => {
   let userJourneys: z.infer<typeof UserJourneySchema>[] = []
@@ -173,7 +180,7 @@ describe('User Journey Security Integration Tests', () => {
 
       userJourneys.push(registrationJourney)
 
-      server.use(
+      useMSWHandlers(
         // Step 1: OAuth initiation
         http.get('http://localhost:3000/api/auth/signin/github', () => {
           const step = {
@@ -623,7 +630,7 @@ describe('User Journey Security Integration Tests', () => {
 
       userJourneys.push(discoveryJourney)
 
-      server.use(
+      useMSWHandlers(
         // Step 1: Authentication validation
         http.post('http://localhost:3000/api/auth/validate', async ({ request }) => {
           const body = await request.json()
@@ -896,7 +903,7 @@ describe('User Journey Security Integration Tests', () => {
 
       const rateLimitStore = new Map<string, { count: number; resetTime: number }>()
 
-      server.use(
+      useMSWHandlers(
         http.post('http://localhost:3000/api/search/repositories', async ({ request }) => {
           const _body = await request.json()
           const _authHeader = request.headers.get('Authorization')
