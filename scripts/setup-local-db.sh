@@ -17,6 +17,7 @@ NC='\033[0m' # No Color
 DB_USER=${USER}
 DB_DEV="contribux_dev"
 DB_TEST="contribux_test"
+POSTGRES_MAJOR_VERSION="${POSTGRES_MAJOR_VERSION:-16}"
 
 # Function to print colored output
 print_status() {
@@ -33,9 +34,9 @@ print_error() {
 
 # Check if PostgreSQL is installed
 if ! command -v psql &> /dev/null; then
-    print_error "PostgreSQL is not installed. Please install PostgreSQL 16 first:"
-    echo "  Ubuntu/Debian: sudo apt install postgresql-16 postgresql-client-16"
-    echo "  macOS: brew install postgresql@16"
+    print_error "PostgreSQL is not installed. Please install PostgreSQL ${POSTGRES_MAJOR_VERSION} first:"
+    echo "  Ubuntu/Debian: sudo apt install postgresql-${POSTGRES_MAJOR_VERSION} postgresql-client-${POSTGRES_MAJOR_VERSION}"
+    echo "  macOS: brew install postgresql@${POSTGRES_MAJOR_VERSION}"
     exit 1
 fi
 
@@ -48,7 +49,7 @@ if ! pgrep postgres > /dev/null; then
         sudo systemctl start postgresql
         print_status "PostgreSQL started via systemctl"
     elif command -v brew &> /dev/null; then
-        brew services start postgresql@16
+        brew services start "postgresql@${POSTGRES_MAJOR_VERSION}"
         print_status "PostgreSQL started via brew"
     else
         print_error "Cannot start PostgreSQL automatically. Please start it manually."
@@ -102,7 +103,7 @@ setup_database() {
     else
         print_error "Failed to enable extensions for ${db_name}"
         if [[ "$vector_ext" != "1" ]]; then
-            echo "  Vector extension missing. Install with: sudo apt install postgresql-16-pgvector"
+            echo "  Vector extension missing. Install with: sudo apt install postgresql-${POSTGRES_MAJOR_VERSION}-pgvector"
         fi
         exit 1
     fi
