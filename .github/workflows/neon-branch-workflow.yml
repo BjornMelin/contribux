@@ -76,6 +76,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Cleanup stale Neon database test branches
+        run: node scripts/cleanup-neon-ci-branches.js --prefix db-test- --min-age-minutes 30
+        env:
+          NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+
       - name: Create Neon Database Test Branch
         id: create_db_branch
         uses: neondatabase/create-branch-action@v5
