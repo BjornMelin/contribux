@@ -472,13 +472,7 @@ async function checkMigrationStatus() {
     const _appliedCount = appliedMigrations.length
 
     // Check for pending migrations
-    const allMigrationFiles = [
-      '01-extensions.sql',
-      '02-schema.sql',
-      '03-functions.sql',
-      '04-sample-data.sql',
-      'add_webauthn_credentials.sql',
-    ]
+    const allMigrationFiles = getMigrationGroups().flatMap(group => group.files)
 
     const appliedFileNames = appliedMigrations.map(m => m.filename)
     const pendingMigrations = allMigrationFiles.filter(f => !appliedFileNames.includes(f))
