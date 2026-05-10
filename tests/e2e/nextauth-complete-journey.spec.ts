@@ -1,29 +1,5 @@
-import { expect, type Page, test } from '@playwright/test'
-
-async function clearBrowserState(page: Page) {
-  await page.context().clearCookies()
-  await page
-    .context()
-    .setOffline(false)
-    .catch(() => undefined)
-
-  await page.goto('/')
-  await page
-    .evaluate(() => {
-      try {
-        localStorage.clear()
-      } catch {
-        // Storage can be unavailable after failed navigations.
-      }
-
-      try {
-        sessionStorage.clear()
-      } catch {
-        // Storage can be unavailable after failed navigations.
-      }
-    })
-    .catch(() => undefined)
-}
+import { expect, test } from '@playwright/test'
+import { clearBrowserState } from './utils/browser-state'
 
 test.describe('NextAuth.js v4 authentication journey', () => {
   test.beforeEach(async ({ page }) => {
@@ -110,7 +86,7 @@ test.describe('NextAuth.js v4 authentication journey', () => {
       form: { csrfToken, json: 'true' },
     })
 
-    expect([200, 302, 400].includes(signoutResponse.status())).toBe(true)
+    expect([200, 302].includes(signoutResponse.status())).toBe(true)
 
     await page.goto('/auth/error?error=OAuthCallback')
     await expect(page.getByRole('heading', { name: /authentication error/i })).toBeVisible()

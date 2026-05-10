@@ -122,7 +122,6 @@ jobs:
           
           # Disable telemetry and optimizations for testing
           NEXT_TELEMETRY_DISABLED=1
-          NEXT_PRIVATE_STANDALONE=1
           
           # Mock external services for E2E testing
           GITHUB_CLIENT_ID=test-client-id

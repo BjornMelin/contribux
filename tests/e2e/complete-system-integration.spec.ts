@@ -241,12 +241,13 @@ test.describe('Complete System Integration', () => {
       await helper.waitForAppReady()
 
       const responses: number[] = []
+      const apiKey = `rl-${Date.now()}`
 
       // Make rapid requests to test rate limiting
       for (let i = 0; i < 15; i++) {
         const response = await page.request.get('/api/simple-health', {
           headers: {
-            'x-api-key': `rl-${i}-${Date.now()}`,
+            'x-api-key': apiKey,
           },
         })
         responses.push(response.status())

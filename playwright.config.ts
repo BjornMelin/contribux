@@ -7,6 +7,9 @@ const testNextAuthSecret = 'playwright-test-nextauth-secret-32-chars'
 const testDatabaseUrl = 'postgresql://playwright:playwright@localhost:5432/playwright'
 const testEncryptionKey = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
 const ciWorkers = Number(process.env.PLAYWRIGHT_WORKERS || 2)
+const webServerCommand = process.env.CI
+  ? `pnpm exec next start --hostname 127.0.0.1 --port ${port}`
+  : `pnpm exec next dev --hostname 127.0.0.1 --port ${port}`
 
 /**
  * @see https://playwright.dev/docs/test-configuration
@@ -109,7 +112,7 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: `pnpm exec next dev --hostname 127.0.0.1 --port ${port}`,
+    command: webServerCommand,
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: process.env.CI ? 60 * 1000 : 120 * 1000, // Reduced timeout for CI
@@ -121,10 +124,24 @@ export default defineConfig({
       NODE_OPTIONS: process.env.CI
         ? '--max-old-space-size=2048' // Reduced memory for CI
         : '--max-old-space-size=4096',
-      NODE_ENV: 'development',
+      NODE_ENV: process.env.CI ? 'test' : 'development',
       ENCRYPTION_KEY: process.env.ENCRYPTION_KEY || testEncryptionKey,
       GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID || 'playwright-client-id',
       GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET || 'playwright-client-secret',
+      GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || 'playwright-google-client-id',
+      GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || 'playwright-google-client-secret',
+      AUTH_GITHUB_ID:
+        process.env.AUTH_GITHUB_ID || process.env.GITHUB_CLIENT_ID || 'playwright-client-id',
+      AUTH_GITHUB_SECRET:
+        process.env.AUTH_GITHUB_SECRET ||
+        process.env.GITHUB_CLIENT_SECRET ||
+        'playwright-client-secret',
+      AUTH_GOOGLE_ID:
+        process.env.AUTH_GOOGLE_ID || process.env.GOOGLE_CLIENT_ID || 'playwright-google-client-id',
+      AUTH_GOOGLE_SECRET:
+        process.env.AUTH_GOOGLE_SECRET ||
+        process.env.GOOGLE_CLIENT_SECRET ||
+        'playwright-google-client-secret',
       ENABLE_AUDIT_LOGS: process.env.ENABLE_AUDIT_LOGS || 'false',
       ENABLE_OAUTH: process.env.ENABLE_OAUTH || 'false',
       ENABLE_WEBAUTHN: process.env.ENABLE_WEBAUTHN || 'false',
@@ -132,7 +149,6 @@ export default defineConfig({
       NEXT_TELEMETRY_DISABLED: '1',
       NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || baseURL,
       NEXT_PUBLIC_RP_ID: process.env.NEXT_PUBLIC_RP_ID || rpId,
-      NEXT_PRIVATE_STANDALONE: '1',
       PORT: String(port),
       WEBAUTHN_ORIGIN: process.env.WEBAUTHN_ORIGIN || baseURL,
       WEBAUTHN_RP_ID: process.env.WEBAUTHN_RP_ID || rpId,

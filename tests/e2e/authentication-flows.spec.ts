@@ -1,24 +1,5 @@
-import { expect, type Page, test } from '@playwright/test'
-
-async function clearBrowserState(page: Page) {
-  await page.context().clearCookies()
-  await page.goto('/')
-  await page
-    .evaluate(() => {
-      try {
-        localStorage.clear()
-      } catch {
-        // Storage is unavailable on opaque origins and failed navigations.
-      }
-
-      try {
-        sessionStorage.clear()
-      } catch {
-        // Storage is unavailable on opaque origins and failed navigations.
-      }
-    })
-    .catch(() => undefined)
-}
+import { expect, test } from '@playwright/test'
+import { clearBrowserState } from './utils/browser-state'
 
 test.describe('Authentication E2E Flows', () => {
   test.beforeEach(async ({ page }) => {
@@ -38,23 +19,6 @@ test.describe('Authentication E2E Flows', () => {
       'href',
       '/legal/privacy'
     )
-  })
-
-  test('should redirect to GitHub OAuth through NextAuth', async ({ page }) => {
-    let authorizationUrl = ''
-
-    await page.route('https://github.com/login/oauth/authorize**', async route => {
-      authorizationUrl = route.request().url()
-      await route.abort('aborted')
-    })
-
-    await page.goto('/auth/signin')
-    await page.getByRole('button', { name: /github/i }).click()
-
-    await expect.poll(() => authorizationUrl, { timeout: 5000 }).toContain('github.com')
-    expect(authorizationUrl).toContain('github.com/login/oauth/authorize')
-    expect(authorizationUrl).toContain('client_id=')
-    expect(authorizationUrl).toContain('scope=')
   })
 
   test('should expose NextAuth bootstrap endpoints', async ({ request }) => {

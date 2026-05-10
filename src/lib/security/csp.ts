@@ -72,11 +72,7 @@ function buildDirectiveValue(
  * Handle directives that don't require sources
  */
 function handleEmptySourcesDirective(directive: string): string | null {
-  const standaloneDirectives = [
-    'upgrade-insecure-requests',
-    'block-all-mixed-content',
-    'require-trusted-types-for',
-  ]
+  const standaloneDirectives = ['upgrade-insecure-requests', 'block-all-mixed-content']
 
   return standaloneDirectives.includes(directive) ? directive : null
 }
@@ -108,11 +104,15 @@ function formatDirective(directive: string, sources: string[]): string {
   const specialFormatDirectives: Record<string, string> = {
     'report-uri': `report-uri ${sources.join(' ')}`,
     'report-to': `report-to ${sources.join(' ')}`,
-    'require-trusted-types-for': `require-trusted-types-for ${sources.join(' ')}`,
+    'require-trusted-types-for': `require-trusted-types-for ${sources.map(quoteTrustedTypeSink).join(' ')}`,
     'trusted-types': `trusted-types ${sources.join(' ')}`,
   }
 
   return specialFormatDirectives[directive] || `${directive} ${sources.join(' ')}`
+}
+
+function quoteTrustedTypeSink(source: string): string {
+  return source.startsWith("'") ? source : `'${source}'`
 }
 
 /**
@@ -207,9 +207,9 @@ export function getCSPDirectives(forceProduction?: boolean): CSPDirectives {
     baseDirectives['report-uri'] = ['/api/security/csp-report']
     baseDirectives['report-to'] = ['csp-violations']
 
-    // Enable Trusted Types for DOM XSS prevention in production
+    // Restrict allowed policy names without enforcing Trusted Types assignments.
+    // Next.js runtime chunks still assign TrustedHTML/TrustedScriptURL directly.
     baseDirectives['trusted-types'] = ['default', 'nextjs-inline-script', 'react-render']
-    baseDirectives['require-trusted-types-for'] = ['script']
   } else {
     // Development/preview-specific sources
     baseDirectives['script-src']?.push(

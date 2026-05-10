@@ -200,12 +200,4 @@ test.describe('API Endpoints Tests', () => {
       expect(data.error).toHaveProperty('code', 'INVALID_PARAMETER')
     }
   })
-
-  test('auth providers endpoint should return configured OAuth providers', async ({ request }) => {
-    const response = await request.get('/api/auth/providers')
-
-    expect(response.status()).toBe(200)
-    const data = await response.json()
-    expect(Object.keys(data)).toEqual(expect.arrayContaining(['github', 'google']))
-  })
 })

@@ -33,16 +33,11 @@ test.describe('Navigation Tests', () => {
     await page.screenshot({ path: 'test-results/signin-page.png', fullPage: true })
   })
 
-  test('should handle 404 pages gracefully', async ({ page }) => {
+  test('should auth-gate unknown protected application routes', async ({ page }) => {
     const response = await page.goto('/non-existent-page')
 
-    // Should return 404 or redirect appropriately
-    expect([404, 200, 401].includes(response?.status() || 0)).toBeTruthy()
-
-    // If it's a 404, check for proper error page
-    if (response?.status() === 404) {
-      await expect(page.locator('text=404')).toBeVisible()
-    }
+    expect(response?.status()).toBe(401)
+    await expect(page.getByText(/authentication required/i)).toBeVisible()
   })
 
   test('should handle settings page navigation', async ({ page }) => {

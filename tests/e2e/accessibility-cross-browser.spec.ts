@@ -434,96 +434,115 @@ test.describe('Accessibility and Cross-Browser Compatibility', () => {
       await utils.page.takeScreenshot('network-conditions-test')
     })
 
-    test('should work on mobile browsers', async ({ page }) => {
-      // Set mobile user agent
-      await page.setExtraHTTPHeaders({
-        'User-Agent':
+    test('should work on mobile browsers', async ({ baseURL, browser }) => {
+      const appBaseURL = baseURL ?? 'http://127.0.0.1:3000'
+      const context = await browser.newContext({
+        userAgent:
           'Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1',
+        viewport: { width: 375, height: 667 },
+        screen: { width: 375, height: 667 },
+        deviceScaleFactor: 2,
+        isMobile: true,
+        hasTouch: true,
       })
+      const mobilePage = await context.newPage()
+      const mobileUtils = new E2ETestUtils(mobilePage)
+      const mobileErrors = mobileUtils.page.setupErrorMonitoring()
 
-      // Set mobile viewport
-      await page.setViewportSize({ width: 375, height: 667 })
+      try {
+        await mobilePage.goto(new URL('/', appBaseURL).toString())
+        await mobileUtils.page.waitForFullLoad()
 
-      await page.goto('/')
-      await utils.page.waitForFullLoad()
+        // Test touch interactions
+        const mainElement = mobilePage.locator('main')
+        await mainElement.click()
 
-      // Test touch interactions
-      const mainElement = page.locator('main')
-      await mainElement.click()
+        // Test mobile navigation
+        const mobileNav = mobilePage.locator(
+          '.mobile-nav, [data-testid="mobile-nav"], button[aria-label*="menu"]'
+        )
 
-      // Test mobile navigation
-      const mobileNav = page.locator(
-        '.mobile-nav, [data-testid="mobile-nav"], button[aria-label*="menu"]'
-      )
+        if ((await mobileNav.count()) > 0) {
+          await mobileNav.click()
+          await mobilePage.waitForTimeout(500)
 
-      if ((await mobileNav.count()) > 0) {
-        await mobileNav.click()
-        await page.waitForTimeout(500)
-
-        // Should show navigation menu
-        const navMenu = page.locator('.nav-menu, [role="menu"], .navigation')
-        if ((await navMenu.count()) > 0) {
-          await expect(navMenu).toBeVisible()
-        }
-      }
-
-      // Test form interactions on mobile
-      await page.goto('/auth/signin')
-      await utils.page.waitForFullLoad()
-
-      const authButton = page.getByRole('button', { name: /github/i }).first()
-      if ((await authButton.count()) > 0) {
-        // Test touch target size (should be at least 44px)
-        const buttonSize = await authButton.boundingBox()
-        if (buttonSize) {
-          expect(buttonSize.width).toBeGreaterThanOrEqual(44)
-          expect(buttonSize.height).toBeGreaterThanOrEqual(44)
+          // Should show navigation menu
+          const navMenu = mobilePage.locator('.nav-menu, [role="menu"], .navigation')
+          if ((await navMenu.count()) > 0) {
+            await expect(navMenu).toBeVisible()
+          }
         }
 
-        // Test tap interaction
-        await authButton.click()
-      }
+        // Test form interactions on mobile
+        await mobilePage.goto(new URL('/auth/signin', appBaseURL).toString())
+        await mobileUtils.page.waitForFullLoad()
 
-      await utils.page.takeScreenshot('mobile-browser-test')
-      await assertions.pageLoadsCleanly(page, errors)
+        const authButton = mobilePage.getByRole('button', { name: /github/i }).first()
+        if ((await authButton.count()) > 0) {
+          // Test touch target size (should be at least 44px)
+          const buttonSize = await authButton.boundingBox()
+          if (buttonSize) {
+            expect(buttonSize.width).toBeGreaterThanOrEqual(44)
+            expect(buttonSize.height).toBeGreaterThanOrEqual(44)
+          }
+
+          // Test tap interaction
+          await authButton.click()
+        }
+
+        await mobileUtils.page.takeScreenshot('mobile-browser-test')
+        await assertions.pageLoadsCleanly(mobilePage, mobileErrors)
+      } finally {
+        await context.close()
+      }
     })
   })
 
   test.describe('Device-Specific Testing', () => {
-    test('should work on tablet devices', async ({ page }) => {
-      // Set tablet viewport and user agent
-      await page.setViewportSize({ width: 768, height: 1024 })
-      await page.setExtraHTTPHeaders({
-        'User-Agent':
+    test('should work on tablet devices', async ({ baseURL, browser }) => {
+      const appBaseURL = baseURL ?? 'http://127.0.0.1:3000'
+      const context = await browser.newContext({
+        userAgent:
           'Mozilla/5.0 (iPad; CPU OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1',
+        viewport: { width: 768, height: 1024 },
+        screen: { width: 768, height: 1024 },
+        deviceScaleFactor: 2,
+        isMobile: true,
+        hasTouch: true,
       })
+      const tabletPage = await context.newPage()
+      const tabletUtils = new E2ETestUtils(tabletPage)
 
-      await page.goto('/')
-      await utils.page.waitForFullLoad()
+      try {
+        await tabletPage.goto(new URL('/', appBaseURL).toString())
+        await tabletUtils.page.waitForFullLoad()
 
-      // Test tablet-specific layout
-      const layout = await page.evaluate(() => {
-        return {
-          width: window.innerWidth,
-          height: window.innerHeight,
-          orientation: window.innerWidth > window.innerHeight ? 'landscape' : 'portrait',
-        }
-      })
+        // Test tablet-specific layout
+        const layout = await tabletPage.evaluate(() => {
+          return {
+            width: window.innerWidth,
+            height: window.innerHeight,
+            orientation: window.innerWidth > window.innerHeight ? 'landscape' : 'portrait',
+          }
+        })
 
-      console.log('Tablet layout:', layout)
+        console.log('Tablet layout:', layout)
 
-      // Test both orientations
-      await page.setViewportSize({ width: 1024, height: 768 }) // Landscape
-      await page.waitForTimeout(500)
+        // Test both orientations
+        await tabletPage.setViewportSize({ width: 1024, height: 768 }) // Landscape
+        await tabletPage.waitForTimeout(500)
 
-      await expect(page.locator('h1')).toBeVisible()
+        await expect(tabletPage.locator('h1')).toBeVisible()
 
-      await page.setViewportSize({ width: 768, height: 1024 }) // Portrait
-      await page.waitForTimeout(500)
+        await tabletPage.setViewportSize({ width: 768, height: 1024 }) // Portrait
+        await tabletPage.waitForTimeout(500)
 
-      await expect(page.locator('h1')).toBeVisible()
+        await expect(tabletPage.locator('h1')).toBeVisible()
 
-      await utils.page.takeScreenshot('tablet-device-test')
+        await tabletUtils.page.takeScreenshot('tablet-device-test')
+      } finally {
+        await context.close()
+      }
     })
 
     test('should support high DPI displays', async ({ page }) => {

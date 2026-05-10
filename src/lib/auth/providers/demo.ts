@@ -13,12 +13,26 @@ import Google from 'next-auth/providers/google'
 
 type Provider = AuthOptions['providers'][number]
 
+function firstConfiguredEnv(...names: string[]): string | undefined {
+  for (const name of names) {
+    const value = process.env[name]
+    if (value) {
+      return value
+    }
+  }
+  return undefined
+}
+
 /**
  * Demo GitHub provider that uses NextAuth's native GitHub OAuth configuration.
  */
 export const GitHubDemoProvider: Provider = GitHub({
-  clientId: process.env.GITHUB_CLIENT_ID || 'demo-github-client-id',
-  clientSecret: process.env.GITHUB_CLIENT_SECRET || 'demo-github-client-secret',
+  clientId:
+    firstConfiguredEnv('AUTH_GITHUB_ID', 'AUTH_GITHUB_CLIENT_ID', 'GITHUB_CLIENT_ID') ||
+    'demo-github-client-id',
+  clientSecret:
+    firstConfiguredEnv('AUTH_GITHUB_SECRET', 'AUTH_GITHUB_CLIENT_SECRET', 'GITHUB_CLIENT_SECRET') ||
+    'demo-github-client-secret',
   authorization: {
     params: { scope: 'read:user user:email' },
   },
@@ -28,8 +42,12 @@ export const GitHubDemoProvider: Provider = GitHub({
  * Demo Google provider that uses NextAuth's native Google OAuth configuration.
  */
 export const GoogleDemoProvider: Provider = Google({
-  clientId: process.env.GOOGLE_CLIENT_ID || 'demo-google-client-id',
-  clientSecret: process.env.GOOGLE_CLIENT_SECRET || 'demo-google-client-secret',
+  clientId:
+    firstConfiguredEnv('AUTH_GOOGLE_ID', 'AUTH_GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_ID') ||
+    'demo-google-client-id',
+  clientSecret:
+    firstConfiguredEnv('AUTH_GOOGLE_SECRET', 'AUTH_GOOGLE_CLIENT_SECRET', 'GOOGLE_CLIENT_SECRET') ||
+    'demo-google-client-secret',
   authorization: {
     params: { scope: 'openid email profile' },
   },

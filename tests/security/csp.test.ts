@@ -38,7 +38,7 @@ describe('CSP Configuration', () => {
       expect(csp).toContain("default-src 'self'")
       expect(csp).toContain("script-src 'self' 'strict-dynamic'")
       expect(csp).toContain('trusted-types default nextjs-inline-script')
-      expect(csp).toContain('require-trusted-types-for script')
+      expect(csp).toContain("require-trusted-types-for 'script'")
       expect(csp).toContain('upgrade-insecure-requests')
     })
 
@@ -60,14 +60,13 @@ describe('CSP Configuration', () => {
       const directives = {
         'upgrade-insecure-requests': [],
         'block-all-mixed-content': [],
-        'require-trusted-types-for': [],
       }
 
       const csp = buildCSP(directives)
 
       expect(csp).toContain('upgrade-insecure-requests')
       expect(csp).toContain('block-all-mixed-content')
-      expect(csp).toContain('require-trusted-types-for')
+      expect(csp).not.toContain('require-trusted-types-for')
     })
   })
 
@@ -160,7 +159,7 @@ describe('CSP Configuration', () => {
       expect(directives['trusted-types']).toContain('default')
       expect(directives['trusted-types']).toContain('nextjs-inline-script')
       expect(directives['trusted-types']).toContain('react-render')
-      expect(directives['require-trusted-types-for']).toEqual(['script'])
+      expect(directives['require-trusted-types-for']).toBeUndefined()
     })
 
     it('should include production APIs in production', () => {
