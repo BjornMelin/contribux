@@ -148,8 +148,6 @@ jobs:
           DATABASE_URL: ${{ steps.create-branch.outputs.db_url_with_pooler }}
           CI: true
           NODE_OPTIONS: '--max-old-space-size=2048'
-          # Playwright specific settings
-          PLAYWRIGHT_BROWSERS_PATH: ~/.cache/ms-playwright
 
       # Upload Playwright artifacts on failure
       - name: Upload Playwright Report
