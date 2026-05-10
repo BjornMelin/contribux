@@ -66,7 +66,8 @@ test.describe('Error monitoring and recovery contracts', () => {
   })
 
   test('renders the public home page after API failures', async ({ page, request }) => {
-    await request.get('/api/search/repositories?q=')
+    const response = await request.get('/api/search/repositories?q=')
+    expect([400, 422]).toContain(response.status())
 
     await page.goto('/')
     await expect(
@@ -76,7 +77,8 @@ test.describe('Error monitoring and recovery contracts', () => {
 
   test('keeps public error recovery usable on mobile viewports', async ({ page, request }) => {
     await page.setViewportSize({ width: 375, height: 667 })
-    await request.get('/api/search/repositories?q=')
+    const response = await request.get('/api/search/repositories?q=')
+    expect([400, 422]).toContain(response.status())
 
     await page.goto('/')
 

@@ -4,6 +4,7 @@ import { parseArgs } from 'node:util'
 
 const DEFAULT_MIN_AGE_MINUTES = 30
 const DEFAULT_REQUEST_TIMEOUT_MS = 10_000
+const DEFAULT_DELETE_CONCURRENCY = 4
 const NEON_API_BASE_URL = 'https://console.neon.tech/api/v2'
 
 function readOptions(argv) {
@@ -150,6 +151,24 @@ async function deleteBranch(projectId, branchId, apiKey) {
   )
 }
 
+async function deleteBranches(projectId, branches, apiKey, dryRun) {
+  const action = dryRun ? 'Would delete' : 'Deleting'
+  let nextIndex = 0
+  const workerCount = Math.min(DEFAULT_DELETE_CONCURRENCY, branches.length)
+
+  await Promise.all(
+    Array.from({ length: workerCount }, async () => {
+      while (nextIndex < branches.length) {
+        const branch = branches[nextIndex++]
+        console.log(`${action} stale Neon branch ${branch.name} (${branch.id})`)
+        if (!dryRun) {
+          await deleteBranch(projectId, branch.id, apiKey)
+        }
+      }
+    })
+  )
+}
+
 async function main() {
   const { prefixes, minAgeMinutes, dryRun } = readOptions(process.argv.slice(2))
   const apiKey = requireEnv('NEON_API_KEY')
@@ -165,12 +184,7 @@ async function main() {
     return
   }
 
-  for (const branch of staleBranches) {
-    console.log(`Deleting stale Neon branch ${branch.name} (${branch.id})`)
-    if (!dryRun) {
-      await deleteBranch(projectId, branch.id, apiKey)
-    }
-  }
+  await deleteBranches(projectId, staleBranches, apiKey, dryRun)
 
   const verb = dryRun ? 'Would delete' : 'Deleted'
   console.log(`${verb} ${staleBranches.length} stale Neon branch(es)`)

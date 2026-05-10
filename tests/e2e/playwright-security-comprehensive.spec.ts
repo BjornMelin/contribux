@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 
+// Identifies individual test requests in logs; this is not an auth credential.
 function isolatedHeaders(label: string) {
   return { 'x-api-key': `e2e-security-${label}-${Date.now()}` }
 }
@@ -40,6 +41,7 @@ test.describe('Comprehensive security validation', () => {
 
     expect(response.status()).toBe(401)
     const payload = await response.json()
+    expect(payload).toHaveProperty('error')
     expect(payload.error.code).toBe('UNAUTHORIZED')
   })
 

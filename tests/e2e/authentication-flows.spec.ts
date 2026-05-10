@@ -45,11 +45,12 @@ test.describe('Authentication E2E Flows', () => {
     )
   })
 
-  test('should protect authenticated routes', async ({ page }) => {
-    const response = await page.goto('/dashboard')
+  test('should protect authenticated routes', async ({ request }) => {
+    const response = await request.get('/api/search/opportunities?q=react')
 
-    expect(response?.status()).toBe(401)
-    await expect(page.getByText(/authentication required/i)).toBeVisible()
+    expect(response.status()).toBe(401)
+    const payload = await response.json()
+    expect(payload.error.code).toBe('UNAUTHORIZED')
   })
 
   test('should work on mobile viewport', async ({ page }) => {

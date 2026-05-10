@@ -124,13 +124,6 @@ export const handlers = {
 
 export const auth = () => getServerSession(authConfig)
 
-export const signIn = async () => {
-  throw new Error('Use next-auth/react signIn in client components with NextAuth.js v4.')
-}
-
-export const signOut = async () => {
-  throw new Error('Use next-auth/react signOut in client components with NextAuth.js v4.')
-}
 export { authConfig }
 
 // Export the handlers individually for easier use

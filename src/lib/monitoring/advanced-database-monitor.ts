@@ -72,7 +72,7 @@ export class AdvancedDatabaseMonitor {
         SELECT
           COUNT(*) FILTER (WHERE state = 'active')::int AS active,
           COUNT(*) FILTER (WHERE state = 'idle')::int AS idle,
-          COUNT(*) FILTER (WHERE wait_event IS NOT NULL)::int AS waiting,
+          COUNT(*) FILTER (WHERE wait_event_type = 'Lock')::int AS waiting,
           COUNT(*)::int AS total_connections
         FROM pg_stat_activity
         WHERE datname = current_database()

@@ -124,7 +124,6 @@ export default defineConfig({
       NODE_OPTIONS: process.env.CI
         ? '--max-old-space-size=2048' // Reduced memory for CI
         : '--max-old-space-size=4096',
-      NODE_ENV: process.env.CI ? 'test' : 'development',
       ENCRYPTION_KEY: process.env.ENCRYPTION_KEY || testEncryptionKey,
       GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID || 'playwright-client-id',
       GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET || 'playwright-client-secret',

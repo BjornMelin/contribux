@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-const HEALTH_STATUSES = ['healthy', 'degraded', 'unhealthy']
+const HEALTH_STATUSES = ['healthy', 'degraded', 'unhealthy'] as const
 
 test.describe('Database and data API resilience contracts', () => {
   test('surfaces database component health through the canonical health endpoint', async ({

@@ -284,13 +284,17 @@ test.describe('Cross-Platform Compatibility Validation', () => {
         await page.goto('/auth/signin')
         await page.waitForLoadState('domcontentloaded')
 
-        const authButtons = page.getByRole('button', { name: /github|google/i })
-        await expect(authButtons.first()).toBeVisible()
+        const githubButton = page.getByRole('button', { name: /continue with github/i })
+        const googleButton = page.getByRole('button', { name: /continue with google/i })
+        await expect(githubButton).toBeVisible()
+        await expect(googleButton).toBeVisible()
 
         // Mobile-specific auth UX
-        const authButtonBox = await authButtons.first().boundingBox()
-        if (authButtonBox) {
-          expect(authButtonBox.height).toBeGreaterThan(40) // Adequate touch target
+        for (const authButton of [githubButton, googleButton]) {
+          const authButtonBox = await authButton.boundingBox()
+          if (authButtonBox) {
+            expect(authButtonBox.height).toBeGreaterThan(40) // Adequate touch target
+          }
         }
 
         await page.screenshot({
