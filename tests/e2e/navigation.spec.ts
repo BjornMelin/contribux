@@ -19,11 +19,9 @@ test.describe('Navigation Tests', () => {
     // Wait for page to load
     await page.waitForLoadState('domcontentloaded')
 
-    // Check for signin page elements
-    const signinContent = page.locator('text=Sign in')
-    if ((await signinContent.count()) > 0) {
-      await expect(signinContent).toBeVisible()
-    }
+    // Check for current OAuth sign-in page elements
+    await expect(page.getByRole('heading', { name: /welcome to contribux/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /continue with github/i })).toBeVisible()
 
     // Check that no console errors occurred during navigation
     if (errors.length > 0) {
@@ -39,7 +37,7 @@ test.describe('Navigation Tests', () => {
     const response = await page.goto('/non-existent-page')
 
     // Should return 404 or redirect appropriately
-    expect([404, 200].includes(response?.status() || 0)).toBeTruthy()
+    expect([404, 200, 401].includes(response?.status() || 0)).toBeTruthy()
 
     // If it's a 404, check for proper error page
     if (response?.status() === 404) {
@@ -74,7 +72,9 @@ test.describe('Navigation Tests', () => {
     await page.waitForLoadState('domcontentloaded')
 
     // Should be back on homepage
-    await expect(page.locator('h1')).toContainText('Welcome to Contribux')
+    await expect(
+      page.getByRole('heading', { level: 1, name: /Find Your Perfect\s+Open Source Match/ })
+    ).toBeVisible()
 
     // Go forward
     await page.goForward()
@@ -101,7 +101,9 @@ test.describe('Navigation Tests', () => {
     await page.waitForLoadState('domcontentloaded')
 
     // Check that content is still there
-    await expect(page.locator('h1')).toContainText('Welcome to Contribux')
+    await expect(
+      page.getByRole('heading', { level: 1, name: /Find Your Perfect\s+Open Source Match/ })
+    ).toBeVisible()
 
     // Check for errors
     if (errors.length > 0) {

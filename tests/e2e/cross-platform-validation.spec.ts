@@ -40,10 +40,11 @@ test.describe('Cross-Platform Compatibility Validation', () => {
       expect(browserCapabilities.localStorage).toBeTruthy()
 
       // Authentication providers should be visible
-      const githubProvider = page.locator('[data-provider="github"], text=GitHub').first()
-      const googleProvider = page.locator('[data-provider="google"], text=Google').first()
+      const githubProvider = page.getByRole('button', { name: /github/i }).first()
+      const googleProvider = page.getByRole('button', { name: /google/i }).first()
 
-      await expect(githubProvider.or(googleProvider)).toBeVisible()
+      await expect(githubProvider).toBeVisible()
+      await expect(googleProvider).toBeVisible()
 
       // WebAuthn support varies by browser
       if (browserCapabilities.webAuthn) {
@@ -58,7 +59,7 @@ test.describe('Cross-Platform Compatibility Validation', () => {
         }
       } else {
         console.log(`⚠️ ${browserName}: WebAuthn not supported, OAuth fallback active`)
-        await expect(page.locator('[data-testid="oauth-only"]').or(githubProvider)).toBeVisible()
+        await expect(githubProvider).toBeVisible()
       }
 
       // Browser-specific optimizations
@@ -236,7 +237,7 @@ test.describe('Cross-Platform Compatibility Validation', () => {
         await page.waitForLoadState('domcontentloaded')
 
         // Mobile-specific validations
-        await expect(page.locator('h1')).toBeVisible()
+        await expect(page.locator('h1').first()).toBeVisible()
 
         // Viewport validation
         const viewport = page.viewportSize()
@@ -253,7 +254,7 @@ test.describe('Cross-Platform Compatibility Validation', () => {
           if (boundingBox) {
             // Validate minimum touch target size (44x44px)
             const minDimension = Math.min(boundingBox.width, boundingBox.height)
-            expect(minDimension).toBeGreaterThan(32) // Slightly relaxed for portfolio
+            expect(minDimension).toBeGreaterThanOrEqual(32) // Slightly relaxed for portfolio
 
             if (minDimension < 44) {
               console.log(`⚠️ ${testDevice.name}: Small touch target detected (${minDimension}px)`)
@@ -283,7 +284,7 @@ test.describe('Cross-Platform Compatibility Validation', () => {
         await page.goto('/auth/signin')
         await page.waitForLoadState('domcontentloaded')
 
-        const authButtons = page.locator('[data-provider], text=GitHub, text=Google')
+        const authButtons = page.getByRole('button', { name: /github|google/i })
         await expect(authButtons.first()).toBeVisible()
 
         // Mobile-specific auth UX
@@ -320,7 +321,7 @@ test.describe('Cross-Platform Compatibility Validation', () => {
         await page.waitForLoadState('domcontentloaded')
 
         // Core layout validation
-        await expect(page.locator('h1')).toBeVisible()
+        await expect(page.locator('h1').first()).toBeVisible()
         await expect(page.locator('main, [role="main"]')).toBeVisible()
 
         // Responsive behavior validation

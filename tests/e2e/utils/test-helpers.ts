@@ -167,10 +167,26 @@ export class PageHelpers {
    * Clear all local storage and cookies
    */
   async clearBrowserData() {
-    await this.page.evaluate(() => {
-      localStorage.clear()
-      sessionStorage.clear()
-    })
+    await this.page
+      .context()
+      .setOffline(false)
+      .catch(() => undefined)
+
+    await this.page
+      .evaluate(() => {
+        try {
+          localStorage.clear()
+        } catch {
+          // Storage is unavailable on opaque origins and some failed navigations.
+        }
+
+        try {
+          sessionStorage.clear()
+        } catch {
+          // Storage is unavailable on opaque origins and some failed navigations.
+        }
+      })
+      .catch(() => undefined)
 
     await this.page.context().clearCookies()
   }
@@ -186,7 +202,7 @@ export class AuthHelpers {
   async navigateToSignIn() {
     await this.page.goto('/auth/signin')
     await this.page.waitForLoadState('domcontentloaded')
-    await this.page.waitForSelector('[data-provider], text=GitHub', { timeout: 10000 })
+    await this.page.getByRole('button', { name: /github/i }).waitFor({ timeout: 10000 })
   }
 
   /**
@@ -235,9 +251,7 @@ export class AuthHelpers {
    * Test authentication provider button click
    */
   async testProviderButton(provider: string) {
-    const button = this.page.locator(`[data-provider="${provider}"], text=${provider}`, {
-      hasText: new RegExp(provider, 'i'),
-    })
+    const button = this.page.getByRole('button', { name: new RegExp(provider, 'i') })
 
     await expect(button).toBeVisible()
     await expect(button).toBeEnabled()

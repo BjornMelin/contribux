@@ -275,6 +275,9 @@ test.describe('Accessibility and Cross-Browser Compatibility', () => {
     test('should work consistently across different browsers', async ({ page, browserName }) => {
       console.log(`Testing compatibility on: ${browserName}`)
 
+      await page.goto('/')
+      await utils.page.waitForFullLoad()
+
       // Check browser feature support
       const browserFeatures = await utils.compatibility.checkFeatureSupport()
       console.log(`${browserName} features:`, browserFeatures)
@@ -283,10 +286,6 @@ test.describe('Accessibility and Cross-Browser Compatibility', () => {
       expect(browserFeatures.localStorage).toBe(true)
       expect(browserFeatures.fetch).toBe(true)
       expect(browserFeatures.history).toBe(true)
-
-      // Test basic functionality
-      await page.goto('/')
-      await utils.page.waitForFullLoad()
 
       // Verify page renders correctly
       await expect(page.locator('h1')).toBeVisible()
@@ -297,7 +296,7 @@ test.describe('Accessibility and Cross-Browser Compatibility', () => {
       await utils.page.waitForFullLoad()
 
       // Verify auth page renders
-      const authButton = page.locator('[data-provider="github"], text=GitHub')
+      const authButton = page.getByRole('button', { name: /github/i }).first()
       await expect(authButton).toBeVisible()
 
       // Test JavaScript functionality
@@ -437,9 +436,10 @@ test.describe('Accessibility and Cross-Browser Compatibility', () => {
 
     test('should work on mobile browsers', async ({ page }) => {
       // Set mobile user agent
-      await page.setUserAgent(
-        'Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1'
-      )
+      await page.setExtraHTTPHeaders({
+        'User-Agent':
+          'Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1',
+      })
 
       // Set mobile viewport
       await page.setViewportSize({ width: 375, height: 667 })
@@ -449,7 +449,7 @@ test.describe('Accessibility and Cross-Browser Compatibility', () => {
 
       // Test touch interactions
       const mainElement = page.locator('main')
-      await mainElement.tap()
+      await mainElement.click()
 
       // Test mobile navigation
       const mobileNav = page.locator(
@@ -457,7 +457,7 @@ test.describe('Accessibility and Cross-Browser Compatibility', () => {
       )
 
       if ((await mobileNav.count()) > 0) {
-        await mobileNav.tap()
+        await mobileNav.click()
         await page.waitForTimeout(500)
 
         // Should show navigation menu
@@ -471,7 +471,7 @@ test.describe('Accessibility and Cross-Browser Compatibility', () => {
       await page.goto('/auth/signin')
       await utils.page.waitForFullLoad()
 
-      const authButton = page.locator('[data-provider="github"]')
+      const authButton = page.getByRole('button', { name: /github/i }).first()
       if ((await authButton.count()) > 0) {
         // Test touch target size (should be at least 44px)
         const buttonSize = await authButton.boundingBox()
@@ -481,7 +481,7 @@ test.describe('Accessibility and Cross-Browser Compatibility', () => {
         }
 
         // Test tap interaction
-        await authButton.tap()
+        await authButton.click()
       }
 
       await utils.page.takeScreenshot('mobile-browser-test')
@@ -493,9 +493,10 @@ test.describe('Accessibility and Cross-Browser Compatibility', () => {
     test('should work on tablet devices', async ({ page }) => {
       // Set tablet viewport and user agent
       await page.setViewportSize({ width: 768, height: 1024 })
-      await page.setUserAgent(
-        'Mozilla/5.0 (iPad; CPU OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1'
-      )
+      await page.setExtraHTTPHeaders({
+        'User-Agent':
+          'Mozilla/5.0 (iPad; CPU OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1',
+      })
 
       await page.goto('/')
       await utils.page.waitForFullLoad()
