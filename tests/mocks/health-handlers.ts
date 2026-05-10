@@ -416,7 +416,7 @@ export const databaseHealthHandlers = [
         responseTime: 8,
         activeConnections: 15,
         maxConnections: 100,
-        version: 'PostgreSQL 16.0',
+        version: 'PostgreSQL',
         size: '2.4 GB',
       },
       queries: {
