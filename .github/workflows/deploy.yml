@@ -56,23 +56,6 @@ jobs:
     if: github.event_name == 'pull_request'
     
     steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
-
-      - name: 📦 Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.12.4
-
-      - name: 🔧 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20.x
-          cache: 'pnpm'
-
-      - name: 📚 Install dependencies
-        run: pnpm install --frozen-lockfile
-
       - name: 🔎 Check Vercel credentials
         id: vercel-preflight
         env:
@@ -86,6 +69,27 @@ jobs:
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: 📥 Checkout
+        if: steps.vercel-preflight.outputs.configured == 'true'
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup pnpm
+        if: steps.vercel-preflight.outputs.configured == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.4
+
+      - name: 🔧 Setup Node.js
+        if: steps.vercel-preflight.outputs.configured == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'pnpm'
+
+      - name: 📚 Install dependencies
+        if: steps.vercel-preflight.outputs.configured == 'true'
+        run: pnpm install --frozen-lockfile
 
       - name: 🌐 Install Vercel CLI
         if: steps.vercel-preflight.outputs.configured == 'true'
@@ -116,13 +120,18 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
           DEPLOYMENT_URL=$(vercel deploy --prebuilt --token="$VERCEL_TOKEN")
-          echo "deployment_url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
+          echo "deployment_url=$DEPLOYMENT_URL" >> "$GITHUB_OUTPUT"
 
       - name: 🔍 Health Check
         if: steps.vercel-preflight.outputs.configured == 'true'
         run: |
           sleep 30
-          curl -f ${{ steps.deploy.outputs.deployment_url }}/api/health || exit 1
+          curl -fsS \
+            --retry 6 \
+            --retry-all-errors \
+            --retry-delay 10 \
+            --max-time 15 \
+            "${{ steps.deploy.outputs.deployment_url }}/api/health"
 
       - name: 💬 Comment PR
         if: steps.vercel-preflight.outputs.configured == 'true'
@@ -193,12 +202,17 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
           DEPLOYMENT_URL=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
-          echo "deployment_url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
+          echo "deployment_url=$DEPLOYMENT_URL" >> "$GITHUB_OUTPUT"
 
       - name: 🔍 Production Health Check
         run: |
           sleep 60
-          curl -f ${{ steps.deploy.outputs.deployment_url }}/api/health || exit 1
+          curl -fsS \
+            --retry 8 \
+            --retry-all-errors \
+            --retry-delay 10 \
+            --max-time 20 \
+            "${{ steps.deploy.outputs.deployment_url }}/api/health"
 
       - name: 📊 Performance Validation
         run: |
