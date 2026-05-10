@@ -781,12 +781,12 @@ function regenerateBackupCodes(): { plainText: string[]; hashed: string[] } {
 
 export {
   enrollMFA,
-  verifyMFA,
-  requireMFA,
-  verifyMFASession,
-  getMFASettings,
-  updateMFASettings,
   generateDeviceFingerprint,
+  getMFASettings,
   MFA_SECURITY,
   regenerateBackupCodes,
+  requireMFA,
+  updateMFASettings,
+  verifyMFA,
+  verifyMFASession,
 }

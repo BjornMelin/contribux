@@ -9,7 +9,7 @@ import { setupDatabaseTests } from './config/enhanced-test-setup'
 const { config, addCleanupTask, getDbManager } = setupDatabaseTests()
 
 // Export utilities specific to database testing
-export { config, addCleanupTask, getDbManager }
+export { addCleanupTask, config, getDbManager }
 
 // Database-specific test utilities
 export const dbTestUtils = {

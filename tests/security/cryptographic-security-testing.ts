@@ -167,7 +167,7 @@ export class CryptographicSecurityTester {
         if (!hstsValue.includes('max-age=')) {
           vulnerabilities.push('HSTS header missing max-age directive')
         } else {
-          const maxAge = Number.parseInt(hstsValue.match(/max-age=(\d+)/)?.[1] || '0')
+          const maxAge = Number.parseInt(hstsValue.match(/max-age=(\d+)/)?.[1] || '0', 10)
           if (maxAge < 31536000) {
             // Less than 1 year
             vulnerabilities.push('HSTS max-age too short (should be at least 1 year)')
@@ -460,7 +460,7 @@ export class CryptographicSecurityTester {
           vulnerabilities.push('HSTS header missing max-age directive')
           recommendations.push('Add max-age directive to HSTS header')
         } else {
-          const maxAge = Number.parseInt(maxAgeDirective.split('=')[1] || '0')
+          const maxAge = Number.parseInt(maxAgeDirective.split('=')[1] || '0', 10)
 
           if (maxAge === 0) {
             vulnerabilities.push('HSTS max-age set to 0 (disables HSTS)')

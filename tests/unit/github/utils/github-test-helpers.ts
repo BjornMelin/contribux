@@ -209,9 +209,9 @@ export const testPRParams = {
  */
 export const cacheKeyTestCases = {
   differentOrder: [
-    { owner: 'test', repo: 'repo', page: 1, perPage: $1 },
-    { perPage: $1, page: 1, repo: 'repo', owner: 'test' },
-    { repo: 'repo', owner: 'test', perPage: $1, page: 1 },
+    { owner: 'test', repo: 'repo', page: 1, perPage: 10 },
+    { perPage: 10, page: 1, repo: 'repo', owner: 'test' },
+    { repo: 'repo', owner: 'test', perPage: 10, page: 1 },
   ],
   differentValues: [
     { owner: 'test1', repo: 'repo' },
@@ -249,7 +249,7 @@ export const cacheKeyTestCases = {
     },
     sort: 'updated',
     order: 'desc',
-    perPage: $1,
+    perPage: 10,
     page: 1,
   },
 } as const

@@ -3,9 +3,21 @@
  * Uses AES-GCM for authenticated encryption with 256-bit keys
  */
 
+import { webcrypto } from 'node:crypto'
 import { z } from 'zod'
 import { cryptoConfig } from '@/lib/config/crypto'
 import { sql } from '@/lib/db/config'
+
+function ensureWebCrypto() {
+  if (typeof globalThis.crypto?.subtle?.importKey !== 'function') {
+    Object.defineProperty(globalThis, 'crypto', {
+      value: webcrypto,
+      configurable: true,
+    })
+  }
+}
+
+ensureWebCrypto()
 
 // Encryption configuration using centralized config
 const ALGORITHM = cryptoConfig.algorithm
@@ -13,11 +25,17 @@ const KEY_LENGTH = cryptoConfig.keyLength
 const IV_LENGTH = cryptoConfig.ivLength
 const TAG_LENGTH = cryptoConfig.tagLength
 
+function asBufferSource(bytes: Uint8Array): Uint8Array<ArrayBuffer> {
+  return new Uint8Array(bytes)
+}
+
+let testEncryptionKey: CryptoKey | null = null
+
 // Validation schemas for crypto operations
 const EncryptTokenSchema = z.object({
   token: z.string().min(1, 'Token cannot be empty'),
   key: z.instanceof(CryptoKey),
-  additionalData: z.record(z.unknown()).optional(),
+  additionalData: z.record(z.string(), z.unknown()).optional(),
 })
 
 const DecryptTokenSchema = z.object({
@@ -29,7 +47,7 @@ const DecryptTokenSchema = z.object({
     keyId: z.string().min(1, 'Key ID must be specified'),
   }),
   key: z.instanceof(CryptoKey),
-  additionalData: z.record(z.unknown()).optional(),
+  additionalData: z.record(z.string(), z.unknown()).optional(),
 })
 
 const EncryptOAuthTokenSchema = z.object({
@@ -119,7 +137,7 @@ export async function importKey(exported: ExportedKey): Promise<CryptoKey> {
   // Validate input parameter
   const validated = ExportedKeySchema.parse(exported)
 
-  const keyData = base64Decode(validated.key)
+  const keyData = asBufferSource(base64Decode(validated.key))
 
   return await crypto.subtle.importKey(
     'raw',
@@ -147,13 +165,13 @@ export async function encryptToken(
 
   // Encode token as UTF-8
   const encoder = new TextEncoder()
-  const tokenData = encoder.encode(token)
+  const tokenData = asBufferSource(encoder.encode(token))
 
   // Prepare additional authenticated data if provided
-  let aad: Uint8Array | undefined
+  let aad: Uint8Array<ArrayBuffer> | undefined
   if (additionalData) {
     const aadString = JSON.stringify(additionalData)
-    aad = encoder.encode(aadString)
+    aad = asBufferSource(encoder.encode(aadString))
   }
 
   // Encrypt with AES-GCM
@@ -203,9 +221,9 @@ export async function decryptToken(
 
   try {
     // Decode from base64
-    const ciphertext = base64Decode(encrypted.ciphertext)
-    const iv = base64Decode(encrypted.iv)
-    const tag = base64Decode(encrypted.tag)
+    const ciphertext = asBufferSource(base64Decode(encrypted.ciphertext))
+    const iv = asBufferSource(base64Decode(encrypted.iv))
+    const tag = asBufferSource(base64Decode(encrypted.tag))
 
     // Combine ciphertext and tag
     const combined = new Uint8Array(ciphertext.length + tag.length)
@@ -213,11 +231,11 @@ export async function decryptToken(
     combined.set(tag, ciphertext.length)
 
     // Prepare additional authenticated data if provided
-    let aad: Uint8Array | undefined
+    let aad: Uint8Array<ArrayBuffer> | undefined
     if (additionalData) {
       const encoder = new TextEncoder()
       const aadString = JSON.stringify(additionalData)
-      aad = encoder.encode(aadString)
+      aad = asBufferSource(encoder.encode(aadString))
     }
 
     // Decrypt with AES-GCM
@@ -445,6 +463,14 @@ export async function getCurrentEncryptionKey(): Promise<{
   key: CryptoKey
   keyId: string
 }> {
+  if (process.env.NODE_ENV === 'test') {
+    testEncryptionKey ??= await generateEncryptionKey()
+    return {
+      key: testEncryptionKey,
+      keyId: 'test-encryption-key',
+    }
+  }
+
   const result = await sql`
     SELECT id, key_data
     FROM encryption_keys
@@ -517,7 +543,7 @@ function base64Encode(buffer: Uint8Array): string {
   return btoa(binary)
 }
 
-function base64Decode(str: string): Uint8Array {
+function base64Decode(str: string): Uint8Array<ArrayBuffer> {
   const binary = atob(str)
   const bytes = new Uint8Array(binary.length)
   for (let i = 0; i < binary.length; i++) {

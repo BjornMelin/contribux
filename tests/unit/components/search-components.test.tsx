@@ -39,6 +39,12 @@ import {
 } from '../../utils/modern-test-helpers'
 import { setupMSW } from '../../utils/msw-unified'
 
+function removeInjectedStyles() {
+  document.head.querySelectorAll('style, link[rel="stylesheet"]').forEach(el => {
+    el.remove()
+  })
+}
+
 // Setup MSW for API mocking
 setupMSW()
 
@@ -104,7 +110,7 @@ describe.skip('Search Components - Fixed', () => {
     beforeEach(() => {
       // Complete DOM reset before each test - this must happen first
       document.body.innerHTML = ''
-      document.head.querySelectorAll('style, link[rel="stylesheet"]').forEach(el => el.remove())
+      removeInjectedStyles()
 
       // Unmount any previous render result
       if (renderResult) {
@@ -133,7 +139,7 @@ describe.skip('Search Components - Fixed', () => {
 
       // Complete DOM reset after each test
       document.body.innerHTML = ''
-      document.head.querySelectorAll('style, link[rel="stylesheet"]').forEach(el => el.remove())
+      removeInjectedStyles()
 
       // Complete cleanup
       cleanupComponentTest()
@@ -290,7 +296,7 @@ describe.skip('Search Components - Fixed', () => {
     beforeEach(() => {
       // Complete DOM reset before each test - this must happen first
       document.body.innerHTML = ''
-      document.head.querySelectorAll('style, link[rel="stylesheet"]').forEach(el => el.remove())
+      removeInjectedStyles()
 
       // Unmount any previous render result
       if (renderResult) {
@@ -319,7 +325,7 @@ describe.skip('Search Components - Fixed', () => {
 
       // Complete DOM reset after each test
       document.body.innerHTML = ''
-      document.head.querySelectorAll('style, link[rel="stylesheet"]').forEach(el => el.remove())
+      removeInjectedStyles()
 
       // Complete cleanup
       cleanupComponentTest()
@@ -472,7 +478,7 @@ describe.skip('Search Components - Fixed', () => {
     beforeEach(() => {
       // Complete DOM reset before each test - this must happen first
       document.body.innerHTML = ''
-      document.head.querySelectorAll('style, link[rel="stylesheet"]').forEach(el => el.remove())
+      removeInjectedStyles()
 
       // Unmount any previous render result
       if (renderResult) {
@@ -501,7 +507,7 @@ describe.skip('Search Components - Fixed', () => {
 
       // Complete DOM reset after each test
       document.body.innerHTML = ''
-      document.head.querySelectorAll('style, link[rel="stylesheet"]').forEach(el => el.remove())
+      removeInjectedStyles()
 
       // Complete cleanup
       cleanupComponentTest()
@@ -609,7 +615,7 @@ describe.skip('Search Components - Fixed', () => {
       // Complete DOM reset before each test
       cleanupComponentTest()
       document.body.innerHTML = ''
-      document.head.querySelectorAll('style, link[rel="stylesheet"]').forEach(el => el.remove())
+      removeInjectedStyles()
 
       // Clear all mocks
       vi.clearAllMocks()
@@ -625,7 +631,7 @@ describe.skip('Search Components - Fixed', () => {
       // Complete DOM reset after each test
       cleanupComponentTest()
       document.body.innerHTML = ''
-      document.head.querySelectorAll('style, link[rel="stylesheet"]').forEach(el => el.remove())
+      removeInjectedStyles()
     })
 
     it('should render list of opportunities', () => {
@@ -696,7 +702,7 @@ describe.skip('Search Components - Fixed', () => {
       // Complete DOM reset before each test
       cleanupComponentTest()
       document.body.innerHTML = ''
-      document.head.querySelectorAll('style, link[rel="stylesheet"]').forEach(el => el.remove())
+      removeInjectedStyles()
 
       // Clear all mocks
       vi.clearAllMocks()
@@ -712,7 +718,7 @@ describe.skip('Search Components - Fixed', () => {
       // Complete DOM reset after each test
       cleanupComponentTest()
       document.body.innerHTML = ''
-      document.head.querySelectorAll('style, link[rel="stylesheet"]').forEach(el => el.remove())
+      removeInjectedStyles()
     })
 
     it('should validate schemas correctly', () => {

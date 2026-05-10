@@ -36,7 +36,7 @@ Successfully updated the following files to use centralized validation:
   - Before: `process.env.SKIP_ENV_VALIDATION === 'true'`
   - After: Maintained direct access (config-level option)
 
-- **`src/middleware.ts`**
+- **`src/proxy.ts`**
   - Before: `process.env.NODE_ENV === 'production'` and `process.env.NEXTAUTH_URL`
   - After: `isProduction()` and `env.NEXTAUTH_URL`
 

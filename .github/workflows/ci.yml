@@ -87,4 +87,4 @@ jobs:
         run: |
           # Run security audit with proper error handling
           pnpm audit --audit-level high
-          pnpm outdated
+          pnpm deps:outdated:ci

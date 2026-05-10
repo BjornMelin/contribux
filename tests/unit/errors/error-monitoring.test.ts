@@ -303,7 +303,9 @@ describe('AlertingSystem', () => {
         },
       ]
 
-      channels.forEach(channel => alertingSystem.addChannel(channel))
+      channels.forEach(channel => {
+        alertingSystem.addChannel(channel)
+      })
 
       expect(alertingSystem.getChannels()).toHaveLength(2)
     })
@@ -357,6 +359,58 @@ describe('AlertingSystem', () => {
 
       expect(mockSend).toHaveBeenCalled()
     })
+
+    it('should evaluate category-filtered rules against matching metrics', async () => {
+      const mockSend = vi.fn().mockResolvedValue(true)
+      const channel: AlertChannel = {
+        name: 'database',
+        type: 'console',
+        enabled: true,
+        send: mockSend,
+      }
+
+      alertingSystem.addChannel(channel)
+      alertingSystem.addRule({
+        name: 'Database Outage Detection',
+        description: 'Alert on repeated database connectivity failures',
+        type: 'repeated_errors',
+        categoryFilter: [ErrorCategory.DATABASE_CONNECTION],
+        threshold: 2,
+        severityThreshold: ErrorSeverity.HIGH,
+        channels: ['database'],
+      })
+
+      const metrics: ErrorMetrics = {
+        totalErrors: 3,
+        errorsByCategory: {
+          [ErrorCategory.DATABASE_CONNECTION]: 3,
+        } as ErrorMetrics['errorsByCategory'],
+        errorsBySeverity: {
+          [ErrorSeverity.HIGH]: 3,
+        } as ErrorMetrics['errorsBySeverity'],
+        errorRate: 6,
+        topErrors: [
+          {
+            message: 'Database connection failed',
+            count: 3,
+            category: ErrorCategory.DATABASE_CONNECTION,
+            lastSeen: new Date(),
+          },
+        ],
+        healthScore: 65,
+      }
+
+      await alertingSystem.checkAlerts(metrics)
+
+      expect(mockSend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          rule: 'Database Outage Detection',
+          metadata: expect.objectContaining({
+            errorCategory: ErrorCategory.DATABASE_CONNECTION,
+          }),
+        })
+      )
+    })
   })
 
   describe('Alert Suppression', () => {
@@ -399,43 +453,48 @@ describe('AlertingSystem', () => {
     })
 
     it('should allow alerts after cooldown', async () => {
-      const mockSend = vi.fn().mockResolvedValue(true)
-      const channel: AlertChannel = {
-        name: 'test',
-        type: 'console',
-        enabled: true,
-        send: mockSend,
+      vi.useFakeTimers()
+      try {
+        const mockSend = vi.fn().mockResolvedValue(true)
+        const channel: AlertChannel = {
+          name: 'test',
+          type: 'console',
+          enabled: true,
+          send: mockSend,
+        }
+
+        alertingSystem.addChannel(channel)
+        const rule = {
+          name: 'Test Rule',
+          description: 'Test',
+          condition: () => true,
+          severity: 'high' as AlertSeverity,
+          channels: ['test'],
+          cooldownMinutes: 1,
+        }
+        alertingSystem.addRule(rule)
+
+        const metrics: ErrorMetrics = {
+          totalErrors: 100,
+          errorsByCategory: {},
+          errorsBySeverity: {},
+          errorRate: 20,
+          topErrors: [],
+          healthScore: 50,
+        }
+
+        // First alert
+        await alertingSystem.checkAlerts(metrics)
+
+        // Advance time past cooldown
+        vi.advanceTimersByTime(2 * 60 * 1000)
+
+        // Should send again
+        await alertingSystem.checkAlerts(metrics)
+        expect(mockSend).toHaveBeenCalledTimes(2)
+      } finally {
+        vi.useRealTimers()
       }
-
-      alertingSystem.addChannel(channel)
-      const rule = {
-        name: 'Test Rule',
-        description: 'Test',
-        condition: () => true,
-        severity: 'high' as AlertSeverity,
-        channels: ['test'],
-        cooldownMinutes: 1,
-      }
-      alertingSystem.addRule(rule)
-
-      const metrics: ErrorMetrics = {
-        totalErrors: 100,
-        errorsByCategory: {},
-        errorsBySeverity: {},
-        errorRate: 20,
-        topErrors: [],
-        healthScore: 50,
-      }
-
-      // First alert
-      await alertingSystem.checkAlerts(metrics)
-
-      // Advance time past cooldown
-      vi.advanceTimersByTime(2 * 60 * 1000)
-
-      // Should send again
-      await alertingSystem.checkAlerts(metrics)
-      expect(mockSend).toHaveBeenCalledTimes(2)
     })
   })
 
@@ -527,10 +586,27 @@ describe('ErrorDashboard', () => {
         userMessage: 'Database down',
       }
 
-      errorMonitor.logError(new Error('Critical'), criticalError)
+      await errorMonitor.track(new Error('Critical'), criticalError)
 
       const report = await dashboard.getHealthReport()
       expect(report.overall.availability).toBeLessThan(100)
+    })
+
+    it('should calculate availability from affected hours instead of event count', async () => {
+      const criticalError: ErrorClassification = {
+        category: ErrorCategory.DATABASE_CONNECTION,
+        severity: ErrorSeverity.CRITICAL,
+        isTransient: false,
+        recoveryStrategies: [],
+        userMessage: 'Database down',
+      }
+
+      for (let i = 0; i < 5; i++) {
+        errorMonitor.logError(new Error(`Critical ${i}`), criticalError)
+      }
+
+      const report = await dashboard.getHealthReport()
+      expect(report.overall.availability).toBeCloseTo((23 / 24) * 100, 5)
     })
 
     it('should provide recommendations based on errors', async () => {

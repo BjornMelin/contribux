@@ -15,9 +15,15 @@ env:
 
 jobs:
   e2e-test:
-    name: E2E Tests
+    name: E2E Tests (${{ matrix.shard }}/${{ matrix.total_shards }})
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        shard: [1, 2]
+        total_shards: [2]
     
     # Service containers for Redis if needed
     services:
@@ -65,25 +71,73 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Cleanup stale Neon E2E test branches
+        run: node scripts/cleanup-neon-ci-branches.js --prefix db-test- --prefix e2e-test- --min-age-minutes 5
+
       # Create Neon branch for E2E testing
       - name: Create Neon E2E Test Branch
         id: create-branch
-        uses: neondatabase/create-branch-action@v5
+        continue-on-error: true
+        uses: neondatabase/create-branch-action@v6
         with:
           project_id: ${{ env.NEON_PROJECT_ID }}
           api_key: ${{ env.NEON_API_KEY }}
-          branch_name: 'e2e-test-${{ github.run_id }}-${{ github.run_attempt }}'
-          username: 'neondb_owner'
+          branch_name: 'e2e-test-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}'
+          role: 'neondb_owner'
           database: 'neondb'
+
+      - name: Wait before retrying Neon E2E branch resolution
+        if: steps.create-branch.outputs.db_url_pooled == ''
+        run: sleep 10
+
+      - name: Retry Neon E2E Test Branch Resolution
+        id: create-branch-retry
+        if: steps.create-branch.outputs.db_url_pooled == ''
+        continue-on-error: true
+        uses: neondatabase/create-branch-action@v6
+        with:
+          project_id: ${{ env.NEON_PROJECT_ID }}
+          api_key: ${{ env.NEON_API_KEY }}
+          branch_name: 'e2e-test-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}'
+          role: 'neondb_owner'
+          database: 'neondb'
+
+      - name: Resolve Neon E2E branch outputs
+        id: e2e-branch
+        env:
+          BRANCH_NAME: e2e-test-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}
+        run: |
+          branch_id="${{ steps.create-branch.outputs.branch_id || steps.create-branch-retry.outputs.branch_id }}"
+          db_url_pooled="${{ steps.create-branch.outputs.db_url_pooled || steps.create-branch-retry.outputs.db_url_pooled }}"
+
+          if [ -z "$branch_id" ]; then
+            branch_id="$(npx --yes neonctl@2 branches list --project-id "$NEON_PROJECT_ID" -o json \
+              | jq -r --arg name "$BRANCH_NAME" '.[] | select(.name == $name) | .id' \
+              | head -n 1)"
+          fi
+
+          if [ -n "$branch_id" ] && [ -z "$db_url_pooled" ]; then
+            neon_cs="$(npx --yes neonctl@2 cs "$branch_id" --project-id "$NEON_PROJECT_ID" --role-name neondb_owner --database-name neondb --ssl require --pooled --prisma false --extended -o json)"
+            db_url_pooled="$(echo "$neon_cs" | jq -r '.connection_string // empty')"
+          fi
+
+          if [ -z "$branch_id" ] || [ -z "$db_url_pooled" ]; then
+            echo "::error::Failed to create or resolve Neon E2E branch outputs."
+            exit 1
+          fi
+
+          echo "::add-mask::$db_url_pooled"
+          echo "branch_id=$branch_id" >> "$GITHUB_OUTPUT"
+          echo "db_url_pooled=$db_url_pooled" >> "$GITHUB_OUTPUT"
 
       # Setup environment variables for the application
       - name: Setup Environment Variables
         run: |
           cat > .env.local << EOF
           # Database Configuration
-          DATABASE_URL="${{ steps.create-branch.outputs.db_url_with_pooler }}"
-          DATABASE_URL_DEV="${{ steps.create-branch.outputs.db_url_with_pooler }}"
-          DATABASE_URL_TEST="${{ steps.create-branch.outputs.db_url_with_pooler }}"
+          DATABASE_URL="${{ steps.e2e-branch.outputs.db_url_pooled }}"
+          DATABASE_URL_DEV="${{ steps.e2e-branch.outputs.db_url_pooled }}"
+          DATABASE_URL_TEST="${{ steps.e2e-branch.outputs.db_url_pooled }}"
           
           # Application Configuration
           NODE_ENV=test
@@ -92,7 +146,6 @@ jobs:
           
           # Disable telemetry and optimizations for testing
           NEXT_TELEMETRY_DISABLED=1
-          NEXT_PRIVATE_STANDALONE=1
           
           # Mock external services for E2E testing
           GITHUB_CLIENT_ID=test-client-id
@@ -107,10 +160,16 @@ jobs:
           EOF
 
       # Run database migrations
+      - name: Reset isolated Neon branch schema
+        run: pnpm db:migrate:reset
+        env:
+          DATABASE_URL: ${{ steps.e2e-branch.outputs.db_url_pooled }}
+          ALLOW_CI_DATABASE_RESET: 'true'
+
       - name: Run Database Migrations
         run: pnpm db:migrate
         env:
-          DATABASE_URL: ${{ steps.create-branch.outputs.db_url_with_pooler }}
+          DATABASE_URL: ${{ steps.e2e-branch.outputs.db_url_pooled }}
 
       # Install Playwright browsers
       - name: Install Playwright Browsers
@@ -132,25 +191,24 @@ jobs:
       - name: Build Application
         run: pnpm build
         env:
-          DATABASE_URL: ${{ steps.create-branch.outputs.db_url_with_pooler }}
+          DATABASE_URL: ${{ steps.e2e-branch.outputs.db_url_pooled }}
           NODE_OPTIONS: '--max-old-space-size=2048'
 
       # Run E2E tests
       - name: Run E2E Tests
-        run: pnpm test:e2e:ci
+        run: pnpm exec playwright test --reporter=line --shard=${{ matrix.shard }}/${{ matrix.total_shards }}
         env:
-          DATABASE_URL: ${{ steps.create-branch.outputs.db_url_with_pooler }}
+          DATABASE_URL: ${{ steps.e2e-branch.outputs.db_url_pooled }}
           CI: true
           NODE_OPTIONS: '--max-old-space-size=2048'
-          # Playwright specific settings
-          PLAYWRIGHT_BROWSERS_PATH: ~/.cache/ms-playwright
+          PLAYWRIGHT_WORKERS: 2
 
       # Upload Playwright artifacts on failure
       - name: Upload Playwright Report
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: playwright-report-${{ github.run_id }}
+          name: playwright-report-${{ github.run_id }}-${{ matrix.shard }}
           path: |
             playwright-report/
             test-results/
@@ -163,19 +221,19 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: e2e-coverage-${{ github.run_id }}
+          name: e2e-coverage-${{ github.run_id }}-${{ matrix.shard }}
           path: coverage/
           retention-days: 3
           if-no-files-found: ignore
 
       # Clean up Neon branch (always runs, even on failure)
       - name: Delete Neon E2E Test Branch
-        if: always()
+        if: always() && steps.e2e-branch.outputs.branch_id != ''
         uses: neondatabase/delete-branch-action@v3
         with:
           project_id: ${{ env.NEON_PROJECT_ID }}
           api_key: ${{ env.NEON_API_KEY }}
-          branch_id: ${{ steps.create-branch.outputs.branch_id }}
+          branch: ${{ steps.e2e-branch.outputs.branch_id }}
 
       # Report test results summary
       - name: Test Results Summary
@@ -183,8 +241,9 @@ jobs:
         run: |
           echo "## E2E Test Results 🎭" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Branch**: \`e2e-test-${{ github.run_id }}-${{ github.run_attempt }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Database**: \`${{ steps.create-branch.outputs.db_url_with_pooler }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Shard**: \`${{ matrix.shard }}/${{ matrix.total_shards }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: \`e2e-test-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Database Branch**: \`${{ steps.e2e-branch.outputs.branch_id }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Status**: $([ ${{ job.status }} == 'success' ] && echo '✅ Passed' || echo '❌ Failed')" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ -f playwright-report.json ]; then
@@ -215,9 +274,16 @@ jobs:
       - name: Security scan of artifacts
         run: |
           echo "🔍 Scanning E2E test artifacts for sensitive data..."
+
+          if [ ! -d ./artifacts ]; then
+            echo "✅ No E2E artifacts were downloaded for scanning"
+            exit 0
+          fi
           
           # Check for potential secrets or sensitive data in test artifacts
-          if find ./artifacts -type f \( -name "*.html" -o -name "*.json" -o -name "*.log" \) -exec grep -l -i "password\|secret\|token\|key" {} \; | head -5; then
+          sensitive_matches=$(find ./artifacts -type f \( -name "*.html" -o -name "*.json" -o -name "*.log" \) -exec grep -l -i "password\|secret\|token\|key" {} \; | head -5)
+          if [ -n "$sensitive_matches" ]; then
+            echo "$sensitive_matches"
             echo "⚠️  Warning: Potential sensitive data found in test artifacts"
             echo "::warning::Sensitive data patterns detected in E2E test artifacts"
           else
@@ -225,6 +291,8 @@ jobs:
           fi
           
           # Check artifact sizes
-          find ./artifacts -type f -size +10M | while read -r file; do
+          large_artifacts=$(find ./artifacts -type f -size +10M)
+          while IFS= read -r file; do
+            [ -z "$file" ] && continue
             echo "::warning::Large test artifact detected: $file ($(du -h "$file" | cut -f1))"
-          done || true
+          done <<< "$large_artifacts"

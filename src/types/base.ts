@@ -237,7 +237,7 @@ export interface Versionable {
 export const ApiErrorSchema = z.object({
   code: z.string().min(1),
   message: z.string().min(1),
-  details: z.record(z.unknown()).optional(),
+  details: z.record(z.string(), z.unknown()).optional(),
   field: z.string().optional(),
   statusCode: HttpStatusSchema.optional(),
 })

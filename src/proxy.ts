@@ -1,6 +1,5 @@
 /**
- * Next.js Middleware for CSP Nonce Generation, Security Headers, and Authentication
- * Edge Runtime compatible - lightweight authentication check only
+ * Next.js Proxy for CSP nonce generation, security headers, and authentication.
  */
 
 import { type NextRequest, NextResponse } from 'next/server'
@@ -9,7 +8,7 @@ import { buildCSP, generateNonce, getCSPDirectives } from '@/lib/security/csp'
 import { enhancedRateLimitMiddleware } from '@/lib/security/rate-limiter'
 import { env, isProduction } from '@/lib/validation/env'
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // Early return for static assets and internal Next.js routes
   const { pathname } = request.nextUrl
   if (
@@ -23,21 +22,25 @@ export async function middleware(request: NextRequest) {
   // Apply enhanced rate limiting first
   const rateLimitResponse = await enhancedRateLimitMiddleware(request)
   if (rateLimitResponse.status === 429) {
-    return rateLimitResponse
+    return applySecurityHeaders(rateLimitResponse, request)
   }
 
-  // Lightweight auth check for Edge Runtime compatibility
+  // Lightweight auth check for the routing boundary.
   const authResponse = await lightweightAuthCheck(request)
   if (authResponse) {
-    return authResponse
+    return applySecurityHeaders(authResponse, request)
   }
 
-  // Generate unique nonce for this request using Web Crypto API (Edge Runtime compatible)
+  // Generate a unique nonce for this request using Web Crypto.
   const nonce = generateNonce()
 
-  // Clone the request headers efficiently
+  const csp = buildCSP(getCSPDirectives(), nonce)
+
+  // Clone the request headers efficiently. Next.js reads the request CSP to
+  // apply the nonce to framework scripts during dynamic rendering.
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-nonce', nonce)
+  requestHeaders.set('Content-Security-Policy', csp)
 
   // Create response with updated headers
   const response = NextResponse.next({
@@ -47,7 +50,7 @@ export async function middleware(request: NextRequest) {
   })
 
   // Set security headers with optimized CSP
-  setSecurityHeaders(response, nonce, pathname)
+  setSecurityHeaders(response, csp)
 
   // Set CORS headers for API routes with dynamic origins
   if (pathname.startsWith('/api')) {
@@ -61,8 +64,7 @@ export async function middleware(request: NextRequest) {
 }
 
 /**
- * Lightweight authentication check for Edge Runtime
- * Avoids Node.js-specific imports for better performance
+ * Lightweight authentication check for the proxy boundary.
  */
 async function lightweightAuthCheck(request: NextRequest): Promise<NextResponse | undefined> {
   const path = request.nextUrl.pathname
@@ -77,7 +79,10 @@ async function lightweightAuthCheck(request: NextRequest): Promise<NextResponse 
   if (
     path.startsWith('/auth/') ||
     path.startsWith('/api/auth/') ||
+    path === '/api/search/repositories' ||
+    path === '/api/search/opportunities' ||
     path === '/api/health' ||
+    path === '/api/simple-health' ||
     path.startsWith('/_next/') ||
     path === '/favicon.ico'
   ) {
@@ -92,7 +97,7 @@ async function lightweightAuthCheck(request: NextRequest): Promise<NextResponse 
 
   try {
     const payload = await verifyAccessToken(token)
-    if (!payload || !payload.sub) {
+    if (!payload?.sub) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
     // Token is valid, continue to route
@@ -122,11 +127,9 @@ function extractToken(request: NextRequest): string | null {
 }
 
 /**
- * Set security headers with optimized CSP for Next.js 15
+ * Set security headers with optimized CSP for the App Router.
  */
-function setSecurityHeaders(response: NextResponse, nonce: string, _pathname: string) {
-  // Build CSP with nonce
-  const csp = buildCSP(getCSPDirectives(), nonce)
+function setSecurityHeaders(response: NextResponse, csp: string) {
   response.headers.set('Content-Security-Policy', csp)
 
   // Core security headers
@@ -197,6 +200,19 @@ function setSecurityHeaders(response: NextResponse, nonce: string, _pathname: st
   response.headers.delete('Server')
 }
 
+export function applySecurityHeaders(response: NextResponse, request: NextRequest): NextResponse {
+  const nonce = generateNonce()
+  const csp = buildCSP(getCSPDirectives(), nonce)
+
+  setSecurityHeaders(response, csp)
+
+  if (request.nextUrl.pathname.startsWith('/api')) {
+    setCorsHeaders(response, request)
+  }
+
+  return response
+}
+
 /**
  * Set CORS headers for API routes with dynamic origin validation
  */
@@ -251,7 +267,7 @@ function mergeRateLimitHeaders(response: NextResponse, rateLimitResponse: NextRe
   }
 }
 
-// Configure which routes use this middleware
+// Configure which routes use this proxy
 export const config = {
   // Match all routes except static files and images
   matcher: [

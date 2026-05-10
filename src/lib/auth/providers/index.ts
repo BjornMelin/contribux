@@ -12,6 +12,8 @@ type Provider = AuthOptions['providers'][number]
 import { getDemoProviders } from './demo'
 import { getProductionProviders, validateProductionConfig } from './production'
 
+const isProductionBuildPhase = () => process.env.NEXT_PHASE === 'phase-production-build'
+
 /**
  * Get providers based on current environment
  * - Development: Returns demo providers for local testing
@@ -23,7 +25,7 @@ export function getProviders(): Provider[] {
   }
 
   // Validate production configuration
-  if (!validateProductionConfig()) {
+  if (!validateProductionConfig() && !isProductionBuildPhase()) {
     throw new Error('Production authentication configuration is invalid')
   }
 
@@ -38,7 +40,7 @@ export function isAuthConfigured(): boolean {
     return true // Demo providers are always available in development
   }
 
-  return validateProductionConfig()
+  return isProductionBuildPhase() || validateProductionConfig()
 }
 
 // Re-export for convenience

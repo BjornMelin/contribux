@@ -3,6 +3,7 @@
  * Replaces complex enhanced setup with fast, reliable configuration
  */
 
+import { webcrypto } from 'node:crypto'
 import { config } from 'dotenv'
 import { afterAll, afterEach, beforeAll, vi } from 'vitest'
 import '@testing-library/jest-dom'
@@ -18,6 +19,8 @@ beforeAll(async () => {
   process.env.SKIP_ENV_VALIDATION = 'true'
   process.env.VITEST = 'true'
   process.env.LOG_LEVEL = 'error'
+  process.env.DATABASE_URL ??= 'postgresql://test:test@localhost:5432/contribux_test'
+  process.env.DATABASE_URL_TEST ??= 'postgresql://test:test@localhost:5432/contribux_test'
 
   // Setup minimal browser APIs
   setupBrowserAPIs()
@@ -115,22 +118,8 @@ function setupBrowserAPIs() {
  * Fixes: "Cannot set property crypto of #<Object> which has only a getter"
  */
 function setupCryptoAPI() {
-  // Use vi.stubGlobal instead of direct assignment
-  vi.stubGlobal('crypto', {
-    randomUUID: vi.fn().mockReturnValue('test-uuid-12345'),
-    getRandomValues: vi.fn().mockImplementation((array: Uint8Array) => {
-      for (let i = 0; i < array.length; i++) {
-        array[i] = Math.floor(Math.random() * 256)
-      }
-      return array
-    }),
-    subtle: {
-      digest: vi.fn().mockResolvedValue(new ArrayBuffer(32)),
-      generateKey: vi.fn().mockResolvedValue({}),
-      encrypt: vi.fn().mockResolvedValue(new ArrayBuffer(16)),
-      decrypt: vi.fn().mockResolvedValue(new ArrayBuffer(16)),
-    },
-  })
+  // Use Node's real WebCrypto so jose and AES-GCM code exercise current runtime APIs.
+  vi.stubGlobal('crypto', webcrypto)
 }
 
 /**

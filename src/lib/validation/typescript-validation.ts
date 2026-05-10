@@ -294,13 +294,13 @@ export function validateAllTypeScriptFeatures(): void {
 // =============================================================================
 
 export type {
-  TestObject,
-  HttpEndpoint,
-  PostEndpoint,
-  TestUnion,
   AdminOnly,
-  UserSettings,
+  HttpEndpoint,
   PartialUserSettings,
+  PostEndpoint,
+  TestObject,
+  TestUnion,
+  UserSettings,
 }
 
 export { TestEventEmitter }

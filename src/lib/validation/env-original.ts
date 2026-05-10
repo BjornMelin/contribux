@@ -138,15 +138,15 @@ export const envSchema = z
     DB_TEST_BRANCH: z.string().default('br-fancy-pine-a8imumhr'),
 
     // Connection pool settings
-    DB_POOL_MIN: z.string().pipe(z.coerce.number().int().min(1)).default('2'),
-    DB_POOL_MAX: z.string().pipe(z.coerce.number().int().min(1)).default('20'),
-    DB_POOL_IDLE_TIMEOUT: z.string().pipe(z.coerce.number().int().min(1000)).default('10000'),
+    DB_POOL_MIN: z.coerce.number().int().min(1).default(2),
+    DB_POOL_MAX: z.coerce.number().int().min(1).default(20),
+    DB_POOL_IDLE_TIMEOUT: z.coerce.number().int().min(1000).default(10000),
 
     // Vector search configuration
-    HNSW_EF_SEARCH: z.string().pipe(z.coerce.number().int().min(1)).default('200'),
-    VECTOR_SIMILARITY_THRESHOLD: z.string().pipe(z.coerce.number().min(0).max(1)).default('0.7'),
-    HYBRID_SEARCH_TEXT_WEIGHT: z.string().pipe(z.coerce.number().min(0).max(1)).default('0.3'),
-    HYBRID_SEARCH_VECTOR_WEIGHT: z.string().pipe(z.coerce.number().min(0).max(1)).default('0.7'),
+    HNSW_EF_SEARCH: z.coerce.number().int().min(1).default(200),
+    VECTOR_SIMILARITY_THRESHOLD: z.coerce.number().min(0).max(1).default(0.7),
+    HYBRID_SEARCH_TEXT_WEIGHT: z.coerce.number().min(0).max(1).default(0.3),
+    HYBRID_SEARCH_VECTOR_WEIGHT: z.coerce.number().min(0).max(1).default(0.7),
 
     // Application environment
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -154,7 +154,7 @@ export const envSchema = z
     // Next.js configuration
     NEXT_PUBLIC_VERCEL_URL: z.string().optional(),
     VERCEL_URL: z.string().optional(),
-    PORT: z.string().pipe(z.coerce.number().int().min(1).max(65535)).default('3000'),
+    PORT: z.coerce.number().int().min(1).max(65535).default(3000),
 
     // Authentication configuration - NO FALLBACKS ALLOWED
     JWT_SECRET: z
@@ -203,29 +203,29 @@ export const envSchema = z
     CSRF_SECRET: z.string().min(32).optional(),
 
     // Rate limiting
-    RATE_LIMIT_MAX: z.string().pipe(z.coerce.number().int().min(1)).default('100'),
-    RATE_LIMIT_WINDOW: z.string().pipe(z.coerce.number().int().min(1)).default('900'), // 15 minutes
+    RATE_LIMIT_MAX: z.coerce.number().int().min(1).default(100),
+    RATE_LIMIT_WINDOW: z.coerce.number().int().min(1).default(900), // 15 minutes
 
     // Encryption keys
     ENCRYPTION_KEY: z.string().length(64).optional(), // 32 bytes hex-encoded
 
     // Monitoring and logging
     LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
-    ENABLE_AUDIT_LOGS: z.string().pipe(z.coerce.boolean()).default('true'),
+    ENABLE_AUDIT_LOGS: z.stringbool().default(true),
 
     // Feature flags
-    ENABLE_OAUTH: z.string().pipe(z.coerce.boolean()).default('true'),
-    ENABLE_WEBAUTHN: z.string().pipe(z.coerce.boolean()).default('true'),
+    ENABLE_OAUTH: z.stringbool().default(true),
+    ENABLE_WEBAUTHN: z.stringbool().default(true),
 
     // WebAuthn configuration
     NEXT_PUBLIC_RP_ID: z.string().default('localhost'),
     WEBAUTHN_RP_NAME: z.string().default('Contribux'),
-    WEBAUTHN_TIMEOUT: z.string().pipe(z.coerce.number().int().min(1000)).default('60000'),
-    WEBAUTHN_CHALLENGE_EXPIRY: z.string().pipe(z.coerce.number().int().min(1000)).default('300000'),
+    WEBAUTHN_TIMEOUT: z.coerce.number().int().min(1000).default(60000),
+    WEBAUTHN_CHALLENGE_EXPIRY: z.coerce.number().int().min(1000).default(300000),
     WEBAUTHN_SUPPORTED_ALGORITHMS: z.string().default('-7,-257'),
 
     // Maintenance mode
-    MAINTENANCE_MODE: z.string().pipe(z.coerce.boolean()).default('false'),
+    MAINTENANCE_MODE: z.stringbool().default(false),
     MAINTENANCE_BYPASS_TOKEN: z.string().optional(),
 
     // Additional OAuth origins

@@ -243,7 +243,9 @@ class MemoryOptimizedPool {
     }
 
     // Destroy expired connections
-    toDestroy.forEach(key => this.destroyConnection(key))
+    toDestroy.forEach(key => {
+      this.destroyConnection(key)
+    })
 
     // Update metrics
     this.metrics.idle = this.connections.size - this.metrics.active
@@ -294,7 +296,9 @@ class MemoryOptimizedPool {
 
     // Destroy all connections
     const connectionKeys = Array.from(this.connections.keys())
-    connectionKeys.forEach(key => this.destroyConnection(key))
+    connectionKeys.forEach(key => {
+      this.destroyConnection(key)
+    })
 
     // Force final garbage collection
     if (global.gc) {

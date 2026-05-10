@@ -11,6 +11,15 @@ import { HttpResponse, http } from 'msw'
 const rateLimitState = new Map<string, { count: number; firstRequest: number; delays: number[] }>()
 const authAttemptCounts = new Map<string, number>()
 
+const parseContentLength = (value: string): number | null => {
+  if (!/^[0-9]+$/.test(value)) {
+    return null
+  }
+
+  const length = Number(value)
+  return Number.isSafeInteger(length) ? length : null
+}
+
 // Helper to track authentication attempts for progressive delays
 export async function getAuthAttemptCount(request: Request): Promise<number> {
   // Extract client IP using same logic as auth handler to prevent bypass
@@ -265,14 +274,14 @@ export const securityTestHandlers: HttpHandler[] = [
     const transferEncoding = request.headers.get('Transfer-Encoding')
 
     // Request smuggling prevention - detect conflicting headers
-    if (contentLength && transferEncoding) {
+    if (contentLength !== null && transferEncoding !== null) {
       return HttpResponse.json({ error: 'Conflicting length headers' }, { status: 400 })
     }
 
     // Request smuggling prevention - detect malformed content-length
-    if (contentLength) {
-      const length = Number.parseInt(contentLength)
-      if (Number.isNaN(length) || length < 0) {
+    if (contentLength !== null) {
+      const length = parseContentLength(contentLength)
+      if (length === null) {
         return HttpResponse.json({ error: 'Invalid Content-Length' }, { status: 400 })
       }
     }
@@ -286,7 +295,8 @@ export const securityTestHandlers: HttpHandler[] = [
     }
 
     // Size validation
-    if (contentLength && Number.parseInt(contentLength) > 50 * 1024 * 1024) {
+    const parsedContentLength = contentLength !== null ? parseContentLength(contentLength) : null
+    if (parsedContentLength !== null && parsedContentLength > 50 * 1024 * 1024) {
       return HttpResponse.json({ error: 'File too large' }, { status: 413 })
     }
 
@@ -354,7 +364,7 @@ export const securityTestHandlers: HttpHandler[] = [
     const report = await request.json()
 
     // Validate CSP report structure
-    if (!report['csp-report'] || !report['csp-report']['violated-directive']) {
+    if (!report?.['csp-report']?.['violated-directive']) {
       return HttpResponse.json({ error: 'Invalid CSP report format' }, { status: 400 })
     }
 
@@ -383,14 +393,14 @@ export const securityTestHandlers: HttpHandler[] = [
     const transferEncoding = request.headers.get('Transfer-Encoding')
 
     // Detect conflicting length headers
-    if (contentLength && transferEncoding) {
+    if (contentLength !== null && transferEncoding !== null) {
       return HttpResponse.json({ error: 'Conflicting length headers' }, { status: 400 })
     }
 
     // Detect malformed content-length
-    if (contentLength) {
-      const length = Number.parseInt(contentLength)
-      if (Number.isNaN(length) || length < 0) {
+    if (contentLength !== null) {
+      const length = parseContentLength(contentLength)
+      if (length === null) {
         return HttpResponse.json({ error: 'Invalid Content-Length' }, { status: 400 })
       }
     }
@@ -407,9 +417,7 @@ export const securityTestHandlers: HttpHandler[] = [
     // Detect various bypass attempts
     const bypassAttempts = [
       xForwardedFor?.includes(','), // Multiple IPs in X-Forwarded-For
-      userAgent
-        ?.toLowerCase()
-        .includes('bot'), // User-Agent manipulation
+      userAgent?.toLowerCase().includes('bot'), // User-Agent manipulation
       xRealIp && xForwardedFor && xRealIp !== xForwardedFor, // IP header inconsistency
       request.headers.has('CF-Connecting-IP'), // Cloudflare header spoofing
       request.headers.has('X-Vercel-Forwarded-For'), // Vercel header spoofing

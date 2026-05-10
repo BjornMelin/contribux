@@ -6,7 +6,7 @@
  */
 
 // MSW polyfill for Node.js environment - ensure TransformStream is globally available
-// @ts-ignore - Node.js 22+ has built-in TransformStream, ensure it's always accessible for MSW
+// @ts-expect-error - Node.js 22+ has built-in TransformStream, ensure it's always accessible for MSW
 if (typeof TransformStream !== 'undefined') {
   globalThis.TransformStream = TransformStream
 }
@@ -22,7 +22,7 @@ import { mockGitHubAPI, resetGitHubMocks } from '../helpers/msw-setup'
  * Central MSW server instance for test environment
  * Uses GitHub-specific server for edge case test compatibility
  */
-export { mswServer, resetGitHubMocks, mockGitHubAPI }
+export { mockGitHubAPI, mswServer, resetGitHubMocks }
 
 /**
  * Enhanced MSW setup with automatic cleanup for Vitest 3.2+

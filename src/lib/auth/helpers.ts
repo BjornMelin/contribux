@@ -75,7 +75,7 @@ const LogSecurityEventSchema = z.object({
     event_type: z.string().min(1, 'Event type cannot be empty'),
     event_severity: z.enum(['info', 'warning', 'error', 'critical']),
     user_id: z.string().uuid('User ID must be a valid UUID').optional(),
-    event_data: z.record(z.unknown()).optional(),
+    event_data: z.record(z.string(), z.unknown()).optional(),
     success: z.boolean(),
     error_message: z.string().optional(),
   }),

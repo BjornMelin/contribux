@@ -639,7 +639,7 @@ export const GitHubApiResponseSchema = <T extends z.ZodTypeAny>(dataSchema: T) =
   z.object({
     data: dataSchema,
     status: z.number().int().min(200).max(299),
-    headers: z.record(z.string()).optional(),
+    headers: z.record(z.string(), z.string()).optional(),
     url: z.string().url().optional(),
   })
 
@@ -744,4 +744,4 @@ export const GitHubIntegrationConfigSchema = z.object({
 /**
  * Re-export commonly used transformation functions
  */
-export { transformGitHubRepository, transformGitHubIssue, transformGitHubSearchResults }
+export { transformGitHubIssue, transformGitHubRepository, transformGitHubSearchResults }

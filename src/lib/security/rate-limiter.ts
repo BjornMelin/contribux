@@ -247,6 +247,8 @@ interface PathRoute {
   limiter: ReturnType<typeof createRateLimiter>
 }
 
+const AUTH_BOOTSTRAP_ENDPOINTS = ['/api/auth/csrf', '/api/auth/providers', '/api/auth/session']
+
 /**
  * Route table for path-based rate limiter selection
  * Ordered by specificity (most specific first)
@@ -256,6 +258,11 @@ const RATE_LIMIT_ROUTES: PathRoute[] = [
     pattern: '/api/security/webauthn/',
     limiterType: 'webauthn',
     limiter: webauthnRateLimiter,
+  },
+  {
+    pattern: AUTH_BOOTSTRAP_ENDPOINTS,
+    limiterType: 'api',
+    limiter: apiRateLimiter,
   },
   {
     pattern: '/api/auth/',
@@ -293,7 +300,7 @@ const RATE_LIMIT_ROUTES: PathRoute[] = [
     limiter: demoRateLimiter,
   },
   {
-    pattern: ['/api/health/', '/api/simple-health/'],
+    pattern: ['/api/health', '/api/health/', '/api/simple-health', '/api/simple-health/'],
     limiterType: 'public',
     limiter: publicRateLimiter,
   },
@@ -307,14 +314,22 @@ const RATE_LIMIT_ROUTES: PathRoute[] = [
 /**
  * Find rate limiter for given path using strategy pattern
  */
+function pathMatchesPattern(path: string, pattern: string): boolean {
+  if (pattern.endsWith('/')) {
+    return path.startsWith(pattern)
+  }
+
+  return path === pattern || path.startsWith(`${pattern}/`)
+}
+
 function findLimiterForPath(path: string): PathRoute | null {
   for (const route of RATE_LIMIT_ROUTES) {
     if (Array.isArray(route.pattern)) {
-      if (route.pattern.some(p => path.startsWith(p) || path.includes(p))) {
+      if (route.pattern.some(pattern => pathMatchesPattern(path, pattern))) {
         return route
       }
     } else {
-      if (path.startsWith(route.pattern)) {
+      if (pathMatchesPattern(path, route.pattern)) {
         return route
       }
     }
@@ -522,44 +537,9 @@ export function getRateLimiterForEndpoint(path: string): {
   config: (typeof rateLimitConfigs)[keyof typeof rateLimitConfigs]
   type: keyof typeof rateLimitConfigs
 } {
-  let limiter: ReturnType<typeof createRateLimiter>
-  let type: keyof typeof rateLimitConfigs
-
-  if (path.startsWith('/api/auth/')) {
-    limiter = authRateLimiter
-    type = 'auth'
-  } else if (path.startsWith('/api/security/webauthn/')) {
-    limiter = webauthnRateLimiter
-    type = 'webauthn'
-  } else if (path.startsWith('/api/security/')) {
-    limiter = securityRateLimiter
-    type = 'security'
-  } else if (path.startsWith('/api/webhooks/')) {
-    limiter = webhookRateLimiter
-    type = 'webhook'
-  } else if (path.startsWith('/api/search/')) {
-    limiter = searchRateLimiter
-    type = 'search'
-  } else if (path.startsWith('/api/admin/') || path.includes('/admin/')) {
-    limiter = adminRateLimiter
-    type = 'admin'
-  } else if (
-    path.startsWith('/api/analytics/') ||
-    path.startsWith('/api/metrics/') ||
-    path.startsWith('/api/monitoring/')
-  ) {
-    limiter = analyticsRateLimiter
-    type = 'analytics'
-  } else if (path.startsWith('/api/demo/')) {
-    limiter = demoRateLimiter
-    type = 'demo'
-  } else if (path.startsWith('/api/health/') || path.startsWith('/api/simple-health/')) {
-    limiter = publicRateLimiter
-    type = 'public'
-  } else {
-    limiter = apiRateLimiter
-    type = 'api'
-  }
+  const route = findLimiterForPath(path)
+  const type = route?.limiterType ?? 'api'
+  const limiter = route?.limiter ?? apiRateLimiter
 
   return {
     limiter,

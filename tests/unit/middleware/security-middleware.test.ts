@@ -441,8 +441,8 @@ describe('Security Middleware Tests', () => {
     it('should validate query parameters', async () => {
       const middleware = requestValidationMiddleware({
         query: z.object({
-          page: z.coerce.number().int().positive(),
-          limit: z.coerce.number().int().min(1).max(100),
+          page: z.coerce.number<string>().int().positive(),
+          limit: z.coerce.number<string>().int().min(1).max(100),
         }),
       })
 

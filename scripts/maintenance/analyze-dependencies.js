@@ -101,7 +101,6 @@ function getKnownBuildTools() {
     'commander',
     'nock',
     'undici',
-    'vite-tsconfig-paths',
     '@fast-check/vitest',
     '@peculiar/webcrypto',
     '@tailwindcss/postcss',

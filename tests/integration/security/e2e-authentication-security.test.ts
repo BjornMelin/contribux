@@ -13,9 +13,9 @@
  */
 
 import { HttpResponse, http } from 'msw'
-import { setupServer } from 'msw/node'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
+import { getMockManager, useMSWHandlers } from '../../setup-integration-enhanced'
 import { apiTestUtils } from '../api/utils/api-test-utilities'
 
 // Enhanced security schemas for comprehensive validation
@@ -25,7 +25,7 @@ const SecureSessionSchema = z.object({
   expiresAt: z.string().datetime(),
   issuedAt: z.string().datetime(),
   securityLevel: z.enum(['basic', 'mfa', 'enhanced']),
-  ipAddress: z.string().ip(),
+  ipAddress: z.union([z.ipv4(), z.ipv6()]),
   userAgent: z.string().min(1),
   deviceFingerprint: z.string().optional(),
   csrfToken: z.string().min(32),
@@ -87,23 +87,20 @@ const SecurityAuditEventSchema = z.object({
   userId: z.string().uuid().optional(),
   sessionId: z.string().uuid().optional(),
   timestamp: z.string().datetime(),
-  ipAddress: z.string().ip(),
+  ipAddress: z.union([z.ipv4(), z.ipv6()]),
   userAgent: z.string(),
-  details: z.record(z.any()),
+  details: z.record(z.string(), z.any()),
   riskScore: z.number().min(0).max(100),
   actionTaken: z.string().optional(),
 })
 
 // Test setup
-const server = setupServer()
 const performanceTracker = new apiTestUtils.performanceTracker()
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
 afterEach(() => {
-  server.resetHandlers()
+  getMockManager()?.resetMSWHandlers()
   performanceTracker.clear()
 })
-afterAll(() => server.close())
 
 describe('End-to-End Authentication Security Integration', () => {
   let securityAuditLog: z.infer<typeof SecurityAuditEventSchema>[] = []
@@ -124,7 +121,7 @@ describe('End-to-End Authentication Security Integration', () => {
       const codeChallenge = Buffer.from(codeVerifier).toString('base64url')
       const sessionBinding = apiTestUtils.dataGenerator.generateUUID()
 
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/auth/signin/github', ({ request }) => {
           const url = new URL(request.url)
           const state = url.searchParams.get('state')
@@ -188,7 +185,7 @@ describe('End-to-End Authentication Security Integration', () => {
       const validState = apiTestUtils.dataGenerator.generateRandomString(32)
       const invalidState = 'invalid-state'
 
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/auth/callback/github', ({ request }) => {
           const url = new URL(request.url)
           const state = url.searchParams.get('state')
@@ -277,7 +274,7 @@ describe('End-to-End Authentication Security Integration', () => {
       ]
       const maliciousRedirectUri = 'https://evil-site.com/steal-tokens'
 
-      server.use(
+      useMSWHandlers(
         http.post('http://localhost:3000/api/auth/validate-redirect', async ({ request }) => {
           const body = await request.json()
           const { redirectUri } = body as { redirectUri: string }
@@ -343,7 +340,7 @@ describe('End-to-End Authentication Security Integration', () => {
       const ipAddress = '192.168.1.100'
       const userAgent = 'Mozilla/5.0 (compatible test browser)'
 
-      server.use(
+      useMSWHandlers(
         http.post('http://localhost:3000/api/auth/create-session', async ({ request }) => {
           const body = await request.json()
           const { userId: requestUserId, ipAddress: requestIp, userAgent: requestUserAgent } = body
@@ -435,7 +432,7 @@ describe('End-to-End Authentication Security Integration', () => {
       const sessionId = apiTestUtils.dataGenerator.generateUUID()
       const suspiciousIp = '127.0.0.1' // Different from usual IP
 
-      server.use(
+      useMSWHandlers(
         http.post(
           'http://localhost:3000/api/auth/evaluate-mfa-requirement',
           async ({ request }) => {
@@ -515,7 +512,7 @@ describe('End-to-End Authentication Security Integration', () => {
       const userId = apiTestUtils.dataGenerator.generateUUID()
       const secret = apiTestUtils.dataGenerator.generateRandomString(32)
 
-      server.use(
+      useMSWHandlers(
         http.post('http://localhost:3000/api/auth/mfa/enroll/totp', async ({ request }) => {
           const body = await request.json()
           const { userId: requestUserId } = body
@@ -540,6 +537,7 @@ describe('End-to-End Authentication Security Integration', () => {
             success: true,
             data: {
               enrollment,
+              backupCodes: enrollment.backupCodes,
               totpSecret: secret,
               qrCodeUrl: `https://chart.googleapis.com/chart?chs=200x200&chld=M|0&cht=qr&chl=otpauth://totp/Contribux?secret=${secret}`,
             },
@@ -701,7 +699,7 @@ describe('End-to-End Authentication Security Integration', () => {
 
       activeSessions.set(originalSessionId, originalSession)
 
-      server.use(
+      useMSWHandlers(
         http.post('http://localhost:3000/api/auth/rotate-session', async ({ request }) => {
           const body = await request.json()
           const { sessionId, reason } = body
@@ -810,7 +808,7 @@ describe('End-to-End Authentication Security Integration', () => {
       const userId = apiTestUtils.dataGenerator.generateUUID()
       const maxConcurrentSessions = 3
 
-      server.use(
+      useMSWHandlers(
         http.post(
           'http://localhost:3000/api/auth/validate-concurrent-sessions',
           async ({ request }) => {

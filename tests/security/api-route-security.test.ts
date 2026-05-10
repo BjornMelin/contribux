@@ -59,8 +59,8 @@ const securityServer = setupServer(
   http.get('http://localhost:3000/api/search/repositories', ({ request }) => {
     const url = new URL(request.url)
     const query = url.searchParams.get('q') || ''
-    const page = Number.parseInt(url.searchParams.get('page') || '1')
-    const limit = Number.parseInt(url.searchParams.get('limit') || '20')
+    const page = Number.parseInt(url.searchParams.get('page') || '1', 10)
+    const limit = Number.parseInt(url.searchParams.get('limit') || '20', 10)
 
     // Rate limiting check
     const clientId = request.headers.get('x-forwarded-for') || 'unknown'
@@ -340,7 +340,7 @@ const securityServer = setupServer(
     }
 
     // Simulate file size check
-    const contentLength = Number.parseInt(request.headers.get('content-length') || '0')
+    const contentLength = Number.parseInt(request.headers.get('content-length') || '0', 10)
     const maxFileSize = 5 * 1024 * 1024 // 5MB
 
     if (contentLength > maxFileSize) {

@@ -2,69 +2,56 @@
  * Demo authentication providers for development environment only
  *
  * SECURITY: These providers are strictly for development use and should never
- * be included in production builds. They use mock OAuth endpoints and simulate
- * authentication flows without actual OAuth verification.
+ * be included in production builds. They use NextAuth.js provider factories with
+ * demo credentials so local and E2E auth flows exercise the same URL generation
+ * path as production without requiring real secrets.
  */
 
 import type { AuthOptions } from 'next-auth'
+import GitHub from 'next-auth/providers/github'
+import Google from 'next-auth/providers/google'
 
 type Provider = AuthOptions['providers'][number]
 
-/**
- * Demo GitHub provider that simulates OAuth flow
- * Uses mock endpoints and predefined user data
- */
-export const GitHubDemoProvider: Provider = {
-  id: 'github',
-  name: 'GitHub',
-  type: 'oauth' as const,
-  // Mock OAuth endpoints - these don't perform actual OAuth
-  authorization: {
-    url: 'javascript:void(0)',
-    params: { scope: 'read:user user:email' },
-  },
-  token: 'javascript:void(0)',
-  userinfo: 'javascript:void(0)',
-  clientId: 'demo-github-client-id',
-  clientSecret: 'demo-github-client-secret',
-  profile(_profile: Record<string, unknown>) {
-    return {
-      id: 'demo-github-123',
-      name: 'Demo GitHub User',
-      email: 'demo@github.com',
-      image: 'https://github.com/github.png',
-      emailVerified: new Date(),
+function firstConfiguredEnv(...names: string[]): string | undefined {
+  for (const name of names) {
+    const value = process.env[name]
+    if (value) {
+      return value
     }
-  },
+  }
+  return undefined
 }
 
 /**
- * Demo Google provider that simulates OAuth flow
- * Uses mock endpoints and predefined user data
+ * Demo GitHub provider that uses NextAuth's native GitHub OAuth configuration.
  */
-export const GoogleDemoProvider: Provider = {
-  id: 'google',
-  name: 'Google',
-  type: 'oauth' as const,
-  // Mock OAuth endpoints - these don't perform actual OAuth
+export const GitHubDemoProvider: Provider = GitHub({
+  clientId:
+    firstConfiguredEnv('AUTH_GITHUB_ID', 'AUTH_GITHUB_CLIENT_ID', 'GITHUB_CLIENT_ID') ||
+    'demo-github-client-id',
+  clientSecret:
+    firstConfiguredEnv('AUTH_GITHUB_SECRET', 'AUTH_GITHUB_CLIENT_SECRET', 'GITHUB_CLIENT_SECRET') ||
+    'demo-github-client-secret',
   authorization: {
-    url: 'javascript:void(0)',
+    params: { scope: 'read:user user:email' },
+  },
+})
+
+/**
+ * Demo Google provider that uses NextAuth's native Google OAuth configuration.
+ */
+export const GoogleDemoProvider: Provider = Google({
+  clientId:
+    firstConfiguredEnv('AUTH_GOOGLE_ID', 'AUTH_GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_ID') ||
+    'demo-google-client-id',
+  clientSecret:
+    firstConfiguredEnv('AUTH_GOOGLE_SECRET', 'AUTH_GOOGLE_CLIENT_SECRET', 'GOOGLE_CLIENT_SECRET') ||
+    'demo-google-client-secret',
+  authorization: {
     params: { scope: 'openid email profile' },
   },
-  token: 'javascript:void(0)',
-  userinfo: 'javascript:void(0)',
-  clientId: 'demo-google-client-id',
-  clientSecret: 'demo-google-client-secret',
-  profile(_profile: Record<string, unknown>) {
-    return {
-      id: 'demo-google-456',
-      name: 'Demo Google User',
-      email: 'demo@google.com',
-      image: 'https://lh3.googleusercontent.com/a/default-user=s96-c',
-      emailVerified: new Date(),
-    }
-  },
-}
+})
 
 /**
  * Get all demo providers

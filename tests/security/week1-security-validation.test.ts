@@ -15,9 +15,10 @@ import {
   apiRateLimiter,
   authRateLimiter,
   checkRateLimit,
+  rateLimitConfigs,
   searchRateLimiter,
 } from '@/lib/security/rate-limiter'
-import { middleware } from '@/middleware'
+import { proxy } from '@/proxy'
 
 // Mock Upstash for rate limiting tests
 vi.mock('@upstash/redis', () => ({
@@ -112,8 +113,8 @@ describe('Week 1 Security Validation - Integration Test', () => {
       const result = await checkRateLimit(authRateLimiter, 'test-user-123')
 
       expect(result.success).toBe(true)
-      expect(result.limit).toBe(100)
-      expect(result.remaining).toBe(100)
+      expect(result.limit).toBe(rateLimitConfigs.auth.max)
+      expect(result.remaining).toBe(rateLimitConfigs.auth.max - 1)
       expect(result.reset).toBeInstanceOf(Date)
       expect(result.retryAfter).toBeNull()
     })
@@ -183,10 +184,10 @@ describe('Week 1 Security Validation - Integration Test', () => {
       const nonce = generateNonce()
       const csp = buildCSP(defaultCSPDirectives, nonce)
 
-      // Should include nonce in script-src and style-src
+      // Should include nonce in script-src while keeping styles compatible with framework injection.
       expect(csp).toContain(`'nonce-${nonce}'`)
       expect(csp).toMatch(/script-src[^;]*'nonce-[A-Za-z0-9_-]+'/)
-      expect(csp).toMatch(/style-src[^;]*'nonce-[A-Za-z0-9_-]+'/)
+      expect(csp).not.toMatch(/style-src[^;]*'nonce-[A-Za-z0-9_-]+'/)
 
       // Should have all security directives
       expect(csp).toContain("default-src 'self'")
@@ -206,7 +207,7 @@ describe('Week 1 Security Validation - Integration Test', () => {
 
       // Check allowed resources
       expect(csp).toContain('https://api.github.com') // GitHub API
-      expect(csp).toContain('https://vercel.live') // Vercel Live
+      expect(csp).toContain('https://*.vercel.app') // Vercel deployments
       expect(csp).toContain('https://fonts.googleapis.com') // Google Fonts
     })
   })
@@ -222,7 +223,7 @@ describe('Week 1 Security Validation - Integration Test', () => {
       })
 
       // Call middleware
-      const response = await middleware(request)
+      const response = await proxy(request)
 
       // Check CSP header is present
       const cspHeader = response.headers.get('Content-Security-Policy')
@@ -315,7 +316,7 @@ describe('Week 1 Security Validation - Integration Test', () => {
 
       for (const path of testPaths) {
         const request = new NextRequest(`https://contribux.vercel.app${path}`)
-        const response = await middleware(request)
+        const response = await proxy(request)
 
         // All responses should have security headers
         expect(response.headers.get('X-Frame-Options')).toBeTruthy()

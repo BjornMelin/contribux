@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.1.1/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.4.15/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -7,7 +7,15 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["**/src/**/*", "**/tests/**/*", "**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"]
+    "includes": [
+      "**/src/**/*",
+      "**/tests/**/*",
+      "**/*.ts",
+      "**/*.tsx",
+      "**/*.js",
+      "**/*.jsx",
+      "!next-env.d.ts"
+    ]
   },
   "formatter": {
     "enabled": true,
@@ -162,7 +170,8 @@
   },
   "css": {
     "parser": {
-      "cssModules": true
+      "cssModules": true,
+      "tailwindDirectives": true
     },
     "linter": {
       "enabled": true
@@ -225,7 +234,7 @@
         "**/tests/**/*"
       ],
       "javascript": {
-        "globals": ["$1", "vi"]
+        "globals": ["vi"]
       },
       "linter": {
         "rules": {

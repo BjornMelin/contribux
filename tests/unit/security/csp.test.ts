@@ -50,7 +50,7 @@ describe('CSP Builder', () => {
       expect(csp).toContain(`script-src 'self' 'nonce-${nonce}'`)
     })
 
-    it('should add nonce to style-src when provided', () => {
+    it('should not add nonce to style-src when provided', () => {
       const directives = {
         'style-src': ["'self'"],
       }
@@ -58,7 +58,8 @@ describe('CSP Builder', () => {
       const nonce = 'test-nonce-456'
       const csp = buildCSP(directives, nonce)
 
-      expect(csp).toContain(`style-src 'self' 'nonce-${nonce}'`)
+      expect(csp).toContain("style-src 'self'")
+      expect(csp).not.toContain(`style-src 'self' 'nonce-${nonce}'`)
     })
 
     it('should handle empty directives', () => {
@@ -217,7 +218,7 @@ describe('CSP Builder', () => {
       const nonce = generateNonce()
       const csp = buildCSP(defaultCSPDirectives, nonce)
 
-      // Should include nonce in script-src and style-src
+      // Should include nonce in script-src
       expect(csp).toContain("script-src 'self'")
       expect(csp).toContain(`'nonce-${nonce}'`)
 

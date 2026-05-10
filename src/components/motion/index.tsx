@@ -1,141 +1,129 @@
 'use client'
 
 /**
- * Optimized Motion Component System
- * Lazy-loaded Framer Motion components for reduced initial bundle size
+ * Motion Component System
+ * Thin wrappers around Framer Motion components.
  */
 
-// Type-only import for SSR safety
-import type { MotionProps } from 'framer-motion'
-import React, { lazy, Suspense } from 'react'
+import {
+  AnimatePresence as FramerAnimatePresence,
+  type HTMLMotionProps,
+  motion,
+} from 'framer-motion'
+import React from 'react'
 
-// Fallback component for loading states
-const MotionFallback: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div style={{ opacity: 0.8 }}>{children}</div>
-)
+const motionOnlyProps = new Set([
+  'animate',
+  'drag',
+  'dragConstraints',
+  'dragControls',
+  'dragElastic',
+  'dragMomentum',
+  'dragPropagation',
+  'dragSnapToOrigin',
+  'dragTransition',
+  'exit',
+  'initial',
+  'layout',
+  'layoutDependency',
+  'layoutId',
+  'onAnimationComplete',
+  'onDrag',
+  'onDragEnd',
+  'onDragStart',
+  'onDragTransitionEnd',
+  'onDirectionLock',
+  'onUpdate',
+  'transition',
+  'variants',
+  'viewport',
+  'whileDrag',
+  'whileFocus',
+  'whileHover',
+  'whileInView',
+  'whileTap',
+])
 
-// Lazy-loaded motion components with proper typing
-const LazyMotionDiv = lazy(() =>
-  typeof window === 'undefined'
-    ? Promise.resolve({ default: MotionFallback })
-    : import('framer-motion').then(mod => ({
-        default: mod.motion.div,
-      }))
-)
+function toDomProps<TDomProps>(props: Record<string, unknown>): TDomProps {
+  return Object.fromEntries(
+    Object.entries(props).filter(([key]) => !motionOnlyProps.has(key))
+  ) as TDomProps
+}
 
-const LazyMotionButton = lazy(() =>
-  typeof window === 'undefined'
-    ? Promise.resolve({ default: MotionFallback })
-    : import('framer-motion').then(mod => ({
-        default: mod.motion.button,
-      }))
-)
-
-const LazyMotionSpan = lazy(() =>
-  typeof window === 'undefined'
-    ? Promise.resolve({ default: MotionFallback })
-    : import('framer-motion').then(mod => ({
-        default: mod.motion.span,
-      }))
-)
-
-const LazyAnimatePresence = lazy(() =>
-  typeof window === 'undefined'
-    ? Promise.resolve({ default: MotionFallback })
-    : import('framer-motion').then(mod => ({
-        default: mod.AnimatePresence,
-      }))
-)
-
-// Optimized motion wrapper
-export interface OptimizedMotionProps extends MotionProps {
-  children?: React.ReactNode
-  className?: string
-  fallback?: React.ReactNode
+interface MotionControlProps {
   enableMotion?: boolean
 }
 
-// Motion div with lazy loading
-export const MotionDiv: React.FC<OptimizedMotionProps> = ({
-  children,
-  fallback,
-  enableMotion = true,
-  ...props
-}) => {
-  if (!enableMotion) {
-    return <div className={props.className}>{children}</div>
+type MotionDivProps = Omit<HTMLMotionProps<'div'>, 'children'> &
+  MotionControlProps & {
+    children?: React.ReactNode
+  }
+type MotionButtonProps = Omit<HTMLMotionProps<'button'>, 'children'> &
+  MotionControlProps & {
+    children?: React.ReactNode
+  }
+type MotionSpanProps = Omit<HTMLMotionProps<'span'>, 'children'> &
+  MotionControlProps & {
+    children?: React.ReactNode
   }
 
-  return (
-    <Suspense
-      fallback={fallback || (children ? <MotionFallback>{children}</MotionFallback> : <div />)}
-    >
-      <LazyMotionDiv {...props}>{children}</LazyMotionDiv>
-    </Suspense>
-  )
-}
-
-// Motion button with lazy loading
-export const MotionButton: React.FC<OptimizedMotionProps> = ({
+// Motion div wrapper
+export const MotionDiv: React.FC<MotionDivProps> = ({
   children,
-  fallback,
   enableMotion = true,
   ...props
 }) => {
   if (!enableMotion) {
+    return <div {...toDomProps<React.HTMLAttributes<HTMLDivElement>>(props)}>{children}</div>
+  }
+
+  return <motion.div {...props}>{children}</motion.div>
+}
+
+// Motion button wrapper
+export const MotionButton: React.FC<MotionButtonProps> = ({
+  children,
+  enableMotion = true,
+  ...props
+}) => {
+  if (!enableMotion) {
+    const domProps = toDomProps<React.ButtonHTMLAttributes<HTMLButtonElement>>(props)
     return (
-      <button type="button" className={props.className}>
+      <button type="button" {...domProps}>
         {children}
       </button>
     )
   }
 
   return (
-    <Suspense
-      fallback={
-        fallback ||
-        (children ? <MotionFallback>{children}</MotionFallback> : <button type="button" />)
-      }
-    >
-      <LazyMotionButton {...props}>{children}</LazyMotionButton>
-    </Suspense>
+    <motion.button type="button" {...props}>
+      {children}
+    </motion.button>
   )
 }
 
-// Motion span with lazy loading
-export const MotionSpan: React.FC<OptimizedMotionProps> = ({
+// Motion span wrapper
+export const MotionSpan: React.FC<MotionSpanProps> = ({
   children,
-  fallback,
   enableMotion = true,
   ...props
 }) => {
   if (!enableMotion) {
-    return <span className={props.className}>{children}</span>
+    return <span {...toDomProps<React.HTMLAttributes<HTMLSpanElement>>(props)}>{children}</span>
   }
 
-  return (
-    <Suspense
-      fallback={fallback || (children ? <MotionFallback>{children}</MotionFallback> : <span />)}
-    >
-      <LazyMotionSpan {...props}>{children}</LazyMotionSpan>
-    </Suspense>
-  )
+  return <motion.span {...props}>{children}</motion.span>
 }
 
-// AnimatePresence wrapper with lazy loading
-export const OptimizedAnimatePresence: React.FC<{
+// AnimatePresence wrapper
+export const AnimatePresenceWrapper: React.FC<{
   children: React.ReactNode
   mode?: 'wait' | 'sync' | 'popLayout'
 }> = ({ children, mode = 'wait' }) => {
-  return (
-    <Suspense fallback={children}>
-      <LazyAnimatePresence {...(mode ? { mode } : {})}>{children}</LazyAnimatePresence>
-    </Suspense>
-  )
+  return <FramerAnimatePresence mode={mode}>{children}</FramerAnimatePresence>
 }
 
-// Export alias for compatibility
-export const AnimatePresence = OptimizedAnimatePresence
+export const AnimatePresence = AnimatePresenceWrapper
 
 // Common animation presets
 export const animationPresets = {

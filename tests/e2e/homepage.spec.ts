@@ -22,14 +22,16 @@ test.describe('Homepage Tests', () => {
     await page.waitForLoadState('domcontentloaded')
     await page.waitForLoadState('networkidle')
 
-    // Check for main heading
-    await expect(page.locator('h1')).toContainText('Welcome to Contribux')
-
-    // Check for technology stack information
+    // Check for current main heading
     await expect(
-      page.locator('text=Next.js 15 • TypeScript • Tailwind CSS • App Router')
+      page.getByRole('heading', { level: 1, name: /Find Your Perfect\s+Open Source Match/ })
     ).toBeVisible()
-    await expect(page.locator('text=Modern web application with PWA support')).toBeVisible()
+
+    // Check for the primary product signals and actions
+    await expect(page.getByText('AI-Powered Open Source Discovery')).toBeVisible()
+    await expect(page.getByText(/Discover repositories that match your skills/)).toBeVisible()
+    await expect(page.getByRole('link', { name: /Sign in with GitHub/ })).toBeVisible()
+    await expect(page.getByRole('link', { name: /Try Demo Search/ })).toBeVisible()
 
     // Check that no console errors occurred
     if (errors.length > 0) {
@@ -45,16 +47,22 @@ test.describe('Homepage Tests', () => {
     await page.goto('/')
 
     // Check main layout structure
-    const main = page.locator('main')
+    const main = page.getByRole('main')
     await expect(main).toBeVisible()
-    await expect(main).toHaveClass(/flex min-h-screen/)
+    await expect(main).toHaveClass(/min-h-screen/)
 
     // Check heading styling
-    const heading = page.locator('h1')
-    await expect(heading).toHaveClass(/text-center font-bold text-4xl/)
+    const heading = page.getByRole('heading', {
+      level: 1,
+      name: /Find Your Perfect\s+Open Source Match/,
+    })
+    await expect(heading).toHaveClass(/text-5xl/)
 
-    // Check for responsive layout classes - be more specific about which div
-    await expect(page.locator('div.z-10.w-full.max-w-5xl')).toBeVisible()
+    // Check current feature and demo sections render.
+    await expect(page.getByRole('heading', { level: 3, name: 'AI-Powered Matching' })).toBeVisible()
+    await expect(
+      page.getByRole('heading', { level: 2, name: 'Optimized API Integration Demo' })
+    ).toBeVisible()
   })
 
   test('should be responsive on mobile', async ({ page }) => {
@@ -63,23 +71,24 @@ test.describe('Homepage Tests', () => {
     await page.goto('/')
 
     // Check that content is still visible and properly arranged
-    await expect(page.locator('h1')).toBeVisible()
     await expect(
-      page.locator('text=Next.js 15 • TypeScript • Tailwind CSS • App Router')
+      page.getByRole('heading', { level: 1, name: /Find Your Perfect\s+Open Source Match/ })
     ).toBeVisible()
+    await expect(page.getByRole('link', { name: /Try Demo Search/ })).toBeVisible()
 
     // Take mobile screenshot
     await page.screenshot({ path: 'test-results/homepage-mobile.png', fullPage: true })
   })
 
-  test('should have proper dark mode support', async ({ page }) => {
+  test('should remain usable with dark color scheme enabled', async ({ page }) => {
+    await page.emulateMedia({ colorScheme: 'dark' })
     await page.goto('/')
+    await page.evaluate(() => document.documentElement.classList.add('dark'))
 
-    // Check for dark mode classes
-    const darkModeElement = page.locator('.dark\\:bg-gray-800')
-    await expect(darkModeElement).toBeVisible()
-
-    const darkTextElement = page.locator('.dark\\:text-gray-400')
-    await expect(darkTextElement).toBeVisible()
+    await expect(
+      page.getByRole('heading', { level: 1, name: /Find Your Perfect\s+Open Source Match/ })
+    ).toBeVisible()
+    await expect(page.getByRole('link', { name: /Sign in with GitHub/ })).toBeVisible()
+    await expect(page.getByRole('main')).toHaveClass(/from-background/)
   })
 })

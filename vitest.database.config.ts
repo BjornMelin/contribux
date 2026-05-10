@@ -1,18 +1,18 @@
 import { cpus } from 'node:os'
 import path from 'node:path'
 import react from '@vitejs/plugin-react'
-import tsconfigPaths from 'vite-tsconfig-paths'
 import { configDefaults, defineConfig } from 'vitest/config'
 
 export default defineConfig({
   cacheDir: '.vitest/cache-database',
 
-  plugins: [tsconfigPaths(), react()],
+  plugins: [react()],
 
   resolve: {
+    tsconfigPaths: true,
     alias: {
       '@': path.resolve(__dirname, './src'),
-      'next/server': path.resolve(__dirname, 'node_modules/next/dist/server/index.js'),
+      'next/server': path.resolve(__dirname, 'node_modules/next/server.js'),
       'next/headers': path.resolve(
         __dirname,
         'node_modules/next/dist/client/components/headers.js'
@@ -59,15 +59,8 @@ export default defineConfig({
 
     // Optimized execution for database tests with connection pooling
     pool: 'threads',
-    poolOptions: {
-      threads: {
-        singleThread: false, // Enable parallelization
-        minThreads: 1,
-        maxThreads: Math.min(3, cpus().length), // Limited for database tests to avoid connection conflicts
-        // Use pool isolation to prevent database connection conflicts
-        isolate: true,
-      },
-    },
+    maxWorkers: Math.min(3, cpus().length), // Limited for database tests to avoid connection conflicts
+    isolate: true,
 
     // Reasonable timeouts with retry logic
     testTimeout: 15000, // Reduced from 20s
@@ -100,7 +93,6 @@ export default defineConfig({
     },
 
     // Improved memory management
-    maxWorkers: Math.min(3, cpus().length),
     logHeapUsage: true,
   },
 })

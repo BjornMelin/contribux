@@ -69,7 +69,7 @@ export const ErrorClassificationSchema = z.object({
   recoveryStrategies: z.array(z.nativeEnum(RecoveryStrategy)),
   userMessage: z.string(),
   technicalDetails: z.string().optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 })
 
 // Error classification type

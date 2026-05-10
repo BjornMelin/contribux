@@ -542,18 +542,18 @@ export function getCache(): AdvancedCache {
       redis: {
         url: process.env.REDIS_URL,
         enabled: !!process.env.REDIS_URL,
-        maxRetryTime: Number.parseInt(process.env.REDIS_MAX_RETRY_TIME || '30000'),
-        retryDelayOnFailover: Number.parseInt(process.env.REDIS_RETRY_DELAY || '100'),
-        maxRetriesPerRequest: Number.parseInt(process.env.REDIS_MAX_RETRIES || '3'),
+        maxRetryTime: Number.parseInt(process.env.REDIS_MAX_RETRY_TIME || '30000', 10),
+        retryDelayOnFailover: Number.parseInt(process.env.REDIS_RETRY_DELAY || '100', 10),
+        maxRetriesPerRequest: Number.parseInt(process.env.REDIS_MAX_RETRIES || '3', 10),
       },
       memory: {
         enabled: true,
-        maxSize: Number.parseInt(process.env.CACHE_MEMORY_SIZE || '100'),
-        ttl: Number.parseInt(process.env.CACHE_DEFAULT_TTL || '300'),
+        maxSize: Number.parseInt(process.env.CACHE_MEMORY_SIZE || '100', 10),
+        ttl: Number.parseInt(process.env.CACHE_DEFAULT_TTL || '300', 10),
       },
       edge: {
         enabled: process.env.NODE_ENV === 'production',
-        ttl: Number.parseInt(process.env.CACHE_EDGE_TTL || '3600'),
+        ttl: Number.parseInt(process.env.CACHE_EDGE_TTL || '3600', 10),
       },
     })
   }
@@ -593,4 +593,4 @@ export function cached<T extends (...args: unknown[]) => Promise<unknown>>(
   }
 }
 
-export { AdvancedCache, type CacheOptions, type CacheMetrics }
+export { AdvancedCache, type CacheMetrics, type CacheOptions }

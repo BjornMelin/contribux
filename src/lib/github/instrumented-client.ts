@@ -224,8 +224,8 @@ export class InstrumentedGitHubClient extends GitHubClient {
           const duration = Date.now() - startTime
           span.setAttributes({
             'github.user.login': result.login,
-            'github.user.public_repos': result.public_repos,
-            'github.user.followers': result.followers,
+            'github.user.public_repos': result.public_repos ?? 0,
+            'github.user.followers': result.followers ?? 0,
           })
 
           telemetryLogger.githubApi('Current user retrieved', {

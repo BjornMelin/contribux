@@ -1,18 +1,18 @@
 import { cpus } from 'node:os'
 import path from 'node:path'
 import react from '@vitejs/plugin-react'
-import tsconfigPaths from 'vite-tsconfig-paths'
 import { configDefaults, defineConfig } from 'vitest/config'
 
 export default defineConfig({
   cacheDir: '.vitest/cache',
 
-  plugins: [tsconfigPaths(), react()],
+  plugins: [react()],
 
   resolve: {
+    tsconfigPaths: true,
     alias: {
       '@': path.resolve(__dirname, './src'),
-      'next/server': path.resolve(__dirname, 'node_modules/next/dist/server/web/exports/index.js'),
+      'next/server': path.resolve(__dirname, 'node_modules/next/server.js'),
       'next/headers': path.resolve(
         __dirname,
         'node_modules/next/dist/client/components/headers.js'
@@ -65,15 +65,8 @@ export default defineConfig({
 
     // Optimized pool configuration for fast mock tests
     pool: 'threads',
-    poolOptions: {
-      threads: {
-        singleThread: false,
-        minThreads: 1,
-        maxThreads: Math.min(2, cpus().length), // Reduced for faster startup
-        useAtomics: true,
-        isolate: true,
-      },
-    },
+    maxWorkers: Math.min(2, cpus().length), // Reduced for faster startup
+    isolate: true,
 
     // Coverage configuration
     coverage: {
@@ -115,6 +108,8 @@ export default defineConfig({
       ENABLE_OAUTH: 'false',
       ENABLE_WEBAUTHN: 'false',
       ENABLE_AUDIT_LOGS: 'false',
+      DATABASE_URL: 'postgresql://test:test@localhost:5432/contribux_test',
+      DATABASE_URL_TEST: 'postgresql://test:test@localhost:5432/contribux_test',
       NEXTAUTH_SECRET: 'unit-test-secret-32-chars-minimum-for-testing',
       ENCRYPTION_KEY: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
       TEST_DB_STRATEGY: 'mock', // Force mock database strategy to avoid PGlite WASM issues

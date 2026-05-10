@@ -18,10 +18,6 @@ const EnrollmentRequestSchema = MFAEnrollmentRequestSchema.extend({
  */
 export async function POST(req: NextRequest) {
   try {
-    // Parse and validate request body
-    const body = await req.json()
-    const enrollmentRequest = EnrollmentRequestSchema.parse(body)
-
     // Get authenticated user
     const authReq = req as NextRequest & {
       auth?: { user: User; session_id: string }
@@ -32,6 +28,15 @@ export async function POST(req: NextRequest) {
     }
 
     const { user } = authReq.auth
+
+    // Parse and validate request body after authentication to avoid unauthenticated schema leakage.
+    let body: unknown
+    try {
+      body = await req.json()
+    } catch {
+      return NextResponse.json({ error: 'Malformed JSON' }, { status: 400 })
+    }
+    const enrollmentRequest = EnrollmentRequestSchema.parse(body)
 
     // Check if user already has MFA enabled
     if (user.twoFactorEnabled) {
@@ -64,7 +69,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error: 'Invalid request data',
-          details: error.errors,
+          details: error.issues,
         },
         { status: 400 }
       )

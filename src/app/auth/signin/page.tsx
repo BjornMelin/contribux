@@ -3,5 +3,9 @@
 import { OAuthSignIn } from './oauth-signin-component'
 
 export default function OAuthSignInPage() {
-  return <OAuthSignIn />
+  return (
+    <main>
+      <OAuthSignIn />
+    </main>
+  )
 }

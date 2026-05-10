@@ -34,8 +34,8 @@ export type ApiRequestHeaders = z.infer<typeof ApiRequestHeadersSchema>
  * Pagination request parameters
  */
 export const PaginationRequestSchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  page: z.coerce.number<string>().int().min(1).default(1),
+  limit: z.coerce.number<string>().int().min(1).max(100).default(20),
   sort: z.string().optional(),
   order: z.enum(['asc', 'desc']).default('desc'),
 })
@@ -212,8 +212,8 @@ export type UserPreferencesUpdateRequest = z.infer<typeof UserPreferencesUpdateR
  */
 export const OpportunitySearchRequestSchema = SearchFiltersSchema.extend({
   // Override base filters with API-specific transformations
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  page: z.coerce.number<string>().int().min(1).default(1),
+  limit: z.coerce.number<string>().int().min(1).max(100).default(20),
 
   // Add API-specific fields
   includeAIAnalysis: z.boolean().default(true),
@@ -237,16 +237,16 @@ export type OpportunitySearchRequest = z.infer<typeof OpportunitySearchRequestSc
 export const RepositorySearchRequestSchema = z.object({
   query: z.string().min(1).max(1000),
   languages: z.array(z.string()).default([]),
-  minStars: z.coerce.number().int().min(0).optional(),
-  maxStars: z.coerce.number().int().min(0).optional(),
-  minHealth: z.coerce.number().min(0).max(1).optional(),
+  minStars: z.coerce.number<string>().int().min(0).optional(),
+  maxStars: z.coerce.number<string>().int().min(0).optional(),
+  minHealth: z.coerce.number<string>().min(0).max(1).optional(),
   hasIssues: z.boolean().optional(),
   isArchived: z.boolean().default(false),
   isFork: z.boolean().optional(),
   pushedAfter: z.coerce.date().optional(),
   createdAfter: z.coerce.date().optional(),
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  page: z.coerce.number<string>().int().min(1).default(1),
+  limit: z.coerce.number<string>().int().min(1).max(100).default(20),
   sort: z.enum(['stars', 'updated', 'created', 'name', 'health']).default('stars'),
   order: z.enum(['asc', 'desc']).default('desc'),
 })
@@ -259,7 +259,7 @@ export type RepositorySearchRequest = z.infer<typeof RepositorySearchRequestSche
 export const SearchSuggestionsRequestSchema = z.object({
   query: z.string().min(1).max(100),
   type: z.enum(['opportunities', 'repositories', 'languages', 'skills']).default('opportunities'),
-  limit: z.coerce.number().int().min(1).max(20).default(10),
+  limit: z.coerce.number<string>().int().min(1).max(20).default(10),
 })
 
 export type SearchSuggestionsRequest = z.infer<typeof SearchSuggestionsRequestSchema>
@@ -272,7 +272,7 @@ export type SearchSuggestionsRequest = z.infer<typeof SearchSuggestionsRequestSc
 export const ContributionTrackingRequestSchema = z.object({
   opportunityId: UUIDSchema,
   action: z.enum(['viewed', 'clicked', 'bookmarked', 'started', 'completed', 'abandoned']),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
   sessionId: z.string().uuid().optional(),
   timestamp: z.coerce.date().optional(),
 })
@@ -362,7 +362,7 @@ export const SendNotificationRequestSchema = z.object({
     .min(1),
   channels: z.array(z.enum(['email', 'sms', 'push'])).min(1),
   template: z.string().min(1),
-  data: z.record(z.unknown()).optional(),
+  data: z.record(z.string(), z.unknown()).optional(),
   priority: z.enum(['low', 'normal', 'high', 'urgent']).default('normal'),
   scheduleAt: z.coerce.date().optional(),
 })
@@ -393,7 +393,7 @@ export const WebhookConfigRequestSchema = z.object({
     .min(1),
   secret: z.string().min(16).max(64).optional(),
   active: z.boolean().default(true),
-  metadata: z.record(z.string()).optional(),
+  metadata: z.record(z.string(), z.string()).optional(),
 })
 
 export type WebhookConfigRequest = z.infer<typeof WebhookConfigRequestSchema>
@@ -403,7 +403,7 @@ export type WebhookConfigRequest = z.infer<typeof WebhookConfigRequestSchema>
  */
 export const WebhookDeliveryRequestSchema = z.object({
   event: z.string().min(1),
-  data: z.record(z.unknown()),
+  data: z.record(z.string(), z.unknown()),
   timestamp: z.coerce.date().default(() => new Date()),
   id: UUIDSchema.optional(),
   retry: z.boolean().default(false),
@@ -421,7 +421,7 @@ export const ApiErrorResponseSchema = z.object({
   error: z.string().min(1),
   message: z.string().optional(),
   code: z.string().optional(),
-  details: z.record(z.unknown()).optional(),
+  details: z.record(z.string(), z.unknown()).optional(),
   meta: z.object({
     timestamp: z.date(),
     requestId: UUIDSchema,
@@ -555,7 +555,7 @@ export function validateApiRequest<T>(
     return { success: true, data: validated }
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const validationErrors: ValidationError[] = error.errors.map(err => ({
+      const validationErrors: ValidationError[] = error.issues.map(err => ({
         field: err.path.join('.'),
         message: err.message,
         code: err.code,

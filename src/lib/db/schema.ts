@@ -18,8 +18,10 @@
 import { relations, sql } from 'drizzle-orm'
 import {
   bigint,
+  boolean,
   check,
   index,
+  inet,
   integer,
   jsonb,
   pgEnum,
@@ -45,9 +47,9 @@ export const contributionTypeEnum = pgEnum('contribution_type', [
 // Users table
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
-  githubId: integer('github_id').unique().notNull(),
+  githubId: integer('github_id').unique(),
   username: text('username').notNull(),
-  githubLogin: text('github_login').notNull(),
+  githubLogin: text('github_login'),
   email: text('email').unique(),
   name: text('name'),
   avatarUrl: text('avatar_url'),
@@ -82,6 +84,64 @@ export const users = pgTable('users', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 })
+
+// OAuth account links for provider-agnostic auth sessions
+export const oauthAccounts = pgTable(
+  'oauth_accounts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .references(() => users.id, { onDelete: 'cascade' })
+      .notNull(),
+    provider: text('provider').notNull(),
+    providerAccountId: text('provider_account_id').notNull(),
+    accessToken: text('access_token'),
+    refreshToken: text('refresh_token'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    tokenType: text('token_type'),
+    scope: text('scope'),
+    idToken: text('id_token'),
+    sessionState: text('session_state'),
+    isPrimary: boolean('is_primary').notNull().default(false),
+    linkedAt: timestamp('linked_at', { withTimezone: true }).defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  },
+  table => ({
+    userIdIdx: index('idx_oauth_accounts_user_id').on(table.userId),
+    providerAccountUnique: unique('oauth_accounts_provider_provider_account_id_unique').on(
+      table.provider,
+      table.providerAccountId
+    ),
+  })
+)
+
+// Security audit trail for authentication-sensitive events
+export const securityAuditLogs = pgTable(
+  'security_audit_logs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    eventType: text('event_type').notNull(),
+    eventSeverity: text('event_severity').notNull().default('info'),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+    sessionId: text('session_id'),
+    ipAddress: inet('ip_address'),
+    userAgent: text('user_agent'),
+    success: boolean('success').notNull(),
+    eventData: jsonb('event_data').$type<Record<string, unknown>>().default({}),
+    errorMessage: text('error_message'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  },
+  table => ({
+    eventTypeIdx: index('idx_security_audit_logs_event_type').on(table.eventType),
+    userIdIdx: index('idx_security_audit_logs_user_id').on(table.userId),
+    createdAtIdx: index('idx_security_audit_logs_created_at').on(table.createdAt),
+    eventSeverityCheck: check(
+      'security_audit_logs_event_severity_check',
+      sql`${table.eventSeverity} IN ('info', 'warning', 'error', 'critical')`
+    ),
+  })
+)
 
 // WebAuthn credentials table for passwordless authentication
 export const webauthnCredentials = pgTable(
@@ -240,8 +300,10 @@ export const opportunities = pgTable(
   'opportunities',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    repositoryId: uuid('repository_id').references(() => repositories.id),
-    issueNumber: integer('issue_number'),
+    repositoryId: uuid('repository_id')
+      .notNull()
+      .references(() => repositories.id),
+    issueNumber: integer('issue_number').notNull(),
     title: text('title').notNull(),
     description: text('description'),
     url: text('url'),
@@ -298,6 +360,10 @@ export const opportunities = pgTable(
     repositoryIdIdx: index('opportunities_repository_id_idx').on(table.repositoryId),
     difficultyScoreIdx: index('opportunities_difficulty_score_idx').on(table.difficultyScore),
     impactScoreIdx: index('opportunities_impact_score_idx').on(table.impactScore),
+    uniqueRepositoryIssue: unique('opportunities_unique_issue').on(
+      table.repositoryId,
+      table.issueNumber
+    ),
     // Vector index will be created via SQL migration for HNSW
 
     // Check constraints for data integrity
@@ -436,6 +502,43 @@ import { z } from 'zod'
  * These schemas prevent SQL injection by validating and sanitizing inputs
  */
 
+const sqlKeywordPattern =
+  /\b(?:union\s+(?:all\s+)?select|select\s+[\w*.,\s]+\s+from|insert\s+into|update\s+\w+\s+set|delete\s+from|drop\s+(?:table|database)?|alter\s+table|create\s+(?:table|function)|exec(?:ute)?\b|xp_cmdshell|waitfor\s+delay|sleep\s*\(|copy\s+\w+\s+to|lo_import|lo_export|dblink)\b/i
+const sqlKeywordSanitizePattern =
+  /\b(?:union\s+(?:all\s+)?select|select\s+[\w*.,\s]+\s+from|insert\s+into|update\s+\w+\s+set|delete\s+from|drop\s+(?:table|database)?|alter\s+table|create\s+(?:table|function)|exec(?:ute)?\b|xp_cmdshell|waitfor\s+delay|sleep\s*\(|copy\s+\w+\s+to|lo_import|lo_export|dblink)\b/gi
+const dangerousInputPattern =
+  /--|\/\*|\*\/|[\n\r]|<\s*\/?\s*(?:script|iframe|object|embed|svg|img|link|meta|style|base|form|input|button|textarea|select|option)\b|on[a-z]+\s*=|javascript\s*:|data\s*:/i
+const dangerousInputSanitizePattern =
+  /--|\/\*|\*\/|[\n\r]|<\s*\/?\s*(?:script|iframe|object|embed|svg|img|link|meta|style|base|form|input|button|textarea|select|option)[^>]*>|on[a-z]+\s*=|javascript\s*:|data\s*:/gi
+const jsonOperatorPattern = /"\$(?:ne|where|regex)"|__proto__|constructor|prototype/i
+const dangerousControlCharacters = ['\0', '\u001a'] as const
+
+function hasDangerousControlCharacters(value: string): boolean {
+  return dangerousControlCharacters.some(character => value.includes(character))
+}
+
+function isSuspiciousInput(value: string): boolean {
+  return (
+    sqlKeywordPattern.test(value) ||
+    dangerousInputPattern.test(value) ||
+    jsonOperatorPattern.test(value) ||
+    hasDangerousControlCharacters(value)
+  )
+}
+
+function sanitizeTextInput(value: string, maxLength: number): string {
+  return value
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/--.*$/gm, ' ')
+    .replace(sqlKeywordSanitizePattern, ' ')
+    .replace(dangerousInputSanitizePattern, ' ')
+    .replaceAll('\0', ' ')
+    .replaceAll('\u001a', ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, maxLength)
+}
+
 // Basic string validation with SQL injection prevention
 const createSafeStringSchema = (maxLength = 1000) =>
   z
@@ -444,17 +547,7 @@ const createSafeStringSchema = (maxLength = 1000) =>
     .max(maxLength)
     .refine(
       value => {
-        // Remove dangerous SQL patterns
-        const dangerous = [
-          /[';]|--/g, // SQL comment and statement terminators
-          /\b(union|select|insert|update|delete|drop|alter|create|exec|execute)\b/gi, // SQL keywords
-          /[<>'";&|*?~<>^()[\]{}$\n\r]/g, // Special characters that could be used in attacks
-          /\0/g, // Null byte
-          // biome-ignore lint/suspicious/noControlCharactersInRegex: SUB control character (0x1A) is a legitimate security concern for SQL injection prevention
-          /\u001a/g, // Control character SUB
-        ]
-
-        return !dangerous.some(pattern => pattern.test(value))
+        return !isSuspiciousInput(value)
       },
       {
         message: 'Input contains potentially dangerous characters or SQL keywords',
@@ -494,13 +587,7 @@ export const SafeSearchQuerySchema = z
   .max(200)
   .refine(
     query => {
-      // Remove dangerous patterns from search queries
-      const cleanQuery = query
-        .replace(/[<>'";&|*?~<>^()[\]{}$\n\r]/g, '') // Remove dangerous chars
-        .replace(/\b(union|select|insert|update|delete|drop|alter|create|exec|execute)\b/gi, '') // Remove SQL keywords
-        .trim()
-
-      return cleanQuery.length > 0 && cleanQuery.length <= 200
+      return !isSuspiciousInput(query)
     },
     {
       message: 'Search query contains invalid characters or SQL keywords',
@@ -541,20 +628,21 @@ export const RepositoryDataSchema = z.object({
   name: SafeStringSchema100,
   owner: SafeStringSchema100,
   description: SafeStringSchema.optional(),
-  metadata: z.record(z.unknown()).optional(),
-  healthMetrics: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+  healthMetrics: z.record(z.string(), z.unknown()).optional(),
   embedding: z.string().optional(), // Serialized embedding
 })
 
 // User data validation
 export const UserDataSchema = z.object({
-  githubId: GitHubIdSchema,
+  githubId: GitHubIdSchema.nullish(),
+  githubLogin: SafeStringSchema100.nullish(),
   username: SafeStringSchema100,
   email: SafeEmailSchema.optional(),
   name: SafeStringSchema200.optional(),
   avatarUrl: z.string().url().max(500).optional(),
-  profile: z.record(z.unknown()).optional(),
-  preferences: z.record(z.unknown()).optional(),
+  profile: z.record(z.string(), z.unknown()).optional(),
+  preferences: z.record(z.string(), z.unknown()).optional(),
 })
 
 // Search options validation
@@ -624,13 +712,16 @@ export const WebAuthnAuthDataSchema = z.object({
 
 // Sanitize search query for ILIKE operations
 export function sanitizeSearchQuery(query: string): string {
-  const validated = SafeSearchQuerySchema.parse(query)
+  const sanitized = sanitizeTextInput(query, 100)
+  if (!sanitized) {
+    throw new Error('Search query cannot be empty after sanitization')
+  }
 
   // Additional sanitization for ILIKE patterns
-  return validated
+  return sanitized
+    .replace(/\\/g, '\\\\') // Escape LIKE escape characters
     .replace(/%/g, '\\%') // Escape LIKE wildcards
     .replace(/_/g, '\\_') // Escape LIKE wildcards
-    .slice(0, 100) // Limit length
 }
 
 // Sanitize array inputs for ANY() operations
@@ -639,35 +730,87 @@ export function sanitizeArrayInput<T>(items: T[], validator: z.ZodSchema<T>, max
     throw new Error('Input must be an array')
   }
 
-  if (items.length > maxItems) {
-    throw new Error(`Array cannot contain more than ${maxItems} items`)
-  }
-
-  return items.map(item => validator.parse(item))
+  return items.slice(0, maxItems).flatMap(item => {
+    try {
+      return [validator.parse(item)]
+    } catch {
+      return []
+    }
+  })
 }
 
 // Validate JSON input for JSONB operations
-export function sanitizeJsonInput(input: unknown): Record<string, unknown> {
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Central JSON sanitizer handles nested object, array, and primitive validation in one audited path.
+export function sanitizeJsonInput(input: unknown, depth = 0): Record<string, unknown> {
   if (typeof input !== 'object' || input === null || Array.isArray(input)) {
     throw new Error('Input must be a valid object')
   }
 
+  if (depth > 3) {
+    throw new Error('JSON input is too deeply nested')
+  }
+
   const obj = input as Record<string, unknown>
+  const entries = Object.entries(obj)
+  if (entries.length > 100) {
+    throw new Error('JSON input contains too many keys')
+  }
+
+  const sanitized: Record<string, unknown> = Object.create(null)
 
   // Check for dangerous patterns in JSON keys and values
-  for (const [key, value] of Object.entries(obj)) {
-    // Validate keys
-    SafeStringSchema100.parse(key)
+  for (const [key, value] of entries) {
+    const sanitizedKey = sanitizeTextInput(key, 100)
+    if (!sanitizedKey || isSuspiciousInput(key)) {
+      continue
+    }
 
     // Validate values (recursively for nested objects)
     if (typeof value === 'string') {
-      SafeStringSchema.parse(value)
+      const sanitizedValue = sanitizeTextInput(value, 1000)
+      if (sanitizedValue && !isSuspiciousInput(value)) {
+        sanitized[sanitizedKey] = sanitizedValue
+      }
+    } else if (Array.isArray(value)) {
+      const sanitizedItems = sanitizeJsonArrayInput(value, depth + 1)
+      if (sanitizedItems.length > 0) {
+        sanitized[sanitizedKey] = sanitizedItems
+      }
     } else if (typeof value === 'object' && value !== null) {
-      sanitizeJsonInput(value)
+      sanitized[sanitizedKey] = sanitizeJsonInput(value, depth + 1)
+    } else {
+      sanitized[sanitizedKey] = value
     }
   }
 
-  return obj
+  return sanitized
+}
+
+function sanitizeJsonArrayInput(items: unknown[], depth: number): unknown[] {
+  if (depth > 3) {
+    throw new Error('JSON nesting depth exceeds maximum allowed depth')
+  }
+
+  return items.slice(0, 100).flatMap(item => sanitizeJsonArrayItem(item, depth))
+}
+
+function sanitizeJsonArrayItem(item: unknown, depth: number): unknown[] {
+  if (typeof item === 'string') {
+    const sanitizedValue = sanitizeTextInput(item, 1000)
+    return sanitizedValue && !isSuspiciousInput(item) ? [sanitizedValue] : []
+  }
+
+  if (Array.isArray(item)) {
+    const sanitizedItems = sanitizeJsonArrayInput(item, depth + 1)
+    return sanitizedItems.length > 0 ? [sanitizedItems] : []
+  }
+
+  if (item && typeof item === 'object') {
+    const sanitizedObject = sanitizeJsonInput(item, depth + 1)
+    return Object.keys(sanitizedObject).length > 0 ? [sanitizedObject] : []
+  }
+
+  return [item]
 }
 
 // Validate vector embedding input
@@ -694,7 +837,22 @@ export function buildSafeTextSearchConditions(query: string) {
 
 // Safe filter builder (replaces buildOptionalFilters)
 export function buildSafeFilterConditions(options: z.infer<typeof SearchOptionsSchema>) {
-  const validated = SearchOptionsSchema.parse(options)
+  const normalizedOptions = {
+    ...options,
+    languages: Array.isArray(options.languages)
+      ? options.languages
+          .slice(0, 10)
+          .map(language => sanitizeTextInput(String(language), 50))
+          .filter(Boolean)
+      : [],
+    topics: Array.isArray(options.topics)
+      ? options.topics
+          .slice(0, 20)
+          .map(topic => sanitizeTextInput(String(topic), 50))
+          .filter(Boolean)
+      : [],
+  }
+  const validated = SearchOptionsSchema.parse(normalizedOptions)
 
   // Sanitize array inputs
   const safeLanguages = sanitizeArrayInput(validated.languages, SafeStringSchema50, 10)
@@ -748,10 +906,15 @@ export function validateDatabaseUrl(url: string): string {
 
 // Track potentially dangerous queries
 const suspiciousQueryPatterns = [
-  /(?:union|select|insert|update|delete|drop|alter|create)\s+(?:all\s+)?(?:distinct\s+)?(?:top\s+\d+\s+)?\w/gi,
-  /(?:and|or)\s+[\w\s]*=[\w\s]*[\w\s]*--/gi,
-  /\/\*.*?\*\//gi,
-  /;\s*(?:drop|delete|update|insert)/gi,
+  sqlKeywordPattern,
+  /(?:and|or)\s+['"\w\s]*=['"\w\s]*/i,
+  /\/\*[\s\S]*?\*\//i,
+  /;\s*(?:drop|delete|update|insert|select|copy|create|exec|waitfor)/i,
+  /"\$(?:ne|where|regex)"/i,
+  /['")]?\s+or\s+[\w'"]+\s*=\s*[\w'"]+/i,
+  /\bfrom\s+\w+/i,
+  /invalid\s+sql\s+syntax/i,
+  /[()&|*]/i,
 ]
 
 export function detectSuspiciousQuery(query: string): boolean {

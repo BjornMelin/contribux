@@ -8,6 +8,9 @@ export type CSPDirectives = {
   'default-src'?: string[]
   'script-src'?: string[]
   'style-src'?: string[]
+  'script-src-elem'?: string[]
+  'style-src-elem'?: string[]
+  'style-src-attr'?: string[]
   'img-src'?: string[]
   'font-src'?: string[]
   'connect-src'?: string[]
@@ -20,7 +23,6 @@ export type CSPDirectives = {
   'worker-src'?: string[]
   'child-src'?: string[]
   'manifest-src'?: string[]
-  'prefetch-src'?: string[]
   'report-uri'?: string[]
   'report-to'?: string[]
   'upgrade-insecure-requests'?: string[]
@@ -29,7 +31,6 @@ export type CSPDirectives = {
   'trusted-types'?: string[]
   'require-trusted-types-for'?: string[]
   'fenced-frame-src'?: string[]
-  'navigate-to'?: string[]
 }
 
 /**
@@ -71,11 +72,7 @@ function buildDirectiveValue(
  * Handle directives that don't require sources
  */
 function handleEmptySourcesDirective(directive: string): string | null {
-  const standaloneDirectives = [
-    'upgrade-insecure-requests',
-    'block-all-mixed-content',
-    'require-trusted-types-for',
-  ]
+  const standaloneDirectives = ['upgrade-insecure-requests', 'block-all-mixed-content']
 
   return standaloneDirectives.includes(directive) ? directive : null
 }
@@ -97,7 +94,7 @@ function processSourcesWithNonce(directive: string, sources: string[], nonce?: s
  * Check if directive supports nonce
  */
 function isNonceableDirective(directive: string): boolean {
-  return directive === 'script-src' || directive === 'style-src'
+  return directive === 'script-src' || directive === 'script-src-elem'
 }
 
 /**
@@ -107,11 +104,15 @@ function formatDirective(directive: string, sources: string[]): string {
   const specialFormatDirectives: Record<string, string> = {
     'report-uri': `report-uri ${sources.join(' ')}`,
     'report-to': `report-to ${sources.join(' ')}`,
-    'require-trusted-types-for': `require-trusted-types-for ${sources.join(' ')}`,
+    'require-trusted-types-for': `require-trusted-types-for ${sources.map(quoteTrustedTypeSink).join(' ')}`,
     'trusted-types': `trusted-types ${sources.join(' ')}`,
   }
 
   return specialFormatDirectives[directive] || `${directive} ${sources.join(' ')}`
+}
+
+function quoteTrustedTypeSink(source: string): string {
+  return source.startsWith("'") ? source : `'${source}'`
 }
 
 /**
@@ -139,16 +140,20 @@ export function getCSPDirectives(forceProduction?: boolean): CSPDirectives {
     'default-src': ["'self'"],
     'script-src': [
       "'self'",
-      "'strict-dynamic'",
       // Allow wasm in production for better performance
       ...(isProduction ? ["'wasm-unsafe-eval'"] : []),
     ],
     'style-src': [
       "'self'",
       'https://fonts.googleapis.com',
-      // TODO: Remove this SHA once all inline styles are migrated to nonce-based
       "'sha256-tQjf8gvb2ROOMapIxFvFAYBeUJ0v1HCbOcSmDNXGtDo='",
     ],
+    'style-src-elem': [
+      "'self'",
+      'https://fonts.googleapis.com',
+      "'sha256-tQjf8gvb2ROOMapIxFvFAYBeUJ0v1HCbOcSmDNXGtDo='",
+    ],
+    'style-src-attr': ["'unsafe-inline'"],
     'font-src': [
       "'self'",
       'https://fonts.gstatic.com',
@@ -179,14 +184,12 @@ export function getCSPDirectives(forceProduction?: boolean): CSPDirectives {
     'child-src': ["'self'"],
     'manifest-src': ["'self'"],
     'media-src': ["'self'", 'blob:', 'data:'],
-    'prefetch-src': ["'self'"],
     'frame-src': ["'none'"],
     'upgrade-insecure-requests': [],
     'block-all-mixed-content': [],
 
     // Modern CSP Level 3 directives for enhanced security
     'fenced-frame-src': ["'none'"],
-    'navigate-to': ["'self'", 'https://github.com', 'https://api.github.com'],
   }
 
   // Production-specific CSP directives
@@ -204,23 +207,23 @@ export function getCSPDirectives(forceProduction?: boolean): CSPDirectives {
     baseDirectives['report-uri'] = ['/api/security/csp-report']
     baseDirectives['report-to'] = ['csp-violations']
 
-    // Enable Trusted Types for DOM XSS prevention in production
+    // Restrict allowed policy names without enforcing Trusted Types assignments.
+    // Next.js runtime chunks still assign TrustedHTML/TrustedScriptURL directly.
     baseDirectives['trusted-types'] = ['default', 'nextjs-inline-script', 'react-render']
-    baseDirectives['require-trusted-types-for'] = ['script']
-
-    // Strict navigation control in production
-    baseDirectives['navigate-to']?.push('https://contribux.vercel.app', 'https://*.github.com')
   } else {
     // Development/preview-specific sources
     baseDirectives['script-src']?.push(
       'https://vercel.live',
-      "'unsafe-eval'", // Allow eval in development for hot reloading
-      "'unsafe-inline'" // Temporary for development debugging
+      "'unsafe-eval'" // Allow eval in development for hot reloading
     )
-
-    baseDirectives['style-src']?.push(
-      "'unsafe-inline'" // Allow inline styles in development
+    baseDirectives['style-src'] = baseDirectives['style-src']?.filter(
+      source => !source.startsWith("'sha256-")
     )
+    baseDirectives['style-src-elem'] = baseDirectives['style-src-elem']?.filter(
+      source => !source.startsWith("'sha256-")
+    )
+    baseDirectives['style-src']?.push("'unsafe-inline'")
+    baseDirectives['style-src-elem']?.push("'unsafe-inline'")
 
     baseDirectives['connect-src']?.push(
       'https://vercel.live',
@@ -234,9 +237,6 @@ export function getCSPDirectives(forceProduction?: boolean): CSPDirectives {
 
     // More permissive img-src for development
     baseDirectives['img-src']?.push('http://localhost:*', 'http://127.0.0.1:*')
-
-    // Allow more navigation in development
-    baseDirectives['navigate-to']?.push('http://localhost:*', 'http://127.0.0.1:*')
 
     // Relaxed trusted types for development
     baseDirectives['trusted-types'] = [

@@ -357,12 +357,12 @@ describe('GitHubClient - Repository Operations', () => {
         query: 'test',
         sort: 'stars' as const,
         order: 'desc' as const,
-        perPage: $1,
+        perPage: 10,
         page: 1,
       }
       const searchParams2 = {
         page: 1,
-        perPage: $1,
+        perPage: 10,
         order: 'desc' as const,
         sort: 'stars' as const,
         query: 'test',

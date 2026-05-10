@@ -39,24 +39,24 @@ const environmentSchema = z.object({
   ENABLE_ANALYTICS: z
     .string()
     .transform(val => val === 'true')
-    .default('false'),
+    .default(false),
   ENABLE_CACHING: z
     .string()
     .transform(val => val === 'true')
-    .default('true'),
+    .default(true),
   ENABLE_RATE_LIMITING: z
     .string()
     .transform(val => val === 'true')
-    .default('true'),
+    .default(true),
 
   // Performance
-  MAX_SEARCH_RESULTS: z.string().transform(Number).pipe(z.number().positive()).default('100'),
-  API_TIMEOUT: z.string().transform(Number).pipe(z.number().positive()).default('30000'),
-  CACHE_TTL: z.string().transform(Number).pipe(z.number().positive()).default('300'),
+  MAX_SEARCH_RESULTS: z.string().transform(Number).pipe(z.number().positive()).default(100),
+  API_TIMEOUT: z.string().transform(Number).pipe(z.number().positive()).default(30000),
+  CACHE_TTL: z.string().transform(Number).pipe(z.number().positive()).default(300),
 
   // Security
-  RATE_LIMIT_MAX: z.string().transform(Number).pipe(z.number().positive()).default('100'),
-  RATE_LIMIT_WINDOW: z.string().transform(Number).pipe(z.number().positive()).default('900'),
+  RATE_LIMIT_MAX: z.string().transform(Number).pipe(z.number().positive()).default(100),
+  RATE_LIMIT_WINDOW: z.string().transform(Number).pipe(z.number().positive()).default(900),
   JWT_EXPIRY: z.string().default('24h'),
 
   // Neon specific
@@ -147,7 +147,6 @@ type ApplicationConfig = z.infer<typeof applicationConfigSchema>
 // Configuration provider class
 export class ConfigProvider {
   private static instance: ConfigProvider
-  private environmentConfig: EnvironmentConfig | null = null
   private applicationConfig: ApplicationConfig | null = null
   private validated = false
 
@@ -177,7 +176,6 @@ export class ConfigProvider {
         return appResult
       }
 
-      this.environmentConfig = envResult.data
       this.applicationConfig = appResult.data
       this.validated = true
 
@@ -396,7 +394,6 @@ export class ConfigProvider {
    */
   async reload(): Promise<Result<void, Error>> {
     this.validated = false
-    this.environmentConfig = null
     this.applicationConfig = null
 
     return await this.initialize()
@@ -475,4 +472,4 @@ export const config = new Proxy({} as ConfigProvider, {
   },
 })
 
-export type { EnvironmentConfig, ApplicationConfig }
+export type { ApplicationConfig, EnvironmentConfig }

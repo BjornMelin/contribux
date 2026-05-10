@@ -38,11 +38,11 @@ describe('CSP Configuration', () => {
       expect(csp).toContain("default-src 'self'")
       expect(csp).toContain("script-src 'self' 'strict-dynamic'")
       expect(csp).toContain('trusted-types default nextjs-inline-script')
-      expect(csp).toContain('require-trusted-types-for script')
+      expect(csp).toContain("require-trusted-types-for 'script'")
       expect(csp).toContain('upgrade-insecure-requests')
     })
 
-    it('should add nonce to script-src and style-src', () => {
+    it('should add nonce to script-src only', () => {
       const directives = {
         'script-src': ["'self'"],
         'style-src': ["'self'"],
@@ -52,21 +52,21 @@ describe('CSP Configuration', () => {
       const csp = buildCSP(directives, nonce)
 
       expect(csp).toContain("script-src 'self' 'nonce-test-nonce-123'")
-      expect(csp).toContain("style-src 'self' 'nonce-test-nonce-123'")
+      expect(csp).toContain("style-src 'self'")
+      expect(csp).not.toContain("style-src 'self' 'nonce-test-nonce-123'")
     })
 
     it('should handle directives without sources', () => {
       const directives = {
         'upgrade-insecure-requests': [],
         'block-all-mixed-content': [],
-        'require-trusted-types-for': [],
       }
 
       const csp = buildCSP(directives)
 
       expect(csp).toContain('upgrade-insecure-requests')
       expect(csp).toContain('block-all-mixed-content')
-      expect(csp).toContain('require-trusted-types-for')
+      expect(csp).not.toContain('require-trusted-types-for')
     })
   })
 
@@ -74,11 +74,13 @@ describe('CSP Configuration', () => {
     it('should return base directives with modern security features', () => {
       const directives = getCSPDirectives()
 
-      // Check for modern CSP Level 3 directives
+      // Check for browser-supported CSP Level 3 directives
       expect(directives).toHaveProperty('fenced-frame-src')
-      expect(directives).toHaveProperty('navigate-to')
+      expect(directives).toHaveProperty('style-src-attr')
       expect(directives['fenced-frame-src']).toEqual(["'none'"])
-      expect(directives['navigate-to']).toContain("'self'")
+      expect(directives['style-src-attr']).toEqual(["'unsafe-inline'"])
+      expect(directives).not.toHaveProperty('navigate-to')
+      expect(directives).not.toHaveProperty('prefetch-src')
 
       // Check for base security directives
       expect(directives['default-src']).toEqual(["'self'"])
@@ -88,10 +90,11 @@ describe('CSP Configuration', () => {
       expect(directives['form-action']).toEqual(["'self'"])
     })
 
-    it('should include strict-dynamic in script-src', () => {
+    it('should allow self-hosted Next.js script chunks', () => {
       const directives = getCSPDirectives()
 
-      expect(directives['script-src']).toContain("'strict-dynamic'")
+      expect(directives['script-src']).toContain("'self'")
+      expect(directives['script-src']).not.toContain("'strict-dynamic'")
     })
 
     it('should include GitHub API endpoints in connect-src', () => {
@@ -156,7 +159,7 @@ describe('CSP Configuration', () => {
       expect(directives['trusted-types']).toContain('default')
       expect(directives['trusted-types']).toContain('nextjs-inline-script')
       expect(directives['trusted-types']).toContain('react-render')
-      expect(directives['require-trusted-types-for']).toEqual(['script'])
+      expect(directives['require-trusted-types-for']).toBeUndefined()
     })
 
     it('should include production APIs in production', () => {
@@ -173,9 +176,10 @@ describe('CSP Configuration', () => {
       const directives = getCSPDirectives()
 
       expect(directives['script-src']).toContain("'unsafe-eval'")
-      expect(directives['script-src']).toContain("'unsafe-inline'")
+      expect(directives['script-src']).not.toContain("'unsafe-inline'")
       expect(directives['connect-src']).toContain('http://localhost:*')
       expect(directives['connect-src']).toContain('ws://localhost:*')
+      expect(directives['style-src-attr']).toEqual(["'unsafe-inline'"])
     })
 
     it('should include wasm-unsafe-eval in production only', () => {
@@ -244,10 +248,12 @@ describe('CSP Configuration', () => {
       expect(directives['form-action']).toEqual(["'self'"])
     })
 
-    it('should use strict-dynamic for modern script loading', () => {
+    it('should keep script-src compatible with nonced inline and self-hosted external scripts', () => {
       const directives = getCSPDirectives()
 
-      expect(directives['script-src']).toContain("'strict-dynamic'")
+      expect(directives['script-src']).toContain("'self'")
+      expect(directives['script-src']).not.toContain("'unsafe-inline'")
+      expect(directives['script-src']).not.toContain("'strict-dynamic'")
     })
   })
 })

@@ -40,7 +40,7 @@ export const ApiSuccessResponseSchema = z.object({
   metadata: z
     .object({
       query: z.string().optional(),
-      filters: z.record(z.any()).optional(),
+      filters: z.record(z.string(), z.any()).optional(),
       execution_time_ms: z.number().optional(),
       performance_note: z.string().optional(),
     })

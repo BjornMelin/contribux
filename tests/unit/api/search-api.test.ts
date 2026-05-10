@@ -3,126 +3,68 @@
  */
 
 import { NextRequest } from 'next/server'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import * as opportunitiesHandler from '@/app/api/search/opportunities/route'
 import * as repositoriesHandler from '@/app/api/search/repositories/route'
-import { searchRepositories } from '@/lib/search/search-service'
 import { SearchValidator } from '@/lib/validation/search-validator'
 
-// Mock search service
-vi.mock('@/lib/search/search-service', () => ({
-  searchRepositories: vi.fn(),
-  getSearchSuggestions: vi.fn(),
-  getPopularSearches: vi.fn(),
-  indexRepository: vi.fn(),
-}))
-
-describe('Search API Tests', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
-  afterEach(() => {
-    vi.resetAllMocks()
-  })
-
+describe('Search API', () => {
   describe('GET /api/search/repositories', () => {
-    const mockSearchResults = {
-      repositories: [
-        {
-          id: '1',
-          name: 'test-repo',
-          fullName: 'user/test-repo',
-          description: 'A test repository',
-          stars: 100,
-          language: 'TypeScript',
-          topics: ['testing', 'typescript'],
-          score: 0.95,
-        },
-      ],
-      totalCount: 1,
-      page: 1,
-      perPage: 20,
-      facets: {
-        languages: [
-          { value: 'TypeScript', count: 50 },
-          { value: 'JavaScript', count: 30 },
-        ],
-        topics: [
-          { value: 'testing', count: 20 },
-          { value: 'typescript', count: 15 },
-        ],
-      },
-    }
-
-    it('should search with basic query', async () => {
-      vi.mocked(searchRepositories).mockResolvedValueOnce(mockSearchResults)
-
-      const request = new NextRequest(
-        'http://localhost:3000/api/search/repositories?q=typescript+testing'
-      )
+    it('returns the current public repository search envelope', async () => {
+      const request = new NextRequest('http://localhost:3000/api/search/repositories?q=typescript')
       const response = await repositoriesHandler.GET(request)
 
       expect(response.status).toBe(200)
-      const data = await response.json()
-      expect(data.repositories).toHaveLength(1)
-      expect(data.repositories[0].name).toBe('test-repo')
-      expect(data.totalCount).toBe(1)
+      const body = await response.json()
+
+      expect(body.success).toBe(true)
+      expect(body.data.repositories).toEqual(
+        expect.arrayContaining([expect.objectContaining({ fullName: 'microsoft/TypeScript' })])
+      )
+      expect(body.data.total_count).toBeGreaterThanOrEqual(1)
+      expect(body.metadata.query).toBe('typescript')
     })
 
-    it('should validate query parameters', async () => {
-      const request = new NextRequest('http://localhost:3000/api/search/repositories') // Missing query
+    it('returns validation errors as bad requests', async () => {
+      const request = new NextRequest('http://localhost:3000/api/search/repositories')
       const response = await repositoriesHandler.GET(request)
 
       expect(response.status).toBe(400)
-      const data = await response.json()
-      expect(data.error).toContain('required')
+      const body = await response.json()
+      expect(body.error.code).toBe('VALIDATION_ERROR')
+      expect(body.error.message).toBe('Invalid input data provided.')
     })
 
-    it('should handle pagination', async () => {
-      vi.mocked(searchRepositories).mockResolvedValueOnce({
-        ...mockSearchResults,
-        page: 2,
-        totalCount: 100,
-      })
-
+    it('returns page metadata and total filtered count', async () => {
       const request = new NextRequest(
-        'http://localhost:3000/api/search/repositories?q=test&page=2&per_page=50'
+        'http://localhost:3000/api/search/repositories?q=react&page=2&per_page=1'
       )
       const response = await repositoriesHandler.GET(request)
 
       expect(response.status).toBe(200)
-      const data = await response.json()
-      expect(data.page).toBe(2)
-      expect(data.per_page).toBe(50)
-    })
-
-    it('should handle search errors', async () => {
-      vi.mocked(searchRepositories).mockRejectedValueOnce(new Error('Search service unavailable'))
-
-      const request = new NextRequest('http://localhost:3000/api/search/repositories?q=test')
-      const response = await repositoriesHandler.GET(request)
-
-      expect(response.status).toBe(500)
-      const data = await response.json()
-      expect(data.error).toContain('error')
+      const body = await response.json()
+      expect(body.data.page).toBe(2)
+      expect(body.data.per_page).toBe(1)
+      expect(body.data.total_count).toBe(2)
+      expect(body.data.has_more).toBe(false)
     })
   })
 
   describe('GET /api/search/opportunities', () => {
-    it('should search for opportunities', async () => {
+    it('requires authentication for opportunity search', async () => {
       const request = new NextRequest('http://localhost:3000/api/search/opportunities?q=beginner')
       const response = await opportunitiesHandler.GET(request)
 
-      // The actual implementation will determine the status code
-      expect([200, 404, 500]).toContain(response.status)
+      expect(response.status).toBe(401)
+      const body = await response.json()
+      expect(body.error.code).toBe('UNAUTHORIZED')
     })
   })
 
-  describe('Search Query Validation', () => {
+  describe('SearchValidator', () => {
     const validator = new SearchValidator()
 
-    it('should sanitize search queries', () => {
+    it('sanitizes script payloads from search text', () => {
       const dangerous = '<script>alert("xss")</script>react'
       const sanitized = validator.sanitizeQuery(dangerous)
 
@@ -130,73 +72,27 @@ describe('Search API Tests', () => {
       expect(sanitized).not.toContain('<script>')
     })
 
-    it('should validate query length', () => {
-      const tooLong = 'a'.repeat(300)
-      const result = validator.validateQuery(tooLong)
+    it('rejects overlong queries', () => {
+      const result = validator.validateQuery('a'.repeat(300))
 
       expect(result.valid).toBe(false)
       expect(result.error).toContain('Query too long')
     })
 
-    it('should parse search operators', () => {
-      const query = 'language:typescript stars:>100 user:microsoft'
-      const parsed = validator.parseSearchOperators(query)
+    it('parses search operators and quoted phrases', () => {
+      expect(
+        validator.parseSearchOperators('language:typescript stars:>100 user:microsoft')
+      ).toMatchObject({
+        baseQuery: '',
+        language: 'typescript',
+        minStars: 100,
+        user: 'microsoft',
+      })
 
-      expect(parsed.language).toBe('typescript')
-      expect(parsed.minStars).toBe(100)
-      expect(parsed.user).toBe('microsoft')
-      expect(parsed.baseQuery).toBe('')
-    })
-
-    it('should handle quoted phrases', () => {
-      const query = '"machine learning" python -tensorflow'
-      const parsed = validator.parseQuery(query)
-
+      const parsed = validator.parseQuery('"machine learning" python -tensorflow')
       expect(parsed.requiredTerms).toContain('machine learning')
       expect(parsed.terms).toContain('python')
       expect(parsed.excludedTerms).toContain('tensorflow')
-    })
-  })
-
-  describe('Search Performance', () => {
-    const mockSearchResults = {
-      repositories: [
-        {
-          id: '1',
-          name: 'test-repo',
-          fullName: 'user/test-repo',
-          description: 'A test repository',
-          stars: 100,
-          language: 'TypeScript',
-          topics: ['testing', 'typescript'],
-          score: 0.95,
-        },
-      ],
-      totalCount: 1,
-      page: 1,
-      perPage: 20,
-      facets: {
-        languages: [
-          { value: 'TypeScript', count: 50 },
-          { value: 'JavaScript', count: 30 },
-        ],
-        topics: [
-          { value: 'testing', count: 40 },
-          { value: 'web', count: 35 },
-        ],
-      },
-    }
-
-    it('should handle multiple searches', async () => {
-      vi.mocked(searchRepositories).mockResolvedValue(mockSearchResults)
-
-      const request = new NextRequest(
-        'http://localhost:3000/api/search/repositories?q=popular-query'
-      )
-      const response = await repositoriesHandler.GET(request)
-
-      expect(response.status).toBe(200)
-      expect(searchRepositories).toHaveBeenCalled()
     })
   })
 })

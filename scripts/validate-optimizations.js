@@ -308,14 +308,18 @@ class OptimizationValidator {
     // Improvements
     if (this.improvements.length > 0) {
       console.log('✅ IMPLEMENTED OPTIMIZATIONS:')
-      this.improvements.forEach(improvement => console.log(`   ${improvement}`))
+      this.improvements.forEach(improvement => {
+        console.log(`   ${improvement}`)
+      })
       console.log('')
     }
 
     // Issues
     if (this.issues.length > 0) {
       console.log('❌ OPTIMIZATION ISSUES:')
-      this.issues.forEach(issue => console.log(`   ❌ ${issue}`))
+      this.issues.forEach(issue => {
+        console.log(`   ❌ ${issue}`)
+      })
       console.log('')
     }
 

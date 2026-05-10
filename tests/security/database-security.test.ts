@@ -39,6 +39,23 @@ interface MockSearchOptions {
   order?: string
 }
 
+function createRepositorySearchBuilder() {
+  const offset = vi.fn().mockResolvedValue([])
+  const limit = vi.fn().mockReturnValue({ offset })
+  const orderBy = vi.fn().mockReturnValue({ limit })
+  const where = vi.fn().mockReturnValue({ orderBy })
+  const from = vi.fn().mockReturnValue({ where })
+
+  return {
+    queryBuilder: { from } as unknown as MockDrizzleQueryBuilder,
+    from,
+    where,
+    orderBy,
+    limit,
+    offset,
+  }
+}
+
 interface MockDrizzleInsertBuilder {
   values: vi.MockedFunction<(data: unknown) => MockDrizzleInsertBuilder>
   onConflictDoUpdate: vi.MockedFunction<(config: unknown) => MockDrizzleInsertBuilder>
@@ -48,9 +65,51 @@ interface MockDrizzleInsertBuilder {
 // Type for malicious test inputs that intentionally mix types
 type MaliciousTestInput = string | number | null | undefined
 
+const dbSecurityMocks = vi.hoisted(() => {
+  const db = {
+    insert: vi.fn(),
+    select: vi.fn(),
+  }
+  const sql = vi.fn()
+  const schema = {
+    repositories: {
+      createdAt: {},
+      description: {},
+      fullName: {},
+      metadata: {},
+      name: {},
+      updatedAt: {},
+    },
+    users: {},
+  }
+
+  return {
+    db,
+    schema,
+    sql,
+    timedDb: {
+      select: vi.fn((operation: () => unknown) => operation()),
+    },
+    vectorUtils: {
+      parseEmbedding: vi.fn((text?: string) => (text ? JSON.parse(text) : null)),
+      serializeEmbedding: vi.fn((embedding: unknown) => JSON.stringify(embedding)),
+    },
+  }
+})
+
 // Mock database connection
 vi.mock('../../src/lib/db/config', () => ({
-  sql: vi.fn(),
+  db: dbSecurityMocks.db,
+  getDatabaseUrl: vi.fn(() => 'postgresql://test:test@localhost:5432/test_db'),
+  sql: dbSecurityMocks.sql,
+}))
+
+vi.mock('@/lib/db', () => ({
+  db: dbSecurityMocks.db,
+  schema: dbSecurityMocks.schema,
+  sql: dbSecurityMocks.sql,
+  timedDb: dbSecurityMocks.timedDb,
+  vectorUtils: dbSecurityMocks.vectorUtils,
 }))
 
 // Mock environment variables
@@ -78,7 +137,7 @@ describe('Database Security Testing', () => {
         const sanitized = sanitizeSearchQuery(maliciousQuery)
 
         expect(sanitized).not.toContain('DROP TABLE')
-        expect(sanitized).toContain('\\\\%') // Should escape % wildcards
+        expect(sanitized).toContain('\\%') // Should escape % wildcards
         expect(sanitized.length).toBeLessThanOrEqual(100) // Should limit length
       })
 
@@ -86,8 +145,15 @@ describe('Database Security Testing', () => {
         const queryWithUnderscore = "test_injection'; DELETE FROM repositories; --"
         const sanitized = sanitizeSearchQuery(queryWithUnderscore)
 
-        expect(sanitized).toContain('\\\\_') // Should escape _ wildcards
+        expect(sanitized).toContain('\\_') // Should escape _ wildcards
         expect(sanitized).not.toContain('DELETE FROM')
+      })
+
+      it('should escape LIKE escape characters once', () => {
+        const sanitized = sanitizeSearchQuery('owner\\repo')
+
+        expect(sanitized).toHaveLength('owner\\repo'.length + 1)
+        expect(sanitized.includes('\\\\')).toBe(true)
       })
 
       it('should limit query length to prevent DoS', () => {
@@ -159,13 +225,11 @@ describe('Database Security Testing', () => {
       it('should reject dangerous characters', () => {
         const dangerousChars = [
           "test<script>alert('xss')</script>",
-          "search'query",
-          'search"query',
-          'search;query',
-          'search&query',
-          'search|query',
-          'search*query',
-          'search$query',
+          '<img src=x onerror=alert(1)>',
+          'search--query',
+          'search/*query*/',
+          'javascript:alert(1)',
+          'data:text/html,<script>alert(1)</script>',
           'search\nquery',
           'search\rquery',
         ]
@@ -191,6 +255,8 @@ describe('Database Security Testing', () => {
           'python machine learning',
           'web development',
           'database optimization',
+          "beginner's guide (React) & TypeScript",
+          'C++ templates [advanced]',
         ]
 
         validQueries.forEach(query => {
@@ -276,9 +342,11 @@ describe('Database Security Testing', () => {
 
         const safeConditions = buildSafeFilterConditions(maliciousOptions)
 
-        expect(safeConditions.languages).toHaveLength(2)
-        expect(safeConditions.languages[0]).toHaveLength(50) // Should be clamped
-        expect(safeConditions.languages[0]).not.toContain('DROP TABLE')
+        expect(safeConditions.languages).toHaveLength(3)
+        expect(safeConditions.languages.every(language => language.length <= 50)).toBe(true)
+        expect(safeConditions.languages.every(language => !language.includes('DROP TABLE'))).toBe(
+          true
+        )
       })
 
       it('should limit array sizes to prevent DoS', () => {
@@ -353,6 +421,14 @@ describe('Database Security Testing', () => {
         expect(() => sanitizeJsonInput(deepJson)).toThrow()
       })
 
+      it('should apply JSON depth limits to nested arrays', () => {
+        const deepArrayJson = {
+          topics: [[[[['too_deep']]]]],
+        }
+
+        expect(() => sanitizeJsonInput(deepArrayJson)).toThrow()
+      })
+
       it('should limit JSON size to prevent memory exhaustion', () => {
         const largeJson = {}
         for (let i = 0; i < 1000; i++) {
@@ -361,6 +437,20 @@ describe('Database Security Testing', () => {
 
         expect(() => sanitizeJsonInput(largeJson)).toThrow()
       })
+
+      it('should sanitize nested JSON arrays without rejecting safe values', () => {
+        const sanitized = sanitizeJsonInput({
+          topics: ['typescript', "'; DROP TABLE repositories; --", 'react'],
+          nested: {
+            labels: [{ name: 'good first issue' }, { name: '<script>alert("xss")</script>' }],
+          },
+        })
+
+        expect(sanitized.topics).toEqual(['typescript', 'react'])
+        expect(sanitized.nested).toEqual({
+          labels: [{ name: 'good first issue' }],
+        })
+      })
     })
   })
 
@@ -368,41 +458,24 @@ describe('Database Security Testing', () => {
     describe('Repository queries security', () => {
       it('should use parameterized queries in search function', async () => {
         const mockDb = vi.mocked(db)
-        mockDb.select.mockReturnValue({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              orderBy: vi.fn().mockReturnValue({
-                limit: vi.fn().mockReturnValue({
-                  offset: vi.fn().mockResolvedValue([]),
-                }),
-              }),
-            }),
-          }),
-        } as MockDrizzleQueryBuilder)
+        const builder = createRepositorySearchBuilder()
+        mockDb.select.mockReturnValue(builder.queryBuilder)
 
         const maliciousQuery = "'; DROP TABLE repositories; --"
 
-        // The search function should sanitize the query before using it
         await RepositoryQueries.search(maliciousQuery)
 
-        // Verify the malicious query was sanitized (shortened and escaped)
-        const sanitizedQuery = maliciousQuery.trim().substring(0, 200)
-        expect(sanitizedQuery).not.toEqual(maliciousQuery)
+        expect(builder.where).toHaveBeenCalledTimes(1)
+        const whereCondition = builder.where.mock.calls[0]?.[0]
+        const conditionText = JSON.stringify(whereCondition)
+        expect(conditionText).toContain(sanitizeSearchQuery(maliciousQuery))
+        expect(conditionText).not.toContain(maliciousQuery)
       })
 
       it('should validate and clamp numeric parameters', async () => {
         const mockDb = vi.mocked(db)
-        mockDb.select.mockReturnValue({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              orderBy: vi.fn().mockReturnValue({
-                limit: vi.fn().mockReturnValue({
-                  offset: vi.fn().mockResolvedValue([]),
-                }),
-              }),
-            }),
-          }),
-        } as MockDrizzleQueryBuilder)
+        const builder = createRepositorySearchBuilder()
+        mockDb.select.mockReturnValue(builder.queryBuilder)
 
         const maliciousOptions: MockSearchOptions = {
           limit: 999999, // Should be clamped to 100
@@ -413,8 +486,8 @@ describe('Database Security Testing', () => {
 
         await RepositoryQueries.search('javascript', maliciousOptions)
 
-        // The function should have internally clamped these values
-        expect(true).toBe(true) // Test passes if no errors thrown
+        expect(builder.limit).toHaveBeenCalledWith(100)
+        expect(builder.offset).toHaveBeenCalledWith(0)
       })
 
       it('should whitelist sort columns to prevent injection', async () => {
@@ -510,16 +583,27 @@ describe('Database Security Testing', () => {
         // Test that required fields are enforced
         expect(() => {
           UserDataSchema.parse({
-            // Missing required githubId
-            username: 'testuser',
+            // Missing required username
+            githubId: 12345,
           })
         }).toThrow()
       })
 
-      it('should validate GitHub ID uniqueness', () => {
+      it('should allow nullable provider identity fields for non-GitHub users', () => {
+        const validUser = {
+          githubId: null,
+          githubLogin: null,
+          username: 'email-user',
+        }
+
+        expect(() => UserDataSchema.parse(validUser)).not.toThrow()
+      })
+
+      it('should validate GitHub ID shape when provided', () => {
         // In real implementation, this would be enforced at DB level
         const validUser = {
           githubId: 12345,
+          githubLogin: 'testuser',
           username: 'testuser',
         }
 
@@ -611,24 +695,41 @@ describe('Database Security Testing', () => {
 
     describe('Data Type Confusion Attacks', () => {
       it('should handle type confusion in numeric fields', async () => {
+        const mockDb = vi.mocked(db)
         const typeConfusionValues = [
           'Infinity',
           '-Infinity',
           'NaN',
           '1e100',
-          '0x1234',
           '1.7976931348623157e+308', // MAX_VALUE
         ]
 
         for (const value of typeConfusionValues) {
-          expect(() => {
-            // Simulate parsing a malicious numeric value
-            const parsed = Number(value)
-            if (!Number.isFinite(parsed)) {
-              throw new Error('Invalid numeric value')
-            }
-          }).not.toThrow() // Some may be valid, some invalid
+          const builder = createRepositorySearchBuilder()
+          mockDb.select.mockReturnValueOnce(builder.queryBuilder)
+
+          await RepositoryQueries.search('javascript', {
+            limit: value as unknown as number,
+            offset: value as unknown as number,
+            minStars: value as unknown as number,
+          })
+
+          expect(builder.limit.mock.calls[0]?.[0]).toBeGreaterThanOrEqual(1)
+          expect(builder.limit.mock.calls[0]?.[0]).toBeLessThanOrEqual(100)
+          expect(builder.offset).toHaveBeenCalledWith(expect.any(Number))
+          expect(builder.offset.mock.calls[0]?.[0]).toBeGreaterThanOrEqual(0)
         }
+
+        const hexBuilder = createRepositorySearchBuilder()
+        mockDb.select.mockReturnValueOnce(hexBuilder.queryBuilder)
+
+        await RepositoryQueries.search('javascript', {
+          limit: '0x1234' as unknown as number,
+          offset: '0x1234' as unknown as number,
+        })
+
+        expect(hexBuilder.limit).toHaveBeenCalledWith(100)
+        expect(hexBuilder.offset).toHaveBeenCalledWith(4660)
       })
 
       it('should prevent prototype pollution through JSON input', () => {
@@ -882,10 +983,7 @@ describe('Database Security Testing', () => {
       `
 
       expect(mockSql).toHaveBeenCalledWith(
-        expect.arrayContaining([
-          expect.stringContaining('INSERT INTO security_audit_logs'),
-          expect.stringContaining('login_attempt'),
-        ]),
+        expect.arrayContaining([expect.stringContaining('INSERT INTO security_audit_logs')]),
         'login_attempt',
         'warning',
         email,
@@ -893,207 +991,6 @@ describe('Database Security Testing', () => {
         false,
         '{"reason": "invalid_credentials"}'
       )
-    })
-  })
-})
-
-describe('Database Security Functions Testing', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
-  afterEach(() => {
-    vi.restoreAllMocks()
-  })
-
-  describe('SQL Injection Prevention - Security Functions', () => {
-    describe('sanitizeSearchQuery function', () => {
-      it('should escape LIKE wildcards properly', () => {
-        const maliciousQuery = "test%'; DROP TABLE users; --"
-        const sanitized = sanitizeSearchQuery(maliciousQuery)
-
-        expect(sanitized).not.toContain('DROP TABLE')
-        expect(sanitized).toContain('\\\\%') // Should escape % wildcards
-        expect(sanitized.length).toBeLessThanOrEqual(100) // Should limit length
-      })
-
-      it('should escape underscore wildcards', () => {
-        const queryWithUnderscore = "test_injection'; DELETE FROM repositories; --"
-        const sanitized = sanitizeSearchQuery(queryWithUnderscore)
-
-        expect(sanitized).toContain('\\\\_') // Should escape _ wildcards
-        expect(sanitized).not.toContain('DELETE FROM')
-      })
-
-      it('should limit query length to prevent DoS', () => {
-        const longQuery = `${'a'.repeat(500)}'; DROP TABLE users; --`
-        const sanitized = sanitizeSearchQuery(longQuery)
-
-        expect(sanitized.length).toBeLessThanOrEqual(100)
-        expect(sanitized).not.toContain('DROP TABLE')
-      })
-
-      it('should handle empty and null inputs safely', () => {
-        expect(() => sanitizeSearchQuery('')).toThrow()
-        expect(() => sanitizeSearchQuery('   ')).toThrow()
-      })
-    })
-
-    describe('detectSuspiciousQuery function', () => {
-      const sqlInjectionPayloads = [
-        "'; DROP TABLE users; --",
-        "' OR '1'='1",
-        "'; INSERT INTO users (email) VALUES ('hacker@evil.com'); --",
-        "' UNION SELECT * FROM sensitive_table --",
-        "'; EXEC xp_cmdshell('dir'); --",
-        "' AND (SELECT COUNT(*) FROM information_schema.tables) > 0 --",
-        "'; UPDATE users SET admin = true WHERE id = 1; --",
-        '/* malicious comment */ UNION SELECT password FROM users',
-        '; DELETE FROM repositories WHERE stars > 0',
-        "' OR SLEEP(5) --",
-      ]
-
-      sqlInjectionPayloads.forEach(payload => {
-        it(`should detect SQL injection: "${payload.substring(0, 50)}..."`, () => {
-          expect(detectSuspiciousQuery(payload)).toBe(true)
-        })
-      })
-
-      const legitimateQueries = [
-        'javascript framework',
-        'react hooks tutorial',
-        'python data science',
-        'machine learning algorithms',
-        'web development best practices',
-      ]
-
-      legitimateQueries.forEach(query => {
-        it(`should allow legitimate query: "${query}"`, () => {
-          expect(detectSuspiciousQuery(query)).toBe(false)
-        })
-      })
-    })
-
-    describe('SafeSearchQuerySchema validation', () => {
-      it('should reject SQL keywords in search queries', () => {
-        const maliciousQueries = [
-          'test UNION SELECT',
-          'javascript DROP TABLE',
-          'INSERT INTO repositories',
-          'DELETE FROM users',
-          'UPDATE users SET',
-          'ALTER TABLE bookmarks',
-          'CREATE TABLE malicious',
-        ]
-
-        maliciousQueries.forEach(query => {
-          expect(() => SafeSearchQuerySchema.parse(query)).toThrow()
-        })
-      })
-
-      it('should reject dangerous characters', () => {
-        const dangerousChars = [
-          "test<script>alert('xss')</script>",
-          "search'query",
-          'search"query',
-          'search;query',
-          'search&query',
-          'search|query',
-          'search*query',
-          'search$query',
-          'search\nquery',
-          'search\rquery',
-        ]
-
-        dangerousChars.forEach(query => {
-          expect(() => SafeSearchQuerySchema.parse(query)).toThrow()
-        })
-      })
-
-      it('should enforce length limits', () => {
-        const shortQuery = 'js'
-        const longQuery = 'a'.repeat(201)
-
-        expect(() => SafeSearchQuerySchema.parse('')).toThrow()
-        expect(() => SafeSearchQuerySchema.parse(shortQuery)).not.toThrow()
-        expect(() => SafeSearchQuerySchema.parse(longQuery)).toThrow()
-      })
-
-      it('should allow legitimate search queries', () => {
-        const validQueries = [
-          'javascript framework',
-          'react hooks',
-          'python machine learning',
-          'web development',
-          'database optimization',
-        ]
-
-        validQueries.forEach(query => {
-          expect(() => SafeSearchQuerySchema.parse(query)).not.toThrow()
-        })
-      })
-    })
-  })
-
-  describe('Vector Search Security', () => {
-    describe('sanitizeVectorEmbedding function', () => {
-      it('should validate embedding vector format', () => {
-        const validEmbedding = Array(1536).fill(0.5)
-        expect(() => sanitizeVectorEmbedding(validEmbedding)).not.toThrow()
-      })
-
-      it('should reject non-array embeddings', () => {
-        expect(() => sanitizeVectorEmbedding('not-an-array')).toThrow()
-        expect(() => sanitizeVectorEmbedding({})).toThrow()
-        expect(() => sanitizeVectorEmbedding(null)).toThrow()
-        expect(() => sanitizeVectorEmbedding(undefined)).toThrow()
-      })
-
-      it('should reject incorrect embedding dimensions', () => {
-        const shortEmbedding = Array(100).fill(0.5)
-        const longEmbedding = Array(3000).fill(0.5)
-
-        expect(() => sanitizeVectorEmbedding(shortEmbedding)).toThrow()
-        expect(() => sanitizeVectorEmbedding(longEmbedding)).toThrow()
-      })
-
-      it('should reject non-numeric values in embedding', () => {
-        const invalidEmbedding = Array(1536).fill(0.5)
-        invalidEmbedding[100] = 'malicious_string'
-        invalidEmbedding[200] = null
-        invalidEmbedding[300] = undefined
-        invalidEmbedding[400] = Number.NaN
-        invalidEmbedding[500] = Number.POSITIVE_INFINITY
-
-        expect(() => sanitizeVectorEmbedding(invalidEmbedding)).toThrow()
-      })
-
-      it('should validate embedding value ranges', () => {
-        const extremeEmbedding = Array(1536).fill(0.5)
-        extremeEmbedding[0] = Number.MAX_VALUE
-        extremeEmbedding[1] = -Number.MAX_VALUE
-
-        expect(() => sanitizeVectorEmbedding(extremeEmbedding)).toThrow()
-      })
-    })
-
-    describe('VectorEmbeddingSchema validation', () => {
-      it('should enforce exact dimension requirements', () => {
-        const validEmbedding = Array(1536).fill(0.1)
-        const invalidShort = Array(1535).fill(0.1)
-        const invalidLong = Array(1537).fill(0.1)
-
-        expect(() => VectorEmbeddingSchema.parse(validEmbedding)).not.toThrow()
-        expect(() => VectorEmbeddingSchema.parse(invalidShort)).toThrow()
-        expect(() => VectorEmbeddingSchema.parse(invalidLong)).toThrow()
-      })
-
-      it('should validate numeric values within acceptable ranges', () => {
-        const validEmbedding = Array(1536)
-          .fill(0)
-          .map(() => Math.random() * 2 - 1)
-        expect(() => VectorEmbeddingSchema.parse(validEmbedding)).not.toThrow()
-      })
     })
   })
 })

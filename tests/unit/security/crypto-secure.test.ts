@@ -102,7 +102,9 @@ describe('Cryptographically Secure Random', () => {
       )
 
       const counts = new Map<string, number>()
-      results.forEach(r => counts.set(r, (counts.get(r) || 0) + 1))
+      results.forEach(r => {
+        counts.set(r, (counts.get(r) || 0) + 1)
+      })
 
       // Each digit should appear roughly 10% of the time
       const expected = sampleSize / alphabet.length
@@ -225,7 +227,9 @@ describe('Cryptographically Secure Random', () => {
       const samples = Array.from({ length: 100000 }, () => getSecureRandomInt(min, max))
 
       const counts = new Map<number, number>()
-      samples.forEach(value => counts.set(value, (counts.get(value) || 0) + 1))
+      samples.forEach(value => {
+        counts.set(value, (counts.get(value) || 0) + 1)
+      })
 
       // Each value should appear roughly 10% of the time
       const expected = samples.length / (max - min)

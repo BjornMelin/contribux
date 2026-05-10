@@ -2,665 +2,139 @@
  * @vitest-environment node
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-
-/**
- * Main Middleware Test Suite
- * Comprehensive testing for middleware integration, error handling,
- * and security policy enforcement
- */
-
-// Mock Next.js server module
-vi.mock('next/server', () => {
-  const MockNextRequest = class {
-    public url: string
-    public headers: Map<string, string>
-    public method: string
-
-    constructor(url: string, options: RequestInit = {}) {
-      this.url = url
-      this.method = options.method || 'GET'
-      this.headers = new Map()
-    }
-  }
-
-  MockNextRequest.prototype.headers = {
-    get: vi.fn((_key: string) => null),
-    set: vi.fn(),
-  }
-
-  const MockNextResponse = class {
-    public status: number
-    public headers: Map<string, string>
-    private body: unknown
-
-    constructor(body?: unknown, init?: ResponseInit) {
-      this.status = init?.status || 200
-      this.headers = new Map()
-      this.body = body
-    }
-
-    static next() {
-      return new MockNextResponse()
-    }
-
-    text() {
-      return Promise.resolve(this.body || '')
-    }
-  }
-
-  MockNextResponse.prototype.headers = {
-    get: vi.fn((_key: string) => null),
-    set: vi.fn(),
-  }
-
-  return {
-    NextRequest: MockNextRequest,
-    NextResponse: MockNextResponse,
-  }
-})
-
 import { NextRequest, NextResponse } from 'next/server'
-import { config, middleware } from '../../src/middleware'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { verifyAccessToken } from '@/lib/auth/jwt'
+import { enhancedRateLimitMiddleware } from '@/lib/security/rate-limiter'
+import { config, proxy } from '../../src/proxy'
 
-// Mock the security modules
-vi.mock('../../src/lib/security/enhanced-middleware', () => ({
-  enhancedSecurityMiddleware: vi.fn(),
+vi.mock('@/lib/auth/jwt', () => ({
+  verifyAccessToken: vi.fn(),
 }))
 
-vi.mock('../../src/lib/security/headers', () => ({
-  addSecurityHeaders: vi.fn(response => {
-    response.headers.set('X-Frame-Options', 'DENY')
-    response.headers.set('X-Content-Type-Options', 'nosniff')
-    response.headers.set('Access-Control-Allow-Origin', 'https://contribux.vercel.app')
-    return response
-  }),
-  handleCorsOptions: vi.fn(),
+vi.mock('@/lib/security/csp', () => ({
+  buildCSP: vi.fn(
+    (_directives, nonce: string) => `default-src 'self'; script-src 'nonce-${nonce}'`
+  ),
+  generateNonce: vi.fn(() => 'test-nonce'),
+  getCSPDirectives: vi.fn(() => ({})),
 }))
 
-/**
- * Helper to create mock NextRequest
- */
-function createMockRequest(
-  url: string,
-  options: RequestInit = {},
-  headers: Record<string, string> = {}
-): NextRequest {
-  const request = new NextRequest(url, {
-    method: 'GET',
-    ...options,
-  })
+vi.mock('@/lib/security/rate-limiter', () => ({
+  enhancedRateLimitMiddleware: vi.fn(),
+}))
 
-  // Set custom headers
-  Object.entries(headers).forEach(([key, value]) => {
-    request.headers.set(key, value)
-  })
+vi.mock('@/lib/validation/env', () => ({
+  env: {
+    NEXTAUTH_URL: 'http://localhost:3000',
+    NODE_ENV: 'test',
+  },
+  isProduction: vi.fn(() => false),
+}))
 
-  return request
+function createRequest(url: string, init: RequestInit = {}) {
+  return new NextRequest(url, init)
 }
 
-describe('Main Middleware', () => {
+function allowRequest() {
+  vi.mocked(enhancedRateLimitMiddleware).mockResolvedValue(NextResponse.next())
+}
+
+describe('middleware', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    allowRequest()
+    vi.mocked(verifyAccessToken).mockReset()
   })
 
-  describe('Enhanced Security Middleware Integration', () => {
-    it('should call enhanced security middleware first', async () => {
-      const { enhancedSecurityMiddleware } = await import(
-        '../../src/lib/security/enhanced-middleware'
-      )
-      const { addSecurityHeaders } = await import('../../src/lib/security/headers')
+  it('bypasses static assets and internal Next.js routes', async () => {
+    const response = await proxy(createRequest('https://example.com/_next/static/app.js'))
 
-      // Mock enhanced middleware to return a response
-      const mockResponse = new NextResponse('Enhanced response', { status: 200 })
-      mockResponse.headers.set('X-Enhanced', 'true')
-      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse)
-
-      const request = createMockRequest('https://example.com/api/test')
-      const response = await middleware(request)
-
-      expect(enhancedSecurityMiddleware).toHaveBeenCalledWith(request)
-      expect(addSecurityHeaders).not.toHaveBeenCalled() // Should not fallback
-      expect(response).toBe(mockResponse)
-    })
-
-    it('should fallback to basic security when enhanced returns null', async () => {
-      const { enhancedSecurityMiddleware } = await import(
-        '../../src/lib/security/enhanced-middleware'
-      )
-      const { addSecurityHeaders, handleCorsOptions } = await import(
-        '../../src/lib/security/headers'
-      )
-
-      // Mock enhanced middleware to return null (pass-through)
-      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
-      ;(handleCorsOptions as ReturnType<typeof vi.fn>).mockReturnValue(null)
-
-      const request = createMockRequest('https://example.com/api/test')
-      const response = await middleware(request)
-
-      expect(enhancedSecurityMiddleware).toHaveBeenCalledWith(request)
-      expect(handleCorsOptions).toHaveBeenCalledWith(request)
-      expect(addSecurityHeaders).toHaveBeenCalled()
-      expect(response).toBeInstanceOf(NextResponse)
-    })
-
-    it('should handle CORS preflight in fallback mode', async () => {
-      const { enhancedSecurityMiddleware } = await import(
-        '../../src/lib/security/enhanced-middleware'
-      )
-      const { handleCorsOptions } = await import('../../src/lib/security/headers')
-
-      // Mock enhanced middleware to return null
-      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
-
-      // Mock CORS handler to return a response
-      const corsResponse = new NextResponse(null, { status: 200 })
-      corsResponse.headers.set('Access-Control-Allow-Origin', 'https://contribux.vercel.app')
-      ;(handleCorsOptions as ReturnType<typeof vi.fn>).mockReturnValue(corsResponse)
-
-      const request = createMockRequest('https://example.com/api/test', {
-        method: 'OPTIONS',
-      })
-      const response = await middleware(request)
-
-      expect(enhancedSecurityMiddleware).toHaveBeenCalledWith(request)
-      expect(handleCorsOptions).toHaveBeenCalledWith(request)
-      expect(response).toBe(corsResponse)
-    })
-
-    it('should apply basic security headers as final step', async () => {
-      const { enhancedSecurityMiddleware } = await import(
-        '../../src/lib/security/enhanced-middleware'
-      )
-      const { addSecurityHeaders, handleCorsOptions } = await import(
-        '../../src/lib/security/headers'
-      )
-
-      // Mock enhanced middleware to return null
-      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
-      ;(handleCorsOptions as ReturnType<typeof vi.fn>).mockReturnValue(null)
-
-      const request = createMockRequest('https://example.com/api/test')
-      const response = await middleware(request)
-
-      expect(enhancedSecurityMiddleware).toHaveBeenCalledWith(request)
-      expect(handleCorsOptions).toHaveBeenCalledWith(request)
-      expect(addSecurityHeaders).toHaveBeenCalled()
-
-      // Verify security headers are applied
-      expect(response.headers.get('X-Frame-Options')).toBe('DENY')
-      expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff')
-      expect(response.headers.get('Access-Control-Allow-Origin')).toBe(
-        'https://contribux.vercel.app'
-      )
-    })
+    expect(response.status).toBe(200)
+    expect(enhancedRateLimitMiddleware).not.toHaveBeenCalled()
+    expect(response.headers.get('Content-Security-Policy')).toBeNull()
   })
 
-  describe('Error Handling', () => {
-    it('should handle enhanced middleware errors gracefully', async () => {
-      const { enhancedSecurityMiddleware } = await import(
-        '../../src/lib/security/enhanced-middleware'
-      )
-      const { addSecurityHeaders } = await import('../../src/lib/security/headers')
+  it('short-circuits rate-limited requests', async () => {
+    const rateLimited = NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+    rateLimited.headers.set('X-RateLimit-Remaining', '0')
+    vi.mocked(enhancedRateLimitMiddleware).mockResolvedValue(rateLimited)
 
-      // Mock enhanced middleware to throw an error
-      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error('Enhanced middleware error')
-      )
+    const response = await proxy(createRequest('https://example.com/api/search/repositories'))
 
-      const request = createMockRequest('https://example.com/api/test')
-      const response = await middleware(request)
-
-      expect(enhancedSecurityMiddleware).toHaveBeenCalledWith(request)
-      expect(addSecurityHeaders).toHaveBeenCalled()
-      expect(response).toBeInstanceOf(NextResponse)
-
-      // Should still have basic security headers
-      expect(response.headers.get('X-Frame-Options')).toBe('DENY')
-    })
-
-    it('should handle basic security headers errors gracefully', async () => {
-      const { enhancedSecurityMiddleware } = await import(
-        '../../src/lib/security/enhanced-middleware'
-      )
-      const { addSecurityHeaders, handleCorsOptions } = await import(
-        '../../src/lib/security/headers'
-      )
-
-      // Mock enhanced middleware to return null
-      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
-      ;(handleCorsOptions as ReturnType<typeof vi.fn>).mockReturnValue(null)
-
-      // Mock addSecurityHeaders to throw an error
-      ;(addSecurityHeaders as ReturnType<typeof vi.fn>).mockImplementation(() => {
-        throw new Error('Headers error')
-      })
-
-      const request = createMockRequest('https://example.com/api/test')
-
-      // Should not throw
-      expect(async () => {
-        await middleware(request)
-      }).not.toThrow()
-
-      const response = await middleware(request)
-      expect(response).toBeInstanceOf(NextResponse)
-    })
-
-    it('should handle complete middleware failure', async () => {
-      const { enhancedSecurityMiddleware } = await import(
-        '../../src/lib/security/enhanced-middleware'
-      )
-      const { addSecurityHeaders, handleCorsOptions } = await import(
-        '../../src/lib/security/headers'
-      )
-
-      // Mock all security functions to throw errors
-      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error('Enhanced error')
-      )
-      ;(handleCorsOptions as ReturnType<typeof vi.fn>).mockImplementation(() => {
-        throw new Error('CORS error')
-      })
-      ;(addSecurityHeaders as ReturnType<typeof vi.fn>).mockImplementation(() => {
-        throw new Error('Headers error')
-      })
-
-      const request = createMockRequest('https://example.com/api/test')
-      const response = await middleware(request)
-
-      expect(response).toBeInstanceOf(NextResponse)
-      // Should still have some basic security from the fallback
-    })
-
-    it('should handle network timeout errors', async () => {
-      const { enhancedSecurityMiddleware } = await import(
-        '../../src/lib/security/enhanced-middleware'
-      )
-
-      // Mock network timeout
-      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockImplementation(() => {
-        return new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Timeout')), 100)
-        })
-      })
-
-      const request = createMockRequest('https://example.com/api/test')
-      const response = await middleware(request)
-
-      expect(response).toBeInstanceOf(NextResponse)
-    })
-
-    it('should handle malformed requests', async () => {
-      const { enhancedSecurityMiddleware } = await import(
-        '../../src/lib/security/enhanced-middleware'
-      )
-
-      // Mock enhanced middleware for malformed request
-      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
-
-      // Create request with malformed URL
-      const request = createMockRequest('https://example.com/api/test', {
-        method: 'INVALID_METHOD' as string,
-      })
-
-      const response = await middleware(request)
-      expect(response).toBeInstanceOf(NextResponse)
-    })
+    expect(response.status).toBe(429)
+    expect(response.headers.get('X-RateLimit-Remaining')).toBe('0')
+    expect(verifyAccessToken).not.toHaveBeenCalled()
   })
 
-  describe('Request Flow Scenarios', () => {
-    it('should handle GET requests', async () => {
-      const { enhancedSecurityMiddleware } = await import(
-        '../../src/lib/security/enhanced-middleware'
-      )
-      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+  it('allows public pages and applies security headers', async () => {
+    const response = await proxy(createRequest('https://example.com/about'))
 
-      const request = createMockRequest('https://example.com/api/search', {
-        method: 'GET',
-      })
-
-      const response = await middleware(request)
-      expect(response).toBeInstanceOf(NextResponse)
-      expect(enhancedSecurityMiddleware).toHaveBeenCalledWith(request)
-    })
-
-    it('should handle POST requests', async () => {
-      const { enhancedSecurityMiddleware } = await import(
-        '../../src/lib/security/enhanced-middleware'
-      )
-      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
-
-      const request = createMockRequest('https://example.com/api/repositories', {
-        method: 'POST',
-        body: JSON.stringify({ query: 'test' }),
-        headers: {
-          'content-type': 'application/json',
-        },
-      })
-
-      const response = await middleware(request)
-      expect(response).toBeInstanceOf(NextResponse)
-      expect(enhancedSecurityMiddleware).toHaveBeenCalledWith(request)
-    })
-
-    it('should handle PUT requests', async () => {
-      const { enhancedSecurityMiddleware } = await import(
-        '../../src/lib/security/enhanced-middleware'
-      )
-      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
-
-      const request = createMockRequest('https://example.com/api/bookmarks/123', {
-        method: 'PUT',
-      })
-
-      const response = await middleware(request)
-      expect(response).toBeInstanceOf(NextResponse)
-      expect(enhancedSecurityMiddleware).toHaveBeenCalledWith(request)
-    })
-
-    it('should handle DELETE requests', async () => {
-      const { enhancedSecurityMiddleware } = await import(
-        '../../src/lib/security/enhanced-middleware'
-      )
-      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
-
-      const request = createMockRequest('https://example.com/api/bookmarks/123', {
-        method: 'DELETE',
-      })
-
-      const response = await middleware(request)
-      expect(response).toBeInstanceOf(NextResponse)
-      expect(enhancedSecurityMiddleware).toHaveBeenCalledWith(request)
-    })
-
-    it('should handle OPTIONS requests', async () => {
-      const { enhancedSecurityMiddleware } = await import(
-        '../../src/lib/security/enhanced-middleware'
-      )
-      const { handleCorsOptions } = await import('../../src/lib/security/headers')
-
-      // Enhanced middleware returns null
-      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
-
-      // CORS handler should be called
-      const corsResponse = new NextResponse(null, { status: 200 })
-      ;(handleCorsOptions as ReturnType<typeof vi.fn>).mockReturnValue(corsResponse)
-
-      const request = createMockRequest('https://example.com/api/test', {
-        method: 'OPTIONS',
-      })
-
-      const response = await middleware(request)
-      expect(response).toBe(corsResponse)
-      expect(handleCorsOptions).toHaveBeenCalledWith(request)
-    })
+    expect(response.status).toBe(200)
+    expect(response.headers.get('Content-Security-Policy')).toContain('nonce-test-nonce')
+    expect(response.headers.get('X-Frame-Options')).toBe('DENY')
+    expect(response.headers.get('x-middleware-request-x-nonce')).toBe('test-nonce')
+    expect(response.headers.get('x-middleware-request-content-security-policy')).toContain(
+      'nonce-test-nonce'
+    )
   })
 
-  describe('Route-Specific Behavior', () => {
-    it('should handle API routes', async () => {
-      const { enhancedSecurityMiddleware } = await import(
-        '../../src/lib/security/enhanced-middleware'
-      )
-      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
-
-      const apiRoutes = ['/api/search', '/api/repositories', '/api/bookmarks', '/api/auth/callback']
-
-      for (const route of apiRoutes) {
-        const request = createMockRequest(`https://example.com${route}`)
-        const response = await middleware(request)
-
-        expect(response).toBeInstanceOf(NextResponse)
-        expect(enhancedSecurityMiddleware).toHaveBeenCalledWith(request)
-      }
-    })
-
-    it('should handle page routes', async () => {
-      const { enhancedSecurityMiddleware } = await import(
-        '../../src/lib/security/enhanced-middleware'
-      )
-      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
-
-      const pageRoutes = ['/', '/search', '/repository/123', '/profile']
-
-      for (const route of pageRoutes) {
-        const request = createMockRequest(`https://example.com${route}`)
-        const response = await middleware(request)
-
-        expect(response).toBeInstanceOf(NextResponse)
-        expect(enhancedSecurityMiddleware).toHaveBeenCalledWith(request)
-      }
-    })
-
-    it('should handle authenticated routes', async () => {
-      const { enhancedSecurityMiddleware } = await import(
-        '../../src/lib/security/enhanced-middleware'
-      )
-      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
-
-      const request = createMockRequest(
-        'https://example.com/profile',
-        {
-          method: 'GET',
-        },
-        {
-          cookie: 'session=abc123',
-          authorization: 'Bearer token123',
-        }
-      )
-
-      const response = await middleware(request)
-      expect(response).toBeInstanceOf(NextResponse)
-      expect(enhancedSecurityMiddleware).toHaveBeenCalledWith(request)
-    })
-  })
-
-  describe('Security Response Verification', () => {
-    it('should ensure security headers are always present', async () => {
-      const { enhancedSecurityMiddleware } = await import(
-        '../../src/lib/security/enhanced-middleware'
-      )
-      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
-
-      const request = createMockRequest('https://example.com/api/test')
-      const response = await middleware(request)
-
-      // Essential security headers should always be present
-      expect(response.headers.get('X-Frame-Options')).toBeTruthy()
-      expect(response.headers.get('X-Content-Type-Options')).toBeTruthy()
-      expect(response.headers.get('Access-Control-Allow-Origin')).toBeTruthy()
-    })
-
-    it('should handle rate limiting responses', async () => {
-      const { enhancedSecurityMiddleware } = await import(
-        '../../src/lib/security/enhanced-middleware'
-      )
-
-      // Mock rate limiting response
-      const rateLimitResponse = new NextResponse('Rate limit exceeded', { status: 429 })
-      rateLimitResponse.headers.set('Retry-After', '60')
-      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(rateLimitResponse)
-
-      const request = createMockRequest('https://example.com/api/test')
-      const response = await middleware(request)
-
-      expect(response.status).toBe(429)
-      expect(response.headers.get('Retry-After')).toBe('60')
-    })
-
-    it('should handle blocked requests', async () => {
-      const { enhancedSecurityMiddleware } = await import(
-        '../../src/lib/security/enhanced-middleware'
-      )
-
-      // Mock blocked request response
-      const blockedResponse = new NextResponse('Blocked', { status: 403 })
-      blockedResponse.headers.set('X-Blocked-Reason', 'suspicious-activity')
-      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(blockedResponse)
-
-      const request = createMockRequest('https://example.com/api/test')
-      const response = await middleware(request)
-
-      expect(response.status).toBe(403)
-      expect(response.headers.get('X-Blocked-Reason')).toBe('suspicious-activity')
-    })
-  })
-
-  describe('Performance and Reliability', () => {
-    it('should handle concurrent requests', async () => {
-      const { enhancedSecurityMiddleware } = await import(
-        '../../src/lib/security/enhanced-middleware'
-      )
-      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
-
-      const requests = Array.from({ length: 10 }, (_, i) =>
-        createMockRequest(`https://example.com/api/test${i}`)
-      )
-
-      const promises = requests.map(request => middleware(request))
-      const responses = await Promise.all(promises)
-
-      expect(responses).toHaveLength(10)
-      responses.forEach(response => {
-        expect(response).toBeInstanceOf(NextResponse)
+  it('allows public repository search API with CORS headers', async () => {
+    const response = await proxy(
+      createRequest('https://example.com/api/search/repositories', {
+        headers: { origin: 'http://localhost:3000' },
       })
-    })
+    )
 
-    it('should complete within reasonable time', async () => {
-      const { enhancedSecurityMiddleware } = await import(
-        '../../src/lib/security/enhanced-middleware'
-      )
-      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+    expect(response.status).toBe(200)
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe('http://localhost:3000')
+    expect(response.headers.get('Access-Control-Allow-Methods')).toContain('GET')
+  })
 
-      const request = createMockRequest('https://example.com/api/test')
+  it('requires a token for protected routes', async () => {
+    const response = await proxy(createRequest('https://example.com/dashboard'))
 
-      const startTime = Date.now()
-      await middleware(request)
-      const endTime = Date.now()
+    expect(response.status).toBe(401)
+    await expect(response.json()).resolves.toEqual({ error: 'Authentication required' })
+    expect(verifyAccessToken).not.toHaveBeenCalled()
+  })
 
-      const duration = endTime - startTime
-      expect(duration).toBeLessThan(1000) // Should complete within 1 second
-    })
+  it('rejects invalid bearer tokens', async () => {
+    vi.mocked(verifyAccessToken).mockResolvedValue(null)
 
-    it('should handle memory pressure gracefully', async () => {
-      const { enhancedSecurityMiddleware } = await import(
-        '../../src/lib/security/enhanced-middleware'
-      )
-      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
-
-      // Simulate many rapid requests
-      const promises = []
-      for (let i = 0; i < 100; i++) {
-        const request = createMockRequest(`https://example.com/api/test${i}`)
-        promises.push(middleware(request))
-      }
-
-      const responses = await Promise.all(promises)
-      expect(responses).toHaveLength(100)
-
-      // Should not crash or leak memory
-      responses.forEach(response => {
-        expect(response).toBeInstanceOf(NextResponse)
+    const response = await proxy(
+      createRequest('https://example.com/dashboard', {
+        headers: { authorization: 'Bearer invalid-token' },
       })
-    })
+    )
+
+    expect(response.status).toBe(401)
+    expect(verifyAccessToken).toHaveBeenCalledWith('invalid-token')
   })
 
-  describe('Configuration', () => {
-    it('should have correct matcher configuration', () => {
-      expect(config).toBeDefined()
-      expect(config.matcher).toBeDefined()
-      expect(Array.isArray(config.matcher)).toBe(true)
+  it('allows valid bearer tokens through protected routes', async () => {
+    vi.mocked(verifyAccessToken).mockResolvedValue({ sub: 'user-123' })
 
-      const matcher = config.matcher[0]
-      expect(matcher).toContain('(?!_next/static|_next/image|favicon.ico|public)')
-    })
+    const response = await proxy(
+      createRequest('https://example.com/dashboard', {
+        headers: { authorization: 'Bearer valid-token' },
+      })
+    )
 
-    it('should match expected routes', () => {
-      const matcher = config.matcher[0]
-      const regex = new RegExp(matcher.slice(1, -1)) // Remove leading/trailing slashes
-
-      // Should match
-      expect(regex.test('/')).toBe(true)
-      expect(regex.test('/api/test')).toBe(true)
-      expect(regex.test('/search')).toBe(true)
-      expect(regex.test('/profile')).toBe(true)
-
-      // Should not match excluded paths
-      expect(regex.test('/_next/static/css/app.css')).toBe(false)
-      expect(regex.test('/_next/image/optimize')).toBe(false)
-      expect(regex.test('/favicon.ico')).toBe(false)
-      expect(regex.test('/public/logo.png')).toBe(false)
-    })
+    expect(response.status).toBe(200)
+    expect(verifyAccessToken).toHaveBeenCalledWith('valid-token')
+    expect(response.headers.get('Content-Security-Policy')).toContain('nonce-test-nonce')
   })
 
-  describe('Integration Scenarios', () => {
-    it('should work with authentication flow', async () => {
-      const { enhancedSecurityMiddleware } = await import(
-        '../../src/lib/security/enhanced-middleware'
-      )
-      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+  it('matches active app and API routes while excluding static assets', () => {
+    expect(config.matcher).toEqual(['/((?!_next/static|_next/image|favicon.ico).*)'])
 
-      const authRequest = createMockRequest(
-        'https://example.com/api/auth/signin',
-        {
-          method: 'POST',
-        },
-        {
-          'content-type': 'application/json',
-          'x-forwarded-for': '192.168.1.100',
-        }
-      )
-
-      const response = await middleware(authRequest)
-      expect(response).toBeInstanceOf(NextResponse)
-      expect(enhancedSecurityMiddleware).toHaveBeenCalledWith(authRequest)
-    })
-
-    it('should work with API search requests', async () => {
-      const { enhancedSecurityMiddleware } = await import(
-        '../../src/lib/security/enhanced-middleware'
-      )
-      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
-
-      const searchRequest = createMockRequest(
-        'https://example.com/api/search?q=react',
-        {
-          method: 'GET',
-        },
-        {
-          accept: 'application/json',
-          'x-forwarded-for': '192.168.1.101',
-        }
-      )
-
-      const response = await middleware(searchRequest)
-      expect(response).toBeInstanceOf(NextResponse)
-      expect(enhancedSecurityMiddleware).toHaveBeenCalledWith(searchRequest)
-    })
-
-    it('should work with bookmark operations', async () => {
-      const { enhancedSecurityMiddleware } = await import(
-        '../../src/lib/security/enhanced-middleware'
-      )
-      ;(enhancedSecurityMiddleware as ReturnType<typeof vi.fn>).mockResolvedValue(null)
-
-      const bookmarkRequest = createMockRequest(
-        'https://example.com/api/bookmarks',
-        {
-          method: 'POST',
-          body: JSON.stringify({ repositoryId: 123 }),
-        },
-        {
-          'content-type': 'application/json',
-          authorization: 'Bearer token123',
-          'x-forwarded-for': '192.168.1.102',
-        }
-      )
-
-      const response = await middleware(bookmarkRequest)
-      expect(response).toBeInstanceOf(NextResponse)
-      expect(enhancedSecurityMiddleware).toHaveBeenCalledWith(bookmarkRequest)
-    })
+    const matcher = /^\/((?!_next\/static|_next\/image|favicon\.ico).*)/
+    expect(matcher.test('/')).toBe(true)
+    expect(matcher.test('/api/search/repositories')).toBe(true)
+    expect(matcher.test('/dashboard')).toBe(true)
+    expect(matcher.test('/_next/static/app.js')).toBe(false)
+    expect(matcher.test('/_next/image')).toBe(false)
+    expect(matcher.test('/favicon.ico')).toBe(false)
   })
 })

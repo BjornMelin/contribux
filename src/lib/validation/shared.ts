@@ -197,8 +197,8 @@ export const createCustomErrorSchema = <T>(
 // Advanced API request validation schema
 export const ApiRequestSchema = z
   .object({
-    headers: z.record(z.string()).optional(),
-    query: z.record(z.string()).optional(),
+    headers: z.record(z.string(), z.string()).optional(),
+    query: z.record(z.string(), z.string()).optional(),
     body: z.unknown().optional(),
     method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']),
     path: z.string(),
@@ -270,7 +270,7 @@ export const createApiResponseSchema = <T>(dataSchema: z.ZodSchema<T>) =>
         .object({
           code: z.string(),
           message: z.string(),
-          details: z.record(z.unknown()).optional(),
+          details: z.record(z.string(), z.unknown()).optional(),
         })
         .optional(),
       metadata: z
@@ -312,7 +312,7 @@ export function registerValidationSchema<T>(name: string, schema: z.ZodSchema<T>
 }
 
 export function getValidationSchema<T>(name: string): z.ZodSchema<T> | undefined {
-  return validationSchemas.get(name)
+  return validationSchemas.get(name) as z.ZodSchema<T> | undefined
 }
 
 export function composeValidationSchemas<T>(...schemaNames: string[]): z.ZodSchema<T> {
@@ -440,9 +440,13 @@ export class ValidationErrorAggregator {
   }
 }
 
+type ParseableSchema<T> = {
+  parse(input: unknown): T
+}
+
 // Memoized validation for expensive schemas
 export function createMemoizedValidator<T>(
-  schema: z.ZodSchema<T>,
+  schema: ParseableSchema<T>,
   keyExtractor: (input: unknown) => string,
   maxCacheSize = 1000
 ) {
@@ -550,27 +554,33 @@ export class SchemaVersionManager {
   }
 
   getSchema<T>(schemaName: string, version: string): z.ZodSchema<T> | undefined {
-    return this.versions.get(schemaName)?.get(version)
+    return this.versions.get(schemaName)?.get(version) as z.ZodSchema<T> | undefined
   }
 
   getLatestSchema<T>(schemaName: string): z.ZodSchema<T> | undefined {
     const schemas = this.versions.get(schemaName)
     if (!schemas || schemas.size === 0) return undefined
 
-    const versions = Array.from(schemas.keys()).sort((a, b) => {
-      // Simple semantic version comparison
-      const aParts = a.split('.').map(Number)
-      const bParts = b.split('.').map(Number)
+    const versions = this.getSortedVersions(schemaName)
+
+    return schemas.get(versions[0]) as z.ZodSchema<T> | undefined
+  }
+
+  private getSortedVersions(schemaName: string): string[] {
+    const schemas = this.versions.get(schemaName)
+    if (!schemas) return []
+
+    return Array.from(schemas.keys()).sort((a, b) => {
+      const aParts = a.replace(/^v/i, '').split('.').map(Number)
+      const bParts = b.replace(/^v/i, '').split('.').map(Number)
 
       for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
-        const aPart = aParts[i] || 0
-        const bPart = bParts[i] || 0
+        const aPart = Number.isFinite(aParts[i]) ? aParts[i] : 0
+        const bPart = Number.isFinite(bParts[i]) ? bParts[i] : 0
         if (aPart !== bPart) return bPart - aPart
       }
       return 0
     })
-
-    return schemas.get(versions[0])
   }
 
   validateWithFallback<T>(
@@ -592,9 +602,7 @@ export class SchemaVersionManager {
     const latestSchema = this.getLatestSchema<T>(schemaName)
     if (latestSchema) {
       try {
-        const latestVersion = Array.from(this.versions.get(schemaName)?.keys() || []).sort((a, b) =>
-          b.localeCompare(a)
-        )[0]
+        const latestVersion = this.getSortedVersions(schemaName)[0]
         return { data: latestSchema.parse(input), version: latestVersion }
       } catch {
         // Continue to try all versions
@@ -606,7 +614,7 @@ export class SchemaVersionManager {
     if (allSchemas) {
       for (const [version, schema] of allSchemas) {
         try {
-          return { data: schema.parse(input), version }
+          return { data: schema.parse(input) as T, version }
         } catch {
           // Ignore validation errors, continue to next version
         }
@@ -631,7 +639,7 @@ export const PasswordSchema = z
 // Common field validation
 export const NonEmptyStringSchema = z.string().min(1, 'Field cannot be empty')
 export const PositiveNumberSchema = z.number().positive('Must be a positive number')
-export const IPAddressSchema = z.string().ip('Invalid IP address')
+export const IPAddressSchema = z.union([z.ipv4(), z.ipv6()])
 
 // GitHub-specific validation
 export const GitHubUsernameSchema = z
@@ -702,7 +710,7 @@ export function createArraySchema<T extends z.ZodTypeAny>(schema: T, minItems = 
 export function formatValidationErrors(errors: z.ZodError): Record<string, string> {
   const formatted: Record<string, string> = {}
 
-  for (const error of errors.errors) {
+  for (const error of errors.issues) {
     const path = error.path.join('.')
     formatted[path] = error.message
   }

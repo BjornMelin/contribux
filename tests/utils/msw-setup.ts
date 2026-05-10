@@ -143,8 +143,8 @@ export function createUserRepositoriesHandler(
 ) {
   return http.get(`https://api.github.com/users/${username}/repos`, ({ request }) => {
     const url = new URL(request.url)
-    const perPage = Number.parseInt(url.searchParams.get('per_page') || '30')
-    const page = Number.parseInt(url.searchParams.get('page') || '1')
+    const perPage = Number.parseInt(url.searchParams.get('per_page') || '30', 10)
+    const page = Number.parseInt(url.searchParams.get('page') || '1', 10)
 
     const mockRepos =
       repos.length > 0
@@ -170,8 +170,8 @@ export function createUserRepositoriesHandler(
 export function createRepositoryIssuesHandler(owner: string, repo: string, issueCount = 10) {
   return http.get(`https://api.github.com/repos/${owner}/${repo}/issues`, ({ request }) => {
     const url = new URL(request.url)
-    const perPage = Number.parseInt(url.searchParams.get('per_page') || '30')
-    const page = Number.parseInt(url.searchParams.get('page') || '1')
+    const perPage = Number.parseInt(url.searchParams.get('per_page') || '30', 10)
+    const page = Number.parseInt(url.searchParams.get('page') || '1', 10)
 
     const issues = createManyGitHubIssueMocks(issueCount)
 
@@ -449,7 +449,7 @@ export function createAuthenticationHandlers() {
     http.post('http://localhost:3000/api/auth/verify', async ({ request }) => {
       const authHeader = request.headers.get('authorization')
 
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      if (!authHeader?.startsWith('Bearer ')) {
         return HttpResponse.json(
           { error: 'Invalid token format' },
           {
@@ -615,21 +615,21 @@ export function setupRateLimitMSW() {
  * These provide enhanced functionality for complete API testing
  */
 export {
-  // Setup functions for different testing scenarios
-  setupComprehensiveMSW,
-  setupCustomMSW,
-  setupAuthMSW,
-  setupSecurityMSW, // This is the one from unified-handlers that creates a new server
-  setupSearchMSW,
   // Handler collections
   allHandlers,
   coreHandlers,
   externalHandlers,
-  // Test utilities
-  testScenarios,
+  mockFactories,
   requestBuilders,
   responseValidators,
-  mockFactories,
+  setupAuthMSW,
+  // Setup functions for different testing scenarios
+  setupComprehensiveMSW,
+  setupCustomMSW,
+  setupSearchMSW,
+  setupSecurityMSW, // This is the one from unified-handlers that creates a new server
+  // Test utilities
+  testScenarios,
 }
 
 /**

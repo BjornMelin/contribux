@@ -3,13 +3,25 @@
  * Dedicated setup for integration tests with full service mocking and database isolation
  */
 
+import '@testing-library/jest-dom/vitest'
+import type { HttpHandler } from 'msw'
 import { setupIntegrationTests } from './config/enhanced-test-setup'
 
 // Setup enhanced integration test environment
 const { config, addCleanupTask, getDbManager, getMockManager } = setupIntegrationTests()
 
 // Export utilities specific to integration testing
-export { config, addCleanupTask, getDbManager, getMockManager }
+export { addCleanupTask, config, getDbManager, getMockManager }
+
+export const useMSWHandlers = (...handlers: HttpHandler[]) => {
+  const mockManager = getMockManager()
+
+  if (!mockManager) {
+    throw new Error('Integration MSW server is not initialized')
+  }
+
+  mockManager.useMSWHandlers(...handlers)
+}
 
 // Integration-specific test utilities
 export const integrationTestUtils = {

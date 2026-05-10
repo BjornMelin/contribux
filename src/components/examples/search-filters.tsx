@@ -36,7 +36,7 @@ export const SearchFiltersForm = memo<SearchFiltersProps>(function SearchFilters
 
   const handleMinStarsChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      setFilters({ ...filters, minStars: Number.parseInt(e.target.value) || 0 })
+      setFilters({ ...filters, minStars: Number.parseInt(e.target.value, 10) || 0 })
     },
     [filters, setFilters]
   )

@@ -235,7 +235,7 @@ function applySecurityHeaders(response: NextResponse, nonce: string): void {
  */
 function validateRequestSize(request: NextRequest): { valid: boolean; message?: string } {
   const contentLength = request.headers.get('content-length')
-  if (contentLength && Number.parseInt(contentLength) > 10 * 1024 * 1024) {
+  if (contentLength && Number.parseInt(contentLength, 10) > 10 * 1024 * 1024) {
     return { valid: false, message: 'Request too large' }
   }
   return { valid: true }
@@ -304,17 +304,17 @@ export async function enhancedSecurityMiddleware(
 ): Promise<NextResponse | null> {
   const startTime = Date.now()
 
-  // Skip middleware for static files and API routes that don't need security
-  const url = new URL(request.url)
-  if (
-    url.pathname.startsWith('/_next/') ||
-    url.pathname.startsWith('/favicon.ico') ||
-    url.pathname.startsWith('/public/')
-  ) {
-    return null
-  }
-
   try {
+    // Skip middleware for static files and API routes that don't need security
+    const url = new URL(request.url)
+    if (
+      url.pathname.startsWith('/_next/') ||
+      url.pathname.startsWith('/favicon.ico') ||
+      url.pathname.startsWith('/public/')
+    ) {
+      return null
+    }
+
     // Rate limiting check with secure IP extraction
     const clientIP = getTrustedClientIP(request)
 

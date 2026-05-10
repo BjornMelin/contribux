@@ -218,7 +218,7 @@ export const webauthnRegisterVerifyHandler = http.post(
     } catch (error) {
       if (error instanceof z.ZodError) {
         return HttpResponse.json(
-          { error: 'Invalid request data', details: error.errors },
+          { error: 'Invalid request data', details: error.issues },
           { status: 400 }
         )
       }
@@ -378,7 +378,7 @@ export const webauthnAuthenticateVerifyHandler = http.post(
     } catch (error) {
       if (error instanceof z.ZodError) {
         return HttpResponse.json(
-          { error: 'Invalid request data', details: error.errors },
+          { error: 'Invalid request data', details: error.issues },
           { status: 400 }
         )
       }

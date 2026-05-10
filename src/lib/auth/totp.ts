@@ -426,10 +426,10 @@ export async function regenerateBackupCodes(): Promise<{ plainText: string[]; ha
 // =============================================================================
 
 export {
-  generateTOTP,
-  verifyTOTP,
   generateBackupCodes,
-  hashBackupCodesImpl as hashBackupCodes,
   generateQRCodeUrl,
+  generateTOTP,
+  hashBackupCodesImpl as hashBackupCodes,
   TOTP_DEFAULTS,
+  verifyTOTP,
 }

@@ -7,7 +7,13 @@
 
 import { type ComponentType, lazy, memo, Suspense } from 'react'
 import { Card } from '@/components/ui/card'
-import { isDevelopment } from '@/lib/validation/env'
+import { isClientDevelopment } from '@/lib/client-env'
+
+const searchSkeletonRows = [
+  'search-skeleton-primary',
+  'search-skeleton-secondary',
+  'search-skeleton-tertiary',
+]
 
 // Loading fallback components
 const ComponentLoadingFallback = memo(function ComponentLoadingFallback() {
@@ -32,8 +38,8 @@ const SearchLoadingFallback = memo(function SearchLoadingFallback() {
           <div className="h-8 rounded bg-gray-200" />
         </div>
         <div className="space-y-2">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={`skeleton-${i}-${Math.random()}`} className="h-20 rounded bg-gray-200" />
+          {searchSkeletonRows.map(key => (
+            <div key={key} className="h-20 rounded bg-gray-200" />
           ))}
         </div>
       </div>
@@ -133,7 +139,7 @@ export const preloadFeatureComponents = () => {
 
 // Bundle analysis utilities (development only)
 export const getBundleInfo = () => {
-  if (isDevelopment()) {
+  if (isClientDevelopment()) {
     return {
       searchComponentsLoaded: !!window.__SEARCH_COMPONENTS_LOADED__,
       featureComponentsLoaded: !!window.__FEATURE_COMPONENTS_LOADED__,

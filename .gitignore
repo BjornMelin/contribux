@@ -356,7 +356,7 @@ dev-server.log
 server.log
 
 # Temporary instrumentation and validation files
-instrumentation.ts
+/instrumentation.ts
 *-validation.js
 test-env-validation.js
 

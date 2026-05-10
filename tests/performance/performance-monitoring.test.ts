@@ -799,7 +799,9 @@ describe('Performance Monitoring & Alerting', () => {
         console.log('Blocking issues:')
         report.alerts
           .filter(a => a.severity === 'CRITICAL')
-          .forEach(alert => console.log(`  - ${alert.message}`))
+          .forEach(alert => {
+            console.log(`  - ${alert.message}`)
+          })
       }
     })
   })

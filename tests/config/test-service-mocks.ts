@@ -6,6 +6,80 @@
 import { afterAll, beforeAll, vi } from 'vitest'
 import type { TestEnvironmentConfig } from './test-environment.config'
 
+vi.mock('@/lib/auth', () => ({
+  auth: vi.fn().mockResolvedValue({
+    user: {
+      id: 'test-user-id',
+      name: 'Test User',
+      email: 'test@example.com',
+      login: 'testuser',
+      avatar_url: 'https://github.com/images/error/testuser_happy.gif',
+    },
+    accessToken: 'test-access-token',
+    expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+  }),
+}))
+
+vi.mock('next-auth', () => ({
+  getServerSession: vi.fn().mockResolvedValue({
+    user: {
+      id: 'test-user-id',
+      name: 'Test User',
+      email: 'test@example.com',
+      login: 'testuser',
+      avatar_url: 'https://github.com/images/error/testuser_happy.gif',
+    },
+    expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+  }),
+}))
+
+vi.mock('next/navigation', () => ({
+  useRouter: vi.fn(() => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    refresh: vi.fn(),
+    prefetch: vi.fn(),
+    back: vi.fn(),
+    forward: vi.fn(),
+  })),
+  useSearchParams: vi.fn(() => ({
+    get: vi.fn().mockReturnValue(null),
+    toString: vi.fn().mockReturnValue(''),
+    has: vi.fn().mockReturnValue(false),
+    getAll: vi.fn().mockReturnValue([]),
+  })),
+  usePathname: vi.fn(() => '/test'),
+  useParams: vi.fn(() => ({})),
+}))
+
+vi.mock('@/lib/cache/redis', () => ({
+  redis: {
+    get: vi.fn().mockResolvedValue(null),
+    set: vi.fn().mockResolvedValue('OK'),
+    del: vi.fn().mockResolvedValue(1),
+    ping: vi.fn().mockResolvedValue('PONG'),
+  },
+}))
+
+vi.mock('openai', () => ({
+  OpenAI: vi.fn().mockImplementation(() => ({
+    chat: {
+      completions: {
+        create: vi.fn().mockResolvedValue({
+          choices: [
+            {
+              message: {
+                content: 'Mocked OpenAI response',
+                role: 'assistant',
+              },
+            },
+          ],
+        }),
+      },
+    },
+  })),
+}))
+
 // MSW handler type for better type safety
 interface MSWHandler {
   info: {
@@ -14,28 +88,6 @@ interface MSWHandler {
     path: string
   }
   // Additional properties as needed by MSW
-  [key: string]: unknown
-}
-
-// GitHub API parameter types
-interface GitHubSearchParams {
-  query?: string
-  sort?: string
-  order?: string
-  per_page?: number
-  page?: number
-}
-
-// GraphQL variables type
-interface GraphQLVariables {
-  [key: string]: unknown
-}
-
-// GitHub client configuration type
-interface GitHubClientConfig {
-  auth?: string
-  baseUrl?: string
-  userAgent?: string
   [key: string]: unknown
 }
 
@@ -337,292 +389,16 @@ export class TestServiceMockManager {
   }
 
   /**
-   * Setup GitHub API mocks using vi.mock
+   * Register GitHub API mocking state.
    */
   private setupGitHubMocks(): void {
-    const config = this.config.services.github
-
-    vi.mock('@/lib/github/client', () => ({
-      GitHubClient: vi.fn().mockImplementation(() => ({
-        // Core API methods
-        searchRepositories: vi.fn().mockImplementation(async (params: GitHubSearchParams) => {
-          if (config.errorSimulation && params.query?.includes('error')) {
-            throw new Error('GitHub API error simulation')
-          }
-
-          return {
-            total_count: 2,
-            incomplete_results: false,
-            items: [
-              {
-                id: 1,
-                name: 'mocked-repo-1',
-                full_name: 'mock/mocked-repo-1',
-                description: 'Mocked repository 1',
-                language: 'TypeScript',
-                stargazers_count: 100,
-                owner: { login: 'testuser', id: 1 },
-              },
-              {
-                id: 2,
-                name: 'mocked-repo-2',
-                full_name: 'mock/mocked-repo-2',
-                description: 'Mocked repository 2',
-                language: 'JavaScript',
-                stargazers_count: 75,
-                owner: { login: 'testuser', id: 1 },
-              },
-            ],
-          }
-        }),
-
-        getRepository: vi.fn().mockImplementation(async (owner: string, repo: string) => {
-          if (config.errorSimulation && repo.includes('error')) {
-            throw new Error('GitHub API error simulation')
-          }
-          return {
-            id: 1,
-            name: repo,
-            full_name: `${owner}/${repo}`,
-            description: `Mocked repository ${repo}`,
-            language: 'TypeScript',
-            stargazers_count: 100,
-            owner: { login: owner, id: 1 },
-          }
-        }),
-
-        searchIssues: vi.fn().mockImplementation(async (params: GitHubSearchParams) => {
-          if (config.errorSimulation && params.query?.includes('error')) {
-            throw new Error('GitHub API error simulation')
-          }
-
-          return {
-            total_count: 1,
-            incomplete_results: false,
-            items: [
-              {
-                id: 1,
-                number: 123,
-                title: 'Mocked Issue',
-                body: 'This is a mocked issue',
-                state: 'open',
-                user: { login: 'testuser', id: 1 },
-              },
-            ],
-          }
-        }),
-
-        getRepositoryIssues: vi.fn().mockImplementation(async (_owner: string, _repo: string) => {
-          return {
-            total_count: 1,
-            items: [
-              {
-                id: 1,
-                number: 123,
-                title: 'Repository Issue',
-                body: 'Mocked repository issue',
-                state: 'open',
-                user: { login: 'testuser', id: 1 },
-              },
-            ],
-          }
-        }),
-
-        getCurrentUser: vi.fn().mockResolvedValue({
-          login: 'testuser',
-          id: 1,
-          name: 'Test User',
-          email: 'test@example.com',
-          avatar_url: 'https://github.com/images/test-user.png',
-        }),
-
-        getUser: vi.fn().mockImplementation(async (username?: string) => {
-          return {
-            login: username || 'testuser',
-            id: 1,
-            name: 'Test User',
-            email: 'test@example.com',
-            avatar_url: 'https://github.com/images/test-user.png',
-          }
-        }),
-
-        getAuthenticatedUser: vi.fn().mockResolvedValue({
-          login: 'testuser',
-          id: 1,
-          name: 'Test User',
-          email: 'test@example.com',
-          avatar_url: 'https://github.com/images/test-user.png',
-        }),
-
-        getIssue: vi
-          .fn()
-          .mockImplementation(async (_owner: string, _repo: string, issueNumber: number) => {
-            return {
-              id: issueNumber,
-              number: issueNumber,
-              title: `Issue ${issueNumber}`,
-              body: `Mocked issue ${issueNumber}`,
-              state: 'open',
-              user: { login: 'testuser', id: 1 },
-            }
-          }),
-
-        listIssues: vi.fn().mockImplementation(async (_owner: string, _repo: string) => {
-          return [
-            {
-              id: 1,
-              number: 123,
-              title: 'Listed Issue',
-              body: 'Mocked listed issue',
-              state: 'open',
-              user: { login: 'testuser', id: 1 },
-            },
-          ]
-        }),
-
-        getPullRequest: vi
-          .fn()
-          .mockImplementation(async (_owner: string, _repo: string, pullNumber: number) => {
-            return {
-              id: pullNumber,
-              number: pullNumber,
-              title: `Pull Request ${pullNumber}`,
-              body: `Mocked pull request ${pullNumber}`,
-              state: 'open',
-              user: { login: 'testuser', id: 1 },
-            }
-          }),
-
-        listPullRequests: vi.fn().mockImplementation(async (_owner: string, _repo: string) => {
-          return [
-            {
-              id: 1,
-              number: 456,
-              title: 'Listed Pull Request',
-              body: 'Mocked listed pull request',
-              state: 'open',
-              user: { login: 'testuser', id: 1 },
-            },
-          ]
-        }),
-
-        listIssueComments: vi
-          .fn()
-          .mockImplementation(async (_owner: string, _repo: string, _issueNumber: number) => {
-            return [
-              {
-                id: 1,
-                body: 'Mocked comment',
-                user: { login: 'testuser', id: 1 },
-                created_at: new Date().toISOString(),
-              },
-            ]
-          }),
-
-        getComment: vi
-          .fn()
-          .mockImplementation(async (_owner: string, _repo: string, commentId: number) => {
-            return {
-              id: commentId,
-              body: `Mocked comment ${commentId}`,
-              user: { login: 'testuser', id: 1 },
-              created_at: new Date().toISOString(),
-            }
-          }),
-
-        getRateLimit: vi.fn().mockResolvedValue({
-          limit: 5000,
-          remaining: 4999,
-          reset: Date.now() / 1000 + 3600,
-        }),
-
-        graphql: vi.fn().mockImplementation(async (query: string, variables?: GraphQLVariables) => {
-          return { data: { mocked: true, query, variables } }
-        }),
-
-        healthCheck: vi.fn().mockResolvedValue({
-          healthy: true,
-          rateLimit: {
-            limit: 5000,
-            remaining: 4999,
-            reset: Date.now() / 1000 + 3600,
-          },
-        }),
-
-        // Utility methods
-        getCacheStats: vi.fn().mockReturnValue({
-          size: 0,
-          hits: 0,
-          misses: 0,
-        }),
-
-        clearCache: vi.fn(),
-
-        destroy: vi.fn().mockResolvedValue(undefined),
-
-        getMemoryStats: vi.fn().mockReturnValue({
-          cacheSize: 0,
-          memorySizeMB: 0,
-          maxCacheSize: 100,
-        }),
-      })),
-
-      // Static method mock
-      fromSession: vi.fn().mockImplementation(async () => {
-        return new (vi.mocked(require('@/lib/github/client').GitHubClient))()
-      }),
-
-      createGitHubClient: vi.fn().mockImplementation((_config: GitHubClientConfig) => {
-        return new (vi.mocked(require('@/lib/github/client').GitHubClient))()
-      }),
-    }))
-
-    serviceMocks.set('github-mock', true)
+    serviceMocks.set('github-msw', this.config.services.github.enabled)
   }
 
   /**
    * Setup authentication mocks
    */
   private setupAuthMocks(): void {
-    const authConfig = this.config.services?.auth
-
-    // Provide fallback configuration if auth config is not available
-    const _defaultUser = authConfig?.defaultUser || {
-      id: 'test-user-id',
-      name: 'Test User',
-      email: 'test@example.com',
-      login: 'testuser',
-      avatar_url: 'https://github.com/images/error/testuser_happy.gif',
-    }
-    const _sessionTimeout = authConfig?.sessionTimeout || 24 * 60 * 60 * 1000 // 24 hours
-
-    vi.mock('@/lib/auth', () => ({
-      auth: vi.fn().mockResolvedValue({
-        user: {
-          id: 'test-user-id',
-          name: 'Test User',
-          email: 'test@example.com',
-          login: 'testuser',
-          avatar_url: 'https://github.com/images/error/testuser_happy.gif',
-        },
-        accessToken: 'test-access-token',
-        expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-      }),
-    }))
-
-    vi.mock('next-auth', () => ({
-      getServerSession: vi.fn().mockResolvedValue({
-        user: {
-          id: 'test-user-id',
-          name: 'Test User',
-          email: 'test@example.com',
-          login: 'testuser',
-          avatar_url: 'https://github.com/images/error/testuser_happy.gif',
-        },
-        expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-      }),
-    }))
-
     serviceMocks.set('auth-mock', true)
   }
 
@@ -630,25 +406,6 @@ export class TestServiceMockManager {
    * Setup router mocks
    */
   private setupRouterMocks(): void {
-    vi.mock('next/navigation', () => ({
-      useRouter: vi.fn(() => ({
-        push: vi.fn(),
-        replace: vi.fn(),
-        refresh: vi.fn(),
-        prefetch: vi.fn(),
-        back: vi.fn(),
-        forward: vi.fn(),
-      })),
-      useSearchParams: vi.fn(() => ({
-        get: vi.fn().mockReturnValue(null),
-        toString: vi.fn().mockReturnValue(''),
-        has: vi.fn().mockReturnValue(false),
-        getAll: vi.fn().mockReturnValue([]),
-      })),
-      usePathname: vi.fn(() => '/test'),
-      useParams: vi.fn(() => ({})),
-    }))
-
     serviceMocks.set('router-mock', true)
   }
 
@@ -658,41 +415,7 @@ export class TestServiceMockManager {
   private setupExternalServiceMocks(): void {
     const external = this.config.services.external
 
-    // Redis mocks
-    if (external.redis) {
-      vi.mock('@/lib/cache/redis', () => ({
-        redis: {
-          get: vi.fn().mockResolvedValue(null),
-          set: vi.fn().mockResolvedValue('OK'),
-          del: vi.fn().mockResolvedValue(1),
-          ping: vi.fn().mockResolvedValue('PONG'),
-        },
-      }))
-    }
-
-    // OpenAI mocks
-    if (external.openai) {
-      vi.mock('openai', () => ({
-        OpenAI: vi.fn().mockImplementation(() => ({
-          chat: {
-            completions: {
-              create: vi.fn().mockResolvedValue({
-                choices: [
-                  {
-                    message: {
-                      content: 'Mocked OpenAI response',
-                      role: 'assistant',
-                    },
-                  },
-                ],
-              }),
-            },
-          },
-        })),
-      }))
-    }
-
-    serviceMocks.set('external-mocks', true)
+    serviceMocks.set('external-mocks', external)
   }
 
   /**
@@ -728,6 +451,24 @@ export class TestServiceMockManager {
    */
   getActiveMocks(): string[] {
     return Array.from(serviceMocks.keys())
+  }
+
+  /**
+   * Register runtime MSW handlers on the shared test server.
+   */
+  useMSWHandlers(...handlers: unknown[]): void {
+    if (!mockServer) {
+      throw new Error('MSW server is not initialized')
+    }
+
+    mockServer.use(...handlers)
+  }
+
+  /**
+   * Reset runtime MSW handlers to the configured defaults.
+   */
+  resetMSWHandlers(): void {
+    mockServer?.resetHandlers()
   }
 }
 

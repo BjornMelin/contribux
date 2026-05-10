@@ -11,6 +11,51 @@ import { afterEach, beforeEach, vi } from 'vitest'
 import type { UUID } from '@/types/base'
 import type { Repository, SearchFilters } from '@/types/search'
 
+const navigationMocks = vi.hoisted(() => {
+  const mockPush = vi.fn()
+  const mockReplace = vi.fn()
+  const mockRefresh = vi.fn()
+  const createRouter = () => ({
+    push: mockPush,
+    replace: mockReplace,
+    refresh: mockRefresh,
+  })
+  const createSearchParams = () => ({
+    get: vi.fn().mockReturnValue(null),
+    toString: vi.fn().mockReturnValue(''),
+  })
+  const mockUseRouter = vi.fn(createRouter)
+  const mockUseSearchParams = vi.fn(createSearchParams)
+  const mockUsePathname = vi.fn(() => '/search')
+  const reset = () => {
+    mockPush.mockReset()
+    mockReplace.mockReset()
+    mockRefresh.mockReset()
+    mockUseRouter.mockReset()
+    mockUseSearchParams.mockReset()
+    mockUsePathname.mockReset()
+    mockUseRouter.mockImplementation(createRouter)
+    mockUseSearchParams.mockImplementation(createSearchParams)
+    mockUsePathname.mockImplementation(() => '/search')
+  }
+
+  return {
+    mockPush,
+    mockReplace,
+    mockRefresh,
+    mockUseRouter,
+    mockUseSearchParams,
+    mockUsePathname,
+    reset,
+  }
+})
+
+vi.mock('next/navigation', () => ({
+  useRouter: navigationMocks.mockUseRouter,
+  useSearchParams: navigationMocks.mockUseSearchParams,
+  usePathname: navigationMocks.mockUsePathname,
+}))
+
 // Conditionally import userEvent only when in DOM environment
 let userEvent: typeof import('@testing-library/user-event') | null = null
 if (typeof window !== 'undefined') {
@@ -82,49 +127,20 @@ export function cleanupComponentTest() {
  * Provides consistent router mocking without complex setups
  */
 export function createModernMockRouter() {
-  const mockPush = vi.fn()
-  const mockReplace = vi.fn()
-  const mockRefresh = vi.fn()
-
-  // Use vi.hoisted for better mock stability
-  const mockUseRouter = vi.fn(() => ({
-    push: mockPush,
-    replace: mockReplace,
-    refresh: mockRefresh,
-  }))
-
-  const mockUseSearchParams = vi.fn(() => ({
-    get: vi.fn().mockReturnValue(null),
-    toString: vi.fn().mockReturnValue(''),
-  }))
-
-  const mockUsePathname = vi.fn(() => '/search')
-
   return {
-    mockPush,
-    mockReplace,
-    mockRefresh,
-    mockUseRouter,
-    mockUseSearchParams,
-    mockUsePathname,
+    mockPush: navigationMocks.mockPush,
+    mockReplace: navigationMocks.mockReplace,
+    mockRefresh: navigationMocks.mockRefresh,
+    mockUseRouter: navigationMocks.mockUseRouter,
+    mockUseSearchParams: navigationMocks.mockUseSearchParams,
+    mockUsePathname: navigationMocks.mockUsePathname,
 
-    // Helper to setup mocks
-    setup() {
-      vi.mock('next/navigation', () => ({
-        useRouter: mockUseRouter,
-        useSearchParams: mockUseSearchParams,
-        usePathname: mockUsePathname,
-      }))
-    },
+    // Helper kept for existing call sites; the mock is registered at module load.
+    setup: () => undefined,
 
     // Helper to reset mocks
     reset() {
-      mockPush.mockClear()
-      mockReplace.mockClear()
-      mockRefresh.mockClear()
-      mockUseRouter.mockClear()
-      mockUseSearchParams.mockClear()
-      mockUsePathname.mockClear()
+      navigationMocks.reset()
     },
   }
 }

@@ -14,13 +14,16 @@ if (typeof globalThis.fetch === 'undefined') {
   throw new Error('fetch polyfill not loaded. Ensure tests/setup.ts is properly configured.')
 }
 
-import { HttpResponse, http, passthrough } from 'msw'
+import { HttpResponse, http } from 'msw'
 import { setupServer } from 'msw/node'
 import { afterAll, afterEach, beforeAll } from 'vitest'
 
 // GitHub API base URLs
 const GITHUB_API_BASE = 'https://api.github.com'
 const GITHUB_GRAPHQL_URL = `${GITHUB_API_BASE}/graphql`
+
+const parsePositiveIntParam = (value: string): number | null =>
+  /^\d+$/.test(value) ? Number.parseInt(value, 10) : null
 
 // Default mock responses
 export const defaultMockResponses = {
@@ -155,6 +158,63 @@ const isValidToken = (authHeader: string | null, expectedToken?: string): boolea
     token.length >= 20
   )
 }
+
+const createMockPull = (
+  owner: string,
+  repo: string,
+  number: number,
+  state: string,
+  merged = false
+) => ({
+  id: 2000 + number,
+  number,
+  title: `Pull Request ${number}`,
+  body: `Test pull request ${number} description`,
+  state,
+  user: {
+    login: owner,
+    id: 12345,
+    type: 'User',
+    avatar_url: `https://github.com/images/error/${owner}_happy.gif`,
+    html_url: `https://github.com/${owner}`,
+    site_admin: false,
+  },
+  labels: [],
+  assignee: null,
+  assignees: [],
+  created_at: '2024-01-01T00:00:00Z',
+  updated_at: '2024-01-01T00:00:00Z',
+  html_url: `https://github.com/${owner}/${repo}/pull/${number}`,
+  head: {
+    ref: `feature-${number}`,
+    sha: `abc123${number}`,
+    repo: { full_name: `${owner}/${repo}` },
+  },
+  base: {
+    ref: 'main',
+    sha: `def456${number}`,
+    repo: { full_name: `${owner}/${repo}` },
+  },
+  mergeable: true,
+  merged,
+  merge_commit_sha: `merge${number}`,
+})
+
+const createMockComment = (owner: string, repo: string, issueNumber: number, id: number) => ({
+  id,
+  body: `Test comment ${id}`,
+  user: {
+    login: owner,
+    id: 12345,
+    type: 'User',
+    avatar_url: `https://github.com/images/error/${owner}_happy.gif`,
+    html_url: `https://github.com/${owner}`,
+    site_admin: false,
+  },
+  created_at: '2024-01-01T00:00:00Z',
+  updated_at: '2024-01-01T00:00:00Z',
+  html_url: `https://github.com/${owner}/${repo}/issues/${issueNumber}#issuecomment-${id}`,
+})
 
 // Default MSW handlers with handler precedence awareness
 const defaultHandlers = [
@@ -337,53 +397,7 @@ const defaultHandlers = [
     const pathname = url.pathname
     const _authHeader = request.headers.get('authorization')
 
-    // Check for edge case authentication tests that should fail
-    // These patterns indicate test-specific error scenarios that should not be handled by default handlers
-    const edgeCasePatterns = [
-      'auth-test',
-      'private-org',
-      'restricted-org',
-      'scope-test',
-      'rate-limit',
-      'permission-change',
-      'token-expiry',
-      'refresh-fail',
-      'concurrent-expiry',
-      'security-test',
-      'csrf-test',
-      'suspicious',
-      'hijack-test',
-      'multi-user',
-      'cross-user',
-      'oauth-test',
-      'oauth-scope',
-      'oauth-state',
-      'oauth-callback',
-      'auth-recovery',
-      'concurrent-auth',
-      'auth-errors',
-      'partial-auth',
-      // Add specific patterns that are causing test failures
-      'notfound/repo',
-      'test/rate-limited-unique',
-      'test/secondary-limit-unique',
-      'test/bad-credentials-unique',
-      'server-error-test/bad-gateway',
-      'server-error-test/service-unavailable',
-      'empty/response',
-      'malformed-test/non-json',
-      'html/response',
-    ]
-
-    // If this is an edge case test pattern, let test-specific handlers take precedence
-    if (edgeCasePatterns.some(pattern => pathname.includes(pattern))) {
-      // Always let test-specific handlers handle edge case patterns first
-      // This ensures test-specific error scenarios are not overridden by default success handlers
-      // Return passthrough() to continue to next handler
-      return passthrough()
-    }
-
-    // Let test-specific error handlers take precedence
+    // Let test-specific error handlers take precedence.
     if (pathname.includes('malformed-test/malformed-repo-unique')) {
       // Return malformed JSON for the malformed JSON test
       return new HttpResponse('{"invalid": json}', {
@@ -453,6 +467,36 @@ const defaultHandlers = [
     if (pathname.includes('bad-credentials-unique')) {
       // Return bad credentials error
       return HttpResponse.json({ message: 'Bad credentials' }, { status: 401 })
+    }
+
+    if (owner === 'private-org') {
+      return HttpResponse.json(
+        {
+          message: 'Resource not accessible by integration',
+          documentation_url: 'https://docs.github.com/rest',
+        },
+        { status: 403 }
+      )
+    }
+
+    if (owner === 'timeout-test') {
+      return HttpResponse.json({ message: 'Request timeout' }, { status: 408 })
+    }
+
+    if (owner === 'connection-test') {
+      return HttpResponse.json({ message: 'Connection refused' }, { status: 503 })
+    }
+
+    if (
+      owner === 'retry-test' ||
+      owner === 'outage-test' ||
+      owner === 'fallback-test' ||
+      owner === 'concurrent-error-test' ||
+      owner === 'error-tracking-test' ||
+      owner === 'rapid-error-test' ||
+      pathname.includes('unicode-test')
+    ) {
+      return HttpResponse.json({ message: 'Simulated GitHub API failure' }, { status: 500 })
     }
 
     // Handle specific test scenarios based on owner/repo combination
@@ -626,9 +670,11 @@ const defaultHandlers = [
     const perPage = Number.isNaN(Number.parseInt(perPageParam, 10))
       ? 30
       : Number.parseInt(perPageParam, 10)
+    const pageParam = url.searchParams.get('page') || '1'
+    const page = Number.isNaN(Number.parseInt(pageParam, 10)) ? 1 : Number.parseInt(pageParam, 10)
 
     // Handle specific test queries first
-    if (q === 'nonexistentquery12345unique') {
+    if (q.startsWith('nonexistentquery12345unique')) {
       return HttpResponse.json({
         total_count: 0,
         incomplete_results: false,
@@ -636,7 +682,7 @@ const defaultHandlers = [
       })
     }
 
-    if (q === 'javascriptlargepage' && url.searchParams.get('per_page') === '100') {
+    if (q.startsWith('javascriptlargepage') && url.searchParams.get('per_page') === '100') {
       const items = Array.from({ length: 100 }, (_, i) => ({
         id: i + 1,
         name: `repo-${i + 1}`,
@@ -671,7 +717,7 @@ const defaultHandlers = [
     // Generate multiple items for pagination tests
     const items = Array.from({ length: perPage }, (_, i) => ({
       ...defaultMockResponses.repository,
-      id: 1000 + i,
+      id: 1000 + (page - 1) * perPage + i,
       name: `${q}-${i + 1}`,
       full_name: `testowner/${q}-${i + 1}`,
       html_url: `https://github.com/testowner/${q}-${i + 1}`,
@@ -697,7 +743,8 @@ const defaultHandlers = [
     const perPage = Number.isNaN(Number.parseInt(perPageParam, 10))
       ? 30
       : Number.parseInt(perPageParam, 10)
-    const state = url.searchParams.get('state') || 'open'
+    const stateParam = url.searchParams.get('state') || 'open'
+    const state = stateParam === 'closed' ? 'closed' : 'open'
     const authHeader = request.headers.get('authorization')
 
     // Check for limited scope token (should return 403)
@@ -716,12 +763,16 @@ const defaultHandlers = [
       return HttpResponse.json({ message: 'Bad credentials' }, { status: 401 })
     }
 
+    if (owner === 'test' && repo === 'rate-limited-issues') {
+      return HttpResponse.json({ message: 'API rate limit exceeded' }, { status: 429 })
+    }
+
     const issues = Array.from({ length: Math.min(perPage, 2) }, (_, i) => ({
       id: 1000 + i,
       number: i + 1,
       title: `Issue ${i + 1}`,
       body: `Test issue ${i + 1} description`,
-      state,
+      state: stateParam === 'all' && i === 1 ? 'closed' : state,
       user: {
         login: owner,
         id: 12345,
@@ -762,11 +813,53 @@ const defaultHandlers = [
       return HttpResponse.json({ message: 'Bad credentials' }, { status: 401 })
     }
 
+    if (owner === 'private' || repo === 'private-repo') {
+      return HttpResponse.json({ message: 'Not Found' }, { status: 404 })
+    }
+
+    if (owner === 'server-error-test' || issue_number === '500') {
+      return HttpResponse.json({ message: 'Server Error' }, { status: 500 })
+    }
+
+    if (owner === 'malformed-test') {
+      return HttpResponse.json({ invalid: 'data' })
+    }
+
+    if (owner === 'notfound' || repo === 'notfound' || issue_number === '999') {
+      return HttpResponse.json({ message: 'Not Found' }, { status: 404 })
+    }
+
+    if (owner === 'owner' && repo === 'bad-types') {
+      return HttpResponse.json({
+        id: 'not-a-number',
+        number: 'wrong',
+        title: 123,
+        body: {},
+        state: 'open',
+        user: null,
+        labels: [],
+        assignee: null,
+        assignees: [],
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+        html_url: `https://github.com/${owner}/${repo}/issues/${issue_number}`,
+      })
+    }
+
+    const issueNumber = parsePositiveIntParam(issue_number)
+
+    if (issueNumber === null || issueNumber <= 0) {
+      return HttpResponse.json({ message: 'Not Found' }, { status: 404 })
+    }
+
     // Handle null user test case
-    if (owner === 'null-user-test' && repo === 'null-user-repo' && issue_number === '1') {
+    if (
+      (owner === 'null-user-test' && repo === 'null-user-repo' && issue_number === '1') ||
+      (owner === 'null-test' && repo === 'null-values' && issue_number === '2')
+    ) {
       return HttpResponse.json({
         id: 1,
-        number: 1,
+        number: issueNumber,
         title: 'Test Issue',
         body: null,
         state: 'open',
@@ -782,12 +875,10 @@ const defaultHandlers = [
 
     return HttpResponse.json({
       id: 1000,
-      number: Number.isNaN(Number.parseInt(issue_number, 10))
-        ? 1
-        : Number.parseInt(issue_number, 10),
+      number: issueNumber,
       title: `Issue ${issue_number}`,
       body: `Test issue ${issue_number} description`,
-      state: 'open',
+      state: issue_number === '2' ? 'closed' : 'open',
       user: {
         login: owner,
         id: 12345,
@@ -806,14 +897,136 @@ const defaultHandlers = [
     })
   }),
 
+  // GET /repos/:owner/:repo/pulls
+  http.get(`${GITHUB_API_BASE}/repos/:owner/:repo/pulls`, ({ request, params }) => {
+    const { owner, repo } = params as { owner: string; repo: string }
+    const url = new URL(request.url)
+    const parsedPerPage = Number.parseInt(url.searchParams.get('per_page') || '30', 10)
+    const perPage = Number.isNaN(parsedPerPage) || parsedPerPage <= 0 ? 30 : parsedPerPage
+    const stateParam = url.searchParams.get('state') || 'open'
+    const authHeader = request.headers.get('authorization')
+
+    if (!isValidToken(authHeader)) {
+      return HttpResponse.json({ message: 'Bad credentials' }, { status: 401 })
+    }
+
+    const allPulls = [
+      createMockPull(owner, repo, 1, 'open'),
+      createMockPull(owner, repo, 2, 'closed', true),
+    ]
+    const pulls = allPulls
+      .filter(pull => stateParam === 'all' || pull.state === stateParam)
+      .slice(0, perPage)
+
+    return HttpResponse.json(pulls)
+  }),
+
+  // GET /repos/:owner/:repo/pulls/:pull_number
+  http.get(`${GITHUB_API_BASE}/repos/:owner/:repo/pulls/:pull_number`, ({ request, params }) => {
+    const { owner, repo, pull_number } = params as {
+      owner: string
+      repo: string
+      pull_number: string
+    }
+    const authHeader = request.headers.get('authorization')
+    const pullNumber = parsePositiveIntParam(pull_number)
+
+    if (!isValidToken(authHeader)) {
+      return HttpResponse.json({ message: 'Bad credentials' }, { status: 401 })
+    }
+
+    if (owner === 'notfound' || repo === 'notfound' || pull_number === '999') {
+      return HttpResponse.json({ message: 'Not Found' }, { status: 404 })
+    }
+
+    if (owner === 'owner' && repo === 'bad-types') {
+      return HttpResponse.json({ invalid: 'data' })
+    }
+
+    if (owner === 'validation-test' || pullNumber === null || pullNumber <= 0) {
+      return HttpResponse.json({ invalid: 'data' })
+    }
+
+    return HttpResponse.json(
+      createMockPull(
+        owner,
+        repo,
+        pullNumber,
+        pullNumber === 2 ? 'closed' : 'open',
+        pullNumber === 2
+      )
+    )
+  }),
+
+  // GET /repos/:owner/:repo/issues/:issue_number/comments
+  http.get(
+    `${GITHUB_API_BASE}/repos/:owner/:repo/issues/:issue_number/comments`,
+    ({ request, params }) => {
+      const { owner, repo, issue_number } = params as {
+        owner: string
+        repo: string
+        issue_number: string
+      }
+      const authHeader = request.headers.get('authorization')
+      const issueNumber = parsePositiveIntParam(issue_number)
+
+      if (!isValidToken(authHeader)) {
+        return HttpResponse.json({ message: 'Bad credentials' }, { status: 401 })
+      }
+
+      if (issueNumber === null || issueNumber <= 0) {
+        return HttpResponse.json({ message: 'Not Found' }, { status: 404 })
+      }
+
+      return HttpResponse.json([createMockComment(owner, repo, issueNumber, 12345)])
+    }
+  ),
+
+  // GET /repos/:owner/:repo/issues/comments/:comment_id
+  http.get(
+    `${GITHUB_API_BASE}/repos/:owner/:repo/issues/comments/:comment_id`,
+    ({ request, params }) => {
+      const { owner, repo, comment_id } = params as {
+        owner: string
+        repo: string
+        comment_id: string
+      }
+      const authHeader = request.headers.get('authorization')
+      const commentId = parsePositiveIntParam(comment_id)
+
+      if (!isValidToken(authHeader)) {
+        return HttpResponse.json({ message: 'Bad credentials' }, { status: 401 })
+      }
+
+      if (commentId === null || commentId <= 0 || comment_id === '99999') {
+        return HttpResponse.json({ message: 'Not Found' }, { status: 404 })
+      }
+
+      return HttpResponse.json(createMockComment(owner, repo, 1, commentId))
+    }
+  ),
+
   // GraphQL endpoint
   http.post(GITHUB_GRAPHQL_URL, async ({ request }) => {
     const authHeader = request.headers.get('authorization')
-    const body = (await request.json()) as { query: string; variables?: Record<string, unknown> }
 
     // Check authentication
     if (!isValidToken(authHeader)) {
       return HttpResponse.json({ message: 'Bad credentials' }, { status: 401 })
+    }
+
+    let body: {
+      query: string
+      variables?: Record<string, unknown>
+    }
+
+    try {
+      body = (await request.clone().json()) as {
+        query: string
+        variables?: Record<string, unknown>
+      }
+    } catch {
+      return HttpResponse.json({ errors: [{ message: 'Problems parsing JSON' }] }, { status: 400 })
     }
 
     // Check for intentional errors in queries (like invalidField)

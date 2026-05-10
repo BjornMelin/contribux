@@ -28,27 +28,6 @@ const SKIP_INTEGRATION_TESTS = !process.env.GITHUB_TOKEN || process.env.SKIP_INT
 // Setup MSW and test isolation
 setupGitHubTestIsolation()
 
-// Mock private key for GitHub App testing
-const mockPrivateKey = `-----BEGIN RSA PRIVATE KEY-----
-TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
-TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
-TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
-TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
-TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
-TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
-TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
-TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
-TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
-TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
-TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
-TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
-TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
-TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
-TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
-TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
-TEST-MOCK-RSA-KEY-FOR-TESTING-ONLY-NOT-A-REAL-PRIVATE-KEY-ABCDEFGH
------END RSA PRIVATE KEY-----`
-
 describe('GitHub Authentication & Authorization Flows', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -65,10 +44,7 @@ describe('GitHub Authentication & Authorization Flows', () => {
       const validToken = 'ghp_valid_token_12345'
 
       const client = new GitHubClient({
-        auth: {
-          type: 'token',
-          token: validToken,
-        },
+        accessToken: validToken,
       })
 
       const user = await client.getAuthenticatedUser()
@@ -84,10 +60,7 @@ describe('GitHub Authentication & Authorization Flows', () => {
       const invalidToken = 'ghp_invalid_token_12345'
 
       const client = new GitHubClient({
-        auth: {
-          type: 'token',
-          token: invalidToken,
-        },
+        accessToken: invalidToken,
       })
 
       await expect(client.getAuthenticatedUser()).rejects.toThrow(GitHubError)
@@ -97,10 +70,7 @@ describe('GitHub Authentication & Authorization Flows', () => {
       const limitedToken = 'ghp_limited_scope_token'
 
       const client = new GitHubClient({
-        auth: {
-          type: 'token',
-          token: limitedToken,
-        },
+        accessToken: limitedToken,
       })
 
       // User info should work
@@ -108,7 +78,7 @@ describe('GitHub Authentication & Authorization Flows', () => {
       expect(user.login).toBe('testuser')
 
       // Repository access should fail due to limited scope
-      await expect(client.listIssues('test', 'test', { per_page: 5 })).rejects.toThrow(GitHubError)
+      await expect(client.listIssues('test', 'test', { perPage: 5 })).rejects.toThrow(GitHubError)
     })
 
     // Property-based testing for token validation
@@ -116,7 +86,7 @@ describe('GitHub Authentication & Authorization Flows', () => {
       'should handle various PAT token formats',
       async token => {
         const client = new GitHubClient({
-          auth: { type: 'token', token },
+          accessToken: token,
         })
 
         // Should not throw during client creation
@@ -129,10 +99,7 @@ describe('GitHub Authentication & Authorization Flows', () => {
 
       for (const token of testCases) {
         const client = new GitHubClient({
-          auth: {
-            type: 'token',
-            token,
-          },
+          accessToken: token,
         })
 
         await expect(client.getAuthenticatedUser()).rejects.toThrow()
@@ -148,7 +115,7 @@ describe('GitHub Authentication & Authorization Flows', () => {
       mswServer.use(
         http.get(`${GITHUB_API_BASE}/user`, ({ request }) => {
           const authHeader = request.headers.get('authorization')
-          if (authHeader === `token ${oauthToken}`) {
+          if (authHeader === `token ${oauthToken}` || authHeader === `Bearer ${oauthToken}`) {
             return HttpResponse.json({
               login: 'oauthuser',
               id: 54321,
@@ -163,10 +130,7 @@ describe('GitHub Authentication & Authorization Flows', () => {
       )
 
       const client = new GitHubClient({
-        auth: {
-          type: 'token', // OAuth tokens are used as bearer tokens
-          token: oauthToken,
-        },
+        accessToken: oauthToken,
       })
 
       const user = await client.getAuthenticatedUser()
@@ -178,10 +142,7 @@ describe('GitHub Authentication & Authorization Flows', () => {
       const oauthToken = 'gho_persistent_oauth_token'
 
       const client = new GitHubClient({
-        auth: {
-          type: 'token',
-          token: oauthToken,
-        },
+        accessToken: oauthToken,
       })
 
       // First request
@@ -189,7 +150,7 @@ describe('GitHub Authentication & Authorization Flows', () => {
       expect(user1.login).toBe('testuser')
 
       // Second request to different endpoint
-      const repos = await client.listIssues('testuser', 'test-repo', { per_page: 5 })
+      const repos = await client.listIssues('testuser', 'test-repo', { perPage: 5 })
       expect(repos).toHaveLength(2)
 
       // Third request (same as first)
@@ -202,11 +163,7 @@ describe('GitHub Authentication & Authorization Flows', () => {
   describe.skip('GitHub App Authentication', () => {
     it('should handle GitHub App configuration', () => {
       const config: GitHubClientConfig = {
-        auth: {
-          type: 'app',
-          appId: 123456,
-          privateKey: mockPrivateKey,
-        },
+        accessToken: 'ghs_test_installation_token',
       }
 
       // Just test configuration acceptance, not actual authentication
@@ -215,12 +172,7 @@ describe('GitHub Authentication & Authorization Flows', () => {
 
     it('should handle GitHub App with installation ID', () => {
       const config: GitHubClientConfig = {
-        auth: {
-          type: 'app',
-          appId: 123456,
-          privateKey: mockPrivateKey,
-          installationId: 789,
-        },
+        accessToken: 'ghs_test_installation_token',
       }
 
       // Just test configuration acceptance, not actual authentication
@@ -231,12 +183,7 @@ describe('GitHub Authentication & Authorization Flows', () => {
       const installationId = 12345
 
       const client = new GitHubClient({
-        auth: {
-          type: 'app',
-          appId: 123456,
-          privateKey: mockPrivateKey,
-          installationId,
-        },
+        accessToken: `ghs_test_installation_token_${installationId}`,
       })
 
       // Just verify the client was created correctly
@@ -249,10 +196,7 @@ describe('GitHub Authentication & Authorization Flows', () => {
       const token = 'ghp_persistent_token'
 
       const client = new GitHubClient({
-        auth: {
-          type: 'token',
-          token,
-        },
+        accessToken: token,
       })
 
       // First request
@@ -260,7 +204,7 @@ describe('GitHub Authentication & Authorization Flows', () => {
       expect(user1.login).toBe('testuser')
 
       // Second request (different endpoint)
-      const repos = await client.listIssues('testuser', 'test-repo', { per_page: 5 })
+      const repos = await client.listIssues('testuser', 'test-repo', { perPage: 5 })
       expect(repos).toHaveLength(2)
 
       // Third request (same as first)
@@ -275,10 +219,7 @@ describe('GitHub Authentication & Authorization Flows', () => {
       const token = 'ghp_retry_token'
 
       const client = new GitHubClient({
-        auth: {
-          type: 'token',
-          token,
-        },
+        accessToken: token,
       })
 
       // Note: The new client's retry plugin won't retry on 401s by default
@@ -289,10 +230,7 @@ describe('GitHub Authentication & Authorization Flows', () => {
       const token = 'ghp_timeout_token'
 
       const client = new GitHubClient({
-        auth: {
-          type: 'token',
-          token,
-        },
+        accessToken: token,
       })
 
       const startTime = Date.now()
@@ -314,14 +252,7 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('Real API Authentication Integration', (
 
   beforeEach(() => {
     client = new GitHubClient({
-      auth: {
-        type: 'token',
-        token: process.env.GITHUB_TOKEN ?? 'dummy-token',
-      },
-      cache: {
-        maxAge: 60, // 1 minute for tests
-        maxSize: 100,
-      },
+      accessToken: process.env.GITHUB_TOKEN ?? 'dummy-token',
     })
   })
 

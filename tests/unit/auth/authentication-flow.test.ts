@@ -2,7 +2,7 @@
  * @vitest-environment node
  */
 
-import jwt from 'jsonwebtoken'
+import { SignJWT } from 'jose'
 import type { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -32,14 +32,22 @@ vi.mock('next-auth', () => ({
   getServerSession: vi.fn(),
 }))
 
-// Mock jsonwebtoken
-vi.mock('jsonwebtoken', () => ({
-  default: {
-    sign: vi.fn(),
-    verify: vi.fn(),
-    decode: vi.fn(),
-  },
-}))
+const signTestJwt = (
+  payload: Record<string, unknown>,
+  expiresAt = Math.floor(Date.now() / 1000) + 3600
+) => {
+  const signer = new SignJWT(payload)
+    .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
+    .setExpirationTime(expiresAt)
+
+  if (typeof payload.iat === 'number') {
+    signer.setIssuedAt(payload.iat)
+  } else {
+    signer.setIssuedAt()
+  }
+
+  return signer.sign(new TextEncoder().encode(process.env.JWT_SECRET))
+}
 
 describe('Authentication Flow Tests', () => {
   const mockSession: SessionData = {
@@ -58,6 +66,8 @@ describe('Authentication Flow Tests', () => {
     vi.clearAllMocks()
     process.env.JWT_SECRET = 'test-secret-key-for-testing-only'
     process.env.NEXTAUTH_URL = 'http://localhost:3000'
+    process.env.GITHUB_CLIENT_ID = 'test-github-client-id'
+    process.env.GITHUB_CLIENT_SECRET = 'test-github-client-secret'
   })
 
   afterEach(() => {
@@ -118,14 +128,12 @@ describe('Authentication Flow Tests', () => {
     }
 
     it('should validate valid JWT token', async () => {
-      const token = 'valid.jwt.token'
-      vi.mocked(jwt.verify).mockReturnValueOnce(mockPayload as jwt.JwtPayload)
+      const token = await signTestJwt(mockPayload, mockPayload.exp)
 
       const result = await validateJWT(token)
 
       expect(result.valid).toBe(true)
       expect(result.payload).toEqual(mockPayload)
-      expect(jwt.verify).toHaveBeenCalledWith(token, process.env.JWT_SECRET)
     })
 
     it('should reject expired JWT token', async () => {
@@ -133,19 +141,15 @@ describe('Authentication Flow Tests', () => {
         ...mockPayload,
         exp: Math.floor(Date.now() / 1000) - 1000,
       }
-      vi.mocked(jwt.verify).mockReturnValueOnce(expiredPayload as jwt.JwtPayload)
+      const expiredToken = await signTestJwt(expiredPayload, expiredPayload.exp)
 
-      const result = await validateJWT('expired.jwt.token')
+      const result = await validateJWT(expiredToken)
 
       expect(result.valid).toBe(false)
       expect(result.error).toBe('Token expired')
     })
 
     it('should handle malformed JWT', async () => {
-      vi.mocked(jwt.verify).mockImplementationOnce(() => {
-        throw new Error('jwt malformed')
-      })
-
       const result = await validateJWT('malformed.token')
 
       expect(result.valid).toBe(false)
@@ -153,39 +157,31 @@ describe('Authentication Flow Tests', () => {
     })
 
     it('should generate new JWT token', async () => {
-      const newToken = 'new.jwt.token'
-      vi.mocked(jwt.sign).mockReturnValueOnce(newToken)
-
       const payload = {
         sub: 'user-123',
         email: 'test@example.com',
       }
 
       const token = await generateJWT(payload)
+      const result = await validateJWT(token)
 
-      expect(token).toBe(newToken)
-      expect(jwt.sign).toHaveBeenCalledWith(
-        expect.objectContaining(payload),
-        process.env.JWT_SECRET,
-        expect.objectContaining({ expiresIn: '1h' })
-      )
+      expect(result.valid).toBe(true)
+      expect(result.payload).toMatchObject(payload)
     })
   })
 
   describe('Token Refresh', () => {
     it('should refresh valid token', async () => {
-      const oldToken = 'old.refresh.token'
       const newTokens = {
         accessToken: 'new.access.token',
         refreshToken: 'new.refresh.token',
         expiresIn: 3600,
       }
 
-      // Mock token validation
-      vi.mocked(jwt.verify).mockReturnValueOnce({
+      const oldToken = await signTestJwt({
         sub: 'user-123',
         type: 'refresh',
-      } as jwt.JwtPayload)
+      })
 
       // Mock API call for token refresh
       global.fetch = vi.fn().mockResolvedValueOnce({
@@ -200,10 +196,6 @@ describe('Authentication Flow Tests', () => {
     })
 
     it('should handle invalid refresh token', async () => {
-      vi.mocked(jwt.verify).mockImplementationOnce(() => {
-        throw new Error('Invalid token')
-      })
-
       const result = await refreshToken('invalid.token')
 
       expect(result.success).toBe(false)
@@ -211,7 +203,7 @@ describe('Authentication Flow Tests', () => {
     })
 
     it('should handle refresh API errors', async () => {
-      vi.mocked(jwt.verify).mockReturnValueOnce({ sub: 'user-123' } as jwt.JwtPayload)
+      const validToken = await signTestJwt({ sub: 'user-123' })
 
       global.fetch = vi.fn().mockResolvedValueOnce({
         ok: false,
@@ -219,7 +211,7 @@ describe('Authentication Flow Tests', () => {
         json: async () => ({ error: 'Token expired' }),
       })
 
-      const result = await refreshToken('valid.token')
+      const result = await refreshToken(validToken)
 
       expect(result.success).toBe(false)
       expect(result.error).toContain('Token refresh failed')

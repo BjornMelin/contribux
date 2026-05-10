@@ -574,4 +574,4 @@ export function createGitHubBenchmark(): GitHubAPIBenchmark {
 
 // ==================== EXPORTS ====================
 
-export { BENCHMARK_CONFIG, type BenchmarkResult, type BenchmarkOperation, type PerformanceCategory }
+export { BENCHMARK_CONFIG, type BenchmarkOperation, type BenchmarkResult, type PerformanceCategory }

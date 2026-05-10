@@ -3,6 +3,7 @@
  * Tests for WebAuthn credential storage and retrieval operations
  */
 
+import { randomUUID } from 'node:crypto'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { sql } from '@/lib/db/config'
 import {
@@ -65,12 +66,14 @@ vi.mock('@simplewebauthn/server', () => ({
     },
     supportedAlgorithmIDs: [-7, -257],
   })),
-  verifyRegistrationResponse: vi.fn(() => ({
+  verifyRegistrationResponse: vi.fn(({ response }) => ({
     verified: true,
     registrationInfo: {
-      credentialID: new Uint8Array([1, 2, 3, 4, 5]),
-      credentialPublicKey: new Uint8Array([6, 7, 8, 9, 10]),
-      counter: 0,
+      credential: {
+        id: Buffer.from(response.id),
+        publicKey: Buffer.from(`public-key-${response.id}`),
+        counter: 0,
+      },
       credentialDeviceType: 'singleDevice',
       credentialBackedUp: false,
     },
@@ -92,22 +95,24 @@ vi.mock('@simplewebauthn/server', () => ({
 }))
 
 describe('WebAuthn Database Integration', () => {
-  const testUserId = `test-user-integration-${Math.random().toString(36).substring(7)}`
+  const testUserId = randomUUID()
+  const testGithubId = Math.floor(1_000_000_000 + Math.random() * 1_000_000_000)
   const testUserEmail = 'test-integration@example.com'
   let testCredentialId: string | null = null
 
   beforeAll(async () => {
-    // Ensure test user exists in users table if required by foreign key constraint
-    try {
-      await sql`
-        INSERT INTO users (id, email, name) 
-        VALUES (${testUserId}, ${testUserEmail}, 'Test Integration User')
-        ON CONFLICT (id) DO NOTHING
-      `
-    } catch (error) {
-      // User table might not require this or might have different structure
-      console.warn('Could not create test user:', error)
-    }
+    await sql`
+      INSERT INTO users (id, github_id, username, github_login, email, profile)
+      VALUES (
+        ${testUserId},
+        ${testGithubId},
+        'test-integration-user',
+        'test-integration-user',
+        ${testUserEmail},
+        '{}'::jsonb
+      )
+      ON CONFLICT (id) DO NOTHING
+    `
   })
 
   afterAll(async () => {
@@ -165,8 +170,8 @@ describe('WebAuthn Database Integration', () => {
       expect(storedCredentials[0]).toMatchObject({
         user_id: testUserId,
         credential_id: result.credentialId,
-        counter: 0,
       })
+      expect(Number(storedCredentials[0].counter)).toBe(0)
       expect(storedCredentials[0].public_key).toBeInstanceOf(Buffer)
       expect(storedCredentials[0].created_at).toBeInstanceOf(Date)
     })
@@ -302,7 +307,7 @@ describe('WebAuthn Database Integration', () => {
         WHERE credential_id = ${testCredentialId}
       `
 
-      expect(updatedCredential[0].counter).toBe(1) // Updated from 0 to 1
+      expect(Number(updatedCredential[0].counter)).toBe(1) // Updated from 0 to 1
       expect(updatedCredential[0].last_used_at).toBeInstanceOf(Date)
     })
 
@@ -404,7 +409,7 @@ describe('WebAuthn Database Integration', () => {
     })
 
     it('should prevent removing other users credentials', async () => {
-      const otherUserId = `other-user-${Math.random().toString(36).substring(7)}`
+      const otherUserId = randomUUID()
       const credentials = await getUserWebAuthnCredentials(testUserId)
       const credentialId = credentials[0].credential_id
 
@@ -429,7 +434,7 @@ describe('WebAuthn Database Integration', () => {
 
   describe('Database Constraints and Validation', () => {
     it('should enforce foreign key constraint on user_id', async () => {
-      const nonExistentUserId = `non-existent-user-${Math.random().toString(36).substring(7)}`
+      const nonExistentUserId = randomUUID()
       const mockResponse = {
         id: 'constraint-test-credential',
         rawId: 'constraint-test-raw-id',
@@ -462,9 +467,11 @@ describe('WebAuthn Database Integration', () => {
       vi.mocked(verifyRegistrationResponse).mockResolvedValueOnce({
         verified: true,
         registrationInfo: {
-          credentialID: fixedCredentialId,
-          credentialPublicKey: new Uint8Array([1, 2, 3, 4, 5]),
-          counter: 0,
+          credential: {
+            id: fixedCredentialId,
+            publicKey: new Uint8Array([1, 2, 3, 4, 5]),
+            counter: 0,
+          },
           credentialDeviceType: 'singleDevice',
           credentialBackedUp: false,
         },
@@ -492,9 +499,11 @@ describe('WebAuthn Database Integration', () => {
       vi.mocked(verifyRegistrationResponse).mockResolvedValueOnce({
         verified: true,
         registrationInfo: {
-          credentialID: fixedCredentialId, // Same credential ID
-          credentialPublicKey: new Uint8Array([6, 7, 8, 9, 10]),
-          counter: 0,
+          credential: {
+            id: fixedCredentialId, // Same credential ID
+            publicKey: new Uint8Array([6, 7, 8, 9, 10]),
+            counter: 0,
+          },
           credentialDeviceType: 'singleDevice',
           credentialBackedUp: false,
         },
@@ -554,9 +563,11 @@ describe('WebAuthn Database Integration', () => {
       vi.mocked(verifyRegistrationResponse).mockResolvedValueOnce({
         verified: true,
         registrationInfo: {
-          credentialID: new Uint8Array([100, 101, 102, 103, 104]),
-          credentialPublicKey: largePublicKey,
-          counter: 0,
+          credential: {
+            id: new Uint8Array([100, 101, 102, 103, 104]),
+            publicKey: largePublicKey,
+            counter: 0,
+          },
           credentialDeviceType: 'singleDevice',
           credentialBackedUp: false,
         },

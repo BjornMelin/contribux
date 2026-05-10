@@ -252,7 +252,7 @@ export async function generateAccessToken(
   const parseResult = GenerateAccessTokenSchema.safeParse({ user, session, authMethod })
   if (!parseResult.success) {
     throw new Error(
-      `Invalid parameters: ${parseResult.error.errors.map(e => e.message).join(', ')}`
+      `Invalid parameters: ${parseResult.error.issues.map(e => e.message).join(', ')}`
     )
   }
 
@@ -291,7 +291,7 @@ export async function generateRefreshToken(userId: string, sessionId: string): P
   const parseResult = GenerateRefreshTokenSchema.safeParse({ userId, sessionId })
   if (!parseResult.success) {
     throw new Error(
-      `Invalid parameters: ${parseResult.error.errors.map(e => e.message).join(', ')}`
+      `Invalid parameters: ${parseResult.error.issues.map(e => e.message).join(', ')}`
     )
   }
   const validated = parseResult.data
@@ -454,7 +454,7 @@ export async function verifyRefreshToken(token: string): Promise<RefreshTokenPay
   const parseResult = VerifyRefreshTokenSchema.safeParse({ token })
   if (!parseResult.success) {
     throw new Error(
-      `Invalid parameters: ${parseResult.error.errors.map(e => e.message).join(', ')}`
+      `Invalid parameters: ${parseResult.error.issues.map(e => e.message).join(', ')}`
     )
   }
   const validated = parseResult.data
@@ -583,7 +583,7 @@ export async function rotateRefreshToken(oldToken: string): Promise<{
   const parseResult = RotateRefreshTokenSchema.safeParse({ oldToken })
   if (!parseResult.success) {
     throw new Error(
-      `Invalid parameters: ${parseResult.error.errors.map(e => e.message).join(', ')}`
+      `Invalid parameters: ${parseResult.error.issues.map(e => e.message).join(', ')}`
     )
   }
   const validated = parseResult.data
@@ -696,7 +696,7 @@ export async function revokeRefreshToken(token: string): Promise<void> {
   const parseResult = RevokeRefreshTokenSchema.safeParse({ token })
   if (!parseResult.success) {
     throw new Error(
-      `Invalid parameters: ${parseResult.error.errors.map(e => e.message).join(', ')}`
+      `Invalid parameters: ${parseResult.error.issues.map(e => e.message).join(', ')}`
     )
   }
   const validated = parseResult.data
@@ -725,7 +725,7 @@ export async function revokeAllUserTokens(
   const parseResult = RevokeAllUserTokensSchema.safeParse({ userId, options })
   if (!parseResult.success) {
     throw new Error(
-      `Invalid parameters: ${parseResult.error.errors.map(e => e.message).join(', ')}`
+      `Invalid parameters: ${parseResult.error.issues.map(e => e.message).join(', ')}`
     )
   }
   const validated = parseResult.data
@@ -763,7 +763,7 @@ export async function cleanupExpiredTokens(): Promise<number> {
     SELECT COUNT(*) as count FROM deleted
   `
 
-  return Number.parseInt(result[0]?.count || '0')
+  return Number.parseInt(result[0]?.count || '0', 10)
 }
 
 // Helper functions (maintained for backward compatibility)
@@ -799,7 +799,7 @@ export async function createSession(
   const parseResult = CreateSessionSchema.safeParse({ user, authMethod, context })
   if (!parseResult.success) {
     throw new Error(
-      `Invalid parameters: ${parseResult.error.errors.map(e => e.message).join(', ')}`
+      `Invalid parameters: ${parseResult.error.issues.map(e => e.message).join(', ')}`
     )
   }
   const validated = parseResult.data
@@ -851,7 +851,7 @@ export async function refreshSession(sessionId: string): Promise<void> {
   const parseResult = RefreshSessionSchema.safeParse({ sessionId })
   if (!parseResult.success) {
     throw new Error(
-      `Invalid parameters: ${parseResult.error.errors.map(e => e.message).join(', ')}`
+      `Invalid parameters: ${parseResult.error.issues.map(e => e.message).join(', ')}`
     )
   }
   const validated = parseResult.data

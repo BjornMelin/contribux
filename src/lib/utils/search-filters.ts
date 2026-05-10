@@ -240,7 +240,9 @@ export function filtersToSearchParams(filters: Record<string, FilterValue>): URL
   Object.entries(filters).forEach(([key, value]) => {
     if (isActiveFilterValue(value)) {
       if (Array.isArray(value)) {
-        value.forEach(v => params.append(key, String(v)))
+        value.forEach(v => {
+          params.append(key, String(v))
+        })
       } else if (typeof value === 'object' && value !== null) {
         params.set(key, JSON.stringify(value))
       } else {

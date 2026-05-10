@@ -12,15 +12,13 @@
  */
 
 import { HttpResponse, http } from 'msw'
-import { setupServer } from 'msw/node'
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { z } from 'zod'
+import { getMockManager, useMSWHandlers } from '../../setup-integration-enhanced'
 
-const server = setupServer()
-
-beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
-afterEach(() => server.resetHandlers())
-afterAll(() => server.close())
+afterEach(() => {
+  getMockManager()?.resetMSWHandlers()
+})
 
 // Database error schemas
 const DatabaseErrorSchema = z.object({
@@ -152,7 +150,7 @@ describe('API→Drizzle ORM Integration', () => {
         }),
       ]
 
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/search/repositories', ({ request }) => {
           const url = new URL(request.url)
           const query = url.searchParams.get('q') || ''
@@ -218,7 +216,7 @@ describe('API→Drizzle ORM Integration', () => {
     })
 
     it('should handle complex queries with joins and aggregations', async () => {
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/search/opportunities', ({ request }) => {
           const url = new URL(request.url)
           const query = url.searchParams.get('q') || ''
@@ -345,7 +343,7 @@ describe('API→Drizzle ORM Integration', () => {
     })
 
     it('should handle vector similarity search queries efficiently', async () => {
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/search/repositories', ({ request }) => {
           const url = new URL(request.url)
           const query = url.searchParams.get('q') || ''
@@ -422,7 +420,7 @@ describe('API→Drizzle ORM Integration', () => {
 
   describe('Transaction Handling', () => {
     it('should handle database transactions in write operations', async () => {
-      server.use(
+      useMSWHandlers(
         http.post('http://localhost:3000/api/auth/set-primary', async ({ request }) => {
           const _body = (await request.json()) as { providerId: string }
 
@@ -471,7 +469,7 @@ describe('API→Drizzle ORM Integration', () => {
     })
 
     it('should handle transaction rollback on errors', async () => {
-      server.use(
+      useMSWHandlers(
         http.post('http://localhost:3000/api/auth/unlink', async ({ request }) => {
           const body = (await request.json()) as { providerId: string; userId: string }
 
@@ -535,7 +533,7 @@ describe('API→Drizzle ORM Integration', () => {
 
   describe('Database Error Propagation', () => {
     it('should properly handle connection errors', async () => {
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/search/repositories', () => {
           return HttpResponse.json(
             {
@@ -569,7 +567,7 @@ describe('API→Drizzle ORM Integration', () => {
     })
 
     it('should handle query timeout errors', async () => {
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/search/opportunities', ({ request }) => {
           const url = new URL(request.url)
           const query = url.searchParams.get('q')
@@ -628,7 +626,7 @@ describe('API→Drizzle ORM Integration', () => {
     })
 
     it('should handle constraint violation errors', async () => {
-      server.use(
+      useMSWHandlers(
         http.post('http://localhost:3000/api/auth/providers', async ({ request }) => {
           const body = (await request.json()) as { providerId: string; accountId: string }
 
@@ -687,7 +685,7 @@ describe('API→Drizzle ORM Integration', () => {
 
   describe('Connection Pool Validation', () => {
     it('should provide connection pool health metrics', async () => {
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/health', () => {
           return HttpResponse.json({
             status: 'healthy',
@@ -734,7 +732,7 @@ describe('API→Drizzle ORM Integration', () => {
     })
 
     it('should detect connection pool exhaustion', async () => {
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/search/repositories', () => {
           return HttpResponse.json(
             {
@@ -770,7 +768,7 @@ describe('API→Drizzle ORM Integration', () => {
 
   describe('Query Performance Monitoring', () => {
     it('should track and report query performance metrics', async () => {
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/search/repositories', ({ request }) => {
           const url = new URL(request.url)
           const page = Number(url.searchParams.get('page')) || 1
@@ -833,7 +831,7 @@ describe('API→Drizzle ORM Integration', () => {
     })
 
     it('should identify slow queries and provide optimization suggestions', async () => {
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/search/opportunities', ({ request }) => {
           const url = new URL(request.url)
           const query = url.searchParams.get('q')

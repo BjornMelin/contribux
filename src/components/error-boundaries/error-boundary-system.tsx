@@ -10,6 +10,7 @@ import React from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { isClientDevelopment } from '@/lib/client-env'
 import {
   type ErrorInfo as CustomErrorInfo,
   type ErrorBoundaryState,
@@ -18,7 +19,6 @@ import {
   type Result,
   Success,
 } from '@/lib/types/advanced'
-import { isDevelopment } from '@/lib/validation/env'
 
 // Base error boundary component
 interface ErrorBoundaryProps extends PropsWithChildren {
@@ -149,7 +149,7 @@ function DefaultErrorFallback({ error, retry, reset, canRetry }: ErrorFallbackPr
             Reset
           </Button>
         </div>
-        {isDevelopment() && (
+        {isClientDevelopment() && (
           <details className="mt-4 text-left">
             <summary className="cursor-pointer text-destructive/70 text-sm">
               Error Details (Development)

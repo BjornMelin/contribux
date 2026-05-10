@@ -1,5 +1,4 @@
 const express = require('express')
-const bodyParser = require('body-parser')
 
 const app = express()
 const PORT = process.env.PORT || 3002
@@ -10,7 +9,7 @@ const MOCK_DELAY_MS = Number.parseInt(process.env.MOCK_DELAY_MS || '0', 10)
 const requestCounts = new Map()
 
 // Middleware
-app.use(bodyParser.json())
+app.use(express.json())
 
 // Add delay if configured
 app.use((_req, _res, next) => {

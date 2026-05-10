@@ -363,7 +363,7 @@ export const VectorEmbeddingSchema = z.object({
   id: UUIDSchema,
   vector: z.array(z.number()),
   dimensions: z.number().int().positive(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 })
 
 export const VectorSearchQuerySchema = z.object({
@@ -376,7 +376,7 @@ export const VectorSearchQuerySchema = z.object({
 export const VectorSearchResultSchema = z.object({
   id: UUIDSchema,
   score: z.number().min(0).max(1),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 })
 
 // ==================== DATABASE ERROR TYPES ====================

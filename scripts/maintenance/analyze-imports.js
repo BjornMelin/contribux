@@ -193,7 +193,6 @@ function getKnownBuildTools() {
     'commander',
     'nock',
     'undici',
-    'vite-tsconfig-paths',
   ]
 }
 

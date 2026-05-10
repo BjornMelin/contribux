@@ -8,7 +8,7 @@ This directory contains the authentication system for the contribux application,
 
 The authentication system uses environment-specific providers with complete isolation:
 
-- **Development**: Uses demo providers that simulate OAuth flows without requiring actual credentials
+- **Development**: Uses native NextAuth.js providers with demo credentials so local and E2E flows exercise production-compatible OAuth URL generation
 - **Production**: Uses real OAuth providers with proper environment variable configuration
 
 ### File Structure
@@ -29,15 +29,14 @@ src/lib/auth/
 
 In development (`NODE_ENV=development`), the system automatically uses demo providers that:
 
-- Simulate OAuth flows without external API calls
-- Use mock endpoints (`javascript:void(0)`)
-- Return predefined user data
+- Use NextAuth.js native GitHub and Google provider factories
+- Generate production-compatible OAuth authorization URLs
+- Fall back to demo client credentials when local OAuth credentials are not set
 - Require no OAuth credentials
 
-### Demo Users
-
-- **GitHub Demo**: `demo@github.com` with ID `demo-github-123`
-- **Google Demo**: `demo@google.com` with ID `demo-google-456`
+The JWT callback still creates deterministic demo session data when a development
+callback completes, so tests can assert stable user details without production
+database dependencies.
 
 ## Production Mode
 

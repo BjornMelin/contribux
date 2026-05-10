@@ -209,7 +209,7 @@ screen-wake-lock=(), web-share=()
 ## Implementation Details
 
 ### Files Modified
-1. `src/middleware.ts` - Enhanced security headers
+1. `src/proxy.ts` - Enhanced security headers
 2. `src/lib/security/csp.ts` - Modern CSP directives
 3. `src/app/api/security/network-report/route.ts` - NEL endpoint (new)
 

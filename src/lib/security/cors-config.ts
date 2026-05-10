@@ -14,7 +14,7 @@ export const CorsConfigSchema = z.object({
   origins: z.union([
     z.literal('*'), // Not recommended for production
     z.array(z.string().url()),
-    z.function().args(z.string()).returns(z.boolean()),
+    z.function({ input: [z.string()], output: z.boolean() }),
   ]),
 
   // Allowed methods

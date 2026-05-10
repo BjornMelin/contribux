@@ -33,7 +33,7 @@ const auditLogQuerySchema = z.object({
 // TypeScript interfaces derived from Zod schemas
 type AuditLogQueryParams = z.infer<typeof auditLogQuerySchema>
 
-const queryParamsSchema = z.record(z.union([z.string(), z.number()]))
+const queryParamsSchema = z.record(z.string(), z.union([z.string(), z.number()]))
 type QueryParams = z.infer<typeof queryParamsSchema>
 
 const auditLogFiltersSchema = z.object({
@@ -53,7 +53,7 @@ type AuditLogFilters = z.infer<typeof auditLogFiltersSchema>
 const queryOptionsSchema = z.object({
   limit: z.number(),
   offset: z.number(),
-  orderBy: z.record(z.enum(['asc', 'desc'])),
+  orderBy: z.record(z.string(), z.enum(['asc', 'desc'])),
 })
 type QueryOptions = z.infer<typeof queryOptionsSchema>
 
@@ -69,7 +69,7 @@ const mockAuditLogSchema = z.object({
   }),
   action: z.string(),
   result: z.string(),
-  metadata: z.record(z.unknown()),
+  metadata: z.record(z.string(), z.unknown()),
 })
 // type MockAuditLog = z.infer<typeof mockAuditLogSchema> // Currently unused but may be needed for future development
 

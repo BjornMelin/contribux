@@ -351,6 +351,9 @@ export async function createMemoryPressureTest(iterations = 100): Promise<{
     }
   }
 
+  const peakSnapshot = await takeMemorySnapshot()
+  peakMemory = Math.max(peakMemory, peakSnapshot.heapUsed)
+
   // Clear references
   arrays.length = 0
 
@@ -406,4 +409,4 @@ export function getMemoryMonitoringStats(): {
 }
 
 // Export types for external use
-export type { MemorySnapshot, MemoryLeakResult, MemoryMonitorConfig }
+export type { MemoryLeakResult, MemoryMonitorConfig, MemorySnapshot }

@@ -379,6 +379,10 @@ export function validateTestEnvironment(envConfig: TestEnvironmentConfig): void 
     throw new Error('Test concurrency must be positive')
   }
 
+  if (envConfig.useGitHubAPI && !envConfig.useMSW) {
+    throw new Error('GitHub API test mode requires MSW to be enabled')
+  }
+
   // Validate required environment variables for integration tests
   if (envConfig.type === 'integration' || envConfig.type === 'e2e') {
     const requiredVars = ['NEXTAUTH_SECRET', 'GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET']

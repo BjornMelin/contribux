@@ -16,6 +16,7 @@ interface ErrorContext {
   userAgent?: string
   requestId?: string
   sessionId?: string
+  metadata?: Record<string, unknown>
   [key: string]: unknown
 }
 
@@ -61,7 +62,6 @@ const METRICS_WINDOW_MS = 15 * 60 * 1000 // 15 minutes
 export class ErrorDashboard {
   private static instance: ErrorDashboard
   private errorMonitor: ErrorMonitor
-  private alertingSystem: AlertingSystem
 
   static getInstance(): ErrorDashboard {
     if (!ErrorDashboard.instance) {
@@ -72,7 +72,6 @@ export class ErrorDashboard {
 
   constructor() {
     this.errorMonitor = ErrorMonitor.getInstance()
-    this.alertingSystem = AlertingSystem.getInstance()
   }
 
   /**
@@ -82,13 +81,15 @@ export class ErrorDashboard {
     const metrics = this.errorMonitor.getMetrics()
     const trends = this.errorMonitor.getTrends(24)
 
-    // Calculate availability (based on critical errors)
-    const criticalErrors = trends.reduce(
-      (sum, trend) => sum + (trend.severityCounts[ErrorSeverity.CRITICAL] || 0),
-      0
-    )
+    // Calculate availability by affected hours, not raw critical-event volume.
+    const trendCriticalHours = trends.filter(
+      trend => (trend.severityCounts[ErrorSeverity.CRITICAL] || 0) > 0
+    ).length
+    const currentCriticalErrors = metrics.errorsBySeverity[ErrorSeverity.CRITICAL] || 0
+    const criticalHours = Math.max(trendCriticalHours, currentCriticalErrors > 0 ? 1 : 0)
     const totalHours = trends.length
-    const availability = Math.max(0, ((totalHours - criticalErrors) / totalHours) * 100)
+    const availability =
+      totalHours > 0 ? Math.max(0, ((totalHours - criticalHours) / totalHours) * 100) : 100
 
     // Calculate mean time to recovery (MTTR)
     const mttr = await this.calculateMTTR()
@@ -181,13 +182,19 @@ export class ErrorDashboard {
     const errors = Array.from(this.errorMonitor.getErrors())
 
     // For demo purposes, create a synthetic incident
-    const incidentStart = Date.now() - 2 * 60 * 60 * 1000 // 2 hours ago
-    const incidentEnd = Date.now() - 1 * 60 * 60 * 1000 // 1 hour ago
+    let incidentStart = Date.now() - 2 * 60 * 60 * 1000 // 2 hours ago
+    let incidentEnd = Date.now() - 1 * 60 * 60 * 1000 // 1 hour ago
 
-    const incidentErrors = errors.filter(error => {
+    let incidentErrors = errors.filter(error => {
       const timestamp = error.timestamp.getTime()
       return timestamp >= incidentStart && timestamp <= incidentEnd
     })
+
+    if (incidentErrors.length === 0 && errors.length > 0) {
+      incidentErrors = errors
+      incidentStart = Math.min(...incidentErrors.map(error => error.timestamp.getTime()))
+      incidentEnd = Math.max(...incidentErrors.map(error => error.timestamp.getTime()))
+    }
 
     const timeline = this.createIncidentTimeline(incidentErrors, incidentStart, incidentEnd)
     const rootCause = this.analyzeRootCause(incidentErrors)
@@ -219,6 +226,10 @@ export class ErrorDashboard {
         'Enhance system resilience',
       ],
     }
+  }
+
+  async getIncidentReport(incidentId: string): Promise<IncidentReport> {
+    return this.generateIncidentReport(incidentId)
   }
 
   /**
@@ -295,6 +306,10 @@ export class ErrorDashboard {
     const recentAvg = recent.reduce((sum, t) => sum + t.errorCount, 0) / recent.length
     const earlierAvg = earlier.reduce((sum, t) => sum + t.errorCount, 0) / earlier.length
 
+    if (earlierAvg === 0) {
+      return recentAvg > 0 ? 100 : 0
+    }
+
     return ((recentAvg - earlierAvg) / earlierAvg) * 100
   }
 
@@ -335,12 +350,17 @@ export class ErrorDashboard {
     }
 
     // Trend-based recommendations
-    const recentTrend = trends.slice(-3) // Last 3 hours
-    const avgErrors = recentTrend.reduce((sum, t) => sum + t.errorCount, 0) / recentTrend.length
-    if (avgErrors > 20) {
+    const errorVelocity = this.calculateErrorVelocity(trends)
+    if (errorVelocity > 0) {
       recommendations.push(
         'Error trend is increasing. Consider scaling resources or implementing circuit breakers.'
       )
+    }
+
+    const recentTrend = trends.slice(-3) // Last 3 hours
+    const avgErrors = recentTrend.reduce((sum, t) => sum + t.errorCount, 0) / recentTrend.length
+    if (avgErrors > 20) {
+      recommendations.push('Sustained high error volume detected. Review noisy components.')
     }
 
     return recommendations
@@ -543,6 +563,7 @@ export class ErrorDashboard {
       case ErrorCategory.DATABASE_CONNECTION:
         return 'Database connectivity issues were the primary cause'
       case ErrorCategory.THIRD_PARTY_SERVICE:
+      case ErrorCategory.SERVICE_UNAVAILABLE:
         return 'External service failures triggered the incident'
       case ErrorCategory.RATE_LIMIT_EXCEEDED:
         return 'Traffic spike exceeded rate limiting thresholds'
@@ -583,7 +604,10 @@ export class ErrorDashboard {
       if (error.classification.category.includes('AUTH')) {
         components.add('Authentication')
       }
-      if (error.classification.category.includes('THIRD_PARTY')) {
+      if (
+        error.classification.category.includes('THIRD_PARTY') ||
+        error.classification.category === ErrorCategory.SERVICE_UNAVAILABLE
+      ) {
         components.add('External Services')
       }
       // Add more component mapping as needed
@@ -595,10 +619,12 @@ export class ErrorDashboard {
   private convertToCSV(analytics: ErrorAnalytics): string {
     const headers = ['Timestamp', 'Category', 'Severity', 'Count', 'Users Affected']
     const rows: string[][] = []
+    const severityEntries = Object.entries(analytics.distribution.bySeverity)
+    const severity = severityEntries.length === 1 ? severityEntries[0][0] : 'Various'
 
     // Add distribution data
     Object.entries(analytics.distribution.byCategory).forEach(([category, count]) => {
-      rows.push([analytics.summary.timeRange.start, category, 'Various', count.toString(), 'N/A'])
+      rows.push([analytics.summary.timeRange.start, category, severity, count.toString(), 'N/A'])
     })
 
     return [headers.join(','), ...rows.map(row => row.join(','))].join('\n')
@@ -1018,6 +1044,7 @@ export class ErrorMonitor {
   private static instance: ErrorMonitor
   private errors: ErrorEntry[] = []
   private errorPatterns: Map<string, number> = new Map()
+  private readonly maxErrors = 1000
 
   // Singleton pattern
   static getInstance(): ErrorMonitor {
@@ -1040,17 +1067,11 @@ export class ErrorMonitor {
   async track(
     error: unknown,
     classification: ErrorClassification,
-    context?: {
-      userId?: string
-      sessionId?: string
-      url?: string
-      userAgent?: string
-      metadata?: Record<string, unknown>
-    }
+    context?: ErrorContext
   ): Promise<void> {
     // Create error entry
     const entry: ErrorEntry = {
-      timestamp: new Date(),
+      timestamp: this.resolveTimestamp(context?.timestamp),
       classification,
       context: context?.metadata,
       userId: context?.userId,
@@ -1061,10 +1082,9 @@ export class ErrorMonitor {
 
     // Add to tracking
     this.errors.push(entry)
-
-    // Update patterns
-    const patternKey = `${classification.category}:${classification.userMessage}`
-    this.errorPatterns.set(patternKey, (this.errorPatterns.get(patternKey) || 0) + 1)
+    if (this.errors.length > this.maxErrors) {
+      this.errors = this.errors.slice(-this.maxErrors)
+    }
 
     // Clean old entries
     this.cleanOldEntries()
@@ -1082,14 +1102,26 @@ export class ErrorMonitor {
   }
 
   /**
+   * Record an error without awaiting alert/audit side effects.
+   */
+  logError(error: unknown, classification: ErrorClassification, context?: ErrorContext): void {
+    void this.track(error, classification, context).catch(() => {
+      // logError is intentionally fire-and-forget; tracking failures must not become unhandled rejections.
+    })
+  }
+
+  clearErrors(): void {
+    this.errors = []
+    this.errorPatterns.clear()
+  }
+
+  /**
    * Get current error metrics
    */
   getMetrics(): ErrorMetrics {
-    const now = Date.now()
-    const windowStart = now - METRICS_WINDOW_MS
-
     // Filter errors within window
-    const recentErrors = this.errors.filter(e => e.timestamp.getTime() >= windowStart)
+    const recentErrors = this.getRecentErrors()
+    this.rebuildErrorPatterns(recentErrors)
 
     // Calculate metrics
     const errorsByCategory: Record<string, number> = {} as Record<ErrorCategory, number>
@@ -1134,6 +1166,15 @@ export class ErrorMonitor {
       topErrors,
       healthScore,
     }
+  }
+
+  private resolveTimestamp(timestamp: unknown): Date {
+    if (timestamp instanceof Date) return timestamp
+    if (typeof timestamp === 'number' || typeof timestamp === 'string') {
+      const parsed = new Date(timestamp)
+      if (!Number.isNaN(parsed.getTime())) return parsed
+    }
+    return new Date()
   }
 
   /**
@@ -1292,15 +1333,33 @@ export class ErrorMonitor {
 
     // Remove old errors
     this.errors = this.errors.filter(e => e.timestamp.getTime() >= cutoffTime)
+    const recentErrors = this.getRecentErrors()
 
     // Clean error patterns with no recent occurrences
     for (const [pattern, _] of this.errorPatterns) {
-      const hasRecentError = this.errors.some(
-        e => `${e.classification.category}:${e.classification.userMessage}` === pattern
-      )
+      const hasRecentError = recentErrors.some(e => this.getErrorPatternKey(e) === pattern)
       if (!hasRecentError) {
         this.errorPatterns.delete(pattern)
       }
+    }
+
+    this.rebuildErrorPatterns(recentErrors)
+  }
+
+  private getErrorPatternKey(error: ErrorEntry): string {
+    return `${error.classification.category}:${error.classification.userMessage}`
+  }
+
+  private getRecentErrors(now = Date.now()): ErrorEntry[] {
+    const windowStart = now - METRICS_WINDOW_MS
+    return this.errors.filter(error => error.timestamp.getTime() >= windowStart)
+  }
+
+  private rebuildErrorPatterns(errors: ErrorEntry[] = this.getRecentErrors()): void {
+    this.errorPatterns.clear()
+    for (const error of errors) {
+      const patternKey = this.getErrorPatternKey(error)
+      this.errorPatterns.set(patternKey, (this.errorPatterns.get(patternKey) || 0) + 1)
     }
   }
 
@@ -1354,6 +1413,7 @@ export class AlertingSystem {
   private static instance: AlertingSystem
   private alertChannels: AlertChannel[] = []
   private alertingRules: AlertingRule[] = []
+  private customRuleNames: Set<string> = new Set()
   private suppressedAlerts: Set<string> = new Set()
   private alertHistory: AlertEvent[] = []
 
@@ -1386,14 +1446,54 @@ export class AlertingSystem {
    * Register alert channel (Slack, Discord, PagerDuty, etc.)
    */
   registerChannel(channel: AlertChannel): void {
-    this.alertChannels.push(channel)
+    this.alertChannels.push(this.normalizeChannel(channel))
+  }
+
+  addChannel(channel: AlertChannel): void {
+    this.registerChannel(channel)
+  }
+
+  getChannels(): AlertChannel[] {
+    return [...this.alertChannels]
+  }
+
+  getRules(): AlertingRule[] {
+    return this.alertingRules.filter(rule => this.customRuleNames.has(rule.name))
   }
 
   /**
    * Add custom alerting rule
    */
   addRule(rule: AlertingRule): void {
-    this.alertingRules.push(rule)
+    const normalizedRule = this.normalizeRule(rule)
+    this.customRuleNames.add(normalizedRule.name)
+    this.alertingRules.push(normalizedRule)
+  }
+
+  async checkAlerts(metrics: ErrorMetrics): Promise<void> {
+    const customRules = this.alertingRules.filter(rule => this.customRuleNames.has(rule.name))
+
+    for (const rule of customRules) {
+      const categories =
+        rule.categoryFilter && rule.categoryFilter.length > 0
+          ? rule.categoryFilter
+          : [ErrorCategory.INTERNAL_ERROR]
+
+      for (const category of categories) {
+        const classification: ErrorClassification = {
+          category,
+          severity: rule.severityThreshold ?? this.mapAlertSeverityToErrorSeverity(rule.severity),
+          isTransient: false,
+          recoveryStrategies: [],
+          userMessage: rule.description || rule.name,
+        }
+
+        if (await this.shouldTriggerAlert(rule, classification, metrics)) {
+          await this.sendAlert(rule, classification, metrics)
+          break
+        }
+      }
+    }
   }
 
   /**
@@ -1426,6 +1526,7 @@ export class AlertingSystem {
     originalError?: unknown
   ): Promise<void> {
     const alertKey = `${rule.name}:${classification.category}:${classification.severity}`
+    const suppressionMinutes = rule.suppressionMinutes ?? rule.cooldownMinutes ?? 0
 
     // Check suppression
     if (this.suppressedAlerts.has(alertKey)) {
@@ -1437,7 +1538,7 @@ export class AlertingSystem {
       id: crypto.randomUUID(),
       timestamp: new Date(),
       rule: rule.name,
-      severity: this.mapSeverityToAlertLevel(classification.severity),
+      severity: rule.severity ?? this.mapSeverityToAlertLevel(classification.severity),
       title: this.generateAlertTitle(rule, classification, metrics),
       description: this.generateAlertDescription(classification, metrics, context),
       metadata: {
@@ -1455,7 +1556,7 @@ export class AlertingSystem {
 
     // Send through channels
     const relevantChannels = this.alertChannels.filter(channel =>
-      channel.severityFilter.includes(alertEvent.severity)
+      this.shouldSendToChannel(channel, rule, alertEvent)
     )
 
     const promises = relevantChannels.map(channel =>
@@ -1465,13 +1566,13 @@ export class AlertingSystem {
     await Promise.allSettled(promises)
 
     // Suppress similar alerts for specified duration
-    if (rule.suppressionMinutes > 0) {
+    if (suppressionMinutes > 0) {
       this.suppressedAlerts.add(alertKey)
       setTimeout(
         () => {
           this.suppressedAlerts.delete(alertKey)
         },
-        rule.suppressionMinutes * 60 * 1000
+        suppressionMinutes * 60 * 1000
       )
     }
 
@@ -1501,7 +1602,9 @@ export class AlertingSystem {
     context?: ErrorContext
   ): Promise<boolean> {
     // Check severity threshold
-    if (!this.meetsSeverityThreshold(classification.severity, rule.severityThreshold)) {
+    const severityThreshold =
+      rule.severityThreshold ?? this.mapAlertSeverityToErrorSeverity(rule.severity)
+    if (!this.meetsSeverityThreshold(classification.severity, severityThreshold)) {
       return false
     }
 
@@ -1512,7 +1615,16 @@ export class AlertingSystem {
 
     // Check custom condition
     if (rule.condition) {
-      return rule.condition(classification, metrics, context)
+      if (rule.condition.length <= 1) {
+        return (rule.condition as (metrics: ErrorMetrics) => boolean)(metrics)
+      }
+      return (
+        rule.condition as (
+          classification: ErrorClassification,
+          metrics: ErrorMetrics,
+          context?: ErrorContext
+        ) => boolean
+      )(classification, metrics, context)
     }
 
     // Default conditions based on rule type
@@ -1546,7 +1658,19 @@ export class AlertingSystem {
     _originalError?: unknown
   ): Promise<void> {
     try {
+      if (channel.send) {
+        await channel.send(alert)
+        return
+      }
+
       switch (channel.type) {
+        case 'console':
+          createErrorLogger({
+            component: 'AlertingSystem',
+            operation: 'consoleAlert',
+          }).warn({ alert }, alert.title)
+          break
+
         case 'webhook':
           await this.sendWebhookAlert(channel, alert)
           break
@@ -1703,6 +1827,7 @@ export class AlertingSystem {
    */
   private async sendPagerDutyAlert(channel: AlertChannel, alert: AlertEvent): Promise<void> {
     if (!channel.pagerDutyKey) return
+    const severity = this.normalizePagerDutySeverity(alert.severity)
 
     const payload = {
       routing_key: channel.pagerDutyKey,
@@ -1710,7 +1835,7 @@ export class AlertingSystem {
       payload: {
         summary: alert.title,
         source: 'contribux-error-monitoring',
-        severity: alert.severity.toLowerCase(),
+        severity,
         component: 'error-monitoring',
         group: 'backend',
         class: alert.metadata.errorCategory,
@@ -1728,6 +1853,26 @@ export class AlertingSystem {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
+  }
+
+  private normalizePagerDutySeverity(
+    severity: AlertSeverity
+  ): 'critical' | 'error' | 'warning' | 'info' {
+    switch (severity) {
+      case 'critical':
+      case 'error':
+      case 'warning':
+      case 'info':
+        return severity
+      case 'high':
+        return 'error'
+      case 'medium':
+        return 'warning'
+      case 'low':
+        return 'info'
+      default:
+        return 'warning'
+    }
   }
 
   /**
@@ -1782,6 +1927,55 @@ export class AlertingSystem {
   /**
    * Helper methods
    */
+  private normalizeChannel(channel: AlertChannel): AlertChannel {
+    return {
+      ...channel,
+      enabled: channel.enabled ?? true,
+      severityFilter: channel.severityFilter ?? [
+        'critical',
+        'error',
+        'warning',
+        'info',
+        'high',
+        'medium',
+        'low',
+      ],
+      webhookUrl: channel.webhookUrl ?? channel.config?.url,
+    }
+  }
+
+  private normalizeRule(rule: AlertingRule): AlertingRule {
+    return {
+      ...rule,
+      type: rule.type ?? 'health_degradation',
+      severityThreshold:
+        rule.severityThreshold ?? this.mapAlertSeverityToErrorSeverity(rule.severity),
+      suppressionMinutes: rule.suppressionMinutes ?? rule.cooldownMinutes ?? 0,
+    }
+  }
+
+  private shouldSendToChannel(
+    channel: AlertChannel,
+    rule: AlertingRule,
+    alertEvent: AlertEvent
+  ): boolean {
+    if (channel.enabled === false) return false
+    if (rule.channels && !rule.channels.includes(channel.name)) return false
+    const severityFilter = channel.severityFilter ?? [
+      'critical',
+      'error',
+      'warning',
+      'info',
+      'high',
+      'medium',
+      'low',
+    ]
+    const normalizedFilter = new Set(
+      severityFilter.map(severity => this.normalizePagerDutySeverity(severity))
+    )
+    return normalizedFilter.has(this.normalizePagerDutySeverity(alertEvent.severity))
+  }
+
   private meetsSeverityThreshold(current: ErrorSeverity, threshold: ErrorSeverity): boolean {
     const severityOrder = [
       ErrorSeverity.LOW,
@@ -1790,6 +1984,24 @@ export class AlertingSystem {
       ErrorSeverity.CRITICAL,
     ]
     return severityOrder.indexOf(current) >= severityOrder.indexOf(threshold)
+  }
+
+  private mapAlertSeverityToErrorSeverity(severity: AlertSeverity = 'warning'): ErrorSeverity {
+    switch (severity) {
+      case 'critical':
+        return ErrorSeverity.CRITICAL
+      case 'high':
+      case 'error':
+        return ErrorSeverity.HIGH
+      case 'medium':
+      case 'warning':
+        return ErrorSeverity.MEDIUM
+      case 'low':
+      case 'info':
+        return ErrorSeverity.LOW
+      default:
+        return ErrorSeverity.MEDIUM
+    }
   }
 
   private mapSeverityToAlertLevel(severity: ErrorSeverity): AlertSeverity {
@@ -1924,9 +2136,12 @@ export class AlertingSystem {
  * Types for alerting system
  */
 export interface AlertChannel {
-  type: 'webhook' | 'slack' | 'discord' | 'email' | 'pagerduty'
+  type: 'console' | 'webhook' | 'slack' | 'discord' | 'email' | 'pagerduty'
   name: string
-  severityFilter: AlertSeverity[]
+  enabled?: boolean
+  severityFilter?: AlertSeverity[]
+  config?: { url?: string; [key: string]: unknown }
+  send?: (alert: AlertEvent) => unknown | Promise<unknown>
   webhookUrl?: string
   headers?: Record<string, string>
   emailTo?: string[]
@@ -1935,17 +2150,22 @@ export interface AlertChannel {
 
 export interface AlertingRule {
   name: string
-  type: 'error_spike' | 'health_degradation' | 'critical_error' | 'repeated_errors'
-  severityThreshold: ErrorSeverity
+  type?: 'error_spike' | 'health_degradation' | 'critical_error' | 'repeated_errors'
+  severityThreshold?: ErrorSeverity
+  severity?: AlertSeverity
+  channels?: string[]
   categoryFilter?: ErrorCategory[]
   threshold?: number
-  suppressionMinutes: number
+  suppressionMinutes?: number
+  cooldownMinutes?: number
   description: string
-  condition?: (
-    classification: ErrorClassification,
-    metrics: ErrorMetrics,
-    context?: ErrorContext
-  ) => boolean
+  condition?:
+    | ((
+        classification: ErrorClassification,
+        metrics: ErrorMetrics,
+        context?: ErrorContext
+      ) => boolean)
+    | ((metrics: ErrorMetrics) => boolean)
 }
 
 export interface AlertEvent {
@@ -1965,7 +2185,7 @@ export interface AlertEvent {
   }
 }
 
-export type AlertSeverity = 'critical' | 'error' | 'warning' | 'info'
+export type AlertSeverity = 'critical' | 'error' | 'warning' | 'info' | 'high' | 'medium' | 'low'
 
 // Lazy-loaded singleton instances to avoid module initialization issues
 let _errorMonitor: ErrorMonitor | null = null

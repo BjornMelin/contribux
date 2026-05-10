@@ -351,7 +351,7 @@ async function validateAuthToken(
 
   const payload = await verifyAccessToken(token)
 
-  if (!payload || !payload.sub) {
+  if (!payload?.sub) {
     await auditRequest(request, {
       event_type: 'authorization_failure',
       resource: path,

@@ -155,7 +155,7 @@ describe('Search Filtering', () => {
       await connection.sql(
         `
         UPDATE opportunities 
-        SET difficulty = 'expert'
+        SET difficulty = 'advanced'
         WHERE id = $1
       `,
         [testIds.oppId2]
@@ -189,11 +189,11 @@ describe('Search Filtering', () => {
         [testIds.userId]
       )
 
-      // Set all opportunities to expert level
+      // Set all opportunities to advanced level
       await connection.sql(
         `
         UPDATE opportunities 
-        SET difficulty = 'expert'
+        SET difficulty = 'advanced'
         WHERE repository_id = $1
       `,
         [testIds.repoId]
@@ -291,10 +291,10 @@ describe('Search Filtering', () => {
       await connection.sql(
         `
         UPDATE users 
-        SET preferred_languages = ARRAY['Python', 'Go']
-        WHERE id = $1
+        SET preferred_languages = $1::TEXT[]
+        WHERE id = $2
       `,
-        [testIds.userId]
+        [['Python', 'Go'], testIds.userId]
       )
 
       await setupUserPreferences(context)

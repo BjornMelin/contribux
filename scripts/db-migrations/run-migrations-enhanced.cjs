@@ -29,12 +29,115 @@ function resolveMigrationPath(group, filename) {
   return path.join(group.directory, filename)
 }
 
+function readDollarQuoteTag(content, start) {
+  const tagMatch = content.slice(start).match(/^\$[A-Za-z_][A-Za-z0-9_]*\$|^\$\$/)
+  return tagMatch?.[0] ?? null
+}
+
+function splitSqlStatements(content) {
+  const statements = []
+  let statement = ''
+  let dollarQuoteTag = null
+  let inSingleQuote = false
+  let inDoubleQuote = false
+  let inLineComment = false
+  let inBlockComment = false
+
+  for (let index = 0; index < content.length; index++) {
+    const char = content[index]
+    const nextChar = content[index + 1]
+
+    if (inLineComment) {
+      statement += char
+      if (char === '\n') {
+        inLineComment = false
+      }
+      continue
+    }
+
+    if (inBlockComment) {
+      statement += char
+      if (char === '*' && nextChar === '/') {
+        statement += nextChar
+        index++
+        inBlockComment = false
+      }
+      continue
+    }
+
+    if (!dollarQuoteTag && !inSingleQuote && !inDoubleQuote && char === '-' && nextChar === '-') {
+      statement += char + nextChar
+      index++
+      inLineComment = true
+      continue
+    }
+
+    if (!dollarQuoteTag && !inSingleQuote && !inDoubleQuote && char === '/' && nextChar === '*') {
+      statement += char + nextChar
+      index++
+      inBlockComment = true
+      continue
+    }
+
+    if (!inSingleQuote && !inDoubleQuote && char === '$') {
+      const tag = readDollarQuoteTag(content, index)
+
+      if (tag && (!dollarQuoteTag || tag === dollarQuoteTag)) {
+        statement += tag
+        index += tag.length - 1
+        dollarQuoteTag = dollarQuoteTag ? null : tag
+        continue
+      }
+    }
+
+    statement += char
+
+    if (dollarQuoteTag) {
+      continue
+    }
+
+    if (char === "'" && !inDoubleQuote) {
+      if (inSingleQuote && nextChar === "'") {
+        statement += nextChar
+        index++
+        continue
+      }
+
+      inSingleQuote = !inSingleQuote
+      continue
+    }
+
+    if (char === '"' && !inSingleQuote) {
+      if (inDoubleQuote && nextChar === '"') {
+        statement += nextChar
+        index++
+        continue
+      }
+
+      inDoubleQuote = !inDoubleQuote
+      continue
+    }
+
+    if (char === ';' && !inSingleQuote && !inDoubleQuote) {
+      const trimmed = statement.trim()
+      if (trimmed) {
+        statements.push(trimmed)
+      }
+      statement = ''
+    }
+  }
+
+  const trailingStatement = statement.trim()
+  if (trailingStatement) {
+    statements.push(trailingStatement.endsWith(';') ? trailingStatement : `${trailingStatement};`)
+  }
+
+  return statements
+}
+
 // Helper function to execute SQL statements from file
 async function executeMigrationStatements(sql, content) {
-  const statements = content
-    .split(/;\s*$/m)
-    .filter(stmt => stmt.trim().length > 0)
-    .map(stmt => `${stmt.trim()};`)
+  const statements = splitSqlStatements(content)
 
   for (const statement of statements) {
     if (statement.trim() && !statement.includes('\\i')) {
@@ -106,20 +209,12 @@ async function createDatabaseClient(connectionString) {
     // Use Neon serverless driver for production
     const { neon } = require('@neondatabase/serverless')
     const sql = neon(connectionString)
+    const query = sql.query.bind(sql)
     
     // Add query method for compatibility
-    sql.query = async (queryText, params) => {
-      if (params && params.length > 0) {
-        // Neon doesn't support parameterized queries the same way
-        // We need to convert to template literal format
-        // This is a limitation we'll have to work around
-        const result = await sql(queryText)
-        return { rows: result }
-      } else {
-        // Simple query without parameters
-        const result = await sql(queryText)
-        return { rows: result }
-      }
+    sql.query = async (queryText, params = []) => {
+      const result = await query(queryText, params)
+      return Array.isArray(result) ? { rows: result } : result
     }
     
     return sql
@@ -375,13 +470,7 @@ async function checkMigrationStatus() {
     const _appliedCount = appliedMigrations.length
 
     // Check for pending migrations
-    const allMigrationFiles = [
-      '01-extensions.sql',
-      '02-schema.sql',
-      '03-functions.sql',
-      '04-sample-data.sql',
-      'add_webauthn_credentials.sql',
-    ]
+    const allMigrationFiles = getMigrationGroups().flatMap(group => group.files)
 
     const appliedFileNames = appliedMigrations.map(m => m.filename)
     const pendingMigrations = allMigrationFiles.filter(f => !appliedFileNames.includes(f))
@@ -428,8 +517,14 @@ async function resetDatabase() {
     process.exit(1)
   }
 
-  // Only allow reset in test environment
-  if (!databaseUrl.includes('test') && !databaseUrl.includes('localhost')) {
+  const allowCiDatabaseReset =
+    process.env.ALLOW_CI_DATABASE_RESET === 'true' &&
+    process.env.CI === 'true' &&
+    process.env.GITHUB_ACTIONS === 'true'
+  const isLocalOrTestDatabase = isLocalOrTestDatabaseUrl(databaseUrl)
+
+  // Only allow reset in local/test databases or explicitly isolated CI branches.
+  if (!isLocalOrTestDatabase && !allowCiDatabaseReset) {
     process.exit(1)
   }
 
@@ -440,6 +535,8 @@ async function resetDatabase() {
 
     // Drop tables in reverse dependency order
     const dropStatements = [
+      'DROP TABLE IF EXISTS security_audit_logs CASCADE',
+      'DROP TABLE IF EXISTS oauth_accounts CASCADE',
       'DROP TABLE IF EXISTS webauthn_credentials CASCADE',
       'DROP TABLE IF EXISTS user_repository_interactions CASCADE',
       'DROP TABLE IF EXISTS contribution_outcomes CASCADE',
@@ -462,6 +559,19 @@ async function resetDatabase() {
     if (sql) {
       await closeDatabaseClient(sql)
     }
+  }
+}
+
+function isLocalOrTestDatabaseUrl(databaseUrl) {
+  if (databaseUrl.includes('test')) {
+    return true
+  }
+
+  try {
+    const { hostname } = new URL(databaseUrl)
+    return hostname === 'localhost' || hostname === '127.0.0.1'
+  } catch {
+    return databaseUrl.includes('localhost') || databaseUrl.includes('127.0.0.1')
   }
 }
 
@@ -491,4 +601,5 @@ module.exports = {
   resetDatabase,
   createDatabaseClient,
   closeDatabaseClient,
+  splitSqlStatements,
 }

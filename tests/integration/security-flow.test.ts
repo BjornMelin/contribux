@@ -15,9 +15,9 @@
  */
 
 import { HttpResponse, http } from 'msw'
-import { setupServer } from 'msw/node'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
+import { getMockManager, useMSWHandlers } from '../setup-integration-enhanced'
 
 // Security flow state management
 interface SecurityFlowState {
@@ -146,7 +146,7 @@ const SecurityIncidentResponseSchema = z.object({
     severity: z.enum(['low', 'medium', 'high', 'critical']),
     status: z.enum(['detected', 'investigating', 'mitigated', 'resolved']),
     timestamp: z.string().datetime(),
-    details: z.record(z.unknown()),
+    details: z.record(z.string(), z.unknown()),
     responseActions: z.array(z.string()),
   }),
   mitigation: z.object({
@@ -162,35 +162,42 @@ const SecurityIncidentResponseSchema = z.object({
 })
 
 // Test setup
-const server = setupServer()
+const createInitialSecurityMetrics = (): SecurityMetrics => ({
+  totalRequests: 0,
+  blockedRequests: 0,
+  securityViolations: 0,
+  averageResponseTime: 50,
+  uptime: 99.9,
+  lastSecurityScan: new Date(),
+  vulnerabilitiesFound: 0,
+  patchLevel: 'current',
+})
+
 const securityFlowState: SecurityFlowState = {
   rateLimitCounters: new Map(),
   securityIncidents: [],
   blockedIPs: new Set(),
-  securityMetrics: {
-    totalRequests: 0,
-    blockedRequests: 0,
-    securityViolations: 0,
-    averageResponseTime: 50,
-    uptime: 99.9,
-    lastSecurityScan: new Date(),
-    vulnerabilitiesFound: 0,
-    patchLevel: 'current',
-  },
+  securityMetrics: createInitialSecurityMetrics(),
   alertLog: [],
   cspViolations: [],
 }
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
-afterEach(() => {
-  server.resetHandlers()
-  // Reset some state but keep metrics for testing continuity
+const resetSecurityFlowState = () => {
+  securityFlowState.rateLimitCounters.clear()
+  securityFlowState.securityIncidents = []
+  securityFlowState.blockedIPs.clear()
+  securityFlowState.securityMetrics = createInitialSecurityMetrics()
   securityFlowState.alertLog = []
+  securityFlowState.cspViolations = []
+}
+
+afterEach(() => {
+  getMockManager()?.resetMSWHandlers()
 })
-afterAll(() => server.close())
 
 describe('Security Flow Integration Tests', () => {
   beforeEach(() => {
+    resetSecurityFlowState()
     vi.clearAllMocks()
   })
 
@@ -198,8 +205,51 @@ describe('Security Flow Integration Tests', () => {
     it('should enforce complete security pipeline across all requests', async () => {
       const testIP = '192.168.1.100'
       const testUserAgent = 'Mozilla/5.0 (test browser)'
+      const countedPipelineRequests = new Set<string>()
+      const pipelineRequestBodies = new Map<string, SignInRequestBody>()
+      const pipelineIncidentIds = new Map<string, string>()
 
-      server.use(
+      interface SignInRequestBody {
+        email: string
+        provider: string
+      }
+
+      const getPipelineRequestId = (request: Request) => {
+        const requestId = request.headers.get('X-Test-Request-ID')
+        if (!requestId) {
+          throw new Error('X-Test-Request-ID is required for security pipeline tests')
+        }
+        return requestId
+      }
+
+      const countPipelineRequest = (request: Request) => {
+        const requestId = getPipelineRequestId(request)
+
+        if (countedPipelineRequests.has(requestId)) {
+          return false
+        }
+
+        countedPipelineRequests.add(requestId)
+        securityFlowState.securityMetrics.totalRequests++
+
+        return true
+      }
+
+      const getPipelineRequestBody = async (request: Request): Promise<SignInRequestBody> => {
+        const requestId = getPipelineRequestId(request)
+        const cachedBody = pipelineRequestBodies.get(requestId)
+
+        if (cachedBody) {
+          return cachedBody
+        }
+
+        const body = (await request.json()) as SignInRequestBody
+        pipelineRequestBodies.set(requestId, body)
+
+        return body
+      }
+
+      useMSWHandlers(
         http.get('http://localhost:3000/api/search/repositories', ({ request }) => {
           const ipAddress = request.headers.get('X-Forwarded-For') || testIP
           const userAgent = request.headers.get('User-Agent') || testUserAgent
@@ -216,7 +266,7 @@ describe('Security Flow Integration Tests', () => {
           }
 
           // Update security metrics
-          securityFlowState.securityMetrics.totalRequests++
+          countPipelineRequest(request)
 
           return HttpResponse.json(
             {
@@ -262,34 +312,30 @@ describe('Security Flow Integration Tests', () => {
         http.post('http://localhost:3000/api/auth/signin', async ({ request }) => {
           const ipAddress = request.headers.get('X-Forwarded-For') || testIP
           const userAgent = request.headers.get('User-Agent') || testUserAgent
-          interface SignInRequestBody {
-            email: string
-            provider: string
-          }
-          const body = (await request.json()) as SignInRequestBody
+          const csrfTokenValid = !!request.headers.get('X-CSRF-Token')
 
-          // Enhanced security checks for authentication endpoint
-          const securityChecks = {
-            rateLimitPassed: true,
-            csrfTokenValid: !!request.headers.get('X-CSRF-Token'),
-            inputValidated: !!body.email && !!body.provider,
-            bruteForceProtected: true,
-            accountLockoutChecked: true,
-          }
+          countPipelineRequest(request)
 
-          if (!securityChecks.csrfTokenValid) {
-            securityFlowState.securityIncidents.push({
-              incidentId: crypto.randomUUID(),
-              type: 'unauthorized_access',
-              severity: 'medium',
-              ipAddress,
-              userAgent,
-              endpoint: '/api/auth/signin',
-              timestamp: new Date(),
-              details: { missingCSRFToken: true },
-              status: 'detected',
-              responseActions: ['blocked_request', 'logged_incident'],
-            })
+          if (!csrfTokenValid) {
+            const requestId = getPipelineRequestId(request)
+            let incidentId = pipelineIncidentIds.get(requestId)
+
+            if (!incidentId) {
+              incidentId = crypto.randomUUID()
+              pipelineIncidentIds.set(requestId, incidentId)
+              securityFlowState.securityIncidents.push({
+                incidentId,
+                type: 'unauthorized_access',
+                severity: 'medium',
+                ipAddress,
+                userAgent,
+                endpoint: '/api/auth/signin',
+                timestamp: new Date(),
+                details: { missingCSRFToken: true },
+                status: 'detected',
+                responseActions: ['blocked_request', 'logged_incident'],
+              })
+            }
 
             return HttpResponse.json(
               {
@@ -297,17 +343,23 @@ describe('Security Flow Integration Tests', () => {
                 error: {
                   code: 'SECURITY_VIOLATION',
                   message: 'CSRF token required',
-                  incident_id:
-                    securityFlowState.securityIncidents[
-                      securityFlowState.securityIncidents.length - 1
-                    ].incidentId,
+                  incident_id: incidentId,
                 },
               },
               { status: 403 }
             )
           }
 
-          securityFlowState.securityMetrics.totalRequests++
+          const body = await getPipelineRequestBody(request)
+
+          // Enhanced security checks for authentication endpoint
+          const securityChecks = {
+            rateLimitPassed: true,
+            csrfTokenValid,
+            inputValidated: !!body.email && !!body.provider,
+            bruteForceProtected: true,
+            accountLockoutChecked: true,
+          }
 
           return HttpResponse.json({
             success: true,
@@ -328,6 +380,7 @@ describe('Security Flow Integration Tests', () => {
       const anonymousResponse = await fetch('http://localhost:3000/api/search/repositories', {
         headers: {
           'X-Forwarded-For': testIP,
+          'X-Test-Request-ID': 'security-pipeline-anonymous',
           'User-Agent': testUserAgent,
         },
       })
@@ -354,6 +407,7 @@ describe('Security Flow Integration Tests', () => {
         headers: {
           Authorization: 'Bearer valid-token',
           'X-Forwarded-For': testIP,
+          'X-Test-Request-ID': 'security-pipeline-authenticated',
           'User-Agent': testUserAgent,
         },
       })
@@ -371,6 +425,7 @@ describe('Security Flow Integration Tests', () => {
         headers: {
           'Content-Type': 'application/json',
           'X-Forwarded-For': testIP,
+          'X-Test-Request-ID': 'security-pipeline-signin-no-csrf',
           'User-Agent': testUserAgent,
         },
         body: JSON.stringify({ email: 'test@example.com', provider: 'github' }),
@@ -390,6 +445,7 @@ describe('Security Flow Integration Tests', () => {
           'Content-Type': 'application/json',
           'X-CSRF-Token': 'valid-csrf-token',
           'X-Forwarded-For': testIP,
+          'X-Test-Request-ID': 'security-pipeline-signin-valid-csrf',
           'User-Agent': testUserAgent,
         },
         body: JSON.stringify({ email: 'test@example.com', provider: 'github' }),
@@ -416,7 +472,7 @@ describe('Security Flow Integration Tests', () => {
       const testIP = '192.168.1.200'
       const maxRequestsPerMinute = 5
 
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/search/:endpoint', ({ request, params }) => {
           const ipAddress = request.headers.get('X-Forwarded-For') || testIP
           const endpoint = params.endpoint as string
@@ -604,7 +660,7 @@ describe('Security Flow Integration Tests', () => {
       const anonymousLimit = 3
       const authenticatedLimit = 10
 
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/search/repositories', ({ request }) => {
           const ipAddress = request.headers.get('X-Forwarded-For') || '127.0.0.1'
           const authorization = request.headers.get('Authorization')
@@ -717,7 +773,7 @@ describe('Security Flow Integration Tests', () => {
 
   describe('CSP Header Enforcement', () => {
     it('should enforce Content Security Policy and handle violations', async () => {
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/test-page', () => {
           return HttpResponse.html(
             `
@@ -911,7 +967,7 @@ describe('Security Flow Integration Tests', () => {
 
       securityFlowState.blockedIPs.add('192.168.1.999')
 
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/security/health', () => {
           const now = new Date()
           const activeCounters = securityFlowState.rateLimitCounters.size
@@ -1025,7 +1081,7 @@ describe('Security Flow Integration Tests', () => {
       const attackerIPs = ['192.168.1.500', '192.168.1.501', '192.168.1.502']
       const suspiciousUserAgents = ['AttackBot/1.0', 'ScriptKiddie/2.0', 'EvilHacker/3.0']
 
-      server.use(
+      useMSWHandlers(
         http.post('http://localhost:3000/api/auth/signin', async ({ request }) => {
           const ipAddress = request.headers.get('X-Forwarded-For') || '127.0.0.1'
           const userAgent = request.headers.get('User-Agent') || 'unknown'
@@ -1039,7 +1095,8 @@ describe('Security Flow Integration Tests', () => {
           const isAttackerIP = attackerIPs.includes(ipAddress)
           const isSuspiciousUA = suspiciousUserAgents.some(ua => userAgent.includes(ua))
           const hasInjectionAttempt =
-            body.email?.includes('<script>') || body.email?.includes('SELECT')
+            body.email?.includes('<script>') ||
+            /\b(?:SELECT|DROP\s+TABLE|UNION\s+SELECT)\b/i.test(body.email ?? '')
 
           if (isAttackerIP || isSuspiciousUA || hasInjectionAttempt) {
             const incidentType = hasInjectionAttempt ? 'injection_attempt' : 'suspicious_activity'
@@ -1287,7 +1344,7 @@ describe('Security Flow Integration Tests', () => {
       securityFlowState.securityIncidents.push(criticalIncident)
       securityFlowState.blockedIPs.add('192.168.1.666')
 
-      server.use(
+      useMSWHandlers(
         // Recovery status endpoint
         http.get('http://localhost:3000/api/security/recovery/status', () => {
           const incident = securityFlowState.securityIncidents.find(i => i.severity === 'critical')

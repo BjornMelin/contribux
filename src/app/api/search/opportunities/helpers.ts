@@ -8,18 +8,21 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { sql } from '@/lib/db/config'
 
+const blankToUndefined = (value: unknown) => (value === '' ? undefined : value)
+const optionalScore = z.preprocess(blankToUndefined, z.coerce.number().min(0).max(1).optional())
+
 // Request validation schema
 export const SearchOpportunitiesQuerySchema = z.object({
   q: z.string().optional(),
-  page: z.string().pipe(z.coerce.number().int().min(1)).default('1'),
-  per_page: z.string().pipe(z.coerce.number().int().min(1).max(100)).default('20'),
+  page: z.coerce.number().int().min(1).default(1),
+  per_page: z.coerce.number().int().min(1).max(100).default(20),
   difficulty: z.enum(['beginner', 'intermediate', 'advanced', 'expert']).optional(),
   type: z.enum(['bug_fix', 'feature', 'documentation', 'test', 'refactor', 'security']).optional(),
   languages: z
     .string()
     .optional()
     .transform(val => val?.split(',').map(lang => lang.trim())),
-  min_score: z.string().pipe(z.coerce.number().min(0).max(1)).optional(),
+  min_score: optionalScore,
 })
 
 // Response schemas

@@ -631,8 +631,8 @@ export async function getSecurityMetrics(params: {
     count: string
   }
 
-  const totalLoginCount = Number.parseInt((totalLogins as CountResult[])?.[0]?.count || '0')
-  const failedLoginCount = Number.parseInt((failedLogins as CountResult[])?.[0]?.count || '0')
+  const totalLoginCount = Number.parseInt((totalLogins as CountResult[])?.[0]?.count || '0', 10)
+  const failedLoginCount = Number.parseInt((failedLogins as CountResult[])?.[0]?.count || '0', 10)
 
   const endDate = new Date()
   const startDate = new Date(
@@ -645,8 +645,8 @@ export async function getSecurityMetrics(params: {
         ? Math.round(((totalLoginCount - failedLoginCount) / totalLoginCount) * 100)
         : 100,
     failedLoginCount,
-    lockedAccountCount: Number.parseInt((lockedAccounts as CountResult[])?.[0]?.count || '0'),
-    anomalyCount: Number.parseInt((anomalies as CountResult[])?.[0]?.count || '0'),
+    lockedAccountCount: Number.parseInt((lockedAccounts as CountResult[])?.[0]?.count || '0', 10),
+    anomalyCount: Number.parseInt((anomalies as CountResult[])?.[0]?.count || '0', 10),
     periodStart: startDate,
     periodEnd: endDate,
   }
@@ -672,7 +672,7 @@ export async function getSecurityMetrics(params: {
       ...metrics,
       timeline: (timelineData as TimelineResult[]).map(row => ({
         date: new Date(row.date),
-        count: Number.parseInt(row.count),
+        count: Number.parseInt(row.count, 10),
       })),
     }
   }
@@ -718,7 +718,7 @@ export async function detectAnomalies(params: {
     }
 
     if ((typicalPattern as HourPattern[]).length > 0) {
-      const typicalHours = (typicalPattern as HourPattern[]).map(p => Number.parseInt(p.hour))
+      const typicalHours = (typicalPattern as HourPattern[]).map(p => Number.parseInt(p.hour, 10))
       if (!typicalHours.includes(hour)) {
         unusualTime = true
       }
@@ -877,7 +877,10 @@ export async function exportAuditReport(params: {
         start: params.startDate,
         end: params.endDate,
       },
-      total_events: Number.parseInt((totalEvents as Array<{ count: string }>)?.[0]?.count || '0'),
+      total_events: Number.parseInt(
+        (totalEvents as Array<{ count: string }>)?.[0]?.count || '0',
+        10
+      ),
     },
     summary: {
       event_distribution: eventDistribution as Array<{

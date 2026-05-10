@@ -33,7 +33,7 @@ describe('GitHub Advanced Workflows Integration', () => {
   describe('GraphQL Integration Patterns', () => {
     it('should execute GraphQL queries successfully', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       const query = 'query { viewer { login name } }'
@@ -58,7 +58,7 @@ describe('GitHub Advanced Workflows Integration', () => {
       mockGitHubAPI.mockGraphQL(null, errors)
 
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       const query = 'query { viewer { invalidField } }'
@@ -68,7 +68,7 @@ describe('GitHub Advanced Workflows Integration', () => {
 
     it('should pass variables to GraphQL queries', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       const query = `
@@ -88,7 +88,7 @@ describe('GitHub Advanced Workflows Integration', () => {
 
     it('should handle GraphQL rate limiting integration', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       const query = `
@@ -129,7 +129,7 @@ describe('GitHub Advanced Workflows Integration', () => {
       { numRuns: 5 }
     )('should handle various GraphQL variable types', async variables => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       const query =
@@ -143,15 +143,15 @@ describe('GitHub Advanced Workflows Integration', () => {
   describe('Advanced Search and Filtering', () => {
     it('should handle complex repository search queries', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       const complexQuery = {
-        q: 'language:typescript stars:>100 forks:>10 size:>1000',
+        query: 'language:typescript stars:>100 forks:>10 size:>1000',
         sort: 'updated',
         order: 'desc' as const,
         page: 1,
-        per_page: 25,
+        perPage: 25,
       }
 
       const result = await client.searchRepositories(complexQuery)
@@ -166,12 +166,12 @@ describe('GitHub Advanced Workflows Integration', () => {
 
     it('should handle empty search results gracefully', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       const result = await client.searchRepositories({
-        q: 'nonexistentquery12345unique',
-        per_page: 10,
+        query: 'nonexistentquery12345unique',
+        perPage: 10,
       })
 
       expect(result).toMatchObject({
@@ -183,12 +183,12 @@ describe('GitHub Advanced Workflows Integration', () => {
 
     it('should handle large pagination requests', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       const result = await client.searchRepositories({
-        q: 'javascriptlargepage',
-        per_page: 100,
+        query: 'javascriptlargepage',
+        perPage: 100,
       })
 
       expect(result.items).toHaveLength(100)
@@ -199,7 +199,7 @@ describe('GitHub Advanced Workflows Integration', () => {
   describe('Multi-Step Workflow Orchestration', () => {
     it('should orchestrate complex user discovery workflow', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       // Step 1: Get authenticated user
@@ -208,8 +208,8 @@ describe('GitHub Advanced Workflows Integration', () => {
 
       // Step 2: Search for repositories by that user
       const userRepos = await client.searchRepositories({
-        q: `user:${currentUser.login}`,
-        per_page: 5,
+        query: `user:${currentUser.login}`,
+        perPage: 5,
       })
       expect(userRepos.items.length).toBeGreaterThan(0)
 
@@ -219,13 +219,13 @@ describe('GitHub Advanced Workflows Integration', () => {
       expect(detailedRepo.full_name).toBe(firstRepo.full_name)
 
       // Step 4: Get issues for that repository
-      const issues = await client.listIssues(firstRepo.owner.login, firstRepo.name, { per_page: 3 })
+      const issues = await client.listIssues(firstRepo.owner.login, firstRepo.name, { perPage: 3 })
       expect(Array.isArray(issues)).toBe(true)
     })
 
     it('should handle mixed GraphQL and REST workflow', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       // GraphQL for complex data
@@ -258,7 +258,7 @@ describe('GitHub Advanced Workflows Integration', () => {
   describe('Complex Error Recovery Patterns', () => {
     it('should handle network errors gracefully', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       // This should work fine with our mock setup
@@ -268,7 +268,7 @@ describe('GitHub Advanced Workflows Integration', () => {
 
     it('should handle rate limit scenarios with graceful degradation', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       // Test rate limit information retrieval
@@ -299,7 +299,7 @@ describe('GitHub Advanced Workflows Integration', () => {
       'should handle various base URLs and user agents',
       (baseUrl, userAgent) => {
         const config = {
-          auth: { type: 'token' as const, token: 'ghp_test_token' },
+          accessToken: 'ghp_test_token',
           baseUrl,
           userAgent,
         }
@@ -310,32 +310,28 @@ describe('GitHub Advanced Workflows Integration', () => {
 
     it('should handle complex cache configuration scenarios', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
-        cache: {
-          maxAge: 300, // 5 minutes
-          maxSize: 500,
-        },
+        accessToken: 'test_token',
       })
 
       // Make request to populate cache
-      const user1 = await client.getAuthenticatedUser()
-      expect(user1.login).toBe('testuser')
+      const repo1 = await client.getRepository('testowner', 'testrepo')
+      expect(repo1.name).toBe('testrepo')
 
       // Verify cache is working
       const cacheStats = client.getCacheStats()
       expect(cacheStats.size).toBeGreaterThan(0)
-      expect(cacheStats.maxSize).toBe(500)
+      expect(cacheStats.maxSize).toBe(1000)
 
       // Second request should use cache
-      const user2 = await client.getAuthenticatedUser()
-      expect(user2.login).toBe(user1.login)
+      const repo2 = await client.getRepository('testowner', 'testrepo')
+      expect(repo2.id).toBe(repo1.id)
     })
   })
 
   describe('Performance and Optimization Patterns', () => {
     it('should handle concurrent GraphQL operations efficiently', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       const queries = [
@@ -354,7 +350,7 @@ describe('GitHub Advanced Workflows Integration', () => {
 
     it('should optimize repeated repository operations', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       const repoParams = { owner: 'testowner', repo: 'testrepo' }
@@ -373,14 +369,14 @@ describe('GitHub Advanced Workflows Integration', () => {
   describe('Advanced Pagination Scenarios', () => {
     it('should handle deep pagination efficiently', async () => {
       const client = new GitHubClient({
-        auth: { type: 'token', token: 'test_token' },
+        accessToken: 'test_token',
       })
 
       // Test multiple pages
       const promises = [1, 2, 3].map(page =>
         client.searchRepositories({
-          q: 'javascript',
-          per_page: 10,
+          query: 'javascript',
+          perPage: 10,
           page,
         })
       )

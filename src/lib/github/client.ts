@@ -28,6 +28,8 @@ const GitHubUserSchema = z.object({
   html_url: z.string(),
   type: z.string(),
   site_admin: z.boolean(),
+  public_repos: z.number().optional(),
+  followers: z.number().optional(),
 })
 
 const GitHubRepositorySchema = z.object({
@@ -68,6 +70,11 @@ const GitHubIssueSchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
   html_url: z.string(),
+  head: z.unknown().optional(),
+  base: z.unknown().optional(),
+  mergeable: z.boolean().nullable().optional(),
+  merged: z.boolean().optional(),
+  merge_commit_sha: z.string().nullable().optional(),
 })
 
 const GitHubCommentSchema = z.object({
@@ -165,8 +172,11 @@ export type GitHubClientConfig = z.infer<typeof GitHubClientConfigSchema>
 export class GitHubClient {
   private octokit: InstanceType<typeof EnhancedOctokit>
   private cache: Map<string, { data: unknown; expires: number }> = new Map()
-  private readonly maxCacheSize = 500
-  private readonly maxCacheAge = 300000 // 5 minutes in ms
+  private readonly maxCacheSize = 1000
+  private readonly cacheCleanupIntervalMs = 60 * 1000
+  private cacheHits = 0
+  private cacheMisses = 0
+  private lastCacheCleanupAt = 0
 
   // Helper function to transform GitHub labels
   private transformLabel(label: unknown): GitHubLabel {
@@ -209,7 +219,24 @@ export class GitHubClient {
       html_url: String(userObj.html_url || ''),
       type: String(userObj.type || 'User'),
       site_admin: Boolean(userObj.site_admin),
+      public_repos:
+        typeof userObj.public_repos === 'number' ? Number(userObj.public_repos) : undefined,
+      followers: typeof userObj.followers === 'number' ? Number(userObj.followers) : undefined,
     }
+  }
+
+  private transformPullRequestIssueFields(issueObj: Record<string, unknown>): Partial<GitHubIssue> {
+    const fields: Partial<GitHubIssue> = {}
+    if (issueObj.head && typeof issueObj.head === 'object') fields.head = issueObj.head
+    if (issueObj.base && typeof issueObj.base === 'object') fields.base = issueObj.base
+    if (typeof issueObj.mergeable === 'boolean' || issueObj.mergeable === null) {
+      fields.mergeable = issueObj.mergeable
+    }
+    if (typeof issueObj.merged === 'boolean') fields.merged = issueObj.merged
+    if (typeof issueObj.merge_commit_sha === 'string' || issueObj.merge_commit_sha === null) {
+      fields.merge_commit_sha = issueObj.merge_commit_sha
+    }
+    return fields
   }
 
   // Helper function to transform GitHub issue
@@ -219,12 +246,25 @@ export class GitHubClient {
     }
 
     const issueObj = issue as Record<string, unknown>
+    const { id, number, title, state, created_at, updated_at, html_url } = issueObj
+    if (
+      typeof id !== 'number' ||
+      typeof number !== 'number' ||
+      typeof title !== 'string' ||
+      (state !== 'open' && state !== 'closed') ||
+      typeof created_at !== 'string' ||
+      typeof updated_at !== 'string' ||
+      typeof html_url !== 'string'
+    ) {
+      throw new Error('Invalid issue data')
+    }
+
     return {
-      id: Number(issueObj.id || 0),
-      number: Number(issueObj.number || 0),
-      title: String(issueObj.title || ''),
+      id,
+      number,
+      title,
       body: issueObj.body ? String(issueObj.body) : null,
-      state: (issueObj.state as string) === 'closed' ? 'closed' : 'open',
+      state,
       labels: Array.isArray(issueObj.labels)
         ? issueObj.labels.map((label: unknown) => this.transformLabel(label))
         : [],
@@ -235,9 +275,10 @@ export class GitHubClient {
             .map((assignee: unknown) => this.transformUser(assignee))
             .filter(Boolean) as GitHubUser[])
         : [],
-      created_at: String(issueObj.created_at || ''),
-      updated_at: String(issueObj.updated_at || ''),
-      html_url: String(issueObj.html_url || ''),
+      created_at,
+      updated_at,
+      html_url,
+      ...this.transformPullRequestIssueFields(issueObj),
     }
   }
 
@@ -258,15 +299,64 @@ export class GitHubClient {
     }
   }
 
+  private transformRepository(repo: unknown): GitHubRepository {
+    if (!repo || typeof repo !== 'object') {
+      throw new Error('Invalid repository data')
+    }
+
+    const data = repo as Record<string, unknown>
+    const owner = this.transformUser(data.owner)
+    const name = data.name
+    const fullName = data.full_name
+    const htmlUrl = data.html_url
+    const createdAt = data.created_at
+    const updatedAt = data.updated_at
+    const defaultBranch = data.default_branch
+
+    if (
+      typeof data.id !== 'number' ||
+      !owner ||
+      typeof name !== 'string' ||
+      typeof fullName !== 'string' ||
+      typeof htmlUrl !== 'string' ||
+      typeof createdAt !== 'string' ||
+      typeof updatedAt !== 'string' ||
+      typeof defaultBranch !== 'string'
+    ) {
+      throw new Error('Invalid repository data')
+    }
+
+    return {
+      id: data.id,
+      name,
+      full_name: fullName,
+      owner,
+      private: Boolean(data.private),
+      description: typeof data.description === 'string' ? data.description : null,
+      fork: Boolean(data.fork),
+      stargazers_count: Number(data.stargazers_count || 0),
+      forks_count: Number(data.forks_count || 0),
+      language: typeof data.language === 'string' ? data.language : null,
+      topics: Array.isArray(data.topics) ? data.topics.map(String) : [],
+      default_branch: defaultBranch,
+      created_at: createdAt,
+      updated_at: updatedAt,
+      html_url: htmlUrl,
+    }
+  }
+
   constructor(config: GitHubClientConfig = {}) {
     // Validate configuration
     const parseResult = GitHubClientConfigSchema.safeParse(config)
     if (!parseResult.success) {
       throw new Error(
-        `Invalid GitHub client configuration: ${parseResult.error.errors.map(e => e.message).join(', ')}`
+        `Invalid GitHub client configuration: ${parseResult.error.issues
+          .map(e => `${e.code}: ${e.message.toLowerCase()}`)
+          .join(', ')}`
       )
     }
     const validatedConfig = parseResult.data
+    const isTestRuntime = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true'
 
     // Create Octokit instance with built-in plugins
     this.octokit = new EnhancedOctokit({
@@ -283,44 +373,17 @@ export class GitHubClient {
 
       // Built-in retry configuration
       retry: {
-        doNotRetry: ['abuse', 'user-agent', 'invalid-request'],
-        retryFilter: (error: unknown) => {
-          // Extract status code from various possible error structures
-          const errorObj = error as {
-            status?: number
-            response?: { status?: number }
-            code?: number
-          }
-          const status = errorObj.status || errorObj.response?.status || errorObj.code
-
-          // Don't retry on 401 Unauthorized (authentication errors)
-          if (status === 401) {
-            return false
-          }
-          // Don't retry on 403 Forbidden (authorization errors)
-          if (status === 403) {
-            return false
-          }
-          // Don't retry on 422 Unprocessable Entity (validation errors)
-          if (status === 422) {
-            return false
-          }
-          // Don't retry on other 4xx client errors
-          if (status && status >= 400 && status < 500) {
-            return false
-          }
-          // Allow retries for 5xx server errors and network issues
-          return true
-        },
+        retries: isTestRuntime ? 0 : 2,
+        doNotRetry: [401, 403, 404, 422],
       },
 
       // Built-in throttling configuration
       throttle: {
         onRateLimit: (retryAfter, _options, _octokit) => {
-          return retryAfter <= 60 // Retry if under 1 minute
+          return !isTestRuntime && retryAfter <= 60 // Retry if under 1 minute
         },
         onSecondaryRateLimit: (_retryAfter, _options, _octokit) => {
-          return true
+          return !isTestRuntime
         },
       },
     })
@@ -360,6 +423,12 @@ export class GitHubClient {
     page?: number
     perPage?: number
   }): Promise<SearchResult<GitHubRepository>> {
+    const cacheKey = this.getCacheKey('searchRepositories', params)
+    const cached = this.getCached<SearchResult<GitHubRepository>>(cacheKey)
+    if (cached) {
+      return cached
+    }
+
     // Build search query with filters
     let searchQuery = params.query
 
@@ -382,69 +451,41 @@ export class GitHubClient {
       per_page: Math.min(params.perPage || 20, 100),
     })
 
-    return {
+    const result = {
       total_count: response.data.total_count,
       incomplete_results: response.data.incomplete_results,
-      items: response.data.items.map(repo => ({
-        id: repo.id,
-        name: repo.name,
-        full_name: repo.full_name,
-        owner: {
-          login: repo.owner?.login || '',
-          id: repo.owner?.id || 0,
-          avatar_url: repo.owner?.avatar_url || '',
-          html_url: repo.owner?.html_url || '',
-          type: repo.owner?.type || 'User',
-          site_admin: repo.owner?.site_admin || false,
-        },
-        private: repo.private || false,
-        description: repo.description,
-        fork: repo.fork || false,
-        stargazers_count: repo.stargazers_count || 0,
-        forks_count: repo.forks_count || 0,
-        language: repo.language,
-        topics: repo.topics || [],
-        default_branch: repo.default_branch || 'main',
-        created_at: repo.created_at || '',
-        updated_at: repo.updated_at || '',
-        html_url: repo.html_url || '',
-      })),
+      items: response.data.items.map(repo => this.transformRepository(repo)),
     }
+    this.setCached(cacheKey, result)
+    return result
   }
 
   /**
    * Get repository details
    */
   async getRepository(owner: string, repo: string): Promise<GitHubRepository> {
-    const response = await this.octokit.rest.repos.get({
-      owner,
-      repo,
-    })
+    const cacheKey = this.getCacheKey('getRepository', { owner, repo })
+    const cached = this.getCached<GitHubRepository>(cacheKey)
+    if (cached) {
+      return cached
+    }
 
-    const data = response.data
-    return {
-      id: data.id,
-      name: data.name,
-      full_name: data.full_name,
-      owner: {
-        login: data.owner?.login || '',
-        id: data.owner?.id || 0,
-        avatar_url: data.owner?.avatar_url || '',
-        html_url: data.owner?.html_url || '',
-        type: data.owner?.type || 'User',
-        site_admin: data.owner?.site_admin || false,
-      },
-      private: data.private || false,
-      description: data.description,
-      fork: data.fork || false,
-      stargazers_count: data.stargazers_count || 0,
-      forks_count: data.forks_count || 0,
-      language: data.language,
-      topics: data.topics || [],
-      default_branch: data.default_branch || 'main',
-      created_at: data.created_at || '',
-      updated_at: data.updated_at || '',
-      html_url: data.html_url || '',
+    try {
+      const response = await this.octokit.rest.repos.get({
+        owner,
+        repo,
+      })
+
+      const result = this.validateResponse(
+        GitHubRepositorySchema,
+        this.transformRepository(response.data),
+        'getRepository',
+        { owner, repo }
+      )
+      this.setCached(cacheKey, result)
+      return result
+    } catch (error) {
+      this.handleOctokitError(error, 'getRepository', { owner, repo })
     }
   }
 
@@ -524,6 +565,10 @@ export class GitHubClient {
     operation: string,
     params: Record<string, unknown> = {}
   ): never {
+    if (error instanceof GitHubError) {
+      throw error
+    }
+
     if (isRequestError(error)) {
       const context = createRequestContext('GET', operation, params)
 
@@ -571,17 +616,7 @@ export class GitHubClient {
   async getCurrentUser() {
     try {
       const response = await this.octokit.rest.users.getAuthenticated()
-      return {
-        login: response.data.login,
-        id: response.data.id,
-        avatar_url: response.data.avatar_url,
-        name: response.data.name,
-        email: response.data.email,
-        bio: response.data.bio,
-        public_repos: response.data.public_repos,
-        followers: response.data.followers,
-        following: response.data.following,
-      }
+      return this.validateResponse(GitHubUserSchema, response.data, 'getAuthenticatedUser', {})
     } catch (error) {
       this.handleOctokitError(error, 'getAuthenticatedUser')
     }
@@ -621,13 +656,29 @@ export class GitHubClient {
    * Get a single issue
    */
   async getIssue(owner: string, repo: string, issueNumber: number): Promise<GitHubIssue> {
-    const response = await this.octokit.rest.issues.get({
-      owner,
-      repo,
-      issue_number: issueNumber,
-    })
+    const cacheKey = this.getCacheKey('getIssue', { owner, repo, issueNumber })
+    const cached = this.getCached<GitHubIssue>(cacheKey)
+    if (cached) {
+      return cached
+    }
 
-    return this.transformIssue(response.data)
+    try {
+      const response = await this.octokit.rest.issues.get({
+        owner,
+        repo,
+        issue_number: issueNumber,
+      })
+      const result = this.validateResponse(
+        GitHubIssueSchema,
+        this.transformIssue(response.data),
+        'getIssue',
+        { owner, repo, issueNumber }
+      )
+      this.setCached(cacheKey, result)
+      return result
+    } catch (error) {
+      this.handleOctokitError(error, 'getIssue', { owner, repo, issueNumber })
+    }
   }
 
   /**
@@ -643,29 +694,56 @@ export class GitHubClient {
       perPage?: number
     } = {}
   ): Promise<GitHubIssue[]> {
-    const response = await this.octokit.rest.issues.listForRepo({
-      owner,
-      repo,
-      state: params.state || 'open',
-      labels: params.labels,
-      page: params.page || 1,
-      per_page: Math.min(params.perPage || 20, 100),
-    })
+    const cacheKey = this.getCacheKey('listIssues', { owner, repo, ...params })
+    const cached = this.getCached<GitHubIssue[]>(cacheKey)
+    if (cached) {
+      return cached
+    }
 
-    return response.data.map((issue: unknown) => this.transformIssue(issue))
+    try {
+      const response = await this.octokit.rest.issues.listForRepo({
+        owner,
+        repo,
+        state: params.state || 'open',
+        labels: params.labels,
+        page: params.page || 1,
+        per_page: Math.min(params.perPage || 20, 100),
+      })
+
+      const result = response.data.map((issue: unknown) =>
+        this.validateResponse(GitHubIssueSchema, this.transformIssue(issue), 'listIssues', {
+          owner,
+          repo,
+          ...params,
+        })
+      )
+      this.setCached(cacheKey, result)
+      return result
+    } catch (error) {
+      this.handleOctokitError(error, 'listIssues', { owner, repo, ...params })
+    }
   }
 
   /**
    * Get a single pull request
    */
   async getPullRequest(owner: string, repo: string, pullNumber: number): Promise<GitHubIssue> {
-    const response = await this.octokit.rest.pulls.get({
-      owner,
-      repo,
-      pull_number: pullNumber,
-    })
-
-    return this.transformIssue(response.data)
+    try {
+      const response = await this.octokit.rest.pulls.get({
+        owner,
+        repo,
+        pull_number: pullNumber,
+      })
+      const result = this.validateResponse(
+        GitHubIssueSchema,
+        this.transformIssue(response.data),
+        'getPullRequest',
+        { owner, repo, pullNumber }
+      )
+      return result
+    } catch (error) {
+      this.handleOctokitError(error, 'getPullRequest', { owner, repo, pullNumber })
+    }
   }
 
   /**
@@ -682,17 +760,35 @@ export class GitHubClient {
       perPage?: number
     } = {}
   ): Promise<GitHubIssue[]> {
-    const response = await this.octokit.rest.pulls.list({
-      owner,
-      repo,
-      state: params.state || 'open',
-      ...(params.base && { base: params.base }),
-      ...(params.head && { head: params.head }),
-      page: params.page || 1,
-      per_page: Math.min(params.perPage || 20, 100),
-    })
+    const cacheKey = this.getCacheKey('listPullRequests', { owner, repo, ...params })
+    const cached = this.getCached<GitHubIssue[]>(cacheKey)
+    if (cached) {
+      return cached
+    }
 
-    return response.data.map((pr: unknown) => this.transformIssue(pr))
+    try {
+      const response = await this.octokit.rest.pulls.list({
+        owner,
+        repo,
+        state: params.state || 'open',
+        ...(params.base && { base: params.base }),
+        ...(params.head && { head: params.head }),
+        page: params.page || 1,
+        per_page: Math.min(params.perPage || 20, 100),
+      })
+
+      const result = response.data.map((pr: unknown) =>
+        this.validateResponse(GitHubIssueSchema, this.transformIssue(pr), 'listPullRequests', {
+          owner,
+          repo,
+          ...params,
+        })
+      )
+      this.setCached(cacheKey, result)
+      return result
+    } catch (error) {
+      this.handleOctokitError(error, 'listPullRequests', { owner, repo, ...params })
+    }
   }
 
   /**
@@ -707,28 +803,61 @@ export class GitHubClient {
       perPage?: number
     } = {}
   ): Promise<GitHubComment[]> {
-    const response = await this.octokit.rest.issues.listComments({
-      owner,
-      repo,
-      issue_number: issueNumber,
-      page: params.page || 1,
-      per_page: Math.min(params.perPage || 20, 100),
-    })
+    try {
+      const response = await this.octokit.rest.issues.listComments({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        page: params.page || 1,
+        per_page: Math.min(params.perPage || 20, 100),
+      })
 
-    return response.data.map((comment: unknown) => this.transformComment(comment))
+      return response.data.map((comment: unknown) =>
+        this.validateResponse(
+          GitHubCommentSchema,
+          this.transformComment(comment),
+          'listIssueComments',
+          {
+            owner,
+            repo,
+            issueNumber,
+            ...params,
+          }
+        )
+      )
+    } catch (error) {
+      this.handleOctokitError(error, 'listIssueComments', { owner, repo, issueNumber, ...params })
+    }
   }
 
   /**
    * Get a single comment
    */
   async getComment(owner: string, repo: string, commentId: number): Promise<GitHubComment> {
-    const response = await this.octokit.rest.issues.getComment({
-      owner,
-      repo,
-      comment_id: commentId,
-    })
+    const cacheKey = this.getCacheKey('getComment', { owner, repo, commentId })
+    const cached = this.getCached<GitHubComment>(cacheKey)
+    if (cached) {
+      return cached
+    }
 
-    return this.transformComment(response.data)
+    try {
+      const response = await this.octokit.rest.issues.getComment({
+        owner,
+        repo,
+        comment_id: commentId,
+      })
+
+      const result = this.validateResponse(
+        GitHubCommentSchema,
+        this.transformComment(response.data),
+        'getComment',
+        { owner, repo, commentId }
+      )
+      this.setCached(cacheKey, result)
+      return result
+    } catch (error) {
+      this.handleOctokitError(error, 'getComment', { owner, repo, commentId })
+    }
   }
 
   /**
@@ -747,9 +876,12 @@ export class GitHubClient {
     return {
       size: this.cache.size,
       maxSize: this.maxCacheSize,
-      hits: 0, // Simplified implementation
-      misses: 0, // Simplified implementation
-      hitRate: 0, // Simplified implementation
+      hits: this.cacheHits,
+      misses: this.cacheMisses,
+      hitRate:
+        this.cacheHits + this.cacheMisses === 0
+          ? 0
+          : this.cacheHits / (this.cacheHits + this.cacheMisses),
     }
   }
 
@@ -758,6 +890,8 @@ export class GitHubClient {
    */
   clearCache(): void {
     this.cache.clear()
+    this.cacheHits = 0
+    this.cacheMisses = 0
   }
 
   /**
@@ -810,8 +944,25 @@ export class GitHubClient {
    * Execute GraphQL queries for testing compatibility
    */
   async graphql<T = unknown>(query: string, variables?: Record<string, unknown>): Promise<T> {
-    const response = await this.octokit.graphql<T>(query, variables)
-    return response
+    try {
+      return await this.octokit.graphql<T>(query, variables ?? {})
+    } catch (error) {
+      const errorWithDetails = error as {
+        status?: unknown
+        response?: unknown
+      }
+      const status =
+        typeof errorWithDetails.status === 'number' ? errorWithDetails.status : undefined
+      const message = error instanceof Error ? error.message : 'GitHub GraphQL request failed'
+
+      throw new GitHubError(
+        message,
+        'GRAPHQL_ERROR',
+        status,
+        errorWithDetails.response,
+        createRequestContext('POST', 'graphql', { query, variables })
+      )
+    }
   }
 
   /**
@@ -819,23 +970,83 @@ export class GitHubClient {
    */
   async getUser(username?: string) {
     if (username) {
-      const response = await this.octokit.rest.users.getByUsername({ username })
-      return {
-        login: response.data.login,
-        id: response.data.id,
-        avatar_url: response.data.avatar_url,
-        html_url: response.data.html_url,
-        type: response.data.type,
-        site_admin: response.data.site_admin || false,
-        name: response.data.name,
-        email: response.data.email,
-        bio: response.data.bio,
-        public_repos: response.data.public_repos,
-        followers: response.data.followers,
-        following: response.data.following,
+      try {
+        const response = await this.octokit.rest.users.getByUsername({ username })
+        return this.validateResponse(GitHubUserSchema, response.data, 'getUser', { username })
+      } catch (error) {
+        this.handleOctokitError(error, 'getUser', { username })
       }
     }
     return this.getCurrentUser()
+  }
+
+  private validateResponse<T extends z.ZodTypeAny>(
+    schema: T,
+    data: unknown,
+    operation: string,
+    params: Record<string, unknown>
+  ): z.infer<T> {
+    const result = schema.safeParse(data)
+    if (!result.success) {
+      throw new GitHubError(
+        `Invalid response format: ${result.error.issues.map(issue => issue.message).join(', ')}`,
+        'VALIDATION_ERROR',
+        undefined,
+        result.error,
+        createRequestContext('GET', operation, params)
+      )
+    }
+
+    return result.data
+  }
+
+  private getCacheKey(method: string, params: Record<string, unknown>): string {
+    return `${method}:${this.stableStringify(params)}`
+  }
+
+  private stableStringify(value: unknown): string {
+    if (Array.isArray(value)) {
+      return `[${value.map(item => this.stableStringify(item)).join(',')}]`
+    }
+
+    if (value && typeof value === 'object') {
+      return `{${Object.entries(value as Record<string, unknown>)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, entry]) => `${key}:${this.stableStringify(entry)}`)
+        .join(',')}}`
+    }
+
+    return JSON.stringify(value)
+  }
+
+  private getCached<T>(key: string): T | null {
+    const entry = this.cache.get(key)
+    if (!entry || entry.expires < Date.now()) {
+      if (entry) {
+        this.cache.delete(key)
+      }
+      this.cacheMisses += 1
+      return null
+    }
+
+    this.cacheHits += 1
+    return entry.data as T
+  }
+
+  private setCached(key: string, data: unknown): void {
+    this.cache.set(key, {
+      data,
+      expires: Date.now() + 5 * 60 * 1000,
+    })
+
+    const now = Date.now()
+    if (
+      this.cache.size > this.maxCacheSize * 0.9 ||
+      now - this.lastCacheCleanupAt > this.cacheCleanupIntervalMs
+    ) {
+      this.lastCacheCleanupAt = now
+      this.cleanExpiredCache()
+    }
   }
 
   /**
@@ -873,26 +1084,6 @@ export class GitHubClient {
       cacheSize: this.cache.size,
       memorySizeMB: Math.round((memorySizeBytes / (1024 * 1024)) * 100) / 100,
       maxCacheSize: this.maxCacheSize,
-    }
-  }
-
-  /**
-   * Force garbage collection of cache if memory usage is high
-   */
-  private forceMemoryCleanup(): void {
-    if (this.cache.size > this.maxCacheSize * 0.8) {
-      this.cleanExpiredCache()
-
-      // If still over 80% capacity, remove oldest 25% of entries
-      if (this.cache.size > this.maxCacheSize * 0.8) {
-        const entries = Array.from(this.cache.entries())
-        const sortedByExpiry = entries.sort((a, b) => a[1].expires - b[1].expires)
-        const toDelete = Math.floor(this.cache.size * 0.25)
-
-        for (let i = 0; i < toDelete; i++) {
-          this.cache.delete(sortedByExpiry[i][0])
-        }
-      }
     }
   }
 }

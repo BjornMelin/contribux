@@ -263,13 +263,13 @@ export const AdvancedSearchRequestSchema = z
       .string()
       .transform(val => Number.parseInt(val, 10))
       .pipe(z.number().int().min(1).max(1000))
-      .default('1'),
+      .default(1),
 
     limit: z
       .string()
       .transform(val => Number.parseInt(val, 10))
       .pipe(z.number().int().min(1).max(100))
-      .default('20'),
+      .default(20),
 
     // Date range filtering
     dateFrom: z.string().datetime().optional(),
@@ -588,7 +588,7 @@ export const RepositoryListResponse = createPaginatedResponseSchema(GitHubReposi
 export const IssueListResponse = createPaginatedResponseSchema(GitHubIssueSchema)
 
 // Example usage in API route
-export async function createTypeSafeApiResponse<T>(
+export function createTypeSafeApiResponse<T>(
   data: T[],
   schema: z.ZodSchema<T>,
   pagination: {

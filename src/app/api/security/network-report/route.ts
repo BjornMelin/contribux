@@ -42,7 +42,7 @@ const nelReportSchema = z.object({
   url: z.string().url(),
   referrer: z.string().url().optional(),
   sampling_fraction: z.number().min(0).max(1),
-  server_ip: z.string().ip().optional(),
+  server_ip: z.union([z.ipv4(), z.ipv6()]).optional(),
   protocol: z.string().optional(),
   method: z.string().optional(),
   status_code: z.number().min(100).max(599).optional(),
@@ -79,10 +79,10 @@ const errorTypeConfigSchema = z.object({
   category: z.string(),
   actionRequired: z.union([
     z.boolean(),
-    z
-      .function()
-      .args(z.string(), z.number().optional(), z.number().optional())
-      .returns(z.boolean()),
+    z.function({
+      input: [z.string(), z.number().optional(), z.number().optional()],
+      output: z.boolean(),
+    }),
   ]),
 })
 type ErrorTypeConfig = z.infer<typeof errorTypeConfigSchema>
@@ -264,7 +264,7 @@ export async function POST(request: NextRequest) {
           result: 'failure',
           reason: 'Schema validation failed',
           metadata: {
-            errors: validation.error.errors,
+            errors: validation.error.issues,
           },
         })
 

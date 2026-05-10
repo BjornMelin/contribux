@@ -79,7 +79,7 @@ async function executeWithConnection(
   // Neon handles parameterization internally when using template literals
   let _paramIndex = 0
   const processedQuery = query.replace(/\$(\d+)/g, (match, num) => {
-    const index = Number.parseInt(num) - 1
+    const index = Number.parseInt(num, 10) - 1
     if (index >= 0 && index < params.length) {
       _paramIndex = index
       return `\${params[${index}]}`

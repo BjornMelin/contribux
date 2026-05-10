@@ -74,33 +74,33 @@ export const envSchema = z
     GITHUB_CLIENT_SECRET: z.string().min(40).optional(),
     GOOGLE_CLIENT_ID: z.string().optional(),
     GOOGLE_CLIENT_SECRET: z.string().optional(),
-    ENABLE_OAUTH: z.string().pipe(z.coerce.boolean()).default('true'),
+    ENABLE_OAUTH: z.string().pipe(z.coerce.boolean<string>()).default(true),
 
     // Security
     ENCRYPTION_KEY: z.string().length(64).optional(),
 
     // Application
     NEXT_PUBLIC_APP_URL: z.string().url().default('http://localhost:3000'),
-    PORT: z.string().pipe(z.coerce.number().int().min(1).max(65535)).default('3000'),
+    PORT: z.coerce.number().int().min(1).max(65535).default(3000),
 
     // Feature flags
-    ENABLE_WEBAUTHN: z.string().pipe(z.coerce.boolean()).default('true'),
-    MAINTENANCE_MODE: z.string().pipe(z.coerce.boolean()).default('false'),
+    ENABLE_WEBAUTHN: z.string().pipe(z.coerce.boolean<string>()).default(true),
+    MAINTENANCE_MODE: z.string().pipe(z.coerce.boolean<string>()).default(false),
 
     // Database configuration with sensible defaults
     DB_PROJECT_ID: z.string().default('soft-dew-27794389'),
     DB_MAIN_BRANCH: z.string().default('br-summer-art-a864udht'),
     DB_DEV_BRANCH: z.string().default('br-cold-scene-a86p5ixr'),
     DB_TEST_BRANCH: z.string().default('br-fancy-pine-a8imumhr'),
-    DB_POOL_MIN: z.string().pipe(z.coerce.number().int().min(1)).default('2'),
-    DB_POOL_MAX: z.string().pipe(z.coerce.number().int().min(1)).default('20'),
-    DB_POOL_IDLE_TIMEOUT: z.string().pipe(z.coerce.number().int().min(1000)).default('10000'),
+    DB_POOL_MIN: z.coerce.number().int().min(1).default(2),
+    DB_POOL_MAX: z.coerce.number().int().min(1).default(20),
+    DB_POOL_IDLE_TIMEOUT: z.coerce.number().int().min(1000).default(10000),
 
     // Vector search defaults
-    HNSW_EF_SEARCH: z.string().pipe(z.coerce.number().int().min(1)).default('200'),
-    VECTOR_SIMILARITY_THRESHOLD: z.string().pipe(z.coerce.number().min(0).max(1)).default('0.7'),
-    HYBRID_SEARCH_TEXT_WEIGHT: z.string().pipe(z.coerce.number().min(0).max(1)).default('0.3'),
-    HYBRID_SEARCH_VECTOR_WEIGHT: z.string().pipe(z.coerce.number().min(0).max(1)).default('0.7'),
+    HNSW_EF_SEARCH: z.coerce.number().int().min(1).default(200),
+    VECTOR_SIMILARITY_THRESHOLD: z.coerce.number().min(0).max(1).default(0.7),
+    HYBRID_SEARCH_TEXT_WEIGHT: z.coerce.number().min(0).max(1).default(0.3),
+    HYBRID_SEARCH_VECTOR_WEIGHT: z.coerce.number().min(0).max(1).default(0.7),
 
     // Optional configuration
     NEXT_PUBLIC_VERCEL_URL: z.string().optional(),
@@ -111,15 +111,15 @@ export const envSchema = z
     REDIS_PASSWORD: z.string().optional(),
     CORS_ORIGINS: z.string().default('http://localhost:3000'),
     LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
-    ENABLE_AUDIT_LOGS: z.string().pipe(z.coerce.boolean()).default('true'),
-    RATE_LIMIT_MAX: z.string().pipe(z.coerce.number().int().min(1)).default('100'),
-    RATE_LIMIT_WINDOW: z.string().pipe(z.coerce.number().int().min(1)).default('900'),
+    ENABLE_AUDIT_LOGS: z.string().pipe(z.coerce.boolean<string>()).default(true),
+    RATE_LIMIT_MAX: z.coerce.number().int().min(1).default(100),
+    RATE_LIMIT_WINDOW: z.coerce.number().int().min(1).default(900),
 
     // WebAuthn
     NEXT_PUBLIC_RP_ID: z.string().default('localhost'),
     WEBAUTHN_RP_NAME: z.string().default('Contribux'),
-    WEBAUTHN_TIMEOUT: z.string().pipe(z.coerce.number().int().min(1000)).default('60000'),
-    WEBAUTHN_CHALLENGE_EXPIRY: z.string().pipe(z.coerce.number().int().min(1000)).default('300000'),
+    WEBAUTHN_TIMEOUT: z.coerce.number().int().min(1000).default(60000),
+    WEBAUTHN_CHALLENGE_EXPIRY: z.coerce.number().int().min(1000).default(300000),
     WEBAUTHN_SUPPORTED_ALGORITHMS: z.string().default('-7,-257'),
 
     // Misc

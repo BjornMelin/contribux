@@ -12,10 +12,10 @@
 
 'use client'
 
-import { useTheme } from 'next-themes'
 import { useEffect, useState } from 'react'
 import { Monitor, Moon, Sun } from '@/components/icons'
 import { MotionDiv } from '@/components/motion'
+import { useTheme } from '@/components/providers/theme-provider'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -107,7 +107,7 @@ export function ThemeToggleCompact({ className }: { className?: string }) {
   }, [])
 
   if (!mounted) {
-    return <div className="h-7 w-7" /> // Placeholder with same dimensions
+    return <div className="h-11 w-11" /> // Placeholder with same dimensions
   }
 
   const handleThemeChange = () => {
@@ -136,7 +136,7 @@ export function ThemeToggleCompact({ className }: { className?: string }) {
       onClick={handleThemeChange}
       aria-label={`Current theme: ${theme}. Click to change.`}
       className={cn(
-        'inline-flex items-center justify-center rounded-md p-2',
+        'inline-flex min-h-11 min-w-11 items-center justify-center rounded-md p-2',
         'text-muted-foreground hover:bg-muted hover:text-foreground',
         'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
         'transition-colors duration-200',

@@ -3,6 +3,8 @@
  * Handles search operations across repositories and opportunities
  */
 
+import type { OpportunitySearchOptions as DbOpportunitySearchOptions } from '@/lib/db/queries/opportunities'
+
 export class SearchService {
   async searchRepositories(_query: string, _options?: { language?: string; limit?: number }) {
     // TODO: Implement repository search
@@ -100,14 +102,11 @@ export function validateRepositorySearchParams(params: Record<string, unknown>) 
  * Separates business logic from API routes following clean architecture patterns
  */
 
-export interface OpportunitySearchOptions {
+export interface OpportunitySearchOptions extends DbOpportunitySearchOptions {
   page: number
   per_page: number
   offset: number
   limit: number
-  sort_by: string
-  order: string
-  filters: Record<string, unknown>
 }
 
 /**
@@ -147,19 +146,19 @@ export function buildOpportunitySearchOptions(
     per_page: validatedParams.per_page as number,
     offset: validatedParams.offset as number,
     limit: validatedParams.limit as number,
-    sort_by: validatedParams.sort_by as string,
-    order: validatedParams.order as string,
-    filters: {
-      difficulty: validatedParams.difficulty,
-      difficultyRange: validatedParams.difficultyRange,
-      impactRange: validatedParams.impactRange,
-      repository_id: validatedParams.repository_id,
-      good_first_issue: validatedParams.good_first_issue,
-      mentorship_available: validatedParams.mentorship_available,
-      hacktoberfest: validatedParams.hacktoberfest,
-      labels: validatedParams.labels,
-      skills_required: validatedParams.skills_required,
-    },
+    sortBy: validatedParams.sort_by as OpportunitySearchOptions['sortBy'],
+    order: validatedParams.order as OpportunitySearchOptions['order'],
+    difficulty: validatedParams.difficulty as OpportunitySearchOptions['difficulty'],
+    minDifficultyScore: validatedParams.min_difficulty_score as number | undefined,
+    maxDifficultyScore: validatedParams.max_difficulty_score as number | undefined,
+    minImpactScore: validatedParams.min_impact_score as number | undefined,
+    maxImpactScore: validatedParams.max_impact_score as number | undefined,
+    repositoryId: validatedParams.repository_id as string | undefined,
+    goodFirstIssue: validatedParams.good_first_issue as boolean | undefined,
+    mentorshipAvailable: validatedParams.mentorship_available as boolean | undefined,
+    hacktoberfest: validatedParams.hacktoberfest as boolean | undefined,
+    labels: validatedParams.labels as string[] | undefined,
+    skillsRequired: validatedParams.skills_required as string[] | undefined,
   }
 }
 

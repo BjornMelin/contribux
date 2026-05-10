@@ -135,7 +135,7 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('GitHub Client - Real API Integration', 
         query: '$1',
         sort: 'stars',
         order: 'desc',
-        perPage: $1,
+        perPage: 5,
       })
 
       expect(results).toBeDefined()
@@ -148,13 +148,13 @@ describe.skipIf(SKIP_INTEGRATION_TESTS)('GitHub Client - Real API Integration', 
       // Test pagination by requesting multiple pages
       const page1 = await client.searchRepositories({
         query: '$1',
-        perPage: $1,
+        perPage: 10,
         page: 1,
       })
 
       const page2 = await client.searchRepositories({
         query: '$1',
-        perPage: $1,
+        perPage: 10,
         page: 2,
       })
 
@@ -307,7 +307,7 @@ describe.sequential('Authentication Integration Flows', () => {
       expect(user.login).toBe('testuser')
 
       // Repository access should fail due to limited scope
-      await expect(client.listIssues('test', 'test', { perPage: $1 })).rejects.toThrow(GitHubError)
+      await expect(client.listIssues('test', 'test', { perPage: 10 })).rejects.toThrow(GitHubError)
     })
 
     // Property-based testing for token validation
@@ -373,7 +373,7 @@ describe.sequential('Authentication Integration Flows', () => {
       expect(user1.login).toBe('testuser')
 
       // Second request to different endpoint
-      const repos = await client.listIssues('testuser', 'test-repo', { perPage: $1 })
+      const repos = await client.listIssues('testuser', 'test-repo', { perPage: 10 })
       expect(repos).toHaveLength(2)
 
       // Third request (same as first)
@@ -444,7 +444,7 @@ describe.sequential('Authentication Integration Flows', () => {
       expect(user1.login).toBe('testuser')
 
       // Second request (different endpoint)
-      const repos = await client.listIssues('testuser', 'test-repo', { perPage: $1 })
+      const repos = await client.listIssues('testuser', 'test-repo', { perPage: 10 })
       expect(repos).toHaveLength(2)
 
       // Third request (same as first)
@@ -493,14 +493,13 @@ describe('Modern API Integration Patterns', () => {
     })
 
     // Parametric testing with test.each
-    it.each(testFixtures.authConfigs())(
-      'should create client with %s authentication',
-      authConfig => {
-        const config: GitHubClientConfig = { auth: authConfig }
-        const client = new GitHubClient(config)
-        expect(client).toBeInstanceOf(GitHubClient)
-      }
-    )
+    it.each(
+      testFixtures.authConfigs()
+    )('should create client with %s authentication', authConfig => {
+      const config: GitHubClientConfig = { auth: authConfig }
+      const client = new GitHubClient(config)
+      expect(client).toBeInstanceOf(GitHubClient)
+    })
 
     // Property-based testing for configuration validation
     fcTest.prop([
@@ -750,7 +749,7 @@ describe('Modern API Integration Patterns', () => {
         sort: 'stars',
         order: 'desc' as const,
         page: 1,
-        perPage: $1,
+        perPage: 5,
       }
 
       const result = await client.searchRepositories(searchOptions)
@@ -770,14 +769,14 @@ describe('Modern API Integration Patterns', () => {
       // Page 1
       const page1 = await client.searchRepositories({
         query: '$1',
-        perPage: $1,
+        perPage: 5,
         page: 1,
       })
 
       // Page 2
       const page2 = await client.searchRepositories({
         query: '$1',
-        perPage: $1,
+        perPage: 5,
         page: 2,
       })
 

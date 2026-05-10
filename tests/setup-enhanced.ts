@@ -138,13 +138,6 @@ process.on('unhandledRejection', (reason, promise) => {
   }
 })
 
-// Export test utilities for compatibility
-export * from './utils/integration-test-helpers'
-export * from './utils/test-assertions'
-export * from './utils/test-factories'
-
-// Export enhanced utilities
-export { type testUtils, testConfig, addCleanupTask }
 export {
   setupDatabaseTests,
   setupE2ETests,
@@ -152,5 +145,11 @@ export {
   setupPerformanceTests,
   setupUnitTests,
 } from './config/enhanced-test-setup'
+// Export test utilities for compatibility
+export * from './utils/integration-test-helpers'
+export * from './utils/test-assertions'
+export * from './utils/test-factories'
+// Export enhanced utilities
+export { addCleanupTask, testConfig }
 
 console.log(`✅ Enhanced test setup loaded for ${testType} tests`)

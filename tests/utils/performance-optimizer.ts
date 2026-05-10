@@ -29,7 +29,6 @@ export interface OptimizationConfig {
 class TestPerformanceOptimizer {
   private metrics: Map<string, PerformanceMetrics> = new Map()
   private baselineMemory: NodeJS.MemoryUsage | null = null
-  private baselineCPU: NodeJS.CpuUsage | null = null
   private gcCount = 0
   private config: OptimizationConfig
 

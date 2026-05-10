@@ -1,15 +1,15 @@
 import os from 'node:os'
 import path from 'node:path'
 import react from '@vitejs/plugin-react'
-import tsconfigPaths from 'vite-tsconfig-paths'
 import { configDefaults, defineConfig } from 'vitest/config'
 
 export default defineConfig({
   cacheDir: '.vitest/cache-performance',
 
-  plugins: [tsconfigPaths(), react()],
+  plugins: [react()],
 
   resolve: {
+    tsconfigPaths: true,
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
@@ -46,13 +46,7 @@ export default defineConfig({
 
     // Optimized for performance testing
     pool: 'threads',
-    poolOptions: {
-      threads: {
-        singleThread: false,
-        minThreads: 2,
-        maxThreads: Math.min(8, os.cpus().length),
-      },
-    },
+    maxWorkers: Math.min(8, os.cpus().length),
 
     // Disable coverage for performance tests
     coverage: {

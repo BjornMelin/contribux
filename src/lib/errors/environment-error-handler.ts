@@ -28,16 +28,16 @@ export function validateEnvironment() {
     return environmentSchema.parse(process.env)
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const missingVars = error.errors
-        .filter(e => e.code === 'invalid_type' && e.received === 'undefined')
+      const missingVars = error.issues
+        .filter(e => e.code === 'invalid_type' && 'input' in e && e.input === undefined)
         .map(e => e.path.join('.'))
 
-      const invalidVars = error.errors
-        .filter(e => e.code !== 'invalid_type' || e.received !== 'undefined')
+      const invalidVars = error.issues
+        .filter(e => e.code !== 'invalid_type' || !('input' in e) || e.input !== undefined)
         .map(e => ({
           field: e.path.join('.'),
           issue: e.message,
-          received: 'received' in e ? e.received : 'unknown',
+          received: 'input' in e && e.input !== undefined ? '[REDACTED]' : 'missing',
         }))
 
       throw ErrorHandler.createError(
@@ -50,7 +50,7 @@ export function validateEnvironment() {
             missingVariables: missingVars,
             invalidVariables: invalidVars,
             environment: process.env.NODE_ENV,
-            totalErrors: error.errors.length,
+            totalErrors: error.issues.length,
           },
           actionableSteps: [
             'Check your .env file exists and is properly configured',
@@ -58,7 +58,7 @@ export function validateEnvironment() {
             'Verify environment variable values match the expected format',
             'Restart the application after fixing configuration issues',
           ],
-          developmentDetails: `Environment validation failed with ${error.errors.length} errors. Missing: ${missingVars.join(', ')}. Invalid: ${invalidVars.map(v => `${v.field} (${v.issue})`).join(', ')}`,
+          developmentDetails: `Environment validation failed with ${error.issues.length} errors. Missing: ${missingVars.join(', ')}. Invalid: ${invalidVars.map(v => `${v.field} (${v.issue})`).join(', ')}`,
           documentationLinks: [
             '/docs/deployment#environment-variables',
             '/docs/configuration#required-variables',

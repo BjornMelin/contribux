@@ -167,12 +167,16 @@ describe('Security Headers', () => {
       expect(csp).toContain("'sha256-tQjf8gvb2ROOMapIxFvFAYBeUJ0v1HCbOcSmDNXGtDo='")
     })
 
-    it('should not contain unsafe-inline directive', () => {
+    it('should not allow unsafe inline script or style elements', () => {
       const response = createMockResponse()
       const result = addSecurityHeaders(response)
 
       const csp = result.headers.get('Content-Security-Policy')
-      expect(csp).not.toContain('unsafe-inline')
+      const scriptSrc = csp?.match(/script-src[^;]+/)?.[0] ?? ''
+      const styleSrc = csp?.match(/style-src [^;]+/)?.[0] ?? ''
+      expect(scriptSrc).not.toContain('unsafe-inline')
+      expect(styleSrc).not.toContain('unsafe-inline')
+      expect(csp).toContain("style-src-attr 'unsafe-inline'")
       // Production CSP allows wasm-unsafe-eval for WebAssembly performance
       expect(csp).not.toContain("'unsafe-eval'")
     })
@@ -363,8 +367,13 @@ describe('Security Headers', () => {
 
       const csp = result.headers.get('Content-Security-Policy')
 
-      // Should not allow unsafe practices
-      expect(csp).not.toContain("'unsafe-inline'")
+      // Should not allow unsafe script execution. Inline style attributes are
+      // isolated to style-src-attr for React/Next runtime compatibility.
+      const scriptSrc = csp?.match(/script-src[^;]+/)?.[0] ?? ''
+      const styleSrc = csp?.match(/style-src [^;]+/)?.[0] ?? ''
+      expect(scriptSrc).not.toContain("'unsafe-inline'")
+      expect(styleSrc).not.toContain("'unsafe-inline'")
+      expect(csp).toContain("style-src-attr 'unsafe-inline'")
       expect(csp).not.toContain("'unsafe-eval'")
 
       // Data URIs should only be allowed for specific sources (img, font, media)

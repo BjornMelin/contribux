@@ -196,7 +196,7 @@ export class RedisRateLimiter implements IRateLimiter {
     // Get oldest entry to calculate retry time
     const oldestEntry = await this.redis?.zRange(key, 0, 0)
     const oldestTimestamp =
-      oldestEntry && oldestEntry.length > 0 ? Number.parseInt(oldestEntry[0]) : now
+      oldestEntry && oldestEntry.length > 0 ? Number.parseInt(oldestEntry[0], 10) : now
     const reset = new Date(oldestTimestamp + config.windowMs)
 
     return {

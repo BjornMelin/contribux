@@ -90,7 +90,7 @@ const securityServer = setupServer(
   http.post('http://localhost:3000/api/auth/verify', async ({ request }) => {
     const authHeader = request.headers.get('authorization')
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!authHeader?.startsWith('Bearer ')) {
       return HttpResponse.json(
         { error: 'Invalid token format' },
         {

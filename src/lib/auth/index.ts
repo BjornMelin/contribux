@@ -3,7 +3,7 @@
  * This version works without database connectivity or OAuth credentials
  */
 
-import NextAuth, { type AuthOptions, type Session, type User } from 'next-auth'
+import NextAuth, { type AuthOptions, getServerSession, type Session, type User } from 'next-auth'
 import { getProviders } from './providers/index'
 
 // NextAuth.js TypeScript declarations
@@ -114,16 +114,18 @@ const authConfig: AuthOptions = {
   debug: process.env.NODE_ENV === 'development',
 }
 
-// Export NextAuth.js v5 handlers and utilities
-const nextAuthResult = NextAuth(authConfig)
+// NextAuth.js v4 returns a single route handler for App Router GET and POST.
+const handler = NextAuth(authConfig)
 
-// Safely export handlers with fallback
-export const handlers = nextAuthResult.handlers
-export const auth = nextAuthResult.auth
-export const signIn = nextAuthResult.signIn
-export const signOut = nextAuthResult.signOut
+export const handlers = {
+  GET: handler,
+  POST: handler,
+}
+
+export const auth = () => getServerSession(authConfig)
+
 export { authConfig }
 
 // Export the handlers individually for easier use
-export const GET = handlers?.GET
-export const POST = handlers?.POST
+export const GET = handlers.GET
+export const POST = handlers.POST

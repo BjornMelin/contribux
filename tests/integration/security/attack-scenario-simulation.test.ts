@@ -14,9 +14,9 @@
  */
 
 import { HttpResponse, http } from 'msw'
-import { setupServer } from 'msw/node'
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
+import { getMockManager, useMSWHandlers } from '../../setup-integration-enhanced'
 import { apiTestUtils } from '../api/utils/api-test-utilities'
 
 // Attack simulation schemas
@@ -37,10 +37,10 @@ const AttackVectorSchema = z.object({
     'replay_attack',
   ]),
   severity: z.enum(['low', 'medium', 'high', 'critical']),
-  payload: z.record(z.any()),
+  payload: z.record(z.string(), z.any()),
   expectedDefense: z.string(),
   timestamp: z.string().datetime(),
-  sourceIp: z.string().ip(),
+  sourceIp: z.union([z.ipv4(), z.ipv6()]),
   userAgent: z.string(),
 })
 
@@ -71,15 +71,12 @@ const ThreatIntelligenceSchema = z.object({
 })
 
 // Test setup
-const server = setupServer()
 const performanceTracker = new apiTestUtils.performanceTracker()
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
 afterEach(() => {
-  server.resetHandlers()
+  getMockManager()?.resetMSWHandlers()
   performanceTracker.clear()
 })
-afterAll(() => server.close())
 
 describe('Attack Scenario Simulation Security Tests', () => {
   let attackLog: z.infer<typeof AttackVectorSchema>[] = []
@@ -121,7 +118,7 @@ describe('Attack Scenario Simulation Security Tests', () => {
 
       attackLog.push(oauthInterceptionAttack)
 
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/auth/callback/github', ({ request }) => {
           const startTime = performance.now()
           const url = new URL(request.url)
@@ -320,7 +317,7 @@ describe('Attack Scenario Simulation Security Tests', () => {
 
       attackLog.push(bruteForceAttack)
 
-      server.use(
+      useMSWHandlers(
         http.post('http://localhost:3000/api/auth/signin', async ({ request }) => {
           const startTime = performance.now()
           const body = await request.json()
@@ -463,6 +460,22 @@ describe('Attack Scenario Simulation Security Tests', () => {
 
             defenseResults.push(defenseResult)
 
+            if (isCommonPassword) {
+              threatIntelligence.push({
+                threatId: apiTestUtils.dataGenerator.generateUUID(),
+                attackPattern: 'dictionary_attack',
+                indicators: {
+                  ipAddresses: [clientIp],
+                  userAgents: [userAgent],
+                  requestPatterns: ['POST /api/auth/signin with common passwords'],
+                  timingSignatures: [],
+                },
+                riskScore: 90,
+                countermeasures: ['user_agent_blacklist', 'account_monitoring', 'ip_blocking'],
+                lastSeen: new Date().toISOString(),
+              })
+            }
+
             return HttpResponse.json(
               {
                 success: false,
@@ -595,7 +608,7 @@ describe('Attack Scenario Simulation Security Tests', () => {
         },
       })
 
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/user/profile', ({ request }) => {
           const startTime = performance.now()
           const sessionId = request.headers.get('Authorization')?.replace('Bearer ', '')
@@ -800,14 +813,14 @@ describe('Attack Scenario Simulation Security Tests', () => {
 
       attackLog.push(multiVectorAttack)
 
-      server.use(
+      useMSWHandlers(
         http.post('http://localhost:3000/api/search/users', async ({ request }) => {
           const startTime = performance.now()
           const body = await request.json()
           const { query, filters } = body
 
           const defenseStart = performance.now()
-          const defenseResults: string[] = []
+          const detectedDefenses: string[] = []
 
           // Defense Layer 1: SQL injection detection
           const sqlPatterns = [
@@ -826,7 +839,7 @@ describe('Attack Scenario Simulation Security Tests', () => {
           }
 
           if (sqlInjectionDetected) {
-            defenseResults.push('sql_injection_prevention')
+            detectedDefenses.push('sql_injection_prevention')
           }
 
           // Defense Layer 2: XSS detection
@@ -847,7 +860,7 @@ describe('Attack Scenario Simulation Security Tests', () => {
           }
 
           if (xssDetected) {
-            defenseResults.push('xss_prevention')
+            detectedDefenses.push('xss_prevention')
           }
 
           // Defense Layer 3: Privilege escalation detection
@@ -866,7 +879,7 @@ describe('Attack Scenario Simulation Security Tests', () => {
           }
 
           if (privilegeEscalationDetected) {
-            defenseResults.push('privilege_escalation_prevention')
+            detectedDefenses.push('privilege_escalation_prevention')
           }
 
           const attackDetected = sqlInjectionDetected || xssDetected || privilegeEscalationDetected
@@ -875,7 +888,7 @@ describe('Attack Scenario Simulation Security Tests', () => {
             const defenseResult: z.infer<typeof AttackDefenseResultSchema> = {
               attackId,
               vectorType: 'sql_injection_chain',
-              defenseApplied: defenseResults,
+              defenseApplied: detectedDefenses,
               blocked: true,
               detectionTime: performance.now() - defenseStart,
               responseTime: performance.now() - startTime,
@@ -924,7 +937,7 @@ describe('Attack Scenario Simulation Security Tests', () => {
                   code: 'ADVANCED_THREAT_DETECTED',
                   message: 'Advanced persistent threat detected - multiple attack vectors',
                   details: {
-                    threatsDetected: defenseResults,
+                    threatsDetected: detectedDefenses,
                     securityLevel: 'maximum',
                     incidentId: threat.threatId,
                   },

@@ -460,8 +460,8 @@ export namespace OpportunityQueries {
    * Upsert opportunity data
    */
   export async function upsert(data: {
-    repositoryId?: string
-    issueNumber?: number
+    repositoryId: string
+    issueNumber: number
     title: string
     description?: string
     url?: string
@@ -476,17 +476,16 @@ export namespace OpportunityQueries {
       throw new Error('Invalid title: must be a non-empty string')
     }
 
-    // Security: Validate repository ID if provided
-    if (data.repositoryId && (typeof data.repositoryId !== 'string' || !data.repositoryId.trim())) {
+    // Security: Validate repository ID
+    if (typeof data.repositoryId !== 'string' || !data.repositoryId.trim()) {
       throw new Error('Invalid repository ID: must be a non-empty string')
     }
 
-    // Security: Validate issue number if provided
+    // Security: Validate issue number
     if (
-      data.issueNumber !== undefined &&
-      (typeof data.issueNumber !== 'number' ||
-        !Number.isInteger(data.issueNumber) ||
-        data.issueNumber <= 0)
+      typeof data.issueNumber !== 'number' ||
+      !Number.isInteger(data.issueNumber) ||
+      data.issueNumber <= 0
     ) {
       throw new Error('Invalid issue number: must be a positive integer')
     }

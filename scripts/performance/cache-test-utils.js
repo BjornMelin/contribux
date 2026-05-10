@@ -203,7 +203,7 @@ class CacheTestUtils {
     await Promise.all(promises)
     const finalValue = await this.redis.get(testKey)
 
-    if (Number.parseInt(finalValue) === 10) {
+    if (Number.parseInt(finalValue, 10) === 10) {
       this.testResults.consistency = { status: 'pass', finalValue: finalValue }
     } else {
       this.testResults.consistency = { status: 'fail', finalValue: finalValue }

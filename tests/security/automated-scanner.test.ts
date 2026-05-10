@@ -814,8 +814,8 @@ describe('Comprehensive CORS Security Configuration', () => {
       applyCORSHeaders(response, request)
 
       const maxAge = response.headers.get('Access-Control-Max-Age')
-      expect(Number.parseInt(maxAge || '0')).toBeGreaterThan(0)
-      expect(Number.parseInt(maxAge || '0')).toBeLessThanOrEqual(86400) // 24 hours max
+      expect(Number.parseInt(maxAge || '0', 10)).toBeGreaterThan(0)
+      expect(Number.parseInt(maxAge || '0', 10)).toBeLessThanOrEqual(86400) // 24 hours max
     })
   })
 })
@@ -897,7 +897,7 @@ describe('Comprehensive Security Headers Testing', () => {
 
   describe('Transport Security', () => {
     it('should enforce HTTPS with HSTS', async () => {
-      const { applySecurityHeaders } = await import('../../src/middleware')
+      const { applySecurityHeaders } = await import('../../src/proxy')
 
       const request = new NextRequest('https://contribux.com/api/test')
       const response = new NextResponse()
@@ -911,7 +911,7 @@ describe('Comprehensive Security Headers Testing', () => {
     })
 
     it('should set proper max-age for HSTS', async () => {
-      const { applySecurityHeaders } = await import('../../src/middleware')
+      const { applySecurityHeaders } = await import('../../src/proxy')
 
       const request = new NextRequest('https://contribux.com/api/test')
       const response = new NextResponse()
@@ -920,11 +920,11 @@ describe('Comprehensive Security Headers Testing', () => {
 
       const hsts = response.headers.get('Strict-Transport-Security')
       const maxAge = hsts?.match(/max-age=(\d+)/)?.[1]
-      expect(Number.parseInt(maxAge || '0')).toBeGreaterThanOrEqual(31536000) // 1 year minimum
+      expect(Number.parseInt(maxAge || '0', 10)).toBeGreaterThanOrEqual(31536000) // 1 year minimum
     })
 
     it('should include subdomains in HSTS', async () => {
-      const { applySecurityHeaders } = await import('../../src/middleware')
+      const { applySecurityHeaders } = await import('../../src/proxy')
 
       const request = new NextRequest('https://api.contribux.com/test')
       const response = new NextResponse()
@@ -935,7 +935,7 @@ describe('Comprehensive Security Headers Testing', () => {
     })
 
     it('should enable HSTS preload', async () => {
-      const { applySecurityHeaders } = await import('../../src/middleware')
+      const { applySecurityHeaders } = await import('../../src/proxy')
 
       const request = new NextRequest('https://contribux.com/api/test')
       const response = new NextResponse()
@@ -948,7 +948,7 @@ describe('Comprehensive Security Headers Testing', () => {
 
   describe('Content Protection Headers', () => {
     it('should set X-Content-Type-Options to nosniff', async () => {
-      const { applySecurityHeaders } = await import('../../src/middleware')
+      const { applySecurityHeaders } = await import('../../src/proxy')
 
       const request = new NextRequest('https://contribux.com/api/test')
       const response = new NextResponse()
@@ -959,7 +959,7 @@ describe('Comprehensive Security Headers Testing', () => {
     })
 
     it('should set X-Frame-Options to DENY', async () => {
-      const { applySecurityHeaders } = await import('../../src/middleware')
+      const { applySecurityHeaders } = await import('../../src/proxy')
 
       const request = new NextRequest('https://contribux.com/api/test')
       const response = new NextResponse()
@@ -970,7 +970,7 @@ describe('Comprehensive Security Headers Testing', () => {
     })
 
     it('should configure X-XSS-Protection properly', async () => {
-      const { applySecurityHeaders } = await import('../../src/middleware')
+      const { applySecurityHeaders } = await import('../../src/proxy')
 
       const request = new NextRequest('https://contribux.com/api/test')
       const response = new NextResponse()
@@ -981,7 +981,7 @@ describe('Comprehensive Security Headers Testing', () => {
     })
 
     it('should set proper Referrer-Policy', async () => {
-      const { applySecurityHeaders } = await import('../../src/middleware')
+      const { applySecurityHeaders } = await import('../../src/proxy')
 
       const request = new NextRequest('https://contribux.com/api/test')
       const response = new NextResponse()
@@ -994,7 +994,7 @@ describe('Comprehensive Security Headers Testing', () => {
 
   describe('Permissions Policy', () => {
     it('should restrict camera permissions', async () => {
-      const { applySecurityHeaders } = await import('../../src/middleware')
+      const { applySecurityHeaders } = await import('../../src/proxy')
 
       const request = new NextRequest('https://contribux.com/api/test')
       const response = new NextResponse()
@@ -1006,7 +1006,7 @@ describe('Comprehensive Security Headers Testing', () => {
     })
 
     it('should restrict microphone permissions', async () => {
-      const { applySecurityHeaders } = await import('../../src/middleware')
+      const { applySecurityHeaders } = await import('../../src/proxy')
 
       const request = new NextRequest('https://contribux.com/api/test')
       const response = new NextResponse()
@@ -1018,7 +1018,7 @@ describe('Comprehensive Security Headers Testing', () => {
     })
 
     it('should restrict geolocation permissions', async () => {
-      const { applySecurityHeaders } = await import('../../src/middleware')
+      const { applySecurityHeaders } = await import('../../src/proxy')
 
       const request = new NextRequest('https://contribux.com/api/test')
       const response = new NextResponse()
@@ -1030,7 +1030,7 @@ describe('Comprehensive Security Headers Testing', () => {
     })
 
     it('should restrict other sensitive permissions', async () => {
-      const { applySecurityHeaders } = await import('../../src/middleware')
+      const { applySecurityHeaders } = await import('../../src/proxy')
 
       const request = new NextRequest('https://contribux.com/api/test')
       const response = new NextResponse()

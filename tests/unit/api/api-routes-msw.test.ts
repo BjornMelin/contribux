@@ -66,7 +66,7 @@ const SearchOpportunitiesResponseSchema = z.object({
   }),
   metadata: z.object({
     query: z.string(),
-    filters: z.record(z.any()),
+    filters: z.record(z.string(), z.any()),
     execution_time_ms: z.number(),
   }),
 })

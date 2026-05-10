@@ -14,7 +14,7 @@ import {
   teardownSearchTestContext,
   updateOpportunityEngagement,
 } from './setup/search-setup'
-import { generateEmbedding } from './utils/search-test-helpers'
+import { formatVector, generateEmbedding } from './utils/search-test-helpers'
 
 describe('Search Performance', () => {
   let context: SearchTestContext
@@ -129,7 +129,7 @@ describe('Search Performance', () => {
       const searchPromises = testEmbeddings.map(embedding =>
         connection.sql(`
           SELECT * FROM search_similar_users(
-            query_embedding := ${embedding},
+            query_embedding := ${formatVector(embedding)},
             similarity_threshold := 0.1,
             result_limit := 10
           )
@@ -311,7 +311,7 @@ describe('Search Performance', () => {
       const { rows } = await connection.sql(`
         EXPLAIN (ANALYZE, FORMAT JSON)
         SELECT * FROM search_similar_users(
-          query_embedding := ${generateEmbedding(0.25)},
+          query_embedding := ${formatVector(generateEmbedding(0.25))},
           similarity_threshold := 0.8
         )
       `)
@@ -365,13 +365,7 @@ describe('Search Performance', () => {
       // Create multiple large embedding queries
       const largeQueries = Array.from({ length: 5 }, (_, i) =>
         connection.sql(`
-          SELECT * FROM hybrid_search_opportunities(
-            query_embedding := ${generateEmbedding(0.1 + i * 0.1)},
-            text_weight := 0.0,
-            vector_weight := 1.0,
-            similarity_threshold := 0.01,
-            result_limit := 100
-          )
+          SELECT * FROM hybrid_search_opportunities('', ${formatVector(generateEmbedding(0.1 + i * 0.1))}, 0.0, 1.0, 0.01, 100)
         `)
       )
 
@@ -411,7 +405,7 @@ describe('Search Performance', () => {
         `),
         connection.sql(`
           SELECT * FROM search_similar_users(
-            query_embedding := ${generateEmbedding(0.25)},
+            query_embedding := ${formatVector(generateEmbedding(0.25))},
             similarity_threshold := 0.8
           )
         `),

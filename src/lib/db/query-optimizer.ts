@@ -45,63 +45,9 @@ export interface OptimizationPattern {
 export class DatabaseQueryOptimizer {
   private db: NeonQueryFunction<false, false>
   private queryCache = new Map<string, QueryMetrics>()
-  private optimizationPatterns: OptimizationPattern[]
 
   constructor(database: NeonQueryFunction<false, false>) {
     this.db = database
-    this.optimizationPatterns = this.initializeOptimizationPatterns()
-  }
-
-  // Initialize common optimization patterns
-  private initializeOptimizationPatterns(): OptimizationPattern[] {
-    return [
-      {
-        name: 'LIMIT_LARGE_QUERIES',
-        description: 'Add LIMIT to queries that might return large result sets',
-        conditions: (query: string) => {
-          return !query.toLowerCase().includes('limit') && !query.toLowerCase().includes('count(')
-        },
-        apply: (query: string) => {
-          if (query.toLowerCase().includes('select') && !query.toLowerCase().includes('limit')) {
-            return `${query} LIMIT 1000`
-          }
-          return query
-        },
-      },
-      {
-        name: 'INDEX_SUGGESTIONS',
-        description: 'Suggest indexes for WHERE clause columns',
-        conditions: (query: string) => {
-          return query.toLowerCase().includes('where')
-        },
-        apply: (query: string) => {
-          // This would analyze WHERE clauses and suggest indexes
-          return query
-        },
-      },
-      {
-        name: 'JOIN_OPTIMIZATION',
-        description: 'Optimize JOIN operations with proper indexing',
-        conditions: (query: string) => {
-          return query.toLowerCase().includes('join')
-        },
-        apply: (query: string) => {
-          // This would optimize JOIN clauses
-          return query
-        },
-      },
-      {
-        name: 'VECTOR_SEARCH_OPTIMIZATION',
-        description: 'Optimize vector similarity searches',
-        conditions: (query: string) => {
-          return query.includes('<->') || query.includes('vector_similarity')
-        },
-        apply: (query: string) => {
-          // Add optimizations for vector searches
-          return query
-        },
-      },
-    ]
   }
 
   // Analyze query performance with EXPLAIN

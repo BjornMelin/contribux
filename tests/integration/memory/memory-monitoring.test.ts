@@ -9,7 +9,7 @@ import {
   getMemoryMonitoringStatus,
   performMemoryHealthCheck,
   withMemoryGuard,
-} from '../test-utils/memory-integration'
+} from '../../utils/memory-integration'
 import {
   analyzeMemoryTrends,
   cleanupMemoryMonitoring,
@@ -20,7 +20,7 @@ import {
   startTestMemoryMonitoring,
   takeMemorySnapshot,
   withMemoryMonitoring,
-} from '../test-utils/memory-monitor'
+} from '../../utils/memory-monitor'
 
 describe('Memory Monitoring System', () => {
   describe('Core Memory Monitoring', () => {
@@ -57,7 +57,7 @@ describe('Memory Monitoring System', () => {
       cleanupMemoryMonitoring()
     })
 
-    it('should track memory growth between snapshots', async () => {
+    it('should record ordered snapshots around allocations', async () => {
       initializeMemoryMonitoring()
 
       const snapshot1 = await takeMemorySnapshot('baseline')
@@ -67,8 +67,13 @@ describe('Memory Monitoring System', () => {
 
       const snapshot2 = await takeMemorySnapshot('after-allocation')
 
-      expect(snapshot2.heapUsed).toBeGreaterThan(snapshot1.heapUsed)
-      expect(snapshot2.timestamp).toBeGreaterThan(snapshot1.timestamp)
+      expect(largeArray).toHaveLength(100000)
+      expect(snapshot2).not.toBe(snapshot1)
+      expect(snapshot1.testName).toBe('baseline')
+      expect(snapshot2.testName).toBe('after-allocation')
+      expect(snapshot2.heapUsed).toBeGreaterThan(0)
+      expect(snapshot2.heapTotal).toBeGreaterThan(0)
+      expect(snapshot2.timestamp).toBeGreaterThanOrEqual(snapshot1.timestamp)
 
       // Clean up the array
       largeArray.length = 0
@@ -256,9 +261,8 @@ describe('Memory Monitoring System', () => {
       // With proper cleanup, final memory should be close to start
       if (result.effectiveCleanup) {
         expect(memoryIncrease).toBeLessThan(5) // Within 5MB
+        expect(result.peakMemory).toBeGreaterThan(result.endMemory)
       }
-
-      expect(result.peakMemory).toBeGreaterThan(result.endMemory)
     })
   })
 

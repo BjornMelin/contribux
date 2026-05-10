@@ -3,8 +3,10 @@
  * Provides search functionality for GitHub repositories
  */
 
-import type { NextRequest } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { ErrorHandler, withEnhancedErrorHandling } from '@/lib/errors/enhanced-error-handler'
+import { extractRequestContext } from '@/lib/errors/error-utils'
 import { withRateLimit } from '@/lib/security/rate-limit-middleware'
 
 // Search query schema
@@ -22,6 +24,7 @@ interface RequestContext {
   timestamp: string
   userAgent?: string
   ip?: string
+  [key: string]: unknown
 }
 
 // Repository search parameters interface
@@ -32,6 +35,117 @@ interface RepositorySearchParams {
   order?: 'asc' | 'desc'
   per_page: number
   page: number
+}
+
+const demoRepositories = [
+  {
+    id: 'demo-react',
+    githubId: 10270250,
+    fullName: 'facebook/react',
+    name: 'react',
+    owner: 'facebook',
+    description: 'The library for web and native user interfaces.',
+    metadata: {
+      language: 'JavaScript',
+      stars: 238000,
+      forks: 49000,
+      topics: ['react', 'ui', 'javascript'],
+      defaultBranch: 'main',
+    },
+    healthMetrics: {
+      overallScore: 96,
+      maintainerResponsiveness: 92,
+      activityLevel: 98,
+    },
+    createdAt: '2013-05-24T16:15:54Z',
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'demo-typescript',
+    githubId: 20929025,
+    fullName: 'microsoft/TypeScript',
+    name: 'TypeScript',
+    owner: 'microsoft',
+    description: 'TypeScript is a superset of JavaScript that compiles to clean JavaScript output.',
+    metadata: {
+      language: 'TypeScript',
+      stars: 104000,
+      forks: 13000,
+      topics: ['typescript', 'javascript', 'compiler'],
+      defaultBranch: 'main',
+    },
+    healthMetrics: {
+      overallScore: 94,
+      maintainerResponsiveness: 90,
+      activityLevel: 95,
+    },
+    createdAt: '2014-06-17T15:28:39Z',
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'demo-nextjs',
+    githubId: 70107786,
+    fullName: 'vercel/next.js',
+    name: 'next.js',
+    owner: 'vercel',
+    description: 'The React framework for production.',
+    metadata: {
+      language: 'JavaScript',
+      stars: 135000,
+      forks: 29000,
+      topics: ['react', 'nextjs', 'framework'],
+      defaultBranch: 'canary',
+    },
+    healthMetrics: {
+      overallScore: 95,
+      maintainerResponsiveness: 91,
+      activityLevel: 97,
+    },
+    createdAt: '2016-10-05T23:32:51Z',
+    updatedAt: new Date().toISOString(),
+  },
+]
+
+function searchDemoRepositories(validatedParams: RepositorySearchParams) {
+  const normalizedQuery = validatedParams.q.toLowerCase()
+  const language = validatedParams.language?.toLowerCase()
+
+  const filteredRepositories = demoRepositories.filter(repository => {
+    const repositoryLanguage = repository.metadata.language.toLowerCase()
+    const matchesQuery =
+      repository.fullName.toLowerCase().includes(normalizedQuery) ||
+      repository.description.toLowerCase().includes(normalizedQuery) ||
+      repository.metadata.topics.some(topic => topic.toLowerCase().includes(normalizedQuery))
+
+    const matchesLanguage = !language || repositoryLanguage === language
+
+    return matchesQuery && matchesLanguage
+  })
+  const sortedRepositories = validatedParams.sort
+    ? [...filteredRepositories].sort((left, right) => {
+        const direction = validatedParams.order === 'asc' ? 1 : -1
+
+        switch (validatedParams.sort) {
+          case 'forks':
+            return (left.metadata.forks - right.metadata.forks) * direction
+          case 'updated':
+            return (Date.parse(left.updatedAt) - Date.parse(right.updatedAt)) * direction
+          case 'stars':
+            return (left.metadata.stars - right.metadata.stars) * direction
+          default:
+            return 0
+        }
+      })
+    : filteredRepositories
+
+  const startIndex = (validatedParams.page - 1) * validatedParams.per_page
+  const endIndex = validatedParams.page * validatedParams.per_page
+
+  return {
+    repositories: sortedRepositories.slice(startIndex, endIndex),
+    totalCount: filteredRepositories.length,
+    hasMore: endIndex < filteredRepositories.length,
+  }
 }
 
 /**
@@ -49,17 +163,7 @@ const validateSearchParams = (searchParams: URLSearchParams) => {
   })
 
   if (!parseResult.success) {
-    const { ErrorHandler } = require('@/lib/errors/enhanced-error-handler')
-    throw ErrorHandler.createError(
-      'INVALID_PARAMS',
-      `Validation failed: ${parseResult.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`,
-      'validation',
-      'low',
-      {
-        validationErrors: parseResult.error.errors,
-        receivedParams: params,
-      }
-    )
+    throw parseResult.error
   }
 
   return parseResult.data
@@ -70,19 +174,22 @@ const buildSuccessResponse = (
   validatedParams: RepositorySearchParams,
   requestContext: RequestContext
 ) => {
+  const { repositories, totalCount, hasMore } = searchDemoRepositories(validatedParams)
+
   return {
-    total_count: 0,
-    items: [],
-    query: validatedParams,
-    message: 'Repository search endpoint with enhanced rate limiting',
-    correlationId: requestContext.timestamp,
+    success: true,
+    data: {
+      repositories,
+      total_count: totalCount,
+      page: validatedParams.page,
+      per_page: validatedParams.per_page,
+      has_more: hasMore,
+    },
     metadata: {
-      timestamp: new Date().toISOString(),
-      apiVersion: '1.0',
-      rateLimit: {
-        applied: true,
-        policy: 'search',
-      },
+      query: validatedParams.q,
+      filters: validatedParams,
+      execution_time_ms: 0,
+      request_id: requestContext.timestamp,
     },
   }
 }
@@ -93,8 +200,6 @@ const handleSearchError = (
   request: NextRequest,
   requestContext: RequestContext
 ) => {
-  const { ErrorHandler } = require('@/lib/errors/enhanced-error-handler')
-
   if (error instanceof z.ZodError) {
     const enhancedError = ErrorHandler.createValidationError(error, {
       endpoint: '/api/search/repositories',
@@ -143,11 +248,15 @@ const handleSearchError = (
 }
 export const GET = withRateLimit(
   async (req: NextRequest) => {
-    const { withEnhancedErrorHandling } = require('@/lib/errors/enhanced-error-handler')
-    const { extractRequestContext } = require('@/lib/errors/error-utils')
-
     return withEnhancedErrorHandling(async (request: NextRequest) => {
-      const requestContext = extractRequestContext(request)
+      const extractedContext = extractRequestContext(request)
+      const requestContext: RequestContext = {
+        ...extractedContext,
+        timestamp: String(extractedContext.timestamp),
+        userAgent:
+          typeof extractedContext.userAgent === 'string' ? extractedContext.userAgent : undefined,
+        ip: typeof extractedContext.ip === 'string' ? extractedContext.ip : undefined,
+      }
 
       try {
         // Parse and validate search parameters
@@ -157,7 +266,7 @@ export const GET = withRateLimit(
         // Build and return success response
         const responseData = buildSuccessResponse(validatedParams, requestContext)
 
-        return Response.json(responseData, {
+        return NextResponse.json(responseData, {
           status: 200,
           headers: {
             'Content-Type': 'application/json',

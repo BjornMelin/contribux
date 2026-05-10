@@ -347,4 +347,4 @@ export function useRepositoryMutations() {
 }
 
 // Export search params type for components
-export type { RepositorySearchParams, Repository, RepositorySearchResponse }
+export type { Repository, RepositorySearchParams, RepositorySearchResponse }

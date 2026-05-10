@@ -28,8 +28,8 @@ const MotionDiv = dynamicImport(
   }
 )
 
-const OptimizedAnimatePresence = dynamicImport(
-  () => import('@/components/motion').then(m => ({ default: m.OptimizedAnimatePresence })),
+const AnimatePresence = dynamicImport(
+  () => import('@/components/motion').then(m => ({ default: m.AnimatePresence })),
   {
     loading: () => <div className="contents" />,
     ssr: false,
@@ -93,7 +93,7 @@ export default function AccountSettingsPage() {
           </div>
 
           {/* Success Message */}
-          <OptimizedAnimatePresence>
+          <AnimatePresence>
             {showSuccessMessage && (
               <MotionDiv
                 initial={{ opacity: 0, y: -20, scale: 0.95 }}
@@ -114,7 +114,7 @@ export default function AccountSettingsPage() {
                 </button>
               </MotionDiv>
             )}
-          </OptimizedAnimatePresence>
+          </AnimatePresence>
 
           <LinkedAccounts userId={session.user.id} />
         </div>

@@ -11,15 +11,20 @@
  */
 
 import { HttpResponse, http } from 'msw'
-import { setupServer } from 'msw/node'
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { z } from 'zod'
+import { getMockManager, useMSWHandlers } from '../../setup-integration-enhanced'
 
-const server = setupServer()
+afterEach(() => {
+  getMockManager()?.resetMSWHandlers()
+})
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
-afterEach(() => server.resetHandlers())
-afterAll(() => server.close())
+function getCookieValue(cookieHeader: string | null, name: string): string | undefined {
+  return cookieHeader
+    ?.split(';')
+    .map(cookie => cookie.trim().split('='))
+    .find(([key]) => key === name)?.[1]
+}
 
 // Test schemas
 const _SessionSchema = z.object({
@@ -104,11 +109,12 @@ describe('Middleware Authentication Validation', () => {
     it('should validate active session for protected routes', async () => {
       const _mockSession = generateMockSession()
 
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/search/repositories', ({ request }) => {
           const sessionCookie = request.headers.get('Cookie')
+          const hasSessionCookie = /(?:^|;\s*)next-auth\.session-token=/.test(sessionCookie ?? '')
 
-          if (!sessionCookie || !sessionCookie.includes('next-auth.session-token')) {
+          if (!hasSessionCookie) {
             return HttpResponse.json(
               {
                 success: false,
@@ -152,11 +158,14 @@ describe('Middleware Authentication Validation', () => {
     })
 
     it('should handle expired sessions gracefully', async () => {
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/search/opportunities', ({ request }) => {
-          const sessionCookie = request.headers.get('Cookie')
+          const sessionToken = getCookieValue(
+            request.headers.get('Cookie'),
+            'next-auth.session-token'
+          )
 
-          if (sessionCookie?.includes('expired-session-token')) {
+          if (sessionToken === 'expired-session-token') {
             return HttpResponse.json(
               {
                 success: false,
@@ -195,7 +204,7 @@ describe('Middleware Authentication Validation', () => {
     })
 
     it('should validate session scopes and permissions', async () => {
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/auth/providers', ({ request }) => {
           const sessionCookie = request.headers.get('Cookie')
           const url = new URL(request.url)
@@ -258,11 +267,11 @@ describe('Middleware Authentication Validation', () => {
 
   describe('JWT Token Validation', () => {
     it('should validate JWT structure and claims', async () => {
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/search/repositories', ({ request }) => {
           const authHeader = request.headers.get('Authorization')
 
-          if (!authHeader || !authHeader.startsWith('Bearer ')) {
+          if (!authHeader?.startsWith('Bearer ')) {
             return HttpResponse.json(
               {
                 success: false,
@@ -379,7 +388,7 @@ describe('Middleware Authentication Validation', () => {
     })
 
     it('should handle JWT signature validation failures', async () => {
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/search/opportunities', ({ request }) => {
           const authHeader = request.headers.get('Authorization')
           const token = authHeader?.split(' ')[1]
@@ -423,7 +432,7 @@ describe('Middleware Authentication Validation', () => {
 
   describe('OAuth Provider Integration', () => {
     it('should handle OAuth provider configuration requests', async () => {
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/auth/providers', () => {
           return HttpResponse.json({
             github: {
@@ -457,7 +466,7 @@ describe('Middleware Authentication Validation', () => {
     })
 
     it('should validate OAuth callback handling', async () => {
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/auth/callback/github', ({ request }) => {
           const url = new URL(request.url)
           const code = url.searchParams.get('code')
@@ -509,7 +518,7 @@ describe('Middleware Authentication Validation', () => {
     })
 
     it('should handle multiple OAuth provider management', async () => {
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/auth/providers', ({ request }) => {
           const url = new URL(request.url)
           const userId = url.searchParams.get('userId')
@@ -585,14 +594,17 @@ describe('Middleware Authentication Validation', () => {
 
   describe('Security Boundary Testing', () => {
     it('should prevent session hijacking attempts', async () => {
-      server.use(
+      useMSWHandlers(
         http.get('http://localhost:3000/api/search/repositories', ({ request }) => {
-          const sessionCookie = request.headers.get('Cookie')
+          const sessionToken = getCookieValue(
+            request.headers.get('Cookie'),
+            'next-auth.session-token'
+          )
           const userAgent = request.headers.get('User-Agent')
           const xForwardedFor = request.headers.get('X-Forwarded-For')
 
           // Simulate session validation with additional security checks
-          if (sessionCookie?.includes('suspicious-session')) {
+          if (sessionToken === 'suspicious-session-token') {
             return HttpResponse.json(
               {
                 success: false,
@@ -660,7 +672,7 @@ describe('Middleware Authentication Validation', () => {
     })
 
     it('should enforce CSRF protection', async () => {
-      server.use(
+      useMSWHandlers(
         http.post('http://localhost:3000/api/auth/set-primary', ({ request }) => {
           const csrfToken = request.headers.get('X-CSRF-Token')
           const contentType = request.headers.get('Content-Type')
@@ -734,7 +746,7 @@ describe('Middleware Authentication Validation', () => {
     })
 
     it('should validate request origin and referrer', async () => {
-      server.use(
+      useMSWHandlers(
         http.post('http://localhost:3000/api/auth/unlink', ({ request }) => {
           const origin = request.headers.get('Origin')
           const referer = request.headers.get('Referer')

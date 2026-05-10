@@ -103,7 +103,7 @@ describe('Rate Limiting System - Comprehensive Tests', () => {
       })
 
       const identifier = getEnhancedRequestIdentifier(request)
-      expect(identifier).toBe('session:session-token-1')
+      expect(identifier).toBe('session:session-token-12')
     })
 
     it('should fall back to IP + user agent hash', () => {
@@ -168,6 +168,16 @@ describe('Rate Limiting System - Comprehensive Tests', () => {
       expect(type).toBe('auth')
       expect(config.max).toBe(50)
       expect(config.windowMs).toBe(15 * 60 * 1000)
+    })
+
+    it('should select api limiter for read-only auth bootstrap endpoints', () => {
+      for (const endpoint of ['/api/auth/csrf', '/api/auth/providers', '/api/auth/session']) {
+        const { config, type } = getRateLimiterForEndpoint(endpoint)
+
+        expect(type).toBe('api')
+        expect(config.max).toBe(1000)
+        expect(config.windowMs).toBe(60 * 60 * 1000)
+      }
     })
 
     it('should select search limiter for search endpoints', () => {
@@ -296,7 +306,11 @@ describe('Rate Limiting System - Comprehensive Tests', () => {
 
   describe('checkApiRateLimitStatus Function', () => {
     it('should return detailed rate limit status', async () => {
-      const request = new NextRequest('http://localhost/api/test')
+      const request = new NextRequest('http://localhost/api/test', {
+        headers: {
+          'x-api-key': 'status-test-api-key',
+        },
+      })
 
       const result = await checkApiRateLimitStatus(request, {
         limiterType: 'api',
@@ -326,7 +340,11 @@ describe('Rate Limiting System - Comprehensive Tests', () => {
 
   describe('rateLimitMiddleware Function', () => {
     it('should apply rate limiting to API requests', async () => {
-      const request = new NextRequest('http://localhost/api/test')
+      const request = new NextRequest('http://localhost/api/test', {
+        headers: {
+          'x-api-key': 'middleware-test-api-key',
+        },
+      })
 
       const response = await rateLimitMiddleware(request)
 
@@ -435,21 +453,17 @@ describe('Rate Limiting System - Comprehensive Tests', () => {
     })
 
     it('should include Retry-After header when rate limited', async () => {
-      // Mock rate limit exceeded
-      vi.doMock('@upstash/ratelimit', () => ({
-        Ratelimit: vi.fn().mockImplementation(() => ({
-          limit: vi.fn().mockResolvedValue({
-            success: false,
-            limit: 1000,
-            remaining: 0,
-            reset: Date.now() + 3600000,
-          }),
-        })),
-      }))
+      const request = new NextRequest('http://localhost/api/auth/signin', {
+        headers: {
+          'x-api-key': 'retry-after-test-api-key',
+        },
+      })
 
-      const request = new NextRequest('http://localhost/api/test')
+      for (let i = 0; i < rateLimitConfigs.auth.max; i++) {
+        await checkApiRateLimit(request, 'auth')
+      }
 
-      const result = await checkApiRateLimit(request, 'api')
+      const result = await checkApiRateLimit(request, 'auth')
 
       expect(result.allowed).toBe(false)
       expect(result.headers).toHaveProperty('Retry-After')

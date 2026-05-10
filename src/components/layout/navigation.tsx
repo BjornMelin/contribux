@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { Github, Home, LogOut, Menu, Settings, Sparkles, X } from '@/components/icons'
 import { useSession } from '@/components/providers/app-providers'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 // Lazy load heavy components to reduce initial bundle size
@@ -15,13 +16,6 @@ const MotionDiv = dynamic(
   {
     loading: () => <div className="rounded-full bg-gradient-to-r from-primary to-purple-600 p-2" />,
     ssr: false,
-  }
-)
-
-const Button = dynamic(
-  () => import('@/components/ui/button').then(mod => ({ default: mod.Button })),
-  {
-    loading: () => <div className="h-8 w-16 animate-pulse rounded bg-muted" />,
   }
 )
 
@@ -63,7 +57,7 @@ export function Navigation() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo and Desktop Nav */}
           <div className="flex items-center">
-            <Link href="/" className="flex items-center space-x-2">
+            <Link href="/" className="flex min-h-11 items-center space-x-2">
               <MotionDiv
                 whileHover={{ rotate: 360 }}
                 transition={{ duration: 0.5 }}
@@ -142,6 +136,9 @@ export function Navigation() {
           {/* Mobile menu button */}
           <button
             type="button"
+            aria-controls="mobile-navigation"
+            aria-expanded={mobileMenuOpen}
+            aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
             className="inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground md:hidden"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
@@ -153,6 +150,7 @@ export function Navigation() {
       {/* Mobile menu */}
       {mobileMenuOpen && (
         <MotionDiv
+          id="mobile-navigation"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}

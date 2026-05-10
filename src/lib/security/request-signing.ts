@@ -190,7 +190,7 @@ export class RequestSigner {
   } {
     const signature = headers['x-signature'] || headers['X-Signature']
     const algorithm = headers['x-signature-algorithm'] || headers['X-Signature-Algorithm']
-    const timestamp = Number.parseInt(headers['x-timestamp'] || headers['X-Timestamp'] || '0')
+    const timestamp = Number.parseInt(headers['x-timestamp'] || headers['X-Timestamp'] || '0', 10)
     const nonce = headers['x-nonce'] || headers['X-Nonce']
 
     if (!signature || !timestamp || !nonce) {

@@ -12,7 +12,7 @@ import { cleanup } from '@testing-library/react'
 import React from 'react'
 import { afterEach, beforeEach, vi } from 'vitest'
 
-// @ts-ignore
+// @ts-expect-error
 global.React = React
 
 // Type declarations are available through tests/vitest.d.ts
