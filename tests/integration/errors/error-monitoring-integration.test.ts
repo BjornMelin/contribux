@@ -333,6 +333,7 @@ describe('Error Monitoring Integration Tests', () => {
 
   describe('Real-time Monitoring', () => {
     it('should track error velocity', async () => {
+      vi.useFakeTimers()
       const error = {
         category: ErrorCategory.INTERNAL_ERROR,
         severity: ErrorSeverity.MEDIUM,
@@ -341,28 +342,32 @@ describe('Error Monitoring Integration Tests', () => {
         userMessage: 'Error',
       }
 
-      // Log errors at different rates
-      const now = Date.now()
+      try {
+        // Log errors at different rates
+        const now = Date.now()
 
-      // First hour - 5 errors
-      vi.setSystemTime(now - 2 * 60 * 60 * 1000)
-      for (let i = 0; i < 5; i++) {
-        errorMonitor.logError(new Error('Test'), error)
+        // First hour - 5 errors
+        vi.setSystemTime(now - 2 * 60 * 60 * 1000)
+        for (let i = 0; i < 5; i++) {
+          errorMonitor.logError(new Error('Test'), error)
+        }
+
+        // Second hour - 20 errors (increasing)
+        vi.setSystemTime(now - 1 * 60 * 60 * 1000)
+        for (let i = 0; i < 20; i++) {
+          errorMonitor.logError(new Error('Test'), error)
+        }
+
+        vi.setSystemTime(now)
+        const report = await dashboard.getHealthReport()
+
+        expect(report.overall.errorVelocity).toBeGreaterThan(0)
+        expect(report.recommendations).toEqual(
+          expect.arrayContaining([expect.stringContaining('Error trend is increasing')])
+        )
+      } finally {
+        vi.useRealTimers()
       }
-
-      // Second hour - 20 errors (increasing)
-      vi.setSystemTime(now - 1 * 60 * 60 * 1000)
-      for (let i = 0; i < 20; i++) {
-        errorMonitor.logError(new Error('Test'), error)
-      }
-
-      vi.setSystemTime(now)
-      const report = await dashboard.getHealthReport()
-
-      expect(report.overall.errorVelocity).toBeGreaterThan(0)
-      expect(report.recommendations).toEqual(
-        expect.arrayContaining([expect.stringContaining('Error trend is increasing')])
-      )
     })
 
     it('should detect error patterns', async () => {

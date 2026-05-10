@@ -43,6 +43,7 @@ export interface DatabaseConnection {
 }
 
 // Helper functions for mock SQL client
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Test SQL emulation mirrors several legacy search paths.
 function handleOpportunitiesSearch(
   mockData: Map<string, Record<string, unknown>[]>,
   query: string,
@@ -70,7 +71,7 @@ function handleOpportunitiesSearch(
 
   const args = parseSqlFunctionArgs('hybrid_search_opportunities', query, values)
   const numericArgs = args.map(Number).filter(Number.isFinite)
-  const maybeLimit = numericArgs.findLast(value => Number.isInteger(value) && value > 1) ?? 10
+  const maybeLimit = numericArgs.findLast(value => Number.isInteger(value) && value > 0) ?? 10
   const limit = maybeLimit
   const textWeight = Number(args[2] ?? 1)
   const vectorWeight = Number(args[3] ?? 0)
@@ -324,38 +325,42 @@ function handleFindMatchingOpportunities(
       .map(row => row.repository_id)
   )
 
-  return (mockData.get('opportunities') || [])
-    .filter(opp => !contributedRepositoryIds.has(opp.repository_id))
-    .map(opp => {
-      const type = opportunityType(opp)
-      const isSkillMatch = user.skill_level === opp.difficulty
-      const prefersPython =
-        Array.isArray(user.preferred_languages) && user.preferred_languages.includes('Python')
-      const isPythonOpportunity = type === 'feature'
-      const match_score =
-        prefersPython && isPythonOpportunity
-          ? 0.95
-          : user.skill_level === 'beginner' && opp.difficulty === 'expert'
-            ? 0.55
-            : isSkillMatch
-              ? 0.9
-              : type === 'bug_fix'
-                ? 0.75
-                : 0.55
+  return (
+    (mockData.get('opportunities') || [])
+      .filter(opp => !contributedRepositoryIds.has(opp.repository_id))
+      // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Inline scoring keeps mock search behavior aligned with test fixtures.
+      .map(opp => {
+        const type = opportunityType(opp)
+        const isSkillMatch = user.skill_level === opp.difficulty
+        const prefersPython =
+          Array.isArray(user.preferred_languages) && user.preferred_languages.includes('Python')
+        const isPythonOpportunity = type === 'feature'
+        const match_score =
+          prefersPython && isPythonOpportunity
+            ? 0.95
+            : user.skill_level === 'beginner' && opp.difficulty === 'expert'
+              ? 0.55
+              : isSkillMatch
+                ? 0.9
+                : type === 'bug_fix'
+                  ? 0.75
+                  : 0.55
 
-      return {
-        ...opp,
-        type,
-        priority: type === 'bug_fix' ? 1 : 2,
-        required_skills: type === 'feature' ? ['AI/ML', 'PostgreSQL'] : ['TypeScript', 'debugging'],
-        technologies: type === 'feature' ? ['Python', 'PostgreSQL'] : ['TypeScript', 'Node.js'],
-        good_first_issue: false,
-        help_wanted: type === 'bug_fix',
-        match_score,
-        match_reasons: ['contribution_type', 'skill_level'],
-      }
-    })
-    .sort((a, b) => Number(b.match_score) - Number(a.match_score))
+        return {
+          ...opp,
+          type,
+          priority: type === 'bug_fix' ? 1 : 2,
+          required_skills:
+            type === 'feature' ? ['AI/ML', 'PostgreSQL'] : ['TypeScript', 'debugging'],
+          technologies: type === 'feature' ? ['Python', 'PostgreSQL'] : ['TypeScript', 'Node.js'],
+          good_first_issue: false,
+          help_wanted: type === 'bug_fix',
+          match_score,
+          match_reasons: ['contribution_type', 'skill_level'],
+        }
+      })
+      .sort((a, b) => Number(b.match_score) - Number(a.match_score))
+  )
 }
 
 function handleSearchSimilarUsers(
@@ -894,25 +899,103 @@ function withRows<T>(rows: T[]): T[] & { rows: T[]; rowCount: number } {
 }
 
 function parseSqlFunctionArgs(functionName: string, query: string, values: unknown[]): unknown[] {
-  const escapedName = functionName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const match = query.match(new RegExp(`${escapedName}\\s*\\(([\\s\\S]*?)\\)`, 'i'))
-  if (!match) {
-    return []
+  const normalizedQuery = query.toLowerCase()
+  const normalizedName = functionName.toLowerCase()
+  let searchIndex = 0
+
+  while (searchIndex < query.length) {
+    const functionIndex = normalizedQuery.indexOf(normalizedName, searchIndex)
+    if (functionIndex === -1) {
+      return []
+    }
+
+    const before = query[functionIndex - 1]
+    const afterNameIndex = functionIndex + functionName.length
+    if (before && /[A-Za-z0-9_]/.test(before)) {
+      searchIndex = afterNameIndex
+      continue
+    }
+
+    let openParenIndex = afterNameIndex
+    while (/\s/.test(query[openParenIndex] ?? '')) {
+      openParenIndex += 1
+    }
+
+    if (query[openParenIndex] !== '(') {
+      searchIndex = afterNameIndex
+      continue
+    }
+
+    const args = extractSqlFunctionBody(query, openParenIndex)
+    return args === null
+      ? []
+      : splitSqlArguments(args).map(token => resolveSqlArgument(token, values))
   }
 
-  return splitSqlArguments(match[1]).map(token => resolveSqlArgument(token, values))
+  return []
 }
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: SQL function parsing must track nesting and quoted strings.
+function extractSqlFunctionBody(query: string, openParenIndex: number): string | null {
+  let depth = 0
+  let quote: "'" | '"' | null = null
+
+  for (let index = openParenIndex; index < query.length; index++) {
+    const char = query[index] ?? ''
+    const nextChar = query[index + 1]
+
+    if (quote) {
+      if (char === quote) {
+        if (nextChar === quote) {
+          index += 1
+          continue
+        }
+        quote = null
+      }
+      continue
+    }
+
+    if (char === "'" || char === '"') {
+      quote = char
+      continue
+    }
+
+    if (char === '(') {
+      depth += 1
+      continue
+    }
+
+    if (char === ')') {
+      depth -= 1
+      if (depth === 0) {
+        return query.slice(openParenIndex + 1, index)
+      }
+    }
+  }
+
+  return null
+}
+
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: SQL argument splitting must preserve nested calls and quoted strings.
 function splitSqlArguments(args: string): string[] {
   const tokens: string[] = []
   let current = ''
   let quote: string | null = null
   let bracketDepth = 0
 
-  for (const char of args) {
+  for (let index = 0; index < args.length; index++) {
+    const char = args[index] ?? ''
+    const nextChar = args[index + 1]
+
     if ((char === "'" || char === '"') && quote === null) {
       quote = char
     } else if (char === quote) {
+      if (nextChar === quote) {
+        current += char
+        current += nextChar
+        index += 1
+        continue
+      }
       quote = null
     } else if (!quote && (char === '[' || char === '(')) {
       bracketDepth += 1
@@ -1714,6 +1797,7 @@ const MOCK_SCHEMA_DATA = {
     { enumtypid: 2, enumlabel: 'beginner' },
     { enumtypid: 2, enumlabel: 'intermediate' },
     { enumtypid: 2, enumlabel: 'advanced' },
+    { enumtypid: 2, enumlabel: 'expert' },
     { enumtypid: 3, enumlabel: 'oauth' },
     { enumtypid: 3, enumlabel: 'webauthn' },
     { enumtypid: 3, enumlabel: 'password' },
@@ -2208,9 +2292,10 @@ export class TestDatabaseManager {
    * Check if PGlite is functional in the current environment
    */
   private async checkPGliteHealth(): Promise<boolean> {
+    let testDb: PGlite | undefined
     try {
       // Create a temporary PGlite instance to test WASM functionality
-      const testDb = new PGlite('memory://')
+      testDb = new PGlite('memory://')
 
       // Wait for initialization with shorter timeout to avoid hanging tests
       const initPromise = this.waitForPGliteReady(testDb)
@@ -2233,12 +2318,15 @@ export class TestDatabaseManager {
         throw new Error('PGlite returned unexpected result')
       }
 
-      // Clean up test instance
-      await testDb.close()
-
       return true
     } catch (_error) {
       return false
+    } finally {
+      if (testDb) {
+        await testDb.close().catch(() => {
+          // Ignore health-check cleanup failures.
+        })
+      }
     }
   }
 
@@ -2444,7 +2532,7 @@ export class TestDatabaseManager {
     mockData: Map<string, Record<string, unknown>[]>
   ): NeonQueryFunction<false, false> {
     // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Complex SQL query parsing logic required for comprehensive test mocking
-    return async function sql(strings: TemplateStringsArray | string, ...values: unknown[]) {
+    const sql = async function sql(strings: TemplateStringsArray | string, ...values: unknown[]) {
       const { query, params } = buildParameterizedQuery(strings, values)
       const queryLower = query.toLowerCase()
 
@@ -2580,7 +2668,16 @@ export class TestDatabaseManager {
       }
 
       return withRows([])
-    } as unknown as NeonQueryFunction<false, false>
+    }
+
+    const client = sql as unknown as NeonQueryFunction<false, false>
+    ;(
+      client as unknown as {
+        transaction: (fn: (sql: typeof client) => unknown) => Promise<unknown>
+      }
+    ).transaction = async fn => fn(client)
+
+    return client
   }
 
   /**

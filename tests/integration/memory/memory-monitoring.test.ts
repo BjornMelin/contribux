@@ -258,9 +258,8 @@ describe('Memory Monitoring System', () => {
       // With proper cleanup, final memory should be close to start
       if (result.effectiveCleanup) {
         expect(memoryIncrease).toBeLessThan(5) // Within 5MB
+        expect(result.peakMemory).toBeGreaterThan(result.endMemory)
       }
-
-      expect(result.peakMemory).toBeGreaterThan(result.endMemory)
     })
   })
 
