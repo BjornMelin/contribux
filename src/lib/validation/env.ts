@@ -12,8 +12,10 @@ const isProductionBuildPhase = process.env.NEXT_PHASE === 'phase-production-buil
 const shouldSkipValidation = process.env.SKIP_ENV_VALIDATION === 'true'
 const buildTimeDatabaseUrl = 'postgresql://build:build@localhost:5432/build'
 const buildTimeNextAuthSecret = 'build-time-nextauth-secret-placeholder'
-const runtimeString = (value: string | undefined, buildFallback?: string) =>
-  value ?? (isProductionBuildPhase ? buildFallback : undefined)
+const runtimeString = (value: string | undefined, buildFallback?: string) => {
+  const normalized = value === '' ? undefined : value
+  return normalized ?? (isProductionBuildPhase ? buildFallback : undefined)
+}
 const formatValidationIssues = (
   issues: readonly { path?: readonly unknown[]; message: string }[]
 ) => issues.map(issue => `${issue.path?.join('.') || 'root'}: ${issue.message}`).join('; ')

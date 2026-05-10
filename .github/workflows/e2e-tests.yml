@@ -219,9 +219,16 @@ jobs:
       - name: Security scan of artifacts
         run: |
           echo "🔍 Scanning E2E test artifacts for sensitive data..."
+
+          if [ ! -d ./artifacts ]; then
+            echo "✅ No E2E artifacts were downloaded for scanning"
+            exit 0
+          fi
           
           # Check for potential secrets or sensitive data in test artifacts
-          if find ./artifacts -type f \( -name "*.html" -o -name "*.json" -o -name "*.log" \) -exec grep -l -i "password\|secret\|token\|key" {} \; | head -5; then
+          sensitive_matches=$(find ./artifacts -type f \( -name "*.html" -o -name "*.json" -o -name "*.log" \) -exec grep -l -i "password\|secret\|token\|key" {} \; | head -5)
+          if [ -n "$sensitive_matches" ]; then
+            echo "$sensitive_matches"
             echo "⚠️  Warning: Potential sensitive data found in test artifacts"
             echo "::warning::Sensitive data patterns detected in E2E test artifacts"
           else
@@ -229,6 +236,8 @@ jobs:
           fi
           
           # Check artifact sizes
-          find ./artifacts -type f -size +10M | while read -r file; do
+          large_artifacts=$(find ./artifacts -type f -size +10M)
+          while IFS= read -r file; do
+            [ -z "$file" ] && continue
             echo "::warning::Large test artifact detected: $file ($(du -h "$file" | cut -f1))"
-          done || true
+          done <<< "$large_artifacts"

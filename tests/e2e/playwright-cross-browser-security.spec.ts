@@ -177,9 +177,14 @@ test.describe('Security Compliance Testing', () => {
 
     await page.goto('/auth/signin')
 
-    // Trigger authentication-related requests to generate cookies
+    // Establish a development demo session so cookie assertions exercise real auth cookies.
+    const signInResponse = await page.request.post('/api/auth/demo-signin', {
+      data: { provider: 'github' },
+    })
+    expect(signInResponse.ok()).toBeTruthy()
+
+    // Trigger authentication-related requests after sign-in.
     await page.request.get('/api/auth/session')
-    await page.request.get('/api/auth/csrf')
 
     const cookies = await context.cookies()
     const authCookies = cookies.filter(
@@ -191,6 +196,7 @@ test.describe('Security Compliance Testing', () => {
     )
 
     console.log(`🔒 ${browserName} Auth Cookies Found:`, authCookies.length)
+    expect(authCookies.length).toBeGreaterThan(0)
 
     authCookies.forEach(cookie => {
       console.log(`  Cookie: ${cookie.name}`)

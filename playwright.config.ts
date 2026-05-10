@@ -2,7 +2,9 @@ import { defineConfig, devices } from '@playwright/test'
 
 const port = Number(process.env.PORT || 3000)
 const baseURL = `http://127.0.0.1:${port}`
+const rpId = new URL(baseURL).hostname
 const testNextAuthSecret = 'playwright-test-nextauth-secret-32-chars'
+const testDatabaseUrl = 'postgresql://playwright:playwright@localhost:5432/playwright'
 const testEncryptionKey = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
 
 /**
@@ -112,7 +114,7 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     timeout: process.env.CI ? 60 * 1000 : 120 * 1000, // Reduced timeout for CI
     env: {
-      ...(process.env.DATABASE_URL && { DATABASE_URL: process.env.DATABASE_URL }),
+      DATABASE_URL: process.env.DATABASE_URL || testDatabaseUrl,
       ...(process.env.DATABASE_URL_TEST && { DATABASE_URL_TEST: process.env.DATABASE_URL_TEST }),
       NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || testNextAuthSecret,
       NEXTAUTH_URL: process.env.NEXTAUTH_URL || baseURL,
@@ -129,11 +131,11 @@ export default defineConfig({
       // Optimize Next.js for faster startup
       NEXT_TELEMETRY_DISABLED: '1',
       NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || baseURL,
-      NEXT_PUBLIC_RP_ID: process.env.NEXT_PUBLIC_RP_ID || 'localhost',
+      NEXT_PUBLIC_RP_ID: process.env.NEXT_PUBLIC_RP_ID || rpId,
       NEXT_PRIVATE_STANDALONE: '1',
       PORT: String(port),
       WEBAUTHN_ORIGIN: process.env.WEBAUTHN_ORIGIN || baseURL,
-      WEBAUTHN_RP_ID: process.env.WEBAUTHN_RP_ID || 'localhost',
+      WEBAUTHN_RP_ID: process.env.WEBAUTHN_RP_ID || rpId,
     },
     // CI-specific server optimizations
     ...(process.env.CI && {
