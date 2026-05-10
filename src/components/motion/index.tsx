@@ -5,38 +5,91 @@
  * Thin wrappers around Framer Motion components.
  */
 
-import { AnimatePresence as FramerAnimatePresence, type MotionProps, motion } from 'framer-motion'
+import {
+  AnimatePresence as FramerAnimatePresence,
+  type HTMLMotionProps,
+  motion,
+} from 'framer-motion'
 import React from 'react'
 
-// Motion wrapper props
-export interface OptimizedMotionProps extends MotionProps {
-  children?: React.ReactNode
-  className?: string
+const motionOnlyProps = new Set([
+  'animate',
+  'drag',
+  'dragConstraints',
+  'dragControls',
+  'dragElastic',
+  'dragMomentum',
+  'dragPropagation',
+  'dragSnapToOrigin',
+  'dragTransition',
+  'exit',
+  'initial',
+  'layout',
+  'layoutDependency',
+  'layoutId',
+  'onAnimationComplete',
+  'onDrag',
+  'onDragEnd',
+  'onDragStart',
+  'onDragTransitionEnd',
+  'onDirectionLock',
+  'onUpdate',
+  'transition',
+  'variants',
+  'viewport',
+  'whileDrag',
+  'whileFocus',
+  'whileHover',
+  'whileInView',
+  'whileTap',
+])
+
+function toDomProps<TDomProps>(props: Record<string, unknown>): TDomProps {
+  return Object.fromEntries(
+    Object.entries(props).filter(([key]) => !motionOnlyProps.has(key))
+  ) as TDomProps
+}
+
+interface MotionControlProps {
   enableMotion?: boolean
 }
 
+type MotionDivProps = Omit<HTMLMotionProps<'div'>, 'children'> &
+  MotionControlProps & {
+    children?: React.ReactNode
+  }
+type MotionButtonProps = Omit<HTMLMotionProps<'button'>, 'children'> &
+  MotionControlProps & {
+    children?: React.ReactNode
+  }
+type MotionSpanProps = Omit<HTMLMotionProps<'span'>, 'children'> &
+  MotionControlProps & {
+    children?: React.ReactNode
+  }
+
 // Motion div wrapper
-export const MotionDiv: React.FC<OptimizedMotionProps> = ({
+export const MotionDiv: React.FC<MotionDivProps> = ({
   children,
   enableMotion = true,
   ...props
 }) => {
   if (!enableMotion) {
-    return <div className={props.className}>{children}</div>
+    return <div {...toDomProps<React.HTMLAttributes<HTMLDivElement>>(props)}>{children}</div>
   }
 
   return <motion.div {...props}>{children}</motion.div>
 }
 
 // Motion button wrapper
-export const MotionButton: React.FC<OptimizedMotionProps> = ({
+export const MotionButton: React.FC<MotionButtonProps> = ({
   children,
   enableMotion = true,
   ...props
 }) => {
   if (!enableMotion) {
+    const domProps = toDomProps<React.ButtonHTMLAttributes<HTMLButtonElement>>(props)
     return (
-      <button type="button" className={props.className}>
+      <button type="button" {...domProps}>
         {children}
       </button>
     )
@@ -50,13 +103,13 @@ export const MotionButton: React.FC<OptimizedMotionProps> = ({
 }
 
 // Motion span wrapper
-export const MotionSpan: React.FC<OptimizedMotionProps> = ({
+export const MotionSpan: React.FC<MotionSpanProps> = ({
   children,
   enableMotion = true,
   ...props
 }) => {
   if (!enableMotion) {
-    return <span className={props.className}>{children}</span>
+    return <span {...toDomProps<React.HTMLAttributes<HTMLSpanElement>>(props)}>{children}</span>
   }
 
   return <motion.span {...props}>{children}</motion.span>
