@@ -1176,7 +1176,7 @@ graph TB
     
     subgraph "🌐 External Services"
         GitHub[GitHub API v4]
-        OpenAI[OpenAI Agents]
+        OpenAI[OpenAI API (optional)]
         Email[Email Provider]
         SMS[SMS Provider]
         Analytics[Analytics APIs]

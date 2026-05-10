@@ -264,7 +264,7 @@ class SearchFlow:
         )
         
         # Strategic recommendations
-        return await self.strategist.generate_recommendations(analyzed)
+        return await self.recommendations.generate_recommendations(analyzed)
 ```
 
 ### **Database Architecture**

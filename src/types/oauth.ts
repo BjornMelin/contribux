@@ -204,7 +204,7 @@ export type OAuthProfile =
   | LinkedInProfile
   | MicrosoftProfile
 
-// Enhanced Auth.js types with proper generics
+// Enhanced NextAuth.js v4 types with proper generics
 export interface EnhancedAccount {
   provider: string
   type: string
