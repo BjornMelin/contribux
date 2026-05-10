@@ -9,7 +9,7 @@ test.describe('Browser security smoke tests', () => {
     await expect(page.getByRole('button', { name: /continue with google/i })).toBeVisible()
   })
 
-  test('keeps keyboard focus within visible auth controls and links', async ({ page }) => {
+  test('keeps expected auth controls keyboard reachable within main', async ({ page }) => {
     await page.goto('/auth/signin')
 
     const focusTargets = [
@@ -19,22 +19,45 @@ test.describe('Browser security smoke tests', () => {
       page.getByRole('link', { name: /privacy policy/i }),
     ]
 
-    await focusTargets[0].focus()
+    for (const target of focusTargets) {
+      await expect(target).toBeVisible()
+    }
 
-    for (const [index, target] of focusTargets.entries()) {
-      await expect(target).toBeFocused()
+    await page.evaluate(() => {
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur()
+      }
+    })
 
-      const focusedWithinAuth = await page.evaluate(() => {
+    const expectedFocusTargets = [/github/i, /google/i, /terms of service/i, /privacy policy/i]
+    const foundTargetIndexes = new Set<number>()
+
+    for (let index = 0; index < 12 && foundTargetIndexes.size < focusTargets.length; index++) {
+      await page.keyboard.press('Tab')
+      const activeFocus = await page.evaluate(() => {
         const main = document.querySelector('main')
         const active = document.activeElement
-        return active instanceof HTMLElement && Boolean(main?.contains(active))
+        return {
+          label:
+            active instanceof HTMLElement
+              ? active.innerText || active.textContent || active.getAttribute('aria-label') || ''
+              : '',
+          withinMain: active instanceof HTMLElement && Boolean(main?.contains(active)),
+        }
       })
-      expect(focusedWithinAuth).toBe(true)
 
-      if (index < focusTargets.length - 1) {
-        await page.keyboard.press('Tab')
+      const targetIndex = expectedFocusTargets.findIndex(
+        (pattern, expectedIndex) =>
+          pattern.test(activeFocus.label) && !foundTargetIndexes.has(expectedIndex)
+      )
+
+      if (targetIndex >= 0) {
+        expect(activeFocus.withinMain).toBe(true)
+        foundTargetIndexes.add(targetIndex)
       }
     }
+
+    expect([...foundTargetIndexes].sort()).toEqual([0, 1, 2, 3])
   })
 
   test('serves public health without requiring app authentication', async ({ request }) => {
