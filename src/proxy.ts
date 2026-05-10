@@ -80,7 +80,9 @@ async function lightweightAuthCheck(request: NextRequest): Promise<NextResponse 
     path.startsWith('/auth/') ||
     path.startsWith('/api/auth/') ||
     path === '/api/search/repositories' ||
+    path === '/api/search/opportunities' ||
     path === '/api/health' ||
+    path === '/api/simple-health' ||
     path.startsWith('/_next/') ||
     path === '/favicon.ico'
   ) {

@@ -26,9 +26,16 @@ interface AuroraButtonProps {
   className?: string
   onClick?: () => void
   disabled?: boolean
+  providerId?: string
 }
 
-const AuroraButton = ({ children, className, onClick, disabled }: AuroraButtonProps) => {
+const AuroraButton = ({
+  children,
+  className,
+  onClick,
+  disabled,
+  providerId,
+}: AuroraButtonProps) => {
   const [visible, setVisible] = useState(false)
 
   return (
@@ -50,6 +57,7 @@ const AuroraButton = ({ children, className, onClick, disabled }: AuroraButtonPr
       />
       <button
         type="button"
+        data-provider={providerId}
         onClick={onClick}
         disabled={disabled}
         className={cn(
@@ -215,11 +223,9 @@ export const OAuthSignIn = () => {
           <div className="p-8">
             {/* Header */}
             <div className="mb-8 text-center">
-              <BlurText
-                text="Welcome to contribux"
-                className="mb-2 font-bold text-3xl text-white"
-                delay={0.2}
-              />
+              <h1 className="mb-2 font-bold text-3xl text-white">
+                <BlurText text="Welcome to contribux" delay={0.2} />
+              </h1>
               <BlurText
                 text="Discover and contribute to impactful open source projects"
                 className="text-gray-300 text-sm"
@@ -229,7 +235,12 @@ export const OAuthSignIn = () => {
 
             {/* OAuth Buttons */}
             <div className="mb-6 space-y-4">
-              <AuroraButton onClick={handleGitHubSignIn} disabled={isLoading} className="h-12">
+              <AuroraButton
+                onClick={handleGitHubSignIn}
+                disabled={isLoading}
+                className="h-12"
+                providerId="github"
+              >
                 <div className="flex items-center justify-center space-x-3">
                   {loadingProvider === 'github' ? (
                     <Loader2 className="h-5 w-5 animate-spin" />
@@ -240,7 +251,12 @@ export const OAuthSignIn = () => {
                 </div>
               </AuroraButton>
 
-              <AuroraButton onClick={handleGoogleSignIn} disabled={isLoading} className="h-12">
+              <AuroraButton
+                onClick={handleGoogleSignIn}
+                disabled={isLoading}
+                className="h-12"
+                providerId="google"
+              >
                 <div className="flex items-center justify-center space-x-3">
                   {loadingProvider === 'google' ? (
                     <Loader2 className="h-5 w-5 animate-spin" />

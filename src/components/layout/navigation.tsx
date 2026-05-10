@@ -57,7 +57,7 @@ export function Navigation() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo and Desktop Nav */}
           <div className="flex items-center">
-            <Link href="/" className="flex items-center space-x-2">
+            <Link href="/" className="flex min-h-11 items-center space-x-2">
               <MotionDiv
                 whileHover={{ rotate: 360 }}
                 transition={{ duration: 0.5 }}
@@ -136,6 +136,9 @@ export function Navigation() {
           {/* Mobile menu button */}
           <button
             type="button"
+            aria-controls="mobile-navigation"
+            aria-expanded={mobileMenuOpen}
+            aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
             className="inline-flex items-center justify-center rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground md:hidden"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
@@ -147,6 +150,7 @@ export function Navigation() {
       {/* Mobile menu */}
       {mobileMenuOpen && (
         <MotionDiv
+          id="mobile-navigation"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
