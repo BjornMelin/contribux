@@ -96,7 +96,7 @@ graph TB
     end
 
     subgraph "🔌 API Layer"
-        D[Next.js API Routes] --> E[Route Handlers]
+        D[Next.js App Router] --> E[Route Handlers]
         E --> F[Auth Middleware]
     end
 
@@ -424,8 +424,6 @@ pnpm db:vector-metrics    # Vector search metrics
 pnpm lint                  # Biome linting
 pnpm type-check            # TypeScript validation
 pnpm build                 # Production build
-pnpm format               # Format code with Biome
-pnpm type-check           # TypeScript validation
 ```
 
 ### **Code Quality Standards**

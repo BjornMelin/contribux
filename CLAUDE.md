@@ -20,6 +20,7 @@ pnpm lint && pnpm type-check  # Code quality validation
 **Monitoring**: Performance reports, health checks, vector metrics
 
 **Essential DB Commands:**
+
 ```bash
 pnpm db:test-connection    # Connection testing
 pnpm db:health            # Health monitoring

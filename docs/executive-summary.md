@@ -26,11 +26,12 @@ scalable system design.
 
 ```mermaid
 graph TB
-    subgraph "🤖 AI Agent Architecture"
-        A[SearchOrchestrator] --> B[RepositoryScanner]
-        A --> C[OpportunityAnalyzer]
-        A --> D[ContribuxStrategist]
-        A --> E[SuccessTracker]
+    subgraph "🤖 Search Intelligence Architecture"
+        A[Search Route Handlers] --> B[Repository Search Service]
+        A --> C[Opportunity Search Service]
+        B --> D[Hybrid Search Functions]
+        C --> D
+        D --> E[Telemetry + Metrics]
     end
     
     subgraph "🧠 Intelligence Stack"
@@ -72,7 +73,7 @@ graph LR
     end
     
     subgraph "⚡ API Layer"
-        E[Vercel Edge Functions] --> F[typed route handlers v11 Type Safety]
+        E[Vercel Edge Functions] --> F[Typed Route Handlers + Zod Schemas]
         F --> G[Rate Limited APIs]
         G --> H[Circuit Breakers]
     end
@@ -242,20 +243,23 @@ export default async function OpportunitiesPage() {
 
 ### **AI-Powered Backend Services**
 
+The following is conceptual pseudocode for the live route-handler and database-function flow,
+not concrete class names in `src/`.
+
 ```python
-# Multi-Agent Orchestration
-class SearchOrchestrator:
+# Conceptual search flow
+class SearchFlow:
     def __init__(self):
-        self.scanner = RepositoryScanner()
-        self.analyzer = OpportunityAnalyzer()
-        self.strategist = ContribuxStrategist()
+        self.repositories = RepositorySearch()
+        self.opportunities = OpportunitySearch()
+        self.recommendations = RecommendationEngine()
         
     async def discover_opportunities(self, user_profile: UserProfile):
         # Intelligent repository scanning
-        candidates = await self.scanner.scan_trending_repos()
+        candidates = await self.repositories.scan_trending_repos()
         
         # AI-powered analysis
-        analyzed = await self.analyzer.assess_opportunities(
+        analyzed = await self.opportunities.assess_matches(
             candidates, user_profile
         )
         

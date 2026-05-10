@@ -37,7 +37,7 @@ opportunities, user demand, technical feasibility, and implementation roadmap.
 ### 📊 **Current State: STRONG FOUNDATION**
 
 - **30.5% project completion** (11/36 tasks)
-- **Excellent infrastructure**: NextAuth v5, Neon PostgreSQL, vector search
+- **Excellent infrastructure**: NextAuth.js v4, Neon PostgreSQL, vector search
 - **Critical gap**: Missing AI-powered repository discovery features
 - **Production readiness**: 7.5/10 (strong infrastructure, feature gaps)
 

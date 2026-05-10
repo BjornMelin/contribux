@@ -581,36 +581,39 @@ graph LR
 
 ## 🤖 AI & Intelligence Architecture
 
-### **Multi-Agent System Design**
+### **Conceptual Search Intelligence Design**
+
+This diagram describes the intended search-intelligence flow. It is not a list of
+concrete class names exported from `src/`.
 
 ```mermaid
 graph TB
     subgraph "🎯 Orchestration Layer"
-        Orchestrator[SearchOrchestrator]
-        Scheduler[Job Scheduler]
-        Monitor[Agent Monitor]
+        Orchestrator[Search Route Handlers]
+        Scheduler[Background Job Scheduler]
+        Monitor[Telemetry Monitor]
         Router[Request Router]
     end
     
-    subgraph "🔍 Discovery Agents"
-        Scanner[RepositoryScanner]
-        Trend[TrendAnalyzer]
-        Health[HealthAssessor]
-        Filter[QualityFilter]
+    subgraph "🔍 Discovery Services"
+        Scanner[Repository Search Service]
+        Trend[Trending Query Functions]
+        Health[Health Signals]
+        Filter[Quality Filters]
     end
     
-    subgraph "🧠 Analysis Agents"
-        Analyzer[OpportunityAnalyzer]
-        Complexity[ComplexityEstimator]
-        Skills[SkillDetector]
-        Impact[ImpactPredictor]
+    subgraph "🧠 Analysis Services"
+        Analyzer[Opportunity Search Service]
+        Complexity[Complexity Signals]
+        Skills[Skill Metadata]
+        Impact[Impact Scoring]
     end
     
-    subgraph "💡 Strategy Agents"
-        Strategist[ContribuxStrategist]
-        Planner[ImplementationPlanner]
-        Risk[RiskAssessor]
-        Success[SuccessPredictor]
+    subgraph "💡 Matching Services"
+        Strategist[Recommendation Logic]
+        Planner[Contribution Metadata]
+        Risk[Risk Signals]
+        Success[Outcome Metrics]
     end
     
     subgraph "📊 Learning Agents"

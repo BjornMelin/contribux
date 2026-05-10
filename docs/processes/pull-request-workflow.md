@@ -174,19 +174,20 @@ This PR hardens the NextAuth.js v4 OAuth flow and keeps WebAuthn MFA behind expl
 
 ### Auth Stack
 - 🔐 **GitHub OAuth**: Clean implementation with secure token handling
+- 🔑 **WebAuthn MFA**: Feature-gated passkey support behind `ENABLE_WEBAUTHN`
 - 🛡️ **Auth Middleware**: Streamlined for API route protection
 - 📊 **Database Schema**: Minimal schema for GitHub user sessions
-- ❌ **Removed**: WebAuthn configuration and dependencies
 
 ### Implementation Details
 - **OAuth Flow**: Standard GitHub OAuth 2.0 implementation
+- **WebAuthn**: Disabled by default and enabled only with explicit configuration
 - **Session Management**: Secure, httpOnly cookies
 - **Token Storage**: Encrypted in database
 - **Middleware**: Simple session validation
 
 ## Breaking Changes
 
-- Removes WebAuthn support entirely
+- WebAuthn is feature-gated and requires explicit configuration before use
 - Simplifies auth middleware interface
 - Changes auth configuration structure
 

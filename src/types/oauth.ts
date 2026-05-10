@@ -1,6 +1,6 @@
 /**
  * TypeScript types for OAuth provider responses
- * Based on Auth.js v5 and official OAuth provider documentation
+ * Based on NextAuth.js v4 and official OAuth provider documentation
  */
 
 import { z } from 'zod'

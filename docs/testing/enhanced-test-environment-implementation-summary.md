@@ -1,3 +1,6 @@
+> Historical snapshot: this implementation report is not the current testing authority. See
+> [README.md](../../README.md) and [docs/testing/README.md](README.md) for current validation guidance.
+
 # Enhanced Test Environment Implementation Summary
 
 ## Overview

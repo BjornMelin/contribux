@@ -24,6 +24,7 @@ The Contribux platform uses NextAuth.js v4 for multi-provider OAuth, with GitHub
 provider, Google as an optional provider, and WebAuthn available as feature-gated MFA.
 
 ### **What's Included in This Guide:**
+
 - **Current NextAuth.js v4 Implementation** - Production-ready OAuth system
 - **Multi-Provider Support** - GitHub (primary), Google (optional)
 - **WebAuthn MFA** - Feature-gated passkey support backed by `@simplewebauthn/server`
@@ -116,16 +117,23 @@ export const authConfig = {
 
 ```typescript
 // src/lib/auth/index.ts
-export const { auth, signIn, signOut, handlers } = NextAuth(authConfig);
+const handler = NextAuth(authConfig);
+
+export const handlers = {
+  GET: handler,
+  POST: handler,
+};
+
+export const auth = () => getServerSession(authConfig);
+export const GET = handlers.GET;
+export const POST = handlers.POST;
 ```
 
 ### API Route Configuration
 
 ```typescript
 // src/app/api/auth/[...nextauth]/route.ts
-import { handlers } from "@/lib/auth";
-
-export const { GET, POST } = handlers;
+export { GET, POST } from "@/lib/auth";
 ```
 
 ## WebAuthn MFA
@@ -309,7 +317,7 @@ function Profile() {
 ### Server-Side Access
 
 ```typescript
-import { auth } from "@/lib/auth/config";
+import { auth } from "@/lib/auth";
 
 export default async function ServerComponent() {
   const session = await auth();

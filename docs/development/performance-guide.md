@@ -28,7 +28,7 @@ graph TB
     end
     
     subgraph "API Layer"
-        D[Next.js API Routes]
+        D[Next.js Route Handlers]
         E[NextAuth.js v4]
         F[Middleware Authentication]
     end
@@ -393,7 +393,7 @@ const react19Optimizations = {
 
 ### 2. API Performance Optimization
 
-#### Next.js 16 API Routes Optimization
+#### Next.js 16 Route Handlers Optimization
 
 ```typescript
 // Implemented in tests/performance/api-performance.test.ts
