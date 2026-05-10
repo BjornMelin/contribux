@@ -15,9 +15,14 @@ env:
 
 jobs:
   e2e-test:
-    name: E2E Tests
+    name: E2E Tests (${{ matrix.shard }}/${{ matrix.total_shards }})
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+        total_shards: [4]
     
     # Service containers for Redis if needed
     services:
@@ -76,7 +81,7 @@ jobs:
         with:
           project_id: ${{ env.NEON_PROJECT_ID }}
           api_key: ${{ env.NEON_API_KEY }}
-          branch_name: 'e2e-test-${{ github.run_id }}-${{ github.run_attempt }}'
+          branch_name: 'e2e-test-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}'
           username: 'neondb_owner'
           database: 'neondb'
 
@@ -91,7 +96,7 @@ jobs:
         with:
           project_id: ${{ env.NEON_PROJECT_ID }}
           api_key: ${{ env.NEON_API_KEY }}
-          branch_name: 'e2e-test-${{ github.run_id }}-${{ github.run_attempt }}'
+          branch_name: 'e2e-test-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}'
           username: 'neondb_owner'
           database: 'neondb'
 
@@ -168,18 +173,19 @@ jobs:
 
       # Run E2E tests
       - name: Run E2E Tests
-        run: pnpm test:e2e:ci
+        run: pnpm exec playwright test --reporter=line --shard=${{ matrix.shard }}/${{ matrix.total_shards }}
         env:
           DATABASE_URL: ${{ steps.e2e-branch.outputs.db_url_with_pooler }}
           CI: true
           NODE_OPTIONS: '--max-old-space-size=2048'
+          PLAYWRIGHT_WORKERS: 2
 
       # Upload Playwright artifacts on failure
       - name: Upload Playwright Report
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: playwright-report-${{ github.run_id }}
+          name: playwright-report-${{ github.run_id }}-${{ matrix.shard }}
           path: |
             playwright-report/
             test-results/
@@ -192,7 +198,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: e2e-coverage-${{ github.run_id }}
+          name: e2e-coverage-${{ github.run_id }}-${{ matrix.shard }}
           path: coverage/
           retention-days: 3
           if-no-files-found: ignore
@@ -212,7 +218,8 @@ jobs:
         run: |
           echo "## E2E Test Results 🎭" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Branch**: \`e2e-test-${{ github.run_id }}-${{ github.run_attempt }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Shard**: \`${{ matrix.shard }}/${{ matrix.total_shards }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: \`e2e-test-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Database Branch**: \`${{ steps.e2e-branch.outputs.branch_id }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Status**: $([ ${{ job.status }} == 'success' ] && echo '✅ Passed' || echo '❌ Failed')" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

@@ -6,6 +6,7 @@ const rpId = new URL(baseURL).hostname
 const testNextAuthSecret = 'playwright-test-nextauth-secret-32-chars'
 const testDatabaseUrl = 'postgresql://playwright:playwright@localhost:5432/playwright'
 const testEncryptionKey = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+const ciWorkers = Number(process.env.PLAYWRIGHT_WORKERS || 2)
 
 /**
  * @see https://playwright.dev/docs/test-configuration
@@ -18,8 +19,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : 4,
+  workers: process.env.CI ? ciWorkers : 4,
   /* Timeout for each test */
   timeout: process.env.CI ? 30000 : 60000,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
