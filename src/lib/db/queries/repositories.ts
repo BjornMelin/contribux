@@ -4,6 +4,7 @@
 import { and, count, desc, eq, ilike, isNotNull, or, sql } from 'drizzle-orm'
 import { appConfig } from '@/lib/config'
 import { db, schema, timedDb, vectorUtils } from '@/lib/db'
+import { sanitizeSearchQuery as sanitizeRepositorySearchQuery } from '@/lib/db/schema'
 
 export interface RepositorySearchOptions {
   limit?: number
@@ -34,6 +35,15 @@ export interface HybridSearchOptions {
 }
 
 export namespace RepositoryQueries {
+  function finiteInteger(value: unknown, fallback: number): number {
+    const parsed = Math.floor(Number(value))
+    return Number.isFinite(parsed) ? parsed : fallback
+  }
+
+  function clamp(value: number, min: number, max: number): number {
+    return Math.min(Math.max(min, value), max)
+  }
+
   // Helper function to build text search conditions
   function buildTextSearchConditions(query: string) {
     // Security: Sanitize search query to prevent SQL injection
@@ -217,10 +227,10 @@ export namespace RepositoryQueries {
       throw new Error('Search query must be a string')
     }
 
-    // Trim and limit query length to prevent DoS attacks
-    const sanitizedQuery = query.trim().substring(0, 200)
-
-    if (!sanitizedQuery) {
+    let sanitizedQuery: string
+    try {
+      sanitizedQuery = sanitizeRepositorySearchQuery(query)
+    } catch {
       return []
     }
 
@@ -235,11 +245,13 @@ export namespace RepositoryQueries {
     } = options
 
     // Security: Validate and clamp numeric parameters
-    const safeLimit = Math.min(Math.max(1, Math.floor(Number(limit) || 30)), 100)
-    const safeOffset = Math.max(0, Math.floor(Number(offset) || 0))
-    const safeMinStars = Math.max(0, Math.floor(Number(minStars) || 0))
+    const safeLimit = clamp(finiteInteger(limit, 30), 1, 100)
+    const safeOffset = clamp(finiteInteger(offset, 0), 0, 10000)
+    const safeMinStars = clamp(finiteInteger(minStars, 0), 0, 1000000)
     const safeMaxStars =
-      maxStars !== undefined ? Math.max(safeMinStars, Math.floor(Number(maxStars))) : undefined
+      maxStars !== undefined
+        ? Math.max(safeMinStars, clamp(finiteInteger(maxStars, safeMinStars), 0, 1000000))
+        : undefined
 
     return timedDb.select(async () => {
       // Build dynamic WHERE conditions with sanitized inputs

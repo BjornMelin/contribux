@@ -108,6 +108,12 @@ function splitSqlStatements(content) {
     }
 
     if (char === '"' && !inSingleQuote) {
+      if (inDoubleQuote && nextChar === '"') {
+        statement += nextChar
+        index++
+        continue
+      }
+
       inDoubleQuote = !inDoubleQuote
       continue
     }

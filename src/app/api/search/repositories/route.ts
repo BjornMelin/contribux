@@ -115,7 +115,7 @@ function searchDemoRepositories(validatedParams: RepositorySearchParams) {
     const matchesQuery =
       repository.fullName.toLowerCase().includes(normalizedQuery) ||
       repository.description.toLowerCase().includes(normalizedQuery) ||
-      repository.metadata.topics.some(topic => topic.includes(normalizedQuery))
+      repository.metadata.topics.some(topic => topic.toLowerCase().includes(normalizedQuery))
 
     const matchesLanguage = !language || repositoryLanguage === language
 

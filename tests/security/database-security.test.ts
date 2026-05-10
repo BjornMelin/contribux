@@ -39,6 +39,23 @@ interface MockSearchOptions {
   order?: string
 }
 
+function createRepositorySearchBuilder() {
+  const offset = vi.fn().mockResolvedValue([])
+  const limit = vi.fn().mockReturnValue({ offset })
+  const orderBy = vi.fn().mockReturnValue({ limit })
+  const where = vi.fn().mockReturnValue({ orderBy })
+  const from = vi.fn().mockReturnValue({ where })
+
+  return {
+    queryBuilder: { from } as unknown as MockDrizzleQueryBuilder,
+    from,
+    where,
+    orderBy,
+    limit,
+    offset,
+  }
+}
+
 interface MockDrizzleInsertBuilder {
   values: vi.MockedFunction<(data: unknown) => MockDrizzleInsertBuilder>
   onConflictDoUpdate: vi.MockedFunction<(config: unknown) => MockDrizzleInsertBuilder>
@@ -397,6 +414,14 @@ describe('Database Security Testing', () => {
         expect(() => sanitizeJsonInput(deepJson)).toThrow()
       })
 
+      it('should apply JSON depth limits to nested arrays', () => {
+        const deepArrayJson = {
+          topics: [[[[['too_deep']]]]],
+        }
+
+        expect(() => sanitizeJsonInput(deepArrayJson)).toThrow()
+      })
+
       it('should limit JSON size to prevent memory exhaustion', () => {
         const largeJson = {}
         for (let i = 0; i < 1000; i++) {
@@ -426,41 +451,24 @@ describe('Database Security Testing', () => {
     describe('Repository queries security', () => {
       it('should use parameterized queries in search function', async () => {
         const mockDb = vi.mocked(db)
-        mockDb.select.mockReturnValue({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              orderBy: vi.fn().mockReturnValue({
-                limit: vi.fn().mockReturnValue({
-                  offset: vi.fn().mockResolvedValue([]),
-                }),
-              }),
-            }),
-          }),
-        } as MockDrizzleQueryBuilder)
+        const builder = createRepositorySearchBuilder()
+        mockDb.select.mockReturnValue(builder.queryBuilder)
 
         const maliciousQuery = "'; DROP TABLE repositories; --"
 
-        // The search function should sanitize the query before using it
         await RepositoryQueries.search(maliciousQuery)
 
-        // Verify the malicious query was sanitized (shortened and escaped)
-        const sanitizedQuery = sanitizeSearchQuery(maliciousQuery)
-        expect(sanitizedQuery).not.toEqual(maliciousQuery)
+        expect(builder.where).toHaveBeenCalledTimes(1)
+        const whereCondition = builder.where.mock.calls[0]?.[0]
+        const conditionText = JSON.stringify(whereCondition)
+        expect(conditionText).toContain(sanitizeSearchQuery(maliciousQuery))
+        expect(conditionText).not.toContain(maliciousQuery)
       })
 
       it('should validate and clamp numeric parameters', async () => {
         const mockDb = vi.mocked(db)
-        mockDb.select.mockReturnValue({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              orderBy: vi.fn().mockReturnValue({
-                limit: vi.fn().mockReturnValue({
-                  offset: vi.fn().mockResolvedValue([]),
-                }),
-              }),
-            }),
-          }),
-        } as MockDrizzleQueryBuilder)
+        const builder = createRepositorySearchBuilder()
+        mockDb.select.mockReturnValue(builder.queryBuilder)
 
         const maliciousOptions: MockSearchOptions = {
           limit: 999999, // Should be clamped to 100
@@ -471,8 +479,8 @@ describe('Database Security Testing', () => {
 
         await RepositoryQueries.search('javascript', maliciousOptions)
 
-        // The function should have internally clamped these values
-        expect(true).toBe(true) // Test passes if no errors thrown
+        expect(builder.limit).toHaveBeenCalledWith(100)
+        expect(builder.offset).toHaveBeenCalledWith(0)
       })
 
       it('should whitelist sort columns to prevent injection', async () => {
@@ -669,6 +677,7 @@ describe('Database Security Testing', () => {
 
     describe('Data Type Confusion Attacks', () => {
       it('should handle type confusion in numeric fields', async () => {
+        const mockDb = vi.mocked(db)
         const typeConfusionValues = [
           'Infinity',
           '-Infinity',
@@ -678,11 +687,31 @@ describe('Database Security Testing', () => {
         ]
 
         for (const value of typeConfusionValues) {
-          const parsed = Number(value)
-          expect(Number.isFinite(parsed) && Math.abs(parsed) < Number.MAX_SAFE_INTEGER).toBe(false)
+          const builder = createRepositorySearchBuilder()
+          mockDb.select.mockReturnValueOnce(builder.queryBuilder)
+
+          await RepositoryQueries.search('javascript', {
+            limit: value as unknown as number,
+            offset: value as unknown as number,
+            minStars: value as unknown as number,
+          })
+
+          expect(builder.limit.mock.calls[0]?.[0]).toBeGreaterThanOrEqual(1)
+          expect(builder.limit.mock.calls[0]?.[0]).toBeLessThanOrEqual(100)
+          expect(builder.offset).toHaveBeenCalledWith(expect.any(Number))
+          expect(builder.offset.mock.calls[0]?.[0]).toBeGreaterThanOrEqual(0)
         }
 
-        expect(Number.isSafeInteger(Number('0x1234'))).toBe(true)
+        const hexBuilder = createRepositorySearchBuilder()
+        mockDb.select.mockReturnValueOnce(hexBuilder.queryBuilder)
+
+        await RepositoryQueries.search('javascript', {
+          limit: '0x1234' as unknown as number,
+          offset: '0x1234' as unknown as number,
+        })
+
+        expect(hexBuilder.limit).toHaveBeenCalledWith(100)
+        expect(hexBuilder.offset).toHaveBeenCalledWith(4660)
       })
 
       it('should prevent prototype pollution through JSON input', () => {
