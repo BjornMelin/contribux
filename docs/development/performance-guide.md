@@ -1,7 +1,6 @@
-# Comprehensive Performance Guide for Contribux
+# Historical Contribux performance notes
 
-> **Consolidated Performance Documentation** - This guide combines all performance optimization strategies,
-> Next.js 16 specific techniques, memory management, and monitoring tools into a single comprehensive resource.
+This document preserves earlier optimization guidance and recorded measurements. It isn't a current benchmark, configuration reference, or telemetry source. Verify every command and value against tracked source before reuse.
 
 ## Overview
 
@@ -624,10 +623,9 @@ const githubApiOptimizations = {
 }
 ```
 
-## Memory Optimization Results & Strategies
+## Historical memory optimization results
 
-> **Consolidated from Memory Optimization Guide** - See full memory optimization details in the original
-> [memory-optimization.md](./memory-optimization.md) for complete implementation details and monitoring scripts.
+The measurements below came from an earlier optimization pass. They aren't current benchmarks or production telemetry. Re-run the relevant profiler before using them for a decision.
 
 ### Memory Optimization Achievement Summary
 
@@ -700,7 +698,7 @@ Even a minimal "hello world" test uses ~30MB in our environment.
 - **Per client instance**: +0.07MB
 - **Full test environment**: ~32-36MB (with all test setup)
 
-**Result**: Current optimized usage shows excellent efficiency with 4.22MB heap usage and 79.57% heap efficiency.
+These recorded values don't establish current memory usage or efficiency.
 
 ## Performance Monitoring and Alerting
 
