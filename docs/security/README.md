@@ -58,7 +58,7 @@ See [the implementation status](./security-implementation.md) for source referen
 
 - [Security implementation status](./security-implementation.md)
 - [Content Security Policy nonce usage](./csp-nonce-usage.md)
-- [Rate limiting](./rate-limiting.md)
+- [Historical rate-limiting guide](./rate-limiting.md)
 
 Treat dated completion reports and benchmark documents as historical context. Verify every claim against current source and test output.
 

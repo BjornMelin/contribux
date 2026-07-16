@@ -629,12 +629,12 @@ The measurements below came from an earlier optimization pass. They aren't curre
 
 ### Memory Optimization Achievement Summary
 
-The memory optimization initiative successfully reduced heap usage from a 50MB+ baseline to an optimized footprint:
+The recorded optimization pass reduced heap usage from a 50MB+ baseline to an optimized footprint:
 
-- **Current Status**: 72MB total memory cleanup achieved
+- **Recorded Status**: 72MB total memory cleanup achieved
 - **GitHub Client**: Optimized to 2.6MB total overhead
 - **Memory Leak Detection**: <0.5MB growth per 100 clients
-- **Current Heap Usage**: 4.22 MB (excellent, well under 50MB target)
+- **Recorded Heap Usage**: 4.22 MB (well under the 50MB target at the time)
 - **Heap Efficiency**: 79.57%
 - **RSS**: 43.13 MB (reasonable for Node.js application)
 

@@ -1,12 +1,12 @@
 # Find development guides
 
-Use these guides for current project structure, environment setup, and repository workflows. Dated optimization and test-result reports aren't current evidence.
+Use these guides for environment setup and repository workflows. The architecture references below and dated optimization or test-result reports aren't current evidence.
 
-## Understand the codebase
+## Review historical architecture references
 
-- [Architecture](./architecture.md)
-- [GitHub client architecture](./github-client-architecture.md)
-- [Implementation guide](./implementation-guide.md)
+- [Historical architecture](./architecture.md)
+- [Historical GitHub client architecture](./github-client-architecture.md)
+- [Historical implementation guide](./implementation-guide.md)
 
 ## Configure development
 

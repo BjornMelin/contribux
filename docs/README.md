@@ -1,6 +1,6 @@
 # Find Contribux documentation
 
-Use this index to find current setup, API, authentication, security, testing, and deployment guidance. Treat unlinked dated reports as historical records rather than current behavior.
+Use this index to find current setup, API, authentication, security, and testing guidance. Treat dated reports and the operations references below as historical records rather than current behavior.
 
 ## Start development
 
@@ -15,11 +15,11 @@ Use this index to find current setup, API, authentication, security, testing, an
 - [Authentication status](./features/authentication.md)
 - [Security status](./security/README.md)
 
-## Operate the application
+## Review historical operations references
 
-- [Deployment guide](./processes/deployment.md)
-- [Monitoring and alerting guide](./processes/monitoring-alerting.md)
-- [Continuous integration and deployment setup](./processes/ci-cd-setup.md)
+- [Historical deployment guide](./processes/deployment.md)
+- [Historical monitoring and alerting guide](./processes/monitoring-alerting.md)
+- [Historical continuous integration and deployment setup](./processes/ci-cd-setup.md)
 
 ## Verify claims
 
