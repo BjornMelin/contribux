@@ -31,7 +31,7 @@ No tracked runtime path invokes a model or agent. `OPENAI_API_KEY` remains optio
 
 ## Run the project
 
-Install Node.js 20 or newer and enable Corepack. The repository pins pnpm in `package.json`.
+Install Node.js 20.9 or newer and enable Corepack. The repository pins pnpm in `package.json`.
 
 ```bash
 corepack enable
