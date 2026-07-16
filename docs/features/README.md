@@ -1,29 +1,12 @@
-# Features Documentation
+# Find feature documentation
 
-This directory contains documentation for key features and functionality of the Contribux platform.
+Use these references for current API and authentication behavior. Source and current test output take precedence over dated validation reports.
 
-## Core Features
+## Review current surfaces
 
-- [authentication.md](authentication.md) - Authentication system overview and implementation
-- [api-documentation.md](api-documentation.md) - API endpoints and usage documentation
-- [api-testing-guide.md](api-testing-guide.md) - API testing infrastructure and patterns
+- [API route reference](./api-documentation.md)
+- [Authentication status](./authentication.md)
 
-## Feature Reports
+## Test feature changes
 
-- [authentication-flow-validation-report.md](authentication-flow-validation-report.md) - Authentication flow validation results and analysis
-
-## Platform Features
-
-The Contribux platform provides:
-
-- **AI-Powered Discovery**: GitHub contribution discovery using vector search
-- **Authentication**: NextAuth.js v4 with GitHub/Google OAuth
-- **API Architecture**: RESTful APIs with comprehensive testing
-- **Security**: CSP, rate limiting, and secure session management
-
-## Quick Navigation
-
-- **Authentication Setup?** See [authentication.md](authentication.md)
-- **API Usage?** Check [api-documentation.md](api-documentation.md)
-- **API Testing?** Review [api-testing-guide.md](api-testing-guide.md)
-- **Authentication Testing?** See [../testing/nextauth-v4-testing-guide.md](../testing/nextauth-v4-testing-guide.md)
+Use the [testing index](../testing/README.md) for current test commands and infrastructure guidance.

@@ -1,7 +1,6 @@
-# Comprehensive Performance Guide for Contribux
+# Historical Contribux performance notes
 
-> **Consolidated Performance Documentation** - This guide combines all performance optimization strategies,
-> Next.js 16 specific techniques, memory management, and monitoring tools into a single comprehensive resource.
+This document preserves earlier optimization guidance and recorded measurements. It isn't a current benchmark, configuration reference, or telemetry source. Verify every command and value against tracked source before reuse.
 
 ## Overview
 
@@ -624,19 +623,18 @@ const githubApiOptimizations = {
 }
 ```
 
-## Memory Optimization Results & Strategies
+## Historical memory optimization results
 
-> **Consolidated from Memory Optimization Guide** - See full memory optimization details in the original
-> [memory-optimization.md](./memory-optimization.md) for complete implementation details and monitoring scripts.
+The measurements below came from an earlier optimization pass. They aren't current benchmarks or production telemetry. Re-run the relevant profiler before using them for a decision.
 
 ### Memory Optimization Achievement Summary
 
-The memory optimization initiative successfully reduced heap usage from a 50MB+ baseline to an optimized footprint:
+The recorded optimization pass reduced heap usage from a 50MB+ baseline to an optimized footprint:
 
-- **Current Status**: 72MB total memory cleanup achieved
+- **Recorded Status**: 72MB total memory cleanup achieved
 - **GitHub Client**: Optimized to 2.6MB total overhead
 - **Memory Leak Detection**: <0.5MB growth per 100 clients
-- **Current Heap Usage**: 4.22 MB (excellent, well under 50MB target)
+- **Recorded Heap Usage**: 4.22 MB (well under the 50MB target at the time)
 - **Heap Efficiency**: 79.57%
 - **RSS**: 43.13 MB (reasonable for Node.js application)
 
@@ -700,7 +698,7 @@ Even a minimal "hello world" test uses ~30MB in our environment.
 - **Per client instance**: +0.07MB
 - **Full test environment**: ~32-36MB (with all test setup)
 
-**Result**: Current optimized usage shows excellent efficiency with 4.22MB heap usage and 79.57% heap efficiency.
+These recorded values don't establish current memory usage or efficiency.
 
 ## Performance Monitoring and Alerting
 

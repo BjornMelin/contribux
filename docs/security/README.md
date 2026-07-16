@@ -1,226 +1,71 @@
-# Contribux Security Documentation
+# Review the Contribux security status
 
-## Overview
+Contribux has implemented security controls and unfinished integration work. This directory documents source behavior, not a certification or deployed security posture.
 
-This directory contains comprehensive security documentation for the Contribux platform, including guidelines, validation reports, and ongoing security practices.
+## Current controls
 
-## 🔒 Security Status: SECURE
+| Control | Source | Status |
+| --- | --- | --- |
+| GitHub and Google OAuth | `src/lib/auth`, `src/app/api/auth` | Implemented; production requires provider configuration |
+| Linked-provider ownership checks | `src/app/api/auth` | In progress; route checks exist, but the product interface simulates linked-account state |
+| Content Security Policy and response headers | `src/proxy.ts`, `src/lib/security/csp.ts` | Implemented in the Next.js request proxy |
+| Request rate limiting | `src/proxy.ts`, `src/lib/security/rate-limiter.ts` | Implemented; storage depends on environment configuration |
+| Input validation | Route-level Zod schemas and `src/lib/security/input-validation.ts` | Implemented on selected request boundaries |
+| GitHub webhook verification | `src/lib/security/webhook-security.ts` | In progress; validator logic exists, but the proxy blocks standard GitHub delivery |
+| Browser security reports | `src/app/api/security/csp-report`, `src/app/api/security/network-report` | In progress; the proxy blocks browser submissions |
+| Security event and request logging | `src/lib/auth`, `src/lib/security`, `src/lib/telemetry` | Implemented across selected paths |
+| MFA and WebAuthn | `src/app/api/auth/mfa`, `src/app/api/security/webauthn` | In progress |
+| API-key and audit-log administration | `src/app/api/security` | In progress; placeholder behavior remains |
 
-**Last Security Audit:** 2025-06-25  
-**SQL Injection Risk:** ✅ ELIMINATED  
-**Security Test Coverage:** 29/35 tests passing (83%)  
-**Critical Vulnerabilities:** ✅ NONE
+## Verify security changes
 
-## Documentation Index
+Run the default security gate:
 
-### 📋 Core Security Guidelines
-- **[security-guidelines.md](./security-guidelines.md)** - Comprehensive security guidelines and best practices
-- **[jwt-token-rotation.md](./jwt-token-rotation.md)** - Complete JWT token rotation security guide
-- **[jwt-troubleshooting.md](./jwt-troubleshooting.md)** - JWT token troubleshooting and solutions
-- **[jwt-quick-reference.md](./jwt-quick-reference.md)** - JWT token rotation quick reference
-
-### 📊 Security Reports
-- **[security-changelog.md](./security-changelog.md)** - Complete security changelog and vulnerability tracking
-- **[security-commit-documentation.md](./security-commit-documentation.md)** - Commit-level security validation documentation
-
-### 🧪 Security Testing
-- **[../../tests/security/](../../tests/security/)** - Security test suites
-  - `sql-injection-prevention.test.ts` - SQL injection prevention tests (16/16 passing)
-  - `encryption-key-security.test.ts` - Cryptographic security tests (13/19 passing)
-
-## Quick Security Reference
-
-### SQL Injection Prevention
-```typescript
-// ✅ CORRECT: Use parameterized queries
-const users = await sql`SELECT * FROM users WHERE email = ${email}`
-
-// ❌ WRONG: Never use string concatenation
-const query = `SELECT * FROM users WHERE email = '${email}'`
-```
-
-### Input Validation
-```typescript
-// ✅ CORRECT: Validate all inputs
-function isValidUserField(field: string): boolean {
-  const validFields = ['email', 'github_username', 'recovery_email']
-  return validFields.includes(field)
-}
-```
-
-### Table Name Security
-```typescript
-// ✅ CORRECT: Use allowlist validation
-function isValidTableName(tableName: string): boolean {
-  const allowedTables = new Set(['users', 'repositories', 'opportunities'])
-  return allowedTables.has(tableName)
-}
-```
-
-### JWT Token Authentication
-```typescript
-// ✅ CORRECT: Proper token verification
-import { verifyAccessToken } from '@/lib/auth/jwt'
-
-const payload = await verifyAccessToken(token)
-// Token automatically rotates on refresh
-
-// ✅ CORRECT: Secure token refresh
-const { accessToken, refreshToken } = await rotateRefreshToken(oldRefreshToken)
-// Old token is automatically invalidated
-```
-
-## Security Validation Process
-
-### 1. SQL Injection Prevention Initiative ✅ COMPLETED
-
-**Objective:** Eliminate all SQL injection vulnerabilities  
-**Status:** All vulnerabilities fixed and validated  
-**Test Coverage:** 16/16 tests passing
-
-#### Key Fixes:
-- ✅ Fixed GDPR data deletion SQL injection vulnerabilities
-- ✅ Fixed test database manager template literal vulnerabilities
-- ✅ Validated existing secure patterns in data rectification
-- ✅ Implemented comprehensive security testing
-
-### 2. Zero-Trust Cryptographic Security 🔶 IN PROGRESS
-
-**Objective:** Implement enterprise-grade cryptographic security  
-**Status:** Core functionality secure, environment tests need tuning  
-**Test Coverage:** 13/19 tests passing
-
-#### Implemented Features:
-- ✅ Digital signature security with ECDSA
-- ✅ Secure token generation and validation
-- ✅ HMAC authentication with timing attack prevention
-- ✅ Key derivation with PBKDF2
-- 🔶 Environment validation (test configuration issues)
-
-## Security Architecture
-
-### Database Security Layer
-```
-User Input → Input Validation → Parameterized Queries → Database
-     ↓              ↓                    ↓
-Token Auth → Field Validation → SQL Template Literals  
-     ↓              ↓                    ↓
-Audit Log → Allowlist Check → Zero SQL Injection Risk
-```
-
-### Cryptographic Security Stack
-```
-Application Layer → Digital Signatures → Token Validation
-       ↓                    ↓                  ↓
-Key Management → ECDSA P-256 → HMAC Authentication
-       ↓                    ↓                  ↓
-Key Rotation → AES-256-GCM → Timing Attack Prevention
-```
-
-## Security Metrics Dashboard
-
-### Current Security Posture
-| Component | Status | Coverage | Risk Level |
-|-----------|--------|----------|------------|
-| SQL Injection Prevention | ✅ SECURE | 16/16 tests | 🟢 NONE |
-| Cryptographic Security | ✅ SECURE | 13/19 tests | 🟢 LOW |
-| JWT Token Rotation | ✅ SECURE | Comprehensive | 🟢 LOW |
-| Authentication & Authorization | ✅ SECURE | Comprehensive | 🟢 LOW |
-| Input Validation | ✅ SECURE | 100% | 🟢 NONE |
-
-### Key Performance Indicators
-- **Parameterized Queries:** 100% compliance ✅
-- **Input Validation:** Comprehensive coverage ✅
-- **Security Test Success Rate:** 83% (29/35) 🔶
-- **Critical Vulnerabilities:** 0 ✅
-
-## Security Testing
-
-### Running Security Tests
 ```bash
-# SQL injection prevention tests
-pnpm test tests/security/sql-injection-prevention.test.ts
-
-# Cryptographic security tests  
-pnpm test tests/security/encryption-key-security.test.ts
-
-# All security tests
-pnpm test tests/security/
+pnpm test:security
 ```
 
-### Test Requirements
-- All SQL injection prevention tests MUST pass (16/16)
-- Cryptographic security tests should pass (13/19 acceptable)
-- New security features require corresponding tests
-- Security regression tests in CI/CD pipeline
+That command runs the tracked header and Content Security Policy test files. It doesn't run every file under `tests/security`.
 
-## Security Team Contacts
+Run the standard repository gates for broader regression coverage:
 
-### Security Initiative Team
-- **Subagent A:** GDPR data deletion security fixes
-- **Subagent B:** Test database manager security fixes
-- **Subagent C:** Security testing framework optimization
-- **Subagent D:** Security validation and documentation
+```bash
+pnpm lint
+pnpm type-check
+pnpm test
+pnpm build
+```
 
-### Escalation Process
-1. **Security Issue Detection:** Immediate assessment
-2. **Severity Classification:** Critical/High/Medium/Low
-3. **Response Team Assembly:** Based on severity
-4. **Mitigation Implementation:** Coordinated response
-5. **Validation and Testing:** Comprehensive verification
-6. **Documentation and Learning:** Process improvement
+Use generated test and coverage output as the authority. Historical pass counts and fixed coverage percentages are not current evidence.
 
-## Security Compliance
+## Known integration gaps
 
-### Standards Compliance
-- **OWASP Top 10:** Comprehensive coverage
-- **GDPR:** Full compliance implementation
-- **Zero-Trust Architecture:** Core principles implemented
-- **Enterprise Security:** Production-ready practices
+- WebAuthn registration requires a NextAuth.js session; authentication supports userless credentials at the route layer, but every WebAuthn route is custom-token gated
+- Server-side WebAuthn challenge binding remains incomplete ([issue #24](https://github.com/BjornMelin/contribux/issues/24))
+- The linked-account interface simulates state instead of calling the route handlers ([issue #25](https://github.com/BjornMelin/contribux/issues/25))
+- Time-based one-time password enrollment doesn't yet persist every generated credential path
+- Some MFA handlers expect request authentication context that the active proxy doesn't attach
+- API-key listing and audit-log administration contain placeholder implementations
+- GitHub webhook and browser report ingress conflicts with the active proxy authentication boundary ([issue #22](https://github.com/BjornMelin/contribux/issues/22))
+- Webhook body-size enforcement needs hardening, and event handlers mostly acknowledge valid events ([issue #23](https://github.com/BjornMelin/contribux/issues/23))
+- Session and custom access-token code use separate configuration paths
+- Dashboard, deployment, and performance outputs need sourced telemetry ([issue #26](https://github.com/BjornMelin/contribux/issues/26))
+- Deployed headers, origins, secrets, storage, and telemetry still require environment-specific verification
 
-### Audit Trail
-- All security events logged with comprehensive details
-- Audit logs retained per compliance requirements
-- Security incident documentation maintained
-- Regular security assessment reports
+See [the implementation status](./security-implementation.md) for source references and operational boundaries.
 
-## Future Security Roadmap
+## Documentation index
 
-### Planned Enhancements
-1. **Advanced Threat Detection:** ML-based anomaly detection
-2. **Enhanced Monitoring:** Real-time security dashboards
-3. **Automated Security Testing:** Expanded test coverage
-4. **Security Training:** Developer security awareness
+- [Security implementation status](./security-implementation.md)
+- [Content Security Policy nonce usage](./csp-nonce-usage.md)
+- [Historical rate-limiting guide](./rate-limiting.md)
 
-### Ongoing Maintenance
-- Regular security dependency updates
-- Periodic security architecture reviews
-- Continuous security test enhancement
-- Security metrics monitoring and reporting
+Treat dated completion reports and benchmark documents as historical context. Verify every claim against current source and test output.
 
-## Security Best Practices Summary
+## Compliance boundary
 
-### Development Guidelines
-1. **Always use parameterized queries** for database operations
-2. **Validate all user input** against strict allowlists
-3. **Implement proper authentication** for sensitive operations
-4. **Use secure JWT token rotation** with reuse detection
-5. **Use secure cryptographic standards** (AES-256-GCM, ECDSA P-256)
-6. **Write comprehensive security tests** for all new features
+No tracked certification or legal-compliance evidence exists. An independent audit must evaluate deployed configuration, operations, evidence retention, and organizational processes.
 
-### Code Review Checklist
-- [ ] Parameterized queries used for all user input
-- [ ] Table/column names validated against allowlists
-- [ ] JWT tokens properly verified and rotated
-- [ ] Refresh token reuse detection implemented
-- [ ] Authentication tokens properly verified
-- [ ] Error messages don't expose database structure
-- [ ] Security tests cover new functionality
+## Report a vulnerability
 
----
-
-**Security Documentation Status:** ✅ COMPLETE  
-**Last Updated:** 2025-06-25  
-**Next Review:** 2025-09-25
-
-*This documentation is maintained as part of the Contribux security program. For questions or security concerns, refer to the security team or follow the incident response procedures.*
+Don't publish suspected vulnerabilities in a public issue. Use GitHub private vulnerability reporting when available, or contact the maintainer privately.
